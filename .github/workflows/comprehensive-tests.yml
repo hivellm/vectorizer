@@ -56,7 +56,7 @@ jobs:
         run: ./scripts/run-tests.sh -t unit -v
 
       - name: Upload unit test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: unit-test-results
@@ -88,7 +88,7 @@ jobs:
         run: ./scripts/run-tests.sh -t api -v
 
       - name: Upload API test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: api-test-results
@@ -131,7 +131,7 @@ jobs:
         run: ./scripts/run-tests.sh -t mcp -v
 
       - name: Upload MCP test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mcp-test-results
@@ -163,7 +163,7 @@ jobs:
         run: ./scripts/run-tests.sh -t integration -v
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration-test-results
@@ -196,7 +196,7 @@ jobs:
         run: ./scripts/run-tests.sh -t performance -v
 
       - name: Upload performance test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: performance-test-results
@@ -229,7 +229,7 @@ jobs:
         run: ./scripts/run-tests.sh -t benchmarks -v
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: benchmark-results
@@ -261,7 +261,7 @@ jobs:
         run: ./scripts/run-tests.sh -t ci -v
 
       - name: Upload CI test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ci-test-results
@@ -297,7 +297,7 @@ jobs:
         run: ./scripts/run-tests.sh -t unit -c -v
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: target/tarpaulin/
@@ -340,7 +340,7 @@ jobs:
           fi
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.os }}
@@ -413,7 +413,7 @@ jobs:
           cat test-summary.md
 
       - name: Upload test summary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-summary
           path: test-summary.md
