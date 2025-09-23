@@ -107,7 +107,7 @@ jobs:
         run: cargo bench --no-run
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.feature-set }}
@@ -179,7 +179,7 @@ jobs:
         run: cargo build --release --verbose
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}-${{ matrix.target }}
           path: target/release/
@@ -255,7 +255,7 @@ jobs:
           curl -X GET http://127.0.0.1:15001/collections
 
       - name: Upload MCP test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mcp-test-results
@@ -288,7 +288,7 @@ jobs:
           cargo bench --features full -- --output-format json | tee benchmark-results.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: benchmark-results.json
@@ -347,7 +347,7 @@ jobs:
           tar -czf vectorizer-release.tar.gz release/
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: vectorizer-release.tar.gz
