@@ -5,21 +5,17 @@
 //! - BERT/MPNet models (more accurate)
 //! - E5 models (optimized for retrieval)
 
-#[cfg(feature = "real-models")]
+#[cfg(feature = "candle-models")]
 use candle_core::{Device, Tensor};
-#[cfg(feature = "real-models")]
+#[cfg(feature = "candle-models")]
 use candle_nn::VarBuilder;
-#[cfg(feature = "real-models")]
+#[cfg(feature = "candle-models")]
 use candle_transformers::models::bert::{BertModel, Config as BertConfig};
-#[cfg(feature = "real-models")]
-use hf_hub::api::sync::{Api, ApiBuilder};
-#[cfg(feature = "real-models")]
-use tokenizers::Tokenizer;
 use crate::error::{Result, VectorizerError};
 use super::EmbeddingProvider;
 
 /// Available real models for download and use
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum RealModelType {
     /// Fast multilingual MiniLM (384D)
     MiniLMMultilingual,
@@ -71,7 +67,7 @@ impl RealModelType {
 }
 
 /// Real transformer-based embedding model
-#[cfg(feature = "real-models")]
+#[cfg(feature = "candle-models")]
 pub struct RealModelEmbedder {
     model: BertModel,
     tokenizer: Tokenizer,
@@ -80,7 +76,14 @@ pub struct RealModelEmbedder {
     model_cache_dir: std::path::PathBuf,
 }
 
-#[cfg(feature = "real-models")]
+/// Placeholder struct when Candle is not available
+#[cfg(not(feature = "candle-models"))]
+pub struct RealModelEmbedder {
+    model_type: RealModelType,
+    dimension: usize,
+}
+
+#[cfg(feature = "candle-models")]
 impl RealModelEmbedder {
     /// Create a new real model embedder
     pub fn new(model_type: RealModelType) -> Result<Self> {
@@ -191,7 +194,7 @@ impl RealModelEmbedder {
     }
 }
 
-#[cfg(feature = "real-models")]
+#[cfg(feature = "candle-models")]
 impl EmbeddingProvider for RealModelEmbedder {
     fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
         self.encode(texts)
@@ -212,21 +215,18 @@ impl EmbeddingProvider for RealModelEmbedder {
     }
 }
 
-/// Fallback implementation when real-models feature is not enabled
-#[cfg(not(feature = "real-models"))]
-pub struct RealModelEmbedder {
-    model_type: RealModelType,
-}
-
-#[cfg(not(feature = "real-models"))]
+#[cfg(not(feature = "candle-models"))]
 impl RealModelEmbedder {
     pub fn new(model_type: RealModelType) -> Result<Self> {
-        println!("⚠️  Real models feature not enabled. Using placeholder implementation for {}", model_type.model_id());
-        Ok(Self { model_type })
+        println!("⚠️  Candle models feature not enabled. Using placeholder implementation for {}", model_type.model_id());
+        Ok(Self { 
+            model_type,
+            dimension: model_type.dimension(),
+        })
     }
 }
 
-#[cfg(not(feature = "real-models"))]
+#[cfg(not(feature = "candle-models"))]
 impl EmbeddingProvider for RealModelEmbedder {
     fn embed_batch(&self, _texts: &[&str]) -> Result<Vec<Vec<f32>>> {
         Err(VectorizerError::Other("Real models feature not enabled. Compile with --features real-models".to_string()))

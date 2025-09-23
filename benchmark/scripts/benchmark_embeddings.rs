@@ -5,10 +5,14 @@
 
 use std::collections::HashSet;
 use std::fs;
+use std::time::Instant;
 use vectorizer::{
+    db::{OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
     embedding::{BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding, RealModelEmbedder, RealModelType, SvdEmbedding, TfIdfEmbedding},
     evaluation::{evaluate_search_quality, EvaluationMetrics, QueryResult},
     document_loader::{DocumentLoader, LoaderConfig},
+    models::{CollectionConfig, DistanceMetric, Vector},
+    parallel::{init_parallel_env, ParallelConfig},
 };
 use tracing_subscriber;
 
@@ -178,13 +182,17 @@ fn convert_ground_truth_to_ids(
         .collect()
 }
 
-/// Evaluate an embedding method on the benchmark dataset
+/// Evaluate an embedding method on the benchmark dataset with optimized indexing
 fn evaluate_embedding_method(
     embedding_name: &str,
     dataset: &BenchmarkDataset,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
     println!("Evaluating {} with dimension {}...", embedding_name, dimension);
+
+    // Initialize parallel environment
+    let parallel_config = ParallelConfig::default();
+    init_parallel_env(&parallel_config)?;
 
     let mut manager = EmbeddingManager::new();
 
@@ -199,6 +207,7 @@ fn evaluate_embedding_method(
     manager.set_default_provider(embedding_name)?;
 
     // Build vocabulary from all documents
+    println!("Building vocabulary from {} documents...", dataset.documents.len());
     if let Some(provider) = manager.get_provider_mut(embedding_name) {
         match embedding_name {
             "TF-IDF" => {
@@ -215,27 +224,72 @@ fn evaluate_embedding_method(
         }
     }
 
-    // For each query, get search results
+    // Create optimized HNSW index
+    let hnsw_config = OptimizedHnswConfig {
+        batch_size: 1000,
+        parallel: true,
+        initial_capacity: dataset.documents.len(),
+        ..Default::default()
+    };
+    let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
+
+    // Compute and index all document embeddings
+    println!("Computing and indexing {} documents...", dataset.documents.len());
+    let batch_size = 500; // Larger batches for TF-IDF/BM25 which are faster
+    let start_time = Instant::now();
+    
+    for (batch_idx, batch) in dataset.documents.chunks(batch_size).enumerate() {
+        let batch_start = Instant::now();
+        
+        // Compute embeddings for batch
+        let mut batch_vectors = Vec::with_capacity(batch.len());
+        for (i, document) in batch.iter().enumerate() {
+            let doc_idx = batch_idx * batch_size + i;
+            let embedding = manager.embed(document)?;
+            batch_vectors.push((format!("doc_{}", doc_idx), embedding));
+        }
+        
+        // Batch insert into index
+        index.batch_add(batch_vectors)?;
+        
+        let batch_elapsed = batch_start.elapsed();
+        let batch_throughput = batch.len() as f64 / batch_elapsed.as_secs_f64();
+        
+        if batch_idx % 5 == 0 {
+            let total_processed = (batch_idx + 1) * batch_size;
+            let progress = (total_processed as f32 / dataset.documents.len() as f32) * 100.0;
+            println!("  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec", 
+                batch_idx, total_processed, dataset.documents.len(), progress, batch_throughput);
+        }
+    }
+    
+    // Optimize index for search
+    index.optimize()?;
+    
+    let total_time = start_time.elapsed();
+    let overall_throughput = dataset.documents.len() as f64 / total_time.as_secs_f64();
+    println!("✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)", 
+        dataset.documents.len(), total_time.as_secs_f64(), overall_throughput);
+
+    // Evaluate queries using the index
     let mut query_results = Vec::new();
 
     for (query_idx, query) in dataset.queries.iter().enumerate() {
         // Embed the query
         let query_embedding = manager.embed(query)?;
 
-        // Simulate search results by computing similarity with all documents
-        let mut results = Vec::new();
-        for (doc_idx, document) in dataset.documents.iter().enumerate() {
-            let doc_embedding = manager.embed(document)?;
-            let similarity = cosine_similarity(&query_embedding, &doc_embedding);
+        // Search using optimized index
+        let k = 100;
+        let search_results = index.search(&query_embedding, k)?;
 
-            results.push(QueryResult {
-                doc_id: format!("doc_{}", doc_idx),
-                relevance: similarity,
-            });
-        }
-
-        // Sort by similarity (descending)
-        results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap());
+        // Convert to QueryResult format
+        let results: Vec<QueryResult> = search_results
+            .into_iter()
+            .map(|(id, distance)| QueryResult {
+                doc_id: id,
+                relevance: 1.0 - distance, // Convert distance to similarity
+            })
+            .collect();
 
         // Convert ground truth to document IDs
         let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
@@ -244,19 +298,31 @@ fn evaluate_embedding_method(
     }
 
     // Evaluate search quality
-    let metrics = evaluate_search_quality(query_results, 10); // Evaluate up to rank 10
+    let metrics = evaluate_search_quality(query_results, 10);
+
+    // Print index statistics
+    let memory_stats = index.memory_stats();
+    println!("\n📊 {} Index Statistics:", embedding_name);
+    println!("  - Vectors: {}", memory_stats.vector_count);
+    println!("  - Memory: {}", memory_stats.format());
+    println!("  - Build time: {:.2}s", total_time.as_secs_f64());
+    println!("  - Throughput: {:.2} docs/sec", overall_throughput);
 
     Ok(metrics)
 }
 
 
-/// Evaluate dense embedding methods (BERT, MiniLM, Real Models)
+/// Evaluate dense embedding methods (BERT, MiniLM) with optimized indexing
 fn evaluate_dense_embedding_method(
     method: &str,
     dataset: &BenchmarkDataset,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
     println!("Evaluating {} with dimension {}...", method, dimension);
+
+    // Initialize parallel environment
+    let parallel_config = ParallelConfig::default();
+    init_parallel_env(&parallel_config)?;
 
     let mut manager = EmbeddingManager::new();
 
@@ -272,55 +338,80 @@ fn evaluate_dense_embedding_method(
             minilm.load_model()?;
             Box::new(minilm)
         }
-        // Real models - use actual transformer models
-        "MiniLM-Multilingual" => {
-            Box::new(RealModelEmbedder::new(RealModelType::MiniLMMultilingual)?)
-        }
-        "DistilUSE-Multilingual" => {
-            Box::new(RealModelEmbedder::new(RealModelType::DistilUseMultilingual)?)
-        }
-        "MPNet-Multilingual" => {
-            Box::new(RealModelEmbedder::new(RealModelType::MPNetMultilingualBase)?)
-        }
-        "E5-Small" => {
-            Box::new(RealModelEmbedder::new(RealModelType::E5SmallMultilingual)?)
-        }
-        "E5-Base" => {
-            Box::new(RealModelEmbedder::new(RealModelType::E5BaseMultilingual)?)
-        }
-        "GTE-Base" => {
-            Box::new(RealModelEmbedder::new(RealModelType::GTEMultilingualBase)?)
-        }
-        "LaBSE" => {
-            Box::new(RealModelEmbedder::new(RealModelType::LaBSE)?)
-        }
         _ => return Err(format!("Unknown dense method: {}", method).into()),
     };
 
     manager.register_provider(method.to_string(), provider);
     manager.set_default_provider(method)?;
 
-    // Evaluate queries
+    // Determine batch size based on method (placeholder models are faster)
+    let batch_size = 200;
+    
+    // Create optimized HNSW index
+    let hnsw_config = OptimizedHnswConfig {
+        batch_size: 500,
+        parallel: true,
+        initial_capacity: dataset.documents.len(),
+        ..Default::default()
+    };
+    let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
+
+    // Compute and index all document embeddings
+    println!("Computing and indexing {} documents...", dataset.documents.len());
+    let start_time = Instant::now();
+    
+    for (batch_idx, batch) in dataset.documents.chunks(batch_size).enumerate() {
+        let batch_start = Instant::now();
+        
+        // Compute embeddings for batch
+        let mut batch_vectors = Vec::with_capacity(batch.len());
+        for (i, document) in batch.iter().enumerate() {
+            let doc_idx = batch_idx * batch_size + i;
+            let embedding = manager.embed(document)?;
+            batch_vectors.push((format!("doc_{}", doc_idx), embedding));
+        }
+        
+        // Batch insert into index
+        index.batch_add(batch_vectors)?;
+        
+        let batch_elapsed = batch_start.elapsed();
+        let batch_throughput = batch.len() as f64 / batch_elapsed.as_secs_f64();
+        
+        if batch_idx % 10 == 0 {
+            let total_processed = (batch_idx + 1) * batch_size;
+            let progress = (total_processed as f32 / dataset.documents.len() as f32) * 100.0;
+            println!("  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec", 
+                batch_idx, total_processed, dataset.documents.len(), progress, batch_throughput);
+        }
+    }
+    
+    // Optimize index for search
+    index.optimize()?;
+    
+    let total_time = start_time.elapsed();
+    let overall_throughput = dataset.documents.len() as f64 / total_time.as_secs_f64();
+    println!("✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)", 
+        dataset.documents.len(), total_time.as_secs_f64(), overall_throughput);
+
+    // Evaluate queries using the index
     let mut query_results = Vec::new();
 
     for (query_idx, query) in dataset.queries.iter().enumerate() {
         // Get query embedding
         let query_embedding = manager.embed(query)?;
 
-        // Simulate search results
-        let mut results = Vec::new();
-        for (doc_idx, document) in dataset.documents.iter().enumerate() {
-            let doc_embedding = manager.embed(document)?;
-            let similarity = cosine_similarity(&query_embedding, &doc_embedding);
+        // Search using optimized index
+        let k = 100;
+        let search_results = index.search(&query_embedding, k)?;
 
-            results.push(QueryResult {
-                doc_id: format!("doc_{}", doc_idx),
-                relevance: similarity,
-            });
-        }
-
-        // Sort by similarity
-        results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap());
+        // Convert to QueryResult format
+        let results: Vec<QueryResult> = search_results
+            .into_iter()
+            .map(|(id, distance)| QueryResult {
+                doc_id: id,
+                relevance: 1.0 - distance,
+            })
+            .collect();
 
         // Convert ground truth
         let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
@@ -331,11 +422,19 @@ fn evaluate_dense_embedding_method(
     // Evaluate search quality
     let metrics = evaluate_search_quality(query_results, 10);
 
+    // Print index statistics
+    let memory_stats = index.memory_stats();
+    println!("\n📊 {} Index Statistics:", method);
+    println!("  - Vectors: {}", memory_stats.vector_count);
+    println!("  - Memory: {}", memory_stats.format());
+    println!("  - Build time: {:.2}s", total_time.as_secs_f64());
+    println!("  - Throughput: {:.2} docs/sec", overall_throughput);
+
     Ok(metrics)
 }
 
 
-/// Evaluate real transformer model embeddings (optimized for performance)
+/// Evaluate real transformer model embeddings with optimized indexing
 #[cfg(feature = "real-models")]
 fn evaluate_real_model_embedding(
     dataset: &BenchmarkDataset,
@@ -345,59 +444,119 @@ fn evaluate_real_model_embedding(
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
     println!("Evaluating real model {} with dimension {}...", model_name, dimension);
 
+    // Initialize parallel environment for optimal performance
+    let parallel_config = ParallelConfig::default();
+    init_parallel_env(&parallel_config)?;
+
     // Create real model embedder directly (bypass manager for better performance)
     let embedder = RealModelEmbedder::new(model_type)?;
 
-    // Sample documents to avoid excessive computation (max 100 documents)
-    let max_docs = 100;
+    // Measure embedding throughput first
+    let test_batch = &dataset.documents[..std::cmp::min(100, dataset.documents.len())];
+    let test_refs: Vec<&str> = test_batch.iter().map(|s| s.as_str()).collect();
+    
+    let start_time = Instant::now();
+    let _ = embedder.embed(test_refs[0])?;
+    let single_time = start_time.elapsed();
+    
+    let start_time = Instant::now();
+    for doc in test_refs.iter().take(10) {
+        let _ = embedder.embed(doc)?;
+    }
+    let batch_time = start_time.elapsed();
+    
+    let docs_per_sec = 10.0 / batch_time.as_secs_f64();
+    println!("Throughput estimate: {:.2} docs/sec", docs_per_sec);
+
+    // Decide whether to process all documents based on performance
+    let process_all = docs_per_sec > 50.0; // If we can do > 50 docs/sec, process all
+    let max_docs = if process_all { dataset.documents.len() } else { 500 };
+    
     let sampled_docs: Vec<&String> = if dataset.documents.len() > max_docs {
-        println!("Sampling {} documents from {} total for performance", max_docs, dataset.documents.len());
+        println!("Processing {} documents from {} total", max_docs, dataset.documents.len());
         dataset.documents.iter().take(max_docs).collect()
     } else {
+        println!("Processing ALL {} documents!", dataset.documents.len());
         dataset.documents.iter().collect()
     };
 
-    // Pre-compute all document embeddings in batch for better performance
-    println!("Pre-computing embeddings for {} documents...", sampled_docs.len());
-    let mut doc_embeddings = Vec::new();
+    // Create optimized HNSW index
+    let hnsw_config = OptimizedHnswConfig {
+        batch_size: 1000,
+        parallel: true,
+        initial_capacity: sampled_docs.len(),
+        ..Default::default()
+    };
+    let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
-    for (i, document) in sampled_docs.iter().enumerate() {
-        if i % 10 == 0 {
-            println!("  Processed {}/{} documents...", i, sampled_docs.len());
+    // Pre-compute and index embeddings in batches
+    println!("Computing and indexing {} documents...", sampled_docs.len());
+    let batch_size = 100;
+    let start_time = Instant::now();
+    
+    for (batch_idx, batch) in sampled_docs.chunks(batch_size).enumerate() {
+        let batch_start = Instant::now();
+        
+        // Compute embeddings for batch
+        let mut batch_vectors = Vec::with_capacity(batch.len());
+        for (i, document) in batch.iter().enumerate() {
+            let doc_idx = batch_idx * batch_size + i;
+            let embedding = embedder.embed(document)?;
+            batch_vectors.push((format!("doc_{}", doc_idx), embedding));
         }
-        let embedding = embedder.embed(document)?;
-        doc_embeddings.push(embedding);
+        
+        // Batch insert into index
+        index.batch_add(batch_vectors)?;
+        
+        let batch_elapsed = batch_start.elapsed();
+        let batch_throughput = batch.len() as f64 / batch_elapsed.as_secs_f64();
+        
+        if batch_idx % 10 == 0 {
+            let total_processed = (batch_idx + 1) * batch_size;
+            let progress = (total_processed as f32 / sampled_docs.len() as f32) * 100.0;
+            println!("  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec", 
+                batch_idx, total_processed, sampled_docs.len(), progress, batch_throughput);
+        }
     }
+    
+    // Optimize index for search
+    index.optimize()?;
+    
+    let total_time = start_time.elapsed();
+    let overall_throughput = sampled_docs.len() as f64 / total_time.as_secs_f64();
+    println!("✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)", 
+        sampled_docs.len(), total_time.as_secs_f64(), overall_throughput);
 
-    println!("Computing query similarities...");
-
-    // Evaluate queries
+    // Evaluate queries using the index
+    println!("Evaluating queries using HNSW index...");
     let mut query_results = Vec::new();
 
     for (query_idx, query) in dataset.queries.iter().enumerate() {
-        println!("  Processing query {}/{}: {}", query_idx + 1, dataset.queries.len(), query);
+        println!("  Query {}/{}: {}", query_idx + 1, dataset.queries.len(), query);
 
         // Get query embedding
         let query_embedding = embedder.embed(query)?;
 
-        // Compute similarities with all sampled documents
-        let mut results = Vec::new();
-        for (doc_idx, doc_embedding) in doc_embeddings.iter().enumerate() {
-            let similarity = cosine_similarity(&query_embedding, doc_embedding);
+        // Search using optimized index
+        let k = 100; // Get more results for better evaluation
+        let search_results = index.search(&query_embedding, k)?;
 
-            results.push(QueryResult {
-                doc_id: format!("doc_{}", doc_idx),
-                relevance: similarity,
-            });
-        }
-
-        // Sort by similarity
-        results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap());
+        // Convert to QueryResult format
+        let results: Vec<QueryResult> = search_results
+            .into_iter()
+            .map(|(id, distance)| QueryResult {
+                doc_id: id,
+                relevance: 1.0 - distance, // Convert distance to similarity
+            })
+            .collect();
 
         // Create ground truth based on sampled documents
         let ground_truth_ids = if sampled_docs.len() < dataset.documents.len() {
-            // For sampled evaluation, consider first few documents as relevant
-            (0..std::cmp::min(5, sampled_docs.len()))
+            // For sampled evaluation, adjust ground truth
+            let sampled_indices: HashSet<usize> = (0..sampled_docs.len()).collect();
+            dataset.ground_truth[query_idx]
+                .iter()
+                .filter(|idx| sampled_indices.contains(idx))
                 .map(|idx| format!("doc_{}", idx))
                 .collect()
         } else {
@@ -410,7 +569,15 @@ fn evaluate_real_model_embedding(
     // Evaluate search quality
     let metrics = evaluate_search_quality(query_results, 10);
 
-    println!("✅ Model evaluation completed successfully!");
+    // Print index statistics
+    let memory_stats = index.memory_stats();
+    println!("\n📊 Index Statistics:");
+    println!("  - Vectors: {}", memory_stats.vector_count);
+    println!("  - Memory: {}", memory_stats.format());
+    println!("  - Build time: {:.2}s", total_time.as_secs_f64());
+    println!("  - Throughput: {:.2} docs/sec", overall_throughput);
+
+    println!("\n✅ Model evaluation completed successfully!");
 
     Ok(metrics)
 }

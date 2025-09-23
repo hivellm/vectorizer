@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Performance Optimizations - 2025-09-24)
+
+#### Ultra-fast Tokenization
+- Native Rust tokenizer integration with HuggingFace `tokenizers` crate
+- Batch tokenization with truncation/padding support (32-128 tokens)
+- In-memory token caching using xxHash for deduplication
+- Reusable tokenizer instances with Arc/OnceCell pattern
+- Expected throughput: ~50-150k tokens/sec on CPU
+
+#### ONNX Runtime Integration  
+- High-performance inference engine for production deployments
+- CPU optimization with MKL/OpenMP backends
+- INT8 quantization support (2-4x speedup with minimal quality loss)
+- Batch inference for 32-128 documents
+- Support for MiniLM, E5, MPNet model variants
+
+#### Intelligent Parallelism
+- Separate thread pools for embedding and indexing operations
+- BLAS thread limiting (OMP_NUM_THREADS=1) to prevent oversubscription
+- Bounded channel executors for backpressure management
+- Configurable parallelism levels via config file
+
+#### Persistent Embedding Cache
+- Zero-copy loading with memory-mapped files
+- Content-based hashing for incremental builds
+- Sharded cache architecture for parallel access
+- Binary format with optional compression
+- Optional Arrow/Parquet support for analytics
+
+#### Optimized HNSW Index
+- Batch insertion with configurable sizes (100-1000 vectors)
+- Pre-allocated memory for known dataset sizes
+- Parallel graph construction support
+- Adaptive ef_search based on index size
+- Real-time memory usage statistics
+
+#### Real Transformer Models (Candle)
+- MiniLM Multilingual (384D) - Fast multilingual embeddings
+- DistilUSE Multilingual (512D) - Balanced performance
+- MPNet Multilingual Base (768D) - Higher accuracy
+- E5 Models (384D/768D) - Optimized for retrieval
+- GTE Multilingual Base (768D) - Alternative high-quality
+- LaBSE (768D) - Language-agnostic embeddings
+
+#### ONNX Production Models
+- sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (384D)
+- intfloat/multilingual-e5-base (768D) 
+- Alibaba-NLP/gte-multilingual-base (768D)
+- Custom ONNX model support
+
+#### Performance Benchmarks
+Expected throughput on CPU (8c/16t):
+- Tokenization: ~50-150k tokens/sec
+- MiniLM-384D embedding: 2-6k docs/sec (short), 300-800 docs/sec (chunked)
+- Optimized HNSW indexing: 10-50k vectors/sec
+- TF-IDF/BM25: 50-200k docs/sec
+
+### Changed
+- Refactored feature flags: `real-models`, `onnx-models`, `candle-models`
+- Updated benchmark suite to use optimized components
+- Enhanced config.example.yml with performance tuning options
+
 ## [0.4.0] - 2025-09-23
 
 ### Added

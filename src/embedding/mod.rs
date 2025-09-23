@@ -908,5 +908,23 @@ mod tests {
 // Real models module
 pub mod real_models;
 
+// Performance modules
+#[cfg(feature = "tokenizers")]
+pub mod fast_tokenizer;
+
+#[cfg(feature = "onnx-models")]
+pub mod onnx_models;
+
+pub mod cache;
+
 // Re-export real models
 pub use real_models::{RealModelEmbedder, RealModelType};
+
+// Re-export performance modules
+#[cfg(feature = "tokenizers")]
+pub use fast_tokenizer::{FastTokenizer, FastTokenizerConfig};
+
+#[cfg(feature = "onnx-models")]
+pub use onnx_models::{OnnxEmbedder, OnnxConfig, OnnxModelType, PoolingStrategy};
+
+pub use cache::{EmbeddingCache, CacheConfig};

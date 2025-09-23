@@ -11,7 +11,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// Document chunk with metadata
 #[derive(Debug, Clone)]

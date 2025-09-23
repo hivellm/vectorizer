@@ -11,6 +11,7 @@ pub mod error;
 pub mod evaluation;
 pub mod hybrid_search;
 pub mod models;
+pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
 

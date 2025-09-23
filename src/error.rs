@@ -9,6 +9,10 @@ pub enum VectorizerError {
     #[error("Invalid dimension: expected {expected}, got {got}")]
     InvalidDimension { expected: usize, got: usize },
 
+    /// Dimension mismatch
+    #[error("Dimension mismatch: expected {expected}, got {actual}")]
+    DimensionMismatch { expected: usize, actual: usize },
+
     /// Collection not found
     #[error("Collection not found: {0}")]
     CollectionNotFound(String),
@@ -45,7 +49,7 @@ pub enum VectorizerError {
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
 
-    #[cfg(feature = "real-models")]
+    #[cfg(feature = "candle-models")]
     /// Candle ML framework error
     #[error("Candle error: {0}")]
     CandleError(#[from] candle_core::Error),

@@ -6,8 +6,7 @@
 
 use crate::embedding::EmbeddingProvider;
 use crate::evaluation::QueryResult;
-use crate::error::{Result, VectorizerError};
-use std::collections::HashSet;
+use crate::error::Result;
 
 /// Hybrid search retriever combining sparse and dense methods
 pub struct HybridRetriever<T: EmbeddingProvider, U: EmbeddingProvider> {
@@ -134,7 +133,7 @@ pub fn create_bm25_bert_hybrid(
     bert_dimension: usize,
     first_stage_k: usize,
 ) -> Result<HybridRetriever<crate::Bm25Embedding, crate::BertEmbedding>> {
-    let mut bm25 = crate::Bm25Embedding::new(bm25_vocab_size);
+    let bm25 = crate::Bm25Embedding::new(bm25_vocab_size);
     let mut bert = crate::BertEmbedding::new(bert_dimension);
     bert.load_model()?;
 
@@ -147,7 +146,7 @@ pub fn create_bm25_minilm_hybrid(
     minilm_dimension: usize,
     first_stage_k: usize,
 ) -> Result<HybridRetriever<crate::Bm25Embedding, crate::MiniLmEmbedding>> {
-    let mut bm25 = crate::Bm25Embedding::new(bm25_vocab_size);
+    let bm25 = crate::Bm25Embedding::new(bm25_vocab_size);
     let mut minilm = crate::MiniLmEmbedding::new(minilm_dimension);
     minilm.load_model()?;
 
@@ -161,7 +160,7 @@ pub fn create_tfidf_svd_bert_hybrid(
     bert_dimension: usize,
     first_stage_k: usize,
 ) -> Result<HybridRetriever<crate::SvdEmbedding, crate::BertEmbedding>> {
-    let mut svd = crate::SvdEmbedding::new(svd_dimension, vocab_size);
+    let svd = crate::SvdEmbedding::new(svd_dimension, vocab_size);
     let mut bert = crate::BertEmbedding::new(bert_dimension);
     bert.load_model()?;
 

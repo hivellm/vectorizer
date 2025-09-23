@@ -118,6 +118,14 @@ performance:
     max_blocking_threads: 512 # Maximum blocking threads
     async_runtime_threads: 4  # Async runtime worker threads
 
+  # Parallel Processing Configuration
+  parallel:
+    embedding_threads: 8      # Number of threads for embedding (default: CPU cores / 2)
+    indexing_threads: 4       # Number of threads for indexing (default: CPU cores / 4)
+    blas_threads: 1           # BLAS threads per worker (keep at 1 to avoid oversubscription)
+    channel_size: 10000       # Channel buffer size for pipeline
+    batch_size: 128           # Default batch size for processing
+
   # Caching
   cache:
     enabled: true
@@ -125,6 +133,14 @@ performance:
     query_cache_size_mb: 128  # Query result cache size
     cache_ttl_seconds: 3600   # Cache TTL (1 hour)
     cache_compression: true   # Compress cached data
+
+  # Embedding Cache Configuration
+  embedding_cache:
+    enabled: true
+    cache_dir: "./cache/embeddings"  # Embedding cache directory
+    max_size_gb: 10           # Maximum cache size (10GB)
+    use_mmap: true            # Use memory-mapped files for zero-copy loading
+    num_shards: 16            # Number of cache shards for parallel access
 
   # Resource Limits
   limits:
@@ -195,7 +211,7 @@ collections:
 
     # Embedding settings
     embedding:
-      model: "native_bow"     # Default embedding: native_bow/native_hash/native_ngram
+      model: "native_bow"     # Default embedding: native_bow/native_hash/native_ngram/bm25/real_model/onnx_model
       bow:
         vocab_size: 50000     # BOW vocabulary size
         max_sequence_length: 512 # Maximum sequence length
@@ -204,6 +220,17 @@ collections:
       ngram:
         ngram_range: [1, 3]   # N-gram range [min, max]
         vocab_size: 100000    # N-gram vocabulary size
+      bm25:
+        k1: 1.5               # BM25 k1 parameter
+        b: 0.75               # BM25 b parameter
+      real_model:
+        model_type: "MiniLMMultilingual"  # Real model type
+        cache_dir: "./models" # Model cache directory
+      onnx_model:
+        model_type: "MiniLMMultilingual384"  # ONNX model type
+        batch_size: 128       # Batch size for inference
+        use_int8: true        # Enable INT8 quantization
+        num_threads: 1        # Threads per worker
 
     # Compression settings
     compression:
@@ -213,11 +240,17 @@ collections:
 
     # Index settings (HNSW)
     index:
-      type: "hnsw"
+      type: "hnsw"            # Index type: hnsw/optimized_hnsw
       hnsw:
         m: 16                 # HNSW connections per layer
         ef_construction: 200  # Construction search width
         ef_search: 64         # Query search width
+      optimized_hnsw:
+        batch_size: 1000      # Batch insertion size
+        parallel: true        # Enable parallel construction
+        initial_capacity: 100000  # Pre-allocation size
+        max_connections: 16   # Maximum connections per layer
+        max_connections_0: 32 # Connections for layer 0
 
 # =============================================================================
 # LOGGING CONFIGURATION
@@ -354,12 +387,17 @@ experimental:
     gpu_acceleration: false         # GPU-accelerated operations
     advanced_quantization: false    # Experimental quantization methods
     federated_search: false         # Cross-server search federation
+    hybrid_search: true             # Hybrid sparse+dense search
+    svd_embeddings: true            # SVD dimensionality reduction
 
   # Performance optimizations
   optimizations:
     simd_operations: true          # SIMD vector operations
     async_io: true                 # Asynchronous I/O operations
     zero_copy_serialization: false # Zero-copy data serialization
+    fast_tokenization: true        # Ultra-fast tokenization with caching
+    onnx_inference: true           # ONNX Runtime for inference
+    embedding_cache_mmap: true     # Memory-mapped embedding cache
 
 # =============================================================================
 # CUSTOM EXTENSIONS
