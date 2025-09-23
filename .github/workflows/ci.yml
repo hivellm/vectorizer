@@ -199,7 +199,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Node.js (for MCP client testing)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '18'
 
