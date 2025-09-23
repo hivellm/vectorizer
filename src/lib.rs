@@ -3,6 +3,7 @@
 //! This crate provides a fast and efficient vector database for semantic search
 //! and similarity queries, designed for AI-driven applications.
 
+pub mod api;
 pub mod db;
 pub mod embedding;
 pub mod error;

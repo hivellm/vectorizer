@@ -21,10 +21,10 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt()
-        .with_env_filter("vectorizer=debug,info")
+        .with_env_filter("vectorizer=debug,tower_http=debug,axum=debug")
         .init();
 
     // Parse arguments
@@ -33,15 +33,15 @@ async fn main() {
     info!("Starting Vectorizer v{}", vectorizer::VERSION);
     info!("Binding to {}:{}", args.host, args.port);
 
-    // TODO: Initialize server with configuration
-    // TODO: Start REST API server
-    // TODO: Start dashboard server
-
-    // For now, just create a simple vector store to test compilation
-    let _store = vectorizer::VectorStore::new();
+    // Initialize vector store
+    let store = vectorizer::VectorStore::new();
     info!("Vector store initialized");
 
-    // Keep the server running
-    tokio::signal::ctrl_c().await.unwrap();
-    info!("Shutting down...");
+    // Create and start the HTTP server
+    let server = vectorizer::api::VectorizerServer::new(&args.host, args.port, store);
+    
+    info!("Starting REST API server...");
+    server.start().await?;
+
+    Ok(())
 }

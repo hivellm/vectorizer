@@ -1,0 +1,2006 @@
+﻿2025-09-23T08:34:34.7500046Z Current runner version: '2.328.0'
+2025-09-23T08:34:34.7530478Z ##[group]Runner Image Provisioner
+2025-09-23T08:34:34.7531580Z Hosted Compute Agent
+2025-09-23T08:34:34.7532569Z Version: 20250829.383
+2025-09-23T08:34:34.7533564Z Commit: 27cb235aab5b0e52e153a26cd86b4742e89dac5d
+2025-09-23T08:34:34.7534898Z Build Date: 2025-08-29T13:48:48Z
+2025-09-23T08:34:34.7535971Z ##[endgroup]
+2025-09-23T08:34:34.7536839Z ##[group]Operating System
+2025-09-23T08:34:34.7537705Z Ubuntu
+2025-09-23T08:34:34.7538473Z 24.04.3
+2025-09-23T08:34:34.7539283Z LTS
+2025-09-23T08:34:34.7540027Z ##[endgroup]
+2025-09-23T08:34:34.7540884Z ##[group]Runner Image
+2025-09-23T08:34:34.7541736Z Image: ubuntu-24.04
+2025-09-23T08:34:34.7542536Z Version: 20250907.24.1
+2025-09-23T08:34:34.7544508Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20250907.24/images/ubuntu/Ubuntu2404-Readme.md
+2025-09-23T08:34:34.7547084Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20250907.24
+2025-09-23T08:34:34.7548869Z ##[endgroup]
+2025-09-23T08:34:34.7550501Z ##[group]GITHUB_TOKEN Permissions
+2025-09-23T08:34:34.7552983Z Contents: read
+2025-09-23T08:34:34.7553994Z Metadata: read
+2025-09-23T08:34:34.7554743Z Packages: read
+2025-09-23T08:34:34.7555713Z ##[endgroup]
+2025-09-23T08:34:34.7558906Z Secret source: Actions
+2025-09-23T08:34:34.7559944Z Prepare workflow directory
+2025-09-23T08:34:34.8085981Z Prepare all required actions
+2025-09-23T08:34:34.8140095Z Getting action download info
+2025-09-23T08:34:35.1680910Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+2025-09-23T08:34:35.2486757Z Download action repository 'dtolnay/rust-toolchain@nightly' (SHA:55d80eb3c5a4228eec5390a083c092095115c6f1)
+2025-09-23T08:34:35.5359454Z Complete job name: Check
+2025-09-23T08:34:35.6023292Z ##[group]Run actions/checkout@v4
+2025-09-23T08:34:35.6024342Z with:
+2025-09-23T08:34:35.6024775Z   repository: hivellm/vectorizer
+2025-09-23T08:34:35.6025475Z   token: ***
+2025-09-23T08:34:35.6025901Z   ssh-strict: true
+2025-09-23T08:34:35.6026309Z   ssh-user: git
+2025-09-23T08:34:35.6026747Z   persist-credentials: true
+2025-09-23T08:34:35.6027220Z   clean: true
+2025-09-23T08:34:35.6027640Z   sparse-checkout-cone-mode: true
+2025-09-23T08:34:35.6028126Z   fetch-depth: 1
+2025-09-23T08:34:35.6028534Z   fetch-tags: false
+2025-09-23T08:34:35.6028945Z   show-progress: true
+2025-09-23T08:34:35.6029366Z   lfs: false
+2025-09-23T08:34:35.6029748Z   submodules: false
+2025-09-23T08:34:35.6030172Z   set-safe-directory: true
+2025-09-23T08:34:35.6030876Z env:
+2025-09-23T08:34:35.6031288Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:35.6031741Z ##[endgroup]
+2025-09-23T08:34:35.7078285Z Syncing repository: hivellm/vectorizer
+2025-09-23T08:34:35.7081176Z ##[group]Getting Git version info
+2025-09-23T08:34:35.7082641Z Working directory is '/home/runner/work/vectorizer/vectorizer'
+2025-09-23T08:34:35.7084134Z [command]/usr/bin/git version
+2025-09-23T08:34:35.7101785Z git version 2.51.0
+2025-09-23T08:34:35.7132541Z ##[endgroup]
+2025-09-23T08:34:35.7151426Z Temporarily overriding HOME='/home/runner/work/_temp/22a06794-c268-45cf-8715-a791214fa204' before making global git config changes
+2025-09-23T08:34:35.7155637Z Adding repository directory to the temporary git global config as a safe directory
+2025-09-23T08:34:35.7172011Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vectorizer/vectorizer
+2025-09-23T08:34:35.7209602Z Deleting the contents of '/home/runner/work/vectorizer/vectorizer'
+2025-09-23T08:34:35.7213979Z ##[group]Initializing the repository
+2025-09-23T08:34:35.7219627Z [command]/usr/bin/git init /home/runner/work/vectorizer/vectorizer
+2025-09-23T08:34:35.7278738Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-09-23T08:34:35.7280655Z hint: is subject to change. To configure the initial branch name to use in all
+2025-09-23T08:34:35.7282084Z hint: of your new repositories, which will suppress this warning, call:
+2025-09-23T08:34:35.7282866Z hint:
+2025-09-23T08:34:35.7283923Z hint: 	git config --global init.defaultBranch <name>
+2025-09-23T08:34:35.7284568Z hint:
+2025-09-23T08:34:35.7285134Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-09-23T08:34:35.7286039Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-09-23T08:34:35.7287018Z hint:
+2025-09-23T08:34:35.7287609Z hint: 	git branch -m <name>
+2025-09-23T08:34:35.7288079Z hint:
+2025-09-23T08:34:35.7288674Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-09-23T08:34:35.7289694Z Initialized empty Git repository in /home/runner/work/vectorizer/vectorizer/.git/
+2025-09-23T08:34:35.7292081Z [command]/usr/bin/git remote add origin https://github.com/hivellm/vectorizer
+2025-09-23T08:34:35.7323477Z ##[endgroup]
+2025-09-23T08:34:35.7324520Z ##[group]Disabling automatic garbage collection
+2025-09-23T08:34:35.7327349Z [command]/usr/bin/git config --local gc.auto 0
+2025-09-23T08:34:35.7354436Z ##[endgroup]
+2025-09-23T08:34:35.7355195Z ##[group]Setting up auth
+2025-09-23T08:34:35.7360652Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-09-23T08:34:35.7389409Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-09-23T08:34:35.7648954Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-09-23T08:34:35.7679296Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-09-23T08:34:35.7916418Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-09-23T08:34:35.7963119Z ##[endgroup]
+2025-09-23T08:34:35.7966137Z ##[group]Fetching the repository
+2025-09-23T08:34:35.7975811Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +b7717cb1f2c2e25dab1873b0b83cf0c79ab07725:refs/remotes/origin/main
+2025-09-23T08:34:36.0187735Z From https://github.com/hivellm/vectorizer
+2025-09-23T08:34:36.0189178Z  * [new ref]         b7717cb1f2c2e25dab1873b0b83cf0c79ab07725 -> origin/main
+2025-09-23T08:34:36.0216356Z ##[endgroup]
+2025-09-23T08:34:36.0217089Z ##[group]Determining the checkout info
+2025-09-23T08:34:36.0219305Z ##[endgroup]
+2025-09-23T08:34:36.0224955Z [command]/usr/bin/git sparse-checkout disable
+2025-09-23T08:34:36.0305162Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-09-23T08:34:36.0332644Z ##[group]Checking out the ref
+2025-09-23T08:34:36.0337216Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-09-23T08:34:36.0427228Z Switched to a new branch 'main'
+2025-09-23T08:34:36.0429962Z branch 'main' set up to track 'origin/main'.
+2025-09-23T08:34:36.0436061Z ##[endgroup]
+2025-09-23T08:34:36.0469640Z [command]/usr/bin/git log -1 --format=%H
+2025-09-23T08:34:36.0491212Z b7717cb1f2c2e25dab1873b0b83cf0c79ab07725
+2025-09-23T08:34:36.0801134Z ##[group]Run dtolnay/rust-toolchain@nightly
+2025-09-23T08:34:36.0801746Z with:
+2025-09-23T08:34:36.0802128Z   components: rustfmt, clippy
+2025-09-23T08:34:36.0802606Z   toolchain: nightly
+2025-09-23T08:34:36.0803002Z env:
+2025-09-23T08:34:36.0803370Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:36.0803991Z ##[endgroup]
+2025-09-23T08:34:36.0918023Z ##[group]Run : parse toolchain version
+2025-09-23T08:34:36.0918665Z [36;1m: parse toolchain version[0m
+2025-09-23T08:34:36.0919202Z [36;1mif [[ -z $toolchain ]]; then[0m
+2025-09-23T08:34:36.0920118Z [36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070[0m
+2025-09-23T08:34:36.0921070Z [36;1m  echo "'toolchain' is a required input" >&2[0m
+2025-09-23T08:34:36.0921631Z [36;1m  exit 1[0m
+2025-09-23T08:34:36.0922278Z [36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2025-09-23T08:34:36.0923278Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2025-09-23T08:34:36.0924319Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.0925180Z [36;1m  else[0m
+2025-09-23T08:34:36.0925892Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.0926709Z [36;1m  fi[0m
+2025-09-23T08:34:36.0927274Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2025-09-23T08:34:36.0928213Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.0929042Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2025-09-23T08:34:36.0929947Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.0930799Z [36;1melse[0m
+2025-09-23T08:34:36.0931263Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.0931817Z [36;1mfi[0m
+2025-09-23T08:34:36.0980592Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:36.0981255Z env:
+2025-09-23T08:34:36.0981629Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:36.0982084Z   toolchain: nightly
+2025-09-23T08:34:36.0982489Z ##[endgroup]
+2025-09-23T08:34:36.1128392Z ##[group]Run : construct rustup command line
+2025-09-23T08:34:36.1128989Z [36;1m: construct rustup command line[0m
+2025-09-23T08:34:36.1129792Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.1130889Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.1131844Z [36;1mecho "downgrade= --allow-downgrade" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:36.1159987Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:36.1160628Z env:
+2025-09-23T08:34:36.1161013Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:36.1161465Z   targets: 
+2025-09-23T08:34:36.1161847Z   components: rustfmt, clippy
+2025-09-23T08:34:36.1162310Z ##[endgroup]
+2025-09-23T08:34:36.1250000Z ##[group]Run : set $CARGO_HOME
+2025-09-23T08:34:36.1250504Z [36;1m: set $CARGO_HOME[0m
+2025-09-23T08:34:36.1251120Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2025-09-23T08:34:36.1278719Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:36.1279337Z env:
+2025-09-23T08:34:36.1279720Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:36.1280159Z ##[endgroup]
+2025-09-23T08:34:36.1431543Z ##[group]Run : install rustup if needed
+2025-09-23T08:34:36.1432614Z [36;1m: install rustup if needed[0m
+2025-09-23T08:34:36.1433987Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2025-09-23T08:34:36.1436371Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2025-09-23T08:34:36.1439033Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2025-09-23T08:34:36.1440072Z [36;1mfi[0m
+2025-09-23T08:34:36.1468948Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:36.1469572Z env:
+2025-09-23T08:34:36.1469948Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:36.1470406Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:36.1470888Z ##[endgroup]
+2025-09-23T08:34:36.1557260Z ##[group]Run rustup toolchain install nightly --component rustfmt --component clippy --profile minimal --allow-downgrade --no-self-update
+2025-09-23T08:34:36.1558926Z [36;1mrustup toolchain install nightly --component rustfmt --component clippy --profile minimal --allow-downgrade --no-self-update[0m
+2025-09-23T08:34:36.1586899Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:36.1587512Z env:
+2025-09-23T08:34:36.1587888Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:36.1588511Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:36.1588990Z ##[endgroup]
+2025-09-23T08:34:36.2274030Z info: syncing channel updates for 'nightly-x86_64-unknown-linux-gnu'
+2025-09-23T08:34:36.5247948Z info: latest update on 2025-09-23, rust version 1.92.0-nightly (f6092f224 2025-09-22)
+2025-09-23T08:34:36.5249650Z info: downloading component 'cargo'
+2025-09-23T08:34:36.6825827Z info: downloading component 'clippy'
+2025-09-23T08:34:36.7904489Z info: downloading component 'rust-std'
+2025-09-23T08:34:37.1159897Z info: downloading component 'rustc'
+2025-09-23T08:34:37.8014352Z info: downloading component 'rustfmt'
+2025-09-23T08:34:37.8944927Z info: installing component 'cargo'
+2025-09-23T08:34:38.5873043Z info: installing component 'clippy'
+2025-09-23T08:34:38.9578480Z info: installing component 'rust-std'
+2025-09-23T08:34:40.9659733Z info: installing component 'rustc'
+2025-09-23T08:34:45.7020860Z info: installing component 'rustfmt'
+2025-09-23T08:34:45.9972671Z 
+2025-09-23T08:34:46.0069191Z   nightly-x86_64-unknown-linux-gnu installed - rustc 1.92.0-nightly (f6092f224 2025-09-22)
+2025-09-23T08:34:46.0069868Z 
+2025-09-23T08:34:46.0127214Z ##[group]Run rustup default nightly
+2025-09-23T08:34:46.0127506Z [36;1mrustup default nightly[0m
+2025-09-23T08:34:46.0159601Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.0159928Z env:
+2025-09-23T08:34:46.0160102Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.0160356Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.0160612Z ##[endgroup]
+2025-09-23T08:34:46.0261572Z info: using existing install for 'nightly-x86_64-unknown-linux-gnu'
+2025-09-23T08:34:46.0829554Z info: default toolchain set to 'nightly-x86_64-unknown-linux-gnu'
+2025-09-23T08:34:46.0830218Z 
+2025-09-23T08:34:46.0921101Z   nightly-x86_64-unknown-linux-gnu unchanged - rustc 1.92.0-nightly (f6092f224 2025-09-22)
+2025-09-23T08:34:46.0921847Z 
+2025-09-23T08:34:46.0968159Z ##[group]Run : create cachekey
+2025-09-23T08:34:46.0968466Z [36;1m: create cachekey[0m
+2025-09-23T08:34:46.0968943Z [36;1mDATE=$(rustc +nightly --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2025-09-23T08:34:46.0969543Z [36;1mHASH=$(rustc +nightly --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2025-09-23T08:34:46.0970008Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2025-09-23T08:34:46.1002106Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.1002429Z env:
+2025-09-23T08:34:46.1002613Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.1002879Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.1003126Z ##[endgroup]
+2025-09-23T08:34:46.1393602Z ##[group]Run : disable incremental compilation
+2025-09-23T08:34:46.1394555Z [36;1m: disable incremental compilation[0m
+2025-09-23T08:34:46.1394878Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2025-09-23T08:34:46.1395223Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2025-09-23T08:34:46.1395506Z [36;1mfi[0m
+2025-09-23T08:34:46.1427038Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.1427603Z env:
+2025-09-23T08:34:46.1427792Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.1428029Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.1428257Z ##[endgroup]
+2025-09-23T08:34:46.1496881Z ##[group]Run : enable colors in Cargo output
+2025-09-23T08:34:46.1497189Z [36;1m: enable colors in Cargo output[0m
+2025-09-23T08:34:46.1497486Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2025-09-23T08:34:46.1497816Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2025-09-23T08:34:46.1498082Z [36;1mfi[0m
+2025-09-23T08:34:46.1526332Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.1526661Z env:
+2025-09-23T08:34:46.1526838Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.1527066Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.1527296Z   CARGO_INCREMENTAL: 0
+2025-09-23T08:34:46.1527492Z ##[endgroup]
+2025-09-23T08:34:46.1597211Z ##[group]Run : enable Cargo sparse registry
+2025-09-23T08:34:46.1597524Z [36;1m: enable Cargo sparse registry[0m
+2025-09-23T08:34:46.1597887Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2025-09-23T08:34:46.1598541Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2025-09-23T08:34:46.1599208Z [36;1m  if rustc +nightly --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2025-09-23T08:34:46.1599739Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2025-09-23T08:34:46.1600227Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2025-09-23T08:34:46.1600682Z [36;1m  elif rustc +nightly --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2025-09-23T08:34:46.1601202Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2025-09-23T08:34:46.1601674Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2025-09-23T08:34:46.1602003Z [36;1m  fi[0m
+2025-09-23T08:34:46.1602176Z [36;1mfi[0m
+2025-09-23T08:34:46.1631428Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.1631762Z env:
+2025-09-23T08:34:46.1631942Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.1632173Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.1632405Z   CARGO_INCREMENTAL: 0
+2025-09-23T08:34:46.1632602Z ##[endgroup]
+2025-09-23T08:34:46.1999140Z ##[group]Run : work around spurious network errors in curl 8.0
+2025-09-23T08:34:46.1999603Z [36;1m: work around spurious network errors in curl 8.0[0m
+2025-09-23T08:34:46.2000333Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2025-09-23T08:34:46.2000966Z [36;1mif rustc +nightly --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2025-09-23T08:34:46.2001414Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2025-09-23T08:34:46.2001735Z [36;1mfi[0m
+2025-09-23T08:34:46.2035130Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.2035450Z env:
+2025-09-23T08:34:46.2035635Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.2035859Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.2036092Z   CARGO_INCREMENTAL: 0
+2025-09-23T08:34:46.2036288Z ##[endgroup]
+2025-09-23T08:34:46.2257262Z ##[group]Run rustc +nightly --version --verbose
+2025-09-23T08:34:46.2257626Z [36;1mrustc +nightly --version --verbose[0m
+2025-09-23T08:34:46.2289222Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-09-23T08:34:46.2289558Z env:
+2025-09-23T08:34:46.2289743Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.2289966Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.2290215Z   CARGO_INCREMENTAL: 0
+2025-09-23T08:34:46.2290411Z ##[endgroup]
+2025-09-23T08:34:46.2465821Z rustc 1.92.0-nightly (f6092f224 2025-09-22)
+2025-09-23T08:34:46.2466737Z binary: rustc
+2025-09-23T08:34:46.2467507Z commit-hash: f6092f224d2b1774b31033f12d0bee626943b02f
+2025-09-23T08:34:46.2468372Z commit-date: 2025-09-22
+2025-09-23T08:34:46.2469133Z host: x86_64-unknown-linux-gnu
+2025-09-23T08:34:46.2469604Z release: 1.92.0-nightly
+2025-09-23T08:34:46.2469908Z LLVM version: 21.1.1
+2025-09-23T08:34:46.2542616Z ##[group]Run cargo fmt -- --check
+2025-09-23T08:34:46.2542926Z [36;1mcargo fmt -- --check[0m
+2025-09-23T08:34:46.2575318Z shell: /usr/bin/bash -e {0}
+2025-09-23T08:34:46.2575564Z env:
+2025-09-23T08:34:46.2575767Z   CARGO_TERM_COLOR: always
+2025-09-23T08:34:46.2576002Z   CARGO_HOME: /home/runner/.cargo
+2025-09-23T08:34:46.2576247Z   CARGO_INCREMENTAL: 0
+2025-09-23T08:34:46.2576450Z ##[endgroup]
+2025-09-23T08:34:46.4299144Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/collection.rs:2:
+2025-09-23T08:34:46.4300049Z  
+2025-09-23T08:34:46.4307082Z  use crate::{
+2025-09-23T08:34:46.4307459Z      error::{Result, VectorizerError},
+2025-09-23T08:34:46.4308143Z -    models::{vector_utils, CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector},
+2025-09-23T08:34:46.4309191Z +    models::{
+2025-09-23T08:34:46.4309678Z +        CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector, vector_utils,
+2025-09-23T08:34:46.4310231Z +    },
+2025-09-23T08:34:46.4310504Z  };
+2025-09-23T08:34:46.4310723Z  use dashmap::DashMap;
+2025-09-23T08:34:46.4311001Z  use parking_lot::RwLock;
+2025-09-23T08:34:46.4321627Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/hnsw_index.rs:381:
+2025-09-23T08:34:46.4322443Z                  vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+2025-09-23T08:34:46.4322803Z              } else {
+2025-09-23T08:34:46.4323075Z                  // Other vectors are different
+2025-09-23T08:34:46.4323486Z -                (0..10).map(|j| if j == (i % 9) + 1 { 1.0 } else { 0.0 }).collect()
+2025-09-23T08:34:46.4324111Z +                (0..10)
+2025-09-23T08:34:46.4324417Z +                    .map(|j| if j == (i % 9) + 1 { 1.0 } else { 0.0 })
+2025-09-23T08:34:46.4324782Z +                    .collect()
+2025-09-23T08:34:46.4325053Z              };
+2025-09-23T08:34:46.4325345Z              index.add(&format!("vec_{}", i), &vector).unwrap();
+2025-09-23T08:34:46.4325716Z          }
+2025-09-23T08:34:46.4359381Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:161:
+2025-09-23T08:34:46.4360290Z      pub fn stats(&self) -> VectorStoreStats {
+2025-09-23T08:34:46.4360868Z          let mut total_vectors = 0;
+2025-09-23T08:34:46.4361371Z          let mut total_memory_bytes = 0;
+2025-09-23T08:34:46.4361856Z -        
+2025-09-23T08:34:46.4362169Z +
+2025-09-23T08:34:46.4362547Z          for entry in self.collections.iter() {
+2025-09-23T08:34:46.4363073Z              let collection = entry.value();
+2025-09-23T08:34:46.4363598Z              total_vectors += collection.vector_count();
+2025-09-23T08:34:46.4364590Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:168:
+2025-09-23T08:34:46.4365500Z              total_memory_bytes += collection.estimated_memory_usage();
+2025-09-23T08:34:46.4366132Z          }
+2025-09-23T08:34:46.4366453Z -        
+2025-09-23T08:34:46.4366773Z +
+2025-09-23T08:34:46.4367103Z          VectorStoreStats {
+2025-09-23T08:34:46.4367610Z              collection_count: self.collections.len(),
+2025-09-23T08:34:46.4368228Z              total_vectors,
+2025-09-23T08:34:46.4368698Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:196:
+2025-09-23T08:34:46.4369186Z  #[cfg(test)]
+2025-09-23T08:34:46.4369410Z  mod tests {
+2025-09-23T08:34:46.4369660Z      use super::*;
+2025-09-23T08:34:46.4370084Z -    use crate::models::{DistanceMetric, HnswConfig, CompressionConfig, Payload};
+2025-09-23T08:34:46.4370611Z +    use crate::models::{CompressionConfig, DistanceMetric, HnswConfig, Payload};
+2025-09-23T08:34:46.4370982Z  
+2025-09-23T08:34:46.4371146Z      #[test]
+2025-09-23T08:34:46.4371359Z      fn test_create_and_list_collections() {
+2025-09-23T08:34:46.4371759Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:295:
+2025-09-23T08:34:46.4372167Z              Vector::with_payload(
+2025-09-23T08:34:46.4372414Z                  "vec1".to_string(),
+2025-09-23T08:34:46.4372676Z                  vec![1.0, 0.0, 0.0],
+2025-09-23T08:34:46.4373290Z -                Payload::from_value(serde_json::json!({"type": "test", "id": 1})).unwrap()
+2025-09-23T08:34:46.4374030Z +                Payload::from_value(serde_json::json!({"type": "test", "id": 1})).unwrap(),
+2025-09-23T08:34:46.4374415Z              ),
+2025-09-23T08:34:46.4374616Z              Vector::with_payload(
+2025-09-23T08:34:46.4374860Z                  "vec2".to_string(),
+2025-09-23T08:34:46.4375238Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:302:
+2025-09-23T08:34:46.4375631Z                  vec![0.0, 1.0, 0.0],
+2025-09-23T08:34:46.4375991Z -                Payload::from_value(serde_json::json!({"type": "test", "id": 2})).unwrap()
+2025-09-23T08:34:46.4376483Z +                Payload::from_value(serde_json::json!({"type": "test", "id": 2})).unwrap(),
+2025-09-23T08:34:46.4376984Z              ),
+2025-09-23T08:34:46.4377199Z              Vector::with_payload(
+2025-09-23T08:34:46.4377442Z                  "vec3".to_string(),
+2025-09-23T08:34:46.4377814Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:307:
+2025-09-23T08:34:46.4378202Z                  vec![0.0, 0.0, 1.0],
+2025-09-23T08:34:46.4378554Z -                Payload::from_value(serde_json::json!({"type": "test", "id": 3})).unwrap()
+2025-09-23T08:34:46.4379043Z +                Payload::from_value(serde_json::json!({"type": "test", "id": 3})).unwrap(),
+2025-09-23T08:34:46.4379405Z              ),
+2025-09-23T08:34:46.4379576Z          ];
+2025-09-23T08:34:46.4379744Z  
+2025-09-23T08:34:46.4380032Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:325:
+2025-09-23T08:34:46.4380413Z          let updated = Vector::with_payload(
+2025-09-23T08:34:46.4380665Z              "vec1".to_string(),
+2025-09-23T08:34:46.4380885Z              vec![2.0, 0.0, 0.0],
+2025-09-23T08:34:46.4381229Z -            Payload::from_value(serde_json::json!({"type": "updated", "id": 1})).unwrap()
+2025-09-23T08:34:46.4381735Z +            Payload::from_value(serde_json::json!({"type": "updated", "id": 1})).unwrap(),
+2025-09-23T08:34:46.4382082Z          );
+2025-09-23T08:34:46.4382297Z          store.update("test", updated).unwrap();
+2025-09-23T08:34:46.4382547Z  
+2025-09-23T08:34:46.4382856Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:434:
+2025-09-23T08:34:46.4383211Z              },
+2025-09-23T08:34:46.4383379Z          };
+2025-09-23T08:34:46.4383537Z  
+2025-09-23T08:34:46.4383994Z -        store.create_collection("metadata_test", config.clone()).unwrap();
+2025-09-23T08:34:46.4384321Z +        store
+2025-09-23T08:34:46.4384569Z +            .create_collection("metadata_test", config.clone())
+2025-09-23T08:34:46.4384860Z +            .unwrap();
+2025-09-23T08:34:46.4385047Z  
+2025-09-23T08:34:46.4385214Z          // Add some vectors
+2025-09-23T08:34:46.4385449Z          let vectors = vec![
+2025-09-23T08:34:46.4385800Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:467:
+2025-09-23T08:34:46.4386150Z  
+2025-09-23T08:34:46.4386362Z          // Test operations on non-existent collection
+2025-09-23T08:34:46.4386706Z          let result = store.insert("non_existent", vec![]);
+2025-09-23T08:34:46.4387140Z -        assert!(matches!(result, Err(VectorizerError::CollectionNotFound(_))));
+2025-09-23T08:34:46.4387518Z +        assert!(matches!(
+2025-09-23T08:34:46.4387737Z +            result,
+2025-09-23T08:34:46.4388002Z +            Err(VectorizerError::CollectionNotFound(_))
+2025-09-23T08:34:46.4388275Z +        ));
+2025-09-23T08:34:46.4388432Z  
+2025-09-23T08:34:46.4388699Z          let result = store.search("non_existent", &[1.0, 2.0, 3.0], 1);
+2025-09-23T08:34:46.4389165Z -        assert!(matches!(result, Err(VectorizerError::CollectionNotFound(_))));
+2025-09-23T08:34:46.4389522Z +        assert!(matches!(
+2025-09-23T08:34:46.4389733Z +            result,
+2025-09-23T08:34:46.4389994Z +            Err(VectorizerError::CollectionNotFound(_))
+2025-09-23T08:34:46.4390254Z +        ));
+2025-09-23T08:34:46.4390419Z  
+2025-09-23T08:34:46.4390796Z          let result = store.get_vector("non_existent", "v1");
+2025-09-23T08:34:46.4391234Z -        assert!(matches!(result, Err(VectorizerError::CollectionNotFound(_))));
+2025-09-23T08:34:46.4391589Z +        assert!(matches!(
+2025-09-23T08:34:46.4391790Z +            result,
+2025-09-23T08:34:46.4392041Z +            Err(VectorizerError::CollectionNotFound(_))
+2025-09-23T08:34:46.4392296Z +        ));
+2025-09-23T08:34:46.4392473Z  
+2025-09-23T08:34:46.4392754Z          // Test operations on non-existent vector
+2025-09-23T08:34:46.4393108Z          let result = store.get_vector("error_test", "non_existent");
+2025-09-23T08:34:46.4393567Z Diff in /home/runner/work/vectorizer/vectorizer/src/db/vector_store.rs:480:
+2025-09-23T08:34:46.4394277Z          assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
+2025-09-23T08:34:46.4394733Z  
+2025-09-23T08:34:46.4395153Z -        let result = store.update("error_test", Vector::new("non_existent".to_string(), vec![1.0, 2.0, 3.0]));
+2025-09-23T08:34:46.4395598Z +        let result = store.update(
+2025-09-23T08:34:46.4395848Z +            "error_test",
+2025-09-23T08:34:46.4396160Z +            Vector::new("non_existent".to_string(), vec![1.0, 2.0, 3.0]),
+2025-09-23T08:34:46.4396458Z +        );
+2025-09-23T08:34:46.4396767Z          assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
+2025-09-23T08:34:46.4397079Z  
+2025-09-23T08:34:46.4397323Z          let result = store.delete("error_test", "non_existent");
+2025-09-23T08:34:46.4398137Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:7:
+2025-09-23T08:34:46.4398829Z  pub trait EmbeddingProvider: Send + Sync {
+2025-09-23T08:34:46.4399347Z      /// Generate embeddings for a batch of texts
+2025-09-23T08:34:46.4419677Z      fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>>;
+2025-09-23T08:34:46.4420303Z -    
+2025-09-23T08:34:46.4420596Z +
+2025-09-23T08:34:46.4420928Z      /// Generate embedding for a single text
+2025-09-23T08:34:46.4421465Z      fn embed(&self, text: &str) -> Result<Vec<f32>> {
+2025-09-23T08:34:46.4421914Z          let results = self.embed_batch(&[text])?;
+2025-09-23T08:34:46.4422344Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:14:
+2025-09-23T08:34:46.4422876Z -        results.into_iter().next()
+2025-09-23T08:34:46.4423129Z +        results
+2025-09-23T08:34:46.4423334Z +            .into_iter()
+2025-09-23T08:34:46.4423541Z +            .next()
+2025-09-23T08:34:46.4424171Z              .ok_or_else(|| VectorizerError::Other("Failed to generate embedding".to_string()))
+2025-09-23T08:34:46.4424546Z      }
+2025-09-23T08:34:46.4424709Z -    
+2025-09-23T08:34:46.4424874Z +
+2025-09-23T08:34:46.4425146Z      /// Get the dimension of embeddings produced by this provider
+2025-09-23T08:34:46.4425485Z      fn dimension(&self) -> usize;
+2025-09-23T08:34:46.4425716Z  }
+2025-09-23T08:34:46.4426030Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:35:
+2025-09-23T08:34:46.4426429Z              idf_weights: vec![1.0; dimension],
+2025-09-23T08:34:46.4426686Z          }
+2025-09-23T08:34:46.4426852Z      }
+2025-09-23T08:34:46.4427017Z -    
+2025-09-23T08:34:46.4427170Z +
+2025-09-23T08:34:46.4427382Z      /// Build vocabulary from a corpus of texts
+2025-09-23T08:34:46.4427714Z      pub fn build_vocabulary(&mut self, texts: &[&str]) {
+2025-09-23T08:34:46.4428129Z          let mut word_counts: HashMap<String, usize> = HashMap::new();
+2025-09-23T08:34:46.4428602Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:42:
+2025-09-23T08:34:46.4429086Z          let mut doc_frequencies: HashMap<String, usize> = HashMap::new();
+2025-09-23T08:34:46.4429411Z -        
+2025-09-23T08:34:46.4429573Z +
+2025-09-23T08:34:46.4429763Z          for text in texts {
+2025-09-23T08:34:46.4430019Z              let words = self.tokenize(text);
+2025-09-23T08:34:46.4430379Z              let mut seen_words = std::collections::HashSet::new();
+2025-09-23T08:34:46.4430818Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:47:
+2025-09-23T08:34:46.4431159Z -            
+2025-09-23T08:34:46.4431506Z +
+2025-09-23T08:34:46.4431693Z              for word in words {
+2025-09-23T08:34:46.4431999Z                  *word_counts.entry(word.clone()).or_insert(0) += 1;
+2025-09-23T08:34:46.4432284Z -                
+2025-09-23T08:34:46.4432470Z +
+2025-09-23T08:34:46.4432681Z                  if seen_words.insert(word.clone()) {
+2025-09-23T08:34:46.4433017Z                      *doc_frequencies.entry(word).or_insert(0) += 1;
+2025-09-23T08:34:46.4433296Z                  }
+2025-09-23T08:34:46.4433619Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:54:
+2025-09-23T08:34:46.4434226Z              }
+2025-09-23T08:34:46.4434398Z          }
+2025-09-23T08:34:46.4434573Z -        
+2025-09-23T08:34:46.4434734Z +
+2025-09-23T08:34:46.4435203Z          // Select top words by frequency, with alphabetical tie-breaking for determinism
+2025-09-23T08:34:46.4435712Z          let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
+2025-09-23T08:34:46.4436180Z          word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+2025-09-23T08:34:46.4436633Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:60:
+2025-09-23T08:34:46.4436982Z -        
+2025-09-23T08:34:46.4437140Z +
+2025-09-23T08:34:46.4437328Z          self.vocabulary.clear();
+2025-09-23T08:34:46.4437582Z          self.idf_weights.clear();
+2025-09-23T08:34:46.4437819Z -        
+2025-09-23T08:34:46.4437978Z +
+2025-09-23T08:34:46.4438175Z          let total_docs = texts.len() as f32;
+2025-09-23T08:34:46.4438418Z -        
+2025-09-23T08:34:46.4438581Z +
+2025-09-23T08:34:46.4438848Z          for (i, (word, _)) in word_freq.iter().take(self.dimension).enumerate() {
+2025-09-23T08:34:46.4439233Z              self.vocabulary.insert(word.clone(), i);
+2025-09-23T08:34:46.4439495Z -            
+2025-09-23T08:34:46.4439664Z +
+2025-09-23T08:34:46.4439903Z              let doc_freq = doc_frequencies.get(word).unwrap_or(&1);
+2025-09-23T08:34:46.4440248Z              let idf = (total_docs / (*doc_freq as f32)).ln();
+2025-09-23T08:34:46.4440561Z              self.idf_weights.push(idf);
+2025-09-23T08:34:46.4440933Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:72:
+2025-09-23T08:34:46.4441276Z          }
+2025-09-23T08:34:46.4441435Z      }
+2025-09-23T08:34:46.4441600Z -    
+2025-09-23T08:34:46.4441754Z +
+2025-09-23T08:34:46.4441971Z      fn tokenize(&self, text: &str) -> Vec<String> {
+2025-09-23T08:34:46.4442257Z          text.to_lowercase()
+2025-09-23T08:34:46.4442496Z              .split_whitespace()
+2025-09-23T08:34:46.4442857Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:80:
+2025-09-23T08:34:46.4443228Z              .filter(|w| !w.is_empty())
+2025-09-23T08:34:46.4443479Z              .collect()
+2025-09-23T08:34:46.4443797Z      }
+2025-09-23T08:34:46.4443972Z -    
+2025-09-23T08:34:46.4444143Z +
+2025-09-23T08:34:46.4444398Z      fn compute_tf(&self, text: &str) -> HashMap<String, f32> {
+2025-09-23T08:34:46.4444730Z          let words = self.tokenize(text);
+2025-09-23T08:34:46.4445028Z          let total_words = words.len() as f32;
+2025-09-23T08:34:46.4445415Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:87:
+2025-09-23T08:34:46.4445757Z -        
+2025-09-23T08:34:46.4445919Z +
+2025-09-23T08:34:46.4446197Z          let mut word_counts: HashMap<String, usize> = HashMap::new();
+2025-09-23T08:34:46.4446527Z          for word in words {
+2025-09-23T08:34:46.4446787Z              *word_counts.entry(word).or_insert(0) += 1;
+2025-09-23T08:34:46.4447186Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:91:
+2025-09-23T08:34:46.4447528Z          }
+2025-09-23T08:34:46.4447697Z -        
+2025-09-23T08:34:46.4447885Z -        word_counts.into_iter()
+2025-09-23T08:34:46.4448108Z +
+2025-09-23T08:34:46.4448283Z +        word_counts
+2025-09-23T08:34:46.4448482Z +            .into_iter()
+2025-09-23T08:34:46.4448762Z              .map(|(word, count)| (word, count as f32 / total_words))
+2025-09-23T08:34:46.4449054Z              .collect()
+2025-09-23T08:34:46.4449382Z      }
+2025-09-23T08:34:46.4449689Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:98:
+2025-09-23T08:34:46.4450026Z  
+2025-09-23T08:34:46.4450235Z  impl EmbeddingProvider for TfIdfEmbedding {
+2025-09-23T08:34:46.4450602Z      fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+2025-09-23T08:34:46.4450911Z -        texts.iter()
+2025-09-23T08:34:46.4451141Z -            .map(|text| self.embed(text))
+2025-09-23T08:34:46.4451391Z -            .collect()
+2025-09-23T08:34:46.4451647Z +        texts.iter().map(|text| self.embed(text)).collect()
+2025-09-23T08:34:46.4451930Z      }
+2025-09-23T08:34:46.4452086Z -    
+2025-09-23T08:34:46.4452246Z +
+2025-09-23T08:34:46.4452456Z      fn embed(&self, text: &str) -> Result<Vec<f32>> {
+2025-09-23T08:34:46.4452878Z          let tf = self.compute_tf(text);
+2025-09-23T08:34:46.4453166Z          let mut embedding = vec![0.0; self.dimension];
+2025-09-23T08:34:46.4453574Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:109:
+2025-09-23T08:34:46.4454171Z -        
+2025-09-23T08:34:46.4454332Z +
+2025-09-23T08:34:46.4454518Z          for (word, tf_value) in tf {
+2025-09-23T08:34:46.4454813Z              if let Some(&idx) = self.vocabulary.get(&word) {
+2025-09-23T08:34:46.4455124Z                  if idx < self.dimension {
+2025-09-23T08:34:46.4455503Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:115:
+2025-09-23T08:34:46.4455863Z                  }
+2025-09-23T08:34:46.4456045Z              }
+2025-09-23T08:34:46.4456222Z          }
+2025-09-23T08:34:46.4456384Z -        
+2025-09-23T08:34:46.4456548Z +
+2025-09-23T08:34:46.4456727Z          // Normalize the embedding
+2025-09-23T08:34:46.4457093Z          let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+2025-09-23T08:34:46.4457434Z          if norm > 0.0 {
+2025-09-23T08:34:46.4457773Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:123:
+2025-09-23T08:34:46.4458153Z                  *value /= norm;
+2025-09-23T08:34:46.4458408Z              }
+2025-09-23T08:34:46.4458584Z          }
+2025-09-23T08:34:46.4458743Z -        
+2025-09-23T08:34:46.4458908Z +
+2025-09-23T08:34:46.4459069Z          Ok(embedding)
+2025-09-23T08:34:46.4459268Z      }
+2025-09-23T08:34:46.4459428Z -    
+2025-09-23T08:34:46.4459596Z +
+2025-09-23T08:34:46.4459780Z      fn dimension(&self) -> usize {
+2025-09-23T08:34:46.4460017Z          self.dimension
+2025-09-23T08:34:46.4460214Z      }
+2025-09-23T08:34:46.4460513Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:146:
+2025-09-23T08:34:46.4460903Z              vocabulary: HashMap::new(),
+2025-09-23T08:34:46.4461136Z          }
+2025-09-23T08:34:46.4461298Z      }
+2025-09-23T08:34:46.4461449Z -    
+2025-09-23T08:34:46.4461615Z +
+2025-09-23T08:34:46.4461870Z      /// Build vocabulary from texts
+2025-09-23T08:34:46.4462391Z      pub fn build_vocabulary(&mut self, texts: &[&str]) {
+2025-09-23T08:34:46.4463055Z          let mut word_counts: HashMap<String, usize> = HashMap::new();
+2025-09-23T08:34:46.4463968Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:153:
+2025-09-23T08:34:46.4464570Z -        
+2025-09-23T08:34:46.4464817Z +
+2025-09-23T08:34:46.4465002Z          for text in texts {
+2025-09-23T08:34:46.4465246Z              let words = self.tokenize(text);
+2025-09-23T08:34:46.4465519Z              for word in words {
+2025-09-23T08:34:46.4465873Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:157:
+2025-09-23T08:34:46.4466283Z                  *word_counts.entry(word).or_insert(0) += 1;
+2025-09-23T08:34:46.4466550Z              }
+2025-09-23T08:34:46.4466720Z          }
+2025-09-23T08:34:46.4466886Z -        
+2025-09-23T08:34:46.4467042Z +
+2025-09-23T08:34:46.4467356Z          // Select top words by frequency, with alphabetical tie-breaking for determinism
+2025-09-23T08:34:46.4467854Z          let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
+2025-09-23T08:34:46.4468448Z          word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+2025-09-23T08:34:46.4468911Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:164:
+2025-09-23T08:34:46.4469259Z -        
+2025-09-23T08:34:46.4469416Z +
+2025-09-23T08:34:46.4469602Z          self.vocabulary.clear();
+2025-09-23T08:34:46.4469947Z          for (i, (word, _)) in word_freq.iter().take(self.dimension).enumerate() {
+2025-09-23T08:34:46.4470317Z              self.vocabulary.insert(word.clone(), i);
+2025-09-23T08:34:46.4470728Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:168:
+2025-09-23T08:34:46.4471073Z          }
+2025-09-23T08:34:46.4471236Z      }
+2025-09-23T08:34:46.4471392Z -    
+2025-09-23T08:34:46.4471550Z +
+2025-09-23T08:34:46.4471760Z      fn tokenize(&self, text: &str) -> Vec<String> {
+2025-09-23T08:34:46.4472164Z          text.to_lowercase()
+2025-09-23T08:34:46.4472395Z              .split_whitespace()
+2025-09-23T08:34:46.4472761Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:182:
+2025-09-23T08:34:46.4473180Z      fn embed(&self, text: &str) -> Result<Vec<f32>> {
+2025-09-23T08:34:46.4473479Z          let words = self.tokenize(text);
+2025-09-23T08:34:46.4473996Z          let mut embedding = vec![0.0; self.dimension];
+2025-09-23T08:34:46.4474258Z -        
+2025-09-23T08:34:46.4474423Z +
+2025-09-23T08:34:46.4474590Z          for word in words {
+2025-09-23T08:34:46.4474868Z              if let Some(&idx) = self.vocabulary.get(&word) {
+2025-09-23T08:34:46.4475166Z                  embedding[idx] += 1.0;
+2025-09-23T08:34:46.4475544Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:189:
+2025-09-23T08:34:46.4475895Z              }
+2025-09-23T08:34:46.4476063Z          }
+2025-09-23T08:34:46.4476227Z -        
+2025-09-23T08:34:46.4476385Z +
+2025-09-23T08:34:46.4476551Z          // Normalize
+2025-09-23T08:34:46.4476862Z          let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+2025-09-23T08:34:46.4477185Z          if norm > 0.0 {
+2025-09-23T08:34:46.4477520Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:196:
+2025-09-23T08:34:46.4477888Z                  *value /= norm;
+2025-09-23T08:34:46.4478099Z              }
+2025-09-23T08:34:46.4478271Z          }
+2025-09-23T08:34:46.4478433Z -        
+2025-09-23T08:34:46.4478584Z +
+2025-09-23T08:34:46.4478752Z          Ok(embedding)
+2025-09-23T08:34:46.4478936Z      }
+2025-09-23T08:34:46.4479098Z -    
+2025-09-23T08:34:46.4479250Z +
+2025-09-23T08:34:46.4479509Z      fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+2025-09-23T08:34:46.4479821Z -        texts.iter()
+2025-09-23T08:34:46.4480046Z -            .map(|text| self.embed(text))
+2025-09-23T08:34:46.4480293Z -            .collect()
+2025-09-23T08:34:46.4480554Z +        texts.iter().map(|text| self.embed(text)).collect()
+2025-09-23T08:34:46.4480832Z      }
+2025-09-23T08:34:46.4480989Z -    
+2025-09-23T08:34:46.4481145Z +
+2025-09-23T08:34:46.4481320Z      fn dimension(&self) -> usize {
+2025-09-23T08:34:46.4481563Z          self.dimension
+2025-09-23T08:34:46.4481755Z      }
+2025-09-23T08:34:46.4482056Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:227:
+2025-09-23T08:34:46.4482443Z              ngram_map: HashMap::new(),
+2025-09-23T08:34:46.4482687Z          }
+2025-09-23T08:34:46.4482842Z      }
+2025-09-23T08:34:46.4482999Z -    
+2025-09-23T08:34:46.4483149Z +
+2025-09-23T08:34:46.4483340Z      /// Build n-gram vocabulary from texts
+2025-09-23T08:34:46.4483758Z      pub fn build_vocabulary(&mut self, texts: &[&str]) {
+2025-09-23T08:34:46.4484144Z          let mut ngram_counts: HashMap<String, usize> = HashMap::new();
+2025-09-23T08:34:46.4484587Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:234:
+2025-09-23T08:34:46.4484932Z -        
+2025-09-23T08:34:46.4485102Z +
+2025-09-23T08:34:46.4485271Z          for text in texts {
+2025-09-23T08:34:46.4485532Z              let ngrams = self.extract_ngrams(text);
+2025-09-23T08:34:46.4485808Z              for ngram in ngrams {
+2025-09-23T08:34:46.4486427Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:238:
+2025-09-23T08:34:46.4487143Z                  *ngram_counts.entry(ngram).or_insert(0) += 1;
+2025-09-23T08:34:46.4487462Z              }
+2025-09-23T08:34:46.4487638Z          }
+2025-09-23T08:34:46.4487818Z -        
+2025-09-23T08:34:46.4487982Z +
+2025-09-23T08:34:46.4488295Z          // Select top n-grams by frequency, with alphabetical tie-breaking for determinism
+2025-09-23T08:34:46.4488806Z          let mut ngram_freq: Vec<(String, usize)> = ngram_counts.into_iter().collect();
+2025-09-23T08:34:46.4489266Z          ngram_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+2025-09-23T08:34:46.4489722Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:248:
+2025-09-23T08:34:46.4490254Z              self.ngram_map.insert(ngram.clone(), i);
+2025-09-23T08:34:46.4490506Z          }
+2025-09-23T08:34:46.4490666Z      }
+2025-09-23T08:34:46.4490819Z -    
+2025-09-23T08:34:46.4490973Z +
+2025-09-23T08:34:46.4491197Z      fn extract_ngrams(&self, text: &str) -> Vec<String> {
+2025-09-23T08:34:46.4491509Z          let text = text.to_lowercase();
+2025-09-23T08:34:46.4491797Z          let chars: Vec<char> = text.chars().collect();
+2025-09-23T08:34:46.4492201Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:255:
+2025-09-23T08:34:46.4492547Z -        
+2025-09-23T08:34:46.4492699Z +
+2025-09-23T08:34:46.4492869Z          if chars.len() < self.n {
+2025-09-23T08:34:46.4493105Z              return vec![text];
+2025-09-23T08:34:46.4493311Z          }
+2025-09-23T08:34:46.4493604Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:259:
+2025-09-23T08:34:46.4494073Z -        
+2025-09-23T08:34:46.4494226Z +
+2025-09-23T08:34:46.4494437Z          let mut ngrams = Vec::new();
+2025-09-23T08:34:46.4494707Z          for i in 0..=(chars.len() - self.n) {
+2025-09-23T08:34:46.4495034Z              let ngram: String = chars[i..i + self.n].iter().collect();
+2025-09-23T08:34:46.4495464Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:263:
+2025-09-23T08:34:46.4495822Z              ngrams.push(ngram);
+2025-09-23T08:34:46.4496035Z          }
+2025-09-23T08:34:46.4496303Z -        
+2025-09-23T08:34:46.4496564Z +
+2025-09-23T08:34:46.4496811Z          ngrams
+2025-09-23T08:34:46.4497097Z      }
+2025-09-23T08:34:46.4497348Z  }
+2025-09-23T08:34:46.4497860Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:271:
+2025-09-23T08:34:46.4498560Z      fn embed(&self, text: &str) -> Result<Vec<f32>> {
+2025-09-23T08:34:46.4499072Z          let ngrams = self.extract_ngrams(text);
+2025-09-23T08:34:46.4499589Z          let mut embedding = vec![0.0; self.dimension];
+2025-09-23T08:34:46.4499907Z -        
+2025-09-23T08:34:46.4500065Z +
+2025-09-23T08:34:46.4500244Z          for ngram in ngrams {
+2025-09-23T08:34:46.4500518Z              if let Some(&idx) = self.ngram_map.get(&ngram) {
+2025-09-23T08:34:46.4500815Z                  embedding[idx] += 1.0;
+2025-09-23T08:34:46.4501195Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:278:
+2025-09-23T08:34:46.4501539Z              }
+2025-09-23T08:34:46.4501708Z          }
+2025-09-23T08:34:46.4501874Z -        
+2025-09-23T08:34:46.4502029Z +
+2025-09-23T08:34:46.4502193Z          // Normalize
+2025-09-23T08:34:46.4502501Z          let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+2025-09-23T08:34:46.4502825Z          if norm > 0.0 {
+2025-09-23T08:34:46.4503158Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:285:
+2025-09-23T08:34:46.4503520Z                  *value /= norm;
+2025-09-23T08:34:46.4503920Z              }
+2025-09-23T08:34:46.4504101Z          }
+2025-09-23T08:34:46.4504255Z -        
+2025-09-23T08:34:46.4504410Z +
+2025-09-23T08:34:46.4504573Z          Ok(embedding)
+2025-09-23T08:34:46.4504764Z      }
+2025-09-23T08:34:46.4504924Z -    
+2025-09-23T08:34:46.4505076Z +
+2025-09-23T08:34:46.4505328Z      fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+2025-09-23T08:34:46.4505640Z -        texts.iter()
+2025-09-23T08:34:46.4506002Z -            .map(|text| self.embed(text))
+2025-09-23T08:34:46.4506258Z -            .collect()
+2025-09-23T08:34:46.4506516Z +        texts.iter().map(|text| self.embed(text)).collect()
+2025-09-23T08:34:46.4506788Z      }
+2025-09-23T08:34:46.4506948Z -    
+2025-09-23T08:34:46.4507097Z +
+2025-09-23T08:34:46.4507278Z      fn dimension(&self) -> usize {
+2025-09-23T08:34:46.4507517Z          self.dimension
+2025-09-23T08:34:46.4507697Z      }
+2025-09-23T08:34:46.4508000Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:314:
+2025-09-23T08:34:46.4508366Z              default_provider: None,
+2025-09-23T08:34:46.4508594Z          }
+2025-09-23T08:34:46.4508746Z      }
+2025-09-23T08:34:46.4508898Z -    
+2025-09-23T08:34:46.4509200Z +
+2025-09-23T08:34:46.4509391Z      /// Register an embedding provider
+2025-09-23T08:34:46.4509803Z      pub fn register_provider(&mut self, name: String, provider: Box<dyn EmbeddingProvider>) {
+2025-09-23T08:34:46.4510229Z          if self.default_provider.is_none() {
+2025-09-23T08:34:46.4510611Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:322:
+2025-09-23T08:34:46.4510947Z          }
+2025-09-23T08:34:46.4511155Z          self.providers.insert(name, provider);
+2025-09-23T08:34:46.4511402Z      }
+2025-09-23T08:34:46.4511553Z -    
+2025-09-23T08:34:46.4511700Z +
+2025-09-23T08:34:46.4511871Z      /// Set the default provider
+2025-09-23T08:34:46.4512189Z      pub fn set_default_provider(&mut self, name: &str) -> Result<()> {
+2025-09-23T08:34:46.4512545Z          if self.providers.contains_key(name) {
+2025-09-23T08:34:46.4512929Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:329:
+2025-09-23T08:34:46.4513332Z              self.default_provider = Some(name.to_string());
+2025-09-23T08:34:46.4513609Z              Ok(())
+2025-09-23T08:34:46.4513994Z          } else {
+2025-09-23T08:34:46.4514313Z -            Err(VectorizerError::Other(format!("Provider '{}' not found", name)))
+2025-09-23T08:34:46.4514703Z +            Err(VectorizerError::Other(format!(
+2025-09-23T08:34:46.4514978Z +                "Provider '{}' not found",
+2025-09-23T08:34:46.4515213Z +                name
+2025-09-23T08:34:46.4515397Z +            )))
+2025-09-23T08:34:46.4515564Z          }
+2025-09-23T08:34:46.4515728Z      }
+2025-09-23T08:34:46.4515880Z -    
+2025-09-23T08:34:46.4516031Z +
+2025-09-23T08:34:46.4516201Z      /// Get a provider by name
+2025-09-23T08:34:46.4516531Z      pub fn get_provider(&self, name: &str) -> Result<&dyn EmbeddingProvider> {
+2025-09-23T08:34:46.4516875Z          self.providers
+2025-09-23T08:34:46.4517202Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:340:
+2025-09-23T08:34:46.4517590Z              .map(|p| p.as_ref())
+2025-09-23T08:34:46.4517970Z              .ok_or_else(|| VectorizerError::Other(format!("Provider '{}' not found", name)))
+2025-09-23T08:34:46.4518323Z      }
+2025-09-23T08:34:46.4518472Z -    
+2025-09-23T08:34:46.4518627Z +
+2025-09-23T08:34:46.4518805Z      /// Get the default provider
+2025-09-23T08:34:46.4519145Z      pub fn get_default_provider(&self) -> Result<&dyn EmbeddingProvider> {
+2025-09-23T08:34:46.4519520Z -        let provider_name = self.default_provider
+2025-09-23T08:34:46.4519789Z +        let provider_name = self
+2025-09-23T08:34:46.4520022Z +            .default_provider
+2025-09-23T08:34:46.4520233Z              .as_ref()
+2025-09-23T08:34:46.4520576Z              .ok_or_else(|| VectorizerError::Other("No default provider set".to_string()))?;
+2025-09-23T08:34:46.4520923Z -        
+2025-09-23T08:34:46.4521081Z +
+2025-09-23T08:34:46.4521266Z          self.get_provider(provider_name)
+2025-09-23T08:34:46.4521497Z      }
+2025-09-23T08:34:46.4521653Z -    
+2025-09-23T08:34:46.4521799Z +
+2025-09-23T08:34:46.4521999Z      /// Embed text using the default provider
+2025-09-23T08:34:46.4522312Z      pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
+2025-09-23T08:34:46.4522630Z          self.get_default_provider()?.embed(text)
+2025-09-23T08:34:46.4523140Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:356:
+2025-09-23T08:34:46.4523490Z      }
+2025-09-23T08:34:46.4523748Z -    
+2025-09-23T08:34:46.4523904Z +
+2025-09-23T08:34:46.4524115Z      /// Embed batch of texts using the default provider
+2025-09-23T08:34:46.4524489Z      pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+2025-09-23T08:34:46.4524867Z          self.get_default_provider()?.embed_batch(texts)
+2025-09-23T08:34:46.4525268Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:370:
+2025-09-23T08:34:46.4525617Z  #[cfg(test)]
+2025-09-23T08:34:46.4525788Z  mod tests {
+2025-09-23T08:34:46.4525970Z      use super::*;
+2025-09-23T08:34:46.4526141Z -    
+2025-09-23T08:34:46.4526290Z +
+2025-09-23T08:34:46.4526556Z      #[test]
+2025-09-23T08:34:46.4526744Z      fn test_tfidf_embedding() {
+2025-09-23T08:34:46.4527011Z          let mut tfidf = TfIdfEmbedding::new(10);
+2025-09-23T08:34:46.4527408Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:377:
+2025-09-23T08:34:46.4527752Z -        
+2025-09-23T08:34:46.4527915Z +
+2025-09-23T08:34:46.4528082Z          let corpus = vec![
+2025-09-23T08:34:46.4528318Z              "machine learning is great",
+2025-09-23T08:34:46.4528575Z              "deep learning is better",
+2025-09-23T08:34:46.4528948Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:381:
+2025-09-23T08:34:46.4529327Z              "vector databases store embeddings",
+2025-09-23T08:34:46.4529628Z              "embeddings represent text as vectors",
+2025-09-23T08:34:46.4529889Z          ];
+2025-09-23T08:34:46.4530052Z -        
+2025-09-23T08:34:46.4530210Z +
+2025-09-23T08:34:46.4530390Z          tfidf.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4530627Z -        
+2025-09-23T08:34:46.4530785Z +
+2025-09-23T08:34:46.4531048Z          let embedding = tfidf.embed("machine learning vectors").unwrap();
+2025-09-23T08:34:46.4531388Z          assert_eq!(embedding.len(), 10);
+2025-09-23T08:34:46.4531619Z -        
+2025-09-23T08:34:46.4531770Z +
+2025-09-23T08:34:46.4531949Z          // Check normalization
+2025-09-23T08:34:46.4532282Z          let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+2025-09-23T08:34:46.4532617Z          assert!((norm - 1.0).abs() < 1e-6);
+2025-09-23T08:34:46.4532994Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:393:
+2025-09-23T08:34:46.4533330Z      }
+2025-09-23T08:34:46.4533489Z -    
+2025-09-23T08:34:46.4533797Z +
+2025-09-23T08:34:46.4534002Z      #[test]
+2025-09-23T08:34:46.4534190Z      fn test_bag_of_words() {
+2025-09-23T08:34:46.4534463Z          let mut bow = BagOfWordsEmbedding::new(5);
+2025-09-23T08:34:46.4534856Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:398:
+2025-09-23T08:34:46.4535207Z -        
+2025-09-23T08:34:46.4535388Z -        let corpus = vec![
+2025-09-23T08:34:46.4535605Z -            "hello world",
+2025-09-23T08:34:46.4535834Z -            "hello machine learning",
+2025-09-23T08:34:46.4536082Z -            "world of vectors",
+2025-09-23T08:34:46.4536305Z -        ];
+2025-09-23T08:34:46.4536466Z -        
+2025-09-23T08:34:46.4536623Z +
+2025-09-23T08:34:46.4536909Z +        let corpus = vec!["hello world", "hello machine learning", "world of vectors"];
+2025-09-23T08:34:46.4537249Z +
+2025-09-23T08:34:46.4537427Z          bow.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4537666Z -        
+2025-09-23T08:34:46.4537824Z +
+2025-09-23T08:34:46.4538036Z          let embedding = bow.embed("hello world").unwrap();
+2025-09-23T08:34:46.4538340Z          assert_eq!(embedding.len(), 5);
+2025-09-23T08:34:46.4538570Z -        
+2025-09-23T08:34:46.4538728Z +
+2025-09-23T08:34:46.4538948Z          // Should have non-zero values for "hello" and "world"
+2025-09-23T08:34:46.4539275Z          assert!(embedding.iter().any(|&x| x > 0.0));
+2025-09-23T08:34:46.4539543Z      }
+2025-09-23T08:34:46.4539847Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:413:
+2025-09-23T08:34:46.4540190Z -    
+2025-09-23T08:34:46.4540352Z +
+2025-09-23T08:34:46.4540633Z      #[test]
+2025-09-23T08:34:46.4540820Z      fn test_char_ngram() {
+2025-09-23T08:34:46.4541098Z          let mut ngram = CharNGramEmbedding::new(10, 3);
+2025-09-23T08:34:46.4541496Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:417:
+2025-09-23T08:34:46.4541848Z -        
+2025-09-23T08:34:46.4542024Z -        let corpus = vec![
+2025-09-23T08:34:46.4542238Z -            "hello",
+2025-09-23T08:34:46.4542427Z -            "world",
+2025-09-23T08:34:46.4542620Z -            "hello world",
+2025-09-23T08:34:46.4542812Z -        ];
+2025-09-23T08:34:46.4542974Z -        
+2025-09-23T08:34:46.4543134Z +
+2025-09-23T08:34:46.4543348Z +        let corpus = vec!["hello", "world", "hello world"];
+2025-09-23T08:34:46.4543613Z +
+2025-09-23T08:34:46.4544027Z          ngram.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4544269Z -        
+2025-09-23T08:34:46.4544421Z +
+2025-09-23T08:34:46.4544632Z          let embedding = ngram.embed("hello").unwrap();
+2025-09-23T08:34:46.4544922Z          assert_eq!(embedding.len(), 10);
+2025-09-23T08:34:46.4545154Z -        
+2025-09-23T08:34:46.4545307Z +
+2025-09-23T08:34:46.4545479Z          // Check normalization
+2025-09-23T08:34:46.4545801Z          let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+2025-09-23T08:34:46.4546160Z          assert!((norm - 1.0).abs() < 1e-6 || norm == 0.0);
+2025-09-23T08:34:46.4546660Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:432:
+2025-09-23T08:34:46.4547273Z      }
+2025-09-23T08:34:46.4547532Z -    
+2025-09-23T08:34:46.4547784Z +
+2025-09-23T08:34:46.4548040Z      #[test]
+2025-09-23T08:34:46.4548356Z      fn test_embedding_manager() {
+2025-09-23T08:34:46.4548836Z          let mut manager = EmbeddingManager::new();
+2025-09-23T08:34:46.4549519Z Diff in /home/runner/work/vectorizer/vectorizer/src/embedding/mod.rs:437:
+2025-09-23T08:34:46.4550133Z -        
+2025-09-23T08:34:46.4550398Z +
+2025-09-23T08:34:46.4550750Z          let tfidf = Box::new(TfIdfEmbedding::new(10));
+2025-09-23T08:34:46.4551317Z          let bow = Box::new(BagOfWordsEmbedding::new(5));
+2025-09-23T08:34:46.4551764Z -        
+2025-09-23T08:34:46.4552024Z +
+2025-09-23T08:34:46.4552402Z          manager.register_provider("tfidf".to_string(), tfidf);
+2025-09-23T08:34:46.4552833Z          manager.register_provider("bow".to_string(), bow);
+2025-09-23T08:34:46.4553105Z -        
+2025-09-23T08:34:46.4553265Z +
+2025-09-23T08:34:46.4553484Z          manager.set_default_provider("tfidf").unwrap();
+2025-09-23T08:34:46.4553958Z -        
+2025-09-23T08:34:46.4554127Z +
+2025-09-23T08:34:46.4554356Z          let provider = manager.get_provider("tfidf").unwrap();
+2025-09-23T08:34:46.4554683Z          assert_eq!(provider.dimension(), 10);
+2025-09-23T08:34:46.4554929Z -        
+2025-09-23T08:34:46.4555096Z +
+2025-09-23T08:34:46.4555352Z          let default_provider = manager.get_default_provider().unwrap();
+2025-09-23T08:34:46.4555726Z          assert_eq!(default_provider.dimension(), 10);
+2025-09-23T08:34:46.4555988Z      }
+2025-09-23T08:34:46.4556495Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:64:
+2025-09-23T08:34:46.4556854Z                      "content": "ML is a subset of AI...",
+2025-09-23T08:34:46.4557130Z                      "category": "tutorial",
+2025-09-23T08:34:46.4557400Z                      "tags": ["AI", "ML", "beginner"]
+2025-09-23T08:34:46.4557653Z -                })).unwrap()
+2025-09-23T08:34:46.4557868Z +                }))
+2025-09-23T08:34:46.4558056Z +                .unwrap(),
+2025-09-23T08:34:46.4558256Z              ),
+2025-09-23T08:34:46.4558497Z              Vector::with_payload(
+2025-09-23T08:34:46.4558741Z                  "doc_002".to_string(),
+2025-09-23T08:34:46.4559066Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:74:
+2025-09-23T08:34:46.4559414Z                      "content": "Neural networks are...",
+2025-09-23T08:34:46.4559693Z                      "category": "advanced",
+2025-09-23T08:34:46.4559987Z                      "tags": ["AI", "deep-learning", "neural-networks"]
+2025-09-23T08:34:46.4560416Z -                })).unwrap()
+2025-09-23T08:34:46.4560630Z +                }))
+2025-09-23T08:34:46.4560827Z +                .unwrap(),
+2025-09-23T08:34:46.4561020Z              ),
+2025-09-23T08:34:46.4561224Z              Vector::with_payload(
+2025-09-23T08:34:46.4561465Z                  "doc_003".to_string(),
+2025-09-23T08:34:46.4561784Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:84:
+2025-09-23T08:34:46.4562155Z                      "content": "Vector databases store embeddings...",
+2025-09-23T08:34:46.4562467Z                      "category": "infrastructure",
+2025-09-23T08:34:46.4562770Z                      "tags": ["database", "vectors", "embeddings"]
+2025-09-23T08:34:46.4563043Z -                })).unwrap()
+2025-09-23T08:34:46.4563371Z +                }))
+2025-09-23T08:34:46.4563558Z +                .unwrap(),
+2025-09-23T08:34:46.4563889Z              ),
+2025-09-23T08:34:46.4564059Z          ];
+2025-09-23T08:34:46.4564226Z  
+2025-09-23T08:34:46.4564492Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:116:
+2025-09-23T08:34:46.4564834Z                  "content": "Updated content...",
+2025-09-23T08:34:46.4565113Z                  "category": "tutorial",
+2025-09-23T08:34:46.4565396Z                  "tags": ["AI", "ML", "beginner", "updated"]
+2025-09-23T08:34:46.4565666Z -            })).unwrap()
+2025-09-23T08:34:46.4565860Z +            }))
+2025-09-23T08:34:46.4566049Z +            .unwrap(),
+2025-09-23T08:34:46.4566236Z          );
+2025-09-23T08:34:46.4566402Z  
+2025-09-23T08:34:46.4566625Z          store.update("documents", updated_vector).unwrap();
+2025-09-23T08:34:46.4567002Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:144:
+2025-09-23T08:34:46.4567307Z  
+2025-09-23T08:34:46.4567467Z      #[test]
+2025-09-23T08:34:46.4567697Z      fn test_vector_database_with_real_embeddings() {
+2025-09-23T08:34:46.4568062Z -        use crate::embedding::{TfIdfEmbedding, EmbeddingManager};
+2025-09-23T08:34:46.4568464Z +        use crate::embedding::{EmbeddingManager, TfIdfEmbedding};
+2025-09-23T08:34:46.4568757Z  
+2025-09-23T08:34:46.4568975Z          // Create embedding manager and TF-IDF embedder
+2025-09-23T08:34:46.4569294Z          let mut manager = EmbeddingManager::new();
+2025-09-23T08:34:46.4569651Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:185:
+2025-09-23T08:34:46.4569955Z  
+2025-09-23T08:34:46.4570132Z          // Documents to embed and store
+2025-09-23T08:34:46.4570392Z          let document_texts = vec![
+2025-09-23T08:34:46.4570727Z -            ("ai_basics", "Artificial intelligence is transforming technology"),
+2025-09-23T08:34:46.4571153Z -            ("ml_guide", "Machine learning models learn from data patterns"),
+2025-09-23T08:34:46.4571559Z -            ("neural_nets", "Neural networks simulate brain functionality"),
+2025-09-23T08:34:46.4571972Z -            ("vector_db", "Vector databases enable fast similarity search"),
+2025-09-23T08:34:46.4572281Z +            (
+2025-09-23T08:34:46.4572566Z +                "ai_basics",
+2025-09-23T08:34:46.4573071Z +                "Artificial intelligence is transforming technology",
+2025-09-23T08:34:46.4573559Z +            ),
+2025-09-23T08:34:46.4573975Z +            (
+2025-09-23T08:34:46.4574224Z +                "ml_guide",
+2025-09-23T08:34:46.4574512Z +                "Machine learning models learn from data patterns",
+2025-09-23T08:34:46.4574789Z +            ),
+2025-09-23T08:34:46.4574964Z +            (
+2025-09-23T08:34:46.4575145Z +                "neural_nets",
+2025-09-23T08:34:46.4575416Z +                "Neural networks simulate brain functionality",
+2025-09-23T08:34:46.4575689Z +            ),
+2025-09-23T08:34:46.4575857Z +            (
+2025-09-23T08:34:46.4576039Z +                "vector_db",
+2025-09-23T08:34:46.4576317Z +                "Vector databases enable fast similarity search",
+2025-09-23T08:34:46.4576596Z +            ),
+2025-09-23T08:34:46.4576764Z          ];
+2025-09-23T08:34:46.4576925Z  
+2025-09-23T08:34:46.4577119Z          // Generate embeddings and create vectors
+2025-09-23T08:34:46.4577606Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:202:
+2025-09-23T08:34:46.4577939Z                      "content": text,
+2025-09-23T08:34:46.4578232Z                      "word_count": text.split_whitespace().count(),
+2025-09-23T08:34:46.4578535Z                      "embedding_type": "tfidf"
+2025-09-23T08:34:46.4578784Z -                })).unwrap()
+2025-09-23T08:34:46.4578996Z +                }))
+2025-09-23T08:34:46.4579183Z +                .unwrap(),
+2025-09-23T08:34:46.4579389Z              );
+2025-09-23T08:34:46.4579580Z              vectors.push(vector);
+2025-09-23T08:34:46.4579803Z          }
+2025-09-23T08:34:46.4580054Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:309:
+2025-09-23T08:34:46.4580524Z                  // Each thread inserts its own set of vectors
+2025-09-23T08:34:46.4580829Z                  for i in 0..vectors_per_thread {
+2025-09-23T08:34:46.4581169Z                      let vector_id = format!("thread_{}_vec_{}", thread_id, i);
+2025-09-23T08:34:46.4581527Z -                    let vector_data: Vec<f32> = (0..64).map(|j| {
+2025-09-23T08:34:46.4581880Z -                        (thread_id as f32 * 0.1) + (i as f32 * 0.01) + (j as f32 * 0.001)
+2025-09-23T08:34:46.4582202Z -                    }).collect();
+2025-09-23T08:34:46.4582455Z +                    let vector_data: Vec<f32> = (0..64)
+2025-09-23T08:34:46.4582821Z +                        .map(|j| (thread_id as f32 * 0.1) + (i as f32 * 0.01) + (j as f32 * 0.001))
+2025-09-23T08:34:46.4583149Z +                        .collect();
+2025-09-23T08:34:46.4583371Z  
+2025-09-23T08:34:46.4583589Z                      let vector = Vector::with_payload(
+2025-09-23T08:34:46.4584066Z                          vector_id.clone(),
+2025-09-23T08:34:46.4584412Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:320:
+2025-09-23T08:34:46.4584751Z                              "thread_id": thread_id,
+2025-09-23T08:34:46.4585023Z                              "vector_index": i,
+2025-09-23T08:34:46.4585325Z                              "created_by": format!("thread_{}", thread_id)
+2025-09-23T08:34:46.4585618Z -                        })).unwrap()
+2025-09-23T08:34:46.4585847Z +                        }))
+2025-09-23T08:34:46.4586067Z +                        .unwrap(),
+2025-09-23T08:34:46.4586292Z                      );
+2025-09-23T08:34:46.4586475Z  
+2025-09-23T08:34:46.4586725Z                      store_clone.insert("concurrent", vec![vector]).unwrap();
+2025-09-23T08:34:46.4587119Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:402:
+2025-09-23T08:34:46.4587610Z          let wrong_dim_vector = Vector::new("wrong".to_string(), vec![1.0, 2.0]); // 2D instead of 3D
+2025-09-23T08:34:46.4588000Z          assert!(matches!(
+2025-09-23T08:34:46.4588272Z              store.insert("valid", vec![wrong_dim_vector]),
+2025-09-23T08:34:46.4588667Z -            Err(VectorizerError::InvalidDimension { expected: 3, got: 2 })
+2025-09-23T08:34:46.4589040Z +            Err(VectorizerError::InvalidDimension {
+2025-09-23T08:34:46.4589327Z +                expected: 3,
+2025-09-23T08:34:46.4589540Z +                got: 2
+2025-09-23T08:34:46.4589729Z +            })
+2025-09-23T08:34:46.4589901Z          ));
+2025-09-23T08:34:46.4590066Z  
+2025-09-23T08:34:46.4590251Z          // Test search with wrong dimensions
+2025-09-23T08:34:46.4590596Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:409:
+2025-09-23T08:34:46.4590909Z          assert!(matches!(
+2025-09-23T08:34:46.4591152Z              store.search("valid", &[1.0, 2.0], 1),
+2025-09-23T08:34:46.4591514Z -            Err(VectorizerError::InvalidDimension { expected: 3, got: 2 })
+2025-09-23T08:34:46.4591883Z +            Err(VectorizerError::InvalidDimension {
+2025-09-23T08:34:46.4592163Z +                expected: 3,
+2025-09-23T08:34:46.4592383Z +                got: 2
+2025-09-23T08:34:46.4592576Z +            })
+2025-09-23T08:34:46.4592746Z          ));
+2025-09-23T08:34:46.4592913Z  
+2025-09-23T08:34:46.4593116Z          // Test operations on non-existent entities
+2025-09-23T08:34:46.4593604Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:433:
+2025-09-23T08:34:46.4594138Z          ));
+2025-09-23T08:34:46.4594307Z  
+2025-09-23T08:34:46.4594482Z          assert!(matches!(
+2025-09-23T08:34:46.4594849Z -            store.update("valid", Vector::new("nonexistent".to_string(), vec![1.0, 2.0, 3.0])),
+2025-09-23T08:34:46.4595233Z +            store.update(
+2025-09-23T08:34:46.4595441Z +                "valid",
+2025-09-23T08:34:46.4595737Z +                Vector::new("nonexistent".to_string(), vec![1.0, 2.0, 3.0])
+2025-09-23T08:34:46.4596033Z +            ),
+2025-09-23T08:34:46.4596269Z              Err(VectorizerError::VectorNotFound(_))
+2025-09-23T08:34:46.4596523Z          ));
+2025-09-23T08:34:46.4596824Z  
+2025-09-23T08:34:46.4597081Z Diff in /home/runner/work/vectorizer/vectorizer/src/lib.rs:449:
+2025-09-23T08:34:46.4597383Z  
+2025-09-23T08:34:46.4597658Z          // Test creating multiple collections with different configurations
+2025-09-23T08:34:46.4598002Z          let configs = vec![
+2025-09-23T08:34:46.4598244Z -            ("small", CollectionConfig {
+2025-09-23T08:34:46.4598501Z -                dimension: 64,
+2025-09-23T08:34:46.4598796Z -                metric: crate::models::DistanceMetric::Euclidean,
+2025-09-23T08:34:46.4599275Z -                hnsw_config: crate::models::HnswConfig { m: 8, ef_construction: 100, ef_search: 50, seed: None },
+2025-09-23T08:34:46.4599698Z -                quantization: None,
+2025-09-23T08:34:46.4599972Z -                compression: Default::default(),
+2025-09-23T08:34:46.4600223Z -            }),
+2025-09-23T08:34:46.4600428Z -            ("large", CollectionConfig {
+2025-09-23T08:34:46.4600678Z -                dimension: 768,
+2025-09-23T08:34:46.4600962Z -                metric: crate::models::DistanceMetric::Cosine,
+2025-09-23T08:34:46.4601461Z -                hnsw_config: crate::models::HnswConfig { m: 32, ef_construction: 300, ef_search: 100, seed: Some(123) },
+2025-09-23T08:34:46.4601901Z -                quantization: None,
+2025-09-23T08:34:46.4602204Z -                compression: crate::models::CompressionConfig {
+2025-09-23T08:34:46.4602507Z -                    enabled: true,
+2025-09-23T08:34:46.4602756Z -                    threshold_bytes: 2048,
+2025-09-23T08:34:46.4603085Z -                    algorithm: crate::models::CompressionAlgorithm::Lz4,
+2025-09-23T08:34:46.4603462Z +            (
+2025-09-23T08:34:46.4604080Z +                "small",
+2025-09-23T08:34:46.4604456Z +                CollectionConfig {
+2025-09-23T08:34:46.4604859Z +                    dimension: 64,
+2025-09-23T08:34:46.4605365Z +                    metric: crate::models::DistanceMetric::Euclidean,
+2025-09-23T08:34:46.4605828Z +                    hnsw_config: crate::models::HnswConfig {
+2025-09-23T08:34:46.4606121Z +                        m: 8,
+2025-09-23T08:34:46.4606365Z +                        ef_construction: 100,
+2025-09-23T08:34:46.4606623Z +                        ef_search: 50,
+2025-09-23T08:34:46.4606880Z +                        seed: None,
+2025-09-23T08:34:46.4607105Z +                    },
+2025-09-23T08:34:46.4607326Z +                    quantization: None,
+2025-09-23T08:34:46.4607610Z +                    compression: Default::default(),
+2025-09-23T08:34:46.4607872Z                  },
+2025-09-23T08:34:46.4608053Z -            }),
+2025-09-23T08:34:46.4608236Z +            ),
+2025-09-23T08:34:46.4608415Z +            (
+2025-09-23T08:34:46.4608594Z +                "large",
+2025-09-23T08:34:46.4608816Z +                CollectionConfig {
+2025-09-23T08:34:46.4609057Z +                    dimension: 768,
+2025-09-23T08:34:46.4609353Z +                    metric: crate::models::DistanceMetric::Cosine,
+2025-09-23T08:34:46.4609693Z +                    hnsw_config: crate::models::HnswConfig {
+2025-09-23T08:34:46.4609977Z +                        m: 32,
+2025-09-23T08:34:46.4610215Z +                        ef_construction: 300,
+2025-09-23T08:34:46.4610480Z +                        ef_search: 100,
+2025-09-23T08:34:46.4610857Z +                        seed: Some(123),
+2025-09-23T08:34:46.4611109Z +                    },
+2025-09-23T08:34:46.4611321Z +                    quantization: None,
+2025-09-23T08:34:46.4611640Z +                    compression: crate::models::CompressionConfig {
+2025-09-23T08:34:46.4611953Z +                        enabled: true,
+2025-09-23T08:34:46.4612214Z +                        threshold_bytes: 2048,
+2025-09-23T08:34:46.4612557Z +                        algorithm: crate::models::CompressionAlgorithm::Lz4,
+2025-09-23T08:34:46.4612856Z +                    },
+2025-09-23T08:34:46.4613062Z +                },
+2025-09-23T08:34:46.4613240Z +            ),
+2025-09-23T08:34:46.4613412Z          ];
+2025-09-23T08:34:46.4613577Z  
+2025-09-23T08:34:46.4613958Z          // Create collections
+2025-09-23T08:34:46.4614460Z Diff in /home/runner/work/vectorizer/vectorizer/src/persistence/mod.rs:318:
+2025-09-23T08:34:46.4614931Z          let manager_uncompressed = PersistenceManager::new(false);
+2025-09-23T08:34:46.4615230Z  
+2025-09-23T08:34:46.4615488Z          manager_compressed.save(&data, &path_compressed).unwrap();
+2025-09-23T08:34:46.4615900Z -        manager_uncompressed.save(&data, &path_uncompressed).unwrap();
+2025-09-23T08:34:46.4616234Z +        manager_uncompressed
+2025-09-23T08:34:46.4616487Z +            .save(&data, &path_uncompressed)
+2025-09-23T08:34:46.4616743Z +            .unwrap();
+2025-09-23T08:34:46.4616927Z  
+2025-09-23T08:34:46.4617183Z          // Both should load correctly regardless of compression setting
+2025-09-23T08:34:46.4617662Z          let loaded_compressed: Vec<u8> = manager_compressed.load(&path_compressed).unwrap();
+2025-09-23T08:34:46.4618184Z Diff in /home/runner/work/vectorizer/vectorizer/src/persistence/mod.rs:325:
+2025-09-23T08:34:46.4618720Z          let loaded_uncompressed: Vec<u8> = manager_uncompressed.load(&path_uncompressed).unwrap();
+2025-09-23T08:34:46.4619292Z          let cross_loaded_compressed: Vec<u8> = manager_uncompressed.load(&path_compressed).unwrap();
+2025-09-23T08:34:46.4619869Z -        let cross_loaded_uncompressed: Vec<u8> = manager_compressed.load(&path_uncompressed).unwrap();
+2025-09-23T08:34:46.4620306Z +        let cross_loaded_uncompressed: Vec<u8> =
+2025-09-23T08:34:46.4620650Z +            manager_compressed.load(&path_uncompressed).unwrap();
+2025-09-23T08:34:46.4620935Z  
+2025-09-23T08:34:46.4621128Z          assert_eq!(loaded_compressed, data);
+2025-09-23T08:34:46.4621415Z          assert_eq!(loaded_uncompressed, data);
+2025-09-23T08:34:46.4621833Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/additional_tests.rs:1:
+2025-09-23T08:34:46.4622214Z  use crate::{
+2025-09-23T08:34:46.4622420Z -	db::{HnswIndex, VectorStore},
+2025-09-23T08:34:46.4622840Z -	models::{vector_utils, CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+2025-09-23T08:34:46.4623267Z +    db::{HnswIndex, VectorStore},
+2025-09-23T08:34:46.4623869Z +    models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector, vector_utils},
+2025-09-23T08:34:46.4624272Z  };
+2025-09-23T08:34:46.4624468Z  use proptest::prelude::*;
+2025-09-23T08:34:46.4624673Z  
+2025-09-23T08:34:46.4625001Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/additional_tests.rs:7:
+2025-09-23T08:34:46.4625378Z  #[test]
+2025-09-23T08:34:46.4625587Z  fn test_embedding_manager_error_cases() {
+2025-09-23T08:34:46.4626071Z -	use crate::embedding::{BagOfWordsEmbedding, EmbeddingManager, EmbeddingProvider, TfIdfEmbedding};
+2025-09-23T08:34:46.4626532Z +    use crate::embedding::{
+2025-09-23T08:34:46.4626913Z +        BagOfWordsEmbedding, EmbeddingManager, EmbeddingProvider, TfIdfEmbedding,
+2025-09-23T08:34:46.4627277Z +    };
+2025-09-23T08:34:46.4627442Z  
+2025-09-23T08:34:46.4627645Z -	let mut manager = EmbeddingManager::new();
+2025-09-23T08:34:46.4627962Z +    let mut manager = EmbeddingManager::new();
+2025-09-23T08:34:46.4628208Z  
+2025-09-23T08:34:46.4628387Z -	// No default provider yet
+2025-09-23T08:34:46.4628675Z -	let err = manager.get_default_provider().err().unwrap();
+2025-09-23T08:34:46.4629112Z -	let msg = format!("{}", err);
+2025-09-23T08:34:46.4629392Z -	assert!(msg.contains("No default provider"));
+2025-09-23T08:34:46.4629669Z +    // No default provider yet
+2025-09-23T08:34:46.4629962Z +    let err = manager.get_default_provider().err().unwrap();
+2025-09-23T08:34:46.4630265Z +    let msg = format!("{}", err);
+2025-09-23T08:34:46.4630539Z +    assert!(msg.contains("No default provider"));
+2025-09-23T08:34:46.4630791Z  
+2025-09-23T08:34:46.4630963Z -	// Register providers
+2025-09-23T08:34:46.4631328Z -	manager.register_provider("tfidf".to_string(), Box::new(TfIdfEmbedding::new(8)));
+2025-09-23T08:34:46.4631875Z -	manager.register_provider("bow".to_string(), Box::new(BagOfWordsEmbedding::new(8)));
+2025-09-23T08:34:46.4632268Z +    // Register providers
+2025-09-23T08:34:46.4632747Z +    manager.register_provider("tfidf".to_string(), Box::new(TfIdfEmbedding::new(8)));
+2025-09-23T08:34:46.4633282Z +    manager.register_provider("bow".to_string(), Box::new(BagOfWordsEmbedding::new(8)));
+2025-09-23T08:34:46.4633809Z  
+2025-09-23T08:34:46.4634057Z -	// Setting non-existent default should fail
+2025-09-23T08:34:46.4634410Z -	let err = manager.set_default_provider("missing").err().unwrap();
+2025-09-23T08:34:46.4634746Z -	let msg = format!("{}", err);
+2025-09-23T08:34:46.4634989Z -	assert!(msg.contains("not found"));
+2025-09-23T08:34:46.4635263Z +    // Setting non-existent default should fail
+2025-09-23T08:34:46.4635640Z +    let err = manager.set_default_provider("missing").err().unwrap();
+2025-09-23T08:34:46.4635962Z +    let msg = format!("{}", err);
+2025-09-23T08:34:46.4636217Z +    assert!(msg.contains("not found"));
+2025-09-23T08:34:46.4636446Z  
+2025-09-23T08:34:46.4636629Z -	// Set valid default and use it
+2025-09-23T08:34:46.4636900Z -	manager.set_default_provider("tfidf").unwrap();
+2025-09-23T08:34:46.4637232Z -	let emb = manager.embed("hello world").unwrap();
+2025-09-23T08:34:46.4637521Z -	assert_eq!(emb.len(), 8);
+2025-09-23T08:34:46.4637749Z +    // Set valid default and use it
+2025-09-23T08:34:46.4638039Z +    manager.set_default_provider("tfidf").unwrap();
+2025-09-23T08:34:46.4638360Z +    let emb = manager.embed("hello world").unwrap();
+2025-09-23T08:34:46.4638647Z +    assert_eq!(emb.len(), 8);
+2025-09-23T08:34:46.4638851Z  }
+2025-09-23T08:34:46.4639008Z  
+2025-09-23T08:34:46.4639160Z  #[test]
+2025-09-23T08:34:46.4639498Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/additional_tests.rs:34:
+2025-09-23T08:34:46.4639938Z  fn test_vector_store_stats_multiple_collections() {
+2025-09-23T08:34:46.4640241Z -	let store = VectorStore::new();
+2025-09-23T08:34:46.4640502Z +    let store = VectorStore::new();
+2025-09-23T08:34:46.4640726Z  
+2025-09-23T08:34:46.4640909Z -	let cfg_small = CollectionConfig {
+2025-09-23T08:34:46.4641142Z -		dimension: 3,
+2025-09-23T08:34:46.4641376Z -		metric: DistanceMetric::Euclidean,
+2025-09-23T08:34:46.4641946Z -		hnsw_config: HnswConfig::default(),
+2025-09-23T08:34:46.4642257Z -		quantization: None,
+2025-09-23T08:34:46.4642567Z -		compression: Default::default(),
+2025-09-23T08:34:46.4642937Z -	};
+2025-09-23T08:34:46.4643220Z -	let cfg_large = CollectionConfig {
+2025-09-23T08:34:46.4643532Z -		dimension: 64,
+2025-09-23T08:34:46.4644016Z -		metric: DistanceMetric::Cosine,
+2025-09-23T08:34:46.4644371Z -		hnsw_config: HnswConfig::default(),
+2025-09-23T08:34:46.4644674Z -		quantization: None,
+2025-09-23T08:34:46.4645041Z -		compression: Default::default(),
+2025-09-23T08:34:46.4653990Z -	};
+2025-09-23T08:34:46.4654254Z +    let cfg_small = CollectionConfig {
+2025-09-23T08:34:46.4654531Z +        dimension: 3,
+2025-09-23T08:34:46.4654785Z +        metric: DistanceMetric::Euclidean,
+2025-09-23T08:34:46.4655088Z +        hnsw_config: HnswConfig::default(),
+2025-09-23T08:34:46.4655356Z +        quantization: None,
+2025-09-23T08:34:46.4655622Z +        compression: Default::default(),
+2025-09-23T08:34:46.4655864Z +    };
+2025-09-23T08:34:46.4656057Z +    let cfg_large = CollectionConfig {
+2025-09-23T08:34:46.4656301Z +        dimension: 64,
+2025-09-23T08:34:46.4656698Z +        metric: DistanceMetric::Cosine,
+2025-09-23T08:34:46.4656983Z +        hnsw_config: HnswConfig::default(),
+2025-09-23T08:34:46.4657236Z +        quantization: None,
+2025-09-23T08:34:46.4657480Z +        compression: Default::default(),
+2025-09-23T08:34:46.4657714Z +    };
+2025-09-23T08:34:46.4657871Z  
+2025-09-23T08:34:46.4658101Z -	store.create_collection("small", cfg_small).unwrap();
+2025-09-23T08:34:46.4658502Z -	store.create_collection("large", cfg_large).unwrap();
+2025-09-23T08:34:46.4658857Z +    store.create_collection("small", cfg_small).unwrap();
+2025-09-23T08:34:46.4659212Z +    store.create_collection("large", cfg_large).unwrap();
+2025-09-23T08:34:46.4659483Z  
+2025-09-23T08:34:46.4659662Z -	// Insert a few vectors in each
+2025-09-23T08:34:46.4660023Z -	store.insert(
+2025-09-23T08:34:46.4660201Z -		"small",
+2025-09-23T08:34:46.4660373Z -		vec![
+2025-09-23T08:34:46.4660594Z -			Vector::new("s1".to_string(), vec![1.0, 0.0, 0.0]),
+2025-09-23T08:34:46.4660910Z -			Vector::new("s2".to_string(), vec![0.0, 1.0, 0.0]),
+2025-09-23T08:34:46.4661166Z -		],
+2025-09-23T08:34:46.4661326Z -	)
+2025-09-23T08:34:46.4661481Z -	.unwrap();
+2025-09-23T08:34:46.4661688Z +    // Insert a few vectors in each
+2025-09-23T08:34:46.4661916Z +    store
+2025-09-23T08:34:46.4662084Z +        .insert(
+2025-09-23T08:34:46.4662261Z +            "small",
+2025-09-23T08:34:46.4662451Z +            vec![
+2025-09-23T08:34:46.4662701Z +                Vector::new("s1".to_string(), vec![1.0, 0.0, 0.0]),
+2025-09-23T08:34:46.4663029Z +                Vector::new("s2".to_string(), vec![0.0, 1.0, 0.0]),
+2025-09-23T08:34:46.4663292Z +            ],
+2025-09-23T08:34:46.4663456Z +        )
+2025-09-23T08:34:46.4663744Z +        .unwrap();
+2025-09-23T08:34:46.4663921Z  
+2025-09-23T08:34:46.4664086Z -	store
+2025-09-23T08:34:46.4664248Z -		.insert(
+2025-09-23T08:34:46.4664414Z -			"large",
+2025-09-23T08:34:46.4664578Z -			vec![
+2025-09-23T08:34:46.4664786Z -				Vector::new("l1".to_string(), vec![0.1; 64]),
+2025-09-23T08:34:46.4665099Z -				Vector::new("l2".to_string(), vec![0.2; 64]),
+2025-09-23T08:34:46.4665389Z -				Vector::new("l3".to_string(), vec![0.3; 64]),
+2025-09-23T08:34:46.4665635Z -			],
+2025-09-23T08:34:46.4665791Z -		)
+2025-09-23T08:34:46.4665955Z -		.unwrap();
+2025-09-23T08:34:46.4666125Z +    store
+2025-09-23T08:34:46.4666293Z +        .insert(
+2025-09-23T08:34:46.4666469Z +            "large",
+2025-09-23T08:34:46.4666662Z +            vec![
+2025-09-23T08:34:46.4666885Z +                Vector::new("l1".to_string(), vec![0.1; 64]),
+2025-09-23T08:34:46.4667200Z +                Vector::new("l2".to_string(), vec![0.2; 64]),
+2025-09-23T08:34:46.4667504Z +                Vector::new("l3".to_string(), vec![0.3; 64]),
+2025-09-23T08:34:46.4667760Z +            ],
+2025-09-23T08:34:46.4667938Z +        )
+2025-09-23T08:34:46.4668102Z +        .unwrap();
+2025-09-23T08:34:46.4668278Z  
+2025-09-23T08:34:46.4668452Z -	let stats = store.stats();
+2025-09-23T08:34:46.4668697Z -	assert_eq!(stats.collection_count, 2);
+2025-09-23T08:34:46.4668973Z -	assert_eq!(stats.total_vectors, 5);
+2025-09-23T08:34:46.4669234Z -	assert!(stats.total_memory_bytes > 0);
+2025-09-23T08:34:46.4669484Z +    let stats = store.stats();
+2025-09-23T08:34:46.4669749Z +    assert_eq!(stats.collection_count, 2);
+2025-09-23T08:34:46.4670015Z +    assert_eq!(stats.total_vectors, 5);
+2025-09-23T08:34:46.4670275Z +    assert!(stats.total_memory_bytes > 0);
+2025-09-23T08:34:46.4670510Z  }
+2025-09-23T08:34:46.4670656Z  
+2025-09-23T08:34:46.4670808Z  #[test]
+2025-09-23T08:34:46.4671139Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/additional_tests.rs:83:
+2025-09-23T08:34:46.4671556Z  fn test_payload_serialization_nested() {
+2025-09-23T08:34:46.4671829Z -	let store = VectorStore::new();
+2025-09-23T08:34:46.4672085Z -	let cfg = CollectionConfig {
+2025-09-23T08:34:46.4672312Z -		dimension: 4,
+2025-09-23T08:34:46.4672535Z -		metric: DistanceMetric::Euclidean,
+2025-09-23T08:34:46.4672801Z -		hnsw_config: HnswConfig::default(),
+2025-09-23T08:34:46.4673054Z -		quantization: None,
+2025-09-23T08:34:46.4673402Z -		compression: Default::default(),
+2025-09-23T08:34:46.4673765Z -	};
+2025-09-23T08:34:46.4674066Z -	store.create_collection("nested", cfg).unwrap();
+2025-09-23T08:34:46.4674364Z +    let store = VectorStore::new();
+2025-09-23T08:34:46.4674614Z +    let cfg = CollectionConfig {
+2025-09-23T08:34:46.4674840Z +        dimension: 4,
+2025-09-23T08:34:46.4675066Z +        metric: DistanceMetric::Euclidean,
+2025-09-23T08:34:46.4675340Z +        hnsw_config: HnswConfig::default(),
+2025-09-23T08:34:46.4675592Z +        quantization: None,
+2025-09-23T08:34:46.4675826Z +        compression: Default::default(),
+2025-09-23T08:34:46.4676062Z +    };
+2025-09-23T08:34:46.4676277Z +    store.create_collection("nested", cfg).unwrap();
+2025-09-23T08:34:46.4676669Z  
+2025-09-23T08:34:46.4676901Z -	let payload = Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4676976Z -		"meta": {
+2025-09-23T08:34:46.4677064Z -			"source": "unit_test",
+2025-09-23T08:34:46.4677172Z -			"tags": ["nested", "json", {"k": "v"}],
+2025-09-23T08:34:46.4677259Z -			"score": 0.87
+2025-09-23T08:34:46.4677327Z -		}
+2025-09-23T08:34:46.4677397Z -	}))
+2025-09-23T08:34:46.4677475Z -	.unwrap();
+2025-09-23T08:34:46.4677620Z +    let payload = Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4677697Z +        "meta": {
+2025-09-23T08:34:46.4677789Z +            "source": "unit_test",
+2025-09-23T08:34:46.4677902Z +            "tags": ["nested", "json", {"k": "v"}],
+2025-09-23T08:34:46.4677985Z +            "score": 0.87
+2025-09-23T08:34:46.4678054Z +        }
+2025-09-23T08:34:46.4678128Z +    }))
+2025-09-23T08:34:46.4678203Z +    .unwrap();
+2025-09-23T08:34:46.4678269Z  
+2025-09-23T08:34:46.4678341Z -	store
+2025-09-23T08:34:46.4678418Z -		.insert(
+2025-09-23T08:34:46.4678498Z -			"nested",
+2025-09-23T08:34:46.4678596Z -			vec![Vector::with_payload(
+2025-09-23T08:34:46.4678681Z -				"n1".to_string(),
+2025-09-23T08:34:46.4678762Z -				vec![0.0, 1.0, 2.0, 3.0],
+2025-09-23T08:34:46.4678838Z -				payload,
+2025-09-23T08:34:46.4678907Z -			)],
+2025-09-23T08:34:46.4678982Z -		)
+2025-09-23T08:34:46.4679056Z -		.unwrap();
+2025-09-23T08:34:46.4679127Z +    store
+2025-09-23T08:34:46.4679205Z +        .insert(
+2025-09-23T08:34:46.4679285Z +            "nested",
+2025-09-23T08:34:46.4679387Z +            vec![Vector::with_payload(
+2025-09-23T08:34:46.4679474Z +                "n1".to_string(),
+2025-09-23T08:34:46.4679570Z +                vec![0.0, 1.0, 2.0, 3.0],
+2025-09-23T08:34:46.4679654Z +                payload,
+2025-09-23T08:34:46.4679727Z +            )],
+2025-09-23T08:34:46.4679808Z +        )
+2025-09-23T08:34:46.4679885Z +        .unwrap();
+2025-09-23T08:34:46.4679955Z  
+2025-09-23T08:34:46.4680086Z -	let got = store.get_vector("nested", "n1").unwrap();
+2025-09-23T08:34:46.4680219Z -	let meta = &got.payload.unwrap().data["meta"];
+2025-09-23T08:34:46.4680322Z -	assert_eq!(meta["source"], "unit_test");
+2025-09-23T08:34:46.4680421Z -	assert_eq!(meta["tags"][0], "nested");
+2025-09-23T08:34:46.4680523Z -	assert_eq!(meta["tags"][2]["k"], "v");
+2025-09-23T08:34:46.4680661Z +    let got = store.get_vector("nested", "n1").unwrap();
+2025-09-23T08:34:46.4680782Z +    let meta = &got.payload.unwrap().data["meta"];
+2025-09-23T08:34:46.4680891Z +    assert_eq!(meta["source"], "unit_test");
+2025-09-23T08:34:46.4680994Z +    assert_eq!(meta["tags"][0], "nested");
+2025-09-23T08:34:46.4681091Z +    assert_eq!(meta["tags"][2]["k"], "v");
+2025-09-23T08:34:46.4681159Z  }
+2025-09-23T08:34:46.4681236Z  
+2025-09-23T08:34:46.4681317Z  proptest! {
+2025-09-23T08:34:46.4681566Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/additional_tests.rs:122:
+2025-09-23T08:34:46.4681638Z -	#[test]
+2025-09-23T08:34:46.4681958Z -	fn prop_normalize_vector_has_unit_norm_nonzero(v in proptest::collection::vec(-10.0f32..10.0f32, 1..64)) {
+2025-09-23T08:34:46.4682092Z -		let norm_sq: f32 = v.iter().map(|x| x * x).sum();
+2025-09-23T08:34:46.4682190Z -		prop_assume!(norm_sq > 1e-12);
+2025-09-23T08:34:46.4682314Z -		let n = vector_utils::normalize_vector(&v);
+2025-09-23T08:34:46.4682585Z -		let n_sq: f32 = n.iter().map(|x| x * x).sum();
+2025-09-23T08:34:46.4682696Z -		prop_assert!((n_sq - 1.0).abs() < 5e-4);
+2025-09-23T08:34:46.4682772Z -	}
+2025-09-23T08:34:46.4682846Z +    #[test]
+2025-09-23T08:34:46.4683153Z +    fn prop_normalize_vector_has_unit_norm_nonzero(v in proptest::collection::vec(-10.0f32..10.0f32, 1..64)) {
+2025-09-23T08:34:46.4683283Z +        let norm_sq: f32 = v.iter().map(|x| x * x).sum();
+2025-09-23T08:34:46.4683392Z +        prop_assume!(norm_sq > 1e-12);
+2025-09-23T08:34:46.4683512Z +        let n = vector_utils::normalize_vector(&v);
+2025-09-23T08:34:46.4683734Z +        let n_sq: f32 = n.iter().map(|x| x * x).sum();
+2025-09-23T08:34:46.4683853Z +        prop_assert!((n_sq - 1.0).abs() < 5e-4);
+2025-09-23T08:34:46.4684041Z +    }
+2025-09-23T08:34:46.4684112Z  }
+2025-09-23T08:34:46.4684181Z  
+2025-09-23T08:34:46.4684260Z  #[test]
+2025-09-23T08:34:46.4684508Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/additional_tests.rs:133:
+2025-09-23T08:34:46.4684613Z  fn test_hnsw_stats_and_rebuild() {
+2025-09-23T08:34:46.4684858Z -	let mut index = HnswIndex::new(HnswConfig::default(), DistanceMetric::Euclidean, 3);
+2025-09-23T08:34:46.4684963Z -	index.add("a", &[1.0, 0.0, 0.0]).unwrap();
+2025-09-23T08:34:46.4685061Z -	index.add("b", &[0.0, 1.0, 0.0]).unwrap();
+2025-09-23T08:34:46.4685294Z +    let mut index = HnswIndex::new(HnswConfig::default(), DistanceMetric::Euclidean, 3);
+2025-09-23T08:34:46.4685409Z +    index.add("a", &[1.0, 0.0, 0.0]).unwrap();
+2025-09-23T08:34:46.4685513Z +    index.add("b", &[0.0, 1.0, 0.0]).unwrap();
+2025-09-23T08:34:46.4685581Z  
+2025-09-23T08:34:46.4685673Z -	let s1 = index.stats();
+2025-09-23T08:34:46.4685768Z -	assert_eq!(s1.vector_count, 2);
+2025-09-23T08:34:46.4685860Z -	assert!(!s1.needs_rebuild);
+2025-09-23T08:34:46.4685962Z -	assert_eq!(s1.dimension, 3);
+2025-09-23T08:34:46.4686050Z +    let s1 = index.stats();
+2025-09-23T08:34:46.4686144Z +    assert_eq!(s1.vector_count, 2);
+2025-09-23T08:34:46.4686235Z +    assert!(!s1.needs_rebuild);
+2025-09-23T08:34:46.4686335Z +    assert_eq!(s1.dimension, 3);
+2025-09-23T08:34:46.4686402Z  
+2025-09-23T08:34:46.4686498Z -	// Update marks as needing rebuild
+2025-09-23T08:34:46.4686612Z -	index.update("a", &[2.0, 0.0, 0.0]).unwrap();
+2025-09-23T08:34:46.4686698Z -	let s2 = index.stats();
+2025-09-23T08:34:46.4686785Z -	assert!(s2.needs_rebuild);
+2025-09-23T08:34:46.4686883Z +    // Update marks as needing rebuild
+2025-09-23T08:34:46.4686998Z +    index.update("a", &[2.0, 0.0, 0.0]).unwrap();
+2025-09-23T08:34:46.4687083Z +    let s2 = index.stats();
+2025-09-23T08:34:46.4687171Z +    assert!(s2.needs_rebuild);
+2025-09-23T08:34:46.4687242Z  
+2025-09-23T08:34:46.4687326Z -	// Rebuild clears flag
+2025-09-23T08:34:46.4687417Z -	index.rebuild().unwrap();
+2025-09-23T08:34:46.4687507Z -	let s3 = index.stats();
+2025-09-23T08:34:46.4687603Z -	assert!(!s3.needs_rebuild);
+2025-09-23T08:34:46.4687689Z +    // Rebuild clears flag
+2025-09-23T08:34:46.4687778Z +    index.rebuild().unwrap();
+2025-09-23T08:34:46.4687874Z +    let s3 = index.stats();
+2025-09-23T08:34:46.4687966Z +    assert!(!s3.needs_rebuild);
+2025-09-23T08:34:46.4688035Z  }
+2025-09-23T08:34:46.4688101Z  
+2025-09-23T08:34:46.4688347Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:2:
+2025-09-23T08:34:46.4688415Z  
+2025-09-23T08:34:46.4688499Z  use crate::{
+2025-09-23T08:34:46.4688592Z      db::VectorStore,
+2025-09-23T08:34:46.4688877Z -    embedding::{TfIdfEmbedding, BagOfWordsEmbedding, CharNGramEmbedding, EmbeddingProvider},
+2025-09-23T08:34:46.4689150Z +    embedding::{BagOfWordsEmbedding, CharNGramEmbedding, EmbeddingProvider, TfIdfEmbedding},
+2025-09-23T08:34:46.4689360Z      models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+2025-09-23T08:34:46.4689443Z  };
+2025-09-23T08:34:46.4689536Z  use tempfile::tempdir;
+2025-09-23T08:34:46.4689773Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:12:
+2025-09-23T08:34:46.4689888Z  fn test_semantic_search_with_tfidf() {
+2025-09-23T08:34:46.4690097Z      // Create embedding provider
+2025-09-23T08:34:46.4690217Z      let mut tfidf = TfIdfEmbedding::new(50);
+2025-09-23T08:34:46.4690292Z -    
+2025-09-23T08:34:46.4690361Z +
+2025-09-23T08:34:46.4690444Z      // Sample documents
+2025-09-23T08:34:46.4690531Z      let documents = vec![
+2025-09-23T08:34:46.4690718Z -        ("doc1", "Machine learning is a subset of artificial intelligence"),
+2025-09-23T08:34:46.4690895Z -        ("doc2", "Deep learning uses neural networks with multiple layers"),
+2025-09-23T08:34:46.4690965Z +        (
+2025-09-23T08:34:46.4691045Z +            "doc1",
+2025-09-23T08:34:46.4691211Z +            "Machine learning is a subset of artificial intelligence",
+2025-09-23T08:34:46.4691282Z +        ),
+2025-09-23T08:34:46.4691437Z +        (
+2025-09-23T08:34:46.4691517Z +            "doc2",
+2025-09-23T08:34:46.4691678Z +            "Deep learning uses neural networks with multiple layers",
+2025-09-23T08:34:46.4691749Z +        ),
+2025-09-23T08:34:46.4691927Z          ("doc3", "Vector databases store high-dimensional embeddings"),
+2025-09-23T08:34:46.4692120Z -        ("doc4", "Natural language processing helps computers understand text"),
+2025-09-23T08:34:46.4692328Z -        ("doc5", "Computer vision enables machines to interpret visual information"),
+2025-09-23T08:34:46.4692398Z +        (
+2025-09-23T08:34:46.4692479Z +            "doc4",
+2025-09-23T08:34:46.4692657Z +            "Natural language processing helps computers understand text",
+2025-09-23T08:34:46.4692726Z +        ),
+2025-09-23T08:34:46.4692799Z +        (
+2025-09-23T08:34:46.4692872Z +            "doc5",
+2025-09-23T08:34:46.4693059Z +            "Computer vision enables machines to interpret visual information",
+2025-09-23T08:34:46.4693129Z +        ),
+2025-09-23T08:34:46.4693208Z      ];
+2025-09-23T08:34:46.4693274Z -    
+2025-09-23T08:34:46.4693341Z +
+2025-09-23T08:34:46.4693445Z      // Build vocabulary from corpus
+2025-09-23T08:34:46.4693738Z      let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
+2025-09-23T08:34:46.4693846Z      tfidf.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4694087Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:28:
+2025-09-23T08:34:46.4694163Z -    
+2025-09-23T08:34:46.4694231Z +
+2025-09-23T08:34:46.4694318Z      // Create vector store
+2025-09-23T08:34:46.4694429Z      let store = VectorStore::new();
+2025-09-23T08:34:46.4694525Z      let config = CollectionConfig {
+2025-09-23T08:34:46.4694756Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:36:
+2025-09-23T08:34:46.4694874Z          compression: Default::default(),
+2025-09-23T08:34:46.4694946Z      };
+2025-09-23T08:34:46.4695096Z      store.create_collection("documents", config).unwrap();
+2025-09-23T08:34:46.4695172Z -    
+2025-09-23T08:34:46.4695247Z +
+2025-09-23T08:34:46.4695361Z      // Generate embeddings and insert documents
+2025-09-23T08:34:46.4695459Z      let mut vectors = Vec::new();
+2025-09-23T08:34:46.4695565Z      for (id, text) in &documents {
+2025-09-23T08:34:46.4695800Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:47:
+2025-09-23T08:34:46.4695923Z              Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4696016Z                  "text": text,
+2025-09-23T08:34:46.4696110Z                  "type": "document"
+2025-09-23T08:34:46.4696198Z -            })).unwrap()
+2025-09-23T08:34:46.4696271Z +            }))
+2025-09-23T08:34:46.4696352Z +            .unwrap(),
+2025-09-23T08:34:46.4696422Z          );
+2025-09-23T08:34:46.4696522Z          vectors.push(vector);
+2025-09-23T08:34:46.4696591Z      }
+2025-09-23T08:34:46.4696816Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:54:
+2025-09-23T08:34:46.4696943Z      store.insert("documents", vectors).unwrap();
+2025-09-23T08:34:46.4697021Z -    
+2025-09-23T08:34:46.4697089Z +
+2025-09-23T08:34:46.4697178Z      // Test semantic search
+2025-09-23T08:34:46.4697341Z      let query = "artificial intelligence and neural networks";
+2025-09-23T08:34:46.4697599Z      let query_embedding = tfidf.embed(query).unwrap();
+2025-09-23T08:34:46.4697835Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:71:
+2025-09-23T08:34:46.4697913Z  #[test]
+2025-09-23T08:34:46.4698034Z  fn test_document_clustering_with_embeddings() {
+2025-09-23T08:34:46.4698156Z      let mut bow = BagOfWordsEmbedding::new(30);
+2025-09-23T08:34:46.4698224Z -    
+2025-09-23T08:34:46.4698297Z +
+2025-09-23T08:34:46.4698400Z      // Documents in different categories
+2025-09-23T08:34:46.4698487Z      let documents = vec![
+2025-09-23T08:34:46.4698586Z          // Programming languages
+2025-09-23T08:34:46.4698812Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:78:
+2025-09-23T08:34:46.4699114Z -        ("lang1", "Python is a popular programming language for data science"),
+2025-09-23T08:34:46.4699299Z -        ("lang2", "JavaScript is used for web development and programming"),
+2025-09-23T08:34:46.4699478Z -        ("lang3", "Rust is a systems programming language with memory safety"),
+2025-09-23T08:34:46.4699547Z -        
+2025-09-23T08:34:46.4699621Z +        (
+2025-09-23T08:34:46.4699702Z +            "lang1",
+2025-09-23T08:34:46.4699881Z +            "Python is a popular programming language for data science",
+2025-09-23T08:34:46.4699951Z +        ),
+2025-09-23T08:34:46.4700026Z +        (
+2025-09-23T08:34:46.4700102Z +            "lang2",
+2025-09-23T08:34:46.4700268Z +            "JavaScript is used for web development and programming",
+2025-09-23T08:34:46.4700337Z +        ),
+2025-09-23T08:34:46.4700409Z +        (
+2025-09-23T08:34:46.4700483Z +            "lang3",
+2025-09-23T08:34:46.4700645Z +            "Rust is a systems programming language with memory safety",
+2025-09-23T08:34:46.4700724Z +        ),
+2025-09-23T08:34:46.4700811Z          // Machine learning
+2025-09-23T08:34:46.4700999Z -        ("ml1", "Supervised learning uses labeled data for training models"),
+2025-09-23T08:34:46.4701189Z -        ("ml2", "Unsupervised learning discovers patterns without labels"),
+2025-09-23T08:34:46.4701361Z -        ("ml3", "Reinforcement learning trains agents through rewards"),
+2025-09-23T08:34:46.4701432Z -        
+2025-09-23T08:34:46.4701501Z +        (
+2025-09-23T08:34:46.4701581Z +            "ml1",
+2025-09-23T08:34:46.4701752Z +            "Supervised learning uses labeled data for training models",
+2025-09-23T08:34:46.4701821Z +        ),
+2025-09-23T08:34:46.4701891Z +        (
+2025-09-23T08:34:46.4701970Z +            "ml2",
+2025-09-23T08:34:46.4702135Z +            "Unsupervised learning discovers patterns without labels",
+2025-09-23T08:34:46.4702205Z +        ),
+2025-09-23T08:34:46.4702279Z +        (
+2025-09-23T08:34:46.4702350Z +            "ml3",
+2025-09-23T08:34:46.4702512Z +            "Reinforcement learning trains agents through rewards",
+2025-09-23T08:34:46.4702582Z +        ),
+2025-09-23T08:34:46.4702662Z          // Databases
+2025-09-23T08:34:46.4702802Z          ("db1", "SQL databases use structured query language"),
+2025-09-23T08:34:46.4702948Z          ("db2", "NoSQL databases provide flexible data models"),
+2025-09-23T08:34:46.4703195Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:90:
+2025-09-23T08:34:46.4703335Z          ("db3", "Graph databases store data as nodes and edges"),
+2025-09-23T08:34:46.4703406Z      ];
+2025-09-23T08:34:46.4703479Z -    
+2025-09-23T08:34:46.4703545Z +
+2025-09-23T08:34:46.4703936Z      let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
+2025-09-23T08:34:46.4704043Z      bow.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4704120Z -    
+2025-09-23T08:34:46.4704186Z +
+2025-09-23T08:34:46.4704297Z      let store = VectorStore::new();
+2025-09-23T08:34:46.4704401Z      let config = CollectionConfig {
+2025-09-23T08:34:46.4704501Z          dimension: bow.dimension(),
+2025-09-23T08:34:46.4704741Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:102:
+2025-09-23T08:34:46.4704849Z          compression: Default::default(),
+2025-09-23T08:34:46.4705050Z      };
+2025-09-23T08:34:46.4705200Z      store.create_collection("clusters", config).unwrap();
+2025-09-23T08:34:46.4705269Z -    
+2025-09-23T08:34:46.4705340Z +
+2025-09-23T08:34:46.4705443Z      // Insert documents with embeddings
+2025-09-23T08:34:46.4705542Z      let mut vectors = Vec::new();
+2025-09-23T08:34:46.4705634Z      for (id, text) in &documents {
+2025-09-23T08:34:46.4705875Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:114:
+2025-09-23T08:34:46.4705949Z          } else {
+2025-09-23T08:34:46.4706030Z              "databases"
+2025-09-23T08:34:46.4706108Z          };
+2025-09-23T08:34:46.4706178Z -        
+2025-09-23T08:34:46.4706245Z +
+2025-09-23T08:34:46.4706357Z          let vector = Vector::with_payload(
+2025-09-23T08:34:46.4706562Z              id.to_string(),
+2025-09-23T08:34:46.4706641Z              embedding,
+2025-09-23T08:34:46.4706875Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:121:
+2025-09-23T08:34:46.4707005Z              Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4707091Z                  "text": text,
+2025-09-23T08:34:46.4707182Z                  "category": category
+2025-09-23T08:34:46.4707268Z -            })).unwrap()
+2025-09-23T08:34:46.4707341Z +            }))
+2025-09-23T08:34:46.4707420Z +            .unwrap(),
+2025-09-23T08:34:46.4707490Z          );
+2025-09-23T08:34:46.4707589Z          vectors.push(vector);
+2025-09-23T08:34:46.4707657Z      }
+2025-09-23T08:34:46.4707891Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:128:
+2025-09-23T08:34:46.4708013Z      store.insert("clusters", vectors).unwrap();
+2025-09-23T08:34:46.4708082Z -    
+2025-09-23T08:34:46.4708149Z +
+2025-09-23T08:34:46.4708283Z      // Test finding similar documents within clusters
+2025-09-23T08:34:46.4708440Z      let ml_query = "training machine learning models with data";
+2025-09-23T08:34:46.4708564Z      let ml_embedding = bow.embed(ml_query).unwrap();
+2025-09-23T08:34:46.4708806Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:133:
+2025-09-23T08:34:46.4708990Z      let ml_results = store.search("clusters", &ml_embedding, 3).unwrap();
+2025-09-23T08:34:46.4709057Z -    
+2025-09-23T08:34:46.4709123Z +
+2025-09-23T08:34:46.4709223Z      // Should return mostly ML documents
+2025-09-23T08:34:46.4709361Z -    let ml_categories: Vec<String> = ml_results.iter()
+2025-09-23T08:34:46.4709583Z -        .map(|r| r.payload.as_ref().unwrap().data["category"].as_str().unwrap().to_string())
+2025-09-23T08:34:46.4709695Z +    let ml_categories: Vec<String> = ml_results
+2025-09-23T08:34:46.4709775Z +        .iter()
+2025-09-23T08:34:46.4709852Z +        .map(|r| {
+2025-09-23T08:34:46.4709974Z +            r.payload.as_ref().unwrap().data["category"]
+2025-09-23T08:34:46.4710058Z +                .as_str()
+2025-09-23T08:34:46.4710147Z +                .unwrap()
+2025-09-23T08:34:46.4710232Z +                .to_string()
+2025-09-23T08:34:46.4710301Z +        })
+2025-09-23T08:34:46.4710386Z          .collect();
+2025-09-23T08:34:46.4710453Z -    
+2025-09-23T08:34:46.4710668Z -    let ml_count = ml_categories.iter().filter(|c| *c == "machine_learning").count();
+2025-09-23T08:34:46.4710861Z -    assert!(ml_count >= 2, "Expected at least 2 ML documents, got {}", ml_count);
+2025-09-23T08:34:46.4710928Z +
+2025-09-23T08:34:46.4711022Z +    let ml_count = ml_categories
+2025-09-23T08:34:46.4711095Z +        .iter()
+2025-09-23T08:34:46.4711203Z +        .filter(|c| *c == "machine_learning")
+2025-09-23T08:34:46.4711278Z +        .count();
+2025-09-23T08:34:46.4711349Z +    assert!(
+2025-09-23T08:34:46.4711432Z +        ml_count >= 2,
+2025-09-23T08:34:46.4711555Z +        "Expected at least 2 ML documents, got {}",
+2025-09-23T08:34:46.4711632Z +        ml_count
+2025-09-23T08:34:46.4711701Z +    );
+2025-09-23T08:34:46.4711774Z  }
+2025-09-23T08:34:46.4711840Z  
+2025-09-23T08:34:46.4711971Z  /// Test multilingual support with character n-grams
+2025-09-23T08:34:46.4712292Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:145:
+2025-09-23T08:34:46.4712372Z  #[test]
+2025-09-23T08:34:46.4712472Z  fn test_multilingual_embeddings() {
+2025-09-23T08:34:46.4712604Z      let mut ngram = CharNGramEmbedding::new(100, 3);
+2025-09-23T08:34:46.4712679Z -    
+2025-09-23T08:34:46.4712746Z +
+2025-09-23T08:34:46.4712838Z      // Multilingual documents
+2025-09-23T08:34:46.4712927Z      let documents = vec![
+2025-09-23T08:34:46.4713028Z          ("en1", "Hello, how are you today?"),
+2025-09-23T08:34:46.4713274Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:155:
+2025-09-23T08:34:46.4713408Z          ("fr1", "Bonjour, comment allez-vous aujourd'hui?"),
+2025-09-23T08:34:46.4714036Z          ("fr2", "Bienvenue dans la base de données vectorielle"),
+2025-09-23T08:34:46.4714247Z      ];
+2025-09-23T08:34:46.4714315Z -    
+2025-09-23T08:34:46.4714386Z +
+2025-09-23T08:34:46.4714583Z      let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
+2025-09-23T08:34:46.4714697Z      ngram.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4714765Z -    
+2025-09-23T08:34:46.4714840Z +
+2025-09-23T08:34:46.4714950Z      let store = VectorStore::new();
+2025-09-23T08:34:46.4715050Z      let config = CollectionConfig {
+2025-09-23T08:34:46.4715154Z          dimension: ngram.dimension(),
+2025-09-23T08:34:46.4715401Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:168:
+2025-09-23T08:34:46.4715509Z          compression: Default::default(),
+2025-09-23T08:34:46.4715577Z      };
+2025-09-23T08:34:46.4715740Z      store.create_collection("multilingual", config).unwrap();
+2025-09-23T08:34:46.4715808Z -    
+2025-09-23T08:34:46.4715874Z +
+2025-09-23T08:34:46.4715963Z      // Insert documents
+2025-09-23T08:34:46.4716069Z      let mut vectors = Vec::new();
+2025-09-23T08:34:46.4716165Z      for (id, text) in &documents {
+2025-09-23T08:34:46.4716405Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:175:
+2025-09-23T08:34:46.4716542Z          let embedding = ngram.embed(text).unwrap();
+2025-09-23T08:34:46.4716628Z          let lang = &id[..2];
+2025-09-23T08:34:46.4716700Z -        
+2025-09-23T08:34:46.4716772Z +
+2025-09-23T08:34:46.4716883Z          let vector = Vector::with_payload(
+2025-09-23T08:34:46.4716975Z              id.to_string(),
+2025-09-23T08:34:46.4717057Z              embedding,
+2025-09-23T08:34:46.4717298Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:181:
+2025-09-23T08:34:46.4717415Z              Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4717499Z                  "text": text,
+2025-09-23T08:34:46.4717589Z                  "language": lang
+2025-09-23T08:34:46.4717668Z -            })).unwrap()
+2025-09-23T08:34:46.4717739Z +            }))
+2025-09-23T08:34:46.4717826Z +            .unwrap(),
+2025-09-23T08:34:46.4717896Z          );
+2025-09-23T08:34:46.4717988Z          vectors.push(vector);
+2025-09-23T08:34:46.4718056Z      }
+2025-09-23T08:34:46.4718304Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:188:
+2025-09-23T08:34:46.4718433Z      store.insert("multilingual", vectors).unwrap();
+2025-09-23T08:34:46.4718501Z -    
+2025-09-23T08:34:46.4718573Z +
+2025-09-23T08:34:46.4718673Z      // Test cross-lingual similarity
+2025-09-23T08:34:46.4718909Z      // "Hello" in different languages should be somewhat similar due to character patterns
+2025-09-23T08:34:46.4718992Z      let query = "Hola";
+2025-09-23T08:34:46.4719231Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:193:
+2025-09-23T08:34:46.4719363Z      let query_embedding = ngram.embed(query).unwrap();
+2025-09-23T08:34:46.4719560Z      let results = store.search("multilingual", &query_embedding, 3).unwrap();
+2025-09-23T08:34:46.4719636Z -    
+2025-09-23T08:34:46.4719700Z +
+2025-09-23T08:34:46.4719804Z      // Should find Spanish documents first
+2025-09-23T08:34:46.4719918Z      assert!(results[0].id.starts_with("es"));
+2025-09-23T08:34:46.4719987Z  }
+2025-09-23T08:34:46.4720334Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:201:
+2025-09-23T08:34:46.4720408Z  #[test]
+2025-09-23T08:34:46.4720527Z  fn test_persistence_with_real_embeddings() {
+2025-09-23T08:34:46.4720643Z      let mut tfidf = TfIdfEmbedding::new(20);
+2025-09-23T08:34:46.4720711Z -    
+2025-09-23T08:34:46.4720776Z +
+2025-09-23T08:34:46.4720864Z      let documents = vec![
+2025-09-23T08:34:46.4721051Z -        ("news1", "Breaking news: AI model achieves human-level performance"),
+2025-09-23T08:34:46.4721219Z -        ("news2", "Stock market reaches all-time high amid tech rally"),
+2025-09-23T08:34:46.4721294Z +        (
+2025-09-23T08:34:46.4721372Z +            "news1",
+2025-09-23T08:34:46.4721540Z +            "Breaking news: AI model achieves human-level performance",
+2025-09-23T08:34:46.4721696Z +        ),
+2025-09-23T08:34:46.4721764Z +        (
+2025-09-23T08:34:46.4721839Z +            "news2",
+2025-09-23T08:34:46.4721984Z +            "Stock market reaches all-time high amid tech rally",
+2025-09-23T08:34:46.4722066Z +        ),
+2025-09-23T08:34:46.4722231Z          ("news3", "New breakthrough in quantum computing announced"),
+2025-09-23T08:34:46.4722299Z      ];
+2025-09-23T08:34:46.4722371Z -    
+2025-09-23T08:34:46.4722437Z +
+2025-09-23T08:34:46.4722623Z      let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
+2025-09-23T08:34:46.4722725Z      tfidf.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4722797Z -    
+2025-09-23T08:34:46.4722862Z +
+2025-09-23T08:34:46.4722964Z      let store = VectorStore::new();
+2025-09-23T08:34:46.4723063Z      let config = CollectionConfig {
+2025-09-23T08:34:46.4723164Z          dimension: tfidf.dimension(),
+2025-09-23T08:34:46.4723404Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:220:
+2025-09-23T08:34:46.4723521Z          compression: Default::default(),
+2025-09-23T08:34:46.4723597Z      };
+2025-09-23T08:34:46.4723838Z      store.create_collection("news", config).unwrap();
+2025-09-23T08:34:46.4723908Z -    
+2025-09-23T08:34:46.4723983Z +
+2025-09-23T08:34:46.4724075Z      // Insert with real embeddings
+2025-09-23T08:34:46.4724171Z      let mut vectors = Vec::new();
+2025-09-23T08:34:46.4724260Z      for (id, text) in &documents {
+2025-09-23T08:34:46.4724498Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:231:
+2025-09-23T08:34:46.4724614Z              Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4724699Z                  "headline": text,
+2025-09-23T08:34:46.4724796Z                  "timestamp": "2025-09-23"
+2025-09-23T08:34:46.4724876Z -            })).unwrap()
+2025-09-23T08:34:46.4724948Z +            }))
+2025-09-23T08:34:46.4725028Z +            .unwrap(),
+2025-09-23T08:34:46.4725097Z          );
+2025-09-23T08:34:46.4725193Z          vectors.push(vector);
+2025-09-23T08:34:46.4725261Z      }
+2025-09-23T08:34:46.4725500Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:238:
+2025-09-23T08:34:46.4725607Z      store.insert("news", vectors).unwrap();
+2025-09-23T08:34:46.4725678Z -    
+2025-09-23T08:34:46.4725744Z +
+2025-09-23T08:34:46.4725820Z      // Save to disk
+2025-09-23T08:34:46.4725917Z      let temp_dir = tempdir().unwrap();
+2025-09-23T08:34:46.4726075Z      let save_path = temp_dir.path().join("news_embeddings.vdb");
+2025-09-23T08:34:46.4726316Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:243:
+2025-09-23T08:34:46.4726417Z      store.save(&save_path).unwrap();
+2025-09-23T08:34:46.4726483Z -    
+2025-09-23T08:34:46.4726556Z +
+2025-09-23T08:34:46.4726659Z      // Load and verify search still works
+2025-09-23T08:34:46.4726818Z      let loaded_store = VectorStore::load(&save_path).unwrap();
+2025-09-23T08:34:46.4726887Z -    
+2025-09-23T08:34:46.4726955Z +
+2025-09-23T08:34:46.4727097Z      let query = "artificial intelligence breakthrough";
+2025-09-23T08:34:46.4727224Z      let query_embedding = tfidf.embed(query).unwrap();
+2025-09-23T08:34:46.4727415Z      let results = loaded_store.search("news", &query_embedding, 2).unwrap();
+2025-09-23T08:34:46.4727766Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:251:
+2025-09-23T08:34:46.4727836Z -    
+2025-09-23T08:34:46.4727901Z +
+2025-09-23T08:34:46.4727995Z      assert_eq!(results.len(), 2);
+2025-09-23T08:34:46.4728135Z      // AI and quantum computing news should be most relevant
+2025-09-23T08:34:46.4728313Z      let top_ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
+2025-09-23T08:34:46.4728550Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:295:
+2025-09-23T08:34:46.4728650Z      // === 3. GENERATE REAL EMBEDDINGS ===
+2025-09-23T08:34:46.4728783Z      // Use meaningful text that represents real use cases
+2025-09-23T08:34:46.4728872Z      let documents = vec![
+2025-09-23T08:34:46.4729442Z -        ("ml_basics", "Machine learning is a subset of artificial intelligence that enables computers to learn patterns from data without explicit programming"),
+2025-09-23T08:34:46.4729860Z -        ("vectors", "Vector databases are specialized systems designed to efficiently store and search high-dimensional vector embeddings"),
+2025-09-23T08:34:46.4730243Z -        ("nlp", "Natural language processing combines computational linguistics with machine learning to understand human language"),
+2025-09-23T08:34:46.4730512Z -        ("cv", "Computer vision systems can interpret and understand visual information from the world"),
+2025-09-23T08:34:46.4730581Z +        (
+2025-09-23T08:34:46.4730663Z +            "ml_basics",
+2025-09-23T08:34:46.4731088Z +            "Machine learning is a subset of artificial intelligence that enables computers to learn patterns from data without explicit programming",
+2025-09-23T08:34:46.4731158Z +        ),
+2025-09-23T08:34:46.4731234Z +        (
+2025-09-23T08:34:46.4731316Z +            "vectors",
+2025-09-23T08:34:46.4731683Z +            "Vector databases are specialized systems designed to efficiently store and search high-dimensional vector embeddings",
+2025-09-23T08:34:46.4731754Z +        ),
+2025-09-23T08:34:46.4731835Z +        (
+2025-09-23T08:34:46.4731912Z +            "nlp",
+2025-09-23T08:34:46.4732283Z +            "Natural language processing combines computational linguistics with machine learning to understand human language",
+2025-09-23T08:34:46.4732357Z +        ),
+2025-09-23T08:34:46.4732428Z +        (
+2025-09-23T08:34:46.4732501Z +            "cv",
+2025-09-23T08:34:46.4732761Z +            "Computer vision systems can interpret and understand visual information from the world",
+2025-09-23T08:34:46.4732834Z +        ),
+2025-09-23T08:34:46.4732903Z      ];
+2025-09-23T08:34:46.4732969Z  
+2025-09-23T08:34:46.4733105Z      // Convert text to embeddings using the trained model
+2025-09-23T08:34:46.4733348Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:312:
+2025-09-23T08:34:46.4733441Z                  "content": content,
+2025-09-23T08:34:46.4733579Z                  "word_count": content.split_whitespace().count(),
+2025-09-23T08:34:46.4733821Z                  "type": "documentation"
+2025-09-23T08:34:46.4733902Z -            })).unwrap()
+2025-09-23T08:34:46.4733973Z +            }))
+2025-09-23T08:34:46.4734051Z +            .unwrap(),
+2025-09-23T08:34:46.4734122Z          );
+2025-09-23T08:34:46.4734214Z          vectors.push(vector);
+2025-09-23T08:34:46.4734280Z      }
+2025-09-23T08:34:46.4734522Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:339:
+2025-09-23T08:34:46.4734587Z  
+2025-09-23T08:34:46.4734756Z      // The "ml_basics" document should be highly relevant to the query
+2025-09-23T08:34:46.4734942Z      let ml_basics_result = results.iter().find(|r| r.id == "ml_basics");
+2025-09-23T08:34:46.4735152Z -    assert!(ml_basics_result.is_some(), "ML basics document should be relevant");
+2025-09-23T08:34:46.4735235Z +    assert!(
+2025-09-23T08:34:46.4735329Z +        ml_basics_result.is_some(),
+2025-09-23T08:34:46.4735443Z +        "ML basics document should be relevant"
+2025-09-23T08:34:46.4735511Z +    );
+2025-09-23T08:34:46.4735576Z  
+2025-09-23T08:34:46.4735805Z      // === 7. VERIFY EMBEDDING PROPERTIES ===
+2025-09-23T08:34:46.4735966Z      // All embeddings should be normalized for cosine similarity
+2025-09-23T08:34:46.4736198Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:358:
+2025-09-23T08:34:46.4736364Z      let loaded_store = VectorStore::load(&save_path).unwrap();
+2025-09-23T08:34:46.4736432Z  
+2025-09-23T08:34:46.4736533Z      // Search again after persistence
+2025-09-23T08:34:46.4736789Z -    let reloaded_results = loaded_store.search("semantic_test", &query_embedding, 3).unwrap();
+2025-09-23T08:34:46.4736892Z +    let reloaded_results = loaded_store
+2025-09-23T08:34:46.4737011Z +        .search("semantic_test", &query_embedding, 3)
+2025-09-23T08:34:46.4737208Z +        .unwrap();
+2025-09-23T08:34:46.4737273Z  
+2025-09-23T08:34:46.4737392Z      // Results should be identical after save/load
+2025-09-23T08:34:46.4737521Z      assert_eq!(results.len(), reloaded_results.len());
+2025-09-23T08:34:46.4737766Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:380:
+2025-09-23T08:34:46.4737839Z  
+2025-09-23T08:34:46.4737949Z      // FAQ database with more distinct content
+2025-09-23T08:34:46.4738029Z      let faqs = vec![
+2025-09-23T08:34:46.4738565Z -        ("faq1", "How do I reset my password?", "To reset your password, go to the login page and click the 'Forgot Password' link. You will receive an email with instructions to set a new one."),
+2025-09-23T08:34:46.4739073Z -        ("faq2", "What payment methods are accepted?", "We accept major credit cards including Visa, MasterCard, and American Express, as well as PayPal and direct bank transfers."),
+2025-09-23T08:34:46.4739613Z -        ("faq3", "How can I track my shipment?", "Once your order is shipped, you will receive a tracking number via email. You can use this number on the carrier's website to see your package's status."),
+2025-09-23T08:34:46.4740183Z -        ("faq4", "What is the return policy?", "Our return policy allows you to return items within 30 days of purchase for a full refund. Items must be in original condition. Return shipping is not covered."),
+2025-09-23T08:34:46.4740709Z -        ("faq5", "How do I contact customer support?", "You can contact our support team by emailing support@example.com or by calling our toll-free number at 1-800-123-4567 during business hours."),
+2025-09-23T08:34:46.4740779Z +        (
+2025-09-23T08:34:46.4740855Z +            "faq1",
+2025-09-23T08:34:46.4740956Z +            "How do I reset my password?",
+2025-09-23T08:34:46.4741368Z +            "To reset your password, go to the login page and click the 'Forgot Password' link. You will receive an email with instructions to set a new one.",
+2025-09-23T08:34:46.4741445Z +        ),
+2025-09-23T08:34:46.4741513Z +        (
+2025-09-23T08:34:46.4741586Z +            "faq2",
+2025-09-23T08:34:46.4741695Z +            "What payment methods are accepted?",
+2025-09-23T08:34:46.4742077Z +            "We accept major credit cards including Visa, MasterCard, and American Express, as well as PayPal and direct bank transfers.",
+2025-09-23T08:34:46.4742147Z +        ),
+2025-09-23T08:34:46.4742214Z +        (
+2025-09-23T08:34:46.4742289Z +            "faq3",
+2025-09-23T08:34:46.4742389Z +            "How can I track my shipment?",
+2025-09-23T08:34:46.4742831Z +            "Once your order is shipped, you will receive a tracking number via email. You can use this number on the carrier's website to see your package's status.",
+2025-09-23T08:34:46.4742902Z +        ),
+2025-09-23T08:34:46.4742968Z +        (
+2025-09-23T08:34:46.4743041Z +            "faq4",
+2025-09-23T08:34:46.4743140Z +            "What is the return policy?",
+2025-09-23T08:34:46.4743595Z +            "Our return policy allows you to return items within 30 days of purchase for a full refund. Items must be in original condition. Return shipping is not covered.",
+2025-09-23T08:34:46.4743861Z +        ),
+2025-09-23T08:34:46.4743938Z +        (
+2025-09-23T08:34:46.4744018Z +            "faq5",
+2025-09-23T08:34:46.4744290Z +            "How do I contact customer support?",
+2025-09-23T08:34:46.4744706Z +            "You can contact our support team by emailing support@example.com or by calling our toll-free number at 1-800-123-4567 during business hours.",
+2025-09-23T08:34:46.4744778Z +        ),
+2025-09-23T08:34:46.4744853Z      ];
+2025-09-23T08:34:46.4744920Z  
+2025-09-23T08:34:46.4745104Z      // Build a more comprehensive vocabulary from questions and answers
+2025-09-23T08:34:46.4745349Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:395:
+2025-09-23T08:34:46.4745417Z      }
+2025-09-23T08:34:46.4745539Z      // Add more general terms to enrich the vocabulary
+2025-09-23T08:34:46.4745630Z      corpus.extend(vec![
+2025-09-23T08:34:46.4745896Z -        "account access", "billing information", "order status",
+2025-09-23T08:34:46.4746067Z -        "refund process", "help desk", "user login", "payment options",
+2025-09-23T08:34:46.4746230Z -        "shipping details", "product returns", "customer service"
+2025-09-23T08:34:46.4746317Z +        "account access",
+2025-09-23T08:34:46.4746406Z +        "billing information",
+2025-09-23T08:34:46.4746486Z +        "order status",
+2025-09-23T08:34:46.4746571Z +        "refund process",
+2025-09-23T08:34:46.4746650Z +        "help desk",
+2025-09-23T08:34:46.4746726Z +        "user login",
+2025-09-23T08:34:46.4746811Z +        "payment options",
+2025-09-23T08:34:46.4746902Z +        "shipping details",
+2025-09-23T08:34:46.4746987Z +        "product returns",
+2025-09-23T08:34:46.4747072Z +        "customer service",
+2025-09-23T08:34:46.4747145Z      ]);
+2025-09-23T08:34:46.4747245Z      tfidf.build_vocabulary(&corpus);
+2025-09-23T08:34:46.4747313Z  
+2025-09-23T08:34:46.4747563Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:423:
+2025-09-23T08:34:46.4747699Z              Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4747793Z                  "question": question,
+2025-09-23T08:34:46.4747890Z                  "answer": answer
+2025-09-23T08:34:46.4747977Z -            })).unwrap()
+2025-09-23T08:34:46.4748049Z +            }))
+2025-09-23T08:34:46.4748132Z +            .unwrap(),
+2025-09-23T08:34:46.4748200Z          );
+2025-09-23T08:34:46.4748299Z          vectors.push(vector);
+2025-09-23T08:34:46.4748367Z      }
+2025-09-23T08:34:46.4748607Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:434:
+2025-09-23T08:34:46.4748679Z  
+2025-09-23T08:34:46.4748775Z      // Test Case 1: Password Reset
+2025-09-23T08:34:46.4748878Z      let query1 = "I forgot my password";
+2025-09-23T08:34:46.4749091Z -    let results1 = store.search("faq", &tfidf.embed(query1).unwrap(), 1).unwrap();
+2025-09-23T08:34:46.4749181Z +    let results1 = store
+2025-09-23T08:34:46.4749320Z +        .search("faq", &tfidf.embed(query1).unwrap(), 1)
+2025-09-23T08:34:46.4749397Z +        .unwrap();
+2025-09-23T08:34:46.4749502Z      assert_eq!(results1[0].id, "faq1");
+2025-09-23T08:34:46.4749752Z      println!("✅ Query: '{}' -> Correctly matched FAQ 1", query1);
+2025-09-23T08:34:46.4749820Z  
+2025-09-23T08:34:46.4750068Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:441:
+2025-09-23T08:34:46.4750161Z      // Test Case 2: Payment
+2025-09-23T08:34:46.4750280Z      let query2 = "Can I pay with a credit card?";
+2025-09-23T08:34:46.4750487Z -    let results2 = store.search("faq", &tfidf.embed(query2).unwrap(), 1).unwrap();
+2025-09-23T08:34:46.4750579Z +    let results2 = store
+2025-09-23T08:34:46.4750710Z +        .search("faq", &tfidf.embed(query2).unwrap(), 1)
+2025-09-23T08:34:46.4750785Z +        .unwrap();
+2025-09-23T08:34:46.4750889Z      assert_eq!(results2[0].id, "faq2");
+2025-09-23T08:34:46.4751089Z      println!("✅ Query: '{}' -> Correctly matched FAQ 2", query2);
+2025-09-23T08:34:46.4751163Z  
+2025-09-23T08:34:46.4751397Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:447:
+2025-09-23T08:34:46.4751547Z      // Test Case 3: Order Tracking (Original failure point)
+2025-09-23T08:34:46.4751738Z      let query3 = "Where is my package?";
+2025-09-23T08:34:46.4751946Z -    let results3 = store.search("faq", &tfidf.embed(query3).unwrap(), 1).unwrap();
+2025-09-23T08:34:46.4752037Z +    let results3 = store
+2025-09-23T08:34:46.4752165Z +        .search("faq", &tfidf.embed(query3).unwrap(), 1)
+2025-09-23T08:34:46.4752240Z +        .unwrap();
+2025-09-23T08:34:46.4752339Z      assert_eq!(results3[0].id, "faq3");
+2025-09-23T08:34:46.4752534Z      println!("✅ Query: '{}' -> Correctly matched FAQ 3", query3);
+2025-09-23T08:34:46.4752600Z  
+2025-09-23T08:34:46.4752837Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/embedding_tests.rs:453:
+2025-09-23T08:34:46.4752928Z      // Test Case 4: Returns
+2025-09-23T08:34:46.4753141Z      let query4 = "How to return an item?";
+2025-09-23T08:34:46.4753341Z -    let results4 = store.search("faq", &tfidf.embed(query4).unwrap(), 1).unwrap();
+2025-09-23T08:34:46.4753433Z +    let results4 = store
+2025-09-23T08:34:46.4753571Z +        .search("faq", &tfidf.embed(query4).unwrap(), 1)
+2025-09-23T08:34:46.4753816Z +        .unwrap();
+2025-09-23T08:34:46.4753950Z      assert_eq!(results4[0].id, "faq4");
+2025-09-23T08:34:46.4754158Z      println!("✅ Query: '{}' -> Correctly matched FAQ 4", query4);
+2025-09-23T08:34:46.4754224Z  
+2025-09-23T08:34:46.4754471Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:1:
+2025-09-23T08:34:46.4754627Z  //! Integration tests for verifying grok-code-fast-1 fixes
+2025-09-23T08:34:46.4754693Z  
+2025-09-23T08:34:46.4754784Z -mod embedding_tests;
+2025-09-23T08:34:46.4754870Z  mod additional_tests;
+2025-09-23T08:34:46.4754952Z +mod embedding_tests;
+2025-09-23T08:34:46.4755018Z  
+2025-09-23T08:34:46.4755094Z  #[cfg(test)]
+2025-09-23T08:34:46.4755194Z  mod grok_fixes_validation {
+2025-09-23T08:34:46.4755384Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:52:
+2025-09-23T08:34:46.4755499Z          assert_eq!(vec3.data, vec![7.0, 8.0, 9.0]);
+2025-09-23T08:34:46.4755571Z  
+2025-09-23T08:34:46.4755676Z          // Verify collection metadata
+2025-09-23T08:34:46.4755912Z -        let metadata = loaded_store.get_collection_metadata("test_persistence").unwrap();
+2025-09-23T08:34:46.4756011Z +        let metadata = loaded_store
+2025-09-23T08:34:46.4756137Z +            .get_collection_metadata("test_persistence")
+2025-09-23T08:34:46.4756217Z +            .unwrap();
+2025-09-23T08:34:46.4756332Z          assert_eq!(metadata.vector_count, 3);
+2025-09-23T08:34:46.4756401Z      }
+2025-09-23T08:34:46.4756467Z  
+2025-09-23T08:34:46.4756653Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:69:
+2025-09-23T08:34:46.4756750Z              quantization: None,
+2025-09-23T08:34:46.4756870Z              compression: Default::default(),
+2025-09-23T08:34:46.4756946Z          };
+2025-09-23T08:34:46.4757130Z -        store.create_collection("cosine_test", cosine_config).unwrap();
+2025-09-23T08:34:46.4757202Z +        store
+2025-09-23T08:34:46.4757336Z +            .create_collection("cosine_test", cosine_config)
+2025-09-23T08:34:46.4757419Z +            .unwrap();
+2025-09-23T08:34:46.4757489Z  
+2025-09-23T08:34:46.4757600Z          // Insert vectors that will be normalized
+2025-09-23T08:34:46.4757685Z          let vectors = vec![
+2025-09-23T08:34:46.4757870Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:99:
+2025-09-23T08:34:46.4757960Z              quantization: None,
+2025-09-23T08:34:46.4758073Z              compression: Default::default(),
+2025-09-23T08:34:46.4758144Z          };
+2025-09-23T08:34:46.4758344Z -        store.create_collection("euclidean_test", euclidean_config).unwrap();
+2025-09-23T08:34:46.4758446Z +        store
+2025-09-23T08:34:46.4758594Z +            .create_collection("euclidean_test", euclidean_config)
+2025-09-23T08:34:46.4758679Z +            .unwrap();
+2025-09-23T08:34:46.4758746Z  
+2025-09-23T08:34:46.4758841Z          let euclidean_vectors = vec![
+2025-09-23T08:34:46.4758978Z              Vector::new("e1".to_string(), vec![0.0, 0.0, 0.0]),
+2025-09-23T08:34:46.4759304Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:153:
+2025-09-23T08:34:46.4759406Z      fn test_all_fixes_integrated() {
+2025-09-23T08:34:46.4759578Z          // Create store with cosine similarity (tests normalization fix)
+2025-09-23T08:34:46.4759691Z          let store = VectorStore::new();
+2025-09-23T08:34:46.4759765Z -        
+2025-09-23T08:34:46.4759831Z +
+2025-09-23T08:34:46.4759937Z          let config = CollectionConfig {
+2025-09-23T08:34:46.4760020Z              dimension: 5,
+2025-09-23T08:34:46.4760131Z              metric: DistanceMetric::Cosine,
+2025-09-23T08:34:46.4760317Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:176:
+2025-09-23T08:34:46.4760447Z                  Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4760652Z                      "title": "Document 1",
+2025-09-23T08:34:46.4760740Z                      "score": 0.95
+2025-09-23T08:34:46.4760830Z -                })).unwrap()
+2025-09-23T08:34:46.4760904Z +                }))
+2025-09-23T08:34:46.4760993Z +                .unwrap(),
+2025-09-23T08:34:46.4761065Z              ),
+2025-09-23T08:34:46.4761170Z              Vector::with_payload(
+2025-09-23T08:34:46.4761259Z                  "doc2".to_string(),
+2025-09-23T08:34:46.4761448Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:184:
+2025-09-23T08:34:46.4761574Z                  Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4761668Z                      "title": "Document 2",
+2025-09-23T08:34:46.4761753Z                      "score": 0.85
+2025-09-23T08:34:46.4761839Z -                })).unwrap()
+2025-09-23T08:34:46.4761915Z +                }))
+2025-09-23T08:34:46.4762001Z +                .unwrap(),
+2025-09-23T08:34:46.4762073Z              ),
+2025-09-23T08:34:46.4762158Z          ];
+2025-09-23T08:34:46.4762298Z          store.insert("integrated_test", vectors).unwrap();
+2025-09-23T08:34:46.4762486Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:196:
+2025-09-23T08:34:46.4762614Z              Payload::from_value(serde_json::json!({
+2025-09-23T08:34:46.4762722Z                  "title": "Document 1 Updated",
+2025-09-23T08:34:46.4762810Z                  "score": 0.98
+2025-09-23T08:34:46.4762892Z -            })).unwrap()
+2025-09-23T08:34:46.4762970Z +            }))
+2025-09-23T08:34:46.4763053Z +            .unwrap(),
+2025-09-23T08:34:46.4763123Z          );
+2025-09-23T08:34:46.4763261Z          store.update("integrated_test", updated).unwrap();
+2025-09-23T08:34:46.4763327Z  
+2025-09-23T08:34:46.4763513Z Diff in /home/runner/work/vectorizer/vectorizer/src/tests/mod.rs:209:
+2025-09-23T08:34:46.4763782Z          let loaded_store = VectorStore::load(&save_path).unwrap();
+2025-09-23T08:34:46.4763850Z  
+2025-09-23T08:34:46.4763963Z          // Verify everything works after load
+2025-09-23T08:34:46.4764192Z -        let metadata = loaded_store.get_collection_metadata("integrated_test").unwrap();
+2025-09-23T08:34:46.4764289Z +        let metadata = loaded_store
+2025-09-23T08:34:46.4764417Z +            .get_collection_metadata("integrated_test")
+2025-09-23T08:34:46.4764496Z +            .unwrap();
+2025-09-23T08:34:46.4764609Z          assert_eq!(metadata.vector_count, 2);
+2025-09-23T08:34:46.4764677Z  
+2025-09-23T08:34:46.4764784Z          // Verify normalization is preserved
+2025-09-23T08:34:46.4775526Z ##[error]Process completed with exit code 1.
+2025-09-23T08:34:46.4880605Z Post job cleanup.
+2025-09-23T08:34:46.5793412Z [command]/usr/bin/git version
+2025-09-23T08:34:46.5828754Z git version 2.51.0
+2025-09-23T08:34:46.5871685Z Temporarily overriding HOME='/home/runner/work/_temp/1e6dea39-9d60-4e8f-bcba-239b114a5b76' before making global git config changes
+2025-09-23T08:34:46.5873054Z Adding repository directory to the temporary git global config as a safe directory
+2025-09-23T08:34:46.5878171Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vectorizer/vectorizer
+2025-09-23T08:34:46.5913048Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-09-23T08:34:46.5945642Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-09-23T08:34:46.6169748Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-09-23T08:34:46.6192053Z http.https://github.com/.extraheader
+2025-09-23T08:34:46.6205789Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-09-23T08:34:46.6238458Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-09-23T08:34:46.6575593Z Cleaning up orphan processes

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-23
+
+### Added (Phase 2: REST API Implementation)
+- **Major**: Complete REST API implementation with Axum web framework
+- **API**: Health check endpoint (`GET /health`)
+- **API**: Collection management endpoints (create, list, get, delete)
+- **API**: Vector operations endpoints (insert, get, delete)
+- **API**: Vector search endpoint with configurable parameters
+- **API**: Comprehensive error handling with structured error responses
+- **API**: CORS support for cross-origin requests
+- **API**: Request/response serialization with proper JSON schemas
+- **Documentation**: Complete API documentation in `docs/API.md`
+- **Examples**: API usage example in `examples/api_usage.rs`
+- **Server**: HTTP server with graceful shutdown and logging
+- **Testing**: Basic API endpoint tests
+
+### Technical Details
+- Implemented Axum-based HTTP server with Tower middleware
+- Added structured API types for request/response serialization
+- Created modular handler system for different endpoint categories
+- Integrated with existing VectorStore for seamless database operations
+- Added comprehensive error handling with HTTP status codes
+- Implemented CORS and request tracing middleware
+
 ## [0.1.2] - 2025-09-23
 
 ### Fixed
