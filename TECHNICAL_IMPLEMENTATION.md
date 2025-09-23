@@ -11,21 +11,31 @@ The Vectorizer project is specified in detail in `README.md`, but currently has 
 - **Technology Stack**: Rust with bindings for Python and TypeScript
 - **Use Cases**: Collaborative LLM systems, RAG, knowledge bases
 
-### Dependencies and Integrations Identified
+### Dependencies and Core Requirements
 
-#### 1. UMICP Integration (Existing)
-The UMICP project (`../umicp/`) provides fundamental infrastructure that can be leveraged:
+#### 1. Core Dependencies (Required)
+Essential libraries needed for basic functionality:
 
-**Relevant Resources Found:**
-- Efficient embedding communication between AI models
-- Optimized binary serialization for vectors and matrices
-- Support for BERT, GPT, T5 embeddings
-- Similarity operations (cosine similarity)
-- Federated embedding aggregation
+**Rust Core Libraries:**
+- **tokio**: Async runtime for high-performance server
+- **axum**: Modern web framework for REST APIs  
+- **serde**: Serialization/deserialization
+- **hnsw_rs**: HNSW index implementation
+- **bincode**: Binary persistence format
+- **lz4_flex**: LZ4 compression
+- **clap**: CLI argument parsing
 
-**Examples Analyzed:**
-- `umicp/bindings/rust/examples/embedding_communication.rs`
-- `umicp/bindings/typescript/examples/embedding-communication.ts`
+#### 2. Experimental Integrations (Future)
+Advanced features for later implementation:
+
+**UMICP Integration (Experimental - Phase 6+):**
+The UMICP project (`../umicp/`) could provide advanced infrastructure:
+- Federated embedding communication between AI models
+- Optimized binary serialization for distributed systems
+- Multi-model embedding support (BERT, GPT, T5)
+- Advanced similarity operations and aggregation
+- **Status**: Experimental feature for distributed deployments
+- **Priority**: Only after core single-node system is proven
 
 ## Proposed Architecture
 

@@ -55,7 +55,7 @@ vectorizer api-keys delete <key-id>
 
 **Option 2: Local Dashboard**
 ```
-URL: http://localhost:3000/dashboard (accessible only from localhost)
+URL: http://localhost:15002 (accessible only from localhost)
 ```
 
 The dashboard provides a web interface for:
@@ -721,7 +721,7 @@ vectorizer server --config config/internal.toml
 [server]
 host = "127.0.0.1"  # localhost only
 port = 15001
-enable_dashboard = true  # dashboard available at http://localhost:3000
+enable_dashboard = true  # dashboard available at http://localhost:15002
 
 [security]
 require_api_keys = true
@@ -759,7 +759,7 @@ rate_limit_requests_per_minute = 1000
 
 ### Dashboard Access
 
-- **Internal Mode**: Dashboard available at `http://localhost:3000`
+- **Internal Mode**: Dashboard available at `http://localhost:(server_port + 1)`
 - **Cloud Mode**: Dashboard disabled for security
 - **Security**: Dashboard always restricted to localhost access only
 
@@ -772,6 +772,40 @@ cargo install vectorizer-cli
 # or
 npm install -g vectorizer-cli
 ```
+
+### Server Configuration
+
+Vectorizer uses a comprehensive YAML configuration system for post-build customization. See `docs/CONFIGURATION.md` for complete documentation.
+
+```bash
+# Copy example configuration
+cp config.example.yml config.yml
+
+# Edit configuration for your needs
+nano config.yml
+
+# Start server with configuration
+vectorizer server --config config.yml
+
+# Validate configuration without starting
+vectorizer config validate --config config.yml
+```
+
+#### Configuration Categories
+
+The `config.yml` file supports all server aspects:
+
+- **Server**: Host, port, workers, timeouts, environment settings
+- **Security**: API keys, rate limiting, CORS, comprehensive audit logging
+- **Dashboard**: UI themes, feature toggles, localhost-only access control
+- **Network**: Internal vs cloud deployment modes with TLS support
+- **Performance**: Memory pools, caching, threading, resource limits
+- **Compression**: LZ4 algorithms, thresholds, automatic payload compression
+- **Collections**: Default embeddings (BOW/Hash/N-gram), quantization, indexing
+- **Monitoring**: Metrics collection, health checks, external integrations
+- **Logging**: Structured logging, multiple outputs, module-specific levels
+- **Integrations**: LangChain, Aider, external APIs configuration
+- **Maintenance**: Automatic backups, optimization schedules
 
 ### Main Commands
 

@@ -1,6 +1,30 @@
 # Vectorizer
 
-A high-performance, in-memory vector database written in Rust with client-server architecture, designed for semantic search and top-k nearest neighbor queries in AI-driven applications. Features mandatory API key authentication, automatic LZ4 payload compression, native embedding models, and binary file persistence for durability. Includes pre-configured Python and TypeScript SDKs, optimized for chunking, vectorization, and seamless integrations with LangChain and Aider.
+## ⚠️ PROJECT STATUS: CONCEPTUAL PHASE
+
+**IMPORTANT**: This project is currently in conceptual/specification phase. **NO CODE IMPLEMENTATION EXISTS YET**. This documentation serves as a complete technical specification for future development.
+
+**Current State**: 
+- ✅ Complete technical specification and architecture design
+- ✅ Detailed API documentation and configuration system
+- ✅ Implementation roadmap and task breakdown
+- ❌ **Code implementation (NOT STARTED)**
+- ❌ **Installation not possible - no executable code exists**
+- ❌ **Performance benchmarks theoretical only**
+
+**For Developers**: This is an excellent foundation for implementation. The specification is production-ready and highly detailed.
+
+**📋 See ROADMAP.md for prioritized implementation plan** - Core server → APIs → Testing → SDKs → Experimental features
+
+**🤖 Documentation Credits**: 
+- Technical specification structured by **grok-fast-code-1**
+- Documentation reviewed and corrected by **claude-4-sonnet** (September 23, 2025)
+- **Second Review** by **gpt-5** (September 23, 2025)
+- **Third Review** by **gemini-2.5-pro** (September 23, 2025)
+
+---
+
+A high-performance, in-memory vector database **[PLANNED]** written in Rust with client-server architecture, designed for semantic search and top-k nearest neighbor queries in AI-driven applications. **[WHEN IMPLEMENTED]** Features mandatory API key authentication, automatic LZ4 payload compression, native embedding models, and binary file persistence for durability. Includes pre-configured Python and TypeScript SDKs, optimized for chunking, vectorization, and seamless integrations with LangChain and Aider.
 
 ## 🚀 Overview
 
@@ -8,7 +32,7 @@ Vectorizer is a lightweight, scalable vector database with **client-server archi
 
 Expanded technical specifications:
 - **Client-Server Architecture**: Centralized Rust server with mandatory API key authentication; lightweight Python/TypeScript SDKs connect via REST/gRPC APIs.
-- **Security**: Mandatory API keys for all operations; localhost dashboard (http://localhost:3000) for secure key management.
+- **Security**: Mandatory API keys for all operations; localhost dashboard (http://localhost:15002) for secure key management.
 - **Automatic Compression**: LZ4 compression for payloads >1KB, reducing storage by 40-70% and network bandwidth.
 - **Native Embeddings**: Built-in BOW, Hash, and N-gram models - no external transformer dependencies.
 - **Vector Optimization**: PQ/SQ/Binary quantization options for memory-efficient storage (50-97% reduction).
@@ -44,125 +68,224 @@ Vectorizer is ideal for AI projects requiring real-time semantic search and cont
 
 ```
 vectorizer/
-├── src/                    # Core Rust source code
+├── src/                    # Core Rust server source code
 │   ├── db/                # Database engine (in-memory store, HNSW index)
 │   ├── api/               # REST/gRPC API handlers (Axum-based)
-│   ├── persistence/       # Binary file serialization (bincode)
-│   ├── cli/               # CLI implementation (using clap)
-│   └── models/            # Data structures (vector, metadata, collections)
-├── bindings/              # Language bindings
-│   ├── python/            # PyO3-based Python SDK
-│   └── typescript/        # Neon-based TypeScript/Node.js SDK
+│   ├── persistence/       # Binary file serialization with LZ4 compression
+│   ├── compression/       # Payload compression engine (LZ4)
+│   ├── auth/              # API key authentication and management
+│   ├── dashboard/         # Localhost web dashboard (localhost:15002)
+│   ├── cli/               # Enhanced CLI (API keys, server management)
+│   └── models/            # Data structures (vectors, payloads, collections)
+├── bindings/              # Client SDK bindings
+│   ├── python/            # PyO3-based Python client SDK
+│   └── typescript/        # Neon-based TypeScript client SDK
 ├── integrations/          # LangChain and Aider hooks
-│   ├── langchain-py/      # Python LangChain VectorStore implementation
-│   └── langchain-ts/      # TypeScript LangChain.js VectorStore implementation
-├── examples/              # Example usage (e.g., LLM integration, top-k queries, CLI ingestion)
+│   ├── langchain-py/      # Python LangChain VectorStore (server client)
+│   └── langchain-ts/      # TypeScript LangChain.js VectorStore (server client)
+├── docs/                  # Technical documentation
+│   ├── APIS.md           # Complete API reference with compression
+│   ├── ARCHITECTURE.md   # System architecture and security
+│   ├── DASHBOARD.md      # Dashboard technical documentation
+│   ├── PERFORMANCE.md    # Benchmarks and optimization guides
+│   └── INTEGRATIONS.md   # Integration examples
+├── examples/              # Example usage (server-backed processing)
 ├── tests/                 # Unit and integration tests (proptest)
 ├── benches/               # Performance benchmarks (criterion)
 ├── Cargo.toml             # Rust dependencies and config
 └── README.md              # You're here!
 ```
 
-## 🛠️ Installation
+## 🛠️ Implementation Requirements
 
-### Prerequisites
+### Prerequisites for Future Implementation
 - Rust (stable, 1.82+ recommended, 2025)
 - Cargo for dependency management
 - For Python SDK: Python 3.12+ and pip
 - For TypeScript SDK: Node.js 20+ and npm/yarn
 - Optional: Docker for containerized deployment
+- Optional: LZ4 library for payload compression (automatically handled)
 
-### Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/vectorizer.git
-   cd vectorizer
-   ```
-2. Build the core Rust project:
-   ```bash
-   cargo build --release
-   ```
-3. Install Python SDK (via bindings):
-   ```bash
-   cd bindings/python
-   maturin develop --release  # Or pip install .
-   ```
-4. Install TypeScript SDK:
-   ```bash
-   cd bindings/typescript
-   npm install
-   ```
-5. Run the server:
-   ```bash
-   cargo run --release
-   ```
+### Installation Status
+❌ **NOT YET AVAILABLE** - Implementation required
 
-## 📚 Usage
+The complete technical specification exists, but no code has been implemented. To implement this project:
 
-### CLI for File Ingestion and Queries
-Ingest a file (e.g., text or PDF) into a collection: The CLI chunks the content, generates embeddings (using a default model like Sentence Transformers via integrated wrappers), upserts to the DB, and updates memory.
+1. **Clone Repository**: `git clone [repository-url]`
+2. **Review Specification**: Start with `TECHNICAL_DOCUMENTATION_INDEX.md`
+3. **Follow Implementation Plan**: See `IMPLEMENTATION_CHECKLIST.md` (380 tasks)
+4. **Use Roadmap**: Follow `ROADMAP.md` for phased approach
+
+### For Contributors
 ```bash
-cargo run -- --cli ingest --file path/to/document.txt --collection my_collection --chunk-size 512 --vector-dim 768
+# Current state - specification only
+git clone [repository-url]
+cd vectorizer
+ls src/  # Empty - needs implementation
+
+# Review documentation
+cat TECHNICAL_DOCUMENTATION_INDEX.md
+cat IMPLEMENTATION_CHECKLIST.md
+cat ROADMAP.md
 ```
 
-Simple text query:
-```bash
-cargo run -- --cli query --text "Your search query" --collection my_collection --k 5
-```
-Output includes results with scores, payloads, and vectors.
+When implemented, installation will follow the standard Rust build process.
 
-### Python SDK Example (with LangChain Integration)
+## 📚 Usage (Planned)
+
+### First Time Setup - When Implemented
+1. **Start the server**: `cargo run --release`
+2. **Create an API key** via dashboard (`http://localhost:15002`) or CLI:
+   ```bash
+   vectorizer api-keys create --name "my-app" --description "Development key"
+   ```
+3. **Use the API key** in all SDK operations
+
+**Note**: All usage examples below are planned functionality based on the technical specification.
+
+### CLI for Server Management and API Keys
+Manage API keys and server operations:
+```bash
+# Create API key
+vectorizer api-keys create --name "production" --description "Production app"
+
+# List API keys
+vectorizer api-keys list
+
+# Delete API key
+vectorizer api-keys delete <key-id>
+
+# Start server (internal mode)
+vectorizer server --host 127.0.0.1 --port 15001
+
+# Start server (cloud mode)
+vectorizer server --host 0.0.0.0 --port 15001
+```
+
+### CLI for Secure File Ingestion
+Ingest files securely through the server (requires API key):
+```bash
+# Ingest with server-backed processing
+vectorizer ingest \
+  --file document.txt \
+  --collection my_docs \
+  --api-key your-api-key-here \
+  --chunk-size 512 \
+  --embedding native_bow
+
+# Query with text (server handles embedding)
+vectorizer query \
+  --collection my_docs \
+  --text "machine learning algorithms" \
+  --api-key your-api-key-here \
+  --k 5
+```
+
+### Python SDK Example (Server-Client Architecture)
 ```python
-from vectorizer import VectorizerDB, chunk_text, vectorize
+from vectorizer import VectorizerClient
 
-# Initialize DB
-db = VectorizerDB(persist_path="data/vectorizer.bin")
+# Connect to Vectorizer server (API key REQUIRED)
+client = VectorizerClient(
+    host="localhost",
+    port=15001,
+    api_key="your-api-key-here"  # MANDATORY for all operations
+)
 
-# Chunk and vectorize text
-chunks = chunk_text("Your long text here", chunk_size=512)
-vectors = vectorize(chunks)  # Uses default embedding model
+# Create collection with compression and native embeddings
+client.create_collection(
+    name="documents",
+    dimension=768,
+    metric="cosine",
+    quantization={"type": "pq", "n_centroids": 256, "n_subquantizers": 8},
+    embedding={"model": "native_bow", "vocab_size": 50000},
+    compression={"enabled": True, "threshold_bytes": 1024, "algorithm": "lz4"}
+)
 
-# Insert with payload
-db.insert(collection="my_collection", ids=["id1"], vectors=vectors, payloads=[{"source": "doc"}])
+# Insert documents (server handles chunking, embedding, and compression)
+documents = [
+    {
+        "id": "doc_001",
+        "text": "Machine learning is a method of data analysis that automates analytical model building...",
+        "metadata": {"source": "ml_guide.pdf", "chapter": 1}
+    }
+]
 
-# Query with k results
-results = db.query(collection="my_collection", query_text="Search term", k=5)
-# Results: list of dicts with score, payload, vector
+# Server processes: chunks → embeds → quantizes → compresses → stores
+client.insert_documents(
+    collection="documents",
+    documents=documents,
+    chunk_size=512,
+    chunk_overlap=50
+)
 
-# LangChain integration
+# Semantic search (server handles text embedding automatically)
+results = client.search_by_text(
+    collection="documents",
+    query_text="machine learning algorithms",
+    k=5
+)
+
+for result in results:
+    print(f"ID: {result['id']}, Score: {result['score']:.3f}")
+    print(f"Text: {result['payload']['text'][:100]}...")
+    print("---")
+
+# LangChain integration (server-backed)
 from langchain.vectorstores import VectorizerStore
-store = VectorizerStore(db, embedding_function=vectorize)
+store = VectorizerStore(client)  # Uses server client
 docs = store.similarity_search("Query", k=5)
 ```
 
-### TypeScript SDK Example (with LangChain.js Integration)
+### TypeScript SDK Example (Server-Client Architecture)
 ```typescript
 import { VectorizerClient } from '@hivellm/vectorizer';
 
-// Connect to Vectorizer server (API key required)
+// Connect to Vectorizer server (API key MANDATORY)
 const client = new VectorizerClient({
   host: 'localhost',
   port: 15001,
-  apiKey: 'your-api-key-here'
+  apiKey: 'your-api-key-here'  // REQUIRED for all operations
 });
 
-// Insert documents (server handles chunking and embedding)
-await client.insertDocuments('my_collection', [
+// Create collection with compression and native embeddings
+await client.createCollection('documents', {
+  dimension: 768,
+  metric: 'cosine' as const,
+  quantization: { type: 'pq', nCentroids: 256, nSubquantizers: 8 },
+  embedding: { model: 'native_bow', vocabSize: 50000 },
+  compression: { enabled: true, thresholdBytes: 1024, algorithm: 'lz4' }
+});
+
+// Insert documents (server handles everything: chunking, embedding, compression)
+const documents = [
   {
-    id: 'doc1',
-    text: 'Your long text here...',
-    metadata: { source: 'doc' }
+    id: 'doc_001',
+    text: 'Machine learning is a method of data analysis that automates analytical model building...',
+    metadata: { source: 'ml_guide.pdf', chapter: 1 }
   }
-], {
+];
+
+// Server processes: chunks → embeds → quantizes → compresses → stores
+await client.insertDocuments('documents', documents, {
   chunkSize: 512,
   chunkOverlap: 50
 });
 
-// Query with text (server handles embedding)
-const results = await client.searchByText('my_collection', 'Search term', 5);
-// Results: array of { id, score, payload }
+// Semantic search (server handles text embedding automatically)
+const results = await client.searchByText(
+  'documents',
+  'machine learning algorithms',
+  5
+);
 
-// LangChain.js integration
+results.forEach(result => {
+  console.log(`ID: ${result.id}, Score: ${result.score.toFixed(3)}`);
+  console.log(`Text: ${result.payload.text?.substring(0, 100)}...`);
+  console.log('---');
+});
+
+// LangChain.js integration (server-backed)
 import { VectorizerStore } from '@langchain/vectorizer';
 const store = new VectorizerStore(client);
 const docs = await store.similaritySearch('Query', 5);
@@ -173,19 +296,69 @@ In Python/TypeScript SDKs, use provided hooks for Aider-assisted code generation
 
 ## ⚙️ Configuration
 
-- **Default Vector Size**: Fixed at 768 dims (configurable via --vector-dim).
-- **Chunking**: Default size 512 tokens; customizable.
-- **Embedding Model**: Defaults to a lightweight Sentence Transformers model; configurable to OpenAI or custom.
-- **Persistence**: Set --persist-path for binary files.
-- **Index Parameters**: Configure HNSW via config.toml (e.g., m, ef_construction).
-- **API Port**: Default 8080, override with --port <PORT>.
+Vectorizer uses a comprehensive YAML configuration system that allows you to customize every aspect of the server. See `docs/CONFIGURATION.md` for complete documentation and `IMPLEMENTATION_CHECKLIST.md` for implementation status. Copy `config.example.yml` to `config.yml` and modify it according to your needs.
 
-## 🧪 Benchmarks
-Using criterion on a dataset of 1M 768-dim vectors (2025 hardware, M1 Max):
-- Insert: ~10µs per vector
-- Top-10 query: ~0.8ms
-- Memory footprint: ~1.2GB for 1M vectors
-- CLI Ingestion: ~500ms for a 10MB text file (chunk + embed + upsert)
+### Quick Configuration
+```bash
+# Start with example configuration
+cp config.example.yml config.yml
+
+# Start server with custom config
+cargo run --release -- --config config.yml
+```
+
+### Server Configuration
+- **Default Port**: 15001 (above 15000 as requested)
+- **Network Modes**: Internal (127.0.0.1) or Cloud (0.0.0.0)
+- **Dashboard**: Localhost-only at http://localhost:(server_port + 1)
+- **API Keys**: Mandatory authentication for all operations
+
+### Collection Configuration
+- **Vector Dimensions**: Configurable (default: 768 for text)
+- **Distance Metrics**: Cosine, Euclidean, Dot Product
+- **Quantization**: PQ (75% memory reduction), SQ (50%), Binary (97%)
+- **Compression**: LZ4 automatic compression (>1KB payloads, 40-70% reduction)
+- **Native Embeddings**: BOW, Hash, N-gram (no external dependencies)
+
+### Performance Tuning
+- **Chunking**: Default 512 tokens, configurable overlap
+- **Index Parameters**: HNSW m, ef_construction, ef_search
+- **Memory Pooling**: Efficient memory management
+- **Caching**: Query result caching with TTL
+
+### Security Settings
+- **API Key Management**: CLI and dashboard-based key lifecycle
+- **Audit Logging**: Complete operation tracking
+- **Rate Limiting**: Configurable per API key
+- **Network Isolation**: Internal vs external deployment modes
+
+## 🧪 Performance Targets (Theoretical)
+
+**Note**: These are theoretical estimates based on architecture design. No actual benchmarks exist yet.
+
+Projected performance on reference hardware (M1 Max, 2025):
+
+### Core Performance Targets
+- **Insert**: ~10µs per vector (estimated)
+- **Top-10 Query**: ~0.8ms (HNSW index, estimated)
+- **Memory Footprint**: ~1.2GB for 1M vectors (before quantization, estimated)
+- **Network Latency**: <1ms for local API calls (estimated)
+
+### Compression Performance (Estimated)
+- **LZ4 Compression**: <10µs per KB (target)
+- **Storage Reduction**: 40-70% for payloads >1KB (target)
+- **Network Savings**: 40-70% bandwidth reduction (target)
+- **Decompression**: <5µs per KB (target)
+
+### Quantization Impact (Estimated)
+- **PQ Quantization**: 75% memory reduction, 10-15% slower queries (target)
+- **SQ Quantization**: 50% memory reduction, 5% slower queries (target)
+- **Binary Quantization**: 97% memory reduction, 50% faster queries (target)
+
+### File Processing (Estimated)
+- **CLI Ingestion**: ~500ms for 10MB text file (target)
+- **Batch Operations**: 2-3x faster than individual operations (target)
+- **Concurrent Clients**: Scales to 100+ simultaneous connections (target)
 
 ## 🤝 Contributing
 We follow a governance model inspired by HiveLLM (see [hivellm/gov](https://github.com/hivellm/gov)). To contribute:

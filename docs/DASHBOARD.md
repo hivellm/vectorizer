@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Vectorizer Dashboard is a web-based administrative interface accessible only from `localhost` (127.0.0.1) that provides comprehensive management capabilities for the Vectorizer server. It serves as a secure, user-friendly alternative to CLI operations for managing collections, vectors, API keys, and server monitoring.
+The Vectorizer Dashboard is a web-based administrative interface accessible only from `localhost` (127.0.0.1) that provides comprehensive management capabilities for the Vectorizer server. By default, it runs on the server port + 1 (e.g., if server is on 15001, dashboard is on 15002). It serves as a secure, user-friendly alternative to CLI operations for managing collections, vectors, API keys, and server monitoring.
 
 ## Architecture
 
@@ -425,7 +425,7 @@ fn configure_dashboard_routes(cfg: &mut web::ServiceConfig) {
 
 ### Common Issues
 1. **Dashboard Not Accessible**: Check if server started with dashboard enabled
-2. **Port Conflicts**: Ensure port 3000 is available
+2. **Port Conflicts**: Ensure dashboard port (server_port + 1) is available
 3. **Performance Issues**: Check server resources and collection sizes
 4. **Display Problems**: Clear browser cache, check for JavaScript errors
 

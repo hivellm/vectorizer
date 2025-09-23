@@ -1,0 +1,397 @@
+# Vectorizer Server Configuration File
+# This is a comprehensive YAML configuration file that allows you to customize
+# every aspect of the Vectorizer server after build. Copy this file to config.yml
+# and modify the settings according to your needs.
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+server:
+  # Basic server settings
+  host: "127.0.0.1"          # Server bind address (127.0.0.1 for internal, 0.0.0.0 for cloud)
+  port: 15001                # Server port (default: 15001, above 15000 as requested)
+  workers: 4                 # Number of async workers (default: 4)
+  max_connections: 1000      # Maximum concurrent connections (default: 1000)
+  timeout_seconds: 30        # Request timeout in seconds (default: 30)
+
+  # Server identification
+  name: "Vectorizer Server"  # Server instance name
+  version: "1.0.0"           # Server version (for API responses)
+  environment: "production"  # Environment (development/production/staging)
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+security:
+  # API Key Management
+  require_api_keys: true     # Enforce API key authentication for all operations
+  api_key_length: 32         # Generated API key length (default: 32)
+  api_key_prefix: "vk_"      # API key prefix (default: "vk_")
+
+  # Rate Limiting (per API key)
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000  # Max requests per minute per API key
+    burst_limit: 100           # Burst limit for rate limiting
+
+  # CORS Configuration (for cloud deployments)
+  cors:
+    enabled: true
+    allowed_origins:           # List of allowed origins
+      - "https://your-app.com"
+      - "https://app.your-domain.com"
+    allowed_methods:           # HTTP methods to allow
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "PATCH"
+    allowed_headers:           # Headers to allow
+      - "Content-Type"
+      - "Authorization"
+      - "X-API-Key"
+    allow_credentials: true    # Allow credentials in CORS
+
+  # Audit Logging
+  audit:
+    enabled: true
+    log_operations: true       # Log all operations with API key reference
+    log_errors: true           # Log authentication failures and errors
+    retention_days: 30         # Audit log retention in days
+    max_log_size_mb: 100       # Maximum audit log size before rotation
+
+# =============================================================================
+# DASHBOARD CONFIGURATION
+# =============================================================================
+dashboard:
+  enabled: true               # Enable localhost dashboard
+  bind_address: "127.0.0.1"   # Dashboard bind address (always localhost for security)
+  port: 15002                 # Dashboard port (default: server.port + 1 = 15002)
+  theme: "auto"               # UI theme: light/dark/auto
+  locale: "en"                # Interface language: en/pt/es/fr
+  session_timeout_minutes: 60 # Dashboard session timeout
+
+  # Dashboard features
+  features:
+    api_key_management: true  # Allow API key creation/deletion
+    collection_management: true # Allow collection operations
+    vector_inspection: true   # Allow vector browsing (read-only)
+    search_preview: true      # Allow search demonstrations
+    server_monitoring: true   # Show server metrics
+    audit_logs: true          # Show audit logs
+
+# =============================================================================
+# NETWORK CONFIGURATION
+# =============================================================================
+network:
+  mode: "internal"            # Network mode: internal/cloud
+
+  # Internal mode settings (localhost only)
+  internal:
+    bind_address: "127.0.0.1"
+    allowed_clients:           # Additional allowed IPs (for internal networks)
+      - "192.168.1.0/24"
+
+  # Cloud mode settings (external access)
+  cloud:
+    bind_address: "0.0.0.0"
+    tls:
+      enabled: false          # Enable TLS/HTTPS
+      cert_path: "/path/to/cert.pem"
+      key_path: "/path/to/key.pem"
+    load_balancer: false      # Running behind load balancer
+    trusted_proxies:          # Trusted proxy IPs
+      - "10.0.0.0/8"
+
+# =============================================================================
+# PERFORMANCE CONFIGURATION
+# =============================================================================
+performance:
+  # Memory Management
+  memory:
+    max_usage_gb: 32.0        # Maximum memory usage (GB)
+    gc_threshold_mb: 1024     # Garbage collection threshold
+    memory_pool_size_mb: 512  # Memory pool size for vectors
+
+  # Threading and Concurrency
+  threading:
+    max_blocking_threads: 512 # Maximum blocking threads
+    async_runtime_threads: 4  # Async runtime worker threads
+
+  # Caching
+  cache:
+    enabled: true
+    vector_cache_size_mb: 256 # Vector data cache size
+    query_cache_size_mb: 128  # Query result cache size
+    cache_ttl_seconds: 3600   # Cache TTL (1 hour)
+    cache_compression: true   # Compress cached data
+
+  # Resource Limits
+  limits:
+    max_collections: 100      # Maximum number of collections
+    max_vectors_per_collection: 10000000  # Max vectors per collection (10M)
+    max_payload_size_kb: 1024 # Maximum payload size (1MB)
+    max_batch_size: 1000      # Maximum batch operation size
+
+# =============================================================================
+# COMPRESSION CONFIGURATION
+# =============================================================================
+compression:
+  # Global compression settings
+  enabled: true               # Enable compression globally
+  algorithm: "lz4"            # Compression algorithm: lz4/none
+  default_threshold_bytes: 1024 # Default compression threshold
+
+  # Per-operation compression
+  operations:
+    api_responses: true       # Compress API responses
+    persistence: true         # Compress persisted data
+    network: true             # Compress network traffic
+
+  # Algorithm-specific settings
+  lz4:
+    compression_level: 1      # LZ4 compression level (1-16, 1=fastest)
+    checksum: false           # Enable LZ4 checksums
+
+# =============================================================================
+# PERSISTENCE CONFIGURATION
+# =============================================================================
+persistence:
+  # Storage settings
+  enabled: true
+  storage_path: "./data"      # Base storage directory
+  auto_backup: true           # Automatic backups
+  backup_interval_hours: 24   # Backup frequency
+
+  # Binary serialization
+  format: "bincode"           # Serialization format: bincode/json
+  compression: true           # Compress persisted data
+
+  # Recovery settings
+  recovery:
+    auto_recover: true        # Auto-recover on startup
+    max_recovery_time_seconds: 300 # Maximum recovery time
+    recovery_parallelism: 4   # Parallel recovery threads
+
+# =============================================================================
+# DEFAULT COLLECTION CONFIGURATION
+# =============================================================================
+collections:
+  defaults:
+    # Vector settings
+    dimension: 768            # Default vector dimension
+    metric: "cosine"          # Default distance metric: cosine/euclidean/dot_product
+
+    # Quantization (memory optimization)
+    quantization:
+      type: "pq"              # Quantization type: none/pq/sq/binary
+      pq:
+        n_centroids: 256      # PQ centroids (256 recommended)
+        n_subquantizers: 8    # PQ sub-quantizers
+      sq:
+        bits: 8               # SQ bits per dimension
+      binary:
+        enabled: false        # Use binary quantization
+
+    # Embedding settings
+    embedding:
+      model: "native_bow"     # Default embedding: native_bow/native_hash/native_ngram
+      bow:
+        vocab_size: 50000     # BOW vocabulary size
+        max_sequence_length: 512 # Maximum sequence length
+      hash:
+        hash_size: 1000000    # Feature hash size
+      ngram:
+        ngram_range: [1, 3]   # N-gram range [min, max]
+        vocab_size: 100000    # N-gram vocabulary size
+
+    # Compression settings
+    compression:
+      enabled: true
+      threshold_bytes: 1024   # Compress payloads > 1KB
+      algorithm: "lz4"
+
+    # Index settings (HNSW)
+    index:
+      type: "hnsw"
+      hnsw:
+        m: 16                 # HNSW connections per layer
+        ef_construction: 200  # Construction search width
+        ef_search: 64         # Query search width
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+logging:
+  # Log levels
+  level: "info"               # Global log level: error/warn/info/debug/trace
+  format: "json"              # Log format: json/text
+
+  # Log outputs
+  outputs:
+    console:
+      enabled: true
+      level: "info"
+    file:
+      enabled: true
+      path: "./logs/vectorizer.log"
+      level: "debug"
+      max_size_mb: 100
+      max_files: 5
+
+  # Module-specific log levels
+  modules:
+    vectorizer::api: "debug"
+    vectorizer::auth: "info"
+    vectorizer::compression: "warn"
+    vectorizer::dashboard: "info"
+
+# =============================================================================
+# MONITORING CONFIGURATION
+# =============================================================================
+monitoring:
+  # Health checks
+  health_check:
+    enabled: true
+    interval_seconds: 30      # Health check frequency
+    failure_threshold: 3      # Failures before marking unhealthy
+
+  # Metrics collection
+  metrics:
+    enabled: true
+    collection_interval_seconds: 60 # Metrics collection frequency
+
+    # Metrics to collect
+    collections:
+      - vector_count
+      - index_size
+      - memory_usage
+      - query_latency
+      - compression_ratio
+
+  # External monitoring integration
+  external:
+    prometheus:
+      enabled: false
+      port: 9090
+      path: "/metrics"
+    statsd:
+      enabled: false
+      host: "localhost"
+      port: 8125
+      prefix: "vectorizer"
+
+# =============================================================================
+# INTEGRATION CONFIGURATION
+# =============================================================================
+integrations:
+  # LangChain integration
+  langchain:
+    enabled: true
+    vectorstore_class: "VectorizerStore"
+    embedding_function: "native_bow"
+
+  # Aider integration
+  aider:
+    enabled: true
+    hooks_enabled: true
+    auto_chunking: true
+    chunk_size: 512
+
+  # External API integrations
+  external_apis:
+    openai:
+      enabled: false          # Use external OpenAI (overrides native embeddings)
+      api_key: "your-key"     # OpenAI API key
+      model: "text-embedding-ada-002"
+    huggingface:
+      enabled: false          # Use HuggingFace models
+      api_key: "your-key"
+      model: "sentence-transformers/all-MiniLM-L6-v2"
+
+# =============================================================================
+# DEVELOPMENT/DEBUG CONFIGURATION
+# =============================================================================
+development:
+  debug_mode: false           # Enable debug features
+  profile: false              # Enable performance profiling
+  trace_requests: false       # Log all incoming requests
+  mock_data: false            # Use mock data for testing
+
+  # Development tools
+  tools:
+    query_profiler: false     # Profile query performance
+    memory_profiler: false    # Profile memory usage
+    request_tracer: false     # Trace request lifecycle
+
+# =============================================================================
+# MAINTENANCE CONFIGURATION
+# =============================================================================
+maintenance:
+  # Automatic maintenance
+  auto_maintenance:
+    enabled: true
+    schedule: "0 2 * * *"    # Cron schedule (daily at 2 AM)
+    operations:
+      - optimize_indexes
+      - cleanup_temp_files
+      - rotate_logs
+      - backup_data
+
+  # Manual maintenance operations
+  manual_operations:
+    index_optimization: true  # Allow manual index optimization
+    data_compaction: true     # Allow data compaction
+    cache_invalidation: true  # Allow cache clearing
+
+# =============================================================================
+# EXPERIMENTAL FEATURES
+# =============================================================================
+experimental:
+  # Features under development
+  features:
+    distributed_collections: false  # Multi-node collection sharding
+    gpu_acceleration: false         # GPU-accelerated operations
+    advanced_quantization: false    # Experimental quantization methods
+    federated_search: false         # Cross-server search federation
+
+  # Performance optimizations
+  optimizations:
+    simd_operations: true          # SIMD vector operations
+    async_io: true                 # Asynchronous I/O operations
+    zero_copy_serialization: false # Zero-copy data serialization
+
+# =============================================================================
+# CUSTOM EXTENSIONS
+# =============================================================================
+extensions:
+  # Custom plugins/modules
+  plugins: []                    # List of plugin paths
+  custom_modules: []             # Custom Rust modules to load
+
+  # Webhooks and callbacks
+  webhooks:
+    enabled: false
+    endpoints: []                # Webhook URLs for events
+    events:                      # Events to trigger webhooks
+      - collection_created
+      - api_key_created
+      - high_memory_usage
+
+---
+# Configuration Notes:
+#
+# 1. All paths are relative to the server working directory
+# 2. Boolean values: true/false
+# 3. Arrays use YAML list syntax: [item1, item2]
+# 4. Comments starting with # are ignored
+# 5. Environment variables can be used: ${ENV_VAR_NAME}
+# 6. Sensitive data (API keys) should be stored securely
+#
+# Usage:
+#   vectorizer server --config config.yml
+#   vectorizer server --config /path/to/custom/config.yml
+#
+# Validation:
+#   The server will validate the configuration on startup
+#   Invalid configurations will prevent server startup with detailed error messages
