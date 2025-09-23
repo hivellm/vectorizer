@@ -141,9 +141,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         target:
-          - ubuntu-latest: x86_64-unknown-linux-gnu
-          - windows-latest: x86_64-pc-windows-msvc
-          - macos-latest: x86_64-apple-darwin
+          ubuntu-latest: x86_64-unknown-linux-gnu
+          windows-latest: x86_64-pc-windows-msvc
+          macos-latest: x86_64-apple-darwin
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
