@@ -7,13 +7,14 @@ use std::collections::HashSet;
 use std::fs;
 use std::time::Instant;
 use vectorizer::{
-    db::{OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
-    embedding::{BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding, RealModelEmbedder, RealModelType, SvdEmbedding, TfIdfEmbedding},
+    db::{OptimizedHnswConfig, OptimizedHnswIndex},
+    embedding::{BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding},
     evaluation::{evaluate_search_quality, EvaluationMetrics, QueryResult},
     document_loader::{DocumentLoader, LoaderConfig},
-    models::{CollectionConfig, DistanceMetric, Vector},
     parallel::{init_parallel_env, ParallelConfig},
 };
+#[cfg(feature = "candle-models")]
+use vectorizer::embedding::{RealModelEmbedder, RealModelType};
 use tracing_subscriber;
 
 /// Simple document collection for benchmarking
@@ -435,7 +436,7 @@ fn evaluate_dense_embedding_method(
 
 
 /// Evaluate real transformer model embeddings with optimized indexing
-#[cfg(feature = "real-models")]
+#[cfg(feature = "candle-models")]
 fn evaluate_real_model_embedding(
     dataset: &BenchmarkDataset,
     model_type: RealModelType,
@@ -457,7 +458,7 @@ fn evaluate_real_model_embedding(
     
     let start_time = Instant::now();
     let _ = embedder.embed(test_refs[0])?;
-    let single_time = start_time.elapsed();
+    let _single_time = start_time.elapsed();
     
     let start_time = Instant::now();
     for doc in test_refs.iter().take(10) {
@@ -582,52 +583,292 @@ fn evaluate_real_model_embedding(
     Ok(metrics)
 }
 
-/// Evaluate SVD-based embeddings
-fn evaluate_svd_method(
+/// Evaluate SVD-based embeddings with optimizations
+fn evaluate_svd_method_optimized(
     dataset: &BenchmarkDataset,
     svd_dimension: usize,
+    max_docs: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!("Evaluating SVD with dimension {}...", svd_dimension);
+    println!("Evaluating SVD with dimension {} (using {} docs)...", svd_dimension, max_docs);
+
+    // Initialize parallel environment
+    let parallel_config = ParallelConfig::default();
+    init_parallel_env(&parallel_config)?;
+
+    // Use subset of documents for SVD
+    let sampled_docs: Vec<&str> = dataset.documents
+        .iter()
+        .take(max_docs)
+        .map(|s| s.as_str())
+        .collect();
 
     // Create SVD embedding with vocabulary size 1000
     let mut svd = SvdEmbedding::new(svd_dimension, 1000);
 
-    // Convert documents to &str slice
-    let doc_refs: Vec<&str> = dataset.documents.iter().map(|s| s.as_str()).collect();
+    // Fit SVD on the sampled documents
+    let start_time = Instant::now();
+    svd.fit_svd(&sampled_docs)?;
+    let fit_time = start_time.elapsed();
+    println!("  SVD fit completed in {:.2}s", fit_time.as_secs_f64());
 
-    // Fit SVD on the documents
-    svd.fit_svd(&doc_refs)?;
+    // Create optimized HNSW index
+    let hnsw_config = OptimizedHnswConfig {
+        batch_size: 500,
+        parallel: true,
+        initial_capacity: sampled_docs.len(),
+        ..Default::default()
+    };
+    let index = OptimizedHnswIndex::new(svd_dimension, hnsw_config)?;
+
+    // Index documents
+    println!("  Indexing {} documents...", sampled_docs.len());
+    let index_start = Instant::now();
+    
+    let mut batch_vectors = Vec::new();
+    for (idx, doc) in sampled_docs.iter().enumerate() {
+        let embedding = <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, doc)?;
+        batch_vectors.push((format!("doc_{}", idx), embedding));
+        
+        // Batch insert
+        if batch_vectors.len() >= 500 || idx == sampled_docs.len() - 1 {
+            index.batch_add(batch_vectors.clone())?;
+            batch_vectors.clear();
+        }
+    }
+    
+    index.optimize()?;
+    let index_time = index_start.elapsed();
+    println!("  Indexed in {:.2}s ({:.2} docs/sec)", 
+        index_time.as_secs_f64(), 
+        sampled_docs.len() as f64 / index_time.as_secs_f64());
 
     // Evaluate queries
     let mut query_results = Vec::new();
-
     for (query_idx, query) in dataset.queries.iter().enumerate() {
-        // Get query embedding using SVD
         let query_embedding = <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, query)?;
 
-        // Simulate search results
-        let mut results = Vec::new();
-        for (doc_idx, document) in dataset.documents.iter().enumerate() {
-            let doc_embedding = <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, document)?;
-            let similarity = cosine_similarity(&query_embedding, &doc_embedding);
+        let k = 100;
+        let search_results = index.search(&query_embedding, k)?;
+        
+        let results: Vec<QueryResult> = search_results
+            .into_iter()
+            .map(|(id, distance)| QueryResult {
+                doc_id: id,
+                relevance: 1.0 - distance,
+            })
+            .collect();
 
-            results.push(QueryResult {
-                doc_id: format!("doc_{}", doc_idx),
-                relevance: similarity,
-            });
+        // Adjust ground truth for sampled docs
+        let sampled_indices: HashSet<usize> = (0..sampled_docs.len()).collect();
+        let adjusted_ground_truth: HashSet<String> = dataset.ground_truth[query_idx]
+            .iter()
+            .filter(|idx| sampled_indices.contains(idx))
+            .map(|idx| format!("doc_{}", idx))
+            .collect();
+
+        query_results.push((results, adjusted_ground_truth));
+    }
+
+    let metrics = evaluate_search_quality(query_results, 10);
+    
+    // Print statistics
+    let memory_stats = index.memory_stats();
+    println!("\n📊 SVD Index Statistics:");
+    println!("  - Vectors: {}", memory_stats.vector_count);
+    println!("  - Memory: {}", memory_stats.format());
+    println!("  - Total time: {:.2}s", (fit_time + index_time).as_secs_f64());
+
+    Ok(metrics)
+}
+
+/// Evaluate ONNX models
+#[cfg(feature = "onnx-models")]
+fn evaluate_onnx_model(
+    dataset: &BenchmarkDataset,
+    model_name: &str,
+    dimension: usize,
+) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
+    use vectorizer::embedding::{OnnxEmbedder, OnnxConfig, OnnxModelType};
+    
+    println!("Evaluating {} with ONNX Runtime...", model_name);
+    
+    // Initialize parallel environment
+    let parallel_config = ParallelConfig::default();
+    init_parallel_env(&parallel_config)?;
+    
+    // Configure ONNX model
+    let model_type = match model_name {
+        "MiniLM-ONNX" => OnnxModelType::MiniLMMultilingual384,
+        "E5-Base-ONNX" => OnnxModelType::E5BaseMultilingual768,
+        _ => return Err(format!("Unknown ONNX model: {}", model_name).into()),
+    };
+    
+    let config = OnnxConfig {
+        model_type,
+        batch_size: 128,
+        use_int8: true, // Enable INT8 quantization
+        ..Default::default()
+    };
+    let use_int8 = config.use_int8;
+    let embedder = OnnxEmbedder::new(config)?;
+    
+    // Measure throughput
+    let test_batch = &dataset.documents[..std::cmp::min(100, dataset.documents.len())];
+    let start_time = Instant::now();
+    let _ = embedder.embed_parallel(test_batch)?;
+    let batch_time = start_time.elapsed();
+    let docs_per_sec = test_batch.len() as f64 / batch_time.as_secs_f64();
+    println!("ONNX Throughput: {:.2} docs/sec", docs_per_sec);
+    
+    // Create optimized index
+    let hnsw_config = OptimizedHnswConfig {
+        batch_size: 1000,
+        parallel: true,
+        initial_capacity: dataset.documents.len(),
+        ..Default::default()
+    };
+    let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
+    
+    // Index all documents
+    println!("Indexing {} documents with ONNX...", dataset.documents.len());
+    let start_time = Instant::now();
+    
+    for (batch_idx, batch) in dataset.documents.chunks(128).enumerate() {
+        let embeddings = embedder.embed_parallel(batch)?;
+        let mut batch_vectors = Vec::new();
+        for (i, embedding) in embeddings.into_iter().enumerate() {
+            let doc_idx = batch_idx * 128 + i;
+            batch_vectors.push((format!("doc_{}", doc_idx), embedding));
         }
-
-        // Sort by similarity
-        results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap());
-
-        // Convert ground truth
+        index.batch_add(batch_vectors)?;
+    }
+    
+    index.optimize()?;
+    let index_time = start_time.elapsed();
+    println!("✅ ONNX indexing completed in {:.2}s ({:.2} docs/sec)", 
+        index_time.as_secs_f64(), 
+        dataset.documents.len() as f64 / index_time.as_secs_f64());
+    
+    // Evaluate queries
+    let mut query_results = Vec::new();
+    for (query_idx, query) in dataset.queries.iter().enumerate() {
+        let query_embedding = embedder.embed(query)?;
+        let search_results = index.search(&query_embedding, 100)?;
+        
+        let results: Vec<QueryResult> = search_results
+            .into_iter()
+            .map(|(id, distance)| QueryResult {
+                doc_id: id,
+                relevance: 1.0 - distance,
+            })
+            .collect();
+        
         let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
+        query_results.push((results, ground_truth_ids));
+    }
+    
+    let metrics = evaluate_search_quality(query_results, 10);
+    
+    // Print statistics
+    let memory_stats = index.memory_stats();
+    println!("\n📊 ONNX Index Statistics:");
+    println!("  - Model: {} (INT8: {})", model_name, use_int8);
+    println!("  - Vectors: {}", memory_stats.vector_count);
+    println!("  - Memory: {}", memory_stats.format());
+    println!("  - Index time: {:.2}s", index_time.as_secs_f64());
+    
+    Ok(metrics)
+}
 
+/// Evaluate Hybrid Search (sparse retrieval + dense re-ranking)
+fn evaluate_hybrid_search(
+    dataset: &BenchmarkDataset,
+    sparse_method: &str,
+    dense_method: &str,
+    dense_dimension: usize,
+) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
+    
+    println!("Evaluating Hybrid Search: {} -> {}", sparse_method, dense_method);
+    
+    // Initialize parallel environment
+    let parallel_config = ParallelConfig::default();
+    init_parallel_env(&parallel_config)?;
+    
+    // Create sparse retriever (BM25)
+    let mut bm25 = Bm25Embedding::new(10000); // Large vocab for BM25
+    bm25.build_vocabulary(&dataset.documents);
+    
+    // Create dense embedder
+    let dense_embedder: Box<dyn vectorizer::embedding::EmbeddingProvider> = match dense_method {
+        "BERT" => {
+            let mut bert = BertEmbedding::new(dense_dimension);
+            bert.load_model()?;
+            Box::new(bert)
+        }
+        "MiniLM" => {
+            let mut minilm = MiniLmEmbedding::new(dense_dimension);
+            minilm.load_model()?;
+            Box::new(minilm)
+        }
+        _ => return Err(format!("Unknown dense method: {}", dense_method).into()),
+    };
+    
+    // For hybrid search, we'll simulate the two-stage process
+    println!("Building BM25 index for {} documents...", dataset.documents.len());
+    let start_time = Instant::now();
+    
+    let mut query_results = Vec::new();
+    
+    for (query_idx, query) in dataset.queries.iter().enumerate() {
+        // Stage 1: BM25 retrieval to get top-50 candidates
+        let bm25_embedding = bm25.embed(query)?;
+        
+        let mut candidates = Vec::new();
+        for (doc_idx, doc) in dataset.documents.iter().enumerate() {
+            let doc_embedding = bm25.embed(doc)?;
+            let similarity = cosine_similarity(&bm25_embedding, &doc_embedding);
+            candidates.push((doc_idx, similarity));
+        }
+        
+        // Sort by BM25 score and take top-50
+        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        let top_candidates: Vec<_> = candidates.into_iter().take(50).collect();
+        
+        // Stage 2: Re-rank top candidates with dense embeddings
+        let mut reranked = Vec::new();
+        let query_dense = dense_embedder.embed(query)?;
+        
+        for (doc_idx, _) in top_candidates {
+            let doc_dense = dense_embedder.embed(&dataset.documents[doc_idx])?;
+            let dense_similarity = cosine_similarity(&query_dense, &doc_dense);
+            reranked.push((doc_idx, dense_similarity));
+        }
+        
+        // Sort by dense score and take top-10
+        reranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        
+        let results: Vec<QueryResult> = reranked
+            .into_iter()
+            .take(10)
+            .map(|(doc_idx, relevance)| QueryResult {
+                doc_id: format!("doc_{}", doc_idx),
+                relevance,
+            })
+            .collect();
+        
+        let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
         query_results.push((results, ground_truth_ids));
     }
 
-    // Evaluate search quality
+    let total_time = start_time.elapsed();
+    println!("✅ Hybrid search completed in {:.2}s", total_time.as_secs_f64());
+    
     let metrics = evaluate_search_quality(query_results, 10);
+    
+    println!("\n📊 Hybrid Search Statistics:");
+    println!("  - Sparse: {} (top-50 candidates)", sparse_method);
+    println!("  - Dense: {} (re-ranking)", dense_method);
+    println!("  - Total time: {:.2}s", total_time.as_secs_f64());
 
     Ok(metrics)
 }
@@ -681,10 +922,11 @@ fn generate_markdown_report(results: &[(String, EvaluationMetrics)], dataset: &B
     report.push_str("|--------|------|------------|-------------|\n");
     report.push_str("| TF-IDF | Sparse | Variable | Traditional term frequency-inverse document frequency |\n");
     report.push_str("| BM25 | Sparse | Variable | Advanced sparse retrieval with k1=1.5, b=0.75 |\n");
-    report.push_str("| TF-IDF+SVD | Sparse Reduced | 300D | TF-IDF with dimensionality reduction |\n");
-    report.push_str("| TF-IDF+SVD | Sparse Reduced | 768D | TF-IDF with dimensionality reduction |\n");
-    report.push_str("| BERT | Dense | 768D | Contextual embeddings (placeholder implementation) |\n");
-    report.push_str("| MiniLM | Dense | 384D | Efficient sentence embeddings (placeholder implementation) |\n\n");
+    report.push_str("| TF-IDF+SVD | Sparse Reduced | 300D/768D | TF-IDF with dimensionality reduction |\n");
+    report.push_str("| BERT | Dense | 768D | Contextual embeddings (placeholder/real) |\n");
+    report.push_str("| MiniLM | Dense | 384D | Efficient sentence embeddings (placeholder/real) |\n");
+    report.push_str("| ONNX Models | Dense | 384D/768D | Optimized inference with INT8 quantization |\n");
+    report.push_str("| Hybrid Search | Two-stage | Variable | BM25 retrieval + dense re-ranking |\n\n");
 
     report.push_str("### Evaluation Metrics\n\n");
     report.push_str("- **MAP (Mean Average Precision)**: Average precision across all relevant documents\n");
@@ -811,22 +1053,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Evaluate SVD-based methods (commented out due to performance issues with large datasets)
-    println!("\n🔍 Skipping SVD evaluation - too slow for large datasets");
-    println!("   SVD evaluation disabled to avoid performance issues with {} chunks", dataset.documents.len());
-
-    // Uncomment to enable SVD evaluation (may take very long time):
-    /*
-    match evaluate_svd_method(&dataset, 300) {  // 300D SVD
+    // Evaluate SVD-based methods with optimizations
+    println!("\n🔍 Evaluating SVD-based methods...");
+    
+    // Use a subset for SVD to avoid performance issues
+    let svd_sample_size = std::cmp::min(1000, dataset.documents.len());
+    if dataset.documents.len() > svd_sample_size {
+        println!("   Using {} documents for SVD evaluation (from {} total)", svd_sample_size, dataset.documents.len());
+    }
+    
+    match evaluate_svd_method_optimized(&dataset, 300, svd_sample_size) {  // 300D SVD
         Ok(metrics) => {
             print_results("TF-IDF+SVD(300D)", &metrics);
             results.push(("TF-IDF+SVD(300D)".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating TF-IDF+SVD: {}", e);
+            println!("Error evaluating TF-IDF+SVD(300D): {}", e);
         }
     }
-    */
+
+    match evaluate_svd_method_optimized(&dataset, 768, svd_sample_size) {  // 768D SVD
+        Ok(metrics) => {
+            print_results("TF-IDF+SVD(768D)", &metrics);
+            results.push(("TF-IDF+SVD(768D)".to_string(), metrics));
+        }
+        Err(e) => {
+            println!("Error evaluating TF-IDF+SVD(768D): {}", e);
+        }
+    }
 
     // Evaluate dense embeddings
     println!("\n🧠 Evaluating dense embeddings...");
@@ -852,8 +1106,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Test real models (only if feature is enabled)
-    #[cfg(feature = "real-models")]
+    // Test real models (only if candle-models feature is enabled)
+    #[cfg(feature = "candle-models")]
     {
         println!("\n🤖 Testing real transformer models (cached in /models)...");
 
@@ -882,16 +1136,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    #[cfg(not(feature = "real-models"))]
+    #[cfg(not(feature = "candle-models"))]
     {
-        println!("\n⚠️  Real models not available - compile with --features real-models to test actual transformer models");
+        println!("\n⚠️  Real models not available - compile with --features candle-models to test actual transformer models");
         println!("   Available models would include: MiniLM-Multilingual, E5-Small, MPNet-Multilingual, etc.");
     }
 
-    // Note: Hybrid search evaluation skipped due to SVD dependencies
-    // To enable hybrid evaluation, ensure OpenBLAS development libraries are installed
-    println!("\n🔄 Hybrid search evaluation skipped (requires SVD)");
-    println!("   BM25+BERT and BM25+MiniLM require SVD for TF-IDF preprocessing");
+    // Test ONNX models if available
+    #[cfg(feature = "onnx-models")]
+    {
+        println!("\n⚡ Testing ONNX models for production inference...");
+        
+        match evaluate_onnx_model(&dataset, "MiniLM-ONNX", 384) {
+            Ok(metrics) => {
+                print_results("MiniLM(384D ONNX)", &metrics);
+                results.push(("MiniLM(384D ONNX)".to_string(), metrics));
+            }
+            Err(e) => {
+                println!("Error evaluating MiniLM ONNX: {}", e);
+            }
+        }
+        
+        match evaluate_onnx_model(&dataset, "E5-Base-ONNX", 768) {
+            Ok(metrics) => {
+                print_results("E5-Base(768D ONNX)", &metrics);
+                results.push(("E5-Base(768D ONNX)".to_string(), metrics));
+            }
+            Err(e) => {
+                println!("Error evaluating E5-Base ONNX: {}", e);
+            }
+        }
+    }
+    
+    #[cfg(not(feature = "onnx-models"))]
+    {
+        println!("\n⚡ ONNX models not available - compile with --features onnx-models for optimized inference");
+    }
+
+    // Evaluate Hybrid Search approaches
+    println!("\n🔀 Evaluating Hybrid Search approaches...");
+    
+    match evaluate_hybrid_search(&dataset, "BM25", "BERT", 768) {
+        Ok(metrics) => {
+            print_results("Hybrid: BM25->BERT", &metrics);
+            results.push(("Hybrid: BM25->BERT".to_string(), metrics));
+        }
+        Err(e) => {
+            println!("Error evaluating BM25+BERT hybrid: {}", e);
+        }
+    }
+    
+    match evaluate_hybrid_search(&dataset, "BM25", "MiniLM", 384) {
+        Ok(metrics) => {
+            print_results("Hybrid: BM25->MiniLM", &metrics);
+            results.push(("Hybrid: BM25->MiniLM".to_string(), metrics));
+        }
+        Err(e) => {
+            println!("Error evaluating BM25+MiniLM hybrid: {}", e);
+        }
+    }
 
     // Summary comparison
     println!("\n📊 Summary Comparison");

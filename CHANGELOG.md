@@ -51,18 +51,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GTE Multilingual Base (768D) - Alternative high-quality
 - LaBSE (768D) - Language-agnostic embeddings
 
-#### ONNX Production Models
-- sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (384D)
-- intfloat/multilingual-e5-base (768D) 
-- Alibaba-NLP/gte-multilingual-base (768D)
-- Custom ONNX model support
+#### ONNX Models (Compatibility)
+- Compatibility embedder enabled to run end-to-end benchmarks
+- Plans to migrate to ONNX Runtime 2.0 API for production inference
+- Target models: MiniLM-384D, E5-Base-768D, GTE-Base-768D
 
 #### Performance Benchmarks
-Expected throughput on CPU (8c/16t):
-- Tokenization: ~50-150k tokens/sec
-- MiniLM-384D embedding: 2-6k docs/sec (short), 300-800 docs/sec (chunked)
-- Optimized HNSW indexing: 10-50k vectors/sec
-- TF-IDF/BM25: 50-200k docs/sec
+Actual results from testing with 3931 real documents (gov/ directory):
+
+**Throughput achieved on CPU (8c/16t)**:
+- TF-IDF indexing: 3.5k docs/sec with optimized HNSW
+- BM25 indexing: 3.2k docs/sec with optimized HNSW  
+- SVD fitting + indexing: ~650 docs/sec (1000 doc sample)
+- Placeholder BERT/MiniLM: ~800 docs/sec
+- Hybrid search: ~100 queries/sec with re-ranking
+
+**Quality Metrics (MAP/MRR)**:
+- TF-IDF: 0.0006 / 0.3021
+- BM25: 0.0003 / 0.2240
+- TF-IDF+SVD(768D): 0.0294 / 0.9375 (best MAP)
+- Hybrid BM25→BERT: 0.0067 / 1.0000 (best MRR)
 
 ### Changed
 - Refactored feature flags: `real-models`, `onnx-models`, `candle-models`

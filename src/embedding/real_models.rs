@@ -11,6 +11,12 @@ use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 #[cfg(feature = "candle-models")]
 use candle_transformers::models::bert::{BertModel, Config as BertConfig};
+#[cfg(feature = "candle-models")]
+use tokenizers::Tokenizer;
+#[cfg(feature = "candle-models")]
+use hf_hub::api::sync::ApiBuilder;
+#[cfg(feature = "candle-models")]
+use serde_json;
 use crate::error::{Result, VectorizerError};
 use super::EmbeddingProvider;
 

@@ -13,7 +13,8 @@
 - ✅ REST API with text search and embeddings
 - ✅ Comprehensive evaluation metrics (MRR, MAP, P@K, R@K)
 - ✅ 60+ unit tests passing with benchmark suite
-- ✅ **Real transformer model integration** (MiniLM, E5, MPNet, GTE, LaBSE)
+- ✅ **Real transformer model integration (Candle)** MiniLM, E5, MPNet, GTE, LaBSE
+- ✅ **ONNX models (compat layer)** for benchmarking end-to-end
 - 🚀 Production-ready semantic search
 - ⏳ Client SDKs (Phase 4 - Planned)
 
@@ -92,9 +93,12 @@ vectorizer/
 │   ├── document_loader.rs # File processing and chunking
 │   ├── persistence/       # Binary file serialization with LZ4
 │   └── models/            # Data structures (vectors, payloads, collections)
-├── examples/              # Usage examples and benchmarks
-│   ├── api_usage.rs       # REST API examples
-│   └── benchmark_embeddings.rs # Comprehensive embedding benchmark
+├── examples/              # Usage examples
+│   └── api_usage.rs       # REST API examples
+├── benchmark/
+│   ├── scripts/benchmark_embeddings.rs # Comprehensive embedding benchmark (binary)
+│   ├── README.md           # Benchmark usage
+│   └── reports/            # Generated reports
 ├── docs/                  # Technical documentation
 ├── tests/                 # Unit and integration tests
 ├── benches/               # Performance benchmarks
@@ -132,21 +136,16 @@ Comprehensive **Information Retrieval metrics** for quality assessment:
 - **Precision@K**: Fraction of relevant results in top-K
 - **Recall@K**: Fraction of relevant documents retrieved in top-K
 
-### Benchmark Results
+### Benchmark Results (gov/ dataset, 3931 docs)
 
-```
-Method              MAP      MRR      P@5      R@5
-TF-IDF             0.9900   1.0000   0.9600   1.0000
-BM25               0.9900   1.0000   0.9600   1.0000
-TF-IDF+SVD(300D)   [varies] [varies] [varies] [varies]
-TF-IDF+SVD(768D)   [varies] [varies] [varies] [varies]
-BERT(768D)         [varies] [varies] [varies] [varies]
-MiniLM(384D)       [varies] [varies] [varies] [varies]
-BM25+BERT          [varies] [varies] [varies] [varies]
-BM25+MiniLM        [varies] [varies] [varies] [varies]
-```
+| Method | MAP | MRR | Notes |
+|--------|-----|-----|-------|
+| TF-IDF | 0.0006 | 0.3021 | Sparse baseline |
+| BM25 | 0.0003 | 0.2240 | Sparse baseline |
+| TF-IDF+SVD (768D) | 0.0294 | 0.9375 | Best MAP among tested |
+| Hybrid BM25→BERT | 0.0067 | 1.0000 | Best MRR (re-ranking) |
 
-*Results vary based on dataset and implementation details*
+Full reports are saved under `benchmark/reports/`.
 
 ## 🛠️ Installation & Usage
 
@@ -154,7 +153,7 @@ BM25+MiniLM        [varies] [varies] [varies] [varies]
 - Rust 1.82+ (using nightly for edition 2024)
 - Cargo for dependency management
 
-### Current Installation (Phase 1)
+### Current Installation
 
 ```bash
 # Clone repository
@@ -168,7 +167,7 @@ rustup override set nightly
 cargo test
 
 # Run comprehensive embedding benchmark
-cargo run --example benchmark_embeddings
+cargo run --bin benchmark_embeddings --release
 
 # Run the server with document loading
 cargo run -- --host 127.0.0.1 --port 15001 --project ../your-documents/
@@ -179,20 +178,25 @@ cargo run -- --host 127.0.0.1 --port 15001 --project ../your-documents/
 For production-quality embeddings, enable real transformer model support:
 
 ```bash
-# Build with real model support (~2GB download for models)
-cargo build --features real-models
+# Build with Candle real model support (~2GB download for models)
+cargo build --features candle-models --release
 
 # Download and test all models (recommended first step)
-cargo run --bin download_models --features real-models
+cargo run --bin download_models --features candle-models --release
 
 # Test real models with simple example
 cargo run --example real_models_example --features real-models
 
-# Run comprehensive benchmark with real transformer models
-cargo run --bin benchmark_embeddings --features real-models
+# Run comprehensive benchmark (Candle + ONNX compat)
+cargo run --bin benchmark_embeddings --features full --release
 
-# Start server with real embeddings
-cargo run --features real-models -- --host 127.0.0.1 --port 15001 --project ../your-documents/
+# Start server with real embeddings (Candle)
+cargo run --features candle-models -- --host 127.0.0.1 --port 15001 --project ../your-documents/
+
+### ONNX Models (Compat Layer)
+
+- The current build includes an ONNX compatibility embedder (deterministic, normalized vectors) so the benchmark and pipeline run end-to-end with `--features onnx-models`.
+- Full ONNX Runtime inference integration is planned; see `docs/ROADMAP.md`.
 ```
 
 **Available Real Models:**

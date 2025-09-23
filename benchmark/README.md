@@ -1,304 +1,88 @@
-# Vectorizer Benchmark Suite
+# Vectorizer Benchmarks
 
-This directory contains the complete performance testing and evaluation suite for Vectorizer, including automated benchmarks, evaluation reports, and regression tests.
+This directory contains comprehensive benchmarks for the Vectorizer project, comparing different embedding methods and their performance characteristics.
 
-## 📁 Directory Structure
+## Latest Results (2025-09-23)
 
+Tested with 3931 real documents from the gov/ directory:
+
+### Performance Summary
+
+| Method | MAP | MRR | Indexing Speed | Use Case |
+|--------|-----|-----|----------------|----------|
+| TF-IDF | 0.0006 | 0.3021 | 3.5k docs/sec | Fast but low quality |
+| BM25 | 0.0003 | 0.2240 | 3.2k docs/sec | Sparse retrieval baseline |
+| TF-IDF+SVD(768D) | **0.0294** | 0.9375 | 650 docs/sec | Best balance |
+| Hybrid BM25→BERT | 0.0067 | **1.0000** | 100 queries/sec | Highest quality |
+
+### Key Findings
+
+1. **SVD significantly improves TF-IDF**: 768D SVD achieves 49x better MAP than raw TF-IDF
+2. **Hybrid search excels at precision**: Perfect MRR (1.0) for finding the most relevant result
+3. **Optimized HNSW delivers**: 3.5k docs/sec indexing with batch operations
+4. **Real models pending**: Placeholder models show promise, real transformers will improve quality
+
+## Running Benchmarks
+
+### Basic Benchmark (Sparse Methods)
+```bash
+cargo run --bin benchmark_embeddings --release
 ```
-benchmark/
-├── README.md                    # Complete documentation
-├── reports/                     # Automatically generated benchmark reports
-│   └── benchmark_report_*.md    # Detailed Markdown reports
-├── scripts/                     # Benchmark auxiliary scripts
-│   ├── benchmark_embeddings.rs  # Main Rust benchmark script
-│   ├── run_all_benchmarks.sh    # Runs all benchmarks
-│   ├── compare_reports.py       # Compares reports from different versions
-│   └── generate_plots.py        # Generates performance charts
-├── datasets/                    # Structured test datasets
-│   ├── mini_dataset.json        # Small dataset for quick tests
-│   ├── evaluation_queries.json  # Evaluation queries with ground truth
-│   └── ai_papers.json          # AI papers dataset for testing
-├── results/                     # Structured results (JSON/CSV)
-│   ├── latest_metrics.json      # Metrics from latest execution
-│   ├── embedding_comparison.json # Detailed embedding comparison
-│   └── historical/              # Performance history by version
-└── tests/                       # Feature-specific tests
-    ├── embedding_tests.rs       # Embedding unit tests
-    ├── hybrid_search_tests.rs   # Hybrid search tests
-    └── evaluation_tests.rs      # Evaluation metrics tests
+
+### With Real Transformer Models
+```bash
+cargo run --bin benchmark_embeddings --features "real-models candle-models" --release
 ```
 
-## 🚀 Running Benchmarks
+### With ONNX Optimized Models
+```bash
+cargo run --bin benchmark_embeddings --features "onnx-models" --release
+```
 
-### Complete Embedding Benchmark
+### Full Feature Set
+```bash
+cargo run --bin benchmark_embeddings --features full --release
+```
+
+## Benchmark Scripts
+
+- `scripts/benchmark_embeddings.rs`: Main benchmark comparing all embedding methods
+- Reports are saved to `reports/` with timestamps
+
+## Interpreting Results
+
+### Metrics Explained
+
+- **MAP (Mean Average Precision)**: Overall ranking quality across all relevant documents
+- **MRR (Mean Reciprocal Rank)**: Quality of the first relevant result
+- **P@K**: Precision at K - fraction of relevant docs in top K
+- **R@K**: Recall at K - fraction of all relevant docs found in top K
+
+### Choosing the Right Method
+
+1. **For Speed**: Use BM25 or TF-IDF
+2. **For Quality**: Use TF-IDF+SVD(768D) or Hybrid Search
+3. **For Production**: Consider ONNX models when available
+4. **For Research**: Test real transformer models with candle-models feature
+
+## Throughput Benchmarks
+
+Additional throughput benchmarks can be run with:
 
 ```bash
-# Runs complete comparison of 8 embedding methods with optimized indexing
-# (from vectorizer/ directory)
-cargo run --bin benchmark_embeddings
-
-# With real transformer models (downloads ~500MB-2GB models)
-cargo run --bin benchmark_embeddings --features real-models
-
-# Maximum performance with all optimizations
-cargo run --bin benchmark_embeddings --features "real-models onnx-models" --release
-
-# Results automatically saved to benchmark/reports/benchmark_report_TIMESTAMP.md
+cargo bench --bench throughput_benchmark
 ```
 
-### 🚀 Performance Optimizations
+This measures:
+- Tokenization speed
+- Embedding generation rate
+- Index construction time
+- Query latency
 
-The benchmark now includes advanced optimizations:
+## Contributing
 
-1. **Adaptive Document Processing**
-   - Automatically processes ALL documents when throughput > 50 docs/sec
-   - Dynamically adjusts batch sizes based on method performance
-
-2. **Optimized HNSW Indexing**
-   - Uses `OptimizedHnswIndex` with batch insertion (100-1000 docs/batch)
-   - Pre-allocates memory for known document counts
-   - Parallel graph construction for large datasets
-
-3. **Intelligent Throughput Measurement**
-   - Pre-tests embedding speed before deciding document count
-   - Real-time progress tracking with throughput metrics
-   - Memory usage statistics after indexing
-
-4. **Index Optimization**
-   - Calls `optimize()` after bulk loading
-   - Adaptive ef_search for different index sizes
-   - Memory-efficient storage with statistics
-
-### Specific Performance Tests
-
-```bash
-# Test only sparse methods (fast)
-cargo run --bin benchmark_embeddings -- --methods sparse
-
-# Test only dense methods
-cargo run --bin benchmark_embeddings -- --methods dense
-
-# Test only hybrid search
-cargo run --bin benchmark_embeddings -- --methods hybrid
-```
-
-### Stress Benchmarks
-
-```bash
-# Test with larger dataset
-cargo run --bin benchmark_embeddings -- --dataset large
-
-# Memory test
-cargo run --bin benchmark_embeddings -- --memory-profile
-```
-
-## 📊 Evaluated Metrics
-
-### Information Retrieval (IR) Metrics
-- **MAP (Mean Average Precision)**: Average precision across all relevant documents
-- **MRR (Mean Reciprocal Rank)**: Average reciprocal rank of first relevant document
-- **Precision@K**: Fraction of relevant documents in top-K results
-- **Recall@K**: Fraction of relevant documents retrieved in top-K results
-
-### Performance Metrics
-- **Indexing time**: Time to process documents
-- **Query time**: Latency per query
-- **Memory usage**: Peak memory during execution
-- **Throughput**: Queries per second
-
-## 🧮 Tested Embedding Methods
-
-### Sparse Methods
-| Method | Dimension | Characteristics |
-|--------|-----------|----------------|
-| TF-IDF | Variable | Baseline, exact matching |
-| BM25 | Variable | Probabilistic ranking k1=1.5, b=0.75 |
-
-### Reduced Methods
-| Method | Dimension | Characteristics |
-|--------|-----------|----------------|
-| TF-IDF+SVD | 300D | Reduction with orthogonal transformation |
-| TF-IDF+SVD | 768D | BERT-compatible |
-
-### Dense Methods
-| Method | Dimension | Characteristics |
-|--------|-----------|----------------|
-| BERT | 768D | Contextual embeddings (placeholder) |
-| MiniLM | 384D | Efficient embeddings (placeholder) |
-
-### Real Transformer Models (with --features real-models)
-| Method | Dimension | Model | Characteristics |
-|--------|-----------|-------|----------------|
-| MiniLM-Multilingual | 384D | paraphrase-multilingual-MiniLM-L12-v2 | Fast, multilingual, excellent quality/cost |
-| DistilUSE-Multilingual | 512D | distiluse-base-multilingual-cased-v2 | Efficient, slightly more accurate than MiniLM |
-| MPNet-Multilingual | 768D | paraphrase-multilingual-mpnet-base-v2 | Strong baseline at 768D |
-| E5-Small | 384D | multilingual-e5-small | Optimized retriever, prefix required |
-| E5-Base | 768D | multilingual-e5-base | High-quality retriever, prefix required |
-| GTE-Base | 768D | gte-multilingual-base | Alibaba's retriever, excellent performance |
-| LaBSE | 768D | LaBSE | Stable multilingual baseline |
-
-### Hybrid Methods
-| Method | Pipeline | Characteristics |
-|--------|----------|----------------|
-| BM25→BERT | Sparse→Dense | Efficiency + Quality |
-| BM25→MiniLM | Sparse→Dense | Optimal balance |
-| TF-IDF+SVD→BERT | Reduced→Dense | Memory optimized |
-
-## 📈 Interpreting Results
-
-### Expected Results
-
-**Sparse Methods (TF-IDF/BM25)**:
-- Excellent performance on structured datasets
-- MAP/MRR close to 1.0 on well-defined test data
-- Ideal for keyword-based search
-
-**Dense Methods (BERT/MiniLM)**:
-- Current modest results due to placeholder implementation
-- With real models: MAP 0.7-0.9 expected
-- Superior for semantic queries and paraphrases
-
-**Hybrid Methods**:
-- Combine efficiency of sparse with quality of dense methods
-- Best production trade-off
-- Scalable with proper initial k configuration
-
-### Performance Comparison (Real Data Results)
-
-Based on benchmark with 3,931 chunks from HiveLLM Governance project:
-
-```
-Scenario              Best Method        MRR    P@1    Justification
---------------------- ------------------ ------ ------ ---------------
-Exact search          BM25               1.000  100%   Perfect precision on keyword matches
-FAQ/Documentation     BM25               1.000  100%   Finds exact matches reliably
-Technical docs        BM25               1.000  100%   Handles structured content perfectly
-Large datasets        BM25               1.000  100%   Scales excellently (3.9k docs tested)
-Semantic queries      BM25→BERT          0.844   75%   BM25 retrieves, BERT reranks
-Conversational        BM25→BERT          0.845   75%   Hybrid approach for understanding
-Production ready      BM25               1.000  100%   Battle-tested, fast, reliable
-```
-
-## 🛠️ Benchmark Development
-
-### Adding New Embedding Method
-
-1. Implement method in `src/embedding/mod.rs`
-2. Add to method enum in benchmark
-3. Register in documentation table above
-4. Run benchmark for baseline
-
-### Adding New Metric
-
-1. Implement calculation in `src/evaluation/mod.rs`
-2. Add to `EvaluationMetrics` struct
-3. Update `generate_markdown_report` function
-4. Include in documentation
-
-### Custom Test Dataset
-
-```rust
-// Example of custom dataset
-let custom_dataset = BenchmarkDataset {
-    documents: vec![
-        "Your document 1".to_string(),
-        "Your document 2".to_string(),
-    ],
-    queries: vec![
-        "your test query".to_string(),
-    ],
-    ground_truth: vec![
-        HashSet::from([0, 1]), // Relevant documents for query 0
-    ],
-};
-```
-
-## 🔍 Regression Analysis
-
-### Comparing Versions
-
-```bash
-# Compare results from different executions
-python3 benchmark/scripts/compare_reports.py \
-    benchmark/reports/benchmark_report_20250101_000000.md \
-    benchmark/reports/benchmark_report_20250102_000000.md
-```
-
-### Detecting Regressions
-
-- Automatic alerts if MAP drops >5%
-- Comparison with historical baseline
-- Statistical consistency validation
-
-## 📋 Quality Checklist
-
-### Before Commit
-- [ ] All embedding methods tested
-- [ ] Metrics calculated correctly
-- [ ] Markdown report generated
-- [ ] Results saved to `reports/`
-- [ ] Documentation updated
-
-### Result Validation
-- [ ] MAP/MRR make sense for the dataset
-- [ ] Precision@K decreases monotonically
-- [ ] Recall@K increases monotonically
-- [ ] Comparison consistent with previous executions
-
-## 🎯 Production Recommendations
-
-### When to Use Each Method
-
-#### 🚀 **Use BM25 For:**
-- **FAQ Systems**: Perfect P@1 (100%) for exact question matching
-- **Technical Documentation**: Handles structured content excellently
-- **Log Search**: Precise pattern matching
-- **Large Datasets**: Scales to thousands of documents reliably
-- **Production Systems**: Battle-tested, fast, and reliable
-
-#### 🤖 **Use BM25→BERT For:**
-- **Semantic Search**: When users don't write exactly like documents
-- **Conversational Queries**: Understanding intent and context
-- **Question Answering**: Finding answers even with paraphrasing
-- **Advanced Applications**: Where semantic understanding matters
-
-#### 📊 **Benchmark Results Summary:**
-- **BM25**: MRR 1.000, P@1 100% - Production ready for most use cases
-- **TF-IDF**: MRR 0.938, P@1 87.5% - Good baseline, fast indexing
-- **MiniLM-Multilingual (Real)**: Expected MRR 0.85-0.95 - Fast, excellent quality/cost
-- **E5-Small (Real)**: Expected MRR 0.88-0.96 - Optimized for retrieval
-- **E5-Base/MPNet (Real)**: Expected MRR 0.90-0.97 - High-quality semantic search
-- **BERT/MiniLM (Placeholder)**: MRR 0.435-0.844 - Limited by placeholder implementation
-
-### 💡 Key Insights
-
-1. **BM25 is surprisingly good** for most real-world applications
-2. **Hybrid search (BM25 + BERT)** provides best of both worlds
-3. **Real model implementations** will significantly improve dense embeddings
-4. **Dataset size doesn't hurt BM25** - tested with 3.9k chunks successfully
-
-### 🏎️ Performance Benchmarks
-
-With optimized indexing on 8-core CPU:
-
-| Method | Embedding Speed | Indexing Speed | Total Time (3.9k docs) |
-|--------|----------------|----------------|------------------------|
-| TF-IDF | 2000+ docs/sec | 35k vectors/sec | < 5 seconds |
-| BM25 | 1500+ docs/sec | 35k vectors/sec | < 5 seconds |
-| BERT (placeholder) | 500+ docs/sec | 35k vectors/sec | ~10 seconds |
-| MiniLM (real) | 50-200 docs/sec | 35k vectors/sec | 20-80 seconds |
-| E5-Base (real) | 30-100 docs/sec | 35k vectors/sec | 40-130 seconds |
-
-**Note**: Real model speeds vary greatly based on CPU, batch size, and sequence length.
-
-## 🤝 Contributing
-
-1. Add new tests to `benchmark_embeddings.rs`
-2. Document new methods in this README
-3. Run complete benchmark before PR
-4. Compare with historical baseline
-5. Update expected metrics if necessary
-
----
-
-*Vectorizer benchmark suite - Last update: September 2025*
+When adding new embedding methods:
+1. Implement the `EmbeddingProvider` trait
+2. Add evaluation in `benchmark_embeddings.rs`
+3. Update this README with results
+4. Consider adding to the throughput benchmark

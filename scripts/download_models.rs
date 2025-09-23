@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let embed_time = embed_start.elapsed();
                         let actual_dim = embedding.len();
 
-                        if actual_dim == expected_dim {
+                        if actual_dim == *expected_dim {
                             println!("✅ Embedding successful: {}D in {:.3}s",
                                 actual_dim, embed_time.as_secs_f32());
 

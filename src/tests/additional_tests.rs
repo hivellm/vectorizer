@@ -6,7 +6,7 @@ use proptest::prelude::*;
 
 #[test]
 fn test_embedding_manager_error_cases() {
-	use crate::embedding::{BagOfWordsEmbedding, EmbeddingManager, EmbeddingProvider, TfIdfEmbedding};
+	use crate::embedding::{BagOfWordsEmbedding, EmbeddingManager, TfIdfEmbedding};
 
 	let mut manager = EmbeddingManager::new();
 
