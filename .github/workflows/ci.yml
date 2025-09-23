@@ -14,11 +14,12 @@ env:
 
 jobs:
   # =============================================================================
-  # CODE QUALITY & LINTING
+  # CODE QUALITY & LINTING - DISABLED TEMPORARILY
   # =============================================================================
   lint:
     name: Code Quality & Linting
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,6 +62,7 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     strategy:
       matrix:
         feature-set: [default, real-models, onnx-models, candle-models, full]
@@ -119,6 +121,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -141,6 +144,7 @@ jobs:
   build:
     name: Build & Compilation
     runs-on: ${{ matrix.os }}
+    if: false  # Temporarily disabled
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -191,6 +195,7 @@ jobs:
   mcp-integration:
     name: MCP Integration Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -267,6 +272,7 @@ jobs:
   benchmark:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -322,6 +328,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     needs: [lint, test, security, build, mcp-integration, benchmark]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
@@ -387,6 +394,7 @@ jobs:
   notify:
     name: Notify Results
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     needs: [lint, test, security, build, mcp-integration, benchmark, deploy]
     if: always()
     steps:

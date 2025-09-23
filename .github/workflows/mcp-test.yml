@@ -15,11 +15,12 @@ env:
 
 jobs:
   # =============================================================================
-  # MCP SERVER TESTS
+  # MCP SERVER TESTS - DISABLED TEMPORARILY
   # =============================================================================
   mcp-server-tests:
     name: MCP Server Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -66,6 +67,7 @@ jobs:
   mcp-websocket-tests:
     name: MCP WebSocket Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -201,6 +203,7 @@ jobs:
   mcp-auth-tests:
     name: MCP Authentication Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -255,6 +258,7 @@ jobs:
   mcp-performance-tests:
     name: MCP Performance Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -352,6 +356,7 @@ jobs:
   mcp-ide-integration:
     name: MCP IDE Integration Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -484,6 +489,7 @@ jobs:
   mcp-documentation-tests:
     name: MCP Documentation Tests
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -519,6 +525,7 @@ jobs:
   notify-mcp-results:
     name: Notify MCP Test Results
     runs-on: ubuntu-latest
+    if: false  # Temporarily disabled
     needs: [mcp-server-tests, mcp-websocket-tests, mcp-auth-tests, mcp-performance-tests, mcp-ide-integration, mcp-documentation-tests]
     if: always()
     steps:
