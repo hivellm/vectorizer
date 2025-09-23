@@ -57,24 +57,14 @@ fn test_semantic_search_with_tfidf() {
     let query = "artificial intelligence and neural networks";
     let query_embedding = tfidf.embed(query).unwrap();
     let results = store.search("documents", &query_embedding, 3).unwrap();
-    
+
     assert_eq!(results.len(), 3);
-    
+
     // Results should be semantically related to the query
-    println!("Query: {}", query);
-    for (i, result) in results.iter().enumerate() {
-        let payload = result.payload.as_ref().unwrap();
-        println!("  {}. {} (score: {:.3}): {}", 
-            i + 1, 
-            result.id, 
-            result.score,
-            payload.data["text"].as_str().unwrap()
-        );
-    }
-    
     // The most relevant documents should be about AI/ML and neural networks
     let top_ids: Vec<&str> = results.iter().take(2).map(|r| r.id.as_str()).collect();
-    assert!(top_ids.contains(&"doc1") || top_ids.contains(&"doc2") || top_ids.contains(&"doc4"));
+    assert!(top_ids.contains(&"doc1"));
+    assert!(top_ids.contains(&"doc2"));
 }
 
 /// Test document clustering with embeddings
@@ -387,24 +377,30 @@ fn test_recommended_embedding_testing_pattern() {
 #[test]
 fn test_faq_search_system() {
     let mut tfidf = TfIdfEmbedding::new(50);
-    
-    // FAQ database
+
+    // FAQ database with more distinct content
     let faqs = vec![
-        ("faq1", "How do I reset my password?", "To reset your password, click on 'Forgot Password' on the login page and follow the instructions sent to your email."),
-        ("faq2", "What payment methods do you accept?", "We accept credit cards (Visa, MasterCard, Amex), PayPal, and bank transfers."),
-        ("faq3", "How can I track my order?", "You can track your order by logging into your account and clicking on 'Order History'. Each order has a tracking number."),
-        ("faq4", "What is your return policy?", "We offer a 30-day return policy for all items in original condition. Shipping costs for returns are covered by the customer."),
-        ("faq5", "How do I contact customer support?", "You can reach our customer support team via email at support@example.com or by phone at 1-800-123-4567."),
+        ("faq1", "How do I reset my password?", "To reset your password, go to the login page and click the 'Forgot Password' link. You will receive an email with instructions to set a new one."),
+        ("faq2", "What payment methods are accepted?", "We accept major credit cards including Visa, MasterCard, and American Express, as well as PayPal and direct bank transfers."),
+        ("faq3", "How can I track my shipment?", "Once your order is shipped, you will receive a tracking number via email. You can use this number on the carrier's website to see your package's status."),
+        ("faq4", "What is the return policy?", "Our return policy allows you to return items within 30 days of purchase for a full refund. Items must be in original condition. Return shipping is not covered."),
+        ("faq5", "How do I contact customer support?", "You can contact our support team by emailing support@example.com or by calling our toll-free number at 1-800-123-4567 during business hours."),
     ];
-    
-    // Build vocabulary from questions and answers
+
+    // Build a more comprehensive vocabulary from questions and answers
     let mut corpus = Vec::new();
     for (_, question, answer) in &faqs {
         corpus.push(*question);
         corpus.push(*answer);
     }
+    // Add more general terms to enrich the vocabulary
+    corpus.extend(vec![
+        "account access", "billing information", "order status",
+        "refund process", "help desk", "user login", "payment options",
+        "shipping details", "product returns", "customer service"
+    ]);
     tfidf.build_vocabulary(&corpus);
-    
+
     let store = VectorStore::new();
     let config = CollectionConfig {
         dimension: tfidf.dimension(),
@@ -414,14 +410,13 @@ fn test_faq_search_system() {
         compression: Default::default(),
     };
     store.create_collection("faq", config).unwrap();
-    
-    // Insert FAQs
+
+    // Insert FAQs using combined text for richer embeddings
     let mut vectors = Vec::new();
     for (id, question, answer) in &faqs {
-        // Combine question and answer for embedding
         let combined_text = format!("{} {}", question, answer);
         let embedding = tfidf.embed(&combined_text).unwrap();
-        
+
         let vector = Vector::with_payload(
             id.to_string(),
             embedding,
@@ -433,26 +428,33 @@ fn test_faq_search_system() {
         vectors.push(vector);
     }
     store.insert("faq", vectors).unwrap();
-    
-    // Test user queries
-    let user_queries = vec![
-        "I forgot my password",
-        "Can I pay with credit card?",
-        "Where is my package?",
-        "How to return item?",
-    ];
-    
-    for user_query in user_queries {
-        let query_embedding = tfidf.embed(user_query).unwrap();
-        let results = store.search("faq", &query_embedding, 1).unwrap();
-        
-        assert!(!results.is_empty());
-        let top_result = &results[0];
-        let payload = top_result.payload.as_ref().unwrap();
-        
-        println!("User: {}", user_query);
-        println!("FAQ: {}", payload.data["question"].as_str().unwrap());
-        println!("Answer: {}", payload.data["answer"].as_str().unwrap());
-        println!("Confidence: {:.2}%\n", top_result.score * 100.0);
-    }
+
+    // --- Test User Queries ---
+    println!("\n--- FAQ Search System Test ---");
+
+    // Test Case 1: Password Reset
+    let query1 = "I forgot my password";
+    let results1 = store.search("faq", &tfidf.embed(query1).unwrap(), 1).unwrap();
+    assert_eq!(results1[0].id, "faq1");
+    println!("✅ Query: '{}' -> Correctly matched FAQ 1", query1);
+
+    // Test Case 2: Payment
+    let query2 = "Can I pay with a credit card?";
+    let results2 = store.search("faq", &tfidf.embed(query2).unwrap(), 1).unwrap();
+    assert_eq!(results2[0].id, "faq2");
+    println!("✅ Query: '{}' -> Correctly matched FAQ 2", query2);
+
+    // Test Case 3: Order Tracking (Original failure point)
+    let query3 = "Where is my package?";
+    let results3 = store.search("faq", &tfidf.embed(query3).unwrap(), 1).unwrap();
+    assert_eq!(results3[0].id, "faq3");
+    println!("✅ Query: '{}' -> Correctly matched FAQ 3", query3);
+
+    // Test Case 4: Returns
+    let query4 = "How to return an item?";
+    let results4 = store.search("faq", &tfidf.embed(query4).unwrap(), 1).unwrap();
+    assert_eq!(results4[0].id, "faq4");
+    println!("✅ Query: '{}' -> Correctly matched FAQ 4", query4);
+
+    println!("--------------------------------\n");
 }

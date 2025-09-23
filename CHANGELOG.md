@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added semantic search accuracy validation across persistence cycles
 - Documented review process and implementation of recommendations
 
+### Added (Gemini 2.5 Pro Final Review)
+- **QA**: Performed final QA review, confirming stability of 56/57 tests.
+- **Analysis**: Identified and documented one flaky test (`test_faq_search_system`) and its root cause.
+- **Documentation**: Created `GEMINI_REVIEW_ANALYSIS.md` with findings and recommendations for test stabilization.
+- **Fix**: Implemented deterministic vocabulary building in all embedding models to resolve test flakiness.
+
 ## [0.1.1] - 2025-09-23
 
 ### Added

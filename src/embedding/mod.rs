@@ -54,9 +54,9 @@ impl TfIdfEmbedding {
             }
         }
         
-        // Select top words by frequency
+        // Select top words by frequency, with alphabetical tie-breaking for determinism
         let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
-        word_freq.sort_by(|a, b| b.1.cmp(&a.1));
+        word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         
         self.vocabulary.clear();
         self.idf_weights.clear();
@@ -158,9 +158,9 @@ impl BagOfWordsEmbedding {
             }
         }
         
-        // Select top words by frequency
+        // Select top words by frequency, with alphabetical tie-breaking for determinism
         let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
-        word_freq.sort_by(|a, b| b.1.cmp(&a.1));
+        word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         
         self.vocabulary.clear();
         for (i, (word, _)) in word_freq.iter().take(self.dimension).enumerate() {
@@ -239,10 +239,10 @@ impl CharNGramEmbedding {
             }
         }
         
-        // Select top n-grams
+        // Select top n-grams by frequency, with alphabetical tie-breaking for determinism
         let mut ngram_freq: Vec<(String, usize)> = ngram_counts.into_iter().collect();
-        ngram_freq.sort_by(|a, b| b.1.cmp(&a.1));
-        
+        ngram_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
         self.ngram_map.clear();
         for (i, (ngram, _)) in ngram_freq.iter().take(self.dimension).enumerate() {
             self.ngram_map.insert(ngram.clone(), i);
