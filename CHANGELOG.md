@@ -5,7 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0]
+
+### Fixed (Phase 3 Review)
+- **Dependencies**: Updated all dependencies to their latest compatible versions (`thiserror`, `tokio-tungstenite`, `rand`, `ndarray`).
+- **CI/CD**: Re-enabled all GitHub Actions workflows and confirmed all tests pass.
+- **Tests**: Corrected `test_mcp_config_default` to match the actual default values.
+- **Integration Tests**:
+  - Fixed incorrect API endpoint URLs by adding the `/api/v1` prefix.
+  - Corrected `DistanceMetric` enum usage from `dot_product` to `dotproduct`.
+  - Fixed invalid test data dimension in `test_api_consistency`.
+  - Updated JSON field access in API responses from `data` to `vector`.
+- **Code Quality**: Addressed compiler warnings by removing unused imports and handling unused variables appropriately.
+
+### Changed
+- Refactored `rand` crate usage to modern API (`rand::rng()` and `random_range()`).
+
+### Added
+- **Documentation**: Added `PHASE3_FINAL_REVIEW_GEMINI_REPORT.md` with a comprehensive summary of the final review.
+
+## [0.5.0]
 
 ### Added (Performance Optimizations - 2025-09-24)
 

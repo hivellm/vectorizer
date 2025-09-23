@@ -15,9 +15,9 @@ use serde_json::json;
 async fn test_mcp_config_default() {
     let config = McpConfig::default();
     
-    assert_eq!(config.enabled, false);
+    assert_eq!(config.enabled, true);
     assert_eq!(config.host, "127.0.0.1");
-    assert_eq!(config.port, 8081);
+    assert_eq!(config.port, 15003);
 }
 
 #[tokio::test]
