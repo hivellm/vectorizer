@@ -58,7 +58,7 @@ impl VectorizerServer {
     }
 
     /// Create the Axum application with all middleware
-    fn create_app(&self) -> Router {
+    pub fn create_app(&self) -> Router {
         // Create CORS layer
         let cors = CorsLayer::new()
             .allow_origin(Any)

@@ -19,6 +19,8 @@ pub struct Collection {
     config: CollectionConfig,
     /// Vector storage
     vectors: Arc<DashMap<String, Vector>>,
+    /// Vector IDs in insertion order (for persistence consistency)
+    vector_order: Arc<RwLock<Vec<String>>>,
     /// HNSW index for similarity search
     index: Arc<RwLock<HnswIndex>>,
     /// Creation timestamp
@@ -37,6 +39,7 @@ impl Collection {
             name,
             config,
             vectors: Arc::new(DashMap::new()),
+            vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
@@ -68,6 +71,7 @@ impl Collection {
 
         // Insert vectors and update index
         let mut index = self.index.write();
+        let mut vector_order = self.vector_order.write();
         for mut vector in vectors {
             let id = vector.id.clone();
             let mut data = vector.data.clone();
@@ -80,6 +84,9 @@ impl Collection {
 
             // Store vector
             self.vectors.insert(id.clone(), vector);
+
+            // Track insertion order for persistence consistency
+            vector_order.push(id.clone());
 
             // Add to index
             index.add(&id, &data)?;
@@ -139,6 +146,10 @@ impl Collection {
         self.vectors
             .remove(vector_id)
             .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
+
+        // Remove from order tracking
+        let mut vector_order = self.vector_order.write();
+        vector_order.retain(|id| id != vector_id);
 
         // Remove from index
         let mut index = self.index.write();
@@ -210,9 +221,12 @@ impl Collection {
     }
 
     /// Get all vectors in the collection (for persistence)
+    /// Returns vectors in insertion order to maintain HNSW index consistency
     pub fn get_all_vectors(&self) -> Vec<Vector> {
-        self.vectors
+        let vector_order = self.vector_order.read();
+        vector_order
             .iter()
+            .filter_map(|id| self.vectors.get(id))
             .map(|entry| entry.value().clone())
             .collect()
     }

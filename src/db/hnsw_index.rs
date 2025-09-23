@@ -146,18 +146,36 @@ impl HnswIndex {
             });
         }
 
-        // For very small indices (< 10 vectors), HNSW may not return all results
-        // Use adaptive ef_search to improve recall
+        // Adaptive strategy for small indices: try to guarantee min(k, N)
         let vector_count = self.id_map.len();
-        let ef_search = if vector_count < 10 {
-            // For small indices, use a larger ef_search to ensure we find all vectors
-            std::cmp::max(vector_count * 2, k * 3)
+        let effective_k = std::cmp::min(k, vector_count);
+
+        // Early exit cases
+        if effective_k == 0 {
+            return Ok(Vec::new());
+        }
+
+        let neighbors = if vector_count <= 8 {
+            // Escalate ef_search and ask for all points to improve recall determinism
+            let mut ef = std::cmp::max(64, effective_k * 4);
+            let mut best = Vec::new();
+            for _ in 0..5 {
+                let got = self.hnsw.search(query, vector_count, ef);
+                if got.len() >= effective_k {
+                    best = got;
+                    break;
+                }
+                if got.len() > best.len() {
+                    best = got;
+                }
+                ef = std::cmp::min(ef * 2, 2048);
+            }
+            // Fallback to whatever we have
+            if best.is_empty() { self.hnsw.search(query, vector_count, ef) } else { best }
         } else {
-            // For larger indices, use standard ef_search
-            std::cmp::max(k * 2, 64)
+            let ef_search = std::cmp::max(k * 2, 64);
+            self.hnsw.search(query, k, ef_search)
         };
-        
-        let neighbors = self.hnsw.search(query, k, ef_search);
 
         // Convert results based on metric
         let mut results = Vec::with_capacity(neighbors.len());
@@ -187,6 +205,11 @@ impl HnswIndex {
                 };
                 results.push((string_id.clone(), score));
             }
+        }
+
+        // Ensure we don't exceed requested k
+        if results.len() > effective_k {
+            return Ok(results.into_iter().take(effective_k).collect());
         }
 
         Ok(results)

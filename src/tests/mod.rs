@@ -1,7 +1,14 @@
-//! Integration tests for verifying grok-code-fast-1 fixes
+//! Integration tests for Vectorizer
 
+mod api_tests;
+mod cache_tests;
+mod db_tests;
 mod embedding_tests;
-mod additional_tests;
+mod hnsw_tests;
+mod onnx_tests;
+mod parallel_tests;
+mod persistence_tests;
+mod real_model_tests;
 
 #[cfg(test)]
 mod grok_fixes_validation {

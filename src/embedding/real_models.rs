@@ -86,6 +86,7 @@ pub struct RealModelEmbedder {
 #[cfg(not(feature = "candle-models"))]
 pub struct RealModelEmbedder {
     model_type: RealModelType,
+    #[allow(dead_code)]
     dimension: usize,
 }
 

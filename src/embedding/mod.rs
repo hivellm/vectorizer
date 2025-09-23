@@ -59,6 +59,7 @@ pub struct BertEmbedding {
     /// BERT model dimension (768 for BERT-base, 384 for BERT-small, etc.)
     dimension: usize,
     /// Maximum sequence length
+    #[allow(dead_code)]
     max_seq_len: usize,
     /// Whether the model is loaded (placeholder for actual BERT integration)
     loaded: bool,
@@ -69,6 +70,7 @@ pub struct MiniLmEmbedding {
     /// MiniLM model dimension (384 typically)
     dimension: usize,
     /// Maximum sequence length
+    #[allow(dead_code)]
     max_seq_len: usize,
     /// Whether the model is loaded
     loaded: bool,

@@ -13,7 +13,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{debug, info};
@@ -84,6 +84,7 @@ pub struct EmbeddingCache {
 
 /// Cache shard for parallel access
 struct CacheShard {
+    #[allow(dead_code)]
     id: usize,
     entries: HashMap<u64, CacheEntry>,
     data_file: PathBuf,
@@ -347,11 +348,12 @@ impl CacheShard {
     }
 
     fn read_embedding(&self, entry: &CacheEntry) -> Option<Vec<f32>> {
+        let byte_len = entry.dimension * std::mem::size_of::<f32>();
+
+        // Fast path: read from mmap if available and in-bounds
         if let Some(ref mmap) = self.mmap {
-            // Read from memory map
             let start = entry.offset;
-            let end = start + entry.dimension * std::mem::size_of::<f32>();
-            
+            let end = start + byte_len;
             if end <= mmap.len() {
                 let bytes = &mmap[start..end];
                 let embedding: Vec<f32> = bytes
@@ -361,11 +363,27 @@ impl CacheShard {
                         f32::from_le_bytes(array)
                     })
                     .collect();
-                
                 return Some(embedding);
             }
         }
-        
+
+        // Fallback: read directly from file when mmap is not available or out-of-bounds
+        if let Ok(mut file) = File::open(&self.data_file) {
+            if file.seek(SeekFrom::Start(entry.offset as u64)).is_ok() {
+                let mut buf = vec![0u8; byte_len];
+                if file.read_exact(&mut buf).is_ok() {
+                    let embedding: Vec<f32> = buf
+                        .chunks_exact(std::mem::size_of::<f32>())
+                        .map(|chunk| {
+                            let array: [u8; 4] = chunk.try_into().unwrap();
+                            f32::from_le_bytes(array)
+                        })
+                        .collect();
+                    return Some(embedding);
+                }
+            }
+        }
+
         None
     }
 

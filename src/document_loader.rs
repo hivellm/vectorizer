@@ -174,6 +174,7 @@ impl DocumentLoader {
     }
 
     /// Collect all documents from the project directory
+    #[allow(dead_code)]
     fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
         let mut documents = Vec::new();
         self.collect_documents_recursive(Path::new(project_path), &mut documents)?;
@@ -181,6 +182,7 @@ impl DocumentLoader {
     }
 
     /// Recursively collect documents from directory
+    #[allow(dead_code)]
     fn collect_documents_recursive(
         &self,
         dir: &Path,
@@ -252,6 +254,7 @@ impl DocumentLoader {
     }
 
     /// Build vocabulary from all documents
+    #[allow(dead_code)]
     fn build_vocabulary(&mut self, documents: &[(PathBuf, String)]) -> Result<()> {
         info!("Building vocabulary from {} documents", documents.len());
 
@@ -274,6 +277,7 @@ impl DocumentLoader {
     }
 
     /// Create the collection in the vector store
+    #[allow(dead_code)]
     fn create_collection(&self, store: &VectorStore) -> Result<()> {
         let config = CollectionConfig {
             dimension: self.config.embedding_dimension,
@@ -299,6 +303,7 @@ impl DocumentLoader {
     }
 
     /// Split documents into chunks
+    #[allow(dead_code)]
     fn chunk_documents(&mut self, documents: &[(PathBuf, String)]) -> Result<Vec<DocumentChunk>> {
         let mut chunks = Vec::new();
 
@@ -313,6 +318,7 @@ impl DocumentLoader {
     }
 
     /// Split a single document into chunks
+    #[allow(dead_code)]
     fn chunk_text(&mut self, text: &str, file_path: &Path) -> Result<Vec<DocumentChunk>> {
         let mut chunks = Vec::new();
         let mut start = 0;
@@ -396,6 +402,7 @@ impl DocumentLoader {
     }
 
     /// Create vectors with embeddings from chunks
+    #[allow(dead_code)]
     fn create_vectors(&mut self, chunks: &[DocumentChunk]) -> Result<Vec<Vector>> {
         let mut vectors = Vec::new();
 

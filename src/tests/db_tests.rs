@@ -1,34 +1,9 @@
+//! Database integration tests for Vectorizer
+
 use crate::{
-	db::{HnswIndex, VectorStore},
-	models::{vector_utils, CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+    db::VectorStore,
+    models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
 };
-use proptest::prelude::*;
-
-#[test]
-fn test_embedding_manager_error_cases() {
-	use crate::embedding::{BagOfWordsEmbedding, EmbeddingManager, TfIdfEmbedding};
-
-	let mut manager = EmbeddingManager::new();
-
-	// No default provider yet
-	let err = manager.get_default_provider().err().unwrap();
-	let msg = format!("{}", err);
-	assert!(msg.contains("No default provider"));
-
-	// Register providers
-	manager.register_provider("tfidf".to_string(), Box::new(TfIdfEmbedding::new(8)));
-	manager.register_provider("bow".to_string(), Box::new(BagOfWordsEmbedding::new(8)));
-
-	// Setting non-existent default should fail
-	let err = manager.set_default_provider("missing").err().unwrap();
-	let msg = format!("{}", err);
-	assert!(msg.contains("not found"));
-
-	// Set valid default and use it
-	manager.set_default_provider("tfidf").unwrap();
-	let emb = manager.embed("hello world").unwrap();
-	assert_eq!(emb.len(), 8);
-}
 
 #[test]
 fn test_vector_store_stats_multiple_collections() {
@@ -116,37 +91,4 @@ fn test_payload_serialization_nested() {
 	assert_eq!(meta["source"], "unit_test");
 	assert_eq!(meta["tags"][0], "nested");
 	assert_eq!(meta["tags"][2]["k"], "v");
-}
-
-proptest! {
-	#[test]
-	fn prop_normalize_vector_has_unit_norm_nonzero(v in proptest::collection::vec(-10.0f32..10.0f32, 1..64)) {
-		let norm_sq: f32 = v.iter().map(|x| x * x).sum();
-		prop_assume!(norm_sq > 1e-12);
-		let n = vector_utils::normalize_vector(&v);
-		let n_sq: f32 = n.iter().map(|x| x * x).sum();
-		prop_assert!((n_sq - 1.0).abs() < 5e-4);
-	}
-}
-
-#[test]
-fn test_hnsw_stats_and_rebuild() {
-	let mut index = HnswIndex::new(HnswConfig::default(), DistanceMetric::Euclidean, 3);
-	index.add("a", &[1.0, 0.0, 0.0]).unwrap();
-	index.add("b", &[0.0, 1.0, 0.0]).unwrap();
-
-	let s1 = index.stats();
-	assert_eq!(s1.vector_count, 2);
-	assert!(!s1.needs_rebuild);
-	assert_eq!(s1.dimension, 3);
-
-	// Update marks as needing rebuild
-	index.update("a", &[2.0, 0.0, 0.0]).unwrap();
-	let s2 = index.stats();
-	assert!(s2.needs_rebuild);
-
-	// Rebuild clears flag
-	index.rebuild().unwrap();
-	let s3 = index.stats();
-	assert!(!s3.needs_rebuild);
 }
