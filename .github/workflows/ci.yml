@@ -1,8 +1,12 @@
 name: CI/CD Pipeline
 
-# DISABLED - All workflows temporarily disabled due to errors
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
 
 env:
   CARGO_TERM_COLOR: always

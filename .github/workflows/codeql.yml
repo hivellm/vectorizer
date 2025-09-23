@@ -1,8 +1,12 @@
 name: CodeQL Analysis
 
-# DISABLED - All workflows temporarily disabled due to errors
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM
 
 jobs:
   analyze:

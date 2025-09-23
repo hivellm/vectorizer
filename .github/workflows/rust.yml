@@ -1,8 +1,10 @@
 name: Rust CI
 
-# DISABLED - All workflows temporarily disabled due to errors
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
