@@ -13,7 +13,6 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -29,7 +28,6 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -39,7 +37,6 @@ jobs:
   bench:
     name: Benchmarks
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly

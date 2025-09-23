@@ -12,7 +12,6 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled
     permissions:
       actions: read
       contents: read
@@ -58,7 +57,6 @@ jobs:
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -79,7 +77,6 @@ jobs:
   dependency-scan:
     name: Dependency Scan
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
