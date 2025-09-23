@@ -37,7 +37,7 @@ pub struct CollectionConfig {
 }
 
 /// Distance metrics for vector similarity
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum DistanceMetric {
     /// Cosine similarity
@@ -144,6 +144,61 @@ pub struct CollectionMetadata {
     pub vector_count: usize,
     /// Collection configuration
     pub config: CollectionConfig,
+}
+
+/// Vector normalization and similarity utilities
+pub mod vector_utils {
+    use super::DistanceMetric;
+
+    /// Normalize a vector to unit length (for cosine similarity)
+    pub fn normalize_vector(vector: &[f32]) -> Vec<f32> {
+        let norm: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm == 0.0 {
+            vector.to_vec()
+        } else {
+            vector.iter().map(|x| x / norm).collect()
+        }
+    }
+
+    /// Calculate dot product of two vectors
+    pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+    }
+
+    /// Calculate Euclidean distance between two vectors
+    pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| (x - y) * (x - y))
+            .sum::<f32>()
+            .sqrt()
+    }
+
+    /// Calculate cosine similarity between two vectors (assumes normalized vectors)
+    pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+        dot_product(a, b).min(1.0).max(-1.0) // Clamp to [-1, 1]
+    }
+
+    /// Convert distance metric result to similarity score
+    pub fn distance_to_similarity(distance: f32, metric: DistanceMetric) -> f32 {
+        match metric {
+            DistanceMetric::Euclidean => {
+                // Convert Euclidean distance to similarity (higher values = more similar)
+                // Using exponential decay: similarity = exp(-distance)
+                (-distance).exp()
+            }
+            DistanceMetric::Cosine => {
+                // Cosine similarity is already in [-1, 1] range
+                // Convert to [0, 1] range for consistency
+                (distance + 1.0) / 2.0
+            }
+            DistanceMetric::DotProduct => {
+                // Dot product can be any value, normalize to [0, 1]
+                // Using sigmoid function: similarity = 1 / (1 + exp(-dot_product))
+                1.0 / (1.0 + (-distance).exp())
+            }
+        }
+    }
 }
 
 impl Vector {

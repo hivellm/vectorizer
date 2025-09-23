@@ -2,7 +2,7 @@
 
 use crate::{
     error::{Result, VectorizerError},
-    models::{CollectionConfig, CollectionMetadata, SearchResult, Vector},
+    models::{vector_utils, CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector},
 };
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -68,9 +68,15 @@ impl Collection {
 
         // Insert vectors and update index
         let mut index = self.index.write();
-        for vector in vectors {
+        for mut vector in vectors {
             let id = vector.id.clone();
-            let data = vector.data.clone();
+            let mut data = vector.data.clone();
+
+            // Normalize vector for cosine similarity
+            if matches!(self.config.metric, DistanceMetric::Cosine) {
+                data = vector_utils::normalize_vector(&data);
+                vector.data = data.clone(); // Update stored vector to normalized version
+            }
 
             // Store vector
             self.vectors.insert(id.clone(), vector);
@@ -91,7 +97,7 @@ impl Collection {
     }
 
     /// Update a vector
-    pub fn update(&self, vector: Vector) -> Result<()> {
+    pub fn update(&self, mut vector: Vector) -> Result<()> {
         // Validate dimension
         if vector.dimension() != self.config.dimension {
             return Err(VectorizerError::InvalidDimension {
@@ -101,11 +107,17 @@ impl Collection {
         }
 
         let id = vector.id.clone();
-        let data = vector.data.clone();
+        let mut data = vector.data.clone();
 
         // Check if vector exists
         if !self.vectors.contains_key(&id) {
             return Err(VectorizerError::VectorNotFound(id));
+        }
+
+        // Normalize vector for cosine similarity
+        if matches!(self.config.metric, DistanceMetric::Cosine) {
+            data = vector_utils::normalize_vector(&data);
+            vector.data = data.clone(); // Update stored vector to normalized version
         }
 
         // Update vector
@@ -156,9 +168,16 @@ impl Collection {
             });
         }
 
+        // Normalize query vector for cosine similarity
+        let search_vector = if matches!(self.config.metric, DistanceMetric::Cosine) {
+            vector_utils::normalize_vector(query_vector)
+        } else {
+            query_vector.to_vec()
+        };
+
         // Search in index
         let index = self.index.read();
-        let neighbors = index.search(query_vector, k)?;
+        let neighbors = index.search(&search_vector, k)?;
 
         // Build results
         let mut results = Vec::with_capacity(neighbors.len());
@@ -188,6 +207,14 @@ impl Collection {
         let total_per_vector = vector_size + entry_overhead;
 
         self.vectors.len() * total_per_vector
+    }
+
+    /// Get all vectors in the collection (for persistence)
+    pub fn get_all_vectors(&self) -> Vec<Vector> {
+        self.vectors
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
     }
 }
 
