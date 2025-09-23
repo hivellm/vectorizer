@@ -9,7 +9,7 @@
 use criterion::{criterion_group, Criterion, Throughput};
 use std::time::Duration;
 use vectorizer::{
-    db::{HsnwIndex, OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
+    db::{HnswIndex, OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
     embedding::{CacheConfig, EmbeddingCache, EmbeddingManager, TfIdfEmbedding},
     models::{CollectionConfig, DistanceMetric, HnswConfig},
     parallel::{init_parallel_env, ParallelConfig},
@@ -171,7 +171,7 @@ fn bench_indexing_throughput(c: &mut Criterion) {
         group.bench_function("hnsw_standard", |b| {
             b.iter_with_setup(
                 || {
-                    let index = HsnwIndex::new(config.clone(), DistanceMetric::Cosine, dimension);
+                    let index = HnswIndex::new(config.clone(), DistanceMetric::Cosine, dimension);
                     (index, vectors[..1000].to_vec())
                 },
                 |(mut index, vecs)| {
