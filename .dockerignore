@@ -1,16 +1,48 @@
-# Ignore build artifacts
+# Rust build artifacts
 target/
+**/*.rs.bk
+Cargo.lock
 
-# Ignore local git directory
-.git/
-
-# Ignore GitHub Actions workflow files
-.github/
-
-# Ignore Python cache files
-**/__pycache__
-**/*.pyc
-
-# Ignore IDE-specific files
+# IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation build
+docs/_build/
+docs/build/
+
+# Test artifacts
+test-results/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Node modules (if any)
+node_modules/
+
+# Python cache (if any)
+__pycache__/
+*.pyc
+*.pyo
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore

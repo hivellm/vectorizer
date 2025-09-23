@@ -19,7 +19,7 @@ fn test_onnx_embedder_initialization() {
         pooling: Default::default(),
     };
 
-    let embedder = OnnxEmbedder::new(config).unwrap();
+    let _embedder = OnnxEmbedder::new(config).unwrap();
     // assert_eq!(embedder.config.model_type.dimension(), 384);
 }
 
@@ -114,9 +114,15 @@ fn test_onnx_embedder_different_models() {
     ];
 
     for model_type in models {
+        let dimension = model_type.dimension();
         let config = OnnxConfig {
             model_type,
-            // device: Default::default(),
+            batch_size: 32,
+            cache_dir: "/tmp/onnx_cache".into(),
+            max_length: 512,
+            num_threads: 4,
+            use_int8: false,
+            pooling: Default::default(),
         };
 
         let embedder = OnnxEmbedder::new(config).unwrap();
@@ -125,14 +131,14 @@ fn test_onnx_embedder_different_models() {
         let embeddings = embedder.embed_batch(&[text]).unwrap();
 
         assert_eq!(embeddings.len(), 1);
-        assert_eq!(embeddings[0].len(), model_type.dimension());
+        assert_eq!(embeddings[0].len(), dimension);
     }
 }
 
 #[cfg(feature = "onnx-models")]
 #[test]
 fn test_onnx_embedding_manager_integration() {
-    let mut manager = EmbeddingManager::new();
+    let manager = EmbeddingManager::new();
 
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
@@ -144,7 +150,7 @@ fn test_onnx_embedding_manager_integration() {
         pooling: Default::default(),
     };
 
-    let embedder = OnnxEmbedder::new(config).unwrap();
+    let _embedder = OnnxEmbedder::new(config).unwrap();
     // manager.register_provider("onnx_minilm".to_string(), Box::new(embedder));
 
     let texts = vec!["First text", "Second text"];

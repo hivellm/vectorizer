@@ -1,0 +1,44 @@
+# Vectorizer Configuration for Docker Deployment
+# Copy this file to config.yml and customize as needed
+
+# Server configuration
+server:
+  host: "0.0.0.0"  # Listen on all interfaces for Docker
+  port: 15001
+  workers: 4
+
+# Database configuration
+database:
+  max_collections: 1000
+  max_vectors_per_collection: 1000000
+  persistence:
+    enabled: true
+    path: "/app/data"
+    compression: true
+
+# Authentication configuration
+auth:
+  jwt:
+    secret: "your-jwt-secret-key-change-in-production"
+    expiration_hours: 24
+  api_keys:
+    enabled: true
+    rate_limit_per_minute: 100
+
+# MCP Server configuration
+mcp:
+  enabled: true
+  port: 15003
+  max_connections: 50
+  connection_timeout: 30
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+
+# Performance tuning
+performance:
+  embedding_cache_size: 10000
+  search_timeout_ms: 5000
+  batch_size: 100

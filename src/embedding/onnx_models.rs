@@ -122,6 +122,12 @@ pub enum PoolingStrategy {
     MeanSqrt,
 }
 
+impl Default for PoolingStrategy {
+    fn default() -> Self {
+        Self::Mean
+    }
+}
+
 /// High-performance ONNX model embedder
 pub struct OnnxEmbedder {
     /// Configuration

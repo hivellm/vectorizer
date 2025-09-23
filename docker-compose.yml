@@ -2,17 +2,16 @@ version: '3.8'
 
 services:
   vectorizer:
-    build: .
-    container_name: vectorizer-server
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "15001:15001"  # Main HTTP API
-      - "15002:15002"  # Dashboard
-      - "15003:15003"  # MCP WebSocket
+      - "15001:15001"  # REST API
+      - "15002:15002"  # WebSocket API
+      - "15003:15003"  # MCP Server
     volumes:
-      - vectorizer_data:/app/data
-      - vectorizer_logs:/app/logs
-      - vectorizer_cache:/app/cache
-      - ./config.yml:/app/config.yml:ro
+      - ./data:/app/data
+      - ./config.docker.yml:/app/config.yml
     environment:
       - RUST_LOG=info
       - RUST_BACKTRACE=1
@@ -20,79 +19,27 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:15001/health"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - vectorizer-network
+      timeout: 15s
+      retries: 5
+      start_period: 10s
 
-  # Optional: Redis for caching (if needed)
-  redis:
-    image: redis:7-alpine
-    container_name: vectorizer-redis
+  vectorizer-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     ports:
-      - "6379:6379"
+      - "15001:15001"
+      - "15002:15002"
+      - "15003:15003"
     volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    networks:
-      - vectorizer-network
-    profiles:
-      - cache
-
-  # Optional: Prometheus for monitoring
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: vectorizer-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    restart: unless-stopped
-    networks:
-      - vectorizer-network
-    profiles:
-      - monitoring
-
-  # Optional: Grafana for visualization
-  grafana:
-    image: grafana/grafana:latest
-    container_name: vectorizer-grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    restart: unless-stopped
-    networks:
-      - vectorizer-network
-    profiles:
-      - monitoring
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+    stdin_open: true
+    tty: true
+    command: bash
 
 volumes:
-  vectorizer_data:
-    driver: local
-  vectorizer_logs:
-    driver: local
-  vectorizer_cache:
-    driver: local
-  redis_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-
-networks:
-  vectorizer-network:
-    driver: bridge
+  cargo-cache:

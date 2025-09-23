@@ -149,8 +149,11 @@ Full reports are saved under `benchmark/reports/`.
 ### Prerequisites
 - Rust 1.82+ (using nightly for edition 2024)
 - Cargo for dependency management
+- Docker (optional, for containerized deployment)
 
-### Current Installation
+### Installation Options
+
+#### Option 1: Native Installation
 
 ```bash
 # Clone repository
@@ -168,6 +171,31 @@ cargo run --bin benchmark_embeddings --release
 
 # Run the server with document loading
 cargo run -- --host 127.0.0.1 --port 15001 --project ../your-documents/
+```
+
+#### Option 2: Docker Deployment
+
+```bash
+# Clone repository
+git clone https://github.com/hivellm/vectorizer
+cd vectorizer
+
+# Build and run with Docker Compose (recommended)
+docker-compose up --build
+
+# Or build the Docker image manually
+docker build -t vectorizer .
+docker run -p 15001:15001 -p 15002:15002 -p 15003:15003 vectorizer
+```
+
+#### Option 3: Development Environment
+
+```bash
+# Use the development Docker container
+docker-compose up vectorizer-dev
+
+# This will give you a bash shell with all development tools installed
+# including cargo-watch, cargo-outdated, cargo-audit, etc.
 ```
 
 ### Real Transformer Models (Phase 2 Advanced)

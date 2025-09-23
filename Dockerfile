@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     ca-certificates \
+    curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -19,10 +21,16 @@ COPY Cargo.toml Cargo.lock ./
 COPY src/ src/
 COPY examples/ examples/
 COPY docs/ docs/
+COPY benches/ benches/
+COPY tests/ tests/
 COPY config.example.yml ./
+COPY audit.toml ./
 
-# Build the application
+# Build the application with all features
 RUN cargo build --release --features full
+
+# Run tests to ensure build quality
+RUN cargo test --lib --quiet
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim
@@ -30,6 +38,7 @@ FROM debian:bookworm-slim
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -52,8 +61,8 @@ USER vectorizer
 # Expose ports
 EXPOSE 15001 15002 15003
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check with improved timeout and retry logic
+HEALTHCHECK --interval=30s --timeout=15s --start-period=10s --retries=5 \
     CMD curl -f http://localhost:15001/health || exit 1
 
 # Default command
