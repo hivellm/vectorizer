@@ -1,45 +1,60 @@
-# ---- Builder Stage ----
-# Use the official Rust image with the slim-bullseye variant for a smaller build environment.
-FROM rust:1-slim-bullseye AS builder
+# Multi-stage Dockerfile for Vectorizer
+# Stage 1: Build
+FROM rust:1.75-slim as builder
 
-# Create a new empty workspace and set it as the working directory.
-WORKDIR /usr/src/vectorizer
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests to cache dependencies.
-COPY ./Cargo.toml ./Cargo.lock ./
-
-# Create a dummy main.rs to allow caching dependencies without the full source code.
-# This is a common optimization technique.
-RUN mkdir -p src && echo "fn main() {println!(\"dependency caching...\");}" > src/main.rs
-# Build dependencies and cache them.
-RUN cargo build --release
-# Clean up the dummy source file.
-RUN rm -f src/main.rs
-
-# Copy the actual source code.
-COPY ./src ./src
-
-# Build the application. This will be much faster as dependencies are already cached.
-RUN rm -f target/release/deps/vectorizer*
-RUN cargo build --release
-
-# ---- Runtime Stage ----
-# Use a minimal, secure base image for the final container.
-FROM debian:slim-bullseye
-
-# Set the working directory.
+# Set working directory
 WORKDIR /app
 
-# Copy the compiled binary from the builder stage.
-COPY --from=builder /usr/src/vectorizer/target/release/vectorizer .
+# Copy manifest files
+COPY Cargo.toml Cargo.lock ./
 
-# Copy the example configuration file.
-COPY ./config.example.yml ./config.example.yml
+# Copy source code
+COPY src/ src/
+COPY examples/ examples/
+COPY docs/ docs/
+COPY config.example.yml ./
 
-# Expose the server port and the dashboard port.
-EXPOSE 15001
-EXPOSE 15002
+# Build the application
+RUN cargo build --release --features full
 
-# Define the default command to run the application.
-# The user is expected to provide a `config.yml` when running the container.
-CMD ["./vectorizer", "--config", "config.yml"]
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -r -s /bin/false vectorizer
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /app/target/release/vectorizer-server /app/vectorizer-server
+COPY --from=builder /app/target/release/vectorizer-cli /app/vectorizer-cli
+COPY --from=builder /app/config.example.yml /app/config.yml
+
+# Create data directory
+RUN mkdir -p /app/data && chown -R vectorizer:vectorizer /app
+
+# Switch to non-root user
+USER vectorizer
+
+# Expose ports
+EXPOSE 15001 15002 15003
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:15001/health || exit 1
+
+# Default command
+CMD ["./vectorizer-server", "--config", "config.yml"]

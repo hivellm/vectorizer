@@ -930,3 +930,5 @@ pub use fast_tokenizer::{FastTokenizer, FastTokenizerConfig};
 pub use onnx_models::{OnnxEmbedder, OnnxConfig, OnnxModelType, PoolingStrategy};
 
 pub use cache::{EmbeddingCache, CacheConfig};
+
+// TfIdfEmbedding is already public in this module

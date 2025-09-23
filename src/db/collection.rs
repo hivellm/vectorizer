@@ -12,6 +12,7 @@ use super::hnsw_index::HnswIndex;
 
 /// A collection of vectors with an associated HNSW index
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct Collection {
     /// Collection name
     name: String,

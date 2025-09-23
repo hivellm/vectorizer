@@ -42,6 +42,13 @@ pub struct CollectionInfo {
     pub updated_at: String,
 }
 
+/// List collections response
+#[derive(Debug, Serialize)]
+pub struct ListCollectionsResponse {
+    /// Collections list
+    pub collections: Vec<CollectionInfo>,
+}
+
 /// Request to insert vectors
 #[derive(Debug, Deserialize)]
 pub struct InsertVectorsRequest {
@@ -184,6 +191,8 @@ pub struct HealthResponse {
     pub status: String,
     /// Service version
     pub version: String,
+    /// Current timestamp
+    pub timestamp: String,
     /// Uptime in seconds
     pub uptime: u64,
     /// Number of collections

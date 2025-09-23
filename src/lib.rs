@@ -4,12 +4,15 @@
 //! and similarity queries, designed for AI-driven applications.
 
 pub mod api;
+pub mod auth;
+pub mod cli;
 pub mod db;
 pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
 pub mod hybrid_search;
+pub mod mcp;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]

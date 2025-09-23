@@ -14,7 +14,7 @@ pub struct Vector {
 }
 
 /// Arbitrary JSON payload associated with a vector
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Payload {
     /// The payload data as a JSON value
     #[serde(flatten)]

@@ -12,7 +12,7 @@ categories = ["database", "science"]
 [dependencies]
 # Core dependencies
 tokio = { version = "1.40", features = ["full"] }
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -56,6 +56,19 @@ serde_yaml = "0.9"
 # Date and time
 chrono = { version = "0.4", features = ["serde"] }
 
+# Authentication and security
+jsonwebtoken = "9.3"
+uuid = { version = "1.8", features = ["v4", "serde"] }
+sha2 = "0.10"
+rand = "0.8"
+
+# CLI utilities
+sys-info = "0.9"
+
+# MCP (Model Context Protocol) dependencies
+futures-util = "0.3"
+tokio-tungstenite = "0.24"
+
 # Optional ML dependencies
 candle-core = { version = "0.9.1", optional = true }
 candle-nn = { version = "0.9.1", optional = true }
@@ -75,7 +88,6 @@ criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.5"
 tempfile = "3.13"
 reqwest = { version = "0.12", features = ["json"] }
-rand = "0.8"
 
 [[bin]]
 name = "benchmark_embeddings"
@@ -84,6 +96,14 @@ path = "benchmark/scripts/benchmark_embeddings.rs"
 [[bin]]
 name = "download_models"
 path = "scripts/download_models.rs"
+
+[[bin]]
+name = "vectorizer-cli"
+path = "src/bin/vectorizer-cli.rs"
+
+[[bin]]
+name = "vectorizer-server"
+path = "src/bin/vectorizer-server.rs"
 
 [[bench]]
 name = "vector_store"

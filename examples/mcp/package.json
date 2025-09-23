@@ -1,0 +1,41 @@
+{
+  "name": "vectorizer-mcp-examples",
+  "version": "1.0.0",
+  "description": "MCP integration examples for Vectorizer",
+  "main": "index.js",
+  "scripts": {
+    "start": "node basic-client.js",
+    "test": "node test-mcp-connection.js",
+    "benchmark": "node performance-test.js",
+    "install-deps": "npm install"
+  },
+  "keywords": [
+    "mcp",
+    "vectorizer",
+    "vector-database",
+    "semantic-search",
+    "ide-integration"
+  ],
+  "author": "Vectorizer Team",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2",
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "autocannon": "^7.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/vectorizer.git",
+    "directory": "examples/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/vectorizer/issues"
+  },
+  "homepage": "https://github.com/your-org/vectorizer#readme"
+}

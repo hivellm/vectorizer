@@ -400,6 +400,201 @@ experimental:
     embedding_cache_mmap: true     # Memory-mapped embedding cache
 
 # =============================================================================
+# MCP (MODEL CONTEXT PROTOCOL) CONFIGURATION
+# =============================================================================
+mcp:
+  # Enable MCP server for IDE integration
+  enabled: true
+  
+  # Server configuration
+  host: "127.0.0.1"              # MCP server bind address
+  port: 15003                    # MCP server port (default: server.port + 2)
+  
+  # Connection management
+  max_connections: 10            # Maximum concurrent MCP connections
+  connection_timeout: 300        # Connection timeout in seconds (5 minutes)
+  
+  # Authentication
+  auth_required: true            # Require authentication for MCP access
+  allowed_api_keys:              # List of API keys allowed for MCP
+    - "mcp_api_key_1"
+    - "mcp_api_key_2"
+  
+  # Server information
+  server_info:
+    name: "Vectorizer MCP Server"
+    version: "1.0.0"
+    description: "Model Context Protocol server for Vectorizer vector database"
+  
+  # Available MCP tools
+  tools:
+    - name: "search_vectors"
+      description: "Search for similar vectors in a collection"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          query:
+            type: "string"
+            description: "Search query"
+          limit:
+            type: "integer"
+            description: "Maximum number of results"
+            default: 10
+        required: ["collection", "query"]
+    
+    - name: "list_collections"
+      description: "List all available collections"
+      input_schema:
+        type: "object"
+        properties: {}
+    
+    - name: "get_collection_info"
+      description: "Get information about a specific collection"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+        required: ["collection"]
+    
+    - name: "embed_text"
+      description: "Generate embeddings for text using the default embedding model"
+      input_schema:
+        type: "object"
+        properties:
+          text:
+            type: "string"
+            description: "Text to embed"
+        required: ["text"]
+    
+    - name: "insert_vectors"
+      description: "Insert vectors into a collection"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          vectors:
+            type: "array"
+            description: "Array of vectors to insert"
+            items:
+              type: "object"
+              properties:
+                id:
+                  type: "string"
+                  description: "Vector ID"
+                data:
+                  type: "array"
+                  description: "Vector data"
+                  items:
+                    type: "number"
+                payload:
+                  type: "object"
+                  description: "Optional payload data"
+        required: ["collection", "vectors"]
+    
+    - name: "delete_vectors"
+      description: "Delete vectors from a collection"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          vector_ids:
+            type: "array"
+            description: "Array of vector IDs to delete"
+            items:
+              type: "string"
+        required: ["collection", "vector_ids"]
+    
+    - name: "get_vector"
+      description: "Get a specific vector by ID"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          vector_id:
+            type: "string"
+            description: "Vector ID"
+        required: ["collection", "vector_id"]
+    
+    - name: "create_collection"
+      description: "Create a new collection"
+      input_schema:
+        type: "object"
+        properties:
+          name:
+            type: "string"
+            description: "Collection name"
+          dimension:
+            type: "integer"
+            description: "Vector dimension"
+            default: 384
+          metric:
+            type: "string"
+            description: "Distance metric"
+            enum: ["euclidean", "cosine", "dot_product"]
+            default: "cosine"
+        required: ["name"]
+    
+    - name: "delete_collection"
+      description: "Delete a collection"
+      input_schema:
+        type: "object"
+        properties:
+          name:
+            type: "string"
+            description: "Collection name"
+        required: ["name"]
+    
+    - name: "get_database_stats"
+      description: "Get database statistics"
+      input_schema:
+        type: "object"
+        properties: {}
+  
+  # Available MCP resources
+  resources:
+    - uri: "vectorizer://collections"
+      name: "Collections"
+      description: "List of all collections in the vector database"
+      mime_type: "application/json"
+    
+    - uri: "vectorizer://stats"
+      name: "Database Statistics"
+      description: "Current database statistics and performance metrics"
+      mime_type: "application/json"
+  
+  # Performance settings
+  performance:
+    # Enable connection pooling
+    connection_pooling: true
+    
+    # Maximum message size (bytes)
+    max_message_size: 1048576    # 1MB
+    
+    # Heartbeat interval (seconds)
+    heartbeat_interval: 30
+    
+    # Cleanup interval for inactive connections (seconds)
+    cleanup_interval: 300         # 5 minutes
+  
+  # Logging for MCP
+  logging:
+    level: "info"                 # MCP-specific log level
+    log_requests: true            # Log all MCP requests
+    log_responses: false          # Log MCP responses (can be verbose)
+    log_errors: true              # Log MCP errors
+
+# =============================================================================
 # CUSTOM EXTENSIONS
 # =============================================================================
 extensions:
@@ -415,6 +610,8 @@ extensions:
       - collection_created
       - api_key_created
       - high_memory_usage
+      - mcp_connection_established
+      - mcp_tool_called
 
 ---
 # Configuration Notes:
@@ -429,6 +626,19 @@ extensions:
 # Usage:
 #   vectorizer server --config config.yml
 #   vectorizer server --config /path/to/custom/config.yml
+#   vectorizer-cli server start --config config.yml
+#
+# MCP (Model Context Protocol) Integration:
+#   - MCP server runs on port 15003 by default (server.port + 2)
+#   - WebSocket endpoint: ws://127.0.0.1:15003/mcp
+#   - Provides tools for IDE integration and AI model communication
+#   - Supports authentication via API keys
+#   - Tools include: search_vectors, list_collections, embed_text, etc.
+#
+# Port Allocation:
+#   - Main server: 15001 (configurable via server.port)
+#   - Dashboard: 15002 (configurable via dashboard.port)
+#   - MCP server: 15003 (configurable via mcp.port)
 #
 # Validation:
 #   The server will validate the configuration on startup

@@ -5,6 +5,7 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
+use chrono::Utc;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, error, info};
@@ -38,7 +39,7 @@ impl AppState {
 /// Health check endpoint
 pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
     debug!("Health check requested");
-    
+
     let collections = state.store.list_collections();
     let total_vectors = collections
         .iter()
@@ -54,6 +55,7 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
     Json(HealthResponse {
         status: "healthy".to_string(),
         version: crate::VERSION.to_string(),
+        timestamp: Utc::now().to_rfc3339(),
         uptime: state.start_time.elapsed().as_secs(),
         collections: collections.len(),
         total_vectors,
@@ -61,9 +63,9 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
 }
 
 /// List all collections
-pub async fn list_collections(State(state): State<AppState>) -> Json<Vec<CollectionInfo>> {
+pub async fn list_collections(State(state): State<AppState>) -> Json<ListCollectionsResponse> {
     debug!("Listing collections");
-    
+
     let collections = state.store.list_collections();
     let mut collection_infos = Vec::new();
 
@@ -80,14 +82,16 @@ pub async fn list_collections(State(state): State<AppState>) -> Json<Vec<Collect
         }
     }
 
-    Json(collection_infos)
+    Json(ListCollectionsResponse {
+        collections: collection_infos,
+    })
 }
 
 /// Create a new collection
 pub async fn create_collection(
     State(state): State<AppState>,
     Json(request): Json<CreateCollectionRequest>,
-) -> Result<Json<CreateCollectionResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<(StatusCode, Json<CreateCollectionResponse>), (StatusCode, Json<ErrorResponse>)> {
     info!("Creating collection: {}", request.name);
 
     // Validate collection name
@@ -127,10 +131,10 @@ pub async fn create_collection(
     match state.store.create_collection(&request.name, config) {
         Ok(_) => {
             info!("Collection '{}' created successfully", request.name);
-            Ok(Json(CreateCollectionResponse {
+            Ok((StatusCode::CREATED, Json(CreateCollectionResponse {
                 message: "Collection created successfully".to_string(),
                 collection: request.name,
-            }))
+            })))
         }
         Err(e) => {
             error!("Failed to create collection '{}': {}", request.name, e);
@@ -177,16 +181,13 @@ pub async fn get_collection(
 pub async fn delete_collection(
     State(state): State<AppState>,
     Path(collection_name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     info!("Deleting collection: {}", collection_name);
 
     match state.store.delete_collection(&collection_name) {
         Ok(_) => {
             info!("Collection '{}' deleted successfully", collection_name);
-            Ok(Json(serde_json::json!({
-                "message": "Collection deleted successfully",
-                "collection": collection_name
-            })))
+            Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
             error!("Failed to delete collection '{}': {}", collection_name, e);
@@ -207,7 +208,7 @@ pub async fn insert_vectors(
     State(state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<InsertVectorsRequest>,
-) -> Result<Json<InsertVectorsResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<(StatusCode, Json<InsertVectorsResponse>), (StatusCode, Json<ErrorResponse>)> {
     info!(
         "Inserting {} vectors into collection: {}",
         request.vectors.len(),
@@ -244,10 +245,10 @@ pub async fn insert_vectors(
                 "Successfully inserted {} vectors into collection '{}'",
                 vector_count, collection_name
             );
-            Ok(Json(InsertVectorsResponse {
+            Ok((StatusCode::CREATED, Json(InsertVectorsResponse {
                 message: "Vectors inserted successfully".to_string(),
                 inserted: vector_count,
-            }))
+            })))
         }
         Err(e) => {
             error!(
@@ -489,7 +490,7 @@ pub async fn get_vector(
 pub async fn delete_vector(
     State(state): State<AppState>,
     Path((collection_name, vector_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     info!("Deleting vector '{}' from collection '{}'", vector_id, collection_name);
 
     match state.store.delete(&collection_name, &vector_id) {
@@ -498,11 +499,7 @@ pub async fn delete_vector(
                 "Vector '{}' deleted successfully from collection '{}'",
                 vector_id, collection_name
             );
-            Ok(Json(serde_json::json!({
-                "message": "Vector deleted successfully",
-                "collection": collection_name,
-                "vector_id": vector_id
-            })))
+            Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
             error!(

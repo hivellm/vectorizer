@@ -40,6 +40,18 @@ pub struct HnswIndex {
     needs_rebuild: bool,
 }
 
+impl std::fmt::Debug for HnswIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HnswIndex")
+            .field("id_map", &self.id_map)
+            .field("reverse_id_map", &self.reverse_id_map)
+            .field("dimension", &self.dimension)
+            .field("metric", &self.metric)
+            .field("needs_rebuild", &self.needs_rebuild)
+            .finish()
+    }
+}
+
 impl HnswIndex {
     /// Create a new HNSW index
     pub fn new(config: HnswConfig, metric: DistanceMetric, dimension: usize) -> Self {

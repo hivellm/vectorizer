@@ -49,10 +49,38 @@ pub enum VectorizerError {
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
 
+    /// YAML error
+    #[error("YAML error: {0}")]
+    YamlError(#[from] serde_yaml::Error),
+
     #[cfg(feature = "candle-models")]
     /// Candle ML framework error
     #[error("Candle error: {0}")]
     CandleError(#[from] candle_core::Error),
+
+    /// Authentication error
+    #[error("Authentication error: {0}")]
+    AuthenticationError(String),
+
+    /// Authorization error (insufficient permissions)
+    #[error("Authorization error: {0}")]
+    AuthorizationError(String),
+
+    /// Rate limit exceeded
+    #[error("Rate limit exceeded: {limit_type} limit of {limit}")]
+    RateLimitExceeded { limit_type: String, limit: u32 },
+
+    /// Invalid configuration
+    #[error("Invalid configuration: {message}")]
+    InvalidConfiguration { message: String },
+
+    /// Internal error
+    #[error("Internal error: {0}")]
+    InternalError(String),
+
+    /// Resource not found
+    #[error("Resource not found: {0}")]
+    NotFound(String),
 
     /// Other errors
     #[error("{0}")]
