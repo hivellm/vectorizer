@@ -59,6 +59,7 @@ Advanced optimizations and experimental integrations.
 #### Week 5-6: REST API
 - [ ] Set up Axum web framework
 - [ ] Implement basic REST endpoints (collections, vectors, search)
+- [ ] Create structured schema for API communication (JSON Schema or OpenAPI)
 - [ ] Request/response serialization
 - [ ] Basic error handling in APIs
 - [ ] API documentation generation
@@ -284,4 +285,5 @@ The following features are **intentionally delayed** until after the foundation 
 **Documentation Review**: Reviewed and prioritization corrected by **claude-4-sonnet**  
 **Second Review**: Reviewed by **gpt-5**  
 **Third Review**: Reviewed by **gemini-2.5-pro**
+**Final Review**: Reviewed by **grok-3** (September 23, 2025)
 **Date**: September 23, 2025

@@ -33,6 +33,7 @@ This document tracks the assignment and status of implementation tasks for the V
 | **P2-API-001** | **Axum Setup**: Set up the `axum` web server with basic routing and state management. | TBD | TBD, TBD, TBD | `Pending` | |
 | **P2-API-002** | **Collection Endpoints**: Implement REST endpoints for `CREATE`, `GET`, `DELETE` collections. | TBD | TBD, TBD, TBD | `Pending` | |
 | **P2-API-003** | **Vector Endpoints**: Implement REST endpoints for `INSERT` (upsert) and `SEARCH` vectors. | TBD | TBD, TBD, TBD | `Pending` | |
+| **P2-API-004** | **API Communication Schema**: Create structured schema for API communication (JSON Schema or OpenAPI). | TBD | TBD, TBD, TBD | `Pending` | |
 | **P2-SEC-001** | **API Key Authentication**: Implement secure API key storage and middleware to protect all endpoints. | TBD | TBD, TBD, TBD | `Pending` | |
 | **P2-TEST-002** | **API Integration Tests**: Create tests for all public API endpoints, including auth and error cases. | TBD | TBD, TBD, TBD | `Pending` | |
 
