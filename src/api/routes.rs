@@ -7,7 +7,7 @@ use axum::{
 
 use super::handlers::{
     create_collection, delete_collection, delete_vector, get_collection, get_vector, health_check,
-    insert_vectors, list_collections, search_vectors, AppState,
+    insert_vectors, list_collections, search_vectors, search_vectors_by_text, AppState,
 };
 
 /// Create the main API router
@@ -25,6 +25,7 @@ pub fn create_router(state: AppState) -> Router {
         // Vector operations
         .route("/collections/:collection_name/vectors", post(insert_vectors))
         .route("/collections/:collection_name/search", post(search_vectors))
+        .route("/collections/:collection_name/search/text", post(search_vectors_by_text))
         .route("/collections/:collection_name/vectors/:vector_id", get(get_vector))
         .route("/collections/:collection_name/vectors/:vector_id", delete(delete_vector))
         

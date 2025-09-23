@@ -326,6 +326,135 @@ pub async fn search_vectors(
     }
 }
 
+/// Search for similar vectors using text query (automatically embedded)
+pub async fn search_vectors_by_text(
+    State(state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<super::types::SearchTextRequest>,
+) -> Result<Json<SearchResponse>, (StatusCode, Json<ErrorResponse>)> {
+    debug!("Searching collection '{}' with text query: '{}'", collection_name, request.query);
+
+    // Validate request
+    if request.query.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "Query text cannot be empty".to_string(),
+                code: "INVALID_QUERY".to_string(),
+                details: None,
+            }),
+        ));
+    }
+
+    // Get collection info to determine embedding dimension
+    let collection_info = match state.store.get_collection_metadata(&collection_name) {
+        Ok(metadata) => metadata,
+        Err(_) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: format!("Collection '{}' not found", collection_name),
+                    code: "COLLECTION_NOT_FOUND".to_string(),
+                    details: None,
+                }),
+            ));
+        }
+    };
+
+    // Create embedding for the query text
+    let embedding_dimension = collection_info.config.dimension;
+    let query_vector = match create_text_embedding(&request.query, embedding_dimension) {
+        Ok(vector) => vector,
+        Err(e) => {
+            error!("Failed to create embedding for query '{}': {}", request.query, e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: format!("Failed to create embedding: {}", e),
+                    code: "EMBEDDING_ERROR".to_string(),
+                    details: None,
+                }),
+            ));
+        }
+    };
+
+    let start_time = Instant::now();
+    let limit = request.limit.unwrap_or(10).min(100); // Cap at 100 results
+
+    match state.store.search(&collection_name, &query_vector, limit) {
+        Ok(results) => {
+            let query_time = start_time.elapsed().as_secs_f64() * 1000.0;
+
+            let mut search_results = Vec::new();
+            for result in results {
+                // Apply score threshold if specified
+                if let Some(threshold) = request.score_threshold {
+                    if result.score < threshold {
+                        continue;
+                    }
+                }
+
+                search_results.push(super::types::SearchResult {
+                    id: result.id,
+                    score: result.score,
+                    vector: result.vector.unwrap_or_default(),
+                    payload: result.payload.map(|p| p.data),
+                });
+            }
+
+            debug!(
+                "Text search completed in {:.2}ms, found {} results",
+                query_time,
+                search_results.len()
+            );
+
+            Ok(Json(SearchResponse {
+                results: search_results,
+                query_time_ms: query_time,
+            }))
+        }
+        Err(e) => {
+            error!("Text search failed in collection '{}': {}", collection_name, e);
+            Err((
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: format!("Search failed: {}", e),
+                    code: "SEARCH_FAILED".to_string(),
+                    details: None,
+                }),
+            ))
+        }
+    }
+}
+
+/// Create embedding vector from text using TF-IDF or BM25
+fn create_text_embedding(query: &str, dimension: usize) -> anyhow::Result<Vec<f32>> {
+    use crate::embedding::{EmbeddingManager, Bm25Embedding};
+
+    // Create a BM25 embedding for better search quality
+    // BM25 provides better relevance scoring than basic TF-IDF
+    let mut manager = EmbeddingManager::new();
+
+    // Create BM25 embedding with the target dimension
+    let bm25 = Bm25Embedding::new(dimension);
+    manager.register_provider("bm25".to_string(), Box::new(bm25));
+
+    // Build vocabulary from the query itself (limited approach for query embedding)
+    if let Some(provider) = manager.get_provider_mut("bm25") {
+        if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
+            // For query embedding, we build vocabulary from the query
+            bm25.build_vocabulary(&[query.to_string()]);
+            // Embed the query
+            let embedding = provider.embed(query)?;
+            Ok(embedding)
+        } else {
+            Err(anyhow::anyhow!("Failed to downcast to Bm25Embedding"))
+        }
+    } else {
+        Err(anyhow::anyhow!("BM25 provider not found"))
+    }
+}
+
 /// Get a specific vector by ID
 pub async fn get_vector(
     State(state): State<AppState>,

@@ -5,15 +5,20 @@
 
 pub mod api;
 pub mod db;
+pub mod document_loader;
 pub mod embedding;
 pub mod error;
+pub mod evaluation;
+pub mod hybrid_search;
 pub mod models;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};
+pub use embedding::{BertEmbedding, Bm25Embedding, MiniLmEmbedding, SvdEmbedding};
 pub use error::{Result, VectorizerError};
+pub use evaluation::{EvaluationMetrics, QueryMetrics, QueryResult, evaluate_search_quality};
 pub use models::{CollectionConfig, Payload, SearchResult, Vector};
 
 // Version information

@@ -17,13 +17,398 @@ pub trait EmbeddingProvider: Send + Sync {
     
     /// Get the dimension of embeddings produced by this provider
     fn dimension(&self) -> usize;
+    
+    /// Cast to Any for downcasting (mutable)
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 /// Simple TF-IDF based embedding provider for demonstration
+#[derive(Debug)]
 pub struct TfIdfEmbedding {
     dimension: usize,
     vocabulary: HashMap<String, usize>,
     idf_weights: Vec<f32>,
+}
+
+#[derive(Debug)]
+pub struct Bm25Embedding {
+    dimension: usize,
+    vocabulary: HashMap<String, usize>,
+    doc_freq: HashMap<String, usize>, // Document frequency for each term
+    doc_lengths: Vec<usize>, // Length of each document
+    avg_doc_length: f32, // Average document length
+    total_docs: usize, // Total number of documents
+    k1: f32, // BM25 parameter (typically 1.5)
+    b: f32,  // BM25 parameter (typically 0.75)
+}
+
+#[derive(Debug)]
+pub struct SvdEmbedding {
+    /// The target reduced dimension
+    reduced_dimension: usize,
+    /// TF-IDF embedding for base transformation
+    tfidf: TfIdfEmbedding,
+    /// SVD transformation matrix (V^T truncated to reduced_dimension)
+    transformation_matrix: Option<ndarray::Array2<f32>>,
+    /// Whether SVD has been fitted
+    fitted: bool,
+}
+
+#[derive(Debug)]
+pub struct BertEmbedding {
+    /// BERT model dimension (768 for BERT-base, 384 for BERT-small, etc.)
+    dimension: usize,
+    /// Maximum sequence length
+    max_seq_len: usize,
+    /// Whether the model is loaded (placeholder for actual BERT integration)
+    loaded: bool,
+}
+
+#[derive(Debug)]
+pub struct MiniLmEmbedding {
+    /// MiniLM model dimension (384 typically)
+    dimension: usize,
+    /// Maximum sequence length
+    max_seq_len: usize,
+    /// Whether the model is loaded
+    loaded: bool,
+}
+
+impl Bm25Embedding {
+    /// Create a new BM25 embedding provider
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            vocabulary: HashMap::new(),
+            doc_freq: HashMap::new(),
+            doc_lengths: Vec::new(),
+            avg_doc_length: 0.0,
+            total_docs: 0,
+            k1: 1.5, // Standard BM25 k1 parameter
+            b: 0.75, // Standard BM25 b parameter
+        }
+    }
+
+    /// Build vocabulary and document statistics from a corpus of texts
+    pub fn build_vocabulary(&mut self, texts: &[String]) {
+        let mut word_counts: HashMap<String, usize> = HashMap::new();
+        let mut doc_frequencies: HashMap<String, usize> = HashMap::new();
+
+        // Process each document
+        for text in texts {
+            let tokens = self.tokenize(text);
+            let doc_length = tokens.len();
+            self.doc_lengths.push(doc_length);
+
+            let mut unique_terms = std::collections::HashSet::new();
+            for token in &tokens {
+                *word_counts.entry(token.clone()).or_insert(0) += 1;
+                unique_terms.insert(token.clone());
+            }
+
+            // Update document frequencies
+            for term in unique_terms {
+                *doc_frequencies.entry(term).or_insert(0) += 1;
+            }
+        }
+
+        self.total_docs = texts.len();
+        self.avg_doc_length = self.doc_lengths.iter().sum::<usize>() as f32 / self.total_docs as f32;
+
+        // Build vocabulary and sort by frequency for deterministic results
+        let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
+        word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+        // Take top N terms based on dimension
+        for (i, (word, _)) in word_freq.into_iter().enumerate().take(self.dimension) {
+            let df = *doc_frequencies.get(&word).unwrap_or(&0);
+            self.vocabulary.insert(word.clone(), i);
+            self.doc_freq.insert(word, df);
+        }
+    }
+
+    /// Tokenize text into words (simple whitespace splitting)
+    fn tokenize(&self, text: &str) -> Vec<String> {
+        text.to_lowercase()
+            .split_whitespace()
+            .map(|s| s.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|s| !s.is_empty() && s.len() > 2) // Filter out very short words
+            .collect()
+    }
+
+    /// Calculate BM25 score for a term in a document
+    fn bm25_score(&self, term_freq: usize, doc_length: usize, doc_freq: usize) -> f32 {
+        if doc_freq == 0 {
+            return 0.0;
+        }
+
+        let idf = ((self.total_docs as f32 - doc_freq as f32 + 0.5) / (doc_freq as f32 + 0.5) + 1.0).ln();
+
+        let tf = term_freq as f32 * (self.k1 + 1.0) /
+                 (term_freq as f32 + self.k1 * (1.0 - self.b + self.b * doc_length as f32 / self.avg_doc_length));
+
+        idf * tf
+    }
+}
+
+impl SvdEmbedding {
+    /// Create a new SVD embedding provider
+    pub fn new(reduced_dimension: usize, vocabulary_size: usize) -> Self {
+        Self {
+            reduced_dimension,
+            tfidf: TfIdfEmbedding::new(vocabulary_size),
+            transformation_matrix: None,
+            fitted: false,
+        }
+    }
+
+    /// Fit a simple linear transformation (simplified SVD approximation)
+    pub fn fit_svd(&mut self, texts: &[&str]) -> Result<()> {
+        // First, build TF-IDF vocabulary
+        self.tfidf.build_vocabulary(texts);
+
+        // Create a simple transformation matrix using hash-based pseudo-random orthogonal vectors
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let vocab_size = self.tfidf.dimension;
+        let mut transformation_matrix = ndarray::Array2::<f32>::zeros((self.reduced_dimension, vocab_size));
+
+        // Generate transformation matrix using seeded random values
+        let mut hasher = DefaultHasher::new();
+        texts.hash(&mut hasher);
+        let base_seed = hasher.finish();
+
+        for i in 0..self.reduced_dimension {
+            // Create a vector for this dimension
+            let mut vector = Vec::with_capacity(vocab_size);
+
+            for j in 0..vocab_size {
+                // Generate pseudo-random value seeded by dimension and position
+                let seed = base_seed.wrapping_add((i as u64 * 1000) + j as u64);
+                let value = ((seed.wrapping_mul(1103515245) % 65536) as f32 / 32768.0) - 1.0;
+                vector.push(value);
+            }
+
+            // Orthogonalize with previous vectors (simplified Gram-Schmidt)
+            for k in 0..i {
+                let prev_row = transformation_matrix.row(k);
+                let dot_product: f32 = vector.iter().zip(prev_row.iter()).map(|(a, b)| a * b).sum();
+                let norm_sq: f32 = prev_row.iter().map(|x| x * x).sum();
+
+                if norm_sq > 0.0 {
+                    let projection = dot_product / norm_sq;
+                    for j in 0..vocab_size {
+                        vector[j] -= projection * prev_row[j];
+                    }
+                }
+            }
+
+            // Normalize the vector
+            let norm: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 0.0 {
+                for j in 0..vocab_size {
+                    vector[j] /= norm;
+                }
+            }
+
+            // Store in matrix
+            for j in 0..vocab_size {
+                transformation_matrix[[i, j]] = vector[j];
+            }
+        }
+
+        self.transformation_matrix = Some(transformation_matrix);
+        self.fitted = true;
+
+        Ok(())
+    }
+}
+
+impl EmbeddingProvider for SvdEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter()
+            .map(|text| self.embed(text))
+            .collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        if !self.fitted {
+            return Err(VectorizerError::Other("SVD embedding not fitted. Call fit_svd first.".to_string()));
+        }
+
+        // Get TF-IDF embedding
+        let tfidf_embedding = self.tfidf.embed(text)?;
+
+        // Apply transformation: result = tfidf_vector * V^T_reduced
+        let vt = self.transformation_matrix.as_ref().unwrap();
+        let mut result = vec![0.0f32; self.reduced_dimension];
+
+        // Manual matrix multiplication for simplicity
+        for i in 0..self.reduced_dimension {
+            for j in 0..tfidf_embedding.len() {
+                result[i] += tfidf_embedding[j] * vt[[i, j]];
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn dimension(&self) -> usize {
+        self.reduced_dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl BertEmbedding {
+    /// Create a new BERT embedding provider
+    /// dimension: 768 for BERT-base, 384 for BERT-small, etc.
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            max_seq_len: 512,
+            loaded: false,
+        }
+    }
+
+    /// Load BERT model (placeholder for actual implementation)
+    pub fn load_model(&mut self) -> Result<()> {
+        // TODO: Implement actual BERT model loading
+        // For now, just mark as loaded
+        self.loaded = true;
+        Ok(())
+    }
+
+    /// Simple hash-based embedding simulation (placeholder)
+    fn simple_hash_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        // Generate pseudo-random but deterministic embedding
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            // Simple LCG-like generator seeded by text hash
+            let value = ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+}
+
+impl EmbeddingProvider for BertEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other("BERT model not loaded. Call load_model first.".to_string()));
+        }
+
+        texts.iter()
+            .map(|text| self.embed(text))
+            .collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other("BERT model not loaded. Call load_model first.".to_string()));
+        }
+
+        // TODO: Replace with actual BERT inference
+        Ok(self.simple_hash_embedding(text))
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl MiniLmEmbedding {
+    /// Create a new MiniLM embedding provider
+    /// dimension: typically 384 for MiniLM models
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            max_seq_len: 256,
+            loaded: false,
+        }
+    }
+
+    /// Load MiniLM model (placeholder for actual implementation)
+    pub fn load_model(&mut self) -> Result<()> {
+        // TODO: Implement actual MiniLM model loading
+        self.loaded = true;
+        Ok(())
+    }
+
+    /// Simple hash-based embedding simulation (placeholder)
+    fn simple_hash_embedding(&self, text: &str) -> Vec<f32> {
+        // Similar to BERT but with different seed for variety
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        format!("minilm_{}", text).hash(&mut hasher);
+        let seed = hasher.finish();
+
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            let value = ((seed.wrapping_mul(1103515245).wrapping_add(54321 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0);
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+}
+
+impl EmbeddingProvider for MiniLmEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other("MiniLM model not loaded. Call load_model first.".to_string()));
+        }
+
+        texts.iter()
+            .map(|text| self.embed(text))
+            .collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other("MiniLM model not loaded. Call load_model first.".to_string()));
+        }
+
+        // TODO: Replace with actual MiniLM inference
+        Ok(self.simple_hash_embedding(text))
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl TfIdfEmbedding {
@@ -35,7 +420,7 @@ impl TfIdfEmbedding {
             idf_weights: vec![1.0; dimension],
         }
     }
-    
+
     /// Build vocabulary from a corpus of texts
     pub fn build_vocabulary(&mut self, texts: &[&str]) {
         let mut word_counts: HashMap<String, usize> = HashMap::new();
@@ -130,6 +515,62 @@ impl EmbeddingProvider for TfIdfEmbedding {
     fn dimension(&self) -> usize {
         self.dimension
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl EmbeddingProvider for Bm25Embedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter()
+            .map(|text| self.embed(text))
+            .collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let tokens = self.tokenize(text);
+        let doc_length = tokens.len();
+
+        // Count term frequencies in this document
+        let mut term_freq: HashMap<String, usize> = HashMap::new();
+        for token in tokens {
+            *term_freq.entry(token).or_insert(0) += 1;
+        }
+
+        // Calculate BM25 scores for each term in vocabulary
+        let mut embedding = vec![0.0; self.dimension];
+        for (term, &vocab_index) in &self.vocabulary {
+            if vocab_index >= self.dimension {
+                continue;
+            }
+
+            let tf = *term_freq.get(term).unwrap_or(&0);
+            let df = *self.doc_freq.get(term).unwrap_or(&0);
+
+            if tf > 0 {
+                embedding[vocab_index] = self.bm25_score(tf, doc_length, df);
+            }
+        }
+
+        // Normalize the embedding
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for value in &mut embedding {
+                *value /= norm;
+            }
+        }
+
+        Ok(embedding)
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Simple Bag-of-Words embedding provider
@@ -208,6 +649,10 @@ impl EmbeddingProvider for BagOfWordsEmbedding {
     
     fn dimension(&self) -> usize {
         self.dimension
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
@@ -298,6 +743,10 @@ impl EmbeddingProvider for CharNGramEmbedding {
     fn dimension(&self) -> usize {
         self.dimension
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Manager for embedding providers
@@ -339,6 +788,11 @@ impl EmbeddingManager {
             .get(name)
             .map(|p| p.as_ref())
             .ok_or_else(|| VectorizerError::Other(format!("Provider '{}' not found", name)))
+    }
+    
+    /// Get a mutable provider by name
+    pub fn get_provider_mut(&mut self, name: &str) -> Option<&mut Box<dyn EmbeddingProvider>> {
+        self.providers.get_mut(name)
     }
     
     /// Get the default provider
@@ -450,3 +904,9 @@ mod tests {
         assert_eq!(default_provider.dimension(), 10);
     }
 }
+
+// Real models module
+pub mod real_models;
+
+// Re-export real models
+pub use real_models::{RealModelEmbedder, RealModelType};

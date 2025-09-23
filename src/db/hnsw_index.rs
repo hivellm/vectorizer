@@ -4,6 +4,7 @@ use crate::{
     error::{Result, VectorizerError},
     models::{DistanceMetric, HnswConfig},
 };
+use tracing::{debug, error};
 
 /// Statistics about the HNSW index
 #[derive(Debug, Clone)]
@@ -19,7 +20,7 @@ pub struct HnswIndexStats {
 }
 use hnsw_rs::prelude::*;
 use std::collections::HashMap;
-use tracing::{debug, info};
+use tracing::info;
 
 /// Wrapper around the hnsw_rs HNSW implementation
 pub struct HnswIndex {
@@ -66,9 +67,10 @@ impl HnswIndex {
 
     /// Add a vector to the index
     pub fn add(&mut self, id: &str, vector: &[f32]) -> Result<()> {
-        debug!("Adding vector '{}' to HNSW index", id);
+        debug!("Adding vector '{}' with {} dimensions to HNSW index", id, vector.len());
 
         if vector.len() != self.dimension {
+            error!("Dimension mismatch: expected {}, got {}", self.dimension, vector.len());
             return Err(VectorizerError::InvalidDimension {
                 expected: self.dimension,
                 got: vector.len(),
@@ -92,8 +94,9 @@ impl HnswIndex {
         self.reverse_id_map.insert(internal_id, id.to_string());
 
         // Add to HNSW
+        debug!("Inserting vector into HNSW graph (internal_id: {})", internal_id);
         self.hnsw.insert((vector, internal_id));
-
+        debug!("Successfully inserted vector '{}' into HNSW", id);
         Ok(())
     }
 

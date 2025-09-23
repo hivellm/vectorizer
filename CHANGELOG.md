@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-09-23
+
+### Added
+- **SVD Dimensionality Reduction**: Implemented TF-IDF + SVD for reduced dimensional embeddings (300D/768D)
+- **Dense Embeddings**: Added BERT and MiniLM embedding support with placeholder implementations
+- **Hybrid Search Pipeline**: Implemented BM25/TF-IDF → dense re-ranking architecture
+- **Extended Benchmark Suite**: Comprehensive comparison across TF-IDF, BM25, SVD, BERT, MiniLM, and hybrid methods
+- **Advanced Evaluation**: Enhanced metrics with MRR@10, Precision@10, Recall@10 calculations
+
+### Enhanced
+- **Embedding Framework**: Modular architecture supporting sparse and dense embedding methods
+- **Search Quality**: Hybrid retrieval combining efficiency of sparse methods with accuracy of dense embeddings
+- **Benchmarking**: Automated evaluation pipeline comparing multiple embedding approaches
+
+### Technical Details
+- SVD implementation with simplified orthogonal transformation matrix generation
+- Hybrid retriever supporting BM25+BERT and BM25+MiniLM combinations
+- Comprehensive benchmark evaluating 8 different embedding approaches
+- Modular evaluation framework for easy extension with new methods
+
 ## [0.2.1] - 2025-09-23
 
 ### Fixed

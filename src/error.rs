@@ -45,6 +45,11 @@ pub enum VectorizerError {
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
 
+    #[cfg(feature = "real-models")]
+    /// Candle ML framework error
+    #[error("Candle error: {0}")]
+    CandleError(#[from] candle_core::Error),
+
     /// Other errors
     #[error("{0}")]
     Other(String),

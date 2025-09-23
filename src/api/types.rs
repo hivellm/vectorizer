@@ -80,6 +80,17 @@ pub struct SearchRequest {
     pub score_threshold: Option<f32>,
 }
 
+/// Search request with text (will be embedded automatically)
+#[derive(Debug, Deserialize)]
+pub struct SearchTextRequest {
+    /// Query text
+    pub query: String,
+    /// Number of results to return
+    pub limit: Option<usize>,
+    /// Minimum score threshold
+    pub score_threshold: Option<f32>,
+}
+
 /// Search result
 #[derive(Debug, Serialize)]
 pub struct SearchResult {

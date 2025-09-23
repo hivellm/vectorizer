@@ -1,5 +1,0 @@
-2025-09-23T08:34:31.8340000Z Requested labels: ubuntu-latest
-2025-09-23T08:34:31.8340000Z Job defined at: hivellm/vectorizer/.github/workflows/rust.yml@refs/heads/main
-2025-09-23T08:34:31.8340000Z Waiting for a runner to pick up this job...
-2025-09-23T08:34:32.3250000Z Job is about to start running on the hosted runner: GitHub Actions 1000000229
-2025-09-23T08:34:32.3240000Z Job is waiting for a hosted runner to come online.
