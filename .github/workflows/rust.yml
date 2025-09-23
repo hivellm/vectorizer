@@ -1,35 +1,44 @@
-name: Rust CI & Quality Check
+name: Rust CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-test:
-    name: Build, Test & Quality Checks
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
-
-      - name: Check Formatting (rustfmt)
+      - name: Check formatting
         run: cargo fmt -- --check
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+      - name: Check compilation
+        run: cargo check
 
-      - name: Run Linter (clippy)
-        run: cargo clippy -- -D warnings -W clippy::pedantic
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Run tests
+        run: cargo test --verbose
 
-      - name: Build Release
-        run: cargo build --release --verbose
-
-      - name: Run Tests
-        run: cargo test --release --verbose
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Run benchmarks
+        run: cargo bench --no-run

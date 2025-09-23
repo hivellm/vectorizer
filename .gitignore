@@ -1,0 +1,52 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python bindings artifacts
+bindings/python/build/
+bindings/python/dist/
+bindings/python/*.egg-info/
+bindings/python/*.so
+bindings/python/*.pyd
+__pycache__/
+*.pyc
+
+# TypeScript/Node.js artifacts
+bindings/typescript/node_modules/
+bindings/typescript/dist/
+bindings/typescript/*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+*.lcov
+
+# Benchmark results
+benches/target/
+
+# Documentation
+docs/_build/
+docs/_site/
+
+# Environment files
+.env
+.env.local
+config.yml
+
+# Vectorizer specific
+*.vdb
+*.bin
+persistence/
