@@ -67,7 +67,7 @@ sys-info = "0.9"
 
 # MCP (Model Context Protocol) dependencies
 futures-util = "0.3"
-tokio-tungstenite = "0.24"
+tokio-tungstenite = "0.27"
 
 # Optional ML dependencies
 candle-core = { version = "0.9.1", optional = true }
