@@ -1,0 +1,11 @@
+# Cargo audit configuration
+# Ignore specific advisories that are not critical
+
+[advisories]
+# Ignore paste crate unmaintained warning - it's a transitive dependency
+# and the functionality is still working fine
+ignore = ["RUSTSEC-2024-0436"]
+
+[advisories.unmaintained]
+# Allow unmaintained crates that are still functional
+warn = false
