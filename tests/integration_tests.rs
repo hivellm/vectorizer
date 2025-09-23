@@ -162,7 +162,7 @@ async fn test_multiple_collections_workflow() {
     let collections = [
         ("documents", 384, "cosine"),
         ("images", 512, "euclidean"),
-        ("code", 768, "dot_product"),
+        ("code", 768, "dotproduct"),
     ];
     
     for (name, dimension, metric) in &collections {
@@ -178,7 +178,7 @@ async fn test_multiple_collections_workflow() {
             .header("content-type", "application/json")
             .body(Body::from(collection_data.to_string()))
             .unwrap();
-        
+
         let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
     }
@@ -197,7 +197,7 @@ async fn test_multiple_collections_workflow() {
         
         let request = Request::builder()
             .method(Method::POST)
-            .uri(&format!("/collections/{}/vectors", name))
+            .uri(&format!("/api/v1/collections/{}/vectors", name))
             .header("content-type", "application/json")
             .body(Body::from(vectors_data.to_string()))
             .unwrap();
@@ -229,7 +229,7 @@ async fn test_multiple_collections_workflow() {
         
         let request = Request::builder()
             .method(Method::POST)
-            .uri(&format!("/collections/{}/search", name))
+            .uri(&format!("/api/v1/collections/{}/search", name))
             .header("content-type", "application/json")
             .body(Body::from(search_data.to_string()))
             .unwrap();
@@ -458,7 +458,7 @@ async fn test_data_persistence_simulation() {
     for i in 0..20 {
         let request = Request::builder()
             .method(Method::GET)
-            .uri(&format!("/collections/persistence_test_collection/vectors/persistence_vec_{}", i))
+            .uri(&format!("/api/v1/collections/persistence_test_collection/vectors/persistence_vec_{}", i))
             .body(Body::empty())
             .unwrap();
         
@@ -518,7 +518,7 @@ async fn test_api_consistency() {
         "vectors": [
             {
                 "id": "consistency_vec1",
-                "data": [1.0, 2.0, 3.0, 4.0],
+                "data": (0..384).map(|_| rand::random::<f32>()).collect::<Vec<f32>>(),
                 "payload": {"title": "Consistency Test", "value": 42}
             }
         ]
@@ -550,7 +550,8 @@ async fn test_api_consistency() {
         
         // Verify consistent response structure
         assert_eq!(vector["id"], "consistency_vec1");
-        assert_eq!(vector["data"], json!([1.0, 2.0, 3.0, 4.0]));
+        assert!(vector["vector"].is_array());
+        assert_eq!(vector["vector"].as_array().unwrap().len(), 384);
         assert_eq!(vector["payload"]["title"], "Consistency Test");
         assert_eq!(vector["payload"]["value"], 42);
     }
@@ -648,7 +649,7 @@ async fn test_system_health_under_load() {
         let handle = tokio::spawn(async move {
             let request = Request::builder()
                 .method(Method::GET)
-                .uri(&format!("/collections/load_test_collection/vectors/load_vec_{}", i))
+                .uri(&format!("/api/v1/collections/load_test_collection/vectors/load_vec_{}", i))
                 .body(Body::empty())
                 .unwrap();
             

@@ -196,7 +196,7 @@ pub struct RateLimitMiddleware;
 impl RateLimitMiddleware {
     /// Apply rate limiting to requests
     pub async fn rate_limit(
-        State(auth_manager): State<Arc<AuthManager>>,
+        State(_auth_manager): State<Arc<AuthManager>>,
         request: Request,
         next: Next,
     ) -> Response {

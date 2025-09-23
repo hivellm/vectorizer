@@ -3,8 +3,7 @@
 //! Provides specific tool implementations for vector database operations
 
 use crate::db::VectorStore;
-use crate::embedding::EmbeddingManager;
-use crate::embedding::TfIdfEmbedding;
+use crate::embedding::{EmbeddingManager, TfIdfEmbedding};
 use crate::error::{Result, VectorizerError};
 use serde_json;
 use tracing::{debug};
