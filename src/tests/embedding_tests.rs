@@ -265,6 +265,124 @@ fn test_persistence_with_real_embeddings() {
     assert!(top_ids.contains(&"news1") || top_ids.contains(&"news3"));
 }
 
+/// Example: Recommended testing pattern with real embeddings
+/// This demonstrates the preferred approach for integration testing
+#[test]
+fn test_recommended_embedding_testing_pattern() {
+    // === 1. SET UP EMBEDDING PROVIDER ===
+    // Use a real embedding provider with proper vocabulary building
+    let mut tfidf = TfIdfEmbedding::new(50);
+
+    // Build vocabulary from a realistic corpus (not just test data)
+    let training_corpus = vec![
+        "machine learning algorithms and neural networks",
+        "vector databases store high dimensional embeddings",
+        "natural language processing with transformers",
+        "computer vision and image recognition systems",
+        "supervised learning requires labeled training data",
+        "unsupervised learning discovers hidden patterns",
+        "reinforcement learning trains agents through interaction",
+        "deep learning uses multiple neural network layers",
+    ];
+    tfidf.build_vocabulary(&training_corpus);
+
+    // === 2. CREATE VECTOR STORE ===
+    let store = VectorStore::new();
+    let config = CollectionConfig {
+        dimension: tfidf.dimension(),
+        metric: DistanceMetric::Cosine,
+        hnsw_config: HnswConfig {
+            m: 16,
+            ef_construction: 100,
+            ef_search: 50,
+            seed: Some(42),
+        },
+        quantization: None,
+        compression: Default::default(),
+    };
+    store.create_collection("semantic_test", config).unwrap();
+
+    // === 3. GENERATE REAL EMBEDDINGS ===
+    // Use meaningful text that represents real use cases
+    let documents = vec![
+        ("ml_basics", "Machine learning is a subset of artificial intelligence that enables computers to learn patterns from data without explicit programming"),
+        ("vectors", "Vector databases are specialized systems designed to efficiently store and search high-dimensional vector embeddings"),
+        ("nlp", "Natural language processing combines computational linguistics with machine learning to understand human language"),
+        ("cv", "Computer vision systems can interpret and understand visual information from the world"),
+    ];
+
+    // Convert text to embeddings using the trained model
+    let mut vectors = Vec::new();
+    for (id, content) in &documents {
+        let embedding = tfidf.embed(content).unwrap();
+        let vector = Vector::with_payload(
+            id.to_string(),
+            embedding,
+            Payload::from_value(serde_json::json!({
+                "content": content,
+                "word_count": content.split_whitespace().count(),
+                "type": "documentation"
+            })).unwrap()
+        );
+        vectors.push(vector);
+    }
+
+    // === 4. STORE AND TEST ===
+    store.insert("semantic_test", vectors).unwrap();
+
+    // Verify collection metadata
+    let metadata = store.get_collection_metadata("semantic_test").unwrap();
+    assert_eq!(metadata.vector_count, 4);
+    assert_eq!(metadata.config.dimension, 50);
+
+    // === 5. TEST SEMANTIC SEARCH ===
+    // Test with a query that should find relevant documents
+    let search_query = "artificial intelligence and machine learning systems";
+    let query_embedding = tfidf.embed(search_query).unwrap();
+
+    let results = store.search("semantic_test", &query_embedding, 3).unwrap();
+    assert_eq!(results.len(), 3);
+
+    // === 6. VALIDATE SEMANTIC RELEVANCE ===
+    // Results should be ordered by relevance (higher scores first)
+    assert!(results[0].score >= results[1].score);
+
+    // The "ml_basics" document should be highly relevant to the query
+    let ml_basics_result = results.iter().find(|r| r.id == "ml_basics");
+    assert!(ml_basics_result.is_some(), "ML basics document should be relevant");
+
+    // === 7. VERIFY EMBEDDING PROPERTIES ===
+    // All embeddings should be normalized for cosine similarity
+    for result in &results {
+        let vector = store.get_vector("semantic_test", &result.id).unwrap();
+        let norm = vector.data.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-6, "Embeddings should be normalized");
+    }
+
+    // === 8. TEST PERSISTENCE CONSISTENCY ===
+    // Save and reload to ensure search accuracy is maintained
+    let temp_dir = tempdir().unwrap();
+    let save_path = temp_dir.path().join("embedding_test.vdb");
+    store.save(&save_path).unwrap();
+
+    let loaded_store = VectorStore::load(&save_path).unwrap();
+
+    // Search again after persistence
+    let reloaded_results = loaded_store.search("semantic_test", &query_embedding, 3).unwrap();
+
+    // Results should be identical after save/load
+    assert_eq!(results.len(), reloaded_results.len());
+    for i in 0..results.len() {
+        assert_eq!(results[i].id, reloaded_results[i].id);
+        assert!((results[i].score - reloaded_results[i].score).abs() < 1e-5);
+    }
+
+    println!("✅ Embedding testing pattern validated successfully!");
+    println!("   - Real embeddings generated from meaningful text");
+    println!("   - Semantic search working correctly");
+    println!("   - Persistence maintaining search accuracy");
+}
+
 /// Demonstrate real-world use case: FAQ search
 #[test]
 fn test_faq_search_system() {

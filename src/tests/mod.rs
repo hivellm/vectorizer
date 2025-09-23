@@ -1,6 +1,7 @@
 //! Integration tests for verifying grok-code-fast-1 fixes
 
 mod embedding_tests;
+mod additional_tests;
 
 #[cfg(test)]
 mod grok_fixes_validation {

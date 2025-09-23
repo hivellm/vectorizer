@@ -7,6 +7,7 @@ pub mod db;
 pub mod embedding;
 pub mod error;
 pub mod models;
+#[path = "persistence/mod.rs"]
 pub mod persistence;
 
 // Re-export commonly used types
@@ -139,6 +140,100 @@ mod integration_tests {
         // Final stats check
         let final_metadata = store.get_collection_metadata("documents").unwrap();
         assert_eq!(final_metadata.vector_count, 2);
+    }
+
+    #[test]
+    fn test_vector_database_with_real_embeddings() {
+        use crate::embedding::{TfIdfEmbedding, EmbeddingManager};
+
+        // Create embedding manager and TF-IDF embedder
+        let mut manager = EmbeddingManager::new();
+        let mut tfidf = TfIdfEmbedding::new(64);
+
+        // Sample documents for building vocabulary
+        let training_docs = vec![
+            "machine learning algorithms",
+            "neural networks and deep learning",
+            "vector databases for AI",
+            "natural language processing",
+            "computer vision techniques",
+            "supervised learning methods",
+            "unsupervised clustering algorithms",
+        ];
+
+        // Build vocabulary from training documents
+        tfidf.build_vocabulary(&training_docs);
+        manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+        manager.set_default_provider("tfidf").unwrap();
+
+        // Create vector store with embedding dimension
+        let store = VectorStore::new();
+        let config = CollectionConfig {
+            dimension: 64, // Match embedding dimension
+            metric: crate::models::DistanceMetric::Cosine,
+            hnsw_config: crate::models::HnswConfig {
+                m: 12,
+                ef_construction: 100,
+                ef_search: 32,
+                seed: Some(42),
+            },
+            quantization: None,
+            compression: Default::default(),
+        };
+
+        store.create_collection("semantic_docs", config).unwrap();
+
+        // Documents to embed and store
+        let document_texts = vec![
+            ("ai_basics", "Artificial intelligence is transforming technology"),
+            ("ml_guide", "Machine learning models learn from data patterns"),
+            ("neural_nets", "Neural networks simulate brain functionality"),
+            ("vector_db", "Vector databases enable fast similarity search"),
+        ];
+
+        // Generate embeddings and create vectors
+        let mut vectors = Vec::new();
+        for (id, text) in &document_texts {
+            let embedding = manager.embed(text).unwrap();
+            let vector = Vector::with_payload(
+                id.to_string(),
+                embedding,
+                Payload::from_value(serde_json::json!({
+                    "content": text,
+                    "word_count": text.split_whitespace().count(),
+                    "embedding_type": "tfidf"
+                })).unwrap()
+            );
+            vectors.push(vector);
+        }
+
+        store.insert("semantic_docs", vectors).unwrap();
+
+        // Verify collection has correct count
+        let metadata = store.get_collection_metadata("semantic_docs").unwrap();
+        assert_eq!(metadata.vector_count, 4);
+        assert_eq!(metadata.config.dimension, 64);
+
+        // Test semantic search with natural language query
+        let query = "artificial intelligence and machine learning";
+        let query_embedding = manager.embed(query).unwrap();
+        let results = store.search("semantic_docs", &query_embedding, 3).unwrap();
+
+        assert_eq!(results.len(), 3);
+        assert!(results[0].score >= results[1].score); // Results should be ordered
+
+        // Verify embeddings are normalized (cosine similarity)
+        let first_vector = store.get_vector("semantic_docs", &results[0].id).unwrap();
+        let norm: f32 = first_vector.data.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-6);
+
+        // Test that semantically similar queries return relevant results
+        let tech_query = "neural network technology";
+        let tech_embedding = manager.embed(tech_query).unwrap();
+        let tech_results = store.search("semantic_docs", &tech_embedding, 2).unwrap();
+
+        // Should find the neural networks document
+        assert!(tech_results.iter().any(|r| r.id == "neural_nets"));
     }
 
     #[test]

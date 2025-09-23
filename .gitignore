@@ -49,4 +49,3 @@ config.yml
 # Vectorizer specific
 *.vdb
 *.bin
-persistence/

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-09-23
+
+### Fixed
+- **Critical**: Fixed persistence search inconsistency - removed vector ordering that broke HNSW index consistency
+- **Major**: Added comprehensive test demonstrating real embedding usage instead of manual vectors
+- **Major**: Ensured search results remain consistent after save/load cycles
+- **Tests**: Added `test_vector_database_with_real_embeddings` for end-to-end embedding validation
+
+### Added
+- **Documentation**: GPT_REVIEWS_ANALYSIS.md documenting GPT-5 and GPT-4 review findings and fixes
+- **Tests**: Real embedding integration test with TF-IDF semantic search validation
+- **Quality**: Persistence accuracy verification test
+
+### Technical Details
+- Removed alphabetical sorting in persistence to preserve HNSW insertion order
+- Implemented embedding-first testing pattern for integration tests
+- Added semantic search accuracy validation across persistence cycles
+- Documented review process and implementation of recommendations
+
 ## [0.1.1] - 2025-09-23
 
 ### Added
