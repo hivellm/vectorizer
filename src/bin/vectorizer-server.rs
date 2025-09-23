@@ -1,24 +1,19 @@
 //! Vectorizer Server - Main server with MCP integration
-//! 
+//!
 //! This binary provides the main Vectorizer server with integrated MCP support
 //! for IDE integration and AI model communication.
 
+use axum::{Router, extract::State, response::Json, routing::get};
+use serde_json::json;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{error, info};
 use vectorizer::{
     auth::{AuthConfig, AuthManager},
     db::VectorStore,
     embedding::EmbeddingManager,
     mcp::{McpConfig, McpServer},
 };
-use axum::{
-    extract::State,
-    response::Json,
-    routing::get,
-    Router,
-};
-use serde_json::json;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{info, error};
 
 /// Application state
 #[derive(Clone)]
@@ -44,7 +39,7 @@ async fn health_check() -> Json<serde_json::Value> {
 async fn get_status(State(state): State<AppState>) -> Json<serde_json::Value> {
     let collections = state.vector_store.list_collections();
     let total_collections = collections.len();
-    
+
     let mut total_vectors = 0;
     for collection_name in &collections {
         if let Ok(metadata) = state.vector_store.get_collection_metadata(collection_name) {
@@ -73,11 +68,11 @@ async fn get_status(State(state): State<AppState>) -> Json<serde_json::Value> {
 /// List collections endpoint
 async fn list_collections(State(state): State<AppState>) -> Json<serde_json::Value> {
     let collections = state.vector_store.list_collections();
-    
+
     let collection_info: Vec<serde_json::Value> = collections
         .into_iter()
-        .map(|name| {
-            match state.vector_store.get_collection_metadata(&name) {
+        .map(
+            |name| match state.vector_store.get_collection_metadata(&name) {
                 Ok(metadata) => {
                     json!({
                         "name": name,
@@ -92,8 +87,8 @@ async fn list_collections(State(state): State<AppState>) -> Json<serde_json::Val
                         "error": "Failed to get metadata"
                     })
                 }
-            }
-        })
+            },
+        )
         .collect();
 
     Json(json!({
@@ -134,7 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         None
     };
-    
+
     if auth_manager.is_some() {
         info!("Authentication enabled");
     } else {
@@ -154,7 +149,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if mcp_server.is_some() {
-        info!("MCP server enabled on {}:{}", mcp_config.host, mcp_config.port);
+        info!(
+            "MCP server enabled on {}:{}",
+            mcp_config.host, mcp_config.port
+        );
     } else {
         info!("MCP server disabled");
     }
@@ -183,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Start HTTP server
     let listener = tokio::net::TcpListener::bind("127.0.0.1:15001").await?;
     info!("HTTP server listening on http://127.0.0.1:15001");
-    
+
     axum::serve(listener, app).await?;
 
     Ok(())

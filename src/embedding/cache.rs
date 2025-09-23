@@ -137,12 +137,12 @@ impl EmbeddingCache {
     pub fn get(&self, content: &str) -> Option<Vec<f32>> {
         let hash = xxh3_64(content.as_bytes());
         let shard_id = (hash as usize) % self.config.num_shards;
-        
+
         let shard = self.shards[shard_id].read();
         if let Some(entry) = shard.entries.get(&hash) {
             return shard.read_embedding(entry);
         }
-        
+
         None
     }
 
@@ -150,16 +150,16 @@ impl EmbeddingCache {
     pub fn put(&self, content: &str, embedding: &[f32]) -> Result<()> {
         let hash = xxh3_64(content.as_bytes());
         let shard_id = (hash as usize) % self.config.num_shards;
-        
+
         let mut shard = self.shards[shard_id].write();
         shard.write_embedding(hash, content, embedding)?;
-        
+
         // Update metadata
         let mut meta = self.metadata.write();
         meta.total_entries += 1;
         meta.total_size += embedding.len() * std::mem::size_of::<f32>();
         meta.last_updated = chrono::Utc::now().timestamp() as u64;
-        
+
         Ok(())
     }
 
@@ -183,16 +183,12 @@ impl EmbeddingCache {
     pub fn contains(&self, content: &str) -> bool {
         let hash = xxh3_64(content.as_bytes());
         let shard_id = (hash as usize) % self.config.num_shards;
-        
+
         self.shards[shard_id].read().entries.contains_key(&hash)
     }
 
     /// Build cache from directory of files
-    pub fn build_from_directory<F>(
-        &self,
-        dir: &Path,
-        embed_fn: F,
-    ) -> Result<usize>
+    pub fn build_from_directory<F>(&self, dir: &Path, embed_fn: F) -> Result<usize>
     where
         F: Fn(&str) -> Result<Vec<f32>> + Send + Sync,
     {
@@ -205,7 +201,7 @@ impl EmbeddingCache {
             .filter_map(|path| {
                 let content = std::fs::read_to_string(path).ok()?;
                 let hash = xxh3_64(content.as_bytes());
-                
+
                 // Check if already cached
                 let shard_id = (hash as usize) % self.config.num_shards;
                 if self.shards[shard_id].read().entries.contains_key(&hash) {
@@ -296,7 +292,7 @@ impl EmbeddingCache {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_dir() {
                 Self::collect_files_recursive(&path, files)?;
             } else if path.is_file() {
@@ -317,8 +313,12 @@ impl EmbeddingCache {
 
 impl CacheShard {
     fn new(id: usize, config: &CacheConfig) -> Result<Self> {
-        let data_file = config.cache_dir.join(format!("{}_{}.bin", config.prefix, id));
-        let index_file = config.cache_dir.join(format!("{}_{}.idx", config.prefix, id));
+        let data_file = config
+            .cache_dir
+            .join(format!("{}_{}.bin", config.prefix, id));
+        let index_file = config
+            .cache_dir
+            .join(format!("{}_{}.idx", config.prefix, id));
 
         // Load existing index
         let entries = if index_file.exists() {
@@ -387,12 +387,7 @@ impl CacheShard {
         None
     }
 
-    fn write_embedding(
-        &mut self,
-        hash: u64,
-        content: &str,
-        embedding: &[f32],
-    ) -> Result<()> {
+    fn write_embedding(&mut self, hash: u64, content: &str, embedding: &[f32]) -> Result<()> {
         // Write to data file
         let mut file = OpenOptions::new()
             .create(true)

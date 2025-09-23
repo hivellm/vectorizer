@@ -74,7 +74,8 @@ mod integration_tests {
                     "content": "ML is a subset of AI...",
                     "category": "tutorial",
                     "tags": ["AI", "ML", "beginner"]
-                })).unwrap()
+                }))
+                .unwrap(),
             ),
             Vector::with_payload(
                 "doc_002".to_string(),
@@ -84,7 +85,8 @@ mod integration_tests {
                     "content": "Neural networks are...",
                     "category": "advanced",
                     "tags": ["AI", "deep-learning", "neural-networks"]
-                })).unwrap()
+                }))
+                .unwrap(),
             ),
             Vector::with_payload(
                 "doc_003".to_string(),
@@ -94,7 +96,8 @@ mod integration_tests {
                     "content": "Vector databases store embeddings...",
                     "category": "infrastructure",
                     "tags": ["database", "vectors", "embeddings"]
-                })).unwrap()
+                }))
+                .unwrap(),
             ),
         ];
 
@@ -126,7 +129,8 @@ mod integration_tests {
                 "content": "Updated content...",
                 "category": "tutorial",
                 "tags": ["AI", "ML", "beginner", "updated"]
-            })).unwrap()
+            }))
+            .unwrap(),
         );
 
         store.update("documents", updated_vector).unwrap();
@@ -154,7 +158,7 @@ mod integration_tests {
 
     #[test]
     fn test_vector_database_with_real_embeddings() {
-        use crate::embedding::{TfIdfEmbedding, EmbeddingManager};
+        use crate::embedding::{EmbeddingManager, TfIdfEmbedding};
 
         // Create embedding manager and TF-IDF embedder
         let mut manager = EmbeddingManager::new();
@@ -195,10 +199,22 @@ mod integration_tests {
 
         // Documents to embed and store
         let document_texts = vec![
-            ("ai_basics", "Artificial intelligence is transforming technology"),
-            ("ml_guide", "Machine learning models learn from data patterns"),
-            ("neural_nets", "Neural networks simulate brain functionality"),
-            ("vector_db", "Vector databases enable fast similarity search"),
+            (
+                "ai_basics",
+                "Artificial intelligence is transforming technology",
+            ),
+            (
+                "ml_guide",
+                "Machine learning models learn from data patterns",
+            ),
+            (
+                "neural_nets",
+                "Neural networks simulate brain functionality",
+            ),
+            (
+                "vector_db",
+                "Vector databases enable fast similarity search",
+            ),
         ];
 
         // Generate embeddings and create vectors
@@ -212,7 +228,8 @@ mod integration_tests {
                     "content": text,
                     "word_count": text.split_whitespace().count(),
                     "embedding_type": "tfidf"
-                })).unwrap()
+                }))
+                .unwrap(),
             );
             vectors.push(vector);
         }
@@ -319,9 +336,9 @@ mod integration_tests {
                 // Each thread inserts its own set of vectors
                 for i in 0..vectors_per_thread {
                     let vector_id = format!("thread_{}_vec_{}", thread_id, i);
-                    let vector_data: Vec<f32> = (0..64).map(|j| {
-                        (thread_id as f32 * 0.1) + (i as f32 * 0.01) + (j as f32 * 0.001)
-                    }).collect();
+                    let vector_data: Vec<f32> = (0..64)
+                        .map(|j| (thread_id as f32 * 0.1) + (i as f32 * 0.01) + (j as f32 * 0.001))
+                        .collect();
 
                     let vector = Vector::with_payload(
                         vector_id.clone(),
@@ -330,7 +347,8 @@ mod integration_tests {
                             "thread_id": thread_id,
                             "vector_index": i,
                             "created_by": format!("thread_{}", thread_id)
-                        })).unwrap()
+                        }))
+                        .unwrap(),
                     );
 
                     store_clone.insert("concurrent", vec![vector]).unwrap();
@@ -412,13 +430,19 @@ mod integration_tests {
         let wrong_dim_vector = Vector::new("wrong".to_string(), vec![1.0, 2.0]); // 2D instead of 3D
         assert!(matches!(
             store.insert("valid", vec![wrong_dim_vector]),
-            Err(VectorizerError::InvalidDimension { expected: 3, got: 2 })
+            Err(VectorizerError::InvalidDimension {
+                expected: 3,
+                got: 2
+            })
         ));
 
         // Test search with wrong dimensions
         assert!(matches!(
             store.search("valid", &[1.0, 2.0], 1),
-            Err(VectorizerError::InvalidDimension { expected: 3, got: 2 })
+            Err(VectorizerError::InvalidDimension {
+                expected: 3,
+                got: 2
+            })
         ));
 
         // Test operations on non-existent entities
@@ -443,7 +467,10 @@ mod integration_tests {
         ));
 
         assert!(matches!(
-            store.update("valid", Vector::new("nonexistent".to_string(), vec![1.0, 2.0, 3.0])),
+            store.update(
+                "valid",
+                Vector::new("nonexistent".to_string(), vec![1.0, 2.0, 3.0])
+            ),
             Err(VectorizerError::VectorNotFound(_))
         ));
 
@@ -459,24 +486,40 @@ mod integration_tests {
 
         // Test creating multiple collections with different configurations
         let configs = vec![
-            ("small", CollectionConfig {
-                dimension: 64,
-                metric: crate::models::DistanceMetric::Euclidean,
-                hnsw_config: crate::models::HnswConfig { m: 8, ef_construction: 100, ef_search: 50, seed: None },
-                quantization: None,
-                compression: Default::default(),
-            }),
-            ("large", CollectionConfig {
-                dimension: 768,
-                metric: crate::models::DistanceMetric::Cosine,
-                hnsw_config: crate::models::HnswConfig { m: 32, ef_construction: 300, ef_search: 100, seed: Some(123) },
-                quantization: None,
-                compression: crate::models::CompressionConfig {
-                    enabled: true,
-                    threshold_bytes: 2048,
-                    algorithm: crate::models::CompressionAlgorithm::Lz4,
+            (
+                "small",
+                CollectionConfig {
+                    dimension: 64,
+                    metric: crate::models::DistanceMetric::Euclidean,
+                    hnsw_config: crate::models::HnswConfig {
+                        m: 8,
+                        ef_construction: 100,
+                        ef_search: 50,
+                        seed: None,
+                    },
+                    quantization: None,
+                    compression: Default::default(),
                 },
-            }),
+            ),
+            (
+                "large",
+                CollectionConfig {
+                    dimension: 768,
+                    metric: crate::models::DistanceMetric::Cosine,
+                    hnsw_config: crate::models::HnswConfig {
+                        m: 32,
+                        ef_construction: 300,
+                        ef_search: 100,
+                        seed: Some(123),
+                    },
+                    quantization: None,
+                    compression: crate::models::CompressionConfig {
+                        enabled: true,
+                        threshold_bytes: 2048,
+                        algorithm: crate::models::CompressionAlgorithm::Lz4,
+                    },
+                },
+            ),
         ];
 
         // Create collections

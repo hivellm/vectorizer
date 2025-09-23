@@ -1,20 +1,16 @@
 //! Comprehensive API Tests
-//! 
+//!
 //! These tests provide extensive coverage of the Vectorizer REST API,
 //! including edge cases, error handling, and performance scenarios.
 
-use vectorizer::{
-    api::server::VectorizerServer,
-    auth::AuthManager,
-    db::VectorStore,
-};
 use axum::{
-    body::Body,
-    http::{Request, StatusCode, Method},
     Router,
+    body::Body,
+    http::{Method, Request, StatusCode},
 };
-use tower::ServiceExt;
 use serde_json::json;
+use tower::ServiceExt;
+use vectorizer::{api::server::VectorizerServer, auth::AuthManager, db::VectorStore};
 
 async fn create_test_app() -> Router {
     let vector_store = VectorStore::new();
@@ -26,19 +22,21 @@ async fn create_test_app() -> Router {
 #[tokio::test]
 async fn test_health_check() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/health")
         .body(Body::empty())
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let health_data: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(health_data["status"], "healthy");
     assert!(health_data["timestamp"].is_string());
 }
@@ -46,7 +44,7 @@ async fn test_health_check() {
 #[tokio::test]
 async fn test_status_endpoint() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/health")
@@ -56,7 +54,9 @@ async fn test_status_endpoint() {
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let status_data: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(status_data["status"], "healthy");
@@ -67,19 +67,21 @@ async fn test_status_endpoint() {
 #[tokio::test]
 async fn test_collections_list_empty() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections")
         .body(Body::empty())
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let collections: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert!(collections["collections"].is_array());
     assert_eq!(collections["collections"].as_array().unwrap().len(), 0);
 }
@@ -87,26 +89,28 @@ async fn test_collections_list_empty() {
 #[tokio::test]
 async fn test_create_collection() {
     let app = create_test_app().await;
-    
+
     let collection_data = json!({
         "name": "test_collection",
         "dimension": 384,
         "metric": "cosine"
     });
-    
+
     let request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
-    
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let collection: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(collection["collection"], "test_collection");
     assert!(collection["message"].is_string());
 }
@@ -114,20 +118,20 @@ async fn test_create_collection() {
 #[tokio::test]
 async fn test_create_collection_invalid_data() {
     let app = create_test_app().await;
-    
+
     let invalid_data = json!({
         "name": "",  // Empty name should fail
         "dimension": 0,  // Zero dimension should fail
         "metric": "cosine"
     });
-    
+
     let request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(invalid_data.to_string()))
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
@@ -135,13 +139,13 @@ async fn test_create_collection_invalid_data() {
 #[tokio::test]
 async fn test_create_collection_duplicate() {
     let app = create_test_app().await;
-    
+
     let collection_data = json!({
         "name": "duplicate_test",
         "dimension": 384,
         "metric": "cosine"
     });
-    
+
     // Create first collection
     let request1 = Request::builder()
         .method(Method::POST)
@@ -149,10 +153,10 @@ async fn test_create_collection_duplicate() {
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let response1 = app.clone().oneshot(request1).await.unwrap();
     assert_eq!(response1.status(), StatusCode::CREATED);
-    
+
     // Try to create duplicate
     let request2 = Request::builder()
         .method(Method::POST)
@@ -160,7 +164,7 @@ async fn test_create_collection_duplicate() {
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let response2 = app.oneshot(request2).await.unwrap();
     assert_eq!(response2.status(), StatusCode::CONFLICT);
 }
@@ -168,37 +172,39 @@ async fn test_create_collection_duplicate() {
 #[tokio::test]
 async fn test_get_collection() {
     let app = create_test_app().await;
-    
+
     // First create a collection
     let collection_data = json!({
         "name": "get_test_collection",
         "dimension": 384,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Then get it
     let get_request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections/get_test_collection")
         .body(Body::empty())
         .unwrap();
-    
+
     let get_response = app.oneshot(get_request).await.unwrap();
     assert_eq!(get_response.status(), StatusCode::OK);
-    
-    let body = axum::body::to_bytes(get_response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(get_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let collection: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(collection["name"], "get_test_collection");
     assert_eq!(collection["dimension"], 384);
 }
@@ -206,13 +212,13 @@ async fn test_get_collection() {
 #[tokio::test]
 async fn test_get_collection_not_found() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections/nonexistent_collection")
         .body(Body::empty())
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -220,41 +226,41 @@ async fn test_get_collection_not_found() {
 #[tokio::test]
 async fn test_delete_collection() {
     let app = create_test_app().await;
-    
+
     // First create a collection
     let collection_data = json!({
         "name": "delete_test_collection",
         "dimension": 384,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Then delete it
     let delete_request = Request::builder()
         .method(Method::DELETE)
         .uri("/api/v1/collections/delete_test_collection")
         .body(Body::empty())
         .unwrap();
-    
+
     let delete_response = app.clone().oneshot(delete_request).await.unwrap();
     assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
-    
+
     // Verify it's gone
     let get_request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections/delete_test_collection")
         .body(Body::empty())
         .unwrap();
-    
+
     let get_response = app.oneshot(get_request).await.unwrap();
     assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
 }
@@ -262,24 +268,24 @@ async fn test_delete_collection() {
 #[tokio::test]
 async fn test_insert_vectors() {
     let app = create_test_app().await;
-    
+
     // First create a collection
     let collection_data = json!({
         "name": "insert_test_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Insert vectors
     let vectors_data = json!({
         "vectors": [
@@ -295,44 +301,46 @@ async fn test_insert_vectors() {
             }
         ]
     });
-    
+
     let insert_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/insert_test_collection/vectors")
         .header("content-type", "application/json")
         .body(Body::from(vectors_data.to_string()))
         .unwrap();
-    
+
     let insert_response = app.oneshot(insert_request).await.unwrap();
     assert_eq!(insert_response.status(), StatusCode::CREATED);
-    
-    let body = axum::body::to_bytes(insert_response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(insert_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(result["inserted"], 2);
 }
 
 #[tokio::test]
 async fn test_insert_vectors_invalid_dimension() {
     let app = create_test_app().await;
-    
+
     // Create collection with dimension 3
     let collection_data = json!({
         "name": "dimension_test_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Try to insert vector with wrong dimension
     let vectors_data = json!({
         "vectors": [
@@ -343,14 +351,14 @@ async fn test_insert_vectors_invalid_dimension() {
             }
         ]
     });
-    
+
     let insert_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/dimension_test_collection/vectors")
         .header("content-type", "application/json")
         .body(Body::from(vectors_data.to_string()))
         .unwrap();
-    
+
     let insert_response = app.oneshot(insert_request).await.unwrap();
     assert_eq!(insert_response.status(), StatusCode::BAD_REQUEST);
 }
@@ -358,24 +366,24 @@ async fn test_insert_vectors_invalid_dimension() {
 #[tokio::test]
 async fn test_search_vectors() {
     let app = create_test_app().await;
-    
+
     // Create collection and insert vectors
     let collection_data = json!({
         "name": "search_test_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Insert test vectors
     let vectors_data = json!({
         "vectors": [
@@ -386,41 +394,43 @@ async fn test_search_vectors() {
             },
             {
                 "id": "search_vec2",
-                "vector": [0.0, 1.0, 0.0], 
+                "vector": [0.0, 1.0, 0.0],
                 "payload": {"title": "Unit vector Y"}
             }
         ]
     });
-    
+
     let insert_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/search_test_collection/vectors")
         .header("content-type", "application/json")
         .body(Body::from(vectors_data.to_string()))
         .unwrap();
-    
+
     let insert_response = app.clone().oneshot(insert_request).await.unwrap();
     assert_eq!(insert_response.status(), StatusCode::CREATED);
-    
+
     // Search for vectors
     let search_data = json!({
         "vector": [1.0, 0.0, 0.0],
         "limit": 10
     });
-    
+
     let search_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/search_test_collection/search")
         .header("content-type", "application/json")
         .body(Body::from(search_data.to_string()))
         .unwrap();
-    
+
     let search_response = app.oneshot(search_request).await.unwrap();
     assert_eq!(search_response.status(), StatusCode::OK);
-    
-    let body = axum::body::to_bytes(search_response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(search_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let results: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert!(results["results"].is_array());
     // Array exists, no need to check length >= 0
 }
@@ -428,67 +438,69 @@ async fn test_search_vectors() {
 #[tokio::test]
 async fn test_search_vectors_by_text() {
     let app = create_test_app().await;
-    
+
     // Create collection
     let collection_data = json!({
         "name": "text_search_collection",
         "dimension": 384,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Search by text
     let search_data = json!({
         "query": "machine learning algorithms",
         "limit": 5
     });
-    
+
     let search_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/text_search_collection/search/text")
         .header("content-type", "application/json")
         .body(Body::from(search_data.to_string()))
         .unwrap();
-    
+
     let search_response = app.oneshot(search_request).await.unwrap();
     assert_eq!(search_response.status(), StatusCode::OK);
-    
-    let body = axum::body::to_bytes(search_response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(search_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let results: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert!(results["results"].is_array());
 }
 
 #[tokio::test]
 async fn test_get_vector() {
     let app = create_test_app().await;
-    
+
     // Create collection and insert vector
     let collection_data = json!({
         "name": "get_vector_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Insert vector
     let vectors_data = json!({
         "vectors": [
@@ -499,30 +511,32 @@ async fn test_get_vector() {
             }
         ]
     });
-    
+
     let insert_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/get_vector_collection/vectors")
         .header("content-type", "application/json")
         .body(Body::from(vectors_data.to_string()))
         .unwrap();
-    
+
     let insert_response = app.clone().oneshot(insert_request).await.unwrap();
     assert_eq!(insert_response.status(), StatusCode::CREATED);
-    
+
     // Get the vector
     let get_request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections/get_vector_collection/vectors/get_test_vector")
         .body(Body::empty())
         .unwrap();
-    
+
     let get_response = app.oneshot(get_request).await.unwrap();
     assert_eq!(get_response.status(), StatusCode::OK);
-    
-    let body = axum::body::to_bytes(get_response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(get_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let vector: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(vector["id"], "get_test_vector");
     // Vector is L2 normalized, just verify it's an array of 3 floats
     assert!(vector["vector"].is_array());
@@ -533,31 +547,31 @@ async fn test_get_vector() {
 #[tokio::test]
 async fn test_get_vector_not_found() {
     let app = create_test_app().await;
-    
+
     // Create collection
     let collection_data = json!({
         "name": "not_found_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Try to get non-existent vector
     let get_request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections/not_found_collection/vectors/nonexistent_vector")
         .body(Body::empty())
         .unwrap();
-    
+
     let get_response = app.oneshot(get_request).await.unwrap();
     assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
 }
@@ -565,24 +579,24 @@ async fn test_get_vector_not_found() {
 #[tokio::test]
 async fn test_delete_vector() {
     let app = create_test_app().await;
-    
+
     // Create collection and insert vector
     let collection_data = json!({
         "name": "delete_vector_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Insert vector
     let vectors_data = json!({
         "vectors": [
@@ -593,34 +607,34 @@ async fn test_delete_vector() {
             }
         ]
     });
-    
+
     let insert_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/delete_vector_collection/vectors")
         .header("content-type", "application/json")
         .body(Body::from(vectors_data.to_string()))
         .unwrap();
-    
+
     let insert_response = app.clone().oneshot(insert_request).await.unwrap();
     assert_eq!(insert_response.status(), StatusCode::CREATED);
-    
+
     // Delete the vector
     let delete_request = Request::builder()
         .method(Method::DELETE)
         .uri("/api/v1/collections/delete_vector_collection/vectors/delete_test_vector")
         .body(Body::empty())
         .unwrap();
-    
+
     let delete_response = app.clone().oneshot(delete_request).await.unwrap();
     assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
-    
+
     // Verify it's gone
     let get_request = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/collections/delete_vector_collection/vectors/delete_test_vector")
         .body(Body::empty())
         .unwrap();
-    
+
     let get_response = app.oneshot(get_request).await.unwrap();
     assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
 }
@@ -628,24 +642,24 @@ async fn test_delete_vector() {
 #[tokio::test]
 async fn test_batch_operations() {
     let app = create_test_app().await;
-    
+
     // Create collection
     let collection_data = json!({
         "name": "batch_test_collection",
         "dimension": 3,
         "metric": "cosine"
     });
-    
+
     let create_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from(collection_data.to_string()))
         .unwrap();
-    
+
     let create_response = app.clone().oneshot(create_request).await.unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    
+
     // Insert multiple vectors in batch
     let vectors_data = json!({
         "vectors": [
@@ -656,34 +670,36 @@ async fn test_batch_operations() {
             {"id": "batch_vec5", "vector": [1.0, 0.0, 1.0], "payload": {"title": "Batch 5"}}
         ]
     });
-    
+
     let insert_request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections/batch_test_collection/vectors")
         .header("content-type", "application/json")
         .body(Body::from(vectors_data.to_string()))
         .unwrap();
-    
+
     let insert_response = app.clone().oneshot(insert_request).await.unwrap();
     assert_eq!(insert_response.status(), StatusCode::CREATED);
-    
-    let body = axum::body::to_bytes(insert_response.into_body(), usize::MAX).await.unwrap();
+
+    let body = axum::body::to_bytes(insert_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(result["inserted"], 5);
 }
 
 #[tokio::test]
 async fn test_invalid_json_request() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/collections")
         .header("content-type", "application/json")
         .body(Body::from("invalid json"))
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
@@ -705,13 +721,13 @@ async fn test_missing_content_type() {
 #[tokio::test]
 async fn test_unsupported_method() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::PATCH)
         .uri("/api/v1/collections")
         .body(Body::empty())
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
@@ -719,7 +735,7 @@ async fn test_unsupported_method() {
 #[tokio::test]
 async fn test_cors_headers() {
     let app = create_test_app().await;
-    
+
     let request = Request::builder()
         .method(Method::OPTIONS)
         .uri("/api/v1/collections")
@@ -728,10 +744,10 @@ async fn test_cors_headers() {
         .header("access-control-request-headers", "content-type")
         .body(Body::empty())
         .unwrap();
-    
+
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // Check CORS headers
     let headers = response.headers();
     assert!(headers.contains_key("access-control-allow-origin"));

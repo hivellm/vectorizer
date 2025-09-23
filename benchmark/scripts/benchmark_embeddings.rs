@@ -6,16 +6,19 @@
 use std::collections::HashSet;
 use std::fs;
 use std::time::Instant;
-use vectorizer::{
-    db::{OptimizedHnswConfig, OptimizedHnswIndex},
-    embedding::{BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding},
-    evaluation::{evaluate_search_quality, EvaluationMetrics, QueryResult},
-    document_loader::{DocumentLoader, LoaderConfig},
-    parallel::{init_parallel_env, ParallelConfig},
-};
+use tracing_subscriber;
 #[cfg(feature = "candle-models")]
 use vectorizer::embedding::{RealModelEmbedder, RealModelType};
-use tracing_subscriber;
+use vectorizer::{
+    db::{OptimizedHnswConfig, OptimizedHnswIndex},
+    document_loader::{DocumentLoader, LoaderConfig},
+    embedding::{
+        BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding,
+        SvdEmbedding, TfIdfEmbedding,
+    },
+    evaluation::{EvaluationMetrics, QueryResult, evaluate_search_quality},
+    parallel::{ParallelConfig, init_parallel_env},
+};
 
 /// Simple document collection for benchmarking
 struct BenchmarkDataset {
@@ -37,11 +40,7 @@ impl BenchmarkDataset {
             max_chunk_size: 1000,
             chunk_overlap: 200,
             embedding_dimension: 384, // MiniLM compatible
-            allowed_extensions: vec![
-                ".md".to_string(),
-                ".txt".to_string(),
-                ".json".to_string(),
-            ],
+            allowed_extensions: vec![".md".to_string(), ".txt".to_string(), ".json".to_string()],
             max_file_size: 1024 * 1024, // 1MB max per file
         };
 
@@ -86,7 +85,10 @@ impl BenchmarkDataset {
             return Err("No documents were loaded from gov/ directory".into());
         }
 
-        println!("Loaded {} document chunks from gov/ directory", documents.len());
+        println!(
+            "Loaded {} document chunks from gov/ directory",
+            documents.len()
+        );
 
         // Create realistic queries about governance content
         let queries = vec![
@@ -126,29 +128,45 @@ impl BenchmarkDataset {
 
                 let is_relevant = match query_lower.as_str() {
                     q if q.contains("governance") && q.contains("voting") => {
-                        doc_lower.contains("governance") || doc_lower.contains("voting") || doc_lower.contains("consensus")
-                    },
+                        doc_lower.contains("governance")
+                            || doc_lower.contains("voting")
+                            || doc_lower.contains("consensus")
+                    }
                     q if q.contains("bip") && q.contains("implementation") => {
-                        doc_lower.contains("bip") || doc_lower.contains("implementation") || doc_lower.contains("workflow")
-                    },
+                        doc_lower.contains("bip")
+                            || doc_lower.contains("implementation")
+                            || doc_lower.contains("workflow")
+                    }
                     q if q.contains("proposal") && q.contains("approval") => {
-                        doc_lower.contains("proposal") || doc_lower.contains("approval") || doc_lower.contains("approved")
-                    },
+                        doc_lower.contains("proposal")
+                            || doc_lower.contains("approval")
+                            || doc_lower.contains("approved")
+                    }
                     q if q.contains("meeting") && q.contains("minutes") => {
-                        doc_lower.contains("minute") || doc_lower.contains("meeting") || doc_lower.contains("summary")
-                    },
+                        doc_lower.contains("minute")
+                            || doc_lower.contains("meeting")
+                            || doc_lower.contains("summary")
+                    }
                     q if q.contains("team") && q.contains("organization") => {
-                        doc_lower.contains("team") || doc_lower.contains("structure") || doc_lower.contains("organization")
-                    },
+                        doc_lower.contains("team")
+                            || doc_lower.contains("structure")
+                            || doc_lower.contains("organization")
+                    }
                     q if q.contains("review") && q.contains("policy") => {
-                        doc_lower.contains("review") || doc_lower.contains("policy") || doc_lower.contains("guideline")
-                    },
+                        doc_lower.contains("review")
+                            || doc_lower.contains("policy")
+                            || doc_lower.contains("guideline")
+                    }
                     q if q.contains("model") && q.contains("evaluation") => {
-                        doc_lower.contains("model") || doc_lower.contains("evaluation") || doc_lower.contains("metric")
-                    },
+                        doc_lower.contains("model")
+                            || doc_lower.contains("evaluation")
+                            || doc_lower.contains("metric")
+                    }
                     q if q.contains("security") && q.contains("integrity") => {
-                        doc_lower.contains("security") || doc_lower.contains("integrity") || doc_lower.contains("validation")
-                    },
+                        doc_lower.contains("security")
+                            || doc_lower.contains("integrity")
+                            || doc_lower.contains("validation")
+                    }
                     _ => false,
                 };
 
@@ -189,7 +207,10 @@ fn evaluate_embedding_method(
     dataset: &BenchmarkDataset,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!("Evaluating {} with dimension {}...", embedding_name, dimension);
+    println!(
+        "Evaluating {} with dimension {}...",
+        embedding_name, dimension
+    );
 
     // Initialize parallel environment
     let parallel_config = ParallelConfig::default();
@@ -208,12 +229,21 @@ fn evaluate_embedding_method(
     manager.set_default_provider(embedding_name)?;
 
     // Build vocabulary from all documents
-    println!("Building vocabulary from {} documents...", dataset.documents.len());
+    println!(
+        "Building vocabulary from {} documents...",
+        dataset.documents.len()
+    );
     if let Some(provider) = manager.get_provider_mut(embedding_name) {
         match embedding_name {
             "TF-IDF" => {
                 if let Some(tfidf) = provider.as_any_mut().downcast_mut::<TfIdfEmbedding>() {
-                    tfidf.build_vocabulary(&dataset.documents.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+                    tfidf.build_vocabulary(
+                        &dataset
+                            .documents
+                            .iter()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>(),
+                    );
                 }
             }
             "BM25" => {
@@ -235,13 +265,16 @@ fn evaluate_embedding_method(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
     // Compute and index all document embeddings
-    println!("Computing and indexing {} documents...", dataset.documents.len());
+    println!(
+        "Computing and indexing {} documents...",
+        dataset.documents.len()
+    );
     let batch_size = 500; // Larger batches for TF-IDF/BM25 which are faster
     let start_time = Instant::now();
-    
+
     for (batch_idx, batch) in dataset.documents.chunks(batch_size).enumerate() {
         let batch_start = Instant::now();
-        
+
         // Compute embeddings for batch
         let mut batch_vectors = Vec::with_capacity(batch.len());
         for (i, document) in batch.iter().enumerate() {
@@ -249,28 +282,38 @@ fn evaluate_embedding_method(
             let embedding = manager.embed(document)?;
             batch_vectors.push((format!("doc_{}", doc_idx), embedding));
         }
-        
+
         // Batch insert into index
         index.batch_add(batch_vectors)?;
-        
+
         let batch_elapsed = batch_start.elapsed();
         let batch_throughput = batch.len() as f64 / batch_elapsed.as_secs_f64();
-        
+
         if batch_idx % 5 == 0 {
             let total_processed = (batch_idx + 1) * batch_size;
             let progress = (total_processed as f32 / dataset.documents.len() as f32) * 100.0;
-            println!("  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec", 
-                batch_idx, total_processed, dataset.documents.len(), progress, batch_throughput);
+            println!(
+                "  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec",
+                batch_idx,
+                total_processed,
+                dataset.documents.len(),
+                progress,
+                batch_throughput
+            );
         }
     }
-    
+
     // Optimize index for search
     index.optimize()?;
-    
+
     let total_time = start_time.elapsed();
     let overall_throughput = dataset.documents.len() as f64 / total_time.as_secs_f64();
-    println!("✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)", 
-        dataset.documents.len(), total_time.as_secs_f64(), overall_throughput);
+    println!(
+        "✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)",
+        dataset.documents.len(),
+        total_time.as_secs_f64(),
+        overall_throughput
+    );
 
     // Evaluate queries using the index
     let mut query_results = Vec::new();
@@ -293,7 +336,8 @@ fn evaluate_embedding_method(
             .collect();
 
         // Convert ground truth to document IDs
-        let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
+        let ground_truth_ids =
+            convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
 
         query_results.push((results, ground_truth_ids));
     }
@@ -311,7 +355,6 @@ fn evaluate_embedding_method(
 
     Ok(metrics)
 }
-
 
 /// Evaluate dense embedding methods (BERT, MiniLM) with optimized indexing
 fn evaluate_dense_embedding_method(
@@ -347,7 +390,7 @@ fn evaluate_dense_embedding_method(
 
     // Determine batch size based on method (placeholder models are faster)
     let batch_size = 200;
-    
+
     // Create optimized HNSW index
     let hnsw_config = OptimizedHnswConfig {
         batch_size: 500,
@@ -358,12 +401,15 @@ fn evaluate_dense_embedding_method(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
     // Compute and index all document embeddings
-    println!("Computing and indexing {} documents...", dataset.documents.len());
+    println!(
+        "Computing and indexing {} documents...",
+        dataset.documents.len()
+    );
     let start_time = Instant::now();
-    
+
     for (batch_idx, batch) in dataset.documents.chunks(batch_size).enumerate() {
         let batch_start = Instant::now();
-        
+
         // Compute embeddings for batch
         let mut batch_vectors = Vec::with_capacity(batch.len());
         for (i, document) in batch.iter().enumerate() {
@@ -371,28 +417,38 @@ fn evaluate_dense_embedding_method(
             let embedding = manager.embed(document)?;
             batch_vectors.push((format!("doc_{}", doc_idx), embedding));
         }
-        
+
         // Batch insert into index
         index.batch_add(batch_vectors)?;
-        
+
         let batch_elapsed = batch_start.elapsed();
         let batch_throughput = batch.len() as f64 / batch_elapsed.as_secs_f64();
-        
+
         if batch_idx % 10 == 0 {
             let total_processed = (batch_idx + 1) * batch_size;
             let progress = (total_processed as f32 / dataset.documents.len() as f32) * 100.0;
-            println!("  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec", 
-                batch_idx, total_processed, dataset.documents.len(), progress, batch_throughput);
+            println!(
+                "  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec",
+                batch_idx,
+                total_processed,
+                dataset.documents.len(),
+                progress,
+                batch_throughput
+            );
         }
     }
-    
+
     // Optimize index for search
     index.optimize()?;
-    
+
     let total_time = start_time.elapsed();
     let overall_throughput = dataset.documents.len() as f64 / total_time.as_secs_f64();
-    println!("✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)", 
-        dataset.documents.len(), total_time.as_secs_f64(), overall_throughput);
+    println!(
+        "✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)",
+        dataset.documents.len(),
+        total_time.as_secs_f64(),
+        overall_throughput
+    );
 
     // Evaluate queries using the index
     let mut query_results = Vec::new();
@@ -415,7 +471,8 @@ fn evaluate_dense_embedding_method(
             .collect();
 
         // Convert ground truth
-        let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
+        let ground_truth_ids =
+            convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
 
         query_results.push((results, ground_truth_ids));
     }
@@ -434,7 +491,6 @@ fn evaluate_dense_embedding_method(
     Ok(metrics)
 }
 
-
 /// Evaluate real transformer model embeddings with optimized indexing
 #[cfg(feature = "candle-models")]
 fn evaluate_real_model_embedding(
@@ -443,7 +499,10 @@ fn evaluate_real_model_embedding(
     model_name: &str,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!("Evaluating real model {} with dimension {}...", model_name, dimension);
+    println!(
+        "Evaluating real model {} with dimension {}...",
+        model_name, dimension
+    );
 
     // Initialize parallel environment for optimal performance
     let parallel_config = ParallelConfig::default();
@@ -455,26 +514,34 @@ fn evaluate_real_model_embedding(
     // Measure embedding throughput first
     let test_batch = &dataset.documents[..std::cmp::min(100, dataset.documents.len())];
     let test_refs: Vec<&str> = test_batch.iter().map(|s| s.as_str()).collect();
-    
+
     let start_time = Instant::now();
     let _ = embedder.embed(test_refs[0])?;
     let _single_time = start_time.elapsed();
-    
+
     let start_time = Instant::now();
     for doc in test_refs.iter().take(10) {
         let _ = embedder.embed(doc)?;
     }
     let batch_time = start_time.elapsed();
-    
+
     let docs_per_sec = 10.0 / batch_time.as_secs_f64();
     println!("Throughput estimate: {:.2} docs/sec", docs_per_sec);
 
     // Decide whether to process all documents based on performance
     let process_all = docs_per_sec > 50.0; // If we can do > 50 docs/sec, process all
-    let max_docs = if process_all { dataset.documents.len() } else { 500 };
-    
+    let max_docs = if process_all {
+        dataset.documents.len()
+    } else {
+        500
+    };
+
     let sampled_docs: Vec<&String> = if dataset.documents.len() > max_docs {
-        println!("Processing {} documents from {} total", max_docs, dataset.documents.len());
+        println!(
+            "Processing {} documents from {} total",
+            max_docs,
+            dataset.documents.len()
+        );
         dataset.documents.iter().take(max_docs).collect()
     } else {
         println!("Processing ALL {} documents!", dataset.documents.len());
@@ -494,10 +561,10 @@ fn evaluate_real_model_embedding(
     println!("Computing and indexing {} documents...", sampled_docs.len());
     let batch_size = 100;
     let start_time = Instant::now();
-    
+
     for (batch_idx, batch) in sampled_docs.chunks(batch_size).enumerate() {
         let batch_start = Instant::now();
-        
+
         // Compute embeddings for batch
         let mut batch_vectors = Vec::with_capacity(batch.len());
         for (i, document) in batch.iter().enumerate() {
@@ -505,35 +572,50 @@ fn evaluate_real_model_embedding(
             let embedding = embedder.embed(document)?;
             batch_vectors.push((format!("doc_{}", doc_idx), embedding));
         }
-        
+
         // Batch insert into index
         index.batch_add(batch_vectors)?;
-        
+
         let batch_elapsed = batch_start.elapsed();
         let batch_throughput = batch.len() as f64 / batch_elapsed.as_secs_f64();
-        
+
         if batch_idx % 10 == 0 {
             let total_processed = (batch_idx + 1) * batch_size;
             let progress = (total_processed as f32 / sampled_docs.len() as f32) * 100.0;
-            println!("  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec", 
-                batch_idx, total_processed, sampled_docs.len(), progress, batch_throughput);
+            println!(
+                "  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec",
+                batch_idx,
+                total_processed,
+                sampled_docs.len(),
+                progress,
+                batch_throughput
+            );
         }
     }
-    
+
     // Optimize index for search
     index.optimize()?;
-    
+
     let total_time = start_time.elapsed();
     let overall_throughput = sampled_docs.len() as f64 / total_time.as_secs_f64();
-    println!("✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)", 
-        sampled_docs.len(), total_time.as_secs_f64(), overall_throughput);
+    println!(
+        "✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)",
+        sampled_docs.len(),
+        total_time.as_secs_f64(),
+        overall_throughput
+    );
 
     // Evaluate queries using the index
     println!("Evaluating queries using HNSW index...");
     let mut query_results = Vec::new();
 
     for (query_idx, query) in dataset.queries.iter().enumerate() {
-        println!("  Query {}/{}: {}", query_idx + 1, dataset.queries.len(), query);
+        println!(
+            "  Query {}/{}: {}",
+            query_idx + 1,
+            dataset.queries.len(),
+            query
+        );
 
         // Get query embedding
         let query_embedding = embedder.embed(query)?;
@@ -589,14 +671,18 @@ fn evaluate_svd_method_optimized(
     svd_dimension: usize,
     max_docs: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!("Evaluating SVD with dimension {} (using {} docs)...", svd_dimension, max_docs);
+    println!(
+        "Evaluating SVD with dimension {} (using {} docs)...",
+        svd_dimension, max_docs
+    );
 
     // Initialize parallel environment
     let parallel_config = ParallelConfig::default();
     init_parallel_env(&parallel_config)?;
 
     // Use subset of documents for SVD
-    let sampled_docs: Vec<&str> = dataset.documents
+    let sampled_docs: Vec<&str> = dataset
+        .documents
         .iter()
         .take(max_docs)
         .map(|s| s.as_str())
@@ -623,33 +709,37 @@ fn evaluate_svd_method_optimized(
     // Index documents
     println!("  Indexing {} documents...", sampled_docs.len());
     let index_start = Instant::now();
-    
+
     let mut batch_vectors = Vec::new();
     for (idx, doc) in sampled_docs.iter().enumerate() {
-        let embedding = <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, doc)?;
+        let embedding =
+            <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, doc)?;
         batch_vectors.push((format!("doc_{}", idx), embedding));
-        
+
         // Batch insert
         if batch_vectors.len() >= 500 || idx == sampled_docs.len() - 1 {
             index.batch_add(batch_vectors.clone())?;
             batch_vectors.clear();
         }
     }
-    
+
     index.optimize()?;
     let index_time = index_start.elapsed();
-    println!("  Indexed in {:.2}s ({:.2} docs/sec)", 
-        index_time.as_secs_f64(), 
-        sampled_docs.len() as f64 / index_time.as_secs_f64());
+    println!(
+        "  Indexed in {:.2}s ({:.2} docs/sec)",
+        index_time.as_secs_f64(),
+        sampled_docs.len() as f64 / index_time.as_secs_f64()
+    );
 
     // Evaluate queries
     let mut query_results = Vec::new();
     for (query_idx, query) in dataset.queries.iter().enumerate() {
-        let query_embedding = <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, query)?;
+        let query_embedding =
+            <SvdEmbedding as vectorizer::embedding::EmbeddingProvider>::embed(&svd, query)?;
 
         let k = 100;
         let search_results = index.search(&query_embedding, k)?;
-        
+
         let results: Vec<QueryResult> = search_results
             .into_iter()
             .map(|(id, distance)| QueryResult {
@@ -670,13 +760,16 @@ fn evaluate_svd_method_optimized(
     }
 
     let metrics = evaluate_search_quality(query_results, 10);
-    
+
     // Print statistics
     let memory_stats = index.memory_stats();
     println!("\n📊 SVD Index Statistics:");
     println!("  - Vectors: {}", memory_stats.vector_count);
     println!("  - Memory: {}", memory_stats.format());
-    println!("  - Total time: {:.2}s", (fit_time + index_time).as_secs_f64());
+    println!(
+        "  - Total time: {:.2}s",
+        (fit_time + index_time).as_secs_f64()
+    );
 
     Ok(metrics)
 }
@@ -688,21 +781,21 @@ fn evaluate_onnx_model(
     model_name: &str,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    use vectorizer::embedding::{OnnxEmbedder, OnnxConfig, OnnxModelType};
-    
+    use vectorizer::embedding::{OnnxConfig, OnnxEmbedder, OnnxModelType};
+
     println!("Evaluating {} with ONNX Runtime...", model_name);
-    
+
     // Initialize parallel environment
     let parallel_config = ParallelConfig::default();
     init_parallel_env(&parallel_config)?;
-    
+
     // Configure ONNX model
     let model_type = match model_name {
         "MiniLM-ONNX" => OnnxModelType::MiniLMMultilingual384,
         "E5-Base-ONNX" => OnnxModelType::E5BaseMultilingual768,
         _ => return Err(format!("Unknown ONNX model: {}", model_name).into()),
     };
-    
+
     let config = OnnxConfig {
         model_type,
         batch_size: 128,
@@ -711,7 +804,7 @@ fn evaluate_onnx_model(
     };
     let use_int8 = config.use_int8;
     let embedder = OnnxEmbedder::new(config)?;
-    
+
     // Measure throughput
     let test_batch = &dataset.documents[..std::cmp::min(100, dataset.documents.len())];
     let start_time = Instant::now();
@@ -719,7 +812,7 @@ fn evaluate_onnx_model(
     let batch_time = start_time.elapsed();
     let docs_per_sec = test_batch.len() as f64 / batch_time.as_secs_f64();
     println!("ONNX Throughput: {:.2} docs/sec", docs_per_sec);
-    
+
     // Create optimized index
     let hnsw_config = OptimizedHnswConfig {
         batch_size: 1000,
@@ -728,11 +821,14 @@ fn evaluate_onnx_model(
         ..Default::default()
     };
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
-    
+
     // Index all documents
-    println!("Indexing {} documents with ONNX...", dataset.documents.len());
+    println!(
+        "Indexing {} documents with ONNX...",
+        dataset.documents.len()
+    );
     let start_time = Instant::now();
-    
+
     for (batch_idx, batch) in dataset.documents.chunks(128).enumerate() {
         let embeddings = embedder.embed_parallel(batch)?;
         let mut batch_vectors = Vec::new();
@@ -742,19 +838,21 @@ fn evaluate_onnx_model(
         }
         index.batch_add(batch_vectors)?;
     }
-    
+
     index.optimize()?;
     let index_time = start_time.elapsed();
-    println!("✅ ONNX indexing completed in {:.2}s ({:.2} docs/sec)", 
-        index_time.as_secs_f64(), 
-        dataset.documents.len() as f64 / index_time.as_secs_f64());
-    
+    println!(
+        "✅ ONNX indexing completed in {:.2}s ({:.2} docs/sec)",
+        index_time.as_secs_f64(),
+        dataset.documents.len() as f64 / index_time.as_secs_f64()
+    );
+
     // Evaluate queries
     let mut query_results = Vec::new();
     for (query_idx, query) in dataset.queries.iter().enumerate() {
         let query_embedding = embedder.embed(query)?;
         let search_results = index.search(&query_embedding, 100)?;
-        
+
         let results: Vec<QueryResult> = search_results
             .into_iter()
             .map(|(id, distance)| QueryResult {
@@ -762,13 +860,14 @@ fn evaluate_onnx_model(
                 relevance: 1.0 - distance,
             })
             .collect();
-        
-        let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
+
+        let ground_truth_ids =
+            convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
         query_results.push((results, ground_truth_ids));
     }
-    
+
     let metrics = evaluate_search_quality(query_results, 10);
-    
+
     // Print statistics
     let memory_stats = index.memory_stats();
     println!("\n📊 ONNX Index Statistics:");
@@ -776,7 +875,7 @@ fn evaluate_onnx_model(
     println!("  - Vectors: {}", memory_stats.vector_count);
     println!("  - Memory: {}", memory_stats.format());
     println!("  - Index time: {:.2}s", index_time.as_secs_f64());
-    
+
     Ok(metrics)
 }
 
@@ -787,17 +886,19 @@ fn evaluate_hybrid_search(
     dense_method: &str,
     dense_dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    
-    println!("Evaluating Hybrid Search: {} -> {}", sparse_method, dense_method);
-    
+    println!(
+        "Evaluating Hybrid Search: {} -> {}",
+        sparse_method, dense_method
+    );
+
     // Initialize parallel environment
     let parallel_config = ParallelConfig::default();
     init_parallel_env(&parallel_config)?;
-    
+
     // Create sparse retriever (BM25)
     let mut bm25 = Bm25Embedding::new(10000); // Large vocab for BM25
     bm25.build_vocabulary(&dataset.documents);
-    
+
     // Create dense embedder
     let dense_embedder: Box<dyn vectorizer::embedding::EmbeddingProvider> = match dense_method {
         "BERT" => {
@@ -812,41 +913,44 @@ fn evaluate_hybrid_search(
         }
         _ => return Err(format!("Unknown dense method: {}", dense_method).into()),
     };
-    
+
     // For hybrid search, we'll simulate the two-stage process
-    println!("Building BM25 index for {} documents...", dataset.documents.len());
+    println!(
+        "Building BM25 index for {} documents...",
+        dataset.documents.len()
+    );
     let start_time = Instant::now();
-    
+
     let mut query_results = Vec::new();
-    
+
     for (query_idx, query) in dataset.queries.iter().enumerate() {
         // Stage 1: BM25 retrieval to get top-50 candidates
         let bm25_embedding = bm25.embed(query)?;
-        
+
         let mut candidates = Vec::new();
         for (doc_idx, doc) in dataset.documents.iter().enumerate() {
             let doc_embedding = bm25.embed(doc)?;
             let similarity = cosine_similarity(&bm25_embedding, &doc_embedding);
             candidates.push((doc_idx, similarity));
         }
-        
+
         // Sort by BM25 score and take top-50
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         let top_candidates: Vec<_> = candidates.into_iter().take(50).collect();
-        
+
         // Stage 2: Re-rank top candidates with dense embeddings
         let mut reranked = Vec::new();
         let query_dense = dense_embedder.embed(query)?;
-        
+
         for (doc_idx, _) in top_candidates {
             let doc_dense = dense_embedder.embed(&dataset.documents[doc_idx])?;
             let dense_similarity = cosine_similarity(&query_dense, &doc_dense);
             reranked.push((doc_idx, dense_similarity));
         }
-        
+
         // Sort by dense score and take top-10
         reranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        
+
         let results: Vec<QueryResult> = reranked
             .into_iter()
             .take(10)
@@ -855,16 +959,20 @@ fn evaluate_hybrid_search(
                 relevance,
             })
             .collect();
-        
-        let ground_truth_ids = convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
+
+        let ground_truth_ids =
+            convert_ground_truth_to_ids(&dataset.ground_truth[query_idx], &dataset.documents);
         query_results.push((results, ground_truth_ids));
     }
 
     let total_time = start_time.elapsed();
-    println!("✅ Hybrid search completed in {:.2}s", total_time.as_secs_f64());
-    
+    println!(
+        "✅ Hybrid search completed in {:.2}s",
+        total_time.as_secs_f64()
+    );
+
     let metrics = evaluate_search_quality(query_results, 10);
-    
+
     println!("\n📊 Hybrid Search Statistics:");
     println!("  - Sparse: {} (top-50 candidates)", sparse_method);
     println!("  - Dense: {} (re-ranking)", dense_method);
@@ -890,8 +998,14 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 fn print_results(method: &str, metrics: &EvaluationMetrics) {
     println!("\n=== {} Results ===", method);
     println!("Queries evaluated: {}", metrics.num_queries);
-    println!("Mean Average Precision (MAP): {:.4}", metrics.mean_average_precision);
-    println!("Mean Reciprocal Rank (MRR): {:.4}", metrics.mean_reciprocal_rank);
+    println!(
+        "Mean Average Precision (MAP): {:.4}",
+        metrics.mean_average_precision
+    );
+    println!(
+        "Mean Reciprocal Rank (MRR): {:.4}",
+        metrics.mean_reciprocal_rank
+    );
 
     println!("\nPrecision@K:");
     for (k, &precision) in metrics.precision_at_k.iter().enumerate() {
@@ -905,41 +1019,67 @@ fn print_results(method: &str, metrics: &EvaluationMetrics) {
 }
 
 /// Generate Markdown report with all benchmark results
-fn generate_markdown_report(results: &[(String, EvaluationMetrics)], dataset: &BenchmarkDataset) -> String {
+fn generate_markdown_report(
+    results: &[(String, EvaluationMetrics)],
+    dataset: &BenchmarkDataset,
+) -> String {
     let mut report = String::new();
 
     report.push_str("# Vectorizer Embedding Benchmark Report\n\n");
-    report.push_str(&format!("**Generated**: {}\n\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+    report.push_str(&format!(
+        "**Generated**: {}\n\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+    ));
 
     report.push_str("## Dataset Overview\n\n");
-    report.push_str(&format!("- **Documents**: {} total\n", dataset.documents.len()));
-    report.push_str(&format!("- **Queries**: {} test queries\n", dataset.queries.len()));
+    report.push_str(&format!(
+        "- **Documents**: {} total\n",
+        dataset.documents.len()
+    ));
+    report.push_str(&format!(
+        "- **Queries**: {} test queries\n",
+        dataset.queries.len()
+    ));
     report.push_str("- **Ground Truth**: Manually annotated relevant documents per query\n\n");
 
     report.push_str("## Benchmark Configuration\n\n");
     report.push_str("### Embedding Methods Tested\n\n");
     report.push_str("| Method | Type | Dimensions | Description |\n");
     report.push_str("|--------|------|------------|-------------|\n");
-    report.push_str("| TF-IDF | Sparse | Variable | Traditional term frequency-inverse document frequency |\n");
-    report.push_str("| BM25 | Sparse | Variable | Advanced sparse retrieval with k1=1.5, b=0.75 |\n");
-    report.push_str("| TF-IDF+SVD | Sparse Reduced | 300D/768D | TF-IDF with dimensionality reduction |\n");
+    report.push_str(
+        "| TF-IDF | Sparse | Variable | Traditional term frequency-inverse document frequency |\n",
+    );
+    report
+        .push_str("| BM25 | Sparse | Variable | Advanced sparse retrieval with k1=1.5, b=0.75 |\n");
+    report.push_str(
+        "| TF-IDF+SVD | Sparse Reduced | 300D/768D | TF-IDF with dimensionality reduction |\n",
+    );
     report.push_str("| BERT | Dense | 768D | Contextual embeddings (placeholder/real) |\n");
-    report.push_str("| MiniLM | Dense | 384D | Efficient sentence embeddings (placeholder/real) |\n");
-    report.push_str("| ONNX Models | Dense | 384D/768D | Optimized inference with INT8 quantization |\n");
-    report.push_str("| Hybrid Search | Two-stage | Variable | BM25 retrieval + dense re-ranking |\n\n");
+    report
+        .push_str("| MiniLM | Dense | 384D | Efficient sentence embeddings (placeholder/real) |\n");
+    report.push_str(
+        "| ONNX Models | Dense | 384D/768D | Optimized inference with INT8 quantization |\n",
+    );
+    report.push_str(
+        "| Hybrid Search | Two-stage | Variable | BM25 retrieval + dense re-ranking |\n\n",
+    );
 
     report.push_str("### Evaluation Metrics\n\n");
-    report.push_str("- **MAP (Mean Average Precision)**: Average precision across all relevant documents\n");
+    report.push_str(
+        "- **MAP (Mean Average Precision)**: Average precision across all relevant documents\n",
+    );
     report.push_str("- **MRR (Mean Reciprocal Rank)**: Average of reciprocal ranks of first relevant document\n");
     report.push_str("- **Precision@K**: Fraction of relevant documents in top-K results\n");
-    report.push_str("- **Recall@K**: Fraction of relevant documents retrieved in top-K results\n\n");
+    report
+        .push_str("- **Recall@K**: Fraction of relevant documents retrieved in top-K results\n\n");
 
     report.push_str("## Results Summary\n\n");
     report.push_str("| Method | MAP | MRR | P@1 | P@3 | P@5 | R@1 | R@3 | R@5 |\n");
     report.push_str("|--------|-----|-----|-----|-----|-----|-----|-----|-----|\n");
 
     for (method, metrics) in results {
-        report.push_str(&format!("| {} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} |\n",
+        report.push_str(&format!(
+            "| {} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} | {:.4} |\n",
             method,
             metrics.mean_average_precision,
             metrics.mean_reciprocal_rank,
@@ -956,9 +1096,18 @@ fn generate_markdown_report(results: &[(String, EvaluationMetrics)], dataset: &B
 
     for (method, metrics) in results {
         report.push_str(&format!("### {}\n\n", method));
-        report.push_str(&format!("- **Queries Evaluated**: {}\n", metrics.num_queries));
-        report.push_str(&format!("- **Mean Average Precision**: {:.4}\n", metrics.mean_average_precision));
-        report.push_str(&format!("- **Mean Reciprocal Rank**: {:.4}\n\n", metrics.mean_reciprocal_rank));
+        report.push_str(&format!(
+            "- **Queries Evaluated**: {}\n",
+            metrics.num_queries
+        ));
+        report.push_str(&format!(
+            "- **Mean Average Precision**: {:.4}\n",
+            metrics.mean_average_precision
+        ));
+        report.push_str(&format!(
+            "- **Mean Reciprocal Rank**: {:.4}\n\n",
+            metrics.mean_reciprocal_rank
+        ));
 
         report.push_str("#### Precision@K\n\n");
         report.push_str("| K | Precision |\n");
@@ -979,37 +1128,63 @@ fn generate_markdown_report(results: &[(String, EvaluationMetrics)], dataset: &B
     report.push_str("## Analysis & Insights\n\n");
 
     // Find best performers
-    let best_map = results.iter()
-        .max_by(|a, b| a.1.mean_average_precision.partial_cmp(&b.1.mean_average_precision).unwrap())
+    let best_map = results
+        .iter()
+        .max_by(|a, b| {
+            a.1.mean_average_precision
+                .partial_cmp(&b.1.mean_average_precision)
+                .unwrap()
+        })
         .unwrap();
 
-    let best_mrr = results.iter()
-        .max_by(|a, b| a.1.mean_reciprocal_rank.partial_cmp(&b.1.mean_reciprocal_rank).unwrap())
+    let best_mrr = results
+        .iter()
+        .max_by(|a, b| {
+            a.1.mean_reciprocal_rank
+                .partial_cmp(&b.1.mean_reciprocal_rank)
+                .unwrap()
+        })
         .unwrap();
 
     report.push_str(&format!("### Best Performers\n\n"));
-    report.push_str(&format!("- **Highest MAP**: {} ({:.4})\n", best_map.0, best_map.1.mean_average_precision));
-    report.push_str(&format!("- **Highest MRR**: {} ({:.4})\n\n", best_mrr.0, best_mrr.1.mean_reciprocal_rank));
+    report.push_str(&format!(
+        "- **Highest MAP**: {} ({:.4})\n",
+        best_map.0, best_map.1.mean_average_precision
+    ));
+    report.push_str(&format!(
+        "- **Highest MRR**: {} ({:.4})\n\n",
+        best_mrr.0, best_mrr.1.mean_reciprocal_rank
+    ));
 
     report.push_str("### Observations\n\n");
-    report.push_str("- **Sparse vs Dense**: Compare TF-IDF/BM25 (efficient) vs BERT/MiniLM (semantic)\n");
+    report.push_str(
+        "- **Sparse vs Dense**: Compare TF-IDF/BM25 (efficient) vs BERT/MiniLM (semantic)\n",
+    );
     report.push_str("- **SVD Impact**: Evaluate dimensionality reduction effects on TF-IDF\n");
     report.push_str("- **Hybrid Benefits**: Assess if BM25 + dense re-ranking improves quality\n");
-    report.push_str("- **Dataset Characteristics**: Small dataset may favor exact matching methods\n\n");
+    report.push_str(
+        "- **Dataset Characteristics**: Small dataset may favor exact matching methods\n\n",
+    );
 
     report.push_str("### Recommendations\n\n");
     report.push_str("1. **For Efficiency**: Use BM25 or TF-IDF+SVD for fast retrieval\n");
     report.push_str("2. **For Quality**: Consider hybrid approaches when compute allows\n");
     report.push_str("3. **For Scale**: Test with larger, more diverse datasets\n");
-    report.push_str("4. **Real Models**: Replace placeholders with actual BERT/MiniLM implementations\n\n");
+    report.push_str(
+        "4. **Real Models**: Replace placeholders with actual BERT/MiniLM implementations\n\n",
+    );
 
     report.push_str("## Technical Details\n\n");
     report.push_str("### Implementation Notes\n\n");
-    report.push_str("- **TF-IDF+SVD**: Pseudo-orthogonal transformation using Gram-Schmidt orthogonalization\n");
+    report.push_str(
+        "- **TF-IDF+SVD**: Pseudo-orthogonal transformation using Gram-Schmidt orthogonalization\n",
+    );
     report.push_str("- **BERT/MiniLM**: Placeholder implementations using seeded hashing\n");
     report.push_str("- **BM25**: Standard parameters (k1=1.5, b=0.75)\n");
     report.push_str("- **Sparse Methods**: TF-IDF and BM25 use variable vocabulary sizes\n");
-    report.push_str("- **Dense Methods**: BERT/MiniLM use fixed dimensions with reproducible embeddings\n\n");
+    report.push_str(
+        "- **Dense Methods**: BERT/MiniLM use fixed dimensions with reproducible embeddings\n\n",
+    );
 
     report.push_str("### Dependencies\n\n");
     report.push_str("- `ndarray`: Linear algebra operations\n");
@@ -1032,7 +1207,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================================");
 
     let dataset = BenchmarkDataset::new()?;
-    println!("Dataset: {} documents, {} queries", dataset.documents.len(), dataset.queries.len());
+    println!(
+        "Dataset: {} documents, {} queries",
+        dataset.documents.len(),
+        dataset.queries.len()
+    );
 
     let dimension = 128; // Embedding dimension for comparison
 
@@ -1055,14 +1234,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Evaluate SVD-based methods with optimizations
     println!("\n🔍 Evaluating SVD-based methods...");
-    
+
     // Use a subset for SVD to avoid performance issues
     let svd_sample_size = std::cmp::min(1000, dataset.documents.len());
     if dataset.documents.len() > svd_sample_size {
-        println!("   Using {} documents for SVD evaluation (from {} total)", svd_sample_size, dataset.documents.len());
+        println!(
+            "   Using {} documents for SVD evaluation (from {} total)",
+            svd_sample_size,
+            dataset.documents.len()
+        );
     }
-    
-    match evaluate_svd_method_optimized(&dataset, 300, svd_sample_size) {  // 300D SVD
+
+    match evaluate_svd_method_optimized(&dataset, 300, svd_sample_size) {
+        // 300D SVD
         Ok(metrics) => {
             print_results("TF-IDF+SVD(300D)", &metrics);
             results.push(("TF-IDF+SVD(300D)".to_string(), metrics));
@@ -1072,7 +1256,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    match evaluate_svd_method_optimized(&dataset, 768, svd_sample_size) {  // 768D SVD
+    match evaluate_svd_method_optimized(&dataset, 768, svd_sample_size) {
+        // 768D SVD
         Ok(metrics) => {
             print_results("TF-IDF+SVD(768D)", &metrics);
             results.push(("TF-IDF+SVD(768D)".to_string(), metrics));
@@ -1112,10 +1297,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n🤖 Testing real transformer models (cached in /models)...");
 
         let real_models = vec![
-            ("MiniLM-Multilingual", RealModelType::MiniLMMultilingual, 384),
+            (
+                "MiniLM-Multilingual",
+                RealModelType::MiniLMMultilingual,
+                384,
+            ),
             ("E5-Small", RealModelType::E5SmallMultilingual, 384),
-            ("DistilUSE-Multilingual", RealModelType::DistilUseMultilingual, 512),
-            ("MPNet-Multilingual", RealModelType::MPNetMultilingualBase, 768),
+            (
+                "DistilUSE-Multilingual",
+                RealModelType::DistilUseMultilingual,
+                512,
+            ),
+            (
+                "MPNet-Multilingual",
+                RealModelType::MPNetMultilingualBase,
+                768,
+            ),
             ("E5-Base", RealModelType::E5BaseMultilingual, 768),
             ("GTE-Base", RealModelType::GTEMultilingualBase, 768),
             ("LaBSE", RealModelType::LaBSE, 768),
@@ -1123,7 +1320,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for (model_name, model_type, dimension) in real_models {
             println!("\n🔄 Testing {} ({})", model_name, model_type.model_id());
-            match evaluate_real_model_embedding(&dataset, model_type.clone(), model_name, dimension) {
+            match evaluate_real_model_embedding(&dataset, model_type.clone(), model_name, dimension)
+            {
                 Ok(metrics) => {
                     print_results(&format!("{}({}D Real)", model_name, dimension), &metrics);
                     results.push((format!("{}({}D Real)", model_name, dimension), metrics));
@@ -1138,15 +1336,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(not(feature = "candle-models"))]
     {
-        println!("\n⚠️  Real models not available - compile with --features candle-models to test actual transformer models");
-        println!("   Available models would include: MiniLM-Multilingual, E5-Small, MPNet-Multilingual, etc.");
+        println!(
+            "\n⚠️  Real models not available - compile with --features candle-models to test actual transformer models"
+        );
+        println!(
+            "   Available models would include: MiniLM-Multilingual, E5-Small, MPNet-Multilingual, etc."
+        );
     }
 
     // Test ONNX models if available
     #[cfg(feature = "onnx-models")]
     {
         println!("\n⚡ Testing ONNX models for production inference...");
-        
+
         match evaluate_onnx_model(&dataset, "MiniLM-ONNX", 384) {
             Ok(metrics) => {
                 print_results("MiniLM(384D ONNX)", &metrics);
@@ -1156,7 +1358,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Error evaluating MiniLM ONNX: {}", e);
             }
         }
-        
+
         match evaluate_onnx_model(&dataset, "E5-Base-ONNX", 768) {
             Ok(metrics) => {
                 print_results("E5-Base(768D ONNX)", &metrics);
@@ -1167,15 +1369,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     #[cfg(not(feature = "onnx-models"))]
     {
-        println!("\n⚡ ONNX models not available - compile with --features onnx-models for optimized inference");
+        println!(
+            "\n⚡ ONNX models not available - compile with --features onnx-models for optimized inference"
+        );
     }
 
     // Evaluate Hybrid Search approaches
     println!("\n🔀 Evaluating Hybrid Search approaches...");
-    
+
     match evaluate_hybrid_search(&dataset, "BM25", "BERT", 768) {
         Ok(metrics) => {
             print_results("Hybrid: BM25->BERT", &metrics);
@@ -1185,7 +1389,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Error evaluating BM25+BERT hybrid: {}", e);
         }
     }
-    
+
     match evaluate_hybrid_search(&dataset, "BM25", "MiniLM", 384) {
         Ok(metrics) => {
             print_results("Hybrid: BM25->MiniLM", &metrics);
@@ -1199,16 +1403,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Summary comparison
     println!("\n📊 Summary Comparison");
     println!("====================");
-    println!("{:<10} {:<8} {:<8} {:<8} {:<8}",
-             "Method", "MAP", "MRR", "P@5", "R@5");
+    println!(
+        "{:<10} {:<8} {:<8} {:<8} {:<8}",
+        "Method", "MAP", "MRR", "P@5", "R@5"
+    );
 
     for (method, metrics) in &results {
-        println!("{:<10} {:.4}   {:.4}   {:.4}   {:.4}",
-                 method,
-                 metrics.mean_average_precision,
-                 metrics.mean_reciprocal_rank,
-                 metrics.precision_at_k.get(4).copied().unwrap_or(0.0), // P@5
-                 metrics.recall_at_k.get(4).copied().unwrap_or(0.0),    // R@5
+        println!(
+            "{:<10} {:.4}   {:.4}   {:.4}   {:.4}",
+            method,
+            metrics.mean_average_precision,
+            metrics.mean_reciprocal_rank,
+            metrics.precision_at_k.get(4).copied().unwrap_or(0.0), // P@5
+            metrics.recall_at_k.get(4).copied().unwrap_or(0.0),    // R@5
         );
     }
 
@@ -1229,7 +1436,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Fallback: tentar salvar no diretório atual
             let fallback_filename = format!("benchmark_report_{}.md", timestamp);
             if let Ok(_) = fs::write(&fallback_filename, &report) {
-                println!("📁 Fallback: Report saved to: {} (current directory)", fallback_filename);
+                println!(
+                    "📁 Fallback: Report saved to: {} (current directory)",
+                    fallback_filename
+                );
             }
         }
     }

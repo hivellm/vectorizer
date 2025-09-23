@@ -1,9 +1,9 @@
 //! Document loader and processor for automatic indexing
 
 use crate::{
+    VectorStore,
     embedding::{EmbeddingManager, TfIdfEmbedding},
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
-    VectorStore,
 };
 use anyhow::{Context, Result};
 use std::{
@@ -48,8 +48,8 @@ pub struct LoaderConfig {
 impl Default for LoaderConfig {
     fn default() -> Self {
         Self {
-            max_chunk_size: 1000,  // Valor fixo adequado
-            chunk_overlap: 200,    // Valor fixo adequado
+            max_chunk_size: 1000, // Valor fixo adequado
+            chunk_overlap: 200,   // Valor fixo adequado
             allowed_extensions: vec![
                 // Documentos
                 "md".to_string(),
@@ -113,7 +113,7 @@ impl Default for LoaderConfig {
                 "thrift".to_string(),
                 "avro".to_string(),
             ],
-            embedding_dimension: 384,  // Valor fixo adequado para TF-IDF
+            embedding_dimension: 384, // Valor fixo adequado para TF-IDF
             collection_name: "documents".to_string(),
             max_file_size: 1024 * 1024, // 1MB por padrão
         }
@@ -135,7 +135,7 @@ impl DocumentLoader {
     pub fn new(config: LoaderConfig) -> Self {
         let mut embedding_manager = EmbeddingManager::new();
         let processed_chunks = Vec::new();
-        
+
         // Initialize TF-IDF embedding
         let tfidf = TfIdfEmbedding::new(config.embedding_dimension);
         embedding_manager.register_provider("tfidf".to_string(), Box::new(tfidf));
@@ -169,7 +169,11 @@ impl DocumentLoader {
         let chunks = self.chunk_documents(&documents)?;
         info!("Created {} chunks from documents", chunks.len());
 
-        info!("Successfully processed {} documents into {} chunks", documents.len(), chunks.len());
+        info!(
+            "Successfully processed {} documents into {} chunks",
+            documents.len(),
+            chunks.len()
+        );
         Ok(chunks.len())
     }
 
@@ -202,7 +206,8 @@ impl DocumentLoader {
                     if dir_name.starts_with('.')
                         || dir_name == "node_modules"
                         || dir_name == "target"
-                        || dir_name == "__pycache__" {
+                        || dir_name == "__pycache__"
+                    {
                         debug!("Skipping directory: {}", dir_name);
                         continue;
                     }
@@ -218,10 +223,17 @@ impl DocumentLoader {
                         match fs::metadata(&path) {
                             Ok(metadata) => {
                                 let file_size = metadata.len();
-                                debug!("File size: {} bytes, max allowed: {} bytes", file_size, self.config.max_file_size);
+                                debug!(
+                                    "File size: {} bytes, max allowed: {} bytes",
+                                    file_size, self.config.max_file_size
+                                );
                                 if file_size > self.config.max_file_size as u64 {
-                                    debug!("Skipping file {} (size: {} bytes, max: {} bytes)",
-                                           path.display(), file_size, self.config.max_file_size);
+                                    debug!(
+                                        "Skipping file {} (size: {} bytes, max: {} bytes)",
+                                        path.display(),
+                                        file_size,
+                                        self.config.max_file_size
+                                    );
                                     continue;
                                 }
                             }
@@ -235,16 +247,27 @@ impl DocumentLoader {
                         debug!("Processing file: {}", path.display());
                         match fs::read_to_string(&path) {
                             Ok(content) => {
-                                debug!("Loaded document: {} ({} bytes)", path.display(), content.len());
+                                debug!(
+                                    "Loaded document: {} ({} bytes)",
+                                    path.display(),
+                                    content.len()
+                                );
                                 documents.push((path, content));
                             }
                             Err(e) => {
                                 warn!("Failed to read file {}: {}", path.display(), e);
-                                return Err(anyhow::anyhow!("Failed to read file {}: {}", path.display(), e));
+                                return Err(anyhow::anyhow!(
+                                    "Failed to read file {}: {}",
+                                    path.display(),
+                                    e
+                                ));
                             }
                         }
                     } else {
-                        debug!("Extension {} is not allowed. Allowed: {:?}", ext_lower, self.config.allowed_extensions);
+                        debug!(
+                            "Extension {} is not allowed. Allowed: {:?}",
+                            ext_lower, self.config.allowed_extensions
+                        );
                     }
                 }
             }
@@ -259,7 +282,10 @@ impl DocumentLoader {
         info!("Building vocabulary from {} documents", documents.len());
 
         // Extract text content for vocabulary building
-        let texts: Vec<&str> = documents.iter().map(|(_, content)| content.as_str()).collect();
+        let texts: Vec<&str> = documents
+            .iter()
+            .map(|(_, content)| content.as_str())
+            .collect();
 
         // Get the TF-IDF provider and build vocabulary
         if let Some(provider) = self.embedding_manager.get_provider_mut("tfidf") {
@@ -295,8 +321,14 @@ impl DocumentLoader {
         // Delete existing collection if it exists
         let _ = store.delete_collection(&self.config.collection_name);
 
-        store.create_collection(&self.config.collection_name, config)
-            .with_context(|| format!("Failed to create collection '{}'", self.config.collection_name))?;
+        store
+            .create_collection(&self.config.collection_name, config)
+            .with_context(|| {
+                format!(
+                    "Failed to create collection '{}'",
+                    self.config.collection_name
+                )
+            })?;
 
         info!("Created collection: {}", self.config.collection_name);
         Ok(())
@@ -308,9 +340,18 @@ impl DocumentLoader {
         let mut chunks = Vec::new();
 
         for (i, (path, content)) in documents.iter().enumerate() {
-            info!("Processing document {}/{}: {}", i + 1, documents.len(), path.display());
+            info!(
+                "Processing document {}/{}: {}",
+                i + 1,
+                documents.len(),
+                path.display()
+            );
             let file_chunks = self.chunk_text(content, path)?;
-            info!("Created {} chunks from {}", file_chunks.len(), path.display());
+            info!(
+                "Created {} chunks from {}",
+                file_chunks.len(),
+                path.display()
+            );
             chunks.extend(file_chunks);
         }
 
@@ -327,41 +368,52 @@ impl DocumentLoader {
         while start < text.len() {
             // Calculate the end position for this chunk
             let mut end = std::cmp::min(start + self.config.max_chunk_size, text.len());
-            
+
             // If we're not at the end of the text, try to find a good break point
             if end < text.len() {
                 // Ensure we're at a UTF-8 character boundary
                 while end > start && !text.is_char_boundary(end) {
                     end -= 1;
                 }
-                
+
                 // Try to break at a word boundary (whitespace, punctuation)
-                if let Some(pos) = text[start..end].rfind(|c: char| c.is_whitespace() || c == '.' || c == '!' || c == '?' || c == '\n') {
+                if let Some(pos) = text[start..end].rfind(|c: char| {
+                    c.is_whitespace() || c == '.' || c == '!' || c == '?' || c == '\n'
+                }) {
                     end = start + pos + 1;
                 }
             }
 
             // Extract the chunk text
             let chunk_text = text[start..end].trim();
-            
+
             // Only create a chunk if it has content
             if !chunk_text.is_empty() {
                 let chunk_id = format!("{}#{}", file_path.to_string_lossy(), chunk_index);
 
                 let mut metadata = HashMap::new();
-                metadata.insert("file_path".to_string(), 
-                    serde_json::Value::String(file_path.to_string_lossy().to_string()));
-                metadata.insert("chunk_index".to_string(), 
-                    serde_json::Value::Number(chunk_index.into()));
-                metadata.insert("file_extension".to_string(), 
+                metadata.insert(
+                    "file_path".to_string(),
+                    serde_json::Value::String(file_path.to_string_lossy().to_string()),
+                );
+                metadata.insert(
+                    "chunk_index".to_string(),
+                    serde_json::Value::Number(chunk_index.into()),
+                );
+                metadata.insert(
+                    "file_extension".to_string(),
                     serde_json::Value::String(
-                        file_path.extension()
+                        file_path
+                            .extension()
                             .and_then(|e| e.to_str())
                             .unwrap_or("unknown")
-                            .to_string()
-                    ));
-                metadata.insert("chunk_size".to_string(), 
-                    serde_json::Value::Number(chunk_text.len().into()));
+                            .to_string(),
+                    ),
+                );
+                metadata.insert(
+                    "chunk_size".to_string(),
+                    serde_json::Value::Number(chunk_text.len().into()),
+                );
 
                 let chunk_content = chunk_text.to_string();
                 chunks.push(DocumentChunk {
@@ -408,23 +460,23 @@ impl DocumentLoader {
 
         for chunk in chunks {
             // Generate embedding for the chunk content
-            let embedding = self.embedding_manager.embed(&chunk.content)
+            let embedding = self
+                .embedding_manager
+                .embed(&chunk.content)
                 .with_context(|| format!("Failed to generate embedding for chunk: {}", chunk.id))?;
 
             // Create payload with metadata
             let mut payload_data = chunk.metadata.clone();
-            payload_data.insert("content".to_string(), 
-                serde_json::Value::String(chunk.content.clone()));
+            payload_data.insert(
+                "content".to_string(),
+                serde_json::Value::String(chunk.content.clone()),
+            );
 
             let payload = Payload::new(serde_json::Value::Object(
-                payload_data.into_iter().collect()
+                payload_data.into_iter().collect(),
             ));
 
-            vectors.push(Vector::with_payload(
-                chunk.id.clone(),
-                embedding,
-                payload,
-            ));
+            vectors.push(Vector::with_payload(chunk.id.clone(), embedding, payload));
         }
 
         Ok(vectors)
@@ -438,7 +490,7 @@ impl DocumentLoader {
     /// Get collection statistics
     pub fn get_stats(&self, store: &VectorStore) -> Result<serde_json::Value> {
         let metadata = store.get_collection_metadata(&self.config.collection_name)?;
-        
+
         Ok(serde_json::json!({
             "collection_name": self.config.collection_name,
             "vector_count": metadata.vector_count,

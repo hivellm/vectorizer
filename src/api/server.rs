@@ -1,11 +1,11 @@
 //! HTTP server implementation for the Vectorizer API
 
 use axum::{
-    http::{
-        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
-        Method,
-    },
     Router,
+    http::{
+        Method,
+        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    },
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -34,7 +34,7 @@ impl VectorizerServer {
         let addr = format!("{}:{}", host, port)
             .parse()
             .expect("Invalid host/port combination");
-        
+
         let state = AppState::new(store);
 
         Self { addr, state }
@@ -74,7 +74,7 @@ impl VectorizerServer {
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
-                    .layer(cors)
+                    .layer(cors),
             )
             .fallback(not_found_handler)
     }

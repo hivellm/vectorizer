@@ -44,17 +44,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load project documents if specified
     if let Some(project_path) = &args.project {
         info!("Loading project from: {}", project_path);
-        
+
         let config = vectorizer::document_loader::LoaderConfig::default();
         let mut loader = vectorizer::document_loader::DocumentLoader::new(config);
-        
+
         match loader.load_project(project_path) {
             Ok(count) => {
                 info!("Successfully loaded {} document chunks", count);
-                
+
                 // Print collection statistics
                 if let Ok(stats) = loader.get_stats(&store) {
-                    info!("Collection stats: {}", serde_json::to_string_pretty(&stats)?);
+                    info!(
+                        "Collection stats: {}",
+                        serde_json::to_string_pretty(&stats)?
+                    );
                 }
             }
             Err(e) => {
@@ -66,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create and start the HTTP server
     let server = vectorizer::api::VectorizerServer::new(&args.host, args.port, store);
-    
+
     info!("Starting REST API server...");
     server.start().await?;
 

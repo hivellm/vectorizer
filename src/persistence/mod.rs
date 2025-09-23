@@ -318,13 +318,16 @@ mod tests {
         let manager_uncompressed = PersistenceManager::new(false);
 
         manager_compressed.save(&data, &path_compressed).unwrap();
-        manager_uncompressed.save(&data, &path_uncompressed).unwrap();
+        manager_uncompressed
+            .save(&data, &path_uncompressed)
+            .unwrap();
 
         // Both should load correctly regardless of compression setting
         let loaded_compressed: Vec<u8> = manager_compressed.load(&path_compressed).unwrap();
         let loaded_uncompressed: Vec<u8> = manager_uncompressed.load(&path_uncompressed).unwrap();
         let cross_loaded_compressed: Vec<u8> = manager_uncompressed.load(&path_compressed).unwrap();
-        let cross_loaded_uncompressed: Vec<u8> = manager_compressed.load(&path_uncompressed).unwrap();
+        let cross_loaded_uncompressed: Vec<u8> =
+            manager_compressed.load(&path_uncompressed).unwrap();
 
         assert_eq!(loaded_compressed, data);
         assert_eq!(loaded_uncompressed, data);

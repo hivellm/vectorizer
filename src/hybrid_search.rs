@@ -5,8 +5,8 @@
 //! 2. Second stage: Re-ranking using dense embeddings (BERT, MiniLM, etc.)
 
 use crate::embedding::EmbeddingProvider;
-use crate::evaluation::QueryResult;
 use crate::error::Result;
+use crate::evaluation::QueryResult;
 
 /// Hybrid search retriever combining sparse and dense methods
 pub struct HybridRetriever<T: EmbeddingProvider, U: EmbeddingProvider> {

@@ -1,17 +1,17 @@
 //! Authentication and authorization system for Vectorizer
-//! 
+//!
 //! Provides JWT-based authentication, API key management, and role-based access control
 //! for production deployment of the vector database.
 
-pub mod jwt;
 pub mod api_keys;
+pub mod jwt;
 pub mod middleware;
 pub mod roles;
 
-pub use jwt::JwtManager;
 pub use api_keys::ApiKeyManager;
+pub use jwt::JwtManager;
 pub use middleware::AuthMiddleware;
-pub use roles::{Role, Permission};
+pub use roles::{Permission, Role};
 
 use crate::error::{Result, VectorizerError};
 use serde::{Deserialize, Serialize};
@@ -118,7 +118,7 @@ impl AuthManager {
     pub fn new(config: AuthConfig) -> Result<Self> {
         let jwt_manager = JwtManager::new(&config.jwt_secret, config.jwt_expiration)?;
         let api_key_manager = ApiKeyManager::new(config.api_key_length)?;
-        
+
         Ok(Self {
             jwt_manager,
             api_key_manager,
@@ -140,19 +140,21 @@ impl AuthManager {
         permissions: Vec<Permission>,
         expires_at: Option<u64>,
     ) -> Result<(String, ApiKey)> {
-        self.api_key_manager.create_key(user_id, name, permissions, expires_at).await
+        self.api_key_manager
+            .create_key(user_id, name, permissions, expires_at)
+            .await
     }
 
     /// Validate an API key and return user information
     pub async fn validate_api_key(&self, api_key: &str) -> Result<UserClaims> {
         let key_info = self.api_key_manager.validate_key(api_key).await?;
-        
+
         // Check rate limiting
         self.check_rate_limit(&key_info.id).await?;
-        
+
         // Update last used timestamp
         self.api_key_manager.update_last_used(&key_info.id).await?;
-        
+
         // Create user claims from API key
         Ok(UserClaims {
             user_id: key_info.user_id.clone(),
@@ -177,22 +179,22 @@ impl AuthManager {
     async fn check_rate_limit(&self, api_key_id: &str) -> Result<()> {
         let mut rate_limits = self.rate_limits.write().await;
         let now = chrono::Utc::now().timestamp() as u64;
-        
-        let rate_info = rate_limits.entry(api_key_id.to_string()).or_insert_with(|| {
-            RateLimitInfo {
+
+        let rate_info = rate_limits
+            .entry(api_key_id.to_string())
+            .or_insert_with(|| RateLimitInfo {
                 requests_per_minute: 0,
                 requests_per_hour: 0,
                 minute_reset: now,
                 hour_reset: now,
-            }
-        });
+            });
 
         // Reset counters if needed
         if now - rate_info.minute_reset >= 60 {
             rate_info.requests_per_minute = 0;
             rate_info.minute_reset = now;
         }
-        
+
         if now - rate_info.hour_reset >= 3600 {
             rate_info.requests_per_hour = 0;
             rate_info.hour_reset = now;
@@ -205,7 +207,7 @@ impl AuthManager {
                 limit: self.config.rate_limit_per_minute,
             });
         }
-        
+
         if rate_info.requests_per_hour >= self.config.rate_limit_per_hour {
             return Err(VectorizerError::RateLimitExceeded {
                 limit_type: "per_hour".to_string(),
@@ -244,7 +246,7 @@ mod tests {
     async fn test_auth_manager_creation() {
         let config = AuthConfig::default();
         let auth_manager = AuthManager::new(config).unwrap();
-        
+
         assert!(auth_manager.config().enabled);
         assert_eq!(auth_manager.config().jwt_expiration, 3600);
     }
@@ -253,16 +255,16 @@ mod tests {
     async fn test_api_key_creation_and_validation() {
         let config = AuthConfig::default();
         let auth_manager = AuthManager::new(config).unwrap();
-        
+
         let (api_key, key_info) = auth_manager
             .create_api_key("user123", "test_key", vec![Permission::Read], None)
             .await
             .unwrap();
-        
+
         assert_eq!(key_info.user_id, "user123");
         assert_eq!(key_info.name, "test_key");
         assert!(key_info.active);
-        
+
         let user_claims = auth_manager.validate_api_key(&api_key).await.unwrap();
         assert_eq!(user_claims.user_id, "user123");
     }
@@ -271,11 +273,11 @@ mod tests {
     async fn test_jwt_generation_and_validation() {
         let config = AuthConfig::default();
         let auth_manager = AuthManager::new(config).unwrap();
-        
+
         let token = auth_manager
             .generate_jwt("user123", "testuser", vec![Role::Admin])
             .unwrap();
-        
+
         let claims = auth_manager.validate_jwt(&token).unwrap();
         assert_eq!(claims.user_id, "user123");
         assert_eq!(claims.username, "testuser");
@@ -286,21 +288,24 @@ mod tests {
     async fn test_rate_limiting() {
         let mut config = AuthConfig::default();
         config.rate_limit_per_minute = 2; // Very low limit for testing
-        
+
         let auth_manager = AuthManager::new(config).unwrap();
-        
+
         let (api_key, _) = auth_manager
             .create_api_key("user123", "test_key", vec![Permission::Read], None)
             .await
             .unwrap();
-        
+
         // First two requests should succeed
         auth_manager.validate_api_key(&api_key).await.unwrap();
         auth_manager.validate_api_key(&api_key).await.unwrap();
-        
+
         // Third request should fail
         let result = auth_manager.validate_api_key(&api_key).await;
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), VectorizerError::RateLimitExceeded { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            VectorizerError::RateLimitExceeded { .. }
+        ));
     }
 }

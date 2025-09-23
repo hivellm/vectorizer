@@ -1,6 +1,6 @@
 //! Tests for embedding cache functionality
 
-use crate::embedding::{EmbeddingCache, CacheConfig};
+use crate::embedding::{CacheConfig, EmbeddingCache};
 use tempfile::tempdir;
 
 #[test]
@@ -19,7 +19,6 @@ fn test_embedding_cache_initialization() {
     let _cache = EmbeddingCache::new(config).unwrap();
     assert!(cache_dir.exists());
 }
-
 
 #[test]
 fn test_embedding_cache_miss() {

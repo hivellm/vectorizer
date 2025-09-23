@@ -2,7 +2,9 @@
 
 use crate::{
     error::{Result, VectorizerError},
-    models::{vector_utils, CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector},
+    models::{
+        CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector, vector_utils,
+    },
 };
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -11,8 +13,7 @@ use std::sync::Arc;
 use super::hnsw_index::HnswIndex;
 
 /// A collection of vectors with an associated HNSW index
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Collection {
     /// Collection name
     name: String,

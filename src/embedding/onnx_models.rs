@@ -13,8 +13,8 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use xxhash_rust::xxh3::xxh3_64;
 use tracing::info;
+use xxhash_rust::xxh3::xxh3_64;
 
 /// ONNX model types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -36,12 +36,18 @@ pub enum OnnxModelType {
 impl OnnxModelType {
     pub fn model_id(&self) -> &'static str {
         match self {
-            Self::MiniLMMultilingual384 => "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+            Self::MiniLMMultilingual384 => {
+                "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            }
             Self::E5SmallMultilingual384 => "intfloat/multilingual-e5-small",
             Self::E5BaseMultilingual768 => "intfloat/multilingual-e5-base",
-            Self::MPNetMultilingual768 => "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+            Self::MPNetMultilingual768 => {
+                "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+            }
             Self::GTEMultilingual768 => "Alibaba-NLP/gte-multilingual-base",
-            Self::DistilUSEMultilingual512 => "sentence-transformers/distiluse-base-multilingual-cased-v2",
+            Self::DistilUSEMultilingual512 => {
+                "sentence-transformers/distiluse-base-multilingual-cased-v2"
+            }
         }
     }
 
@@ -49,12 +55,17 @@ impl OnnxModelType {
         match self {
             Self::MiniLMMultilingual384 | Self::E5SmallMultilingual384 => 384,
             Self::DistilUSEMultilingual512 => 512,
-            Self::E5BaseMultilingual768 | Self::MPNetMultilingual768 | Self::GTEMultilingual768 => 768,
+            Self::E5BaseMultilingual768 | Self::MPNetMultilingual768 | Self::GTEMultilingual768 => {
+                768
+            }
         }
     }
 
     pub fn needs_prefix(&self) -> bool {
-        matches!(self, Self::E5SmallMultilingual384 | Self::E5BaseMultilingual768)
+        matches!(
+            self,
+            Self::E5SmallMultilingual384 | Self::E5BaseMultilingual768
+        )
     }
 
     pub fn max_sequence_length(&self) -> usize {
@@ -128,15 +139,21 @@ impl OnnxEmbedder {
             config.model_type.dimension(),
             config.use_int8
         );
-        Ok(Self { config, cache: Arc::new(RwLock::new(HashMap::new())) })
+        Ok(Self {
+            config,
+            cache: Arc::new(RwLock::new(HashMap::new())),
+        })
     }
 
     /// Get or download ONNX model
-    fn get_or_download_model(_config: &OnnxConfig) -> Result<PathBuf> { unreachable!() }
+    fn get_or_download_model(_config: &OnnxConfig) -> Result<PathBuf> {
+        unreachable!()
+    }
 
     /// Embed a single text
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
-        self.embed_batch(&[text]).map(|mut vecs| vecs.pop().unwrap())
+        self.embed_batch(&[text])
+            .map(|mut vecs| vecs.pop().unwrap())
     }
 
     /// Embed a batch of texts with optimal performance
@@ -160,7 +177,11 @@ impl OnnxEmbedder {
             }
             // L2 normalize
             let norm = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
-            if norm > 0.0 { for x in &mut v { *x /= norm; } }
+            if norm > 0.0 {
+                for x in &mut v {
+                    *x /= norm;
+                }
+            }
             self.cache.write().insert(key, v.clone());
             out.push(v);
         }
@@ -168,10 +189,14 @@ impl OnnxEmbedder {
     }
 
     /// Run inference on a batch of tokenized inputs
-    fn infer_batch(&self, _token_ids_batch: &[Vec<u32>]) -> Result<Vec<Vec<f32>>> { unreachable!() }
+    fn infer_batch(&self, _token_ids_batch: &[Vec<u32>]) -> Result<Vec<Vec<f32>>> {
+        unreachable!()
+    }
 
     /// Apply pooling strategy to token embeddings
-    fn apply_pooling(&self, _embeddings: (), _attention_mask: ()) -> Result<Vec<Vec<f32>>> { unreachable!() }
+    fn apply_pooling(&self, _embeddings: (), _attention_mask: ()) -> Result<Vec<Vec<f32>>> {
+        unreachable!()
+    }
 
     /// Parallel embedding with thread pool control
     pub fn embed_parallel(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
@@ -180,9 +205,19 @@ impl OnnxEmbedder {
             let dims = self.config.model_type.dimension();
             let mut v = Vec::with_capacity(dims);
             let mut acc = xxh3_64(t.as_bytes());
-            for _ in 0..dims { acc = acc.wrapping_mul(2862933555777941757).wrapping_add(3037000493); let val = ((acc >> 13) as f32 / u64::MAX as f32) * 2.0 - 1.0; v.push(val); }
+            for _ in 0..dims {
+                acc = acc
+                    .wrapping_mul(2862933555777941757)
+                    .wrapping_add(3037000493);
+                let val = ((acc >> 13) as f32 / u64::MAX as f32) * 2.0 - 1.0;
+                v.push(val);
+            }
             let norm = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
-            if norm > 0.0 { for x in &mut v { *x /= norm; } }
+            if norm > 0.0 {
+                for x in &mut v {
+                    *x /= norm;
+                }
+            }
             out.push(v);
         }
         Ok(out)
@@ -213,7 +248,7 @@ pub mod benchmark {
         let elapsed = start.elapsed();
 
         let docs_per_sec = texts.len() as f64 / elapsed.as_secs_f64();
-        
+
         info!(
             "ONNX {} throughput: {:.2} docs/sec ({} docs in {:.2}s)",
             model_type.model_id(),

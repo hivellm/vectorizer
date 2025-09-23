@@ -7,7 +7,7 @@
 //! - Work stealing for load balancing
 
 use anyhow::Result;
-use crossbeam::channel::{bounded, Receiver, Sender};
+use crossbeam::channel::{Receiver, Sender, bounded};
 use parking_lot::Mutex;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::env;
@@ -39,7 +39,7 @@ pub struct ParallelConfig {
 impl Default for ParallelConfig {
     fn default() -> Self {
         let num_cores = num_cpus::get();
-        
+
         Self {
             // Use half cores for embedding to leave room for other operations
             embedding_threads: (num_cores / 2).max(1),
@@ -64,7 +64,7 @@ pub fn init_parallel_env(config: &ParallelConfig) -> Result<()> {
         env::set_var("OPENBLAS_NUM_THREADS", config.blas_threads.to_string());
         env::set_var("BLIS_NUM_THREADS", config.blas_threads.to_string());
     }
-    
+
     // Initialize embedding thread pool
     EMBEDDING_POOL.get_or_init(|| {
         ThreadPoolBuilder::new()
@@ -73,7 +73,7 @@ pub fn init_parallel_env(config: &ParallelConfig) -> Result<()> {
             .build()
             .expect("Failed to create embedding thread pool")
     });
-    
+
     // Initialize indexing thread pool
     INDEXING_POOL.get_or_init(|| {
         ThreadPoolBuilder::new()
@@ -82,12 +82,12 @@ pub fn init_parallel_env(config: &ParallelConfig) -> Result<()> {
             .build()
             .expect("Failed to create indexing thread pool")
     });
-    
+
     info!(
         "Initialized parallel environment: {} embedding threads, {} indexing threads, {} BLAS threads",
         config.embedding_threads, config.indexing_threads, config.blas_threads
     );
-    
+
     Ok(())
 }
 
@@ -128,33 +128,29 @@ where
         let (input_tx, input_rx) = bounded(config.channel_size);
         let (embed_tx, embed_rx) = bounded(config.channel_size);
         let (index_tx, index_rx) = bounded(config.channel_size);
-        
+
         let pipeline = Self {
             input_rx,
             embed_tx,
             index_tx,
             config,
         };
-        
+
         (pipeline, input_tx, embed_rx, index_rx)
     }
-    
+
     /// Start the pipeline with custom processing functions
-    pub fn start<FE, FI>(
-        self,
-        embed_fn: FE,
-        index_fn: FI,
-    ) -> Result<()>
+    pub fn start<FE, FI>(self, embed_fn: FE, index_fn: FI) -> Result<()>
     where
         FE: Fn(Vec<T>) -> Result<Vec<E>> + Send + Sync + 'static,
         FI: Fn(Vec<E>) -> Result<Vec<I>> + Send + Sync + 'static,
     {
         let embed_fn = Arc::new(embed_fn);
         let index_fn = Arc::new(index_fn);
-        
+
         // For forwarding embeddings to indexing workers
         let (embed_forward_tx, embed_forward_rx) = bounded(self.config.channel_size);
-        
+
         // Embedding workers
         let embed_workers: Vec<_> = (0..self.config.embedding_threads)
             .map(|i| {
@@ -163,16 +159,16 @@ where
                 let embed_forward_tx_clone = embed_forward_tx.clone();
                 let embed_fn = embed_fn.clone();
                 let batch_size = self.config.batch_size;
-                
+
                 thread::spawn(move || {
                     debug!("Embedding worker {} started", i);
-                    
+
                     let mut batch = Vec::with_capacity(batch_size);
-                    
+
                     loop {
                         // Collect batch
                         batch.clear();
-                        
+
                         // Try to fill batch
                         for _ in 0..batch_size {
                             match input_rx.try_recv() {
@@ -180,7 +176,7 @@ where
                                 Err(_) => break,
                             }
                         }
-                        
+
                         // If no items and channel is disconnected, exit
                         if batch.is_empty() {
                             match input_rx.recv_timeout(std::time::Duration::from_millis(100)) {
@@ -188,19 +184,19 @@ where
                                 Err(_) => break,
                             }
                         }
-                        
+
                         // Process batch
                         if !batch.is_empty() {
                             match embed_fn(batch.clone()) {
                                 Ok(embeddings) => {
-                                for embedding in embeddings {
-                                    if embed_tx.send(embedding.clone()).is_err() {
-                                        return;
+                                    for embedding in embeddings {
+                                        if embed_tx.send(embedding.clone()).is_err() {
+                                            return;
+                                        }
+                                        if embed_forward_tx_clone.send(embedding).is_err() {
+                                            return;
+                                        }
                                     }
-                                    if embed_forward_tx_clone.send(embedding).is_err() {
-                                        return;
-                                    }
-                                }
                                 }
                                 Err(e) => {
                                     debug!("Embedding error: {}", e);
@@ -208,12 +204,12 @@ where
                             }
                         }
                     }
-                    
+
                     debug!("Embedding worker {} stopped", i);
                 })
             })
             .collect();
-        
+
         // Indexing workers
         let index_workers: Vec<_> = (0..self.config.indexing_threads)
             .map(|i| {
@@ -221,16 +217,16 @@ where
                 let index_tx = self.index_tx.clone();
                 let index_fn = index_fn.clone();
                 let batch_size = self.config.batch_size;
-                
+
                 thread::spawn(move || {
                     debug!("Indexing worker {} started", i);
-                    
+
                     let mut batch = Vec::with_capacity(batch_size);
-                    
+
                     loop {
                         // Collect batch
                         batch.clear();
-                        
+
                         // Try to fill batch
                         for _ in 0..batch_size {
                             match embed_rx.try_recv() {
@@ -238,7 +234,7 @@ where
                                 Err(_) => break,
                             }
                         }
-                        
+
                         // If no items and channel is disconnected, exit
                         if batch.is_empty() {
                             match embed_rx.recv_timeout(std::time::Duration::from_millis(100)) {
@@ -246,10 +242,11 @@ where
                                 Err(_) => break,
                             }
                         }
-                        
+
                         // Process batch
                         if !batch.is_empty() {
-                            let batch_to_process = std::mem::replace(&mut batch, Vec::with_capacity(batch_size));
+                            let batch_to_process =
+                                std::mem::replace(&mut batch, Vec::with_capacity(batch_size));
                             match index_fn(batch_to_process) {
                                 Ok(indices) => {
                                     for index in indices {
@@ -264,21 +261,21 @@ where
                             }
                         }
                     }
-                    
+
                     debug!("Indexing worker {} stopped", i);
                 })
             })
             .collect();
-        
+
         // Wait for workers to complete
         for worker in embed_workers {
             worker.join().ok();
         }
-        
+
         for worker in index_workers {
             worker.join().ok();
         }
-        
+
         Ok(())
     }
 }
@@ -296,13 +293,13 @@ impl<T: Send + Sync> BatchProcessor<T> {
             batch_size,
         }
     }
-    
+
     /// Add items to processor
     pub fn add(&self, items: Vec<T>) {
         let mut buffer = self.items.lock();
         buffer.extend(items);
     }
-    
+
     /// Process all items in batches
     pub fn process_all<F, R>(&self, process_fn: F) -> Result<Vec<R>>
     where
@@ -312,16 +309,16 @@ impl<T: Send + Sync> BatchProcessor<T> {
         let mut buffer = self.items.lock();
         let items: Vec<T> = buffer.drain(..).collect();
         drop(buffer);
-        
+
         let pool = embedding_pool();
-        
+
         let results: Result<Vec<Vec<R>>> = pool.install(|| {
             items
                 .chunks(self.batch_size)
                 .map(|batch| process_fn(batch))
                 .collect()
         });
-        
+
         results.map(|vecs| vecs.into_iter().flatten().collect())
     }
 }
@@ -330,13 +327,13 @@ impl<T: Send + Sync> BatchProcessor<T> {
 pub mod monitor {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Instant;
-    
+
     pub struct ThroughputMonitor {
         start_time: Instant,
         processed_items: AtomicU64,
         processed_bytes: AtomicU64,
     }
-    
+
     impl ThroughputMonitor {
         pub fn new() -> Self {
             Self {
@@ -345,26 +342,26 @@ pub mod monitor {
                 processed_bytes: AtomicU64::new(0),
             }
         }
-        
+
         pub fn record_items(&self, count: u64) {
             self.processed_items.fetch_add(count, Ordering::Relaxed);
         }
-        
+
         pub fn record_bytes(&self, bytes: u64) {
             self.processed_bytes.fetch_add(bytes, Ordering::Relaxed);
         }
-        
+
         pub fn throughput(&self) -> (f64, f64) {
             let elapsed = self.start_time.elapsed().as_secs_f64();
             let items = self.processed_items.load(Ordering::Relaxed);
             let bytes = self.processed_bytes.load(Ordering::Relaxed);
-            
+
             let items_per_sec = items as f64 / elapsed;
             let mb_per_sec = (bytes as f64 / 1_048_576.0) / elapsed;
-            
+
             (items_per_sec, mb_per_sec)
         }
-        
+
         pub fn report(&self) -> String {
             let (items_per_sec, mb_per_sec) = self.throughput();
             format!(

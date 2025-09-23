@@ -11,8 +11,8 @@ use std::time::Instant;
 use tracing::{debug, error, info};
 
 use crate::{
-    models::{CollectionConfig, Payload, Vector},
     VectorStore,
+    models::{CollectionConfig, Payload, Vector},
 };
 
 use super::types::*;
@@ -131,10 +131,13 @@ pub async fn create_collection(
     match state.store.create_collection(&request.name, config) {
         Ok(_) => {
             info!("Collection '{}' created successfully", request.name);
-            Ok((StatusCode::CREATED, Json(CreateCollectionResponse {
-                message: "Collection created successfully".to_string(),
-                collection: request.name,
-            })))
+            Ok((
+                StatusCode::CREATED,
+                Json(CreateCollectionResponse {
+                    message: "Collection created successfully".to_string(),
+                    collection: request.name,
+                }),
+            ))
         }
         Err(e) => {
             error!("Failed to create collection '{}': {}", request.name, e);
@@ -245,11 +248,14 @@ pub async fn insert_vectors(
                 "Successfully inserted {} vectors into collection '{}'",
                 vector_count, collection_name
             );
-            Ok((StatusCode::CREATED, Json(InsertVectorsResponse {
-                message: "Vectors inserted successfully".to_string(),
-                inserted: vector_count,
-                inserted_count: vector_count,
-            })))
+            Ok((
+                StatusCode::CREATED,
+                Json(InsertVectorsResponse {
+                    message: "Vectors inserted successfully".to_string(),
+                    inserted: vector_count,
+                    inserted_count: vector_count,
+                }),
+            ))
         }
         Err(e) => {
             error!(
@@ -283,7 +289,11 @@ pub async fn search_vectors(
                 "Searching (vector) in collection '{}' with limit: {:?}",
                 collection_name, req.limit
             );
-            (req.vector, req.limit.unwrap_or(10).min(100), req.score_threshold)
+            (
+                req.vector,
+                req.limit.unwrap_or(10).min(100),
+                req.score_threshold,
+            )
         }
         SearchUnifiedRequest::Text(req) => {
             debug!(
@@ -309,7 +319,10 @@ pub async fn search_vectors(
             let vector = match create_text_embedding(&req.query, embedding_dimension) {
                 Ok(v) => v,
                 Err(e) => {
-                    error!("Failed to create embedding for query '{}': {}", req.query, e);
+                    error!(
+                        "Failed to create embedding for query '{}': {}",
+                        req.query, e
+                    );
                     return Err((
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse {
@@ -320,7 +333,11 @@ pub async fn search_vectors(
                     ));
                 }
             };
-            (vector, req.limit.unwrap_or(10).min(100), req.score_threshold)
+            (
+                vector,
+                req.limit.unwrap_or(10).min(100),
+                req.score_threshold,
+            )
         }
     };
 
@@ -331,7 +348,9 @@ pub async fn search_vectors(
             let mut search_results = Vec::new();
             for result in results {
                 // Apply score threshold if specified
-                if let Some(threshold) = score_threshold && result.score < threshold {
+                if let Some(threshold) = score_threshold
+                    && result.score < threshold
+                {
                     continue;
                 }
 
@@ -374,7 +393,10 @@ pub async fn search_vectors_by_text(
     Path(collection_name): Path<String>,
     Json(request): Json<super::types::SearchTextRequest>,
 ) -> Result<Json<SearchResponse>, (StatusCode, Json<ErrorResponse>)> {
-    debug!("Searching collection '{}' with text query: '{}'", collection_name, request.query);
+    debug!(
+        "Searching collection '{}' with text query: '{}'",
+        collection_name, request.query
+    );
 
     // Validate request
     if request.query.trim().is_empty() {
@@ -408,7 +430,10 @@ pub async fn search_vectors_by_text(
     let query_vector = match create_text_embedding(&request.query, embedding_dimension) {
         Ok(vector) => vector,
         Err(e) => {
-            error!("Failed to create embedding for query '{}': {}", request.query, e);
+            error!(
+                "Failed to create embedding for query '{}': {}",
+                request.query, e
+            );
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
@@ -430,7 +455,9 @@ pub async fn search_vectors_by_text(
             let mut search_results = Vec::new();
             for result in results {
                 // Apply score threshold if specified
-                if let Some(threshold) = request.score_threshold && result.score < threshold {
+                if let Some(threshold) = request.score_threshold
+                    && result.score < threshold
+                {
                     continue;
                 }
 
@@ -454,7 +481,10 @@ pub async fn search_vectors_by_text(
             }))
         }
         Err(e) => {
-            error!("Text search failed in collection '{}': {}", collection_name, e);
+            error!(
+                "Text search failed in collection '{}': {}",
+                collection_name, e
+            );
             Err((
                 StatusCode::BAD_REQUEST,
                 Json(ErrorResponse {
@@ -469,7 +499,7 @@ pub async fn search_vectors_by_text(
 
 /// Create embedding vector from text using TF-IDF or BM25
 fn create_text_embedding(query: &str, dimension: usize) -> anyhow::Result<Vec<f32>> {
-    use crate::embedding::{EmbeddingManager, Bm25Embedding};
+    use crate::embedding::{Bm25Embedding, EmbeddingManager};
 
     // Create a BM25 embedding for better search quality
     // BM25 provides better relevance scoring than basic TF-IDF
@@ -500,7 +530,10 @@ pub async fn get_vector(
     State(state): State<AppState>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<VectorData>, (StatusCode, Json<ErrorResponse>)> {
-    debug!("Getting vector '{}' from collection '{}'", vector_id, collection_name);
+    debug!(
+        "Getting vector '{}' from collection '{}'",
+        vector_id, collection_name
+    );
 
     match state.store.get_vector(&collection_name, &vector_id) {
         Ok(vector) => Ok(Json(VectorData {
@@ -530,7 +563,10 @@ pub async fn delete_vector(
     State(state): State<AppState>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    info!("Deleting vector '{}' from collection '{}'", vector_id, collection_name);
+    info!(
+        "Deleting vector '{}' from collection '{}'",
+        vector_id, collection_name
+    );
 
     match state.store.delete(&collection_name, &vector_id) {
         Ok(_) => {

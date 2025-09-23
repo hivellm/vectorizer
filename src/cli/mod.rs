@@ -1,5 +1,5 @@
 //! Command-line interface for Vectorizer administration
-//! 
+//!
 //! Provides CLI tools for managing the vector database, users, API keys, and system configuration
 
 pub mod commands;
@@ -358,13 +358,13 @@ impl Default for CliConfig {
 /// Main CLI entry point
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    
+
     // Initialize logging
     init_logging(cli.verbose)?;
-    
+
     // Load configuration
     let config = load_config(&cli.config)?;
-    
+
     // Execute command
     match cli.command {
         Commands::Server { action } => {
@@ -389,18 +389,18 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
             handle_config_command(action, &config).await?;
         }
     }
-    
+
     Ok(())
 }
 
 /// Initialize logging based on CLI options
 fn init_logging(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
     let level = if verbose { "debug" } else { "info" };
-    
+
     tracing_subscriber::fmt()
         .with_env_filter(format!("vectorizer={}", level))
         .init();
-    
+
     Ok(())
 }
 
@@ -423,19 +423,25 @@ mod tests {
 
     #[test]
     fn test_cli_parsing() {
-        let args = vec!["vectorizer", "server", "start", "--host", "0.0.0.0", "--port", "8080"];
+        let args = vec![
+            "vectorizer",
+            "server",
+            "start",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8080",
+        ];
         let cli = Cli::try_parse_from(args).unwrap();
-        
+
         match cli.command {
-            Commands::Server { action } => {
-                match action {
-                    ServerCommands::Start { host, port, .. } => {
-                        assert_eq!(host, "0.0.0.0");
-                        assert_eq!(port, 8080);
-                    }
-                    _ => panic!("Expected Start command"),
+            Commands::Server { action } => match action {
+                ServerCommands::Start { host, port, .. } => {
+                    assert_eq!(host, "0.0.0.0");
+                    assert_eq!(port, 8080);
                 }
-            }
+                _ => panic!("Expected Start command"),
+            },
             _ => panic!("Expected Server command"),
         }
     }

@@ -1,23 +1,19 @@
 //! Model Context Protocol (MCP) integration for Vectorizer
-//! 
+//!
 //! Provides MCP server implementation for IDE integration, allowing AI models
 //! to interact with the vector database through a standardized protocol.
 
+pub mod handlers;
 pub mod server;
 pub mod tools;
 pub mod types;
-pub mod handlers;
 
+pub use handlers::*;
 pub use server::McpServer;
 pub use tools::*;
 pub use types::{
-    McpMessage,
-    McpRequestMessage,
-    McpResponseMessage,
-    McpNotificationMessage,
-    McpErrorMessage,
+    McpErrorMessage, McpMessage, McpNotificationMessage, McpRequestMessage, McpResponseMessage,
 };
-pub use handlers::*;
 
 use crate::error::{Result, VectorizerError};
 use serde::{Deserialize, Serialize};
@@ -93,7 +89,8 @@ impl Default for McpConfig {
             server_info: McpServerInfo {
                 name: "Vectorizer MCP Server".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
-                description: "Model Context Protocol server for Vectorizer vector database".to_string(),
+                description: "Model Context Protocol server for Vectorizer vector database"
+                    .to_string(),
             },
             tools: vec![
                 McpTool {
@@ -130,7 +127,8 @@ impl Default for McpConfig {
                 },
                 McpTool {
                     name: "embed_text".to_string(),
-                    description: "Generate embeddings for text using the default embedding model".to_string(),
+                    description: "Generate embeddings for text using the default embedding model"
+                        .to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -236,9 +234,7 @@ pub enum McpRequest {
     /// List available resources
     ResourcesList,
     /// Read a resource
-    ResourcesRead {
-        uri: String,
-    },
+    ResourcesRead { uri: String },
     /// Ping request
     Ping,
 }
@@ -298,7 +294,8 @@ impl McpServerState {
             server_info: McpServerInfo {
                 name: "Vectorizer MCP Server".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
-                description: "Model Context Protocol server for Vectorizer vector database".to_string(),
+                description: "Model Context Protocol server for Vectorizer vector database"
+                    .to_string(),
             },
             tools: vec![
                 McpTool {
@@ -335,7 +332,8 @@ impl McpServerState {
                 },
                 McpTool {
                     name: "embed_text".to_string(),
-                    description: "Generate embeddings for text using the default embedding model".to_string(),
+                    description: "Generate embeddings for text using the default embedding model"
+                        .to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -369,15 +367,19 @@ impl McpServerState {
     }
 
     /// Add a new connection
-    pub async fn add_connection(&self, connection_id: String, connection: McpConnection) -> Result<()> {
+    pub async fn add_connection(
+        &self,
+        connection_id: String,
+        connection: McpConnection,
+    ) -> Result<()> {
         let mut connections = self.connections.write().await;
-        
+
         if connections.len() >= self.config.max_connections {
             return Err(VectorizerError::InvalidConfiguration {
                 message: "Maximum connections exceeded".to_string(),
             });
         }
-        
+
         connections.insert(connection_id, connection);
         Ok(())
     }
@@ -392,11 +394,11 @@ impl McpServerState {
     /// Update connection activity
     pub async fn update_activity(&self, connection_id: &str) -> Result<()> {
         let mut connections = self.connections.write().await;
-        
+
         if let Some(connection) = connections.get_mut(connection_id) {
             connection.last_activity = chrono::Utc::now();
         }
-        
+
         Ok(())
     }
 
@@ -411,17 +413,17 @@ impl McpServerState {
         let mut connections = self.connections.write().await;
         let now = chrono::Utc::now();
         let timeout_duration = chrono::Duration::seconds(self.config.connection_timeout as i64);
-        
+
         let inactive_connections: Vec<String> = connections
             .iter()
             .filter(|(_, conn)| now - conn.last_activity > timeout_duration)
             .map(|(id, _)| id.clone())
             .collect();
-        
+
         for connection_id in &inactive_connections {
             connections.remove(connection_id);
         }
-        
+
         Ok(inactive_connections.len())
     }
 }
@@ -443,7 +445,7 @@ mod tests {
     fn test_mcp_server_state_creation() {
         let config = McpConfig::default();
         let state = McpServerState::new(config);
-        
+
         assert_eq!(state.capabilities.server_info.name, "Vectorizer MCP Server");
         assert!(!state.capabilities.tools.is_empty());
         assert!(!state.capabilities.resources.is_empty());
@@ -453,7 +455,7 @@ mod tests {
     async fn test_mcp_connection_management() {
         let config = McpConfig::default();
         let state = McpServerState::new(config);
-        
+
         let connection = McpConnection {
             id: "test_connection".to_string(),
             client_capabilities: serde_json::json!({}),
@@ -461,14 +463,17 @@ mod tests {
             last_activity: chrono::Utc::now(),
             authenticated: false,
         };
-        
+
         // Add connection
-        state.add_connection("test_connection".to_string(), connection).await.unwrap();
+        state
+            .add_connection("test_connection".to_string(), connection)
+            .await
+            .unwrap();
         assert_eq!(state.connection_count().await, 1);
-        
+
         // Update activity
         state.update_activity("test_connection").await.unwrap();
-        
+
         // Remove connection
         state.remove_connection("test_connection").await.unwrap();
         assert_eq!(state.connection_count().await, 0);

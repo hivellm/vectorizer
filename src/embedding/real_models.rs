@@ -5,6 +5,8 @@
 //! - BERT/MPNet models (more accurate)
 //! - E5 models (optimized for retrieval)
 
+use super::EmbeddingProvider;
+use crate::error::{Result, VectorizerError};
 #[cfg(feature = "candle-models")]
 use candle_core::{Device, Tensor};
 #[cfg(feature = "candle-models")]
@@ -12,13 +14,11 @@ use candle_nn::VarBuilder;
 #[cfg(feature = "candle-models")]
 use candle_transformers::models::bert::{BertModel, Config as BertConfig};
 #[cfg(feature = "candle-models")]
-use tokenizers::Tokenizer;
-#[cfg(feature = "candle-models")]
 use hf_hub::api::sync::ApiBuilder;
 #[cfg(feature = "candle-models")]
 use serde_json;
-use crate::error::{Result, VectorizerError};
-use super::EmbeddingProvider;
+#[cfg(feature = "candle-models")]
+use tokenizers::Tokenizer;
 
 /// Available real models for download and use
 #[derive(Debug, Clone, Copy)]
@@ -43,9 +43,15 @@ impl RealModelType {
     /// Get HuggingFace model ID
     pub fn model_id(&self) -> &str {
         match self {
-            RealModelType::MiniLMMultilingual => "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-            RealModelType::DistilUseMultilingual => "sentence-transformers/distiluse-base-multilingual-cased-v2",
-            RealModelType::MPNetMultilingualBase => "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+            RealModelType::MiniLMMultilingual => {
+                "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            }
+            RealModelType::DistilUseMultilingual => {
+                "sentence-transformers/distiluse-base-multilingual-cased-v2"
+            }
+            RealModelType::MPNetMultilingualBase => {
+                "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+            }
             RealModelType::E5SmallMultilingual => "intfloat/multilingual-e5-small",
             RealModelType::E5BaseMultilingual => "intfloat/multilingual-e5-base",
             RealModelType::GTEMultilingualBase => "Alibaba-NLP/gte-multilingual-base",
@@ -68,7 +74,10 @@ impl RealModelType {
 
     /// Check if model needs query/passage prefix (for E5 models)
     pub fn needs_prefix(&self) -> bool {
-        matches!(self, RealModelType::E5SmallMultilingual | RealModelType::E5BaseMultilingual)
+        matches!(
+            self,
+            RealModelType::E5SmallMultilingual | RealModelType::E5BaseMultilingual
+        )
     }
 }
 
@@ -98,15 +107,23 @@ impl RealModelEmbedder {
     }
 
     /// Create a new real model embedder with custom cache directory
-    pub fn new_with_cache(model_type: RealModelType, cache_dir: std::path::PathBuf) -> Result<Self> {
+    pub fn new_with_cache(
+        model_type: RealModelType,
+        cache_dir: std::path::PathBuf,
+    ) -> Result<Self> {
         let device = Device::Cpu; // Use CPU for now, can be extended to GPU
         let model_id = model_type.model_id();
 
-        println!("Loading model: {} (cache: {})", model_id, cache_dir.display());
+        println!(
+            "Loading model: {} (cache: {})",
+            model_id,
+            cache_dir.display()
+        );
 
         // Create cache directory if it doesn't exist
-        std::fs::create_dir_all(&cache_dir)
-            .map_err(|e| VectorizerError::Other(format!("Failed to create cache directory: {}", e)))?;
+        std::fs::create_dir_all(&cache_dir).map_err(|e| {
+            VectorizerError::Other(format!("Failed to create cache directory: {}", e))
+        })?;
 
         // Download model files with custom cache location
         let api = ApiBuilder::new()
@@ -117,22 +134,29 @@ impl RealModelEmbedder {
         let repo = api.model(model_id.to_string());
 
         // Load tokenizer
-        let tokenizer_path = repo.get("tokenizer.json")
+        let tokenizer_path = repo
+            .get("tokenizer.json")
             .map_err(|e| VectorizerError::Other(format!("Failed to download tokenizer: {}", e)))?;
         let tokenizer = Tokenizer::from_file(tokenizer_path)
             .map_err(|e| VectorizerError::Other(format!("Failed to load tokenizer: {}", e)))?;
 
         // Load model config
-        let config_path = repo.get("config.json")
+        let config_path = repo
+            .get("config.json")
             .map_err(|e| VectorizerError::Other(format!("Failed to download config: {}", e)))?;
-        let config: BertConfig = serde_json::from_reader(std::fs::File::open(config_path)
-            .map_err(|e| VectorizerError::Other(format!("Failed to open config: {}", e)))?)
-            .map_err(|e| VectorizerError::Other(format!("Failed to parse config: {}", e)))?;
+        let config: BertConfig = serde_json::from_reader(
+            std::fs::File::open(config_path)
+                .map_err(|e| VectorizerError::Other(format!("Failed to open config: {}", e)))?,
+        )
+        .map_err(|e| VectorizerError::Other(format!("Failed to parse config: {}", e)))?;
 
         // Load model weights
-        let weights_path = repo.get("pytorch_model.bin")
+        let weights_path = repo
+            .get("pytorch_model.bin")
             .or_else(|_| repo.get("model.safetensors"))
-            .map_err(|e| VectorizerError::Other(format!("Failed to download model weights: {}", e)))?;
+            .map_err(|e| {
+                VectorizerError::Other(format!("Failed to download model weights: {}", e))
+            })?;
 
         let vb = if weights_path.extension().unwrap_or_default() == "safetensors" {
             // For safetensors, we need to load the tensors and create VarBuilder from them
@@ -145,7 +169,11 @@ impl RealModelEmbedder {
         let model = BertModel::load(vb, &config)
             .map_err(|e| VectorizerError::Other(format!("Failed to load BERT model: {}", e)))?;
 
-        println!("Successfully loaded model: {} (cached in {})", model_id, cache_dir.display());
+        println!(
+            "Successfully loaded model: {} (cached in {})",
+            model_id,
+            cache_dir.display()
+        );
 
         Ok(Self {
             model,
@@ -169,19 +197,21 @@ impl RealModelEmbedder {
             };
 
             // Tokenize
-            let tokens = self.tokenizer.encode(processed_text, true)
+            let tokens = self
+                .tokenizer
+                .encode(processed_text, true)
                 .map_err(|e| VectorizerError::Other(format!("Tokenization failed: {}", e)))?;
 
-            let input_ids = Tensor::new(tokens.get_ids(), &self.device)?
-                .unsqueeze(0)?;
-            let attention_mask = Tensor::new(tokens.get_attention_mask(), &self.device)?
-                .unsqueeze(0)?;
-            let token_type_ids = Tensor::new(tokens.get_type_ids(), &self.device)?
-                .unsqueeze(0)?;
+            let input_ids = Tensor::new(tokens.get_ids(), &self.device)?.unsqueeze(0)?;
+            let attention_mask =
+                Tensor::new(tokens.get_attention_mask(), &self.device)?.unsqueeze(0)?;
+            let token_type_ids = Tensor::new(tokens.get_type_ids(), &self.device)?.unsqueeze(0)?;
 
             // Forward pass - get the hidden states from BERT
             // The BERT model returns the last hidden state directly
-            let hidden_states = self.model.forward(&input_ids, &attention_mask, Some(&token_type_ids))?;
+            let hidden_states =
+                self.model
+                    .forward(&input_ids, &attention_mask, Some(&token_type_ids))?;
 
             // Mean pooling (simple average of token embeddings)
             // For sentence embeddings, we typically take the mean of all token embeddings
@@ -209,7 +239,9 @@ impl EmbeddingProvider for RealModelEmbedder {
 
     fn embed(&self, text: &str) -> Result<Vec<f32>> {
         let embeddings = self.encode(&[text])?;
-        Ok(embeddings.into_iter().next()
+        Ok(embeddings
+            .into_iter()
+            .next()
             .ok_or_else(|| VectorizerError::Other("No embedding generated".to_string()))?)
     }
 
@@ -225,8 +257,11 @@ impl EmbeddingProvider for RealModelEmbedder {
 #[cfg(not(feature = "candle-models"))]
 impl RealModelEmbedder {
     pub fn new(model_type: RealModelType) -> Result<Self> {
-        println!("⚠️  Candle models feature not enabled. Using placeholder implementation for {}", model_type.model_id());
-        Ok(Self { 
+        println!(
+            "⚠️  Candle models feature not enabled. Using placeholder implementation for {}",
+            model_type.model_id()
+        );
+        Ok(Self {
             model_type,
             dimension: model_type.dimension(),
         })
@@ -236,11 +271,15 @@ impl RealModelEmbedder {
 #[cfg(not(feature = "candle-models"))]
 impl EmbeddingProvider for RealModelEmbedder {
     fn embed_batch(&self, _texts: &[&str]) -> Result<Vec<Vec<f32>>> {
-        Err(VectorizerError::Other("Real models feature not enabled. Compile with --features real-models".to_string()))
+        Err(VectorizerError::Other(
+            "Real models feature not enabled. Compile with --features real-models".to_string(),
+        ))
     }
 
     fn embed(&self, _text: &str) -> Result<Vec<f32>> {
-        Err(VectorizerError::Other("Real models feature not enabled. Compile with --features real-models".to_string()))
+        Err(VectorizerError::Other(
+            "Real models feature not enabled. Compile with --features real-models".to_string(),
+        ))
     }
 
     fn dimension(&self) -> usize {

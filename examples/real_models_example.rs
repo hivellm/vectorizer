@@ -12,10 +12,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test texts in Portuguese and English
     let texts = vec![
-        "Como funciona a busca semântica?",  // Portuguese
-        "What is semantic search?",          // English
-        "Busca por similaridade de texto",   // Portuguese
-        "Text similarity search",            // English
+        "Como funciona a busca semântica?", // Portuguese
+        "What is semantic search?",         // English
+        "Busca por similaridade de texto",  // Portuguese
+        "Text similarity search",           // English
     ];
 
     // Test different models
@@ -37,8 +37,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for (i, text) in texts.iter().enumerate() {
                     match embedder.embed(text) {
                         Ok(embedding) => {
-                            println!("  [{}] \"{}\" -> {:.3}... ({} dims)",
-                                i + 1, text, embedding[0], embedding.len());
+                            println!(
+                                "  [{}] \"{}\" -> {:.3}... ({} dims)",
+                                i + 1,
+                                text,
+                                embedding[0],
+                                embedding.len()
+                            );
                         }
                         Err(e) => {
                             println!("  ❌ Failed to embed \"{}\": {}", text, e);

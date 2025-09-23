@@ -135,8 +135,14 @@ pub fn evaluate_search_quality(
     EvaluationMetrics {
         mean_average_precision: total_ap / num_queries,
         mean_reciprocal_rank: total_rr / num_queries,
-        precision_at_k: precision_sums.into_iter().map(|sum| sum / num_queries).collect(),
-        recall_at_k: recall_sums.into_iter().map(|sum| sum / num_queries).collect(),
+        precision_at_k: precision_sums
+            .into_iter()
+            .map(|sum| sum / num_queries)
+            .collect(),
+        recall_at_k: recall_sums
+            .into_iter()
+            .map(|sum| sum / num_queries)
+            .collect(),
         num_queries: query_results.len(),
     }
 }
@@ -185,9 +191,18 @@ mod tests {
     #[test]
     fn test_precision_at_k() {
         let results = vec![
-            QueryResult { doc_id: "doc1".to_string(), relevance: 1.0 },
-            QueryResult { doc_id: "doc2".to_string(), relevance: 0.0 },
-            QueryResult { doc_id: "doc3".to_string(), relevance: 1.0 },
+            QueryResult {
+                doc_id: "doc1".to_string(),
+                relevance: 1.0,
+            },
+            QueryResult {
+                doc_id: "doc2".to_string(),
+                relevance: 0.0,
+            },
+            QueryResult {
+                doc_id: "doc3".to_string(),
+                relevance: 1.0,
+            },
         ];
 
         let ground_truth = HashSet::from(["doc1".to_string(), "doc3".to_string()]);
@@ -200,9 +215,18 @@ mod tests {
     #[test]
     fn test_recall_at_k() {
         let results = vec![
-            QueryResult { doc_id: "doc1".to_string(), relevance: 1.0 },
-            QueryResult { doc_id: "doc2".to_string(), relevance: 0.0 },
-            QueryResult { doc_id: "doc3".to_string(), relevance: 1.0 },
+            QueryResult {
+                doc_id: "doc1".to_string(),
+                relevance: 1.0,
+            },
+            QueryResult {
+                doc_id: "doc2".to_string(),
+                relevance: 0.0,
+            },
+            QueryResult {
+                doc_id: "doc3".to_string(),
+                relevance: 1.0,
+            },
         ];
 
         let ground_truth = HashSet::from(["doc1".to_string(), "doc3".to_string()]);

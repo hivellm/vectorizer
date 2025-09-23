@@ -2,7 +2,7 @@
 
 #[cfg(feature = "candle-models")]
 use crate::{
-    embedding::{EmbeddingManager, RealModelEmbedder, RealModelType, EmbeddingProvider},
+    embedding::{EmbeddingManager, EmbeddingProvider, RealModelEmbedder, RealModelType},
     models::DistanceMetric,
 };
 
@@ -45,7 +45,11 @@ fn test_real_model_embedder_normalization() {
     // Check that embedding is normalized (unit vector)
     let embedding = &embeddings[0];
     let norm_squared: f32 = embedding.iter().map(|x| x * x).sum();
-    assert!((norm_squared - 1.0).abs() < 1e-5, "Embedding should be normalized, norm squared: {}", norm_squared);
+    assert!(
+        (norm_squared - 1.0).abs() < 1e-5,
+        "Embedding should be normalized, norm squared: {}",
+        norm_squared
+    );
 }
 
 #[cfg(feature = "candle-models")]

@@ -11,8 +11,7 @@ use tracing::{debug, info};
 use super::collection::Collection;
 
 /// Thread-safe in-memory vector store
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct VectorStore {
     /// Collections stored in a concurrent hash map
     collections: Arc<DashMap<String, Collection>>,
@@ -162,13 +161,13 @@ impl VectorStore {
     pub fn stats(&self) -> VectorStoreStats {
         let mut total_vectors = 0;
         let mut total_memory_bytes = 0;
-        
+
         for entry in self.collections.iter() {
             let collection = entry.value();
             total_vectors += collection.vector_count();
             total_memory_bytes += collection.estimated_memory_usage();
         }
-        
+
         VectorStoreStats {
             collection_count: self.collections.len(),
             total_vectors,
@@ -197,7 +196,7 @@ pub struct VectorStoreStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{DistanceMetric, HnswConfig, CompressionConfig, Payload};
+    use crate::models::{CompressionConfig, DistanceMetric, HnswConfig, Payload};
 
     #[test]
     fn test_create_and_list_collections() {
@@ -296,17 +295,17 @@ mod tests {
             Vector::with_payload(
                 "vec1".to_string(),
                 vec![1.0, 0.0, 0.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 1})).unwrap()
+                Payload::from_value(serde_json::json!({"type": "test", "id": 1})).unwrap(),
             ),
             Vector::with_payload(
                 "vec2".to_string(),
                 vec![0.0, 1.0, 0.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 2})).unwrap()
+                Payload::from_value(serde_json::json!({"type": "test", "id": 2})).unwrap(),
             ),
             Vector::with_payload(
                 "vec3".to_string(),
                 vec![0.0, 0.0, 1.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 3})).unwrap()
+                Payload::from_value(serde_json::json!({"type": "test", "id": 3})).unwrap(),
             ),
         ];
 
@@ -326,7 +325,7 @@ mod tests {
         let updated = Vector::with_payload(
             "vec1".to_string(),
             vec![2.0, 0.0, 0.0],
-            Payload::from_value(serde_json::json!({"type": "updated", "id": 1})).unwrap()
+            Payload::from_value(serde_json::json!({"type": "updated", "id": 1})).unwrap(),
         );
         store.update("test", updated).unwrap();
 
@@ -435,7 +434,9 @@ mod tests {
             },
         };
 
-        store.create_collection("metadata_test", config.clone()).unwrap();
+        store
+            .create_collection("metadata_test", config.clone())
+            .unwrap();
 
         // Add some vectors
         let vectors = vec![
@@ -468,19 +469,31 @@ mod tests {
 
         // Test operations on non-existent collection
         let result = store.insert("non_existent", vec![]);
-        assert!(matches!(result, Err(VectorizerError::CollectionNotFound(_))));
+        assert!(matches!(
+            result,
+            Err(VectorizerError::CollectionNotFound(_))
+        ));
 
         let result = store.search("non_existent", &[1.0, 2.0, 3.0], 1);
-        assert!(matches!(result, Err(VectorizerError::CollectionNotFound(_))));
+        assert!(matches!(
+            result,
+            Err(VectorizerError::CollectionNotFound(_))
+        ));
 
         let result = store.get_vector("non_existent", "v1");
-        assert!(matches!(result, Err(VectorizerError::CollectionNotFound(_))));
+        assert!(matches!(
+            result,
+            Err(VectorizerError::CollectionNotFound(_))
+        ));
 
         // Test operations on non-existent vector
         let result = store.get_vector("error_test", "non_existent");
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
 
-        let result = store.update("error_test", Vector::new("non_existent".to_string(), vec![1.0, 2.0, 3.0]));
+        let result = store.update(
+            "error_test",
+            Vector::new("non_existent".to_string(), vec![1.0, 2.0, 3.0]),
+        );
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
 
         let result = store.delete("error_test", "non_existent");

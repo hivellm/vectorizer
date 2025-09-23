@@ -2,7 +2,7 @@
 
 use crate::{
     db::VectorStore,
-    embedding::{TfIdfEmbedding, BagOfWordsEmbedding, CharNGramEmbedding, EmbeddingProvider},
+    embedding::{BagOfWordsEmbedding, CharNGramEmbedding, EmbeddingProvider, TfIdfEmbedding},
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
 };
 use tempfile::tempdir;
@@ -12,20 +12,32 @@ use tempfile::tempdir;
 fn test_semantic_search_with_tfidf() {
     // Create embedding provider
     let mut tfidf = TfIdfEmbedding::new(50);
-    
+
     // Sample documents
     let documents = vec![
-        ("doc1", "Machine learning is a subset of artificial intelligence"),
-        ("doc2", "Deep learning uses neural networks with multiple layers"),
+        (
+            "doc1",
+            "Machine learning is a subset of artificial intelligence",
+        ),
+        (
+            "doc2",
+            "Deep learning uses neural networks with multiple layers",
+        ),
         ("doc3", "Vector databases store high-dimensional embeddings"),
-        ("doc4", "Natural language processing helps computers understand text"),
-        ("doc5", "Computer vision enables machines to interpret visual information"),
+        (
+            "doc4",
+            "Natural language processing helps computers understand text",
+        ),
+        (
+            "doc5",
+            "Computer vision enables machines to interpret visual information",
+        ),
     ];
-    
+
     // Build vocabulary from corpus
     let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
     tfidf.build_vocabulary(&corpus);
-    
+
     // Create vector store
     let store = VectorStore::new();
     let config = CollectionConfig {
@@ -36,7 +48,7 @@ fn test_semantic_search_with_tfidf() {
         compression: Default::default(),
     };
     store.create_collection("documents", config).unwrap();
-    
+
     // Generate embeddings and insert documents
     let mut vectors = Vec::new();
     for (id, text) in &documents {
@@ -47,12 +59,13 @@ fn test_semantic_search_with_tfidf() {
             Payload::from_value(serde_json::json!({
                 "text": text,
                 "type": "document"
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         vectors.push(vector);
     }
     store.insert("documents", vectors).unwrap();
-    
+
     // Test semantic search
     let query = "artificial intelligence and neural networks";
     let query_embedding = tfidf.embed(query).unwrap();
@@ -71,28 +84,44 @@ fn test_semantic_search_with_tfidf() {
 #[test]
 fn test_document_clustering_with_embeddings() {
     let mut bow = BagOfWordsEmbedding::new(30);
-    
+
     // Documents in different categories
     let documents = vec![
         // Programming languages
-        ("lang1", "Python is a popular programming language for data science"),
-        ("lang2", "JavaScript is used for web development and programming"),
-        ("lang3", "Rust is a systems programming language with memory safety"),
-        
+        (
+            "lang1",
+            "Python is a popular programming language for data science",
+        ),
+        (
+            "lang2",
+            "JavaScript is used for web development and programming",
+        ),
+        (
+            "lang3",
+            "Rust is a systems programming language with memory safety",
+        ),
         // Machine learning
-        ("ml1", "Supervised learning uses labeled data for training models"),
-        ("ml2", "Unsupervised learning discovers patterns without labels"),
-        ("ml3", "Reinforcement learning trains agents through rewards"),
-        
+        (
+            "ml1",
+            "Supervised learning uses labeled data for training models",
+        ),
+        (
+            "ml2",
+            "Unsupervised learning discovers patterns without labels",
+        ),
+        (
+            "ml3",
+            "Reinforcement learning trains agents through rewards",
+        ),
         // Databases
         ("db1", "SQL databases use structured query language"),
         ("db2", "NoSQL databases provide flexible data models"),
         ("db3", "Graph databases store data as nodes and edges"),
     ];
-    
+
     let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
     bow.build_vocabulary(&corpus);
-    
+
     let store = VectorStore::new();
     let config = CollectionConfig {
         dimension: bow.dimension(),
@@ -102,7 +131,7 @@ fn test_document_clustering_with_embeddings() {
         compression: Default::default(),
     };
     store.create_collection("clusters", config).unwrap();
-    
+
     // Insert documents with embeddings
     let mut vectors = Vec::new();
     for (id, text) in &documents {
@@ -114,38 +143,52 @@ fn test_document_clustering_with_embeddings() {
         } else {
             "databases"
         };
-        
+
         let vector = Vector::with_payload(
             id.to_string(),
             embedding,
             Payload::from_value(serde_json::json!({
                 "text": text,
                 "category": category
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         vectors.push(vector);
     }
     store.insert("clusters", vectors).unwrap();
-    
+
     // Test finding similar documents within clusters
     let ml_query = "training machine learning models with data";
     let ml_embedding = bow.embed(ml_query).unwrap();
     let ml_results = store.search("clusters", &ml_embedding, 3).unwrap();
-    
+
     // Should return mostly ML documents
-    let ml_categories: Vec<String> = ml_results.iter()
-        .map(|r| r.payload.as_ref().unwrap().data["category"].as_str().unwrap().to_string())
+    let ml_categories: Vec<String> = ml_results
+        .iter()
+        .map(|r| {
+            r.payload.as_ref().unwrap().data["category"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
         .collect();
-    
-    let ml_count = ml_categories.iter().filter(|c| *c == "machine_learning").count();
-    assert!(ml_count >= 2, "Expected at least 2 ML documents, got {}", ml_count);
+
+    let ml_count = ml_categories
+        .iter()
+        .filter(|c| *c == "machine_learning")
+        .count();
+    assert!(
+        ml_count >= 2,
+        "Expected at least 2 ML documents, got {}",
+        ml_count
+    );
 }
 
 /// Test multilingual support with character n-grams
 #[test]
 fn test_multilingual_embeddings() {
     let mut ngram = CharNGramEmbedding::new(100, 3);
-    
+
     // Multilingual documents
     let documents = vec![
         ("en1", "Hello, how are you today?"),
@@ -155,10 +198,10 @@ fn test_multilingual_embeddings() {
         ("fr1", "Bonjour, comment allez-vous aujourd'hui?"),
         ("fr2", "Bienvenue dans la base de données vectorielle"),
     ];
-    
+
     let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
     ngram.build_vocabulary(&corpus);
-    
+
     let store = VectorStore::new();
     let config = CollectionConfig {
         dimension: ngram.dimension(),
@@ -168,31 +211,32 @@ fn test_multilingual_embeddings() {
         compression: Default::default(),
     };
     store.create_collection("multilingual", config).unwrap();
-    
+
     // Insert documents
     let mut vectors = Vec::new();
     for (id, text) in &documents {
         let embedding = ngram.embed(text).unwrap();
         let lang = &id[..2];
-        
+
         let vector = Vector::with_payload(
             id.to_string(),
             embedding,
             Payload::from_value(serde_json::json!({
                 "text": text,
                 "language": lang
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         vectors.push(vector);
     }
     store.insert("multilingual", vectors).unwrap();
-    
+
     // Test cross-lingual similarity
     // "Hello" in different languages should be somewhat similar due to character patterns
     let query = "Hola";
     let query_embedding = ngram.embed(query).unwrap();
     let results = store.search("multilingual", &query_embedding, 3).unwrap();
-    
+
     // Should find Spanish documents first
     assert!(results[0].id.starts_with("es"));
 }
@@ -201,16 +245,22 @@ fn test_multilingual_embeddings() {
 #[test]
 fn test_persistence_with_real_embeddings() {
     let mut tfidf = TfIdfEmbedding::new(20);
-    
+
     let documents = vec![
-        ("news1", "Breaking news: AI model achieves human-level performance"),
-        ("news2", "Stock market reaches all-time high amid tech rally"),
+        (
+            "news1",
+            "Breaking news: AI model achieves human-level performance",
+        ),
+        (
+            "news2",
+            "Stock market reaches all-time high amid tech rally",
+        ),
         ("news3", "New breakthrough in quantum computing announced"),
     ];
-    
+
     let corpus: Vec<&str> = documents.iter().map(|(_, text)| *text).collect();
     tfidf.build_vocabulary(&corpus);
-    
+
     let store = VectorStore::new();
     let config = CollectionConfig {
         dimension: tfidf.dimension(),
@@ -220,7 +270,7 @@ fn test_persistence_with_real_embeddings() {
         compression: Default::default(),
     };
     store.create_collection("news", config).unwrap();
-    
+
     // Insert with real embeddings
     let mut vectors = Vec::new();
     for (id, text) in &documents {
@@ -231,24 +281,25 @@ fn test_persistence_with_real_embeddings() {
             Payload::from_value(serde_json::json!({
                 "headline": text,
                 "timestamp": "2025-09-23"
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         vectors.push(vector);
     }
     store.insert("news", vectors).unwrap();
-    
+
     // Save to disk
     let temp_dir = tempdir().unwrap();
     let save_path = temp_dir.path().join("news_embeddings.vdb");
     store.save(&save_path).unwrap();
-    
+
     // Load and verify search still works
     let loaded_store = VectorStore::load(&save_path).unwrap();
-    
+
     let query = "artificial intelligence breakthrough";
     let query_embedding = tfidf.embed(query).unwrap();
     let results = loaded_store.search("news", &query_embedding, 2).unwrap();
-    
+
     assert_eq!(results.len(), 2);
     // AI and quantum computing news should be most relevant
     let top_ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
@@ -295,10 +346,22 @@ fn test_recommended_embedding_testing_pattern() {
     // === 3. GENERATE REAL EMBEDDINGS ===
     // Use meaningful text that represents real use cases
     let documents = vec![
-        ("ml_basics", "Machine learning is a subset of artificial intelligence that enables computers to learn patterns from data without explicit programming"),
-        ("vectors", "Vector databases are specialized systems designed to efficiently store and search high-dimensional vector embeddings"),
-        ("nlp", "Natural language processing combines computational linguistics with machine learning to understand human language"),
-        ("cv", "Computer vision systems can interpret and understand visual information from the world"),
+        (
+            "ml_basics",
+            "Machine learning is a subset of artificial intelligence that enables computers to learn patterns from data without explicit programming",
+        ),
+        (
+            "vectors",
+            "Vector databases are specialized systems designed to efficiently store and search high-dimensional vector embeddings",
+        ),
+        (
+            "nlp",
+            "Natural language processing combines computational linguistics with machine learning to understand human language",
+        ),
+        (
+            "cv",
+            "Computer vision systems can interpret and understand visual information from the world",
+        ),
     ];
 
     // Convert text to embeddings using the trained model
@@ -312,7 +375,8 @@ fn test_recommended_embedding_testing_pattern() {
                 "content": content,
                 "word_count": content.split_whitespace().count(),
                 "type": "documentation"
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         vectors.push(vector);
     }
@@ -339,7 +403,10 @@ fn test_recommended_embedding_testing_pattern() {
 
     // The "ml_basics" document should be highly relevant to the query
     let ml_basics_result = results.iter().find(|r| r.id == "ml_basics");
-    assert!(ml_basics_result.is_some(), "ML basics document should be relevant");
+    assert!(
+        ml_basics_result.is_some(),
+        "ML basics document should be relevant"
+    );
 
     // === 7. VERIFY EMBEDDING PROPERTIES ===
     // All embeddings should be normalized for cosine similarity
@@ -358,7 +425,9 @@ fn test_recommended_embedding_testing_pattern() {
     let loaded_store = VectorStore::load(&save_path).unwrap();
 
     // Search again after persistence
-    let reloaded_results = loaded_store.search("semantic_test", &query_embedding, 3).unwrap();
+    let reloaded_results = loaded_store
+        .search("semantic_test", &query_embedding, 3)
+        .unwrap();
 
     // Results should be identical after save/load
     assert_eq!(results.len(), reloaded_results.len());
@@ -380,11 +449,31 @@ fn test_faq_search_system() {
 
     // FAQ database with more distinct content
     let faqs = vec![
-        ("faq1", "How do I reset my password?", "To reset your password, go to the login page and click the 'Forgot Password' link. You will receive an email with instructions to set a new one."),
-        ("faq2", "What payment methods are accepted?", "We accept major credit cards including Visa, MasterCard, and American Express, as well as PayPal and direct bank transfers."),
-        ("faq3", "How can I track my shipment?", "Once your order is shipped, you will receive a tracking number via email. You can use this number on the carrier's website to see your package's status."),
-        ("faq4", "What is the return policy?", "Our return policy allows you to return items within 30 days of purchase for a full refund. Items must be in original condition. Return shipping is not covered."),
-        ("faq5", "How do I contact customer support?", "You can contact our support team by emailing support@example.com or by calling our toll-free number at 1-800-123-4567 during business hours."),
+        (
+            "faq1",
+            "How do I reset my password?",
+            "To reset your password, go to the login page and click the 'Forgot Password' link. You will receive an email with instructions to set a new one.",
+        ),
+        (
+            "faq2",
+            "What payment methods are accepted?",
+            "We accept major credit cards including Visa, MasterCard, and American Express, as well as PayPal and direct bank transfers.",
+        ),
+        (
+            "faq3",
+            "How can I track my shipment?",
+            "Once your order is shipped, you will receive a tracking number via email. You can use this number on the carrier's website to see your package's status.",
+        ),
+        (
+            "faq4",
+            "What is the return policy?",
+            "Our return policy allows you to return items within 30 days of purchase for a full refund. Items must be in original condition. Return shipping is not covered.",
+        ),
+        (
+            "faq5",
+            "How do I contact customer support?",
+            "You can contact our support team by emailing support@example.com or by calling our toll-free number at 1-800-123-4567 during business hours.",
+        ),
     ];
 
     // Build a more comprehensive vocabulary from questions and answers
@@ -395,9 +484,16 @@ fn test_faq_search_system() {
     }
     // Add more general terms to enrich the vocabulary
     corpus.extend(vec![
-        "account access", "billing information", "order status",
-        "refund process", "help desk", "user login", "payment options",
-        "shipping details", "product returns", "customer service"
+        "account access",
+        "billing information",
+        "order status",
+        "refund process",
+        "help desk",
+        "user login",
+        "payment options",
+        "shipping details",
+        "product returns",
+        "customer service",
     ]);
     tfidf.build_vocabulary(&corpus);
 
@@ -423,7 +519,8 @@ fn test_faq_search_system() {
             Payload::from_value(serde_json::json!({
                 "question": question,
                 "answer": answer
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         vectors.push(vector);
     }
@@ -434,28 +531,39 @@ fn test_faq_search_system() {
 
     // Test Case 1: Password Reset
     let query1 = "I forgot my password";
-    let results1 = store.search("faq", &tfidf.embed(query1).unwrap(), 1).unwrap();
+    let results1 = store
+        .search("faq", &tfidf.embed(query1).unwrap(), 1)
+        .unwrap();
     assert_eq!(results1[0].id, "faq1");
     println!("✅ Query: '{}' -> Correctly matched FAQ 1", query1);
 
     // Test Case 2: Payment
     let query2 = "Can I pay with a credit card?";
-    let results2 = store.search("faq", &tfidf.embed(query2).unwrap(), 1).unwrap();
+    let results2 = store
+        .search("faq", &tfidf.embed(query2).unwrap(), 1)
+        .unwrap();
     assert_eq!(results2[0].id, "faq2");
     println!("✅ Query: '{}' -> Correctly matched FAQ 2", query2);
 
     // Test Case 3: Order Tracking (Original failure point)
     let query3 = "Where is my package?";
-    let results3 = store.search("faq", &tfidf.embed(query3).unwrap(), 1).unwrap();
+    let results3 = store
+        .search("faq", &tfidf.embed(query3).unwrap(), 1)
+        .unwrap();
     // Check if faq3 is in the top results (more flexible)
     let top_result_id = results3[0].id.as_str();
-    assert!(top_result_id == "faq3" || top_result_id == "faq1", 
-        "Expected faq3 or faq1 for package tracking query, got {}", top_result_id);
+    assert!(
+        top_result_id == "faq3" || top_result_id == "faq1",
+        "Expected faq3 or faq1 for package tracking query, got {}",
+        top_result_id
+    );
     println!("✅ Query: '{}' -> Matched FAQ {}", query3, top_result_id);
 
     // Test Case 4: Returns
     let query4 = "How to return an item?";
-    let results4 = store.search("faq", &tfidf.embed(query4).unwrap(), 1).unwrap();
+    let results4 = store
+        .search("faq", &tfidf.embed(query4).unwrap(), 1)
+        .unwrap();
     assert_eq!(results4[0].id, "faq4");
     println!("✅ Query: '{}' -> Correctly matched FAQ 4", query4);
 

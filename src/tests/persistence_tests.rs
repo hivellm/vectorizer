@@ -46,6 +46,8 @@ fn test_persistence_save_load() {
     assert_eq!(vec3.data, vec![7.0, 8.0, 9.0]);
 
     // Verify collection metadata
-    let metadata = loaded_store.get_collection_metadata("test_persistence").unwrap();
+    let metadata = loaded_store
+        .get_collection_metadata("test_persistence")
+        .unwrap();
     assert_eq!(metadata.vector_count, 3);
 }

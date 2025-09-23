@@ -59,7 +59,9 @@ mod grok_fixes_validation {
         assert_eq!(vec3.data, vec![7.0, 8.0, 9.0]);
 
         // Verify collection metadata
-        let metadata = loaded_store.get_collection_metadata("test_persistence").unwrap();
+        let metadata = loaded_store
+            .get_collection_metadata("test_persistence")
+            .unwrap();
         assert_eq!(metadata.vector_count, 3);
     }
 
@@ -76,7 +78,9 @@ mod grok_fixes_validation {
             quantization: None,
             compression: Default::default(),
         };
-        store.create_collection("cosine_test", cosine_config).unwrap();
+        store
+            .create_collection("cosine_test", cosine_config)
+            .unwrap();
 
         // Insert vectors that will be normalized
         let vectors = vec![
@@ -106,7 +110,9 @@ mod grok_fixes_validation {
             quantization: None,
             compression: Default::default(),
         };
-        store.create_collection("euclidean_test", euclidean_config).unwrap();
+        store
+            .create_collection("euclidean_test", euclidean_config)
+            .unwrap();
 
         let euclidean_vectors = vec![
             Vector::new("e1".to_string(), vec![0.0, 0.0, 0.0]),
@@ -160,7 +166,7 @@ mod grok_fixes_validation {
     fn test_all_fixes_integrated() {
         // Create store with cosine similarity (tests normalization fix)
         let store = VectorStore::new();
-        
+
         let config = CollectionConfig {
             dimension: 5,
             metric: DistanceMetric::Cosine,
@@ -183,7 +189,8 @@ mod grok_fixes_validation {
                 Payload::from_value(serde_json::json!({
                     "title": "Document 1",
                     "score": 0.95
-                })).unwrap()
+                }))
+                .unwrap(),
             ),
             Vector::with_payload(
                 "doc2".to_string(),
@@ -191,7 +198,8 @@ mod grok_fixes_validation {
                 Payload::from_value(serde_json::json!({
                     "title": "Document 2",
                     "score": 0.85
-                })).unwrap()
+                }))
+                .unwrap(),
             ),
         ];
         store.insert("integrated_test", vectors).unwrap();
@@ -203,7 +211,8 @@ mod grok_fixes_validation {
             Payload::from_value(serde_json::json!({
                 "title": "Document 1 Updated",
                 "score": 0.98
-            })).unwrap()
+            }))
+            .unwrap(),
         );
         store.update("integrated_test", updated).unwrap();
 
@@ -216,7 +225,9 @@ mod grok_fixes_validation {
         let loaded_store = VectorStore::load(&save_path).unwrap();
 
         // Verify everything works after load
-        let metadata = loaded_store.get_collection_metadata("integrated_test").unwrap();
+        let metadata = loaded_store
+            .get_collection_metadata("integrated_test")
+            .unwrap();
         assert_eq!(metadata.vector_count, 2);
 
         // Verify normalization is preserved

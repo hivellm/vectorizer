@@ -5,7 +5,10 @@ use crate::{
     db::VectorStore,
     models::{CollectionConfig, DistanceMetric, HnswConfig},
 };
-use axum::{body::Body, http::{Request, StatusCode}};
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -15,10 +18,12 @@ async fn test_api_health_check() {
     let app = server.create_app();
 
     let response = app
-        .oneshot(Request::builder()
-            .uri("/api/v1/health")
-            .body(Body::empty())
-            .unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 
@@ -43,10 +48,12 @@ async fn test_api_collections_list() {
     let app = server.create_app();
 
     let response = app
-        .oneshot(Request::builder()
-            .uri("/api/v1/collections")
-            .body(Body::empty())
-            .unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/collections")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 
@@ -70,12 +77,14 @@ async fn test_api_create_collection() {
     });
 
     let response = app
-        .oneshot(Request::builder()
-            .method("POST")
-            .uri("/api/v1/collections/test_collection")
-            .header("content-type", "application/json")
-            .body(Body::from(collection_config.to_string()))
-            .unwrap())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/collections/test_collection")
+                .header("content-type", "application/json")
+                .body(Body::from(collection_config.to_string()))
+                .unwrap(),
+        )
         .await
         .unwrap();
 
@@ -112,12 +121,14 @@ async fn test_api_insert_vectors() {
     ]);
 
     let response = app
-        .oneshot(Request::builder()
-            .method("POST")
-            .uri("/api/v1/collections/test_collection/vectors")
-            .header("content-type", "application/json")
-            .body(Body::from(vectors.to_string()))
-            .unwrap())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/collections/test_collection/vectors")
+                .header("content-type", "application/json")
+                .body(Body::from(vectors.to_string()))
+                .unwrap(),
+        )
         .await
         .unwrap();
 
@@ -155,12 +166,14 @@ async fn test_api_search_vectors() {
     });
 
     let response = app
-        .oneshot(Request::builder()
-            .method("POST")
-            .uri("/api/v1/collections/test_collection/search")
-            .header("content-type", "application/json")
-            .body(Body::from(search_query.to_string()))
-            .unwrap())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/collections/test_collection/search")
+                .header("content-type", "application/json")
+                .body(Body::from(search_query.to_string()))
+                .unwrap(),
+        )
         .await
         .unwrap();
 

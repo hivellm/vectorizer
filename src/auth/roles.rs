@@ -1,5 +1,5 @@
 //! Role-based access control (RBAC) system
-//! 
+//!
 //! Defines roles, permissions, and access control for the vector database
 
 use serde::{Deserialize, Serialize};
@@ -40,13 +40,8 @@ impl Role {
                 Permission::Write,
                 Permission::CreateCollection,
             ],
-            Role::ApiUser => vec![
-                Permission::Read,
-                Permission::Write,
-            ],
-            Role::ReadOnly => vec![
-                Permission::Read,
-            ],
+            Role::ApiUser => vec![Permission::Read, Permission::Write],
+            Role::ReadOnly => vec![Permission::Read],
             Role::Service => vec![
                 Permission::Read,
                 Permission::Write,
@@ -166,7 +161,9 @@ impl AccessContext {
 
     /// Check if the user has a specific permission
     pub fn has_permission(&self, permission: &Permission) -> bool {
-        self.roles.iter().any(|role| role.has_permission(permission))
+        self.roles
+            .iter()
+            .any(|role| role.has_permission(permission))
     }
 
     /// Check if the user has any of the specified permissions
@@ -285,9 +282,15 @@ mod tests {
 
     #[test]
     fn test_permission_descriptions() {
-        assert_eq!(Permission::Read.description(), "Read vectors and collections");
+        assert_eq!(
+            Permission::Read.description(),
+            "Read vectors and collections"
+        );
         assert_eq!(Permission::Write.description(), "Write/update vectors");
-        assert_eq!(Permission::ManageUsers.description(), "Manage user accounts");
+        assert_eq!(
+            Permission::ManageUsers.description(),
+            "Manage user accounts"
+        );
     }
 
     #[test]
@@ -301,7 +304,7 @@ mod tests {
     #[test]
     fn test_access_context() {
         let context = AccessContext::new("user123".to_string(), vec![Role::User]);
-        
+
         assert!(context.has_permission(&Permission::Read));
         assert!(context.has_permission(&Permission::Write));
         assert!(!context.has_permission(&Permission::ManageUsers));
@@ -313,7 +316,7 @@ mod tests {
     fn test_access_context_with_collection() {
         let context = AccessContext::new("user123".to_string(), vec![Role::User])
             .with_collection("test_collection".to_string());
-        
+
         assert_eq!(context.collection, Some("test_collection".to_string()));
     }
 
@@ -345,7 +348,7 @@ mod tests {
     fn test_all_permissions() {
         let context = AccessContext::new("user123".to_string(), vec![Role::User, Role::ReadOnly]);
         let permissions = context.all_permissions();
-        
+
         assert!(permissions.contains(&Permission::Read));
         assert!(permissions.contains(&Permission::Write));
         assert!(permissions.contains(&Permission::CreateCollection));

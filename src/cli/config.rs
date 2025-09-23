@@ -1,5 +1,5 @@
 //! CLI configuration management
-//! 
+//!
 //! Handles loading, saving, and validation of CLI configuration files
 
 use super::CliConfig;
@@ -110,14 +110,16 @@ impl ConfigManager {
     /// Load configuration from file
     pub fn load_from_file(path: &PathBuf) -> Result<CliConfig> {
         if !path.exists() {
-            return Err(VectorizerError::NotFound(format!("Configuration file not found: {:?}", path)));
+            return Err(VectorizerError::NotFound(format!(
+                "Configuration file not found: {:?}",
+                path
+            )));
         }
 
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| VectorizerError::IoError(e))?;
+        let content = std::fs::read_to_string(path).map_err(|e| VectorizerError::IoError(e))?;
 
-        let config_file: ConfigFile = serde_yaml::from_str(&content)
-            .map_err(|e| VectorizerError::YamlError(e))?;
+        let config_file: ConfigFile =
+            serde_yaml::from_str(&content).map_err(|e| VectorizerError::YamlError(e))?;
 
         Self::validate_config(&config_file)?;
         Ok(Self::convert_to_cli_config(config_file))
@@ -126,11 +128,10 @@ impl ConfigManager {
     /// Save configuration to file
     pub fn save_to_file(config: &CliConfig, path: &PathBuf) -> Result<()> {
         let config_file = Self::convert_to_config_file(config);
-        let yaml = serde_yaml::to_string(&config_file)
-            .map_err(|e| VectorizerError::YamlError(e))?;
+        let yaml =
+            serde_yaml::to_string(&config_file).map_err(|e| VectorizerError::YamlError(e))?;
 
-        std::fs::write(path, yaml)
-            .map_err(|e| VectorizerError::IoError(e))?;
+        std::fs::write(path, yaml).map_err(|e| VectorizerError::IoError(e))?;
 
         Ok(())
     }
@@ -138,11 +139,10 @@ impl ConfigManager {
     /// Generate default configuration file
     pub fn generate_default_file(path: &PathBuf) -> Result<()> {
         let default_config = ConfigFile::default();
-        let yaml = serde_yaml::to_string(&default_config)
-            .map_err(|e| VectorizerError::YamlError(e))?;
+        let yaml =
+            serde_yaml::to_string(&default_config).map_err(|e| VectorizerError::YamlError(e))?;
 
-        std::fs::write(path, yaml)
-            .map_err(|e| VectorizerError::IoError(e))?;
+        std::fs::write(path, yaml).map_err(|e| VectorizerError::IoError(e))?;
 
         Ok(())
     }
@@ -204,7 +204,10 @@ impl ConfigManager {
         let valid_levels = ["trace", "debug", "info", "warn", "error"];
         if !valid_levels.contains(&config.logging.level.to_lowercase().as_str()) {
             return Err(VectorizerError::InvalidConfiguration {
-                message: format!("Invalid log level: {}. Valid levels: {:?}", config.logging.level, valid_levels),
+                message: format!(
+                    "Invalid log level: {}. Valid levels: {:?}",
+                    config.logging.level, valid_levels
+                ),
             });
         }
 
@@ -259,14 +262,22 @@ impl ConfigManager {
                 enabled: config.auth.enabled,
             },
             database: DatabaseConfigFile {
-                persistence_path: config.database.persistence_path.to_string_lossy().to_string(),
+                persistence_path: config
+                    .database
+                    .persistence_path
+                    .to_string_lossy()
+                    .to_string(),
                 compression_enabled: config.database.compression_enabled,
                 compression_threshold: config.database.compression_threshold,
             },
             logging: LoggingConfigFile {
                 level: config.logging.level.clone(),
                 log_to_file: config.logging.log_to_file,
-                log_file: config.logging.log_file.as_ref().map(|p| p.to_string_lossy().to_string()),
+                log_file: config
+                    .logging
+                    .log_file
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string()),
             },
         }
     }
@@ -289,24 +300,24 @@ mod tests {
     #[test]
     fn test_config_validation() {
         let mut config = ConfigFile::default();
-        
+
         // Valid config should pass
         assert!(ConfigManager::validate_config(&config).is_ok());
-        
+
         // Invalid port should fail
         config.server.port = 0;
         assert!(ConfigManager::validate_config(&config).is_err());
-        
+
         // Reset port
         config.server.port = 15001;
-        
+
         // Invalid JWT secret should fail
         config.auth.jwt_secret = "short".to_string();
         assert!(ConfigManager::validate_config(&config).is_err());
-        
+
         // Reset JWT secret
         config.auth.jwt_secret = "vectorizer-default-secret-key-change-in-production".to_string();
-        
+
         // Invalid log level should fail
         config.logging.level = "invalid".to_string();
         assert!(ConfigManager::validate_config(&config).is_err());
@@ -316,32 +327,35 @@ mod tests {
     fn test_config_conversion() {
         let config_file = ConfigFile::default();
         let cli_config = ConfigManager::convert_to_cli_config(config_file.clone());
-        
+
         assert_eq!(cli_config.server.host, config_file.server.host);
         assert_eq!(cli_config.server.port, config_file.server.port);
         assert_eq!(cli_config.auth.jwt_secret, config_file.auth.jwt_secret);
-        assert_eq!(cli_config.database.compression_enabled, config_file.database.compression_enabled);
+        assert_eq!(
+            cli_config.database.compression_enabled,
+            config_file.database.compression_enabled
+        );
     }
 
     #[test]
     fn test_config_file_operations() {
         let temp_dir = tempdir().unwrap();
         let config_path = temp_dir.path().join("config.yml");
-        
+
         // Generate default config file
         ConfigManager::generate_default_file(&config_path).unwrap();
         assert!(config_path.exists());
-        
+
         // Load config file
         let config = ConfigManager::load_from_file(&config_path).unwrap();
         assert_eq!(config.server.host, "127.0.0.1");
         assert_eq!(config.server.port, 15001);
-        
+
         // Modify and save config
         let mut modified_config = config;
         modified_config.server.port = 8080;
         ConfigManager::save_to_file(&modified_config, &config_path).unwrap();
-        
+
         // Reload and verify
         let reloaded_config = ConfigManager::load_from_file(&config_path).unwrap();
         assert_eq!(reloaded_config.server.port, 8080);

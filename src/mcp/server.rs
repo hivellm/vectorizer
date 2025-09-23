@@ -1,22 +1,25 @@
 //! MCP server implementation
-//! 
+//!
 //! Provides the main MCP server that handles connections and message routing
 
-use super::{McpConfig, McpServerState, McpRequest, McpResponse, McpError, McpConnection};
+use super::{McpConfig, McpConnection, McpError, McpRequest, McpResponse, McpServerState};
 use crate::auth::AuthManager;
 use crate::db::VectorStore;
 use crate::error::Result;
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
+    Router,
+    extract::{
+        State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
     response::Response,
     routing::get,
-    Router,
 };
 use futures_util::{SinkExt, StreamExt};
 use serde_json;
 use std::sync::Arc;
 // RwLock is used in McpServerState
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// MCP server implementation
@@ -40,7 +43,7 @@ impl McpServer {
         auth_manager: Option<Arc<AuthManager>>,
     ) -> Self {
         let state = Arc::new(McpServerState::new(config));
-        
+
         Self {
             state,
             vector_store,
@@ -51,14 +54,14 @@ impl McpServer {
     /// Start the MCP server
     pub async fn start(&self) -> Result<()> {
         let config = &self.state.config;
-        
+
         if !config.enabled {
             info!("MCP server is disabled");
             return Ok(());
         }
 
         info!("Starting MCP server on {}:{}", config.host, config.port);
-        
+
         // Create router
         let _app: Router = Router::new()
             .route("/mcp", get(Self::handle_websocket))
@@ -66,8 +69,11 @@ impl McpServer {
 
         // Start server (in a real implementation, this would use axum::serve)
         info!("MCP server started successfully");
-        info!("WebSocket endpoint: ws://{}:{}/mcp", config.host, config.port);
-        
+        info!(
+            "WebSocket endpoint: ws://{}:{}/mcp",
+            config.host, config.port
+        );
+
         Ok(())
     }
 
@@ -94,29 +100,32 @@ impl McpServer {
         };
 
         // Add connection to state
-        if let Err(e) = state.add_connection(connection_id.clone(), connection).await {
+        if let Err(e) = state
+            .add_connection(connection_id.clone(), connection)
+            .await
+        {
             error!("Failed to add connection: {}", e);
             return;
         }
 
         // Handle messages
         let (mut sender, mut receiver) = socket.split();
-        
+
         while let Some(msg) = receiver.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
                     debug!("Received message: {}", text);
-                    
+
                     // Update activity
                     if let Err(e) = state.update_activity(&connection_id).await {
                         warn!("Failed to update activity: {}", e);
                     }
-                    
+
                     // Parse and handle request
                     match serde_json::from_str::<McpRequest>(&text) {
                         Ok(request) => {
                             let response = Self::handle_request(request, &state).await;
-                            
+
                             // Send response
                             if let Ok(response_json) = serde_json::to_string(&response) {
                                 if let Err(e) = sender.send(Message::Text(response_json)).await {
@@ -127,7 +136,7 @@ impl McpServer {
                         }
                         Err(e) => {
                             error!("Failed to parse request: {}", e);
-                            
+
                             let error_response = McpResponse {
                                 id: None,
                                 result: None,
@@ -137,7 +146,7 @@ impl McpServer {
                                     data: Some(serde_json::json!({"parse_error": e.to_string()})),
                                 }),
                             };
-                            
+
                             if let Ok(response_json) = serde_json::to_string(&error_response) {
                                 let _ = sender.send(Message::Text(response_json)).await;
                             }
@@ -171,16 +180,23 @@ impl McpServer {
         if let Err(e) = state.remove_connection(&connection_id).await {
             error!("Failed to remove connection: {}", e);
         }
-        
+
         info!("Connection closed: {}", connection_id);
     }
 
     /// Handle MCP request
     async fn handle_request(request: McpRequest, state: &McpServerState) -> McpResponse {
         match request {
-            McpRequest::Initialize { protocol_version, capabilities: _capabilities, client_info } => {
-                info!("MCP Initialize request - Protocol: {}, Client: {:?}", protocol_version, client_info);
-                
+            McpRequest::Initialize {
+                protocol_version,
+                capabilities: _capabilities,
+                client_info,
+            } => {
+                info!(
+                    "MCP Initialize request - Protocol: {}, Client: {:?}",
+                    protocol_version, client_info
+                );
+
                 McpResponse {
                     id: None,
                     result: Some(serde_json::json!({
@@ -197,10 +213,10 @@ impl McpServer {
                     error: None,
                 }
             }
-            
+
             McpRequest::ToolsList => {
                 debug!("MCP ToolsList request");
-                
+
                 McpResponse {
                     id: None,
                     result: Some(serde_json::json!({
@@ -209,23 +225,26 @@ impl McpServer {
                     error: None,
                 }
             }
-            
+
             McpRequest::ToolsCall { name, arguments } => {
-                debug!("MCP ToolsCall request - Tool: {}, Args: {:?}", name, arguments);
-                
+                debug!(
+                    "MCP ToolsCall request - Tool: {}, Args: {:?}",
+                    name, arguments
+                );
+
                 // Handle tool calls
                 let result = Self::handle_tool_call(&name, arguments, state).await;
-                
+
                 McpResponse {
                     id: None,
                     result: Some(result),
                     error: None,
                 }
             }
-            
+
             McpRequest::ResourcesList => {
                 debug!("MCP ResourcesList request");
-                
+
                 McpResponse {
                     id: None,
                     result: Some(serde_json::json!({
@@ -234,22 +253,22 @@ impl McpServer {
                     error: None,
                 }
             }
-            
+
             McpRequest::ResourcesRead { uri } => {
                 debug!("MCP ResourcesRead request - URI: {}", uri);
-                
+
                 let result = Self::handle_resource_read(&uri, state).await;
-                
+
                 McpResponse {
                     id: None,
                     result: Some(result),
                     error: None,
                 }
             }
-            
+
             McpRequest::Ping => {
                 debug!("MCP Ping request");
-                
+
                 McpResponse {
                     id: None,
                     result: Some(serde_json::json!({
@@ -269,18 +288,10 @@ impl McpServer {
         state: &McpServerState,
     ) -> serde_json::Value {
         match tool_name {
-            "search_vectors" => {
-                Self::handle_search_vectors(arguments, state).await
-            }
-            "list_collections" => {
-                Self::handle_list_collections(state).await
-            }
-            "get_collection_info" => {
-                Self::handle_get_collection_info(arguments, state).await
-            }
-            "embed_text" => {
-                Self::handle_embed_text(arguments, state).await
-            }
+            "search_vectors" => Self::handle_search_vectors(arguments, state).await,
+            "list_collections" => Self::handle_list_collections(state).await,
+            "get_collection_info" => Self::handle_get_collection_info(arguments, state).await,
+            "embed_text" => Self::handle_embed_text(arguments, state).await,
             _ => {
                 serde_json::json!({
                     "error": "Unknown tool",
@@ -295,13 +306,16 @@ impl McpServer {
         arguments: serde_json::Value,
         _state: &McpServerState,
     ) -> serde_json::Value {
-        let collection = arguments.get("collection")
+        let collection = arguments
+            .get("collection")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let query = arguments.get("query")
+        let query = arguments
+            .get("query")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let limit = arguments.get("limit")
+        let limit = arguments
+            .get("limit")
             .and_then(|v| v.as_u64())
             .unwrap_or(10) as usize;
 
@@ -321,7 +335,7 @@ impl McpServer {
                     "content": "Sample document 1"
                 },
                 {
-                    "id": "doc_2", 
+                    "id": "doc_2",
                     "score": 0.87,
                     "content": "Sample document 2"
                 }
@@ -356,7 +370,8 @@ impl McpServer {
         arguments: serde_json::Value,
         _state: &McpServerState,
     ) -> serde_json::Value {
-        let collection = arguments.get("collection")
+        let collection = arguments
+            .get("collection")
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
@@ -381,9 +396,7 @@ impl McpServer {
         arguments: serde_json::Value,
         _state: &McpServerState,
     ) -> serde_json::Value {
-        let text = arguments.get("text")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let text = arguments.get("text").and_then(|v| v.as_str()).unwrap_or("");
 
         if text.is_empty() {
             return serde_json::json!({
@@ -401,14 +414,9 @@ impl McpServer {
     }
 
     /// Handle resource read
-    async fn handle_resource_read(
-        uri: &str,
-        state: &McpServerState,
-    ) -> serde_json::Value {
+    async fn handle_resource_read(uri: &str, state: &McpServerState) -> serde_json::Value {
         match uri {
-            "vectorizer://collections" => {
-                Self::handle_list_collections(state).await
-            }
+            "vectorizer://collections" => Self::handle_list_collections(state).await,
             "vectorizer://stats" => {
                 serde_json::json!({
                     "total_collections": 2,
@@ -436,7 +444,7 @@ mod tests {
         let config = McpConfig::default();
         let vector_store = Arc::new(VectorStore::new());
         let server = McpServer::new(config, vector_store, None);
-        
+
         assert!(server.state.config.enabled);
         assert_eq!(server.state.config.port, 15003);
     }
@@ -445,10 +453,10 @@ mod tests {
     async fn test_mcp_request_handling() {
         let config = McpConfig::default();
         let state = McpServerState::new(config);
-        
+
         let request = McpRequest::Ping;
         let response = McpServer::handle_request(request, &state).await;
-        
+
         assert!(response.error.is_none());
         assert!(response.result.is_some());
     }
@@ -457,13 +465,13 @@ mod tests {
     async fn test_tool_call_handling() {
         let config = McpConfig::default();
         let state = McpServerState::new(config);
-        
+
         let arguments = serde_json::json!({
             "collection": "test",
             "query": "test query",
             "limit": 5
         });
-        
+
         let result = McpServer::handle_tool_call("search_vectors", arguments, &state).await;
         assert!(result.get("results").is_some());
     }

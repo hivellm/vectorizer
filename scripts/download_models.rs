@@ -18,10 +18,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     let models = vec![
-        ("MiniLM-Multilingual", RealModelType::MiniLMMultilingual, 384),
+        (
+            "MiniLM-Multilingual",
+            RealModelType::MiniLMMultilingual,
+            384,
+        ),
         ("E5-Small", RealModelType::E5SmallMultilingual, 384),
-        ("DistilUSE-Multilingual", RealModelType::DistilUseMultilingual, 512),
-        ("MPNet-Multilingual", RealModelType::MPNetMultilingualBase, 768),
+        (
+            "DistilUSE-Multilingual",
+            RealModelType::DistilUseMultilingual,
+            512,
+        ),
+        (
+            "MPNet-Multilingual",
+            RealModelType::MPNetMultilingualBase,
+            768,
+        ),
         ("E5-Base", RealModelType::E5BaseMultilingual, 768),
         ("GTE-Base", RealModelType::GTEMultilingualBase, 768),
         ("LaBSE", RealModelType::LaBSE, 768),
@@ -30,7 +42,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut results = Vec::new();
 
     for (i, (name, model_type, expected_dim)) in models.iter().enumerate() {
-        println!("\n📥 [{}/{}] Testing {} ({})", i + 1, models.len(), name, model_type.model_id());
+        println!(
+            "\n📥 [{}/{}] Testing {} ({})",
+            i + 1,
+            models.len(),
+            name,
+            model_type.model_id()
+        );
         println!("Expected dimension: {}D", expected_dim);
 
         let start_time = std::time::Instant::now();
@@ -50,8 +68,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let actual_dim = embedding.len();
 
                         if actual_dim == *expected_dim {
-                            println!("✅ Embedding successful: {}D in {:.3}s",
-                                actual_dim, embed_time.as_secs_f32());
+                            println!(
+                                "✅ Embedding successful: {}D in {:.3}s",
+                                actual_dim,
+                                embed_time.as_secs_f32()
+                            );
 
                             // Test multilingual similarity with progress
                             print!("🌍 Testing multilingual similarity...");
@@ -65,25 +86,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                             println!();
 
-                            println!("🔗 Similarities: EN={:.3}, FR={:.3}",
-                                similarities[0], similarities[1]);
+                            println!(
+                                "🔗 Similarities: EN={:.3}, FR={:.3}",
+                                similarities[0], similarities[1]
+                            );
 
                             results.push((name.to_string(), true, load_time, embed_time));
                         } else {
-                            println!("❌ Dimension mismatch: expected {}D, got {}D",
-                                expected_dim, actual_dim);
+                            println!(
+                                "❌ Dimension mismatch: expected {}D, got {}D",
+                                expected_dim, actual_dim
+                            );
                             results.push((name.to_string(), false, load_time, embed_time));
                         }
                     }
                     Err(e) => {
                         println!("❌ Embedding failed: {}", e);
-                        results.push((name.to_string(), false, load_time, std::time::Duration::from_secs(0)));
+                        results.push((
+                            name.to_string(),
+                            false,
+                            load_time,
+                            std::time::Duration::from_secs(0),
+                        ));
                     }
                 }
             }
             Err(e) => {
                 println!("❌ Model loading failed: {}", e);
-                results.push((name.to_string(), false, std::time::Duration::from_secs(0), std::time::Duration::from_secs(0)));
+                results.push((
+                    name.to_string(),
+                    false,
+                    std::time::Duration::from_secs(0),
+                    std::time::Duration::from_secs(0),
+                ));
             }
         }
     }
@@ -91,20 +126,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Summary
     println!("\n📊 Summary Report");
     println!("=================");
-    println!("{:<25} {:<8} {:<10} {:<10}", "Model", "Status", "Load Time", "Embed Time");
+    println!(
+        "{:<25} {:<8} {:<10} {:<10}",
+        "Model", "Status", "Load Time", "Embed Time"
+    );
     println!("{:-<25} {:-<8} {:-<10} {:-<10}", "", "", "", "");
 
     let mut success_count = 0;
     for (name, success, load_time, embed_time) in &results {
         let status = if *success { "✅" } else { "❌" };
-        println!("{:<25} {:<8} {:.2}s      {:.3}s",
-            name, status,
+        println!(
+            "{:<25} {:<8} {:.2}s      {:.3}s",
+            name,
+            status,
             load_time.as_secs_f32(),
-            embed_time.as_secs_f32());
-        if *success { success_count += 1; }
+            embed_time.as_secs_f32()
+        );
+        if *success {
+            success_count += 1;
+        }
     }
 
-    println!("\n🎯 Results: {}/{} models loaded and tested successfully", success_count, results.len());
+    println!(
+        "\n🎯 Results: {}/{} models loaded and tested successfully",
+        success_count,
+        results.len()
+    );
 
     if success_count == results.len() {
         println!("🎉 All models are working correctly!");

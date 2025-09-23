@@ -74,7 +74,7 @@ impl OptimizedHnswIndex {
         let nb_layer = 16.min((config.initial_capacity as f32).ln() as usize);
         let max_nb_connection = config.max_connections;
         let ef_c = config.ef_construction;
-        
+
         let hnsw = Hnsw::<f32, DistCosine>::new(
             max_nb_connection,
             config.initial_capacity,
@@ -154,10 +154,10 @@ impl OptimizedHnswIndex {
         for (id, data) in batch {
             let internal_id = *next_id;
             *next_id += 1;
-            
+
             vectors.insert(id.clone(), data.clone());
             id_map.insert(id.clone(), internal_id);
-            
+
             hnsw.insert((&data, internal_id));
         }
 
@@ -202,13 +202,11 @@ impl OptimizedHnswIndex {
         let hnsw = self.hnsw.read();
         let id_map = self.id_map.read();
         let vectors = self.vectors.read();
-        
+
         // Create reverse mapping from internal ID to string ID
-        let reverse_map: HashMap<usize, String> = id_map
-            .iter()
-            .map(|(k, v)| (*v, k.clone()))
-            .collect();
-        
+        let reverse_map: HashMap<usize, String> =
+            id_map.iter().map(|(k, v)| (*v, k.clone())).collect();
+
         // Adaptive ef_search based on index size
         let vector_count = vectors.len();
         let ef_search = if vector_count < 10 {
@@ -218,24 +216,24 @@ impl OptimizedHnswIndex {
         };
 
         let neighbors = hnsw.search(query, k, ef_search);
-        
+
         // Convert internal IDs back to string IDs
         let results = neighbors
             .into_iter()
             .filter_map(|neighbor| {
-                reverse_map.get(&neighbor.d_id).map(|id| {
-                    (id.clone(), neighbor.distance)
-                })
+                reverse_map
+                    .get(&neighbor.d_id)
+                    .map(|id| (id.clone(), neighbor.distance))
             })
             .collect();
-        
+
         Ok(results)
     }
 
     /// Remove a vector by ID
     pub fn remove(&self, id: &str) -> Result<bool> {
         let mut vectors = self.vectors.write();
-        
+
         if vectors.remove(id).is_some() {
             // Note: HNSW doesn't support removal, would need to rebuild
             debug!("Vector {} marked for removal", id);
@@ -258,12 +256,12 @@ impl OptimizedHnswIndex {
     /// Optimize the index for search
     pub fn optimize(&self) -> Result<()> {
         self.flush()?;
-        
+
         // Additional optimizations could include:
         // - Rebalancing the graph
         // - Compacting memory
         // - Updating statistics
-        
+
         info!("Index optimized with {} vectors", self.len());
         Ok(())
     }
@@ -273,7 +271,7 @@ impl OptimizedHnswIndex {
         let vectors = self.vectors.read();
         let vector_memory = vectors.len() * self.dimension * std::mem::size_of::<f32>();
         let id_memory = vectors.keys().map(|k| k.len()).sum::<usize>();
-        
+
         MemoryStats {
             vector_count: vectors.len(),
             vector_memory_bytes: vector_memory,
@@ -314,9 +312,9 @@ mod tests {
             batch_size: 10,
             ..Default::default()
         };
-        
+
         let index = OptimizedHnswIndex::new(128, config).unwrap();
-        
+
         // Create test vectors
         let vectors: Vec<_> = (0..100)
             .map(|i| {
@@ -324,25 +322,25 @@ mod tests {
                 (format!("vec_{}", i), vec)
             })
             .collect();
-        
+
         // Batch insert
         index.batch_add(vectors).unwrap();
-        
+
         assert_eq!(index.len(), 100);
     }
 
     #[test]
     fn test_memory_stats() {
         let index = OptimizedHnswIndex::new(128, Default::default()).unwrap();
-        
+
         // Add some vectors
         for i in 0..10 {
             let vec = vec![i as f32; 128];
             index.add(format!("vec_{}", i), vec).unwrap();
         }
-        
+
         index.flush().unwrap();
-        
+
         let stats = index.memory_stats();
         assert_eq!(stats.vector_count, 10);
         assert_eq!(stats.vector_memory_bytes, 10 * 128 * 4); // 10 vectors * 128 dims * 4 bytes

@@ -1,9 +1,9 @@
 //! Vectorizer CLI - Administrative command-line interface
-//! 
+//!
 //! This binary provides administrative tools for managing the Vectorizer vector database
 
-use vectorizer::cli;
 use tracing_subscriber;
+use vectorizer::cli;
 
 #[tokio::main]
 async fn main() {

@@ -79,10 +79,18 @@ impl HnswIndex {
 
     /// Add a vector to the index
     pub fn add(&mut self, id: &str, vector: &[f32]) -> Result<()> {
-        debug!("Adding vector '{}' with {} dimensions to HNSW index", id, vector.len());
+        debug!(
+            "Adding vector '{}' with {} dimensions to HNSW index",
+            id,
+            vector.len()
+        );
 
         if vector.len() != self.dimension {
-            error!("Dimension mismatch: expected {}, got {}", self.dimension, vector.len());
+            error!(
+                "Dimension mismatch: expected {}, got {}",
+                self.dimension,
+                vector.len()
+            );
             return Err(VectorizerError::InvalidDimension {
                 expected: self.dimension,
                 got: vector.len(),
@@ -106,7 +114,10 @@ impl HnswIndex {
         self.reverse_id_map.insert(internal_id, id.to_string());
 
         // Add to HNSW
-        debug!("Inserting vector into HNSW graph (internal_id: {})", internal_id);
+        debug!(
+            "Inserting vector into HNSW graph (internal_id: {})",
+            internal_id
+        );
         self.hnsw.insert((vector, internal_id));
         debug!("Successfully inserted vector '{}' into HNSW", id);
         Ok(())
@@ -183,7 +194,11 @@ impl HnswIndex {
                 ef = std::cmp::min(ef * 2, 2048);
             }
             // Fallback to whatever we have
-            if best.is_empty() { self.hnsw.search(query, vector_count, ef) } else { best }
+            if best.is_empty() {
+                self.hnsw.search(query, vector_count, ef)
+            } else {
+                best
+            }
         } else {
             let ef_search = std::cmp::max(k * 2, 64);
             self.hnsw.search(query, k, ef_search)
@@ -370,7 +385,11 @@ mod tests {
         // Test search accuracy
         let results = index.search(&[1.0, 0.0, 0.0], 3).unwrap();
         // With improved ef_search for small indices, we should get all 3 results
-        assert_eq!(results.len(), 3, "Should return all 3 vectors for small index");
+        assert_eq!(
+            results.len(),
+            3,
+            "Should return all 3 vectors for small index"
+        );
         assert_eq!(results[0].0, "v1"); // Should be exact match (closest)
 
         // Test update operation
@@ -430,7 +449,9 @@ mod tests {
                 vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             } else {
                 // Other vectors are different
-                (0..10).map(|j| if j == (i % 9) + 1 { 1.0 } else { 0.0 }).collect()
+                (0..10)
+                    .map(|j| if j == (i % 9) + 1 { 1.0 } else { 0.0 })
+                    .collect()
             };
             index.add(&format!("vec_{}", i), &vector).unwrap();
         }

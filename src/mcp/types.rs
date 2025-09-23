@@ -1,5 +1,5 @@
 //! MCP type definitions
-//! 
+//!
 //! Common types and structures used throughout the MCP implementation
 
 use serde::{Deserialize, Serialize};
@@ -195,14 +195,9 @@ pub struct McpToolResult {
 #[serde(tag = "type")]
 pub enum McpContent {
     #[serde(rename = "text")]
-    Text {
-        text: String,
-    },
+    Text { text: String },
     #[serde(rename = "image")]
-    Image {
-        data: String,
-        mime_type: String,
-    },
+    Image { data: String, mime_type: String },
     #[serde(rename = "resource")]
     Resource {
         resource: McpResourceReference,

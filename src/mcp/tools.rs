@@ -1,12 +1,12 @@
 //! MCP tools implementation
-//! 
+//!
 //! Provides specific tool implementations for vector database operations
 
 use crate::db::VectorStore;
-use crate::embedding::{EmbeddingManager};
+use crate::embedding::EmbeddingManager;
 use crate::error::{Result, VectorizerError};
 use serde_json;
-use tracing::{debug};
+use tracing::debug;
 
 /// Tool implementations for MCP
 pub struct McpTools;
@@ -20,19 +20,27 @@ impl McpTools {
         vector_store: &VectorStore,
         embedding_manager: &EmbeddingManager,
     ) -> Result<serde_json::Value> {
-        debug!("Searching vectors in collection '{}' with query '{}'", collection, query);
+        debug!(
+            "Searching vectors in collection '{}' with query '{}'",
+            collection, query
+        );
 
         // Check if collection exists
-        if !vector_store.list_collections().contains(&collection.to_string()) {
+        if !vector_store
+            .list_collections()
+            .contains(&collection.to_string())
+        {
             return Err(VectorizerError::CollectionNotFound(collection.to_string()));
         }
 
         // Generate embedding for the query
-        let query_embedding = embedding_manager.embed(query)
+        let query_embedding = embedding_manager
+            .embed(query)
             .map_err(|e| VectorizerError::Other(format!("Failed to embed query: {}", e)))?;
 
         // Search in the collection
-        let results = vector_store.search(collection, &query_embedding, limit)
+        let results = vector_store
+            .search(collection, &query_embedding, limit)
             .map_err(|e| VectorizerError::Other(format!("Search failed: {}", e)))?;
 
         // Convert results to JSON
@@ -62,7 +70,7 @@ impl McpTools {
 
         let collections = vector_store.list_collections();
         let _total_count = collections.len();
-        
+
         let collection_info: Vec<serde_json::Value> = collections
             .into_iter()
             .map(|name| {
@@ -133,7 +141,8 @@ impl McpTools {
     ) -> Result<serde_json::Value> {
         debug!("Generating embedding for text: '{}'", text);
 
-        let embedding = embedding_manager.embed(text)
+        let embedding = embedding_manager
+            .embed(text)
             .map_err(|e| VectorizerError::Other(format!("Failed to embed text: {}", e)))?;
 
         Ok(serde_json::json!({
@@ -150,7 +159,11 @@ impl McpTools {
         vectors: Vec<(String, Vec<f32>, Option<serde_json::Value>)>,
         vector_store: &VectorStore,
     ) -> Result<serde_json::Value> {
-        debug!("Inserting {} vectors into collection '{}'", vectors.len(), collection);
+        debug!(
+            "Inserting {} vectors into collection '{}'",
+            vectors.len(),
+            collection
+        );
 
         use crate::models::Vector;
 
@@ -158,7 +171,11 @@ impl McpTools {
             .into_iter()
             .map(|(id, data, payload)| {
                 if let Some(payload_data) = payload {
-                    Vector::with_payload(id, data, crate::models::Payload::from_value(payload_data).unwrap_or_default())
+                    Vector::with_payload(
+                        id,
+                        data,
+                        crate::models::Payload::from_value(payload_data).unwrap_or_default(),
+                    )
                 } else {
                     Vector::new(id, data)
                 }
@@ -181,7 +198,11 @@ impl McpTools {
         vector_ids: Vec<String>,
         vector_store: &VectorStore,
     ) -> Result<serde_json::Value> {
-        debug!("Deleting {} vectors from collection '{}'", vector_ids.len(), collection);
+        debug!(
+            "Deleting {} vectors from collection '{}'",
+            vector_ids.len(),
+            collection
+        );
 
         let mut deleted_count = 0;
         let mut errors = Vec::new();
@@ -209,7 +230,10 @@ impl McpTools {
         vector_id: &str,
         vector_store: &VectorStore,
     ) -> Result<serde_json::Value> {
-        debug!("Getting vector '{}' from collection '{}'", vector_id, collection);
+        debug!(
+            "Getting vector '{}' from collection '{}'",
+            vector_id, collection
+        );
 
         let vector = vector_store.get_vector(collection, vector_id)?;
 
@@ -228,7 +252,10 @@ impl McpTools {
         metric: &str,
         vector_store: &VectorStore,
     ) -> Result<serde_json::Value> {
-        debug!("Creating collection '{}' with dimension {}", name, dimension);
+        debug!(
+            "Creating collection '{}' with dimension {}",
+            name, dimension
+        );
 
         use crate::models::{CollectionConfig, DistanceMetric};
 
@@ -287,7 +314,6 @@ impl McpTools {
                     Ok(metadata) => {
                         total_vectors += metadata.vector_count;
                         total_memory_estimate += metadata.vector_count * metadata.config.dimension * 4; // 4 bytes per f32
-                        
                         serde_json::json!({
                             "name": name,
                             "vector_count": metadata.vector_count,
@@ -323,7 +349,7 @@ mod tests {
     async fn test_list_collections() {
         let vector_store = VectorStore::new();
         let result = McpTools::list_collections(&vector_store).await.unwrap();
-        
+
         assert!(result.get("collections").is_some());
         assert!(result.get("total_count").is_some());
     }
@@ -332,7 +358,7 @@ mod tests {
     async fn test_get_database_stats() {
         let vector_store = VectorStore::new();
         let result = McpTools::get_database_stats(&vector_store).await.unwrap();
-        
+
         assert!(result.get("total_collections").is_some());
         assert!(result.get("total_vectors").is_some());
         assert!(result.get("collections").is_some());
@@ -346,8 +372,10 @@ mod tests {
         embedding_manager.register_provider("tfidf".to_string(), Box::new(tfidf));
         embedding_manager.set_default_provider("tfidf").unwrap();
 
-        let result = McpTools::embed_text("test text", &embedding_manager).await.unwrap();
-        
+        let result = McpTools::embed_text("test text", &embedding_manager)
+            .await
+            .unwrap();
+
         assert!(result.get("embedding").is_some());
         assert_eq!(result.get("text").unwrap(), "test text");
         assert_eq!(result.get("dimension").unwrap(), 64);

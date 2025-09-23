@@ -1,7 +1,7 @@
 //! Tests for optimized HNSW index
 
 use crate::{
-    db::{OptimizedHnswIndex, OptimizedHnswConfig},
+    db::{OptimizedHnswConfig, OptimizedHnswIndex},
     models::DistanceMetric,
 };
 
@@ -103,8 +103,12 @@ fn test_optimized_hnsw_memory_stats() {
     let _stats = index.memory_stats();
 
     // Add vectors
-    index.add("stats1".to_string(), vec![1.0, 0.0, 0.0]).unwrap();
-    index.add("stats2".to_string(), vec![0.0, 1.0, 0.0]).unwrap();
+    index
+        .add("stats1".to_string(), vec![1.0, 0.0, 0.0])
+        .unwrap();
+    index
+        .add("stats2".to_string(), vec![0.0, 1.0, 0.0])
+        .unwrap();
 
     let _stats_after = index.memory_stats();
 }
@@ -127,8 +131,12 @@ fn test_optimized_hnsw_different_metrics() {
 
         let index = OptimizedHnswIndex::new(3, config).unwrap();
 
-        index.add("metric1".to_string(), vec![1.0, 0.0, 0.0]).unwrap();
-        index.add("metric2".to_string(), vec![0.0, 1.0, 0.0]).unwrap();
+        index
+            .add("metric1".to_string(), vec![1.0, 0.0, 0.0])
+            .unwrap();
+        index
+            .add("metric2".to_string(), vec![0.0, 1.0, 0.0])
+            .unwrap();
 
         let query = vec![1.0, 0.0, 0.0];
         let results = index.search(&query, 1).unwrap();
@@ -206,10 +214,14 @@ fn test_optimized_hnsw_large_batch() {
     let index = OptimizedHnswIndex::new(10, config).unwrap();
 
     // Create larger batch of vectors
-    let vectors: Vec<(String, Vec<f32>)> = (0..50).map(|i| {
-        let data = (0..10).map(|j| if j == i % 10 { 1.0 } else { 0.0 }).collect();
-        (format!("large{}", i), data)
-    }).collect();
+    let vectors: Vec<(String, Vec<f32>)> = (0..50)
+        .map(|i| {
+            let data = (0..10)
+                .map(|j| if j == i % 10 { 1.0 } else { 0.0 })
+                .collect();
+            (format!("large{}", i), data)
+        })
+        .collect();
 
     index.batch_add(vectors).unwrap();
 

@@ -1,5 +1,5 @@
 //! CLI utility functions
-//! 
+//!
 //! Common utilities for CLI operations
 
 use crate::error::{Result, VectorizerError};
@@ -14,8 +14,7 @@ impl CliUtils {
     pub fn ensure_directory(path: &PathBuf) -> Result<()> {
         if !path.exists() {
             info!("Creating directory: {:?}", path);
-            std::fs::create_dir_all(path)
-                .map_err(|e| VectorizerError::IoError(e))?;
+            std::fs::create_dir_all(path).map_err(|e| VectorizerError::IoError(e))?;
         } else if !path.is_dir() {
             return Err(VectorizerError::InvalidConfiguration {
                 message: format!("Path exists but is not a directory: {:?}", path),
@@ -27,7 +26,10 @@ impl CliUtils {
     /// Check if file exists and is readable
     pub fn check_file_readable(path: &PathBuf) -> Result<()> {
         if !path.exists() {
-            return Err(VectorizerError::NotFound(format!("File not found: {:?}", path)));
+            return Err(VectorizerError::NotFound(format!(
+                "File not found: {:?}",
+                path
+            )));
         }
 
         if !path.is_file() {
@@ -37,8 +39,7 @@ impl CliUtils {
         }
 
         // Try to read the file to check permissions
-        std::fs::read(path)
-            .map_err(|e| VectorizerError::IoError(e))?;
+        std::fs::read(path).map_err(|e| VectorizerError::IoError(e))?;
 
         Ok(())
     }
@@ -108,9 +109,8 @@ impl CliUtils {
     pub fn confirm_action(message: &str, default: bool) -> Result<bool> {
         let default_text = if default { "Y/n" } else { "y/N" };
         print!("{} [{}]: ", message, default_text);
-        
-        std::io::Write::flush(&mut std::io::stdout())
-            .map_err(|e| VectorizerError::IoError(e))?;
+
+        std::io::Write::flush(&mut std::io::stdout()).map_err(|e| VectorizerError::IoError(e))?;
 
         let mut input = String::new();
         std::io::stdin()
@@ -118,7 +118,7 @@ impl CliUtils {
             .map_err(|e| VectorizerError::IoError(e))?;
 
         let input = input.trim().to_lowercase();
-        
+
         match input.as_str() {
             "" => Ok(default),
             "y" | "yes" => Ok(true),
@@ -143,7 +143,7 @@ impl CliUtils {
     /// Check system requirements
     pub fn check_system_requirements() -> Result<()> {
         let info = Self::get_system_info();
-        
+
         info!("System Information:");
         info!("  OS: {}", info.os);
         info!("  Architecture: {}", info.arch);
@@ -180,7 +180,10 @@ impl CliUtils {
         }
 
         if port < 1024 && cfg!(unix) {
-            warn!("Port {} is below 1024. You may need root privileges to bind to this port.", port);
+            warn!(
+                "Port {} is below 1024. You may need root privileges to bind to this port.",
+                port
+            );
         }
 
         Ok(())
@@ -196,7 +199,9 @@ impl CliUtils {
 
         // Basic validation for IP addresses and hostnames
         if host == "0.0.0.0" {
-            warn!("Binding to 0.0.0.0 will make the server accessible from all network interfaces.");
+            warn!(
+                "Binding to 0.0.0.0 will make the server accessible from all network interfaces."
+            );
         }
 
         Ok(())
@@ -206,7 +211,7 @@ impl CliUtils {
     pub fn generate_secure_string(length: usize) -> Result<String> {
         use rand::Rng;
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        
+
         let mut rng = rand::rng();
         let password: String = (0..length)
             .map(|_| {
@@ -238,14 +243,12 @@ impl CliUtils {
 
     /// Get current working directory
     pub fn get_current_dir() -> Result<PathBuf> {
-        std::env::current_dir()
-            .map_err(|e| VectorizerError::IoError(e))
+        std::env::current_dir().map_err(|e| VectorizerError::IoError(e))
     }
 
     /// Set working directory
     pub fn set_current_dir(path: &PathBuf) -> Result<()> {
-        std::env::set_current_dir(path)
-            .map_err(|e| VectorizerError::IoError(e))
+        std::env::set_current_dir(path).map_err(|e| VectorizerError::IoError(e))
     }
 }
 
@@ -306,7 +309,7 @@ impl ProgressBar {
             print!("-");
         }
         print!("] {:.1}% ({}/{})", percentage, self.current, self.total);
-        
+
         if self.current >= self.total {
             println!();
         } else {
@@ -346,15 +349,15 @@ mod tests {
     fn test_ensure_directory() {
         let temp_dir = tempdir().unwrap();
         let new_dir = temp_dir.path().join("new_directory");
-        
+
         // Directory doesn't exist initially
         assert!(!new_dir.exists());
-        
+
         // Create directory
         CliUtils::ensure_directory(&new_dir).unwrap();
         assert!(new_dir.exists());
         assert!(new_dir.is_dir());
-        
+
         // Creating again should not fail
         CliUtils::ensure_directory(&new_dir).unwrap();
     }
@@ -378,7 +381,7 @@ mod tests {
     fn test_generate_secure_string() {
         let password = CliUtils::generate_secure_string(32).unwrap();
         assert_eq!(password.len(), 32);
-        
+
         // Should contain only alphanumeric characters
         for ch in password.chars() {
             assert!(ch.is_ascii_alphanumeric());
@@ -388,11 +391,11 @@ mod tests {
     #[test]
     fn test_progress_bar() {
         let mut pb = ProgressBar::new(100);
-        
+
         pb.update(50);
         pb.increment();
         pb.finish();
-        
+
         // Test is mainly for compilation - actual output testing would be complex
         assert_eq!(pb.current, 100);
         assert_eq!(pb.total, 100);

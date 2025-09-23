@@ -6,14 +6,14 @@
 //! - Indexing throughput (vectors/sec)
 //! - End-to-end pipeline performance
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::time::Duration;
 use vectorizer::{
     db::{OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
     document_loader::{DocumentLoader, LoaderConfig},
-    embedding::{EmbeddingCache, CacheConfig, EmbeddingManager, TfIdfEmbedding},
+    embedding::{CacheConfig, EmbeddingCache, EmbeddingManager, TfIdfEmbedding},
     models::{CollectionConfig, DistanceMetric},
-    parallel::{init_parallel_env, ParallelConfig, ProcessingPipeline},
+    parallel::{ParallelConfig, ProcessingPipeline, init_parallel_env},
 };
 
 #[cfg(feature = "tokenizers")]
@@ -121,14 +121,15 @@ fn bench_embedding_throughput(c: &mut Criterion) {
 
         if let Ok(embedder) = OnnxEmbedder::new(config) {
             let batch_sizes = [1, 16, 32, 64];
-            
+
             for &batch_size in &batch_sizes {
                 group.throughput(Throughput::Elements(batch_size as u64));
                 group.bench_with_input(
                     BenchmarkId::new("onnx_minilm", batch_size),
                     &batch_size,
                     |b, &size| {
-                        let batch_docs: Vec<&str> = docs[..size].iter().map(|s| s.as_str()).collect();
+                        let batch_docs: Vec<&str> =
+                            docs[..size].iter().map(|s| s.as_str()).collect();
                         b.iter(|| {
                             black_box(embedder.embed_batch(&batch_docs).unwrap());
                         })
@@ -148,7 +149,7 @@ fn bench_indexing_throughput(c: &mut Criterion) {
 
     let dimension = 384;
     let num_vectors = 10_000;
-    
+
     // Generate random vectors
     let vectors: Vec<(String, Vec<f32>)> = (0..num_vectors)
         .map(|i| {
@@ -231,15 +232,16 @@ fn bench_pipeline_throughput(c: &mut Criterion) {
     let cache = EmbeddingCache::new(cache_config).unwrap();
 
     let store = VectorStore::new(Default::default()).unwrap();
-    store.create_collection(
-        "bench_collection",
-        CollectionConfig {
-            dimension: 384,
-            distance_metric: DistanceMetric::Cosine,
-            hnsw_config: None,
-        },
-    )
-    .unwrap();
+    store
+        .create_collection(
+            "bench_collection",
+            CollectionConfig {
+                dimension: 384,
+                distance_metric: DistanceMetric::Cosine,
+                hnsw_config: None,
+            },
+        )
+        .unwrap();
 
     // Measure end-to-end throughput
     group.throughput(Throughput::Elements(100));
@@ -262,13 +264,12 @@ fn bench_pipeline_throughput(c: &mut Criterion) {
                         .unwrap();
                 } else {
                     // Compute embedding (using simple hash for benchmark)
-                    let embedding: Vec<f32> = (0..384)
-                        .map(|i| ((doc.len() + i) as f32).sin())
-                        .collect();
-                    
+                    let embedding: Vec<f32> =
+                        (0..384).map(|i| ((doc.len() + i) as f32).sin()).collect();
+
                     // Cache it
                     cache.put(doc, &embedding).unwrap();
-                    
+
                     // Insert to store
                     store
                         .insert(
@@ -291,16 +292,12 @@ fn bench_pipeline_throughput(c: &mut Criterion) {
 /// Benchmark search performance
 fn bench_search_performance(c: &mut Criterion) {
     let mut group = c.benchmark_group("search");
-    
+
     let dimension = 384;
     let num_vectors = 10_000;
-    
+
     // Setup index with vectors
-    let index = OptimizedHnswIndex::new(
-        dimension,
-        OptimizedHnswConfig::default(),
-    )
-    .unwrap();
+    let index = OptimizedHnswIndex::new(dimension, OptimizedHnswConfig::default()).unwrap();
 
     let vectors: Vec<(String, Vec<f32>)> = (0..num_vectors)
         .map(|i| {
@@ -338,10 +335,10 @@ fn bench_search_performance(c: &mut Criterion) {
 }
 
 // Add rand dependency for benchmarks
-use rand;
-use vectorizer::models;
 use hnsw_rs::hnsw::HnswParams;
+use rand;
 use vectorizer::db::HnswIndex;
+use vectorizer::models;
 
 criterion_group!(
     benches,

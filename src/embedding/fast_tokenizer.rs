@@ -1,5 +1,5 @@
 //! Ultra-fast tokenization with caching and batch processing
-//! 
+//!
 //! This module provides high-performance tokenization using HuggingFace tokenizers
 //! with intelligent caching, batch processing, and memory-mapped persistence.
 
@@ -10,10 +10,7 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokenizers::{
-    tokenizer::Tokenizer,
-    PaddingParams, PaddingStrategy, TruncationParams,
-};
+use tokenizers::{PaddingParams, PaddingStrategy, TruncationParams, tokenizer::Tokenizer};
 use xxhash_rust::xxh3::xxh3_64;
 
 /// Global tokenizer cache shared across the application
@@ -66,24 +63,25 @@ impl FastTokenizer {
     /// Create a new fast tokenizer from a model path
     pub fn from_pretrained(model_name: &str, config: FastTokenizerConfig) -> Result<Self> {
         // Get or create global cache
-        let cache = TOKENIZER_CACHE.get_or_init(|| {
-            Arc::new(TokenizerCache::new(config.cache_dir.clone()))
-        });
+        let cache =
+            TOKENIZER_CACHE.get_or_init(|| Arc::new(TokenizerCache::new(config.cache_dir.clone())));
 
         // Load tokenizer with caching
         let tokenizer = cache.get_or_load(model_name)?;
-        
+
         // Configure tokenizer
         let mut tokenizer = (*tokenizer).clone();
-        
+
         // Set truncation
         if config.truncation {
-            tokenizer.with_truncation(Some(TruncationParams {
-                max_length: config.max_length,
-                ..Default::default()
-            })).map_err(|e| anyhow::anyhow!("Truncation error: {:?}", e))?;
+            tokenizer
+                .with_truncation(Some(TruncationParams {
+                    max_length: config.max_length,
+                    ..Default::default()
+                }))
+                .map_err(|e| anyhow::anyhow!("Truncation error: {:?}", e))?;
         }
-        
+
         // Set padding
         if config.padding {
             tokenizer.with_padding(Some(PaddingParams {
@@ -103,7 +101,7 @@ impl FastTokenizer {
     pub fn encode(&self, text: &str) -> Result<Vec<u32>> {
         // Compute hash for caching
         let hash = xxh3_64(text.as_bytes());
-        
+
         // Check cache
         {
             let cache = self.token_cache.read();
@@ -113,7 +111,9 @@ impl FastTokenizer {
         }
 
         // Tokenize
-        let encoding = self.tokenizer.encode(text, false)
+        let encoding = self
+            .tokenizer
+            .encode(text, false)
             .map_err(|e| anyhow::anyhow!("Tokenization error: {:?}", e))?;
         let tokens = encoding.get_ids().to_vec();
 
@@ -134,12 +134,14 @@ impl FastTokenizer {
 
         // Process in batches for better performance
         let mut all_tokens = Vec::with_capacity(texts.len());
-        
+
         for chunk in texts.chunks(self.config.batch_size) {
             // Batch tokenization
-            let encodings = self.tokenizer.encode_batch(chunk.to_vec(), false)
+            let encodings = self
+                .tokenizer
+                .encode_batch(chunk.to_vec(), false)
                 .map_err(|e| anyhow::anyhow!("Batch tokenization error: {:?}", e))?;
-            
+
             // Extract token IDs
             for encoding in encodings {
                 all_tokens.push(encoding.get_ids().to_vec());
@@ -152,7 +154,7 @@ impl FastTokenizer {
     /// Tokenize with chunking for long documents
     pub fn encode_chunked(&self, text: &str) -> Result<Vec<Vec<u32>>> {
         let words: Vec<&str> = text.split_whitespace().collect();
-        
+
         if words.is_empty() {
             return Ok(vec![]);
         }
@@ -165,14 +167,14 @@ impl FastTokenizer {
         while start < words.len() {
             let end = std::cmp::min(start + chunk_size, words.len());
             let chunk_text = words[start..end].join(" ");
-            
+
             let tokens = self.encode(&chunk_text)?;
             chunks.push(tokens);
 
             if end >= words.len() {
                 break;
             }
-            
+
             start += chunk_size - stride;
         }
 
@@ -199,7 +201,7 @@ struct TokenizerCache {
 impl TokenizerCache {
     fn new(cache_dir: PathBuf) -> Self {
         std::fs::create_dir_all(&cache_dir).ok();
-        
+
         Self {
             cache_dir,
             tokenizers: ArcSwap::from_pointee(HashMap::new()),
@@ -216,8 +218,10 @@ impl TokenizerCache {
         }
 
         // Try to load from disk cache
-        let cache_path = self.cache_dir.join(format!("{}.json", model_name.replace('/', "_")));
-        
+        let cache_path = self
+            .cache_dir
+            .join(format!("{}.json", model_name.replace('/', "_")));
+
         let tokenizer = if cache_path.exists() {
             // Load from cache
             Tokenizer::from_file(&cache_path)
@@ -225,7 +229,7 @@ impl TokenizerCache {
         } else {
             // For now, return error - user must download tokenizer manually
             return Err(anyhow::anyhow!(
-                "Tokenizer not found at {}. Please download the tokenizer.json from HuggingFace and place it there.", 
+                "Tokenizer not found at {}. Please download the tokenizer.json from HuggingFace and place it there.",
                 cache_path.display()
             ));
         };
@@ -261,25 +265,25 @@ pub mod benchmark {
 
         pub fn benchmark_single(&self, texts: &[&str]) -> Result<f64> {
             let start = Instant::now();
-            
+
             for text in texts {
                 let _ = self.tokenizer.encode(text)?;
             }
-            
+
             let elapsed = start.elapsed();
             let tokens_per_sec = texts.len() as f64 / elapsed.as_secs_f64();
-            
+
             Ok(tokens_per_sec)
         }
 
         pub fn benchmark_batch(&self, texts: &[&str]) -> Result<f64> {
             let start = Instant::now();
-            
+
             let _ = self.tokenizer.encode_batch(texts)?;
-            
+
             let elapsed = start.elapsed();
             let tokens_per_sec = texts.len() as f64 / elapsed.as_secs_f64();
-            
+
             Ok(tokens_per_sec)
         }
     }

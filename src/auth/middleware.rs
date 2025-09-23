@@ -1,14 +1,14 @@
 //! Authentication middleware for Axum
-//! 
+//!
 //! Provides middleware for JWT and API key authentication
 
 use crate::auth::{AuthManager, UserClaims};
 // Result type is used in function signatures
 use axum::{
     extract::{Request, State},
-    http::{header::AUTHORIZATION, StatusCode},
+    http::{StatusCode, header::AUTHORIZATION},
     middleware::Next,
-    response::{Response, IntoResponse},
+    response::{IntoResponse, Response},
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -38,22 +38,20 @@ impl AuthMiddleware {
         next: Next,
     ) -> std::result::Result<Response, StatusCode> {
         let auth_state = Self::authenticate_request(&auth_manager, &request).await;
-        
+
         // Add auth state to request extensions
         let mut request = request;
         request.extensions_mut().insert(auth_state);
-        
+
         Ok(next.run(request).await)
     }
 
     /// Authenticate a request using JWT or API key
-    async fn authenticate_request(
-        auth_manager: &AuthManager,
-        request: &Request,
-    ) -> AuthState {
+    async fn authenticate_request(auth_manager: &AuthManager, request: &Request) -> AuthState {
         // Try to get authorization header
         if let Some(auth_header) = request.headers().get(AUTHORIZATION)
-            && let Ok(auth_str) = auth_header.to_str() {
+            && let Ok(auth_str) = auth_header.to_str()
+        {
             // Check for Bearer token (JWT)
             if let Some(token) = auth_str.strip_prefix("Bearer ") {
                 if let Ok(claims) = auth_manager.validate_jwt(token) {
@@ -63,7 +61,7 @@ impl AuthMiddleware {
                     };
                 }
             }
-            
+
             // Check for API key (direct token)
             if let Ok(claims) = auth_manager.validate_api_key(auth_str).await {
                 return AuthState {
@@ -102,7 +100,9 @@ impl AuthMiddleware {
 }
 
 impl Default for AuthMiddleware {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Require authentication middleware
@@ -116,15 +116,15 @@ impl RequireAuthMiddleware {
         next: Next,
     ) -> Response {
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         if !auth_state.authenticated {
             return (StatusCode::UNAUTHORIZED, "Authentication required").into_response();
         }
-        
+
         // Add auth state to request extensions
         let mut request = request;
         request.extensions_mut().insert(auth_state);
-        
+
         next.run(request).await
     }
 }
@@ -141,19 +141,19 @@ impl RequireRoleMiddleware {
         next: Next,
     ) -> Response {
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         if !auth_state.authenticated {
             return (StatusCode::UNAUTHORIZED, "Authentication required").into_response();
         }
-        
+
         if !auth_state.user_claims.roles.contains(&required_role) {
             return (StatusCode::FORBIDDEN, "Insufficient permissions").into_response();
         }
-        
+
         // Add auth state to request extensions
         let mut request = request;
         request.extensions_mut().insert(auth_state);
-        
+
         next.run(request).await
     }
 }
@@ -170,22 +170,25 @@ impl RequirePermissionMiddleware {
         next: Next,
     ) -> Response {
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         if !auth_state.authenticated {
             return (StatusCode::UNAUTHORIZED, "Authentication required").into_response();
         }
-        
-        let has_permission = auth_state.user_claims.roles.iter()
+
+        let has_permission = auth_state
+            .user_claims
+            .roles
+            .iter()
             .any(|role| role.has_permission(&required_permission));
-        
+
         if !has_permission {
             return (StatusCode::FORBIDDEN, "Insufficient permissions").into_response();
         }
-        
+
         // Add auth state to request extensions
         let mut request = request;
         request.extensions_mut().insert(auth_state);
-        
+
         next.run(request).await
     }
 }
@@ -246,31 +249,28 @@ impl AuthErrorResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::roles::{Permission, Role};
     use crate::auth::{AuthConfig, AuthManager};
-    use crate::auth::roles::{Role, Permission};
-    use axum::{
-        body::Body,
-        http::Request,
-    };
+    use axum::{body::Body, http::Request};
     use std::sync::Arc;
 
     #[tokio::test]
     async fn test_auth_middleware_jwt() {
         let config = AuthConfig::default();
         let auth_manager = Arc::new(AuthManager::new(config).unwrap());
-        
+
         let token = auth_manager
             .generate_jwt("user123", "testuser", vec![Role::User])
             .unwrap();
-        
+
         let request = Request::builder()
             .uri("/test")
             .header(AUTHORIZATION, format!("Bearer {}", token))
             .body(Body::empty())
             .unwrap();
-        
+
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         assert!(auth_state.authenticated);
         assert_eq!(auth_state.user_claims.user_id, "user123");
         assert_eq!(auth_state.user_claims.username, "testuser");
@@ -280,20 +280,20 @@ mod tests {
     async fn test_auth_middleware_api_key() {
         let config = AuthConfig::default();
         let auth_manager = Arc::new(AuthManager::new(config).unwrap());
-        
+
         let (api_key, _) = auth_manager
             .create_api_key("user123", "test_key", vec![Permission::Read], None)
             .await
             .unwrap();
-        
+
         let request = Request::builder()
             .uri("/test")
             .header(AUTHORIZATION, api_key)
             .body(Body::empty())
             .unwrap();
-        
+
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         assert!(auth_state.authenticated);
         assert_eq!(auth_state.user_claims.user_id, "user123");
     }
@@ -302,14 +302,11 @@ mod tests {
     async fn test_auth_middleware_no_auth() {
         let config = AuthConfig::default();
         let auth_manager = Arc::new(AuthManager::new(config).unwrap());
-        
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
-        
+
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
+
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         assert!(!auth_state.authenticated);
         assert_eq!(auth_state.user_claims.user_id, "anonymous");
     }
@@ -318,15 +315,15 @@ mod tests {
     async fn test_auth_middleware_invalid_token() {
         let config = AuthConfig::default();
         let auth_manager = Arc::new(AuthManager::new(config).unwrap());
-        
+
         let request = Request::builder()
             .uri("/test")
             .header(AUTHORIZATION, "Bearer invalid_token")
             .body(Body::empty())
             .unwrap();
-        
+
         let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
+
         assert!(!auth_state.authenticated);
         assert_eq!(auth_state.user_claims.user_id, "anonymous");
     }
