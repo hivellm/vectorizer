@@ -209,6 +209,11 @@ jobs:
             node_modules
           key: ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
 
+      - name: Install WebSocket test dependencies
+        run: |
+          npm init -y
+          npm install ws
+
       - name: Build MCP server
         run: cargo build --bin vectorizer-server --features full --verbose
 
