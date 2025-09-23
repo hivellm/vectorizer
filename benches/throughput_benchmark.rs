@@ -6,14 +6,13 @@
 //! - Indexing throughput (vectors/sec)
 //! - End-to-end pipeline performance
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{criterion_group, Criterion, Throughput};
 use std::time::Duration;
 use vectorizer::{
-    db::{OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
-    document_loader::{DocumentLoader, LoaderConfig},
+    db::{HsnwIndex, OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
     embedding::{CacheConfig, EmbeddingCache, EmbeddingManager, TfIdfEmbedding},
-    models::{CollectionConfig, DistanceMetric},
-    parallel::{ParallelConfig, ProcessingPipeline, init_parallel_env},
+    models::{CollectionConfig, DistanceMetric, HnswConfig},
+    parallel::{init_parallel_env, ParallelConfig},
 };
 
 #[cfg(feature = "tokenizers")]
@@ -162,8 +161,8 @@ fn bench_indexing_throughput(c: &mut Criterion) {
 
     // Standard HNSW
     {
-        let config = hnsw_rs::hnsw::HnswParams {
-            max_connections: 16,
+        let config = HnswConfig {
+            m: 16,
             ef_construction: 200,
             ..Default::default()
         };
@@ -172,12 +171,12 @@ fn bench_indexing_throughput(c: &mut Criterion) {
         group.bench_function("hnsw_standard", |b| {
             b.iter_with_setup(
                 || {
-                    let index = HnswIndex::new(dimension, config.clone()).unwrap();
+                    let index = HsnwIndex::new(config.clone(), DistanceMetric::Cosine, dimension);
                     (index, vectors[..1000].to_vec())
                 },
-                |(index, vecs)| {
+                |(mut index, vecs)| {
                     for (id, data) in vecs {
-                        index.add(id, data).unwrap();
+                        index.add(&id, &data).unwrap();
                     }
                 },
             );
@@ -231,14 +230,16 @@ fn bench_pipeline_throughput(c: &mut Criterion) {
     let cache_config = CacheConfig::default();
     let cache = EmbeddingCache::new(cache_config).unwrap();
 
-    let store = VectorStore::new(Default::default()).unwrap();
+    let store = VectorStore::new();
     store
         .create_collection(
             "bench_collection",
             CollectionConfig {
                 dimension: 384,
-                distance_metric: DistanceMetric::Cosine,
-                hnsw_config: None,
+                metric: DistanceMetric::Cosine,
+                hnsw_config: HnswConfig::default(),
+                quantization: None,
+                compression: Default::default(),
             },
         )
         .unwrap();
@@ -326,7 +327,7 @@ fn bench_search_performance(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("k", k), &k, |b, &k| {
             let query = &queries[0];
             b.iter(|| {
-                black_box(index.search(query, k).unwrap());
+                index.search(query, k).unwrap();
             });
         });
     }
@@ -335,9 +336,7 @@ fn bench_search_performance(c: &mut Criterion) {
 }
 
 // Add rand dependency for benchmarks
-use hnsw_rs::hnsw::HnswParams;
-use rand;
-use vectorizer::db::HnswIndex;
+use criterion::{BenchmarkId, black_box};
 use vectorizer::models;
 
 criterion_group!(
