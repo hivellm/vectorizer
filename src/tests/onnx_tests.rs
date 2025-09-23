@@ -11,7 +11,12 @@ use crate::{
 fn test_onnx_embedder_initialization() {
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
-        // device: Default::default(),
+        batch_size: 32,
+        cache_dir: std::env::temp_dir(),
+        max_length: 512,
+        num_threads: 4,
+        use_int8: false,
+        pooling: Default::default(),
     };
 
     let embedder = OnnxEmbedder::new(config).unwrap();
@@ -23,7 +28,12 @@ fn test_onnx_embedder_initialization() {
 fn test_onnx_embedder_batch_encoding() {
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
-        // device: Default::default(),
+        batch_size: 32,
+        cache_dir: std::env::temp_dir(),
+        max_length: 512,
+        num_threads: 4,
+        use_int8: false,
+        pooling: Default::default(),
     };
 
     let embedder = OnnxEmbedder::new(config).unwrap();
@@ -48,7 +58,12 @@ fn test_onnx_embedder_batch_encoding() {
 fn test_onnx_embedder_single_encoding() {
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
-        // device: Default::default(),
+        batch_size: 32,
+        cache_dir: std::env::temp_dir(),
+        max_length: 512,
+        num_threads: 4,
+        use_int8: false,
+        pooling: Default::default(),
     };
 
     let embedder = OnnxEmbedder::new(config).unwrap();
@@ -65,7 +80,12 @@ fn test_onnx_embedder_single_encoding() {
 fn test_onnx_embedder_normalization() {
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
-        // device: Default::default(),
+        batch_size: 32,
+        cache_dir: std::env::temp_dir(),
+        max_length: 512,
+        num_threads: 4,
+        use_int8: false,
+        pooling: Default::default(),
     };
 
     let embedder = OnnxEmbedder::new(config).unwrap();
@@ -116,7 +136,12 @@ fn test_onnx_embedding_manager_integration() {
 
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
-        // device: Default::default(),
+        batch_size: 32,
+        cache_dir: std::env::temp_dir(),
+        max_length: 512,
+        num_threads: 4,
+        use_int8: false,
+        pooling: Default::default(),
     };
 
     let embedder = OnnxEmbedder::new(config).unwrap();
@@ -135,7 +160,12 @@ fn test_onnx_embedding_manager_integration() {
 fn test_onnx_embedder_consistency() {
     let config = OnnxConfig {
         model_type: OnnxModelType::MiniLMMultilingual384,
-        // device: Default::default(),
+        batch_size: 32,
+        cache_dir: std::env::temp_dir(),
+        max_length: 512,
+        num_threads: 4,
+        use_int8: false,
+        pooling: Default::default(),
     };
 
     let embedder1 = OnnxEmbedder::new(config.clone()).unwrap();

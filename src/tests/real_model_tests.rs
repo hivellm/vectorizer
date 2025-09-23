@@ -24,7 +24,7 @@ fn test_real_model_embedder_batch_encoding() {
         "Machine learning is awesome",
     ];
 
-    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_ref()).collect();
     let embeddings = EmbeddingProvider::embed_batch(&embedder, &text_refs).unwrap();
     assert_eq!(embeddings.len(), 3);
 
@@ -111,7 +111,7 @@ fn test_real_model_embedder_large_batch() {
 
     // Test with larger batch
     let texts: Vec<String> = (0..10).map(|i| format!("Test text number {}", i)).collect();
-    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_ref()).collect();
     let embeddings = EmbeddingProvider::embed_batch(&embedder, &text_refs).unwrap();
     assert_eq!(embeddings.len(), 10);
 

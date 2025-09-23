@@ -146,6 +146,7 @@ impl OnnxEmbedder {
     }
 
     /// Get or download ONNX model
+    #[allow(dead_code)]
     fn get_or_download_model(_config: &OnnxConfig) -> Result<PathBuf> {
         unreachable!()
     }
@@ -189,11 +190,13 @@ impl OnnxEmbedder {
     }
 
     /// Run inference on a batch of tokenized inputs
+    #[allow(dead_code)]
     fn infer_batch(&self, _token_ids_batch: &[Vec<u32>]) -> Result<Vec<Vec<f32>>> {
         unreachable!()
     }
 
     /// Apply pooling strategy to token embeddings
+    #[allow(dead_code)]
     fn apply_pooling(&self, _embeddings: (), _attention_mask: ()) -> Result<Vec<Vec<f32>>> {
         unreachable!()
     }

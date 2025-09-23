@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_fast_tokenizer_single() {
-        let config = FastTokenizerConfig {
+        let _config = FastTokenizerConfig {
             max_length: 256,
             ..Default::default()
         };

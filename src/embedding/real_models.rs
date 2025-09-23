@@ -88,6 +88,7 @@ pub struct RealModelEmbedder {
     tokenizer: Tokenizer,
     device: Device,
     model_type: RealModelType,
+    #[allow(dead_code)]
     model_cache_dir: std::path::PathBuf,
 }
 
