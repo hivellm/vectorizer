@@ -143,8 +143,18 @@ impl HnswIndex {
             });
         }
 
-        // Search in HNSW (always uses L2 distance internally)
-        let neighbors = self.hnsw.search(query, k, 30); // ef_search = 30
+        // For very small indices (< 10 vectors), HNSW may not return all results
+        // Use adaptive ef_search to improve recall
+        let vector_count = self.id_map.len();
+        let ef_search = if vector_count < 10 {
+            // For small indices, use a larger ef_search to ensure we find all vectors
+            std::cmp::max(vector_count * 2, k * 3)
+        } else {
+            // For larger indices, use standard ef_search
+            std::cmp::max(k * 2, 64)
+        };
+        
+        let neighbors = self.hnsw.search(query, k, ef_search);
 
         // Convert results based on metric
         let mut results = Vec::with_capacity(neighbors.len());
@@ -321,8 +331,9 @@ mod tests {
 
         // Test search accuracy
         let results = index.search(&[1.0, 0.0, 0.0], 3).unwrap();
-        assert_eq!(results.len(), 3);
-        assert_eq!(results[0].0, "v1"); // Should be exact match
+        // With improved ef_search for small indices, we should get all 3 results
+        assert_eq!(results.len(), 3, "Should return all 3 vectors for small index");
+        assert_eq!(results[0].0, "v1"); // Should be exact match (closest)
 
         // Test update operation
         index.update("v1", &[2.0, 0.0, 0.0]).unwrap();

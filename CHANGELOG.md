@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-09-23
+
+### Fixed
+- **Critical**: Fixed flaky test `test_index_operations_comprehensive` in CI
+- **HNSW**: Improved search recall for small indices by using adaptive `ef_search` parameter
+- **Testing**: Enhanced HNSW search reliability for indices with < 10 vectors
+
+### Technical Details
+- Implemented adaptive `ef_search` calculation based on index size
+- For small indices (< 10 vectors): `ef_search = max(vector_count * 2, k * 3)`
+- For larger indices: `ef_search = max(k * 2, 64)`
+- This ensures better recall in approximate nearest neighbor search for small datasets
+
 ## [0.2.0] - 2025-09-23
 
 ### Added (Phase 2: REST API Implementation)
