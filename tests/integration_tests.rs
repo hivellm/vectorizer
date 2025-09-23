@@ -14,10 +14,10 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
-use std::time::Duration;
+// use std::time::Duration;
 use tower::ServiceExt;
 use serde_json::json;
-use tokio::time::timeout;
+// use tokio::time::timeout;
 
 async fn create_test_app() -> Router {
     let vector_store = VectorStore::new();
@@ -216,7 +216,7 @@ async fn test_multiple_collections_workflow() {
     let list_response = app.clone().oneshot(list_request).await.unwrap();
     assert_eq!(list_response.status(), StatusCode::OK);
     
-    let body = hyper::body::to_bytes(list_response.into_body()).await.unwrap();
+    let body = axum::body::to_bytes(list_response.into_body(), usize::MAX).await.unwrap();
     let collections_list: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(collections_list["collections"].as_array().unwrap().len(), 3);
     
@@ -393,7 +393,7 @@ async fn test_concurrent_operations() {
         search_handles.push(handle);
     }
     
-    let search_results = futures::future::join_all(search_handles).await;
+    let search_results = futures_util::future::join_all(search_handles).await;
     
     // All searches should succeed
     for result in search_results {

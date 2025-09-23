@@ -379,7 +379,7 @@ impl TestLogger {
     /// Initialize test logging
     pub fn init() {
         if env::var("RUST_LOG").is_err() {
-            env::set_var("RUST_LOG", "warn");
+            unsafe { env::set_var("RUST_LOG", "warn"); }
         }
         
         let _ = tracing_subscriber::fmt::try_init();

@@ -62,6 +62,7 @@ pub struct VectorData {
     /// Vector ID
     pub id: String,
     /// Vector values
+    #[serde(alias = "data")]
     pub vector: Vec<f32>,
     /// Optional payload
     pub payload: Option<serde_json::Value>,
@@ -74,6 +75,8 @@ pub struct InsertVectorsResponse {
     pub message: String,
     /// Number of vectors inserted
     pub inserted: usize,
+    /// Number of vectors inserted (alternative key for compatibility)
+    pub inserted_count: usize,
 }
 
 /// Search request
@@ -96,6 +99,14 @@ pub struct SearchTextRequest {
     pub limit: Option<usize>,
     /// Minimum score threshold
     pub score_threshold: Option<f32>,
+}
+
+/// Unified search request supporting either vector or text
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum SearchUnifiedRequest {
+    Vector(SearchRequest),
+    Text(SearchTextRequest),
 }
 
 /// Search result

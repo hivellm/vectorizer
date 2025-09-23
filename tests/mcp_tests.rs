@@ -8,7 +8,7 @@ use vectorizer::{
     db::VectorStore,
     auth::AuthManager,
 };
-use std::sync::Arc;
+// use std::sync::Arc;
 use serde_json::json;
 
 #[tokio::test]

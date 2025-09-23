@@ -229,7 +229,7 @@ pub async fn insert_vectors(
     // Convert API vectors to internal format
     let mut vectors = Vec::new();
     for vector_data in request.vectors {
-        let payload = vector_data.payload.map(|p| Payload::new(p));
+        let payload = vector_data.payload.map(Payload::new);
         vectors.push(Vector {
             id: vector_data.id,
             data: vector_data.vector,
@@ -248,6 +248,7 @@ pub async fn insert_vectors(
             Ok((StatusCode::CREATED, Json(InsertVectorsResponse {
                 message: "Vectors inserted successfully".to_string(),
                 inserted: vector_count,
+                inserted_count: vector_count,
             })))
         }
         Err(e) => {
@@ -271,27 +272,67 @@ pub async fn insert_vectors(
 pub async fn search_vectors(
     State(state): State<AppState>,
     Path(collection_name): Path<String>,
-    Json(request): Json<SearchRequest>,
+    Json(request): Json<SearchUnifiedRequest>,
 ) -> Result<Json<SearchResponse>, (StatusCode, Json<ErrorResponse>)> {
-    debug!(
-        "Searching in collection '{}' with limit: {:?}",
-        collection_name, request.limit
-    );
-
     let start_time = Instant::now();
-    let limit = request.limit.unwrap_or(10).min(100); // Cap at 100 results
 
-    match state.store.search(&collection_name, &request.vector, limit) {
+    // Determine input type and prepare vector + optional threshold and limit
+    let (query_vector, limit, score_threshold) = match request {
+        SearchUnifiedRequest::Vector(req) => {
+            debug!(
+                "Searching (vector) in collection '{}' with limit: {:?}",
+                collection_name, req.limit
+            );
+            (req.vector, req.limit.unwrap_or(10).min(100), req.score_threshold)
+        }
+        SearchUnifiedRequest::Text(req) => {
+            debug!(
+                "Searching (text) in collection '{}' with limit: {:?}",
+                collection_name, req.limit
+            );
+            // Get collection info to determine embedding dimension
+            let collection_info = match state.store.get_collection_metadata(&collection_name) {
+                Ok(metadata) => metadata,
+                Err(_) => {
+                    return Err((
+                        StatusCode::NOT_FOUND,
+                        Json(ErrorResponse {
+                            error: format!("Collection '{}' not found", collection_name),
+                            code: "COLLECTION_NOT_FOUND".to_string(),
+                            details: None,
+                        }),
+                    ));
+                }
+            };
+
+            let embedding_dimension = collection_info.config.dimension;
+            let vector = match create_text_embedding(&req.query, embedding_dimension) {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("Failed to create embedding for query '{}': {}", req.query, e);
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: format!("Failed to create embedding: {}", e),
+                            code: "EMBEDDING_ERROR".to_string(),
+                            details: None,
+                        }),
+                    ));
+                }
+            };
+            (vector, req.limit.unwrap_or(10).min(100), req.score_threshold)
+        }
+    };
+
+    match state.store.search(&collection_name, &query_vector, limit) {
         Ok(results) => {
             let query_time = start_time.elapsed().as_secs_f64() * 1000.0;
-            
+
             let mut search_results = Vec::new();
             for result in results {
                 // Apply score threshold if specified
-                if let Some(threshold) = request.score_threshold {
-                    if result.score < threshold {
-                        continue;
-                    }
+                if let Some(threshold) = score_threshold && result.score < threshold {
+                    continue;
                 }
 
                 search_results.push(super::types::SearchResult {
@@ -389,10 +430,8 @@ pub async fn search_vectors_by_text(
             let mut search_results = Vec::new();
             for result in results {
                 // Apply score threshold if specified
-                if let Some(threshold) = request.score_threshold {
-                    if result.score < threshold {
-                        continue;
-                    }
+                if let Some(threshold) = request.score_threshold && result.score < threshold {
+                    continue;
                 }
 
                 search_results.push(super::types::SearchResult {

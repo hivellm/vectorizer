@@ -176,7 +176,7 @@ pub mod vector_utils {
 
     /// Calculate cosine similarity between two vectors (assumes normalized vectors)
     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-        dot_product(a, b).min(1.0).max(-1.0) // Clamp to [-1, 1]
+        dot_product(a, b).clamp(-1.0, 1.0) // Clamp to [-1, 1]
     }
 
     /// Convert distance metric result to similarity score

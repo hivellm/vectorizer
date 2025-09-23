@@ -2,29 +2,21 @@
 
 #[cfg(feature = "candle-models")]
 use crate::{
-    embedding::{EmbeddingManager, RealModelEmbedder, RealModelConfig, RealModelType},
+    embedding::{EmbeddingManager, RealModelEmbedder, RealModelType, EmbeddingProvider},
     models::DistanceMetric,
 };
 
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_initialization() {
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder = RealModelEmbedder::new(config).unwrap();
+    let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
     assert_eq!(embedder.dimension, 384);
 }
 
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_batch_encoding() {
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder = RealModelEmbedder::new(config).unwrap();
+    let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
 
     let texts = vec![
         "Hello world",
@@ -32,7 +24,8 @@ fn test_real_model_embedder_batch_encoding() {
         "Machine learning is awesome",
     ];
 
-    let embeddings = embedder.embed_batch(&texts).unwrap();
+    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+    let embeddings = EmbeddingProvider::embed_batch(&embedder, &text_refs).unwrap();
     assert_eq!(embeddings.len(), 3);
 
     // Check that all embeddings have the correct dimension
@@ -44,14 +37,10 @@ fn test_real_model_embedder_batch_encoding() {
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_normalization() {
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder = RealModelEmbedder::new(config).unwrap();
+    let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
 
     let text = "Test normalization";
-    let embeddings = embedder.embed_batch(&[text]).unwrap();
+    let embeddings = EmbeddingProvider::embed_batch(&embedder, &[text]).unwrap();
 
     // Check that embedding is normalized (unit vector)
     let embedding = &embeddings[0];
@@ -64,20 +53,16 @@ fn test_real_model_embedder_normalization() {
 fn test_real_model_embedder_different_models() {
     // Test different real model types
     let models = vec![
-        RealModelType::MiniLm,
-        RealModelType::Distiluse,
-        RealModelType::Mpnet,
+        RealModelType::MiniLMMultilingual,
+        RealModelType::DistilUseMultilingual,
+        RealModelType::MPNetMultilingualBase,
     ];
 
     for model_type in models {
-        let config = RealModelConfig {
-            model_type,
-        };
-
-        let embedder = RealModelEmbedder::new(config).unwrap();
+        let embedder = RealModelEmbedder::new(model_type).unwrap();
 
         let text = "Model compatibility test";
-        let embeddings = embedder.embed_batch(&[text]).unwrap();
+        let embeddings = EmbeddingProvider::embed_batch(&embedder, &[text]).unwrap();
 
         assert_eq!(embeddings.len(), 1);
         assert_eq!(embeddings[0].len(), model_type.dimension());
@@ -88,16 +73,13 @@ fn test_real_model_embedder_different_models() {
 #[test]
 fn test_real_model_embedding_manager_integration() {
     let mut manager = EmbeddingManager::new();
-
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder = RealModelEmbedder::new(config).unwrap();
+    let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
     manager.register_provider("real_minilm".to_string(), Box::new(embedder));
+    manager.set_default_provider("real_minilm").unwrap();
 
     let texts = vec!["First text", "Second text"];
-    let embeddings = manager.embed_batch("real_minilm", &texts).unwrap();
+    let text_refs: Vec<&str> = texts.iter().map(|s| *s).collect();
+    let embeddings = manager.embed_batch(&text_refs).unwrap();
 
     assert_eq!(embeddings.len(), 2);
     assert_eq!(embeddings[0].len(), 384);
@@ -107,16 +89,12 @@ fn test_real_model_embedding_manager_integration() {
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_consistency() {
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder1 = RealModelEmbedder::new(config.clone()).unwrap();
-    let embedder2 = RealModelEmbedder::new(config).unwrap();
+    let embedder1 = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
+    let embedder2 = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
 
     let text = "Consistency test text";
-    let embeddings1 = embedder1.embed_batch(&[text]).unwrap();
-    let embeddings2 = embedder2.embed_batch(&[text]).unwrap();
+    let embeddings1 = EmbeddingProvider::embed_batch(&embedder1, &[text]).unwrap();
+    let embeddings2 = EmbeddingProvider::embed_batch(&embedder2, &[text]).unwrap();
 
     // Embeddings should be identical for the same input
     assert_eq!(embeddings1[0], embeddings2[0]);
@@ -125,17 +103,12 @@ fn test_real_model_embedder_consistency() {
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_large_batch() {
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder = RealModelEmbedder::new(config).unwrap();
+    let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
 
     // Test with larger batch
     let texts: Vec<String> = (0..10).map(|i| format!("Test text number {}", i)).collect();
     let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-
-    let embeddings = embedder.embed_batch(&text_refs).unwrap();
+    let embeddings = EmbeddingProvider::embed_batch(&embedder, &text_refs).unwrap();
     assert_eq!(embeddings.len(), 10);
 
     for embedding in &embeddings {
@@ -146,14 +119,10 @@ fn test_real_model_embedder_large_batch() {
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_empty_input() {
-    let config = RealModelConfig {
-        model_type: RealModelType::MiniLm,
-    };
-
-    let embedder = RealModelEmbedder::new(config).unwrap();
+    let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
 
     let texts: Vec<&str> = vec![];
-    let embeddings = embedder.embed_batch(&texts).unwrap();
+    let embeddings = EmbeddingProvider::embed_batch(&embedder, &texts).unwrap();
 
     assert_eq!(embeddings.len(), 0);
 }

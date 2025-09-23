@@ -13,7 +13,7 @@ use axum::{
     http::{Request, StatusCode, Method},
     Router,
 };
-use std::sync::Arc;
+// use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tower::ServiceExt;
 use serde_json::json;

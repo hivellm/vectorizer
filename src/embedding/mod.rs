@@ -441,20 +441,36 @@ impl TfIdfEmbedding {
             }
         }
         
-        // Select top words by frequency, with alphabetical tie-breaking for determinism
-        let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
-        word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        
+        // Compute a combined TF-IDF based score for vocabulary selection
+        // score(word) = term_frequency(word) * idf(word)
+        // This promotes salient (rare but informative) terms into the vocabulary
+        let total_docs = texts.len() as f32;
+
+        let mut scored_terms: Vec<(String, f32)> = doc_frequencies
+            .iter()
+            .map(|(word, &df)| {
+                let tf_count = *word_counts.get(word).unwrap_or(&0) as f32;
+                // Use natural log idf; guard df>=1
+                let idf = if df > 0 {
+                    (total_docs / (df as f32)).ln().max(0.0)
+                } else {
+                    0.0
+                };
+                (word.clone(), tf_count * idf)
+            })
+            .collect();
+
+        // Sort by score descending, tie-break alphabetically for determinism
+        scored_terms.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.cmp(&b.0)));
+
         self.vocabulary.clear();
         self.idf_weights.clear();
-        
-        let total_docs = texts.len() as f32;
-        
-        for (i, (word, _)) in word_freq.iter().take(self.dimension).enumerate() {
+
+        for (i, (word, _score)) in scored_terms.iter().take(self.dimension).enumerate() {
             self.vocabulary.insert(word.clone(), i);
-            
-            let doc_freq = doc_frequencies.get(word).unwrap_or(&1);
-            let idf = (total_docs / (*doc_freq as f32)).ln();
+
+            let df = *doc_frequencies.get(word).unwrap_or(&1) as f32;
+            let idf = (total_docs / df).ln().max(0.0);
             self.idf_weights.push(idf);
         }
     }

@@ -10,7 +10,13 @@ pub mod handlers;
 
 pub use server::McpServer;
 pub use tools::*;
-pub use types::*;
+pub use types::{
+    McpMessage,
+    McpRequestMessage,
+    McpResponseMessage,
+    McpNotificationMessage,
+    McpErrorMessage,
+};
 pub use handlers::*;
 
 use crate::error::{Result, VectorizerError};

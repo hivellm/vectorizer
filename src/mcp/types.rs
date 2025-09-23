@@ -359,6 +359,93 @@ impl<'de> Deserialize<'de> for McpConnectionStatus {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Test-facing MCP types (compat layer)
+// These mirror the simplified types expected by the test suite.
+// -----------------------------------------------------------------------------
+
+/// MCP high-level request used by tests
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum McpRequest {
+    /// Search request
+    Search(SearchRequest),
+}
+
+/// Search request payload (MCP tests)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchRequest {
+    /// Natural language query
+    pub query: String,
+    /// Target collection name
+    pub collection_name: String,
+    /// Top-K results
+    pub k: usize,
+    /// Optional filter
+    pub filter: Option<serde_json::Value>,
+}
+
+/// Search result item (MCP tests)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResult {
+    /// Vector/document identifier
+    pub id: String,
+    /// Similarity score
+    pub score: f32,
+    /// Optional payload
+    pub payload: Option<serde_json::Value>,
+}
+
+/// Search response (MCP tests)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResponse {
+    /// Results list
+    pub results: Vec<SearchResult>,
+    /// Collection searched
+    pub collection_name: String,
+}
+
+/// MCP high-level response used by tests
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum McpResponse {
+    /// Response for search
+    SearchResponse(SearchResponse),
+    /// Error response
+    Error(McpError),
+}
+
+/// Simplified MCP error (MCP tests)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpError {
+    /// Error code string
+    pub code: String,
+    /// Human-readable error message
+    pub message: String,
+    /// Optional details
+    pub details: Option<String>,
+}
+
+/// Tool call format (MCP tests)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCall {
+    /// Tool name
+    pub tool_name: String,
+    /// Tool arguments
+    pub tool_args: serde_json::Value,
+}
+
+/// Tool output format (MCP tests)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolOutput {
+    /// Tool name
+    pub tool_name: String,
+    /// Serialized output
+    pub output: serde_json::Value,
+    /// Optional error message
+    pub error: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

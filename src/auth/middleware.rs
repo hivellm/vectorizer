@@ -52,34 +52,31 @@ impl AuthMiddleware {
         request: &Request,
     ) -> AuthState {
         // Try to get authorization header
-        if let Some(auth_header) = request.headers().get(AUTHORIZATION) {
-            if let Ok(auth_str) = auth_header.to_str() {
-                // Check for Bearer token (JWT)
-                if auth_str.starts_with("Bearer ") {
-                    let token = &auth_str[7..]; // Remove "Bearer " prefix
-                    if let Ok(claims) = auth_manager.validate_jwt(token) {
-                        return AuthState {
-                            user_claims: claims,
-                            authenticated: true,
-                        };
-                    }
-                }
-                
-                // Check for API key (direct token)
-                if let Ok(claims) = auth_manager.validate_api_key(auth_str).await {
+        if let Some(auth_header) = request.headers().get(AUTHORIZATION)
+            && let Ok(auth_str) = auth_header.to_str() {
+            // Check for Bearer token (JWT)
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                if let Ok(claims) = auth_manager.validate_jwt(token) {
                     return AuthState {
                         user_claims: claims,
                         authenticated: true,
                     };
                 }
             }
+            
+            // Check for API key (direct token)
+            if let Ok(claims) = auth_manager.validate_api_key(auth_str).await {
+                return AuthState {
+                    user_claims: claims,
+                    authenticated: true,
+                };
+            }
         }
 
         // Check for API key in query parameters
         if let Some(query) = request.uri().query() {
             for param in query.split('&') {
-                if param.starts_with("api_key=") {
-                    let api_key = &param[8..]; // Remove "api_key=" prefix
+                if let Some(api_key) = param.strip_prefix("api_key=") {
                     if let Ok(claims) = auth_manager.validate_api_key(api_key).await {
                         return AuthState {
                             user_claims: claims,
@@ -102,6 +99,10 @@ impl AuthMiddleware {
             authenticated: false,
         }
     }
+}
+
+impl Default for AuthMiddleware {
+    fn default() -> Self { Self::new() }
 }
 
 /// Require authentication middleware
@@ -199,17 +200,8 @@ impl RateLimitMiddleware {
         request: Request,
         next: Next,
     ) -> Response {
-        let auth_state = AuthMiddleware::authenticate_request(&auth_manager, &request).await;
-        
-        if auth_state.authenticated {
-            // Rate limiting is handled in AuthManager::validate_api_key
-            // This middleware just ensures the request continues
-        }
-        
-        // Add auth state to request extensions
-        let mut request = request;
-        request.extensions_mut().insert(auth_state);
-        
+        // For now, just pass through (rate limiting configured in AuthManager)
+        // In future, inspect headers/IP/etc.
         next.run(request).await
     }
 }

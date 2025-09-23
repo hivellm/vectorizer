@@ -171,7 +171,7 @@ impl ApiKeyManager {
         let expired_keys: Vec<String> = keys
             .iter()
             .filter(|(_, key)| {
-                key.expires_at.map_or(false, |expires_at| now > expires_at)
+                key.expires_at.is_some_and(|expires_at| now > expires_at)
             })
             .map(|(id, _)| id.clone())
             .collect();
