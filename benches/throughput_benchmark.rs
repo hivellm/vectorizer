@@ -6,13 +6,13 @@
 //! - Indexing throughput (vectors/sec)
 //! - End-to-end pipeline performance
 
-use criterion::{criterion_group, Criterion, Throughput};
+use criterion::{Criterion, Throughput, criterion_group};
 use std::time::Duration;
 use vectorizer::{
     db::{HnswIndex, OptimizedHnswConfig, OptimizedHnswIndex, VectorStore},
     embedding::{CacheConfig, EmbeddingCache, EmbeddingManager, TfIdfEmbedding},
     models::{CollectionConfig, DistanceMetric, HnswConfig},
-    parallel::{init_parallel_env, ParallelConfig},
+    parallel::{ParallelConfig, init_parallel_env},
 };
 
 #[cfg(feature = "tokenizers")]
