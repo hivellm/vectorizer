@@ -232,7 +232,7 @@ impl EmbeddingCache {
     /// Export cache to Arrow/Parquet format
     #[cfg(feature = "parquet")]
     pub fn export_to_parquet(&self, output_path: &Path) -> Result<()> {
-        use arrow::array::Array;
+        // use arrow::array::Array;
 
         // Collect all entries
         let mut contents = Vec::new();

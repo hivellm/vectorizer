@@ -3,14 +3,14 @@
 #[cfg(feature = "candle-models")]
 use crate::{
     embedding::{EmbeddingManager, EmbeddingProvider, RealModelEmbedder, RealModelType},
-    models::DistanceMetric,
+    // models::DistanceMetric,
 };
 
 #[cfg(feature = "candle-models")]
 #[test]
 fn test_real_model_embedder_initialization() {
     let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual).unwrap();
-    assert_eq!(embedder.dimension, 384);
+    assert_eq!(embedder.dimension(), 384);
 }
 
 #[cfg(feature = "candle-models")]

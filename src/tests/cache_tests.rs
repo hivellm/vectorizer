@@ -26,7 +26,7 @@ fn test_embedding_cache_miss() {
     let cache_dir = temp_dir.path().join("cache");
 
     let config = CacheConfig {
-        cache_dir: cache_dir,
+        cache_dir,
         max_size: 100 * 1024 * 1024,
         use_mmap: true,
         prefix: "test".to_string(),
@@ -46,7 +46,7 @@ fn test_embedding_cache_multiple_entries() {
     let cache_dir = temp_dir.path().join("cache");
 
     let config = CacheConfig {
-        cache_dir: cache_dir,
+        cache_dir,
         max_size: 100 * 1024 * 1024,
         use_mmap: true,
         prefix: "test".to_string(),
@@ -98,7 +98,7 @@ fn test_embedding_cache_persistence() {
 
     // Create new cache instance with same config
     let config2 = CacheConfig {
-        cache_dir: cache_dir,
+        cache_dir,
         max_size: 100 * 1024 * 1024,
         use_mmap: false,
         prefix: "test".to_string(),

@@ -3,7 +3,7 @@
 use crate::{
     api::server::VectorizerServer,
     db::VectorStore,
-    models::{CollectionConfig, DistanceMetric, HnswConfig},
+    models::{CollectionConfig, DistanceMetric, HnswConfig, Vector},
 };
 use axum::{
     body::Body,
