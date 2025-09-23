@@ -21,7 +21,7 @@ use tokio::time::timeout;
 
 async fn create_test_app() -> Router {
     let vector_store = VectorStore::new();
-    let auth_manager = AuthManager::new_default().unwrap();
+    let _auth_manager = AuthManager::new_default().unwrap();
     let server = VectorizerServer::new("127.0.0.1", 8080, vector_store);
     server.create_app()
 }
@@ -478,7 +478,7 @@ async fn test_api_throughput() {
     let mut error_count = 0;
     
     // Run 1000 requests as fast as possible
-    for i in 0..1000 {
+    for _i in 0..1000 {
         let request = Request::builder()
             .method(Method::GET)
             .uri("/api/v1/health")

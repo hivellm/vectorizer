@@ -13,7 +13,6 @@ use axum::{
     http::{Request, StatusCode, Method},
     Router,
 };
-use std::sync::Arc;
 // use std::time::Duration;
 use tower::ServiceExt;
 use serde_json::json;
@@ -21,7 +20,7 @@ use serde_json::json;
 
 async fn create_test_app() -> Router {
     let vector_store = VectorStore::new();
-    let auth_manager = AuthManager::new_default().unwrap();
+    let _auth_manager = AuthManager::new_default().unwrap();
     let server = VectorizerServer::new("127.0.0.1", 8080, vector_store);
     server.create_app()
 }

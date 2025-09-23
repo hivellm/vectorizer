@@ -4,9 +4,7 @@
 //! that all MCP tools function as expected.
 
 use vectorizer::{
-    mcp::{McpConfig, McpServerState, McpConnection, McpRequestMessage, McpResponseMessage},
-    db::VectorStore,
-    auth::AuthManager,
+    mcp::{McpConfig, McpServerState, McpConnection, McpRequestMessage},
 };
 // use std::sync::Arc;
 use serde_json::json;
@@ -46,7 +44,7 @@ async fn test_mcp_server_state_creation() {
 #[tokio::test]
 async fn test_mcp_connection_creation() {
     let config = McpConfig::default();
-    let state = McpServerState::new(config);
+    let _state = McpServerState::new(config);
     
     let connection = McpConnection {
         id: "test_connection".to_string(),
@@ -98,13 +96,12 @@ async fn test_mcp_request_serialization() {
     let json = serde_json::to_string(&request).expect("Failed to serialize MCP request");
     let deserialized: McpRequest = serde_json::from_str(&json).expect("Failed to deserialize MCP request");
     
-    match deserialized {
-        McpRequest::Search(search_req) => {
-            assert_eq!(search_req.query, "test query");
-            assert_eq!(search_req.collection_name, "test_collection");
-            assert_eq!(search_req.k, 10);
-        }
-        _ => panic!("Expected Search request"),
+    if let McpRequest::Search(search_req) = deserialized {
+        assert_eq!(search_req.query, "test query");
+        assert_eq!(search_req.collection_name, "test_collection");
+        assert_eq!(search_req.k, 10);
+    } else {
+        panic!("Expected Search request");
     }
 }
 

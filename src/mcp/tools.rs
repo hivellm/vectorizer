@@ -3,7 +3,7 @@
 //! Provides specific tool implementations for vector database operations
 
 use crate::db::VectorStore;
-use crate::embedding::{EmbeddingManager, TfIdfEmbedding};
+use crate::embedding::{EmbeddingManager};
 use crate::error::{Result, VectorizerError};
 use serde_json;
 use tracing::{debug};
@@ -317,6 +317,7 @@ impl McpTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::embedding::TfIdfEmbedding;
 
     #[tokio::test]
     async fn test_list_collections() {
