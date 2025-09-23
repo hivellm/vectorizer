@@ -38,4 +38,54 @@ This document tracks the assignment and status of implementation tasks for the V
 
 ---
 
-*Tasks for Phases 3-6 will be populated upon completion of the preceding phase.*
+## Phase 3: Testing & Quality (Month 3)
+
+**Objective**: Ensure system reliability, performance, and robustness before adding more features.
+
+| ID               | Task                                                                    | Implementer | Reviewers     | Status    | PR Link |
+| :--------------- | :---------------------------------------------------------------------- | :---------- | :------------ | :-------- | :------ |
+| **P3-TEST-001**  | **Integration Tests**: Write end-to-end tests for all core user flows.      | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P3-TEST-002**  | **Property-Based Testing**: Add `proptest` for core data structures.       | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P3-PERF-001**  | **Benchmark Suite**: Implement `criterion` benchmarks for core operations. | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P3-PERF-002**  | **Load Testing Framework**: Set up a basic load testing environment.      | TBD         | TBD, TBD, TBD | `Pending` |         |
+
+---
+
+## Phase 4: Client SDKs (Month 4)
+
+**Objective**: Provide high-quality, easy-to-use SDKs for Python and TypeScript.
+
+| ID               | Task                                                                    | Implementer | Reviewers     | Status    | PR Link |
+| :--------------- | :---------------------------------------------------------------------- | :---------- | :------------ | :-------- | :------ |
+| **P4-SDK-PY-001**| **Python SDK (HTTP Client)**: Create a Python client using `requests`/`httpx`. | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P4-SDK-PY-002**| **PyO3 Bindings (Optional)**:spike native bindings for performance-critical parts. | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P4-SDK-TS-001**| **TypeScript SDK (HTTP Client)**: Create a TypeScript client using `axios`/`fetch`.| TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P4-SDK-TS-002**| **SDK Packaging**: Package and prepare for distribution (PyPI, npm).        | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P4-TEST-003**  | **SDK Integration Tests**: Write integration tests for both SDKs.          | TBD         | TBD, TBD, TBD | `Pending` |         |
+
+---
+
+## Phase 5: Production Features (Month 5)
+
+**Objective**: Implement operational tools required for production environments.
+
+| ID               | Task                                                              | Implementer | Reviewers     | Status    | PR Link |
+| :--------------- | :---------------------------------------------------------------- | :---------- | :------------ | :-------- | :------ |
+| **P5-FEAT-001**  | **Dashboard**: Implement the localhost-only web dashboard.          | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P5-FEAT-002**  | **CLI Tool**: Implement the `clap`-based CLI tool for administration. | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P5-FEAT-003**  | **Configuration System**: Implement full `config.yml` parsing.   | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P5-OPS-001**   | **Monitoring & Metrics**: Implement Prometheus metrics exporter.      | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P5-OPS-002**   | **Structured Logging**: Implement `tracing` for structured logs.    | TBD         | TBD, TBD, TBD | `Pending` |         |
+
+---
+
+## Phase 6: Experimental Features (Month 6+)
+
+**Objective**: Explore advanced optimizations and features after the core system is stable.
+
+| ID               | Task                                                              | Implementer | Reviewers     | Status    | PR Link |
+| :--------------- | :---------------------------------------------------------------- | :---------- | :------------ | :-------- | :------ |
+| **P6-EXP-001**   | **Quantization**: Implement PQ, SQ, and Binary quantization.        | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P6-EXP-002**   | **UMICP Integration**: Spike integration with UMICP.              | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P6-EXP-003**   | **CUDA Acceleration**: Spike GPU-accelerated search with CUDA.        | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P6-EXP-004**   | **LangChain Integration**: Implement LangChain VectorStore classes.   | TBD         | TBD, TBD, TBD | `Pending` |         |

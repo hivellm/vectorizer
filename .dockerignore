@@ -1,0 +1,16 @@
+# Ignore build artifacts
+target/
+
+# Ignore local git directory
+.git/
+
+# Ignore GitHub Actions workflow files
+.github/
+
+# Ignore Python cache files
+**/__pycache__
+**/*.pyc
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
