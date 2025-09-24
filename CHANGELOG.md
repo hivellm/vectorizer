@@ -91,6 +91,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **status.sh**: Health check and status monitoring script with endpoint testing
 - **README.md**: Updated with quick start instructions and endpoint documentation
 
+#### 🚀 Unified CLI (`vzr`)
+- **New binary `vzr`**: Cross-platform CLI for managing vectorizer servers
+- **Subcommands**: `start`, `stop`, `status`, `install`, `uninstall`
+- **Config file support**: `--config config.yml` parameter for both servers
+- **Daemon mode**: `--daemon` flag for background service operation
+- **System service**: Automatic systemd service installation on Linux
+- **Project directory**: `--project` parameter with default `../gov`
+
 ### 📈 Quality & Performance
 
 - **MCP Compatibility**: 100% compatible with Cursor MCP protocol

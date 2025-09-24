@@ -4,18 +4,33 @@
 
 ### Start Both Servers (REST API + MCP)
 ```bash
+# Using the unified CLI (recommended)
+cargo run --bin vzr -- start --project ../gov
+
+# Or using the legacy shell scripts
 ./start.sh
 ```
 This starts both the REST API server (port 15001) and MCP server (port 15002) simultaneously.
 
 ### Check Server Status
 ```bash
+cargo run --bin vzr -- status
+# Or
 ./status.sh
 ```
 
 ### Stop All Servers
 ```bash
+cargo run --bin vzr -- stop
+# Or
 ./stop.sh
+```
+
+### Install as System Service (Linux)
+```bash
+cargo run --bin vzr -- install
+sudo systemctl enable vectorizer
+sudo systemctl start vectorizer
 ```
 
 ### Manual Commands

@@ -46,6 +46,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # CLI
 clap = { version = "4.5", features = ["derive"] }
 
+# HTTP client for status checks
+reqwest = { version = "0.12", features = ["json"] }
+
+# System utilities
+whoami = "1.5"
+libc = "0.2"
+
 # Compression and caching
 lz4_flex = "0.11"
 memmap2 = "0.9"
@@ -150,3 +157,7 @@ candle-models = [
     "hf-hub"
 ]
 full = ["real-models", "onnx-models", "arrow", "parquet"]
+
+[[bin]]
+name = "vzr"
+path = "src/bin/vzr.rs"
