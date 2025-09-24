@@ -85,6 +85,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fast Startup**: Dramatically reduced startup time by reusing previously processed embeddings and vectors
 - **Dual Server Support**: Both REST API and MCP servers support persistent vector stores for consistent performance
 
+#### 🛠️ Server Management Scripts
+- **start.sh**: Unified script to start both REST API and MCP servers simultaneously with proper process management
+- **stop.sh**: Graceful shutdown script that stops all running vectorizer servers
+- **status.sh**: Health check and status monitoring script with endpoint testing
+- **README.md**: Updated with quick start instructions and endpoint documentation
+
 ### 📈 Quality & Performance
 
 - **MCP Compatibility**: 100% compatible with Cursor MCP protocol
