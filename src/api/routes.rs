@@ -21,36 +21,36 @@ pub fn create_router(state: AppState) -> Router {
         // Collection management
         .route("/collections", get(list_collections))
         .route("/collections", post(create_collection))
-        .route("/collections/:collection_name", get(get_collection))
-        .route("/collections/:collection_name", delete(delete_collection))
+        .route("/collections/{collection_name}", get(get_collection))
+        .route("/collections/{collection_name}", delete(delete_collection))
         // Vector operations
         .route(
-            "/collections/:collection_name/vectors",
+            "/collections/{collection_name}/vectors",
             post(insert_vectors),
         )
         .route(
-            "/collections/:collection_name/vectors",
+            "/collections/{collection_name}/vectors",
             get(list_vectors),
         )
-        .route("/collections/:collection_name/search", post(search_vectors))
+        .route("/collections/{collection_name}/search", post(search_vectors))
         .route(
-            "/collections/:collection_name/search/text",
+            "/collections/{collection_name}/search/text",
             post(search_vectors_by_text),
         )
         .route(
-            "/collections/:collection_name/search/file",
+            "/collections/{collection_name}/search/file",
             post(search_by_file),
         )
         .route(
-            "/collections/:collection_name/files",
+            "/collections/{collection_name}/files",
             post(list_files),
         )
         .route(
-            "/collections/:collection_name/vectors/:vector_id",
+            "/collections/{collection_name}/vectors/{vector_id}",
             get(get_vector),
         )
         .route(
-            "/collections/:collection_name/vectors/:vector_id",
+            "/collections/{collection_name}/vectors/{vector_id}",
             delete(delete_vector),
         )
         // Embedding provider management

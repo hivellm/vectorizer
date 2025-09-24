@@ -348,8 +348,10 @@ impl DocumentLoader {
 
     /// Collect all documents from the project directory
     pub fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
+        let path = Path::new(project_path);
         let mut documents = Vec::new();
-        self.collect_documents_recursive(Path::new(project_path), &mut documents)?;
+        self.collect_documents_recursive(path, &mut documents)?;
+        info!("collect_documents found {} documents", documents.len());
         Ok(documents)
     }
 
@@ -360,6 +362,7 @@ impl DocumentLoader {
         dir: &Path,
         documents: &mut Vec<(PathBuf, String)>,
     ) -> Result<()> {
+        debug!("Scanning directory: {}", dir.display());
         let entries = fs::read_dir(dir)
             .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
 
@@ -397,7 +400,7 @@ impl DocumentLoader {
             } else if path.is_file() {
                 // Skip specific file names that should never be indexed
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if file_name == "cache.bin"
+                    let skip_file = file_name == "cache.bin"
                         || file_name.starts_with("tokenizer.")
                         || file_name.ends_with(".lock")
                         || file_name == "Cargo.lock"
@@ -406,24 +409,25 @@ impl DocumentLoader {
                         || file_name == "pnpm-lock.yaml"
                         || file_name == ".gitignore"
                         || file_name == ".gitattributes"
-                        || file_name == "README.md"
-                        || file_name == "CHANGELOG.md"
                         || file_name.ends_with(".log")
                         || file_name.ends_with(".tmp")
                         || file_name.ends_with(".temp")
-                    {
+                        || file_name == ".DS_Store"
+                        || file_name == "Thumbs.db";
+                    if skip_file {
                         continue;
                     }
                 }
 
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-                    let ext_lower = format!(".{}", extension.to_lowercase());
+                    let ext_lower = extension.to_lowercase();
                     if self.config.allowed_extensions.contains(&ext_lower) {
                         // Check file size
                         match fs::metadata(&path) {
                             Ok(metadata) => {
                                 let file_size = metadata.len();
                                 if file_size > self.config.max_file_size as u64 {
+                                    warn!("Skipping file {} (size: {} bytes, max: {} bytes)", path.display(), file_size, self.config.max_file_size);
                                     continue;
                                 }
                             }

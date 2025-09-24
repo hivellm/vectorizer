@@ -74,10 +74,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cleaner Output**: Reduced console spam while maintaining important diagnostic information
 - **Performance**: Slightly improved startup time by removing string formatting overhead
 
+#### Critical Bug Fixes
+- **Document Loading Fix**: Fixed extension matching bug where file extensions were incorrectly formatted with extra dots
+- **Route Path Correction**: Updated Axum route paths from `:collection_name` to `{collection_name}` for v0.8 compatibility
+- **Document Filtering**: Improved document filtering to properly index README.md and other relevant files while excluding build artifacts
+
 ### 📈 Quality & Performance
 
 - **MCP Compatibility**: 100% compatible with Cursor MCP protocol
-- **Document Processing**: 387 relevant documents processed successfully (filtered noise)
+- **Document Processing**: 422 relevant documents processed successfully with 1356 vectors generated
 - **Vector Generation**: High-quality embedding vectors with optimized HNSW indexing
 - **Server Stability**: Zero crashes during MCP operations
 - **Integration Ready**: Production-ready MCP server deployment
