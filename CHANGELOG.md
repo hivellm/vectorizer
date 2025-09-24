@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dependency Versions**: Axum 0.8 compatibility updates
 - **Build System**: Enhanced compilation for MCP server binary
 
+#### HNSW Index Optimization
+- **REMOVED**: Deprecated `HnswIndex` implementation (slow, inefficient)
+- **MIGRATED**: Complete migration to `OptimizedHnswIndex`
+- **Batch Insertion**: Pre-allocated buffers with 2000-vector batches
+- **Distance Metric**: Native Cosine similarity (DistCosine) instead of L2 conversion
+- **Memory Management**: RwLock-based concurrent access with pre-allocation
+- **Performance**: ~10x faster document loading (2-3 min vs 10+ min)
+- **Buffering**: Intelligent batch buffering with auto-flush
+- **Thread Safety**: Parking lot RwLock for optimal concurrency
+
 ### 📈 Quality & Performance
 
 - **MCP Compatibility**: 100% compatible with Cursor MCP protocol

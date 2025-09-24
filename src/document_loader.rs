@@ -569,8 +569,8 @@ impl DocumentLoader {
         
         info!("Successfully created {} vectors, inserting in batches", vectors.len());
         
-        // Insert vectors in smaller batches for better performance
-        const BATCH_SIZE: usize = 50; // Lotes menores = mais responsivo
+        // Insert vectors in larger batches for better performance
+        const BATCH_SIZE: usize = 2000; // Lotes ainda maiores = ainda mais rápido
         for (batch_num, batch) in vectors.chunks(BATCH_SIZE).enumerate() {
             info!("Inserting batch {}/{} ({} vectors)", 
                   batch_num + 1, 

@@ -9,7 +9,7 @@ use vectorizer::embedding::EmbeddingManager;
 use vectorizer::VectorStore;
 use vectorizer::mcp_service::VectorizerService;
 
-const BIND_ADDRESS: &str = "127.0.0.1:15001";
+const BIND_ADDRESS: &str = "127.0.0.1:15002";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
