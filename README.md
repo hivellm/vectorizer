@@ -1,5 +1,36 @@
 # Vectorizer
 
+## 🚀 Quick Start
+
+### Start Both Servers (REST API + MCP)
+```bash
+./start.sh
+```
+This starts both the REST API server (port 15001) and MCP server (port 15002) simultaneously.
+
+### Check Server Status
+```bash
+./status.sh
+```
+
+### Stop All Servers
+```bash
+./stop.sh
+```
+
+### Manual Commands
+```bash
+# Start REST API server only
+cargo run --bin vectorizer-server -- --host 127.0.0.1 --port 15001 --project ../gov
+
+# Start MCP server only
+cargo run --bin vectorizer-mcp-server -- ../gov
+```
+
+**Endpoints:**
+- **REST API**: http://127.0.0.1:15001
+- **MCP Server**: http://127.0.0.1:15002/sse
+
 ## ✅ PROJECT STATUS: Phase 4 Dashboard & Client SDKs - IN PROGRESS
 
 **IMPORTANT**: Phase 3 is 100% complete with production-ready authentication, CLI tools, MCP integration, and comprehensive CI/CD. Now entering Phase 4 with dashboard and client SDK development.
