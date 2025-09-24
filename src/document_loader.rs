@@ -155,6 +155,11 @@ pub struct DocumentLoader {
 }
 
 impl DocumentLoader {
+    /// Get mutable reference to embedding manager
+    pub fn get_embedding_manager_mut(&mut self) -> &mut EmbeddingManager {
+        &mut self.embedding_manager
+    }
+
     /// Create a new document loader
     pub fn new(config: LoaderConfig) -> Self {
         let mut embedding_manager = EmbeddingManager::new();
@@ -806,7 +811,7 @@ impl DocumentLoader {
     }
 
     /// Load cache from file
-    fn load_cache(&self, cache_path: &str) -> Result<ProjectCache> {
+    pub fn load_cache(&self, cache_path: &str) -> Result<ProjectCache> {
         match fs::read_to_string(cache_path) {
             Ok(data) => {
                 // Try to deserialize from JSON
@@ -855,8 +860,18 @@ impl DocumentLoader {
         Ok(())
     }
 
+    /// Check if cache is valid for current configuration
+    pub fn is_cache_valid(&self, cache_path: &str) -> Result<bool> {
+        if let Ok(cache) = self.load_cache(cache_path) {
+            let config_hash = self.calculate_config_hash();
+            Ok(cache.config_hash == config_hash)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// Calculate hash of current configuration
-    fn calculate_config_hash(&self) -> u64 {
+    pub fn calculate_config_hash(&self) -> u64 {
         use std::hash::{Hash, Hasher, DefaultHasher};
         
         let mut hasher = DefaultHasher::new();

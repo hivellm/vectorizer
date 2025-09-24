@@ -4,8 +4,10 @@
 //! for IDE integration and AI model communication.
 
 use clap::Parser;
-use tracing::info;
+use tracing::{info, warn};
 use std::sync::Arc;
+use std::path::PathBuf;
+use std::fs;
 use vectorizer::{
     api::VectorizerServer,
     db::VectorStore,
@@ -47,9 +49,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configuration loading disabled for now
     let config = serde_yaml::Value::Null;
 
-    // Initialize vector store
-    let vector_store = Arc::new(VectorStore::new());
-    info!("Vector store initialized");
+    // Try to load existing vector store first
+    let vector_store_path = if let Some(project_path) = &args.project {
+        PathBuf::from(project_path).join(".vectorizer").join("vector_store.bin")
+    } else {
+        PathBuf::from(".vectorizer").join("vector_store.bin")
+    };
+
+    let mut vector_store = if vector_store_path.exists() {
+        info!("Loading existing vector store from: {:?}", vector_store_path);
+        match VectorStore::load(&vector_store_path) {
+            Ok(store) => {
+                info!("Successfully loaded vector store with {} collections", store.list_collections().len());
+                Arc::new(store)
+            }
+            Err(e) => {
+                warn!("Failed to load vector store from {:?}: {}, creating new one", vector_store_path, e);
+                Arc::new(VectorStore::new())
+            }
+        }
+    } else {
+        info!("No existing vector store found, creating new one");
+        Arc::new(VectorStore::new())
+    };
 
     // Load project documents if specified
     if let Some(project_path) = &args.project {
@@ -73,44 +95,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 collection_name: "documents".to_string(),
                 max_file_size: 5 * 1024 * 1024, // 5MB para arquivos maiores
             };
-        let mut loader = DocumentLoader::new(loader_config);
+        let mut loader = DocumentLoader::new(loader_config.clone());
 
-        match loader.load_project(project_path, &vector_store) {
-            Ok(count) => {
-                info!("Successfully loaded {} document chunks", count);
+        // Check if we need to load documents (only if collection doesn't exist or cache is invalid)
+        let collection_name = loader_config.collection_name.clone();
+        let should_load_documents = if vector_store.list_collections().contains(&collection_name) {
+            info!("Collection '{}' already exists in loaded vector store", collection_name);
+            // Check if cache is still valid
+            let cache_path = PathBuf::from(project_path).join(".vectorizer").join("cache.bin");
+            if cache_path.exists() {
+                match loader.is_cache_valid(&cache_path.to_string_lossy()) {
+                    Ok(is_valid) => {
+                        if is_valid {
+                            info!("Document cache is valid, skipping document loading");
+                            false
+                        } else {
+                            info!("Document cache is outdated, reloading documents");
+                            true
+                        }
+                    }
+                    Err(_) => {
+                        info!("Could not validate document cache, reloading documents");
+                        true
+                    }
+                }
+            } else {
+                info!("No document cache found, reloading documents");
+                true
+            }
+        } else {
+            info!("Collection '{}' not found in vector store, loading documents", collection_name);
+            true
+        };
 
-                // Print collection statistics
-                if let Ok(stats) = loader.get_stats(&vector_store) {
-                    info!(
-                        "Collection stats: {}",
-                        serde_json::to_string_pretty(&stats)?
-                    );
+        if should_load_documents {
+            match loader.load_project(project_path, &vector_store) {
+                Ok(count) => {
+                    info!("Successfully loaded {} document chunks", count);
+
+                    // Print collection statistics
+                    if let Ok(stats) = loader.get_stats(&vector_store) {
+                        info!(
+                            "Collection stats: {}",
+                            serde_json::to_string_pretty(&stats)?
+                        );
+                    }
+
+                    // Save the vector store after loading documents
+                    let vector_store_dir = PathBuf::from(project_path).join(".vectorizer");
+                    if let Err(e) = fs::create_dir_all(&vector_store_dir) {
+                        warn!("Failed to create .vectorizer directory for vector store: {}", e);
+                    } else {
+                        match Arc::get_mut(&mut vector_store) {
+                            Some(store) => {
+                                if let Err(e) = store.save(&vector_store_path) {
+                                    warn!("Failed to save vector store to {:?}: {}", vector_store_path, e);
+                                } else {
+                                    info!("Vector store saved successfully to {:?}", vector_store_path);
+                                }
+                            }
+                            None => {
+                                warn!("Could not get mutable reference to vector store for saving");
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to load project: {}", e);
+                    std::process::exit(1);
                 }
             }
-            Err(e) => {
-                eprintln!("Failed to load project: {}", e);
-                std::process::exit(1);
+        } else {
+            // Load tokenizer from saved files even if not reloading documents
+            let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+            match loader_config.embedding_type.as_str() {
+                "bm25" => {
+                    let tokenizer_path = vectorizer_dir.join("tokenizer.bm25.json");
+                    if tokenizer_path.exists() {
+                        if let Some(provider) = loader.get_embedding_manager_mut().get_provider_mut("bm25") {
+                            if let Some(bm25) = provider.as_any_mut().downcast_mut::<vectorizer::embedding::Bm25Embedding>() {
+                                if let Err(e) = bm25.load_vocabulary_json(&tokenizer_path) {
+                                    warn!("Failed to load BM25 tokenizer from {}: {}", tokenizer_path.display(), e);
+                                } else {
+                                    info!("Loaded BM25 tokenizer from: {}", tokenizer_path.display());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {} // Other embedding types don't need special loading
+            }
+
+            // Print existing collection statistics
+            if let Ok(stats) = loader.get_stats(&vector_store) {
+                info!(
+                    "Existing collection stats: {}",
+                    serde_json::to_string_pretty(&stats)?
+                );
             }
         }
         // Extract embedding manager from the same loader used for indexing
         let mut embedding_manager = loader.into_embedding_manager();
-
-        // If tokenizer exists, load it to ensure vocabulary persistence (for bm25)
-        let tokenizer_path = std::path::Path::new(project_path).join(".vectorizer").join("tokenizer.bm25.json");
-        if tokenizer_path.exists() {
-            eprintln!("Loading tokenizer from {}", tokenizer_path.to_string_lossy());
-            if let Some(provider) = embedding_manager.get_provider_mut("bm25") {
-                if let Some(bm25) = provider.as_any_mut().downcast_mut::<vectorizer::embedding::Bm25Embedding>() {
-                    if let Err(e) = bm25.load_vocabulary_json(&tokenizer_path) {
-                        eprintln!("Failed to load tokenizer: {}", e);
-                    } else {
-                        eprintln!("Tokenizer loaded, vocabulary size: {}", bm25.vocabulary_size());
-                    }
-                }
-            }
-        } else {
-            eprintln!("Tokenizer file not found at {} (will use in-memory vocabulary)", tokenizer_path.to_string_lossy());
-        }
 
         // Start HTTP server
         let server = VectorizerServer::new(&args.host, args.port, vector_store, embedding_manager);

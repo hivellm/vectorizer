@@ -79,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Route Path Correction**: Updated Axum route paths from `:collection_name` to `{collection_name}` for v0.8 compatibility
 - **Document Filtering**: Improved document filtering to properly index README.md and other relevant files while excluding build artifacts
 
+#### 🚀 Performance & Startup Optimization
+- **Vector Store Persistence**: Implemented automatic saving and loading of vector stores to avoid reprocessing documents on every startup
+- **Incremental Loading**: Servers now check for existing vector stores and only load documents when cache is invalid or missing
+- **Fast Startup**: Dramatically reduced startup time by reusing previously processed embeddings and vectors
+- **Dual Server Support**: Both REST API and MCP servers support persistent vector stores for consistent performance
+
 ### 📈 Quality & Performance
 
 - **MCP Compatibility**: 100% compatible with Cursor MCP protocol
