@@ -10,7 +10,7 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use super::hnsw_index::HnswIndex;
+use super::optimized_hnsw::{OptimizedHnswIndex, OptimizedHnswConfig};
 
 /// A collection of vectors with an associated HNSW index
 #[derive(Clone, Debug)]
@@ -24,7 +24,9 @@ pub struct Collection {
     /// Vector IDs in insertion order (for persistence consistency)
     vector_order: Arc<RwLock<Vec<String>>>,
     /// HNSW index for similarity search
-    index: Arc<RwLock<HnswIndex>>,
+    index: Arc<RwLock<OptimizedHnswIndex>>,
+    /// Embedding type used for this collection
+    embedding_type: Arc<RwLock<String>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -34,7 +36,25 @@ pub struct Collection {
 impl Collection {
     /// Create a new collection
     pub fn new(name: String, config: CollectionConfig) -> Self {
-        let index = HnswIndex::new(config.hnsw_config.clone(), config.metric, config.dimension);
+        Self::new_with_embedding_type(name, config, "bm25".to_string())
+    }
+
+    /// Create a new collection with specific embedding type
+    pub fn new_with_embedding_type(name: String, config: CollectionConfig, embedding_type: String) -> Self {
+        // Convert HnswConfig to OptimizedHnswConfig
+        let optimized_config = OptimizedHnswConfig {
+            max_connections: config.hnsw_config.m,
+            max_connections_0: config.hnsw_config.m * 2,
+            ef_construction: config.hnsw_config.ef_construction,
+            seed: config.hnsw_config.seed,
+            distance_metric: config.metric,
+            parallel: true,
+            initial_capacity: 100_000,
+            batch_size: 1000,
+        };
+        
+        let index = OptimizedHnswIndex::new(config.dimension, optimized_config)
+            .expect("Failed to create optimized HNSW index");
         let now = chrono::Utc::now();
 
         Self {
@@ -43,6 +63,7 @@ impl Collection {
             vectors: Arc::new(DashMap::new()),
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
+            embedding_type: Arc::new(RwLock::new(embedding_type)),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
         }
@@ -59,6 +80,16 @@ impl Collection {
         }
     }
 
+    /// Get the embedding type used for this collection
+    pub fn get_embedding_type(&self) -> String {
+        self.embedding_type.read().clone()
+    }
+
+    /// Set the embedding type for this collection
+    pub fn set_embedding_type(&self, embedding_type: String) {
+        *self.embedding_type.write() = embedding_type;
+    }
+
     /// Insert a batch of vectors
     pub fn insert_batch(&self, vectors: Vec<Vector>) -> Result<()> {
         // Validate dimensions
@@ -72,7 +103,7 @@ impl Collection {
         }
 
         // Insert vectors and update index
-        let mut index = self.index.write();
+        let index = self.index.write();
         let mut vector_order = self.vector_order.write();
         for mut vector in vectors {
             let id = vector.id.clone();
@@ -91,7 +122,7 @@ impl Collection {
             vector_order.push(id.clone());
 
             // Add to index
-            index.add(&id, &data)?;
+            index.add(id.clone(), data.clone())?;
         }
 
         // Update timestamp
@@ -133,7 +164,7 @@ impl Collection {
         self.vectors.insert(id.clone(), vector);
 
         // Update index
-        let mut index = self.index.write();
+        let index = self.index.write();
         index.update(&id, &data)?;
 
         // Update timestamp
@@ -154,7 +185,7 @@ impl Collection {
         vector_order.retain(|id| id != vector_id);
 
         // Remove from index
-        let mut index = self.index.write();
+        let index = self.index.write();
         index.remove(vector_id)?;
 
         // Update timestamp

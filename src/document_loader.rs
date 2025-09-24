@@ -2,7 +2,7 @@
 
 use crate::{
     VectorStore,
-    embedding::{EmbeddingManager, TfIdfEmbedding},
+    embedding::{EmbeddingManager, TfIdfEmbedding, Bm25Embedding, SvdEmbedding, BertEmbedding, MiniLmEmbedding, BagOfWordsEmbedding, CharNGramEmbedding},
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
 };
 use anyhow::{Context, Result};
@@ -10,11 +10,12 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    time::SystemTime,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, info, warn, error};
 
 /// Document chunk with metadata
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DocumentChunk {
     /// Unique identifier for the chunk
     pub id: String,
@@ -28,6 +29,26 @@ pub struct DocumentChunk {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
+/// Cache entry for processed documents
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct CacheEntry {
+    /// File modification time when cached
+    modified_time: SystemTime,
+    /// File size when cached
+    file_size: u64,
+    /// Processed chunks
+    chunks: Vec<DocumentChunk>,
+}
+
+/// Project cache metadata
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct ProjectCache {
+    /// Cache entries by file path
+    files: HashMap<String, CacheEntry>,
+    /// Configuration used for processing
+    config_hash: u64,
+}
+
 /// Document loader configuration
 #[derive(Debug, Clone)]
 pub struct LoaderConfig {
@@ -39,6 +60,8 @@ pub struct LoaderConfig {
     pub allowed_extensions: Vec<String>,
     /// Embedding dimension
     pub embedding_dimension: usize,
+    /// Embedding type to use
+    pub embedding_type: String,
     /// Collection name for documents
     pub collection_name: String,
     /// Maximum file size in bytes (default 1MB)
@@ -113,7 +136,8 @@ impl Default for LoaderConfig {
                 "thrift".to_string(),
                 "avro".to_string(),
             ],
-            embedding_dimension: 384, // Valor fixo adequado para TF-IDF
+            embedding_dimension: 512, // Valor fixo adequado para TF-IDF
+            embedding_type: "bm25".to_string(), // BM25 como padrão
             collection_name: "documents".to_string(),
             max_file_size: 1024 * 1024, // 1MB por padrão
         }
@@ -136,10 +160,30 @@ impl DocumentLoader {
         let mut embedding_manager = EmbeddingManager::new();
         let processed_chunks = Vec::new();
 
-        // Initialize TF-IDF embedding
+        // Register all available embedding types
         let tfidf = TfIdfEmbedding::new(config.embedding_dimension);
         embedding_manager.register_provider("tfidf".to_string(), Box::new(tfidf));
-        embedding_manager.set_default_provider("tfidf").unwrap();
+
+        let bm25 = Bm25Embedding::new(config.embedding_dimension);
+        embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+
+        let svd = SvdEmbedding::new(config.embedding_dimension, config.embedding_dimension);
+        embedding_manager.register_provider("svd".to_string(), Box::new(svd));
+
+        let bert = BertEmbedding::new(config.embedding_dimension);
+        embedding_manager.register_provider("bert".to_string(), Box::new(bert));
+
+        let minilm = MiniLmEmbedding::new(config.embedding_dimension);
+        embedding_manager.register_provider("minilm".to_string(), Box::new(minilm));
+
+        let bow = BagOfWordsEmbedding::new(config.embedding_dimension);
+        embedding_manager.register_provider("bagofwords".to_string(), Box::new(bow));
+
+        let char_ngram = CharNGramEmbedding::new(config.embedding_dimension, 3);
+        embedding_manager.register_provider("charngram".to_string(), Box::new(char_ngram));
+
+        // Set the configured embedding type as default
+        embedding_manager.set_default_provider(&config.embedding_type).unwrap();
 
         Self {
             config,
@@ -148,9 +192,31 @@ impl DocumentLoader {
         }
     }
 
-    /// Load and index all documents from a project directory
-    pub fn load_project(&mut self, project_path: &str) -> Result<usize> {
+    /// Load and index all documents from a project directory with caching
+    pub fn load_project(&mut self, project_path: &str, store: &VectorStore) -> Result<usize> {
         info!("Loading project from: {}", project_path);
+
+        // Ensure .vectorizer directory exists
+        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+            warn!("Failed to create .vectorizer directory {}: {}", vectorizer_dir.display(), e);
+        }
+
+        // Use .vectorizer for cache file
+        let cache_path = vectorizer_dir.join("cache.bin");
+        
+        // Try to load from cache first
+        let mut project_cache = self.load_cache(&cache_path.to_string_lossy())?;
+        let config_hash = self.calculate_config_hash();
+        
+        // Check if cache is valid for current config
+        if project_cache.config_hash != config_hash {
+            info!("Configuration changed, invalidating cache");
+            project_cache = ProjectCache {
+                files: HashMap::new(),
+                config_hash,
+            };
+        }
 
         // Collect all documents
         let documents = self.collect_documents(project_path)?;
@@ -161,25 +227,127 @@ impl DocumentLoader {
             return Ok(0);
         }
 
-        // Build vocabulary from all documents for TF-IDF
+        // Process documents with cache
+        let mut all_chunks = Vec::new();
+        let mut cache_hits = 0;
+        let mut cache_misses = 0;
+
+        for (file_path, content) in &documents {
+            let file_path_str = file_path.to_string_lossy().to_string();
+            
+            // Check if file is in cache and up to date
+            if let Some(cache_entry) = project_cache.files.get(&file_path_str) {
+                if let Ok(metadata) = fs::metadata(file_path) {
+                    if let Ok(modified_time) = metadata.modified() {
+                        if modified_time == cache_entry.modified_time && 
+                           metadata.len() == cache_entry.file_size {
+                            // Cache hit - use cached chunks
+                            all_chunks.extend(cache_entry.chunks.clone());
+                            cache_hits += 1;
+                            debug!("Cache hit for: {}", file_path_str);
+                            continue;
+                        }
+                    }
+                }
+            }
+            
+            // Cache miss - process file
+            cache_misses += 1;
+            debug!("Cache miss for: {}", file_path_str);
+            
+            let file_chunks = self.chunk_text(content, file_path)?;
+            all_chunks.extend(file_chunks.clone());
+            
+            // Update cache
+            if let Ok(metadata) = fs::metadata(file_path) {
+                if let Ok(modified_time) = metadata.modified() {
+                    project_cache.files.insert(file_path_str, CacheEntry {
+                        modified_time,
+                        file_size: metadata.len(),
+                        chunks: file_chunks,
+                    });
+                }
+            }
+        }
+
+        info!("Cache stats: {} hits, {} misses", cache_hits, cache_misses);
+
+        // Save updated cache
+        self.save_cache(&cache_path.to_string_lossy(), &project_cache)?;
+
+        // Build vocabulary from all documents for configured embedding
         self.build_vocabulary(&documents)?;
 
-        // Process documents in chunks and store content
-        info!("Starting to chunk {} documents", documents.len());
-        let chunks = self.chunk_documents(&documents)?;
-        info!("Created {} chunks from documents", chunks.len());
+        // After building vocabulary, persist tokenizer file for configured provider
+        match self.config.embedding_type.as_str() {
+            "bm25" => {
+                if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
+                    if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
+                        let tokenizer_path = vectorizer_dir.join("tokenizer.bm25.json");
+                        if let Err(e) = bm25.save_vocabulary_json(&tokenizer_path) {
+                            warn!("Failed to save BM25 tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
+                        } else {
+                            info!("Saved BM25 tokenizer to: {}", tokenizer_path.to_string_lossy());
+                        }
+                    }
+                }
+            }
+            "tfidf" => {
+                if let Some(provider) = self.embedding_manager.get_provider_mut("tfidf") {
+                    if let Some(tfidf) = provider.as_any_mut().downcast_mut::<TfIdfEmbedding>() {
+                        let tokenizer_path = vectorizer_dir.join("tokenizer.tfidf.json");
+                        if let Err(e) = tfidf.save_vocabulary_json(&tokenizer_path) {
+                            warn!("Failed to save TF-IDF tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
+                        } else {
+                            info!("Saved TF-IDF tokenizer to: {}", tokenizer_path.to_string_lossy());
+                        }
+                    }
+                }
+            }
+            "bagofwords" => {
+                if let Some(provider) = self.embedding_manager.get_provider_mut("bagofwords") {
+                    if let Some(bow) = provider.as_any_mut().downcast_mut::<BagOfWordsEmbedding>() {
+                        let tokenizer_path = vectorizer_dir.join("tokenizer.bow.json");
+                        if let Err(e) = bow.save_vocabulary_json(&tokenizer_path) {
+                            warn!("Failed to save BagOfWords tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
+                        } else {
+                            info!("Saved BagOfWords tokenizer to: {}", tokenizer_path.to_string_lossy());
+                        }
+                    }
+                }
+            }
+            "charngram" => {
+                if let Some(provider) = self.embedding_manager.get_provider_mut("charngram") {
+                    if let Some(cng) = provider.as_any_mut().downcast_mut::<CharNGramEmbedding>() {
+                        let tokenizer_path = vectorizer_dir.join("tokenizer.charngram.json");
+                        if let Err(e) = cng.save_vocabulary_json(&tokenizer_path) {
+                            warn!("Failed to save CharNGram tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
+                        } else {
+                            info!("Saved CharNGram tokenizer to: {}", tokenizer_path.to_string_lossy());
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        // Create collection in vector store
+        self.create_collection(store)?;
+
+        // Store chunks in vector store
+        info!("Storing {} chunks in vector store", all_chunks.len());
+        self.store_chunks(store, &all_chunks)?;
 
         info!(
             "Successfully processed {} documents into {} chunks",
             documents.len(),
-            chunks.len()
+            all_chunks.len()
         );
-        Ok(chunks.len())
+        Ok(all_chunks.len())
     }
 
     /// Collect all documents from the project directory
-    #[allow(dead_code)]
-    fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
+    pub fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
         let mut documents = Vec::new();
         self.collect_documents_recursive(Path::new(project_path), &mut documents)?;
         Ok(documents)
@@ -215,7 +383,7 @@ impl DocumentLoader {
                 self.collect_documents_recursive(&path, documents)?;
             } else if path.is_file() {
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-                    let ext_lower = format!(".{}", extension.to_lowercase());
+                    let ext_lower = extension.to_lowercase();
                     debug!("File {} has extension: {}", path.display(), ext_lower);
                     if self.config.allowed_extensions.contains(&ext_lower) {
                         debug!("Extension {} is allowed, checking file size", ext_lower);
@@ -281,24 +449,147 @@ impl DocumentLoader {
     fn build_vocabulary(&mut self, documents: &[(PathBuf, String)]) -> Result<()> {
         info!("Building vocabulary from {} documents", documents.len());
 
-        // Extract text content for vocabulary building
-        let texts: Vec<&str> = documents
-            .iter()
-            .map(|(_, content)| content.as_str())
-            .collect();
+        // Build vocabulary for the configured embedding type
+        let embedding_type = &self.config.embedding_type;
+        info!("Building vocabulary for embedding type: {}", embedding_type);
 
-        // Get the TF-IDF provider and build vocabulary
-        if let Some(provider) = self.embedding_manager.get_provider_mut("tfidf") {
-            if let Some(tfidf) = provider.as_any_mut().downcast_mut::<TfIdfEmbedding>() {
-                tfidf.build_vocabulary(&texts);
-                info!("Vocabulary built successfully");
-            } else {
-                return Err(anyhow::anyhow!("Failed to downcast to TfIdfEmbedding"));
+        match embedding_type.as_str() {
+            "tfidf" => {
+                let texts: Vec<&str> = documents
+                    .iter()
+                    .map(|(_, content)| content.as_str())
+                    .collect();
+                
+                if let Some(provider) = self.embedding_manager.get_provider_mut("tfidf") {
+                    if let Some(tfidf) = provider.as_any_mut().downcast_mut::<TfIdfEmbedding>() {
+                        tfidf.build_vocabulary(&texts);
+                        info!("TF-IDF vocabulary built successfully");
+                    } else {
+                        return Err(anyhow::anyhow!("Failed to downcast to TfIdfEmbedding"));
+                    }
+                } else {
+                    return Err(anyhow::anyhow!("TF-IDF provider not found"));
+                }
+            },
+            "bm25" => {
+                eprintln!("DEBUG: BM25 case in build_vocabulary");
+                let texts: Vec<String> = documents
+                    .iter()
+                    .map(|(_, content)| content.clone())
+                    .collect();
+                eprintln!("DEBUG: Collected {} texts for vocabulary", texts.len());
+                
+                if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
+                    eprintln!("DEBUG: Got BM25 provider");
+                    if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
+                        eprintln!("DEBUG: Cast to Bm25Embedding successful");
+                        eprintln!("DEBUG: Vocabulary size before: {}", bm25.vocabulary_size());
+                        bm25.build_vocabulary(&texts);
+                        eprintln!("DEBUG: Vocabulary size after: {}", bm25.vocabulary_size());
+                        info!("BM25 vocabulary built successfully");
+                    } else {
+                        eprintln!("ERROR: Failed to downcast to Bm25Embedding");
+                        return Err(anyhow::anyhow!("Failed to downcast to Bm25Embedding"));
+                    }
+                } else {
+                    eprintln!("ERROR: BM25 provider not found in manager");
+                    return Err(anyhow::anyhow!("BM25 provider not found"));
+                }
+            },
+            "bagofwords" => {
+                let texts: Vec<&str> = documents
+                    .iter()
+                    .map(|(_, content)| content.as_str())
+                    .collect();
+                
+                if let Some(provider) = self.embedding_manager.get_provider_mut("bagofwords") {
+                    if let Some(bow) = provider.as_any_mut().downcast_mut::<BagOfWordsEmbedding>() {
+                        bow.build_vocabulary(&texts);
+                        info!("BagOfWords vocabulary built successfully");
+                    } else {
+                        return Err(anyhow::anyhow!("Failed to downcast to BagOfWordsEmbedding"));
+                    }
+                } else {
+                    return Err(anyhow::anyhow!("BagOfWords provider not found"));
+                }
+            },
+            _ => {
+                return Err(anyhow::anyhow!("Unsupported embedding type: {}", embedding_type));
             }
-        } else {
-            return Err(anyhow::anyhow!("TF-IDF provider not found"));
         }
 
+        Ok(())
+    }
+
+    /// Store chunks in the vector store
+    #[allow(dead_code)]
+    fn store_chunks(&self, store: &VectorStore, chunks: &[DocumentChunk]) -> Result<()> {
+        
+        let mut vectors = Vec::new();
+        
+        info!("Starting to process {} chunks for embedding", chunks.len());
+        
+        for (i, chunk) in chunks.iter().enumerate() {
+            if i % 100 == 0 {
+                info!("Processing chunk {}/{}", i + 1, chunks.len());
+            }
+            
+            // Generate embedding for the chunk
+            let embedding = match self.embedding_manager.embed(&chunk.content) {
+                Ok(emb) => emb,
+                Err(e) => {
+                    warn!("Failed to embed chunk {}: {}", i, e);
+                    continue; // Skip this chunk
+                }
+            };
+            
+            // Validate embedding - reject zero vectors
+            let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
+            if non_zero_count == 0 {
+                warn!("Skipping chunk {} with zero embedding: '{}'", i, chunk.content.chars().take(100).collect::<String>());
+                continue; // Skip zero vectors
+            }
+            
+            // Create vector data
+            let vector = Vector {
+                id: uuid::Uuid::new_v4().to_string(),
+                data: embedding,
+                payload: Some(Payload {
+                    data: serde_json::json!({
+                        "content": chunk.content,
+                        "file_path": chunk.file_path,
+                        "chunk_index": chunk.chunk_index,
+                        "metadata": chunk.metadata
+                    }),
+                }),
+            };
+            
+            vectors.push(vector);
+        }
+        
+        info!("Successfully created {} vectors, inserting in batches", vectors.len());
+        
+        // Insert vectors in smaller batches for better performance
+        const BATCH_SIZE: usize = 50; // Lotes menores = mais responsivo
+        for (batch_num, batch) in vectors.chunks(BATCH_SIZE).enumerate() {
+            info!("Inserting batch {}/{} ({} vectors)", 
+                  batch_num + 1, 
+                  (vectors.len() + BATCH_SIZE - 1) / BATCH_SIZE,
+                  batch.len());
+            
+            match store.insert(&self.config.collection_name, batch.to_vec()) {
+                Ok(_) => {
+                    info!("Successfully inserted batch {}", batch_num + 1);
+                }
+                Err(e) => {
+                    error!("Failed to insert batch {}: {}", batch_num + 1, e);
+                    return Err(e.into());
+                }
+            }
+        }
+        
+        info!("Successfully stored {} chunks in collection '{}'", 
+              chunks.len(), self.config.collection_name);
         Ok(())
     }
 
@@ -329,6 +620,12 @@ impl DocumentLoader {
                     self.config.collection_name
                 )
             })?;
+
+        // Set the embedding type for this collection
+        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
+            collection.set_embedding_type(self.config.embedding_type.clone());
+            info!("Set embedding type '{}' for collection '{}'", self.config.embedding_type, self.config.collection_name);
+        }
 
         info!("Created collection: {}", self.config.collection_name);
         Ok(())
@@ -499,5 +796,113 @@ impl DocumentLoader {
             "created_at": metadata.created_at.to_rfc3339(),
             "updated_at": metadata.updated_at.to_rfc3339(),
         }))
+    }
+
+    /// Load cache from file
+    fn load_cache(&self, cache_path: &str) -> Result<ProjectCache> {
+        match fs::read(cache_path) {
+            Ok(data) => {
+                match bincode::deserialize(&data) {
+                    Ok(cache) => {
+                        info!("Loaded cache from: {}", cache_path);
+                        Ok(cache)
+                    }
+                    Err(e) => {
+                        warn!("Failed to deserialize cache: {}, creating new cache", e);
+                        Ok(ProjectCache {
+                            files: HashMap::new(),
+                            config_hash: 0,
+                        })
+                    }
+                }
+            }
+            Err(_) => {
+                info!("No cache file found, creating new cache");
+                Ok(ProjectCache {
+                    files: HashMap::new(),
+                    config_hash: 0,
+                })
+            }
+        }
+    }
+
+    /// Save cache to file
+    fn save_cache(&self, cache_path: &str, cache: &ProjectCache) -> Result<()> {
+        let data = bincode::serialize(cache)
+            .with_context(|| "Failed to serialize cache")?;
+        
+        fs::write(cache_path, data)
+            .with_context(|| format!("Failed to write cache to: {}", cache_path))?;
+        
+        info!("Saved cache to: {}", cache_path);
+        Ok(())
+    }
+
+    /// Calculate hash of current configuration
+    fn calculate_config_hash(&self) -> u64 {
+        use std::hash::{Hash, Hasher, DefaultHasher};
+        
+        let mut hasher = DefaultHasher::new();
+        self.config.max_chunk_size.hash(&mut hasher);
+        self.config.chunk_overlap.hash(&mut hasher);
+        self.config.embedding_dimension.hash(&mut hasher);
+        self.config.embedding_type.hash(&mut hasher);
+        self.config.allowed_extensions.hash(&mut hasher);
+        self.config.max_file_size.hash(&mut hasher);
+        
+        hasher.finish()
+    }
+
+    /// Extract the embedding manager from the loader
+    pub fn into_embedding_manager(mut self) -> EmbeddingManager {
+        eprintln!("DEBUG: into_embedding_manager called");
+        
+        // CRITICAL FIX: Ensure vocabulary is preserved during transfer
+        // Extract and save vocabulary data before the move
+        
+        let mut bm25_vocabulary_data = None;
+        
+        eprintln!("DEBUG: Checking for BM25 provider...");
+        
+        // Extract vocabulary data before move
+        if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
+            eprintln!("DEBUG: BM25 provider found!");
+            if let Some(bm25) = provider.as_any_mut().downcast_ref::<crate::embedding::Bm25Embedding>() {
+                if bm25.vocabulary_size() == 0 {
+                    eprintln!("ERROR: BM25 vocabulary is empty! This indicates a problem in build_vocabulary()");
+                } else {
+                    eprintln!("SUCCESS: BM25 vocabulary has {} terms before transfer", bm25.vocabulary_size());
+                    // Extract vocabulary data for restoration
+                    bm25_vocabulary_data = Some(bm25.extract_vocabulary_data());
+                }
+            }
+        }
+        
+        // Move the embedding manager
+        let mut manager = self.embedding_manager;
+        
+        // Restore vocabulary data after move if needed
+        if let Some(vocab_data) = bm25_vocabulary_data {
+            if let Some(provider) = manager.get_provider_mut("bm25") {
+                if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
+                    // Check if vocabulary was lost during move
+                    if bm25.vocabulary_size() == 0 {
+                        eprintln!("CRITICAL: Vocabulary lost during move! Restoring...");
+                        bm25.restore_vocabulary_data(
+                            vocab_data.0,  // vocabulary
+                            vocab_data.1,  // doc_freq
+                            vocab_data.2,  // doc_lengths
+                            vocab_data.3,  // avg_doc_length
+                            vocab_data.4   // total_docs
+                        );
+                        eprintln!("SUCCESS: Vocabulary restored with {} terms", bm25.vocabulary_size());
+                    } else {
+                        eprintln!("SUCCESS: Vocabulary preserved during move: {} terms", bm25.vocabulary_size());
+                    }
+                }
+            }
+        }
+        
+        manager
     }
 }

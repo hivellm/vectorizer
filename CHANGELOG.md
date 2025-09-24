@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-09-25
+
+### 🏗️ Embedding Persistence & Robustness
+
+#### .vectorizer Directory Organization
+- **NEW**: Centralized `.vectorizer/` directory for all project data
+- Cache files: `PROJECT/.vectorizer/cache.bin`
+- Tokenizer files: `PROJECT/.vectorizer/tokenizer.{type}.json`
+- Auto-creation of `.vectorizer/` directory during project loading
+
+#### Tokenizer Persistence System
+- **NEW**: Complete tokenizer persistence for all embedding providers
+- **BM25**: Saves/loads vocabulary, document frequencies, statistics
+- **TF-IDF**: Saves/loads vocabulary and IDF weights
+- **BagOfWords**: Saves/loads word vocabulary mapping
+- **CharNGram**: Saves/loads N-gram character mappings
+- **Auto-loading**: Server automatically loads tokenizers on startup
+
+#### Deterministic Fallback Embeddings
+- **FIXED**: All embeddings now guarantee non-zero vectors (512D, normalized)
+- **BM25 OOV**: Feature-hashing for out-of-vocabulary terms
+- **TF-IDF/BagOfWords/CharNGram**: Hash-based deterministic fallbacks
+- **Quality**: Consistent vector dimensions and normalization across all providers
+
+#### Build Tokenizer Tool
+- **NEW**: `build-tokenizer` binary for offline tokenizer generation
+- Supports all embedding types: `bm25`, `tfidf`, `bagofwords`, `charngram`
+- Usage: `cargo run --bin build-tokenizer -- --project PATH --embedding TYPE`
+- Saves to `PROJECT/.vectorizer/tokenizer.{TYPE}.json`
+
+### 🔧 Technical Improvements
+
+#### Embedding Robustness
+- Removed short-word filtering in BM25 tokenization for better OOV handling
+- Enhanced fallback embedding generation with proper L2 normalization
+- Consistent 512D dimension across all embedding methods
+
+#### Server Enhancements
+- Auto-tokenizer loading on project startup for configured embedding type
+- Improved error handling for missing tokenizer files
+- Graceful fallback when tokenizers aren't available
+
+#### Testing
+- Comprehensive short-term testing across all embedding providers
+- Validation of non-zero vectors and proper normalization
+- OOV (out-of-vocabulary) term handling verification
+
+### 📈 Quality Improvements
+
+- **Reliability**: 100% non-zero embedding guarantee
+- **Consistency**: Deterministic results for same inputs
+- **Persistence**: Embeddings survive server restarts
+- **Maintainability**: Organized `.vectorizer/` structure
+
 ## [0.6.0] - 2025-09-25
 
 ### 🎉 Phase 4 Initiation

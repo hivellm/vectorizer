@@ -34,6 +34,9 @@ Vectorizer is a lightweight, scalable vector database with **client-server archi
 
 ### Key Features
 - **Advanced Embedding System**: TF-IDF, BM25, SVD reduction (300D/768D), BERT, MiniLM
+- **Embedding Persistence**: `.vectorizer/` directory with tokenizer files for all providers
+- **Tokenizer Management**: Save/load vocabularies for BM25, TF-IDF, BagOfWords, CharNGram
+- **Deterministic Fallbacks**: 100% guarantee of non-zero 512D normalized embeddings
 - **Hybrid Search Pipeline**: Sparse retrieval (BM25/TF-IDF) → Dense re-ranking (BERT/MiniLM)
 - **Comprehensive Evaluation**: MRR, MAP, Precision@K, Recall@K metrics with benchmarking
 - **REST API**: Production-ready API with text search, automatic embeddings, and collections
@@ -530,6 +533,12 @@ collections:
 - [Configuration](docs/phase1/CONFIGURATION.md) - Configuration guide
 - [Performance](docs/phase1/PERFORMANCE.md) - Performance characteristics
 - [QA Guidelines](docs/phase1/QA_GUIDELINES.md) - Quality assurance standards
+
+### 🔧 Embedding System (v0.7.0)
+- **Tokenizer Persistence**: `.vectorizer/` directory structure and vocabulary management
+- **Embedding Providers**: BM25, TF-IDF, BagOfWords, CharNGram with fallback guarantees
+- **Build Tools**: `build-tokenizer` binary for offline vocabulary generation
+- **Robustness**: Deterministic non-zero embeddings with OOV handling
 
 ### 🔍 Implementation Reviews
 - [grok-code-fast-1 Review](docs/reviews/REVIEW_REPORT.md) - Critical issues analysis

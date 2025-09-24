@@ -1,6 +1,7 @@
 //! Data models for Vectorizer
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// A vector with its associated data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +47,16 @@ pub enum DistanceMetric {
     Euclidean,
     /// Dot product
     DotProduct,
+}
+
+impl fmt::Display for DistanceMetric {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DistanceMetric::Cosine => write!(f, "cosine"),
+            DistanceMetric::Euclidean => write!(f, "euclidean"),
+            DistanceMetric::DotProduct => write!(f, "dot_product"),
+        }
+    }
 }
 
 /// HNSW index configuration

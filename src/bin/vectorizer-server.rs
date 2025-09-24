@@ -3,186 +3,123 @@
 //! This binary provides the main Vectorizer server with integrated MCP support
 //! for IDE integration and AI model communication.
 
-use axum::{Router, extract::State, response::Json, routing::get};
-use serde_json::json;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{error, info};
+use clap::Parser;
+use tracing::info;
 use vectorizer::{
-    auth::{AuthConfig, AuthManager},
+    api::VectorizerServer,
     db::VectorStore,
-    embedding::EmbeddingManager,
-    mcp::{McpConfig, McpServer},
+    document_loader::{DocumentLoader, LoaderConfig},
 };
 
-/// Application state
-#[derive(Clone)]
-struct AppState {
-    vector_store: Arc<VectorStore>,
-    #[allow(dead_code)]
-    embedding_manager: Arc<RwLock<EmbeddingManager>>,
-    auth_manager: Option<Arc<AuthManager>>,
-    mcp_server: Option<Arc<McpServer>>,
-}
+#[derive(Parser)]
+#[command(name = "vectorizer-server")]
+#[command(about = "Vectorizer HTTP Server with document loading capabilities")]
+struct Args {
+    /// Host to bind the server to
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
 
-/// Health check endpoint
-async fn health_check() -> Json<serde_json::Value> {
-    Json(json!({
-        "status": "healthy",
-        "service": "vectorizer",
-        "version": env!("CARGO_PKG_VERSION"),
-        "timestamp": chrono::Utc::now().to_rfc3339()
-    }))
-}
+    /// Port to bind the server to
+    #[arg(long, default_value = "15001")]
+    port: u16,
 
-/// Get server status
-async fn get_status(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let collections = state.vector_store.list_collections();
-    let total_collections = collections.len();
-
-    let mut total_vectors = 0;
-    for collection_name in &collections {
-        if let Ok(metadata) = state.vector_store.get_collection_metadata(collection_name) {
-            total_vectors += metadata.vector_count;
-        }
-    }
-
-    Json(json!({
-        "status": "running",
-        "collections": {
-            "count": total_collections,
-            "names": collections
-        },
-        "vectors": {
-            "total": total_vectors
-        },
-        "mcp": {
-            "enabled": state.mcp_server.is_some()
-        },
-        "auth": {
-            "enabled": state.auth_manager.is_some()
-        }
-    }))
-}
-
-/// List collections endpoint
-async fn list_collections(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let collections = state.vector_store.list_collections();
-
-    let collection_info: Vec<serde_json::Value> = collections
-        .into_iter()
-        .map(
-            |name| match state.vector_store.get_collection_metadata(&name) {
-                Ok(metadata) => {
-                    json!({
-                        "name": name,
-                        "vector_count": metadata.vector_count,
-                        "dimension": metadata.config.dimension,
-                        "metric": metadata.config.metric
-                    })
-                }
-                Err(_) => {
-                    json!({
-                        "name": name,
-                        "error": "Failed to get metadata"
-                    })
-                }
-            },
-        )
-        .collect();
-
-    Json(json!({
-        "collections": collection_info
-    }))
-}
-
-/// Create application router
-fn create_app(state: AppState) -> Router {
-    Router::new()
-        .route("/health", get(health_check))
-        .route("/status", get(get_status))
-        .route("/collections", get(list_collections))
-        .with_state(state)
+    /// Project directory to load and vectorize
+    #[arg(long)]
+    project: Option<String>,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
     // Initialize logging
     tracing_subscriber::fmt()
         .with_env_filter("vectorizer=info")
         .init();
 
-    info!("Starting Vectorizer Server with MCP integration");
+    info!("Starting Vectorizer Server with dashboard");
 
     // Initialize vector store
-    let vector_store = Arc::new(VectorStore::new());
+    let vector_store = VectorStore::new();
     info!("Vector store initialized");
 
-    // Initialize embedding manager
-    let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
-    info!("Embedding manager initialized");
+    // Load project documents if specified
+    if let Some(project_path) = &args.project {
+        info!("Loading project from: {}", project_path);
 
-    // Initialize authentication (optional)
-    let auth_config = AuthConfig::default();
-    let auth_manager = if auth_config.enabled {
-        Some(Arc::new(AuthManager::new(auth_config)?))
-    } else {
-        None
-    };
+            // Create optimized configuration for better relevance
+            let config = LoaderConfig {
+                max_chunk_size: 4000, // Chunks maiores para mais contexto
+                chunk_overlap: 200,   // Overlap maior para melhor continuidade
+                allowed_extensions: vec![
+                    "md".to_string(),
+                    "txt".to_string(), 
+                    "json".to_string(),
+                    "rs".to_string(),
+                    "js".to_string(),
+                    "ts".to_string(),
+                    "py".to_string(),
+                ],
+                embedding_dimension: 512, // Dimensão maior para melhor precisão
+                embedding_type: "bm25".to_string(), // BM25 como padrão
+                collection_name: "documents".to_string(),
+                max_file_size: 5 * 1024 * 1024, // 5MB para arquivos maiores
+            };
+        let mut loader = DocumentLoader::new(config);
 
-    if auth_manager.is_some() {
-        info!("Authentication enabled");
-    } else {
-        info!("Authentication disabled");
-    }
+        match loader.load_project(project_path, &vector_store) {
+            Ok(count) => {
+                info!("Successfully loaded {} document chunks", count);
 
-    // Initialize MCP server
-    let mcp_config = McpConfig::default();
-    let mcp_server = if mcp_config.enabled {
-        Some(Arc::new(McpServer::new(
-            mcp_config.clone(),
-            Arc::clone(&vector_store),
-            auth_manager.clone(),
-        )))
-    } else {
-        None
-    };
-
-    if mcp_server.is_some() {
-        info!(
-            "MCP server enabled on {}:{}",
-            mcp_config.host, mcp_config.port
-        );
-    } else {
-        info!("MCP server disabled");
-    }
-
-    // Create application state
-    let app_state = AppState {
-        vector_store,
-        embedding_manager,
-        auth_manager,
-        mcp_server,
-    };
-
-    // Start MCP server if enabled
-    if let Some(mcp_server) = &app_state.mcp_server {
-        let mcp_server_clone = Arc::clone(mcp_server);
-        tokio::spawn(async move {
-            if let Err(e) = mcp_server_clone.start().await {
-                error!("Failed to start MCP server: {}", e);
+                // Print collection statistics
+                if let Ok(stats) = loader.get_stats(&vector_store) {
+                    info!(
+                        "Collection stats: {}",
+                        serde_json::to_string_pretty(&stats)?
+                    );
+                }
             }
-        });
+            Err(e) => {
+                eprintln!("Failed to load project: {}", e);
+                std::process::exit(1);
+            }
+        }
+        // Extract embedding manager from the same loader used for indexing
+        let mut embedding_manager = loader.into_embedding_manager();
+
+        // If tokenizer exists, load it to ensure vocabulary persistence (for bm25)
+        let tokenizer_path = std::path::Path::new(project_path).join(".vectorizer").join("tokenizer.bm25.json");
+        if tokenizer_path.exists() {
+            eprintln!("Loading tokenizer from {}", tokenizer_path.to_string_lossy());
+            if let Some(provider) = embedding_manager.get_provider_mut("bm25") {
+                if let Some(bm25) = provider.as_any_mut().downcast_mut::<vectorizer::embedding::Bm25Embedding>() {
+                    if let Err(e) = bm25.load_vocabulary_json(&tokenizer_path) {
+                        eprintln!("Failed to load tokenizer: {}", e);
+                    } else {
+                        eprintln!("Tokenizer loaded, vocabulary size: {}", bm25.vocabulary_size());
+                    }
+                }
+            }
+        } else {
+            eprintln!("Tokenizer file not found at {} (will use in-memory vocabulary)", tokenizer_path.to_string_lossy());
+        }
+
+        // Start HTTP server with dashboard
+        let server = VectorizerServer::new(&args.host, args.port, vector_store, embedding_manager);
+        server.start().await?;
+        return Ok(());
     }
 
-    // Create router
-    let app = create_app(app_state);
+    // No project: create default embedding manager
+    let embedding_manager = {
+        let config = LoaderConfig::default();
+        let loader = DocumentLoader::new(config);
+        loader.into_embedding_manager()
+    };
 
-    // Start HTTP server
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:15001").await?;
-    info!("HTTP server listening on http://127.0.0.1:15001");
-
-    axum::serve(listener, app).await?;
+    // Start HTTP server with dashboard
+    let server = VectorizerServer::new(&args.host, args.port, vector_store, embedding_manager);
+    server.start().await?;
 
     Ok(())
 }

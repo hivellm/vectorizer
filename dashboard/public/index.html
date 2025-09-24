@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vectorizer Dashboard</title>
+    <link rel="stylesheet" href="/dashboard/static/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-database"></i> Vectorizer</h1>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-page="overview">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Overview</span>
+                </li>
+                <li class="nav-item" data-page="collections">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Collections</span>
+                </li>
+                <li class="nav-item" data-page="search">
+                    <i class="fas fa-search"></i>
+                    <span>Search</span>
+                </li>
+                <li class="nav-item" data-page="vectors">
+                    <i class="fas fa-vector-square"></i>
+                    <span>Vectors</span>
+                </li>
+                <li class="nav-item" data-page="cluster">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>Cluster Info</span>
+                </li>
+                <li class="nav-item" data-page="console">
+                    <i class="fas fa-terminal"></i>
+                    <span>Console</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="breadcrumb">
+                    <span id="current-page-title">Overview</span>
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn btn-icon" id="refresh-btn" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <div class="connection-status">
+                        <span class="status-dot online"></span>
+                        <span>Connected</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-area" id="main-content">
+                <!-- Content will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal-content">
+            <!-- Modal content will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <script src="/dashboard/static/app.js"></script>
+</body>
+</html>

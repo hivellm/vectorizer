@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::time::Instant;
 use tracing_subscriber;
+use vectorizer::VectorStore;
 #[cfg(feature = "candle-models")]
 use vectorizer::embedding::{RealModelEmbedder, RealModelType};
 use vectorizer::{
@@ -40,15 +41,19 @@ impl BenchmarkDataset {
             max_chunk_size: 1000,
             chunk_overlap: 200,
             embedding_dimension: 384, // MiniLM compatible
+            embedding_type: "bm25".to_string(),
             allowed_extensions: vec![".md".to_string(), ".txt".to_string(), ".json".to_string()],
             max_file_size: 1024 * 1024, // 1MB max per file
         };
 
         let mut loader = DocumentLoader::new(config);
+        
+        // Create a temporary vector store for loading documents
+        let temp_store = VectorStore::new();
 
         // Load and process documents
         println!("Starting document loading...");
-        let chunk_count = loader.load_project(gov_path)?;
+        let chunk_count = loader.load_project(gov_path, &temp_store)?;
         println!("Document loader reported {} chunks processed", chunk_count);
 
         // Get processed documents (chunks)

@@ -49,6 +49,28 @@ pub struct ListCollectionsResponse {
     pub collections: Vec<CollectionInfo>,
 }
 
+/// Vector information
+#[derive(Debug, Serialize)]
+pub struct VectorResponse {
+    /// Vector ID
+    pub id: String,
+    /// Vector payload (optional)
+    pub payload: Option<serde_json::Value>,
+}
+
+/// List vectors response
+#[derive(Debug, Serialize)]
+pub struct ListVectorsResponse {
+    /// Vectors list
+    pub vectors: Vec<VectorResponse>,
+    /// Total number of vectors
+    pub total: usize,
+    /// Limit used
+    pub limit: usize,
+    /// Offset used
+    pub offset: usize,
+}
+
 /// Request to insert vectors
 #[derive(Debug, Deserialize)]
 pub struct InsertVectorsRequest {
@@ -88,6 +110,8 @@ pub struct SearchRequest {
     pub limit: Option<usize>,
     /// Minimum score threshold
     pub score_threshold: Option<f32>,
+    /// Filter by file path (optional)
+    pub file_filter: Option<String>,
 }
 
 /// Search request with text (will be embedded automatically)
@@ -99,6 +123,8 @@ pub struct SearchTextRequest {
     pub limit: Option<usize>,
     /// Minimum score threshold
     pub score_threshold: Option<f32>,
+    /// Filter by file path (optional)
+    pub file_filter: Option<String>,
 }
 
 /// Unified search request supporting either vector or text
@@ -129,6 +155,52 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
     /// Query execution time in milliseconds
     pub query_time_ms: f64,
+}
+
+/// Search by file request
+#[derive(Debug, Deserialize)]
+pub struct SearchByFileRequest {
+    /// File path to search for
+    pub file_path: String,
+    /// Number of results to return
+    pub limit: Option<usize>,
+    /// Minimum score threshold
+    pub score_threshold: Option<f32>,
+}
+
+/// List files request
+#[derive(Debug, Deserialize)]
+pub struct ListFilesRequest {
+    /// Number of results to return
+    pub limit: Option<usize>,
+    /// Offset for pagination
+    pub offset: Option<usize>,
+    /// Filter by file extension (optional)
+    pub extension_filter: Option<String>,
+}
+
+/// File information
+#[derive(Debug, Serialize)]
+pub struct FileInfo {
+    /// File path
+    pub file_path: String,
+    /// Number of chunks in this file
+    pub chunk_count: usize,
+    /// File extension
+    pub extension: Option<String>,
+}
+
+/// List files response
+#[derive(Debug, Serialize)]
+pub struct ListFilesResponse {
+    /// Files list
+    pub files: Vec<FileInfo>,
+    /// Total number of files
+    pub total: usize,
+    /// Limit used
+    pub limit: usize,
+    /// Offset used
+    pub offset: usize,
 }
 
 /// Distance metric options
@@ -210,4 +282,25 @@ pub struct HealthResponse {
     pub collections: usize,
     /// Total vectors across all collections
     pub total_vectors: usize,
+}
+
+/// Request to set embedding provider
+#[derive(Debug, Deserialize)]
+pub struct SetEmbeddingProviderRequest {
+    pub provider_name: String,
+}
+
+/// Response for setting embedding provider
+#[derive(Debug, Serialize)]
+pub struct SetEmbeddingProviderResponse {
+    pub success: bool,
+    pub message: String,
+    pub provider_name: String,
+}
+
+/// Response for listing embedding providers
+#[derive(Debug, Serialize)]
+pub struct ListEmbeddingProvidersResponse {
+    pub providers: Vec<String>,
+    pub default_provider: Option<String>,
 }

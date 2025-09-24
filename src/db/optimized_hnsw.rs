@@ -217,13 +217,18 @@ impl OptimizedHnswIndex {
 
         let neighbors = hnsw.search(query, k, ef_search);
 
-        // Convert internal IDs back to string IDs
+        // Convert internal IDs back to string IDs and convert distance to similarity
         let results = neighbors
             .into_iter()
             .filter_map(|neighbor| {
                 reverse_map
                     .get(&neighbor.d_id)
-                    .map(|id| (id.clone(), neighbor.distance))
+                    .map(|id| {
+                        // Convert cosine distance to cosine similarity
+                        // For cosine distance: similarity = 1 - distance
+                        let similarity = 1.0 - neighbor.distance;
+                        (id.clone(), similarity)
+                    })
             })
             .collect();
 
@@ -241,6 +246,22 @@ impl OptimizedHnswIndex {
         } else {
             Ok(false)
         }
+    }
+
+    /// Update a vector by ID
+    pub fn update(&self, id: &str, data: &[f32]) -> Result<()> {
+        if data.len() != self.dimension {
+            return Err(VectorizerError::DimensionMismatch {
+                expected: self.dimension,
+                actual: data.len(),
+            });
+        }
+
+        // Remove old vector and add new one
+        self.remove(id)?;
+        self.add(id.to_string(), data.to_vec())?;
+        
+        Ok(())
     }
 
     /// Get the number of vectors in the index
@@ -278,6 +299,16 @@ impl OptimizedHnswIndex {
             id_memory_bytes: id_memory,
             total_memory_bytes: vector_memory + id_memory,
         }
+    }
+}
+
+impl std::fmt::Debug for OptimizedHnswIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OptimizedHnswIndex")
+            .field("config", &self.config)
+            .field("dimension", &self.dimension)
+            .field("vector_count", &self.len())
+            .finish()
     }
 }
 
