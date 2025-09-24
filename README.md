@@ -33,6 +33,18 @@ sudo systemctl enable vectorizer
 sudo systemctl start vectorizer
 ```
 
+### Advanced Usage
+```bash
+# Start with custom ports and config
+cargo run --bin vzr -- start --project ../my-project --config custom.yml --port 8080 --mcp-port 8081
+
+# Run as daemon in background
+cargo run --bin vzr -- start --project ../gov --daemon
+
+# Check detailed help
+cargo run --bin vzr -- start --help
+```
+
 ### Manual Commands
 ```bash
 # Start REST API server only
