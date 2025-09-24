@@ -11,6 +11,8 @@ use tracing_subscriber;
 
 #[cfg(target_os = "linux")]
 use libc::setsid;
+#[cfg(target_os = "linux")]
+use std::fs;
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
@@ -122,7 +124,7 @@ async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: 
     use tokio::signal;
 
     println!("Starting MCP server...");
-    let mcp_child = TokioCommand::new("cargo")
+    let mut mcp_child = TokioCommand::new("cargo")
         .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -135,7 +137,7 @@ async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: 
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
     println!("Starting REST API server...");
-    let rest_child = TokioCommand::new("cargo")
+    let mut rest_child = TokioCommand::new("cargo")
         .args(&[
             "run", "--bin", "vectorizer-server", "--",
             "--host", &host,
@@ -181,7 +183,10 @@ async fn run_as_daemon(project: PathBuf, config: PathBuf, host: String, port: u1
                 .stderr(Stdio::null())
                 .pre_exec(|| {
                     // Detach from controlling terminal
-                    setsid().map(|_| ()).map_err(|_| std::io::Error::last_os_error())
+                    match setsid() {
+                        -1 => Err(std::io::Error::last_os_error()),
+                        _ => Ok(()),
+                    }
                 })
                 .spawn()
         };
@@ -219,12 +224,12 @@ async fn stop_servers() {
     let mcp_pids = find_processes("vectorizer-mcp-server");
     let rest_pids = find_processes("vectorizer-server");
 
-    for pid in mcp_pids {
+    for &pid in &mcp_pids {
         println!("Stopping MCP server (PID: {})", pid);
         let _ = Command::new("kill").arg(&pid.to_string()).status();
     }
 
-    for pid in rest_pids {
+    for &pid in &rest_pids {
         println!("Stopping REST server (PID: {})", pid);
         let _ = Command::new("kill").arg(&pid.to_string()).status();
     }
