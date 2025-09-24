@@ -769,9 +769,9 @@ impl EmbeddingProvider for Bm25Embedding {
         let tokens = self.tokenize(text);
         let doc_length = tokens.len();
         
-        // Debug: Log tokenization for queries
+        // Debug: Log tokenization for queries (only in trace level)
         if text.len() < 100 { // Only log short queries to avoid spam
-            eprintln!("DEBUG: Query '{}' -> tokens: {:?}", text, tokens);
+            //trace!("Query '{}' -> tokens: {:?}", text, tokens);
         }
 
         // Count term frequencies in this document
@@ -1229,9 +1229,7 @@ impl EmbeddingManager {
 
     /// Embed text using a specific provider by name
     pub fn embed_with_provider(&self, provider_name: &str, text: &str) -> Result<Vec<f32>> {
-        eprintln!("DEBUG: EmbeddingManager::embed_with_provider called with provider: {}", provider_name);
         let provider = self.get_provider(provider_name)?;
-        eprintln!("DEBUG: Provider found, calling embed method");
         provider.embed(text)
     }
 

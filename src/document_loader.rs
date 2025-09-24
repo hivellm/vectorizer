@@ -360,7 +360,6 @@ impl DocumentLoader {
         dir: &Path,
         documents: &mut Vec<(PathBuf, String)>,
     ) -> Result<()> {
-        debug!("Scanning directory: {}", dir.display());
         let entries = fs::read_dir(dir)
             .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
 
@@ -375,33 +374,56 @@ impl DocumentLoader {
                         || dir_name == "node_modules"
                         || dir_name == "target"
                         || dir_name == "__pycache__"
+                        || dir_name == "dist"
+                        || dir_name == "build"
+                        || dir_name == ".git"
+                        || dir_name == ".vectorizer"
+                        || dir_name == "Cargo.lock"
+                        || dir_name == "package-lock.json"
+                        || dir_name == "yarn.lock"
+                        || dir_name == "pnpm-lock.yaml"
+                        || dir_name == ".next"
+                        || dir_name == ".nuxt"
+                        || dir_name == ".vuepress"
+                        || dir_name == "_site"
+                        || dir_name == "public"
+                        || dir_name == "static"
+                        || dir_name == "assets"
                     {
-                        debug!("Skipping directory: {}", dir_name);
                         continue;
                     }
                 }
                 self.collect_documents_recursive(&path, documents)?;
             } else if path.is_file() {
+                // Skip specific file names that should never be indexed
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if file_name == "cache.bin"
+                        || file_name.starts_with("tokenizer.")
+                        || file_name.ends_with(".lock")
+                        || file_name == "Cargo.lock"
+                        || file_name == "package-lock.json"
+                        || file_name == "yarn.lock"
+                        || file_name == "pnpm-lock.yaml"
+                        || file_name == ".gitignore"
+                        || file_name == ".gitattributes"
+                        || file_name == "README.md"
+                        || file_name == "CHANGELOG.md"
+                        || file_name.ends_with(".log")
+                        || file_name.ends_with(".tmp")
+                        || file_name.ends_with(".temp")
+                    {
+                        continue;
+                    }
+                }
+
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
                     let ext_lower = format!(".{}", extension.to_lowercase());
-                    debug!("File {} has extension: {}", path.display(), ext_lower);
                     if self.config.allowed_extensions.contains(&ext_lower) {
-                        debug!("Extension {} is allowed, checking file size", ext_lower);
                         // Check file size
                         match fs::metadata(&path) {
                             Ok(metadata) => {
                                 let file_size = metadata.len();
-                                debug!(
-                                    "File size: {} bytes, max allowed: {} bytes",
-                                    file_size, self.config.max_file_size
-                                );
                                 if file_size > self.config.max_file_size as u64 {
-                                    debug!(
-                                        "Skipping file {} (size: {} bytes, max: {} bytes)",
-                                        path.display(),
-                                        file_size,
-                                        self.config.max_file_size
-                                    );
                                     continue;
                                 }
                             }
@@ -412,14 +434,8 @@ impl DocumentLoader {
                         }
 
                         // Read file content
-                        debug!("Processing file: {}", path.display());
                         match fs::read_to_string(&path) {
                             Ok(content) => {
-                                debug!(
-                                    "Loaded document: {} ({} bytes)",
-                                    path.display(),
-                                    content.len()
-                                );
                                 documents.push((path, content));
                             }
                             Err(e) => {
@@ -431,11 +447,6 @@ impl DocumentLoader {
                                 ));
                             }
                         }
-                    } else {
-                        debug!(
-                            "Extension {} is not allowed. Allowed: {:?}",
-                            ext_lower, self.config.allowed_extensions
-                        );
                     }
                 }
             }
@@ -472,27 +483,19 @@ impl DocumentLoader {
                 }
             },
             "bm25" => {
-                eprintln!("DEBUG: BM25 case in build_vocabulary");
                 let texts: Vec<String> = documents
                     .iter()
                     .map(|(_, content)| content.clone())
                     .collect();
-                eprintln!("DEBUG: Collected {} texts for vocabulary", texts.len());
-                
+
                 if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
-                    eprintln!("DEBUG: Got BM25 provider");
                     if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
-                        eprintln!("DEBUG: Cast to Bm25Embedding successful");
-                        eprintln!("DEBUG: Vocabulary size before: {}", bm25.vocabulary_size());
                         bm25.build_vocabulary(&texts);
-                        eprintln!("DEBUG: Vocabulary size after: {}", bm25.vocabulary_size());
                         info!("BM25 vocabulary built successfully");
                     } else {
-                        eprintln!("ERROR: Failed to downcast to Bm25Embedding");
                         return Err(anyhow::anyhow!("Failed to downcast to Bm25Embedding"));
                     }
                 } else {
-                    eprintln!("ERROR: BM25 provider not found in manager");
                     return Err(anyhow::anyhow!("BM25 provider not found"));
                 }
             },
@@ -865,23 +868,18 @@ impl DocumentLoader {
 
     /// Extract the embedding manager from the loader
     pub fn into_embedding_manager(mut self) -> EmbeddingManager {
-        eprintln!("DEBUG: into_embedding_manager called");
-        
         // CRITICAL FIX: Ensure vocabulary is preserved during transfer
         // Extract and save vocabulary data before the move
-        
+
         let mut bm25_vocabulary_data = None;
-        
-        eprintln!("DEBUG: Checking for BM25 provider...");
-        
+
         // Extract vocabulary data before move
         if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
-            eprintln!("DEBUG: BM25 provider found!");
             if let Some(bm25) = provider.as_any_mut().downcast_ref::<crate::embedding::Bm25Embedding>() {
                 if bm25.vocabulary_size() == 0 {
-                    eprintln!("ERROR: BM25 vocabulary is empty! This indicates a problem in build_vocabulary()");
+                    warn!("BM25 vocabulary is empty! This indicates a problem in build_vocabulary()");
                 } else {
-                    eprintln!("SUCCESS: BM25 vocabulary has {} terms before transfer", bm25.vocabulary_size());
+                    debug!("BM25 vocabulary has {} terms before transfer", bm25.vocabulary_size());
                     // Extract vocabulary data for restoration
                     bm25_vocabulary_data = Some(bm25.extract_vocabulary_data());
                 }
@@ -897,7 +895,7 @@ impl DocumentLoader {
                 if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
                     // Check if vocabulary was lost during move
                     if bm25.vocabulary_size() == 0 {
-                        eprintln!("CRITICAL: Vocabulary lost during move! Restoring...");
+                        warn!("Vocabulary lost during move! Restoring...");
                         bm25.restore_vocabulary_data(
                             vocab_data.0,  // vocabulary
                             vocab_data.1,  // doc_freq
@@ -905,9 +903,9 @@ impl DocumentLoader {
                             vocab_data.3,  // avg_doc_length
                             vocab_data.4   // total_docs
                         );
-                        eprintln!("SUCCESS: Vocabulary restored with {} terms", bm25.vocabulary_size());
+                        debug!("Vocabulary restored with {} terms", bm25.vocabulary_size());
                     } else {
-                        eprintln!("SUCCESS: Vocabulary preserved during move: {} terms", bm25.vocabulary_size());
+                        debug!("Vocabulary preserved during move: {} terms", bm25.vocabulary_size());
                     }
                 }
             }
