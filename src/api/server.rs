@@ -16,6 +16,7 @@ use tower_http::{
 use tracing::info;
 
 use crate::{VectorStore, embedding::EmbeddingManager};
+use std::sync::Arc;
 
 use super::{handlers::AppState, routes::create_router};
 
@@ -29,7 +30,7 @@ pub struct VectorizerServer {
 
 impl VectorizerServer {
     /// Create a new server instance
-    pub fn new(host: &str, port: u16, store: VectorStore, embedding_manager: EmbeddingManager) -> Self {
+    pub fn new(host: &str, port: u16, store: Arc<VectorStore>, embedding_manager: EmbeddingManager) -> Self {
         let addr = format!("{}:{}", host, port)
             .parse()
             .expect("Invalid host/port combination");

@@ -383,7 +383,7 @@ impl DocumentLoader {
                 self.collect_documents_recursive(&path, documents)?;
             } else if path.is_file() {
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-                    let ext_lower = extension.to_lowercase();
+                    let ext_lower = format!(".{}", extension.to_lowercase());
                     debug!("File {} has extension: {}", path.display(), ext_lower);
                     if self.config.allowed_extensions.contains(&ext_lower) {
                         debug!("Extension {} is allowed, checking file size", ext_lower);
@@ -800,14 +800,23 @@ impl DocumentLoader {
 
     /// Load cache from file
     fn load_cache(&self, cache_path: &str) -> Result<ProjectCache> {
-        match fs::read(cache_path) {
+        match fs::read_to_string(cache_path) {
             Ok(data) => {
-                match bincode::deserialize(&data) {
+                // Try to deserialize from JSON
+                match serde_json::from_str(&data) {
                     Ok(cache) => {
                         info!("Loaded cache from: {}", cache_path);
                         Ok(cache)
                     }
                     Err(e) => {
+                        // Try old bincode format for backward compatibility
+                        if let Ok(binary_data) = fs::read(cache_path) {
+                            if let Ok(cache) = bincode::deserialize::<ProjectCache>(&binary_data) {
+                                info!("Loaded legacy bincode cache from: {}", cache_path);
+                                return Ok(cache);
+                            }
+                        }
+                        
                         warn!("Failed to deserialize cache: {}, creating new cache", e);
                         Ok(ProjectCache {
                             files: HashMap::new(),
@@ -828,10 +837,11 @@ impl DocumentLoader {
 
     /// Save cache to file
     fn save_cache(&self, cache_path: &str, cache: &ProjectCache) -> Result<()> {
-        let data = bincode::serialize(cache)
-            .with_context(|| "Failed to serialize cache")?;
+        // Use JSON instead of bincode to avoid deserialize_any issues
+        let json_data = serde_json::to_string_pretty(cache)
+            .with_context(|| "Failed to serialize cache to JSON")?;
         
-        fs::write(cache_path, data)
+        fs::write(cache_path, json_data)
             .with_context(|| format!("Failed to write cache to: {}", cache_path))?;
         
         info!("Saved cache to: {}", cache_path);

@@ -125,10 +125,10 @@ class VectorizerMCPClient {
         }
     }
 
-    async callTool(toolName, arguments) {
+    async callTool(toolName, toolArguments) {
         return this.sendRequest('tools/call', {
             name: toolName,
-            arguments: arguments
+            arguments: toolArguments
         });
     }
 

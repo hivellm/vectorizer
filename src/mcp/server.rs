@@ -128,7 +128,7 @@ impl McpServer {
 
                             // Send response
                             if let Ok(response_json) = serde_json::to_string(&response) {
-                                if let Err(e) = sender.send(Message::Text(response_json)).await {
+                                if let Err(e) = sender.send(Message::Text(response_json.into())).await {
                                     error!("Failed to send response: {}", e);
                                     break;
                                 }
@@ -148,7 +148,7 @@ impl McpServer {
                             };
 
                             if let Ok(response_json) = serde_json::to_string(&error_response) {
-                                let _ = sender.send(Message::Text(response_json)).await;
+                                let _ = sender.send(Message::Text(response_json.into())).await;
                             }
                         }
                     }

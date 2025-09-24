@@ -221,14 +221,7 @@ impl HnswIndex {
                         // cos(θ) = 1 - (d²/2) where d is L2 distance
                         // But we need to be careful with floating point precision
                         let d_squared = neighbor.distance * neighbor.distance;
-                        let cosine_sim = 1.0 - d_squared / 2.0;
-                        
-                        // Clamp to valid range and add small variation to avoid uniform scores
-                        let clamped_sim = cosine_sim.clamp(-1.0, 1.0);
-                        
-                        // Add tiny variation based on distance to break ties
-                        let variation = (neighbor.distance * 0.0001) % 0.0001;
-                        clamped_sim + variation
+                        (1.0 - d_squared / 2.0).clamp(-1.0, 1.0)
                     }
                     DistanceMetric::DotProduct => {
                         // For dot product, we can't directly compute from L2

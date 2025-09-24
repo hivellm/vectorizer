@@ -3,8 +3,9 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::Json,
+    response::{Json, Sse},
 };
+use futures_util::Stream;
 use chrono::Utc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -32,7 +33,7 @@ pub struct AppState {
 
 impl AppState {
     /// Create new application state
-    pub fn new(store: VectorStore, mut embedding_manager: EmbeddingManager) -> Self {
+    pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager) -> Self {
         // Check if BM25 vocabulary is empty and needs rebuilding
         if let Some(provider) = embedding_manager.get_provider_mut("bm25") {
             if let Some(bm25) = provider.as_any_mut().downcast_ref::<crate::embedding::Bm25Embedding>() {
@@ -43,7 +44,7 @@ impl AppState {
         }
         
         Self {
-            store: Arc::new(store),
+            store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
             start_time: Instant::now(),
         }
@@ -1059,4 +1060,543 @@ pub async fn list_files(
         limit,
         offset,
     }))
+}
+
+// ============================================================================
+// MCP (Model Context Protocol) ENDPOINTS - REST API Implementation
+// ============================================================================
+
+use serde::{Deserialize, Serialize};
+
+/// MCP Tool definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpTool {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+}
+
+/// MCP Server capabilities
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpServerCapabilities {
+    pub tools: Option<McpToolCapabilities>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpToolCapabilities {
+    pub supported: bool,
+}
+
+/// MCP Server info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpServerInfo {
+    pub name: String,
+    pub version: String,
+}
+
+/// MCP Initialize request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpInitializeRequest {
+    pub protocol_version: String,
+    pub capabilities: serde_json::Value,
+    pub client_info: serde_json::Value,
+}
+
+/// MCP Initialize result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpInitializeResult {
+    pub protocol_version: String,
+    pub capabilities: McpServerCapabilities,
+    pub server_info: McpServerInfo,
+}
+
+/// List MCP tools
+pub async fn mcp_tools_list(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("MCP tools/list requested");
+
+    // Define available MCP tools based on existing API
+    let tools = vec![
+        serde_json::json!({
+            "name": "search_vectors",
+            "description": "Search for similar vectors in a collection",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search query text"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results",
+                        "default": 10
+                    }
+                },
+                "required": ["collection", "query"]
+            }
+        }),
+        serde_json::json!({
+            "name": "list_collections",
+            "description": "List all available collections",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
+        }),
+        serde_json::json!({
+            "name": "embed_text",
+            "description": "Generate embeddings for text",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Text to embed"
+                    }
+                },
+                "required": ["text"]
+            }
+        }),
+    ];
+
+    let response = serde_json::json!({
+        "tools": tools
+    });
+
+    debug!("MCP tools/list response: {} tools available", tools.len());
+    Ok(Json(response))
+}
+
+/// MCP tool call handler
+pub async fn mcp_tools_call(
+    State(state): State<AppState>,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("MCP tools/call requested: {:?}", request);
+
+    let request_id = request.get("id").cloned().unwrap_or(serde_json::Value::Null);
+    
+    let params = request.get("params")
+        .and_then(|p| p.as_object())
+        .ok_or_else(|| (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "Invalid Request",
+                    "data": "Missing params"
+                }
+            }))
+        ))?;
+
+    let tool_name = params.get("name")
+        .and_then(|n| n.as_str())
+        .ok_or_else(|| (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "Invalid Request",
+                    "data": "Missing tool name"
+                }
+            }))
+        ))?;
+
+    let empty_map = serde_json::Map::new();
+    let arguments = params.get("arguments")
+        .and_then(|a| a.as_object())
+        .unwrap_or(&empty_map);
+
+    let result = match tool_name {
+        "search_vectors" => {
+            let collection = arguments.get("collection")
+                .and_then(|c| c.as_str())
+                .ok_or_else(|| (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32602,
+                            "message": "Invalid params",
+                            "data": "Missing collection parameter"
+                        }
+                    }))
+                ))?;
+
+            let query = arguments.get("query")
+                .and_then(|q| q.as_str())
+                .ok_or_else(|| (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32602,
+                            "message": "Invalid params",
+                            "data": "Missing query parameter"
+                        }
+                    }))
+                ))?;
+
+            let limit = arguments.get("limit")
+                .and_then(|l| l.as_u64())
+                .unwrap_or(10) as usize;
+
+            // Use existing search handler directly
+            match search_vectors_by_text(
+                State(state.clone()),
+                Path(collection.to_string()),
+                Json(super::types::SearchTextRequest {
+                    query: query.to_string(),
+                    limit: Some(limit),
+                    score_threshold: Some(0.1),
+                    file_filter: None,
+                })
+            ).await {
+                Ok(Json(response)) => serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serde_json::to_string(&response).unwrap_or_else(|_| "{}".to_string())
+                            }
+                        ]
+                    }
+                }),
+                Err((status, Json(error_response))) => {
+                    return Err((
+                        status,
+                        Json(serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {
+                                "code": -32603,
+                                "message": "Internal error",
+                                "data": error_response.error
+                            }
+                        }))
+                    ));
+                }
+            }
+        },
+
+        "list_collections" => {
+            // Use existing collections handler directly
+            let result = list_collections(State(state.clone())).await;
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": serde_json::to_string(&result.0).unwrap_or_else(|_| "{}".to_string())
+                        }
+                    ]
+                }
+            })
+        },
+
+        "embed_text" => {
+            let text = arguments.get("text")
+                .and_then(|t| t.as_str())
+                .ok_or_else(|| (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32602,
+                            "message": "Invalid params",
+                            "data": "Missing text parameter"
+                        }
+                    }))
+                ))?;
+
+            // Generate embedding directly using the embedding manager
+            match state.embedding_manager.lock().unwrap().embed_with_provider("bm25", text) {
+                Ok(embedding) => {
+                    let response = serde_json::json!({
+                        "embedding": embedding,
+                        "dimension": embedding.len(),
+                        "provider": "bm25"
+                    });
+                    serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": serde_json::to_string(&response).unwrap_or_else(|_| "{}".to_string())
+                                }
+                            ]
+                        }
+                    })
+                },
+                Err(e) => return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32603,
+                            "message": "Internal error",
+                            "data": format!("Embedding failed: {}", e)
+                        }
+                    }))
+                )),
+            }
+        },
+
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": "Method not found",
+                        "data": format!("Unknown tool: {}", tool_name)
+                    }
+                }))
+            ));
+        }
+    };
+
+    debug!("MCP tools/call completed for tool: {}", tool_name);
+    Ok(Json(result))
+}
+
+/// MCP initialize handler
+pub async fn mcp_initialize(
+    State(_state): State<AppState>,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("MCP initialize requested: {:?}", request);
+
+    let request_id = request.get("id").cloned().unwrap_or(serde_json::Value::Null);
+
+    let result = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": { "supported": true }
+            },
+            "serverInfo": {
+                "name": "Vectorizer MCP Server",
+                "version": "1.0.0"
+            }
+        }
+    });
+
+    debug!("MCP initialize completed");
+    Ok(Json(result))
+}
+
+/// MCP ping handler
+pub async fn mcp_ping() -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("MCP ping requested");
+    Ok(Json(serde_json::json!({"status": "pong"})))
+}
+
+/// MCP SSE endpoint for real-time communication
+pub async fn mcp_sse(
+    State(state): State<AppState>,
+) -> Sse<impl Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>> {
+    use futures_util::stream;
+    use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+
+    debug!("MCP SSE connection established");
+
+    // Create a channel for sending messages
+    let (tx, rx) = mpsc::unbounded_channel();
+    let tx = Arc::new(tx);
+
+    // Spawn a task to handle incoming requests
+    let state_clone = state.clone();
+    let tx_clone = tx.clone();
+    tokio::spawn(async move {
+        // Send initial server capabilities
+        let init_message = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "server/initialized",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "tools": { "supported": true }
+                },
+                "serverInfo": {
+                    "name": "Vectorizer MCP Server",
+                    "version": "1.0.0"
+                }
+            }
+        });
+
+        let _ = tx_clone.send(axum::response::sse::Event::default().data(init_message.to_string()));
+        
+        // Send tools list
+        let tools_message = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "tools/list",
+            "params": {
+                "tools": [
+                    {
+                        "name": "search_vectors",
+                        "description": "Search for similar vectors in a collection",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "collection": {
+                                    "type": "string",
+                                    "description": "Collection name"
+                                },
+                                "query": {
+                                    "type": "string",
+                                    "description": "Search query text"
+                                },
+                                "limit": {
+                                    "type": "integer",
+                                    "description": "Maximum number of results",
+                                    "default": 10
+                                }
+                            },
+                            "required": ["collection", "query"]
+                        }
+                    },
+                    {
+                        "name": "list_collections",
+                        "description": "List all available collections",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    },
+                    {
+                        "name": "embed_text",
+                        "description": "Generate embeddings for text",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "string",
+                                    "description": "Text to embed"
+                                }
+                            },
+                            "required": ["text"]
+                        }
+                    }
+                ]
+            }
+        });
+
+        let _ = tx_clone.send(axum::response::sse::Event::default().data(tools_message.to_string()));
+    });
+
+    // Create stream from receiver
+    let stream = UnboundedReceiverStream::new(rx)
+        .map(|event| Ok(event));
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(std::time::Duration::from_secs(30))
+            .text("keepalive")
+    )
+}
+
+/// MCP HTTP endpoint for tool calls (fallback for SSE)
+pub async fn mcp_http_tools_call(
+    State(state): State<AppState>,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("MCP HTTP tools/call requested: {:?}", request);
+
+    // Extract the method and params from the request
+    let method = request["method"].as_str()
+        .ok_or_else(|| (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Missing method"}))
+        ))?;
+
+    let params = request["params"].as_object()
+        .ok_or_else(|| (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Missing params"}))
+        ))?;
+
+    let result = match method {
+        "tools/call" => {
+            let tool_name = params["name"].as_str()
+                .ok_or_else(|| (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "error": {"code": -32602, "message": "Missing tool name"}}))
+                ))?;
+
+            let arguments = params["arguments"].as_object()
+                .ok_or_else(|| (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "error": {"code": -32602, "message": "Missing arguments"}}))
+                ))?;
+
+            // Reuse existing tool call logic
+            match mcp_tools_call(State(state), Json(request.clone())).await {
+                Ok(Json(result)) => serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "result": result}),
+                Err((status, Json(error))) => {
+                    return Err((status, Json(serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "error": error}))));
+                }
+            }
+        },
+        "tools/list" => {
+            match mcp_tools_list(State(state)).await {
+                Ok(Json(result)) => serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "result": result}),
+                Err((status, Json(error))) => {
+                    return Err((status, Json(serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "error": error}))));
+                }
+            }
+        },
+        "initialize" => {
+            // Create a mock initialize request
+            let init_request = serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "test-client",
+                    "version": "1.0.0"
+                }
+            });
+
+            match mcp_initialize(State(state), Json(init_request)).await {
+                Ok(Json(result)) => result,
+                Err((status, Json(error))) => {
+                    return Err((status, Json(error)));
+                }
+            }
+        },
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"jsonrpc": "2.0", "id": request["id"], "error": {"code": -32601, "message": format!("Unknown method: {}", method)}}))
+            ));
+        }
+    };
+
+    Ok(Json(result))
 }

@@ -5,6 +5,7 @@
 
 use clap::Parser;
 use tracing::info;
+use std::sync::Arc;
 use vectorizer::{
     api::VectorizerServer,
     db::VectorStore,
@@ -26,6 +27,10 @@ struct Args {
     /// Project directory to load and vectorize
     #[arg(long)]
     project: Option<String>,
+
+    /// Configuration file path
+    #[arg(long, default_value = "config.yml")]
+    config: String,
 }
 
 #[tokio::main]
@@ -39,8 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting Vectorizer Server with dashboard");
 
+    // Configuration loading disabled for now
+    let config = serde_yaml::Value::Null;
+
     // Initialize vector store
-    let vector_store = VectorStore::new();
+    let vector_store = Arc::new(VectorStore::new());
     info!("Vector store initialized");
 
     // Load project documents if specified
@@ -48,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("Loading project from: {}", project_path);
 
             // Create optimized configuration for better relevance
-            let config = LoaderConfig {
+            let loader_config = LoaderConfig {
                 max_chunk_size: 4000, // Chunks maiores para mais contexto
                 chunk_overlap: 200,   // Overlap maior para melhor continuidade
                 allowed_extensions: vec![
@@ -65,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 collection_name: "documents".to_string(),
                 max_file_size: 5 * 1024 * 1024, // 5MB para arquivos maiores
             };
-        let mut loader = DocumentLoader::new(config);
+        let mut loader = DocumentLoader::new(loader_config);
 
         match loader.load_project(project_path, &vector_store) {
             Ok(count) => {
@@ -104,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("Tokenizer file not found at {} (will use in-memory vocabulary)", tokenizer_path.to_string_lossy());
         }
 
-        // Start HTTP server with dashboard
+        // Start HTTP server
         let server = VectorizerServer::new(&args.host, args.port, vector_store, embedding_manager);
         server.start().await?;
         return Ok(());
@@ -117,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         loader.into_embedding_manager()
     };
 
-    // Start HTTP server with dashboard
+    // Start HTTP server
     let server = VectorizerServer::new(&args.host, args.port, vector_store, embedding_manager);
     server.start().await?;
 

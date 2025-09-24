@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create and start the HTTP server
-    let server = vectorizer::api::VectorizerServer::new(&args.host, args.port, store, embedding_manager);
+        let server = vectorizer::api::VectorizerServer::new(&args.host, args.port, store.into(), embedding_manager);
 
     info!("Starting REST API server...");
     server.start().await?;
