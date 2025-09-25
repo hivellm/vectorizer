@@ -251,7 +251,13 @@ impl DocumentLoader {
             }
         }
 
-        // If no include patterns match, fall back to extension-based matching (legacy)
+        // If include patterns are specified, don't fall back to extension-based matching
+        // This ensures we only process files that match the specific patterns
+        if !self.config.include_patterns.is_empty() {
+            return false;
+        }
+
+        // Only fall back to extension-based matching if no include patterns are specified (legacy mode)
         if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
             let ext_lower = extension.to_lowercase();
             return self.config.allowed_extensions.contains(&ext_lower);
