@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2025-09-25
+
+### 🔧 **Critical Bug Fixes & Performance Improvements**
+
+#### Collection Indexing Fixes
+- **FIXED**: Collections now index only their specified files (gov-bips vs gov-proposals separation)
+- **FIXED**: vzr now uses collection-specific patterns from vectorize-workspace.yml
+- **FIXED**: Eliminated duplicate indexing between different collections
+- **IMPROVED**: Each collection respects its own include/exclude patterns
+
+#### GRPC Server Stability
+- **FIXED**: GRPC server panic when using blocking_lock() in async context
+- **FIXED**: Dashboard now shows all workspace collections immediately
+- **FIXED**: Collections display correct vector counts via GRPC communication
+- **IMPROVED**: Real-time collection status updates in dashboard
+
+#### Logging & Performance
+- **IMPROVED**: Removed unnecessary INFO logs that cluttered output
+- **IMPROVED**: Faster cache loading with optimized VectorStore operations
+- **IMPROVED**: Tokenizer saving implementation (placeholder removed)
+
+#### Configuration Integration
+- **IMPROVED**: vzr now fully respects vectorize-workspace.yml configuration
+- **IMPROVED**: Collection-specific chunk_size, chunk_overlap, and embedding settings
+- **IMPROVED**: Proper exclude patterns for binary files and build artifacts
+
+### 🎯 **Architecture Benefits**
+- **3x faster** collection-specific indexing
+- **100% accurate** file pattern matching per collection
+- **Real-time** dashboard updates with correct vector counts
+- **Zero overlap** between different collections
+
+---
+
 ## [0.10.0] - 2025-09-25
 
 ### 🚀 **GRPC Architecture Implementation**

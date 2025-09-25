@@ -18,6 +18,8 @@ use crate::{
     VectorStore,
     embedding::{Bm25Embedding, EmbeddingManager},
     models::{CollectionConfig, Payload, Vector},
+    grpc::client::VectorizerGrpcClient,
+    config::GrpcConfig,
 };
 use std::sync::Mutex;
 
@@ -147,6 +149,8 @@ pub struct AppState {
     pub store: Arc<VectorStore>,
     /// Embedding manager for consistent embedding generation
     pub embedding_manager: Arc<Mutex<EmbeddingManager>>,
+    /// GRPC client for communication with vzr
+    pub grpc_client: Option<VectorizerGrpcClient>,
     /// Server start time for uptime calculation
     pub start_time: Instant,
     /// Indexing progress tracking
@@ -160,6 +164,9 @@ impl AppState {
     pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager) -> Self {
         // Check if BM25 vocabulary is empty and needs rebuilding
         // Note: Vocabulary is built during document loading, so empty here is expected
+
+        // Initialize GRPC client
+        let grpc_client = None; // Will be initialized later if needed
 
         // Initialize indexing progress for existing collections
         let mut indexing_progress = HashMap::new();
@@ -202,9 +209,27 @@ impl AppState {
         Self {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
+            grpc_client,
             start_time: Instant::now(),
             indexing_progress: IndexingProgressState::from_map(indexing_progress),
             workspace_collections,
+        }
+    }
+
+    /// Initialize GRPC client
+    pub async fn init_grpc_client(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let config = GrpcConfig::from_env();
+        
+        match VectorizerGrpcClient::new(config.client).await {
+            Ok(client) => {
+                self.grpc_client = Some(client);
+                info!("✅ GRPC client initialized successfully with config");
+                Ok(())
+            }
+            Err(e) => {
+                warn!("⚠️ Failed to initialize GRPC client: {}", e);
+                Err(e.into())
+            }
         }
     }
 
@@ -344,6 +369,7 @@ impl AppState {
         Self {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
+            grpc_client: None, // Will be initialized later if needed
             start_time: Instant::now(),
             indexing_progress,
             workspace_collections,
@@ -378,9 +404,47 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
 }
 
 /// List all collections
-pub async fn list_collections(State(state): State<AppState>) -> Json<ListCollectionsResponse> {
+pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCollectionsResponse> {
     debug!("Listing collections");
 
+    // Try to use GRPC client if available
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.list_collections().await {
+            Ok(grpc_response) => {
+                info!("📊 API: Using GRPC response with {} collections", grpc_response.total_collections);
+                
+                let collection_infos = grpc_response.collections
+                    .into_iter()
+                    .map(|collection| CollectionInfo {
+                        name: collection.name,
+                        vector_count: collection.vector_count as usize,
+                        dimension: collection.dimension as usize,
+                        metric: DistanceMetric::Cosine, // Default metric
+                        created_at: collection.last_updated.clone(),
+                        updated_at: collection.last_updated,
+                        indexing_status: IndexingStatus {
+                            status: collection.status,
+                            progress: 100.0, // Assume completed if loaded
+                            total_documents: 0,
+                            processed_documents: 0,
+                            vector_count: collection.vector_count as usize,
+                            estimated_time_remaining: None,
+                            last_updated: chrono::Utc::now().to_rfc3339(),
+                        },
+                    })
+                    .collect();
+
+                return Json(ListCollectionsResponse {
+                    collections: collection_infos,
+                });
+            }
+            Err(e) => {
+                warn!("⚠️ GRPC call failed, falling back to local store: {}", e);
+            }
+        }
+    }
+
+    // Fallback to local store
     let existing_collections = state.store.list_collections();
     let mut collection_infos = Vec::new();
 

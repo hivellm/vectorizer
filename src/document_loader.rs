@@ -346,17 +346,15 @@ impl DocumentLoader {
         store: &VectorStore,
         progress_callback: Option<&IndexingProgressState>,
     ) -> CacheResult<(usize, bool)> {
-        println!("🔍 load_project_with_cache_and_progress called for collection: {}", self.config.collection_name);
         let collection_name = &self.config.collection_name;
         let vector_store_path = PathBuf::from(project_path).join(".vectorizer").join(format!("{}_vector_store.bin", collection_name));
-        println!("📂 Vector store path: {}", vector_store_path.display());
 
         // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
         if vector_store_path.exists() {
-            info!("🚀 Loading cached vector store for '{}' directly (fast path)", collection_name);
+            info!("🚀 Loading cached vector store for '{}'", collection_name);
             match self.load_persisted_store(&vector_store_path, store, collection_name) {
                 Ok(count) => {
-                    info!("✅ Loaded {} vectors from cache for '{}' in milliseconds", count, collection_name);
+                    info!("✅ Loaded {} vectors from cache for '{}'", count, collection_name);
                     // Record cache hit if cache manager is available
                     if let Some(cache_manager) = &self.cache_manager {
                         let _ = cache_manager.record_hit().await;
@@ -497,39 +495,23 @@ impl DocumentLoader {
         let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
         fs::create_dir_all(&vectorizer_dir)?;
         
-        match self.config.embedding_type.as_str() {
-            "bm25" => {
-                // Save BM25 vocabulary if available
-                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.bm25", self.config.collection_name));
-                info!("Attempting to save BM25 tokenizer to {}", tokenizer_path.display());
-                // Note: EmbeddingManager doesn't have save_vocabulary method yet
-                // This is a placeholder for future implementation
+        // Try to save tokenizer for sparse embedding types
+        let embedding_type = self.config.embedding_type.as_str();
+        if matches!(embedding_type, "bm25" | "tfidf" | "char_ngram" | "cng" | "bag_of_words" | "bow") {
+            let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
+            
+            // Try to get the specific provider and save its vocabulary
+            if let Ok(provider) = self.embedding_manager.get_provider(embedding_type) {
+                // For now, we'll skip saving tokenizers as the EmbeddingManager interface
+                // doesn't expose the save_vocabulary_json method directly
+                // TODO: Add method to EmbeddingManager to save vocabulary for specific providers
+                info!("Tokenizer saving not yet implemented for {}", embedding_type);
+            } else {
+                info!("No provider found for embedding type: {}", embedding_type);
             }
-            "tfidf" => {
-                // Save TF-IDF vocabulary if available
-                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.tfidf", self.config.collection_name));
-                info!("Attempting to save TF-IDF tokenizer to {}", tokenizer_path.display());
-                // Note: EmbeddingManager doesn't have save_vocabulary method yet
-                // This is a placeholder for future implementation
-            }
-            "char_ngram" | "cng" => {
-                // Save CharNGram vocabulary if available
-                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.cng", self.config.collection_name));
-                info!("Attempting to save CharNGram tokenizer to {}", tokenizer_path.display());
-                // Note: EmbeddingManager doesn't have save_vocabulary method yet
-                // This is a placeholder for future implementation
-            }
-            "bag_of_words" | "bow" => {
-                // Save BagOfWords vocabulary if available
-                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.bow", self.config.collection_name));
-                info!("Attempting to save BagOfWords tokenizer to {}", tokenizer_path.display());
-                // Note: EmbeddingManager doesn't have save_vocabulary method yet
-                // This is a placeholder for future implementation
-            }
-            _ => {
-                // For other embedding types (BERT, MiniLM, etc.), no tokenizer to save
-                info!("No tokenizer to save for embedding type: {}", self.config.embedding_type);
-            }
+        } else {
+            // For other embedding types (BERT, MiniLM, etc.), no tokenizer to save
+            info!("No tokenizer to save for embedding type: {}", embedding_type);
         }
         
         Ok(())

@@ -1,5 +1,8 @@
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;
+use crate::config::GrpcServerConfig;
+use crate::api::handlers::WorkspaceCollection;
+use crate::workspace::WorkspaceManager;
 use crate::grpc::vectorizer::{
     vectorizer_service_server::VectorizerService,
     SearchRequest, SearchResponse, SearchResult,
@@ -24,11 +27,12 @@ impl VectorizerGrpcService {
     pub fn new(
         vector_store: Arc<VectorStore>,
         embedding_manager: Arc<Mutex<EmbeddingManager>>,
+        indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
     ) -> Self {
         Self {
             vector_store,
             embedding_manager,
-            indexing_progress: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            indexing_progress,
         }
     }
 
@@ -82,26 +86,71 @@ impl VectorizerService for VectorizerGrpcService {
     }
 
     async fn list_collections(&self, _request: Request<Empty>) -> Result<Response<ListCollectionsResponse>, Status> {
-        let collections = self.vector_store.list_collections();
+        // Load workspace collections first
+        let workspace_collections = match load_workspace_collections() {
+            Ok(collections) => collections,
+            Err(e) => {
+                tracing::warn!("Failed to load workspace collections: {}", e);
+                vec![]
+            }
+        };
         
-        let collection_infos: Vec<CollectionInfo> = collections
-            .into_iter()
-            .map(|name| {
-                let metadata = self.vector_store.get_collection_metadata(&name).unwrap_or_else(|_| {
-                    panic!("Collection {} should exist", name)
-                });
+        let indexed_collections = self.vector_store.list_collections();
+        
+        let mut collection_infos = Vec::new();
+        
+        // Add all workspace collections
+        for workspace_collection in workspace_collections {
+            let status = if indexed_collections.contains(&workspace_collection.name) {
+                // Collection is indexed, get real data
+                match self.vector_store.get_collection_metadata(&workspace_collection.name) {
+                    Ok(metadata) => {
+                        CollectionInfo {
+                            name: workspace_collection.name.clone(),
+                            vector_count: metadata.vector_count as i32,
+                            dimension: metadata.config.dimension as i32,
+                            similarity_metric: "cosine".to_string(),
+                            status: "ready".to_string(),
+                            last_updated: Utc::now().to_rfc3339(),
+                            error_message: None,
+                        }
+                    }
+                    Err(_) => {
+                        CollectionInfo {
+                            name: workspace_collection.name.clone(),
+                            vector_count: 0,
+                            dimension: workspace_collection.dimension as i32,
+                            similarity_metric: "cosine".to_string(),
+                            status: "error".to_string(),
+                            last_updated: Utc::now().to_rfc3339(),
+                            error_message: Some("Failed to get collection metadata".to_string()),
+                        }
+                    }
+                }
+            } else {
+                // Collection not yet indexed
+                let indexing_status = {
+                    let indexing_progress_guard = self.indexing_progress.lock().await;
+                    indexing_progress_guard.get(&workspace_collection.name).cloned()
+                };
+                let (status, progress) = match indexing_status {
+                    Some(status) => (status.status.clone(), status.progress),
+                    None => ("pending".to_string(), 0.0),
+                };
                 
                 CollectionInfo {
-                    name: name.clone(),
-                    vector_count: metadata.vector_count as i32,
-                    dimension: metadata.config.dimension as i32,
+                    name: workspace_collection.name.clone(),
+                    vector_count: 0,
+                    dimension: workspace_collection.dimension as i32,
                     similarity_metric: "cosine".to_string(),
-                    status: "ready".to_string(),
+                    status: format!("{}-{}", status, (progress * 100.0) as i32),
                     last_updated: Utc::now().to_rfc3339(),
                     error_message: None,
                 }
-            })
-            .collect();
+            };
+            
+            collection_infos.push(status);
+        }
 
         let total_collections = collection_infos.len();
         Ok(Response::new(ListCollectionsResponse {
@@ -193,4 +242,55 @@ impl VectorizerService for VectorizerGrpcService {
             error_message: None,
         }))
     }
+}
+
+/// Start GRPC server with configuration
+pub async fn start_grpc_server(
+    config: GrpcServerConfig,
+    vector_store: Arc<VectorStore>,
+    embedding_manager: Arc<Mutex<EmbeddingManager>>,
+    indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !config.enabled {
+        tracing::info!("GRPC server is disabled in configuration");
+        return Ok(());
+    }
+
+    let addr = format!("{}:{}", config.host, config.port)
+        .parse()
+        .map_err(|e| format!("Invalid GRPC server address: {}", e))?;
+
+    let service = VectorizerGrpcService::new(vector_store, embedding_manager, indexing_progress);
+    
+    tracing::info!("🚀 Starting GRPC server on {}:{}", config.host, config.port);
+
+    tonic::transport::Server::builder()
+        .add_service(crate::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer::new(service))
+        .serve(addr)
+        .await?;
+
+    Ok(())
+}
+
+/// Load workspace collections from vectorize-workspace.yml
+fn load_workspace_collections() -> Result<Vec<WorkspaceCollection>, Box<dyn std::error::Error>> {
+    // Load workspace using the proper WorkspaceManager
+    let workspace_manager = WorkspaceManager::load_from_file("vectorize-workspace.yml")?;
+    let enabled_projects = workspace_manager.enabled_projects();
+    
+    let mut collections = Vec::new();
+    
+    for project in enabled_projects {
+        for collection in &project.collections {
+            collections.push(WorkspaceCollection {
+                name: collection.name.clone(),
+                description: collection.description.clone(),
+                dimension: collection.dimension as u64,
+                metric: format!("{:?}", collection.metric).to_lowercase(),
+                model: format!("{:?}", collection.embedding.model).to_lowercase(),
+            });
+        }
+    }
+    
+    Ok(collections)
 }

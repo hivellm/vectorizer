@@ -9,20 +9,22 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 use crate::grpc::client::VectorizerGrpcClient;
+use crate::config::GrpcConfig;
 
 pub struct VectorizerService {
     grpc_server_url: String,
 }
 
 impl VectorizerService {
-    pub fn new(grpc_server_url: String) -> Self {
+    pub fn new(_grpc_server_url: String) -> Self {
         Self {
-            grpc_server_url,
+            grpc_server_url: String::new(), // Not used anymore, config handles this
         }
     }
 
     async fn get_grpc_client(&self) -> Result<VectorizerGrpcClient, ErrorData> {
-        VectorizerGrpcClient::new(self.grpc_server_url.clone())
+        let config = GrpcConfig::from_env();
+        VectorizerGrpcClient::new(config.client)
             .await
             .map_err(|e| ErrorData::internal_error(format!("Failed to create GRPC client: {}", e), None))
     }

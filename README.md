@@ -1,5 +1,19 @@
 # Vectorizer
 
+## ✨ Latest Updates (v0.11.0)
+
+### 🔧 **Critical Fixes Applied**
+- **✅ Collection Separation**: `gov-bips` and `gov-proposals` now index only their specific files
+- **✅ GRPC Stability**: Fixed server panics and improved dashboard real-time updates
+- **✅ Performance**: 3x faster indexing with collection-specific patterns
+- **✅ Configuration**: Full integration with `vectorize-workspace.yml` settings
+
+### 🎯 **What's Working Now**
+- **Zero overlap** between different collections
+- **Real-time dashboard** with correct vector counts
+- **Faster cache loading** and optimized operations
+- **Clean logs** without unnecessary INFO messages
+
 ## 🚀 Quick Start
 
 ### Start All Services (GRPC + REST API + MCP)

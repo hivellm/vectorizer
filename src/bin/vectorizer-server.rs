@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let indexing_progress = IndexingProgressState::new();
 
     // Create app state with indexing progress
-    let app_state = AppState::new_with_progress(
+    let mut app_state = AppState::new_with_progress(
         Arc::clone(&app_vector_store),
         vectorizer::embedding::EmbeddingManager::new(),
         indexing_progress.clone(),
@@ -124,6 +124,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         info!("✅ Dashboard ready with {} collections initialized", workspace_collections.len());
+    }
+
+    // Initialize GRPC client
+    info!("🔗 Initializing GRPC client for communication with vzr...");
+    if let Err(e) = app_state.init_grpc_client().await {
+        warn!("⚠️ Failed to initialize GRPC client: {}. Server will use local store only.", e);
     }
 
     // Start HTTP server

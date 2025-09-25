@@ -3,6 +3,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use vectorizer::mcp_service::VectorizerService;
 use rmcp::transport::sse_server::{SseServer, SseServerConfig};
 use vectorizer::grpc::client::VectorizerGrpcClient;
+use vectorizer::config::GrpcConfig;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -47,7 +48,8 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("📡 Connecting to GRPC server at: {}", grpc_server_url);
     
     // Test connection to GRPC server
-    match VectorizerGrpcClient::new(grpc_server_url.clone()).await {
+    let grpc_config = GrpcConfig::from_env();
+    match VectorizerGrpcClient::new(grpc_config.client).await {
         Ok(mut client) => {
             match client.health_check().await {
                 Ok(health) => {

@@ -7,23 +7,34 @@ use crate::grpc::vectorizer::{
     UpdateIndexingProgressRequest,
     HealthResponse,
 };
+use crate::config::GrpcClientConfig;
 use tonic::transport::Channel;
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct VectorizerGrpcClient {
     client: VectorizerServiceClient<Channel>,
 }
 
 impl VectorizerGrpcClient {
-    pub async fn new(server_url: String) -> Result<Self, Box<dyn std::error::Error>> {
-        let channel = Channel::from_shared(server_url)?
-            .timeout(Duration::from_secs(30))
+    pub async fn new(config: GrpcClientConfig) -> Result<Self, Box<dyn std::error::Error>> {
+        let channel = Channel::from_shared(config.server_url)?
+            .timeout(Duration::from_secs(config.timeout_seconds))
+            .connect_timeout(Duration::from_secs(5))
+            .keep_alive_timeout(Duration::from_secs(config.keep_alive_interval))
+            .keep_alive_while_idle(true)
+            .tcp_keepalive(Some(Duration::from_secs(config.keep_alive_interval)))
+            .tcp_nodelay(true)
             .connect()
             .await?;
-        
+
         let client = VectorizerServiceClient::new(channel);
-        
         Ok(Self { client })
+    }
+
+    pub async fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+        let config = crate::config::GrpcConfig::from_env();
+        Self::new(config.client).await
     }
 
     pub async fn search(

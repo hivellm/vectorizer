@@ -10,9 +10,17 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use tokio::process::Command as TokioCommand;
+use tokio::sync::Mutex;
 use tracing_subscriber;
 use vectorizer::workspace::WorkspaceManager;
+use vectorizer::{
+    db::VectorStore,
+    embedding::EmbeddingManager,
+    grpc::server::start_grpc_server,
+    config::GrpcConfig,
+};
 
 /// Structured logging for workspace operations
 struct WorkspaceLogger {
@@ -278,7 +286,6 @@ async fn run_servers(
     logger.info(&format!("Workspace mode: {}", workspace.is_some()));
 
     println!("🚀 Starting Vectorizer Servers...");
-    println!("📄 Logs: vectorizer-workspace.log");
 
     // Determine if using workspace or legacy project mode
     if let Some(workspace_path) = workspace {
@@ -835,8 +842,6 @@ async fn run_interactive_workspace(
 ) {
     use tokio::signal;
 
-    println!("Starting MCP server with workspace...");
-
     // Check if we have enabled projects
     let enabled_projects_count = workspace_manager.enabled_projects().len();
     if enabled_projects_count == 0 {
@@ -844,10 +849,7 @@ async fn run_interactive_workspace(
         std::process::exit(1);
     }
 
-    println!(
-        "📂 Loading {} projects from workspace:",
-        enabled_projects_count
-    );
+    println!("📊 Loading {} projects from workspace:", enabled_projects_count);
     
     // Load projects for display
     let enabled_projects = workspace_manager.enabled_projects();
@@ -1031,6 +1033,7 @@ async fn run_interactive_workspace(
     println!("✅ Unified server running");
     println!("  REST API: http://{}:15001", host);
     println!("  MCP Server: http://127.0.0.1:15002/sse");
+    println!("  GRPC Server: http://127.0.0.1:15003");
     println!(
         "  Collections: {} from {} projects",
         enabled_projects
@@ -1041,9 +1044,39 @@ async fn run_interactive_workspace(
     );
     println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
 
-    // Start background indexing and status replication
+    // Initialize GRPC server components
+    let grpc_vector_store = Arc::new(VectorStore::new());
+    let grpc_embedding_manager = Arc::new(Mutex::new(EmbeddingManager::new()));
+    let grpc_indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
+    
+    // Start GRPC server
+    let grpc_config = GrpcConfig::from_env();
+    let grpc_vector_store_clone = Arc::clone(&grpc_vector_store);
+    let grpc_embedding_manager_clone = Arc::clone(&grpc_embedding_manager);
+    let grpc_indexing_progress_clone = Arc::clone(&grpc_indexing_progress);
+    
     tokio::spawn(async move {
-        start_background_indexing_with_config().await;
+        if let Err(e) = start_grpc_server(
+            grpc_config.server,
+            grpc_vector_store_clone,
+            grpc_embedding_manager_clone,
+            grpc_indexing_progress_clone,
+        ).await {
+            eprintln!("❌ Failed to start GRPC server: {}", e);
+        }
+    });
+
+    // Start background indexing and status replication
+    let indexing_vector_store = Arc::clone(&grpc_vector_store);
+    let indexing_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    let indexing_progress = Arc::clone(&grpc_indexing_progress);
+    
+    tokio::spawn(async move {
+        start_background_indexing_with_config(
+            indexing_vector_store,
+            indexing_embedding_manager,
+            indexing_progress,
+        ).await;
     });
 
     // Wait for shutdown signal
@@ -1060,7 +1093,11 @@ async fn run_interactive_workspace(
 }
 
 /// Start background indexing process with configuration loading
-async fn start_background_indexing_with_config() {
+async fn start_background_indexing_with_config(
+    vector_store: Arc<VectorStore>,
+    embedding_manager: Arc<Mutex<EmbeddingManager>>,
+    indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
+) {
     println!("🔄 Starting background indexing...");
     
     // Wait for servers to be ready with health check
@@ -1088,7 +1125,12 @@ async fn start_background_indexing_with_config() {
             update_collection_status(&collection.name, "processing", 0.0, None).await;
             
             // Try real indexing
-            match do_real_indexing(&collection.name, &project.path.to_string_lossy()).await {
+            match do_real_indexing(
+                &collection.name, 
+                &project.path.to_string_lossy(),
+                Arc::clone(&vector_store),
+                Arc::clone(&embedding_manager),
+            ).await {
                 Ok(count) => {
                     update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
                     println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
@@ -1188,78 +1230,98 @@ async fn update_collection_status(collection_name: &str, status: &str, progress:
 async fn do_real_indexing(
     collection_name: &str,
     project_path: &str,
+    vector_store: Arc<VectorStore>,
+    embedding_manager: Arc<Mutex<EmbeddingManager>>,
 ) -> Result<usize, String> {
     println!("📁 Indexing collection '{}' from path: {}", collection_name, project_path);
+    
+    // Load workspace to get collection-specific patterns
+    let workspace_manager = match vectorizer::workspace::WorkspaceManager::load_from_file("vectorize-workspace.yml") {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Failed to load workspace: {}", e);
+            return Err(format!("Failed to load workspace: {}", e));
+        }
+    };
+    
+    // Find the specific collection configuration
+    let collection_config = workspace_manager.enabled_projects()
+        .iter()
+        .flat_map(|p| &p.collections)
+        .find(|c| c.name == collection_name)
+        .ok_or_else(|| format!("Collection '{}' not found in workspace", collection_name))?;
     
     // Create loader config
     let loader_config = vectorizer::document_loader::LoaderConfig {
         collection_name: collection_name.to_string(),
-        max_chunk_size: 512,
-        chunk_overlap: 50,
+        max_chunk_size: collection_config.processing.chunk_size,
+        chunk_overlap: collection_config.processing.chunk_overlap,
         allowed_extensions: vec![
             "md".to_string(), "txt".to_string(), "rs".to_string(), "py".to_string(), 
             "js".to_string(), "ts".to_string(), "json".to_string(), "yaml".to_string(),
             "yml".to_string(), "toml".to_string(), "html".to_string(), "css".to_string()
         ],
-        include_patterns: vec!["**/*".to_string()],
-        exclude_patterns: vec![
-            "**/target/**".to_string(), 
-            "**/node_modules/**".to_string(),
-            "**/.git/**".to_string(),
-            "**/dist/**".to_string(),
-            "**/build/**".to_string(),
-            "**/*.png".to_string(),
-            "**/*.jpg".to_string(),
-            "**/*.jpeg".to_string(),
-            "**/*.gif".to_string(),
-            "**/*.bmp".to_string(),
-            "**/*.webp".to_string(),
-            "**/*.svg".to_string(),
-            "**/*.ico".to_string(),
-            "**/*.mp4".to_string(),
-            "**/*.avi".to_string(),
-            "**/*.mov".to_string(),
-            "**/*.wmv".to_string(),
-            "**/*.flv".to_string(),
-            "**/*.webm".to_string(),
-            "**/*.mp3".to_string(),
-            "**/*.wav".to_string(),
-            "**/*.flac".to_string(),
-            "**/*.aac".to_string(),
-            "**/*.ogg".to_string(),
-            "**/*.db".to_string(),
-            "**/*.sqlite".to_string(),
-            "**/*.sqlite3".to_string(),
-            "**/*.bin".to_string(),
-            "**/*.exe".to_string(),
-            "**/*.dll".to_string(),
-            "**/*.so".to_string(),
-            "**/*.dylib".to_string(),
-            "**/*.zip".to_string(),
-            "**/*.tar".to_string(),
-            "**/*.gz".to_string(),
-            "**/*.rar".to_string(),
-            "**/*.7z".to_string(),
-            "**/*.pdf".to_string(),
-            "**/*.doc".to_string(),
-            "**/*.docx".to_string(),
-            "**/*.xls".to_string(),
-            "**/*.xlsx".to_string(),
-            "**/*.ppt".to_string(),
-            "**/*.pptx".to_string(),
-        ],
-        embedding_type: "bm25".to_string(),
-        embedding_dimension: 512,
+        include_patterns: collection_config.processing.include_patterns.clone(),
+        exclude_patterns: {
+            let mut exclude = collection_config.processing.exclude_patterns.clone();
+            // Add common exclusions
+            exclude.extend(vec![
+                "**/target/**".to_string(), 
+                "**/node_modules/**".to_string(),
+                "**/.git/**".to_string(),
+                "**/dist/**".to_string(),
+                "**/build/**".to_string(),
+                "**/*.png".to_string(),
+                "**/*.jpg".to_string(),
+                "**/*.jpeg".to_string(),
+                "**/*.gif".to_string(),
+                "**/*.bmp".to_string(),
+                "**/*.webp".to_string(),
+                "**/*.svg".to_string(),
+                "**/*.ico".to_string(),
+                "**/*.mp4".to_string(),
+                "**/*.avi".to_string(),
+                "**/*.mov".to_string(),
+                "**/*.wmv".to_string(),
+                "**/*.flv".to_string(),
+                "**/*.webm".to_string(),
+                "**/*.mp3".to_string(),
+                "**/*.wav".to_string(),
+                "**/*.flac".to_string(),
+                "**/*.aac".to_string(),
+                "**/*.ogg".to_string(),
+                "**/*.db".to_string(),
+                "**/*.sqlite".to_string(),
+                "**/*.sqlite3".to_string(),
+                "**/*.bin".to_string(),
+                "**/*.exe".to_string(),
+                "**/*.dll".to_string(),
+                "**/*.so".to_string(),
+                "**/*.dylib".to_string(),
+                "**/*.zip".to_string(),
+                "**/*.tar".to_string(),
+                "**/*.gz".to_string(),
+                "**/*.rar".to_string(),
+                "**/*.7z".to_string(),
+                "**/*.pdf".to_string(),
+                "**/*.doc".to_string(),
+                "**/*.docx".to_string(),
+                "**/*.xls".to_string(),
+                "**/*.xlsx".to_string(),
+                "**/*.ppt".to_string(),
+                "**/*.pptx".to_string(),
+            ]);
+            exclude
+        },
+        embedding_type: format!("{:?}", collection_config.embedding.model).to_lowercase(),
+        embedding_dimension: collection_config.embedding.dimension,
         max_file_size: 10 * 1024 * 1024, // 10MB
     };
     
     // Create document loader
     let mut loader = vectorizer::document_loader::DocumentLoader::new(loader_config);
     
-    // Create a temporary vector store for this collection
-    let vector_store = std::sync::Arc::new(vectorizer::VectorStore::new());
-    
-    // Load project with real indexing (async version)
+    // Load project with real indexing (async version) using shared vector store
     match loader.load_project_with_cache(project_path, &vector_store).await {
         Ok((count, _cached)) => {
             println!("✅ Indexed {} documents for collection '{}'", count, collection_name);
@@ -1553,6 +1615,7 @@ WantedBy=multi-user.target
         std::process::exit(1);
     }
 }
+
 
 async fn uninstall_service() {
     #[cfg(target_os = "linux")]

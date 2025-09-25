@@ -1,0 +1,13 @@
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.32
+   Compiling rustls-webpki v0.103.6
+   Compiling jsonwebtoken v9.3.1
+   Compiling tokio-rustls v0.26.3
+   Compiling tonic v0.12.3
+   Compiling tonic-reflection v0.12.3
+   Compiling vectorizer v0.1.0 (/mnt/f/Node/hivellm/vectorizer)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.27s
+     Running `target/debug/vectorizer-server`
+🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001
+🔧 Creating main router...
+✅ Router created, binding to address...
