@@ -67,24 +67,39 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(VectorStore::new())
     };
     
-    // Load documents based on mode
-    if workspace_info.is_some() {
-        // Multi-project workspace mode
-        let workspace_config_path = workspace_info.unwrap();
-        tracing::info!("Loading workspace configuration from: {}", workspace_config_path);
-        match load_workspace_projects_mcp(&workspace_config_path, Arc::clone(&vector_store)) {
-            Ok(loaded_collections) => {
-                tracing::info!("Successfully loaded {} collections from workspace", loaded_collections);
+    // Clone variables for background loading
+    let vector_store_clone = Arc::clone(&vector_store);
+    let workspace_info_clone = workspace_info.clone();
+    let vector_store_path_clone = vector_store_path.clone();
+    
+    // Start loading documents in background thread
+    std::thread::spawn(move || {
+        tracing::info!("🔄 Starting document loading in background thread...");
+        
+        // Load documents based on mode
+        if let Some(workspace_config_path) = workspace_info_clone {
+            // Multi-project workspace mode
+            tracing::info!("Loading workspace configuration from: {}", workspace_config_path);
+            match load_workspace_projects_mcp(&workspace_config_path, vector_store_clone) {
+                Ok(loaded_collections) => {
+                    tracing::info!("✅ Successfully loaded {} collections from workspace", loaded_collections);
+                }
+                Err(e) => {
+                    tracing::error!("❌ Failed to load workspace projects: {}", e);
+                }
             }
-            Err(e) => {
-                tracing::error!("Failed to load workspace projects: {}", e);
-                return Err(e.into());
+        } else {
+            // Legacy single project mode
+            match load_single_project_mcp(vector_store_clone, vector_store_path_clone) {
+                Ok(_) => {
+                    tracing::info!("✅ Successfully loaded single project");
+                }
+                Err(e) => {
+                    tracing::error!("❌ Failed to load single project: {}", e);
+                }
             }
         }
-    } else {
-        // Legacy single project mode
-        load_single_project_mcp(Arc::clone(&vector_store), vector_store_path)?;
-    }
+    });
 
     // Create embedding manager from the loaded documents
     let embedding_manager = {

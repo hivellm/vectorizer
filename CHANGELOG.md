@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2025-09-25
+
+### 🚀 **Parallel Processing & Performance**
+
+#### Concurrent Collection Processing
+- **NEW**: Parallel indexing of multiple collections simultaneously
+- **Performance Boost**: Up to 8 collections can be indexed concurrently
+- **Resource Optimization**: Increased memory allocation to 4GB for parallel processing
+- **Batch Processing**: Increased batch size to 20 for better throughput
+- **Concurrent Limits**: Configurable limits (4 projects, 8 collections max)
+
+#### New Governance Collections
+- **NEW**: `gov-guidelines` - Development and contribution guidelines
+- **NEW**: `gov-issues` - GitHub issues and discussions
+- **NEW**: `gov-teams` - Team structures and organization
+- **NEW**: `gov-docs` - General documentation and specifications
+- **Total**: 18 collections (up from 14) across all projects
+
+#### Technical Enhancements
+- **Parallel Processing**: `parallel_processing: true` in workspace configuration
+- **Memory Management**: Increased `max_memory_usage_gb: 4.0`
+- **Batch Optimization**: `batch_size: 20` for improved performance
+- **Error Handling**: Enhanced retry logic with 3 attempts and 5-second delays
+
+### 📊 **Current Status**
+- **18 Collections**: Complete workspace coverage with new governance collections
+- **Parallel Indexing**: Multiple collections processed simultaneously for faster indexing
+- **API Operational**: REST API responding correctly on port 15001
+- **MCP Operational**: MCP server responding correctly on port 15002
+- **Performance**: Significantly improved indexing speed with parallel processing
+
+---
+
 ## [0.9.1] - 2025-09-25
 
 ### 🔒 **Process Management & Stability**

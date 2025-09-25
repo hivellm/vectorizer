@@ -129,42 +129,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         loader.into_embedding_manager()
     };
 
-    // Load workspace synchronously FIRST
-    if let Some(workspace_path) = &args.workspace {
-        info!("🔄 Starting workspace indexing synchronously...");
-
-        // Load workspace collections to know what to track
-        let workspace_collections = AppState::load_workspace_collections();
-
-        // Initialize all collections as "indexing"
-        for collection in &workspace_collections {
-            update_indexing_progress(&indexing_progress, &collection.name, "indexing", 0.0, 0, 0);
-        }
-
-        match load_workspace_projects(workspace_path, Arc::clone(&vector_store), Some(&indexing_progress)) {
-            Ok(loaded_collections) => {
-                info!("✅ Workspace indexing completed: {} collections loaded", loaded_collections);
-
-                // Mark all collections as completed
-                for collection in &workspace_collections {
-                    update_indexing_progress(&indexing_progress, &collection.name, "completed", 100.0, 1, 1);
+    // Create app state with indexing progress
+    let app_state = AppState::new_with_progress(Arc::clone(&vector_store), embedding_manager, Arc::clone(&indexing_progress));
+    
+    // Start HTTP server immediately
+    info!("🚀 Starting Vectorizer HTTP server on {}:{}...", args.host, args.port);
+    let server = VectorizerServer::new_with_state(&args.host, args.port, app_state);
+    
+    // Clone variables for the background thread
+    let workspace_path_clone = args.workspace.clone();
+    let vector_store_clone = Arc::clone(&vector_store);
+    let indexing_progress_clone = Arc::clone(&indexing_progress);
+    
+    // Start indexing in a separate thread
+    if let Some(workspace_path) = workspace_path_clone {
+        std::thread::spawn(move || {
+            info!("🔄 Starting workspace indexing in background thread...");
+            
+            // Load workspace collections to know what to track
+            let workspace_collections = AppState::load_workspace_collections();
+            
+            // Initialize all collections as "pending"
+            for collection in &workspace_collections {
+                update_indexing_progress(&indexing_progress_clone, &collection.name, "pending", 0.0, 0, 0);
+            }
+            
+            // Process collections one by one with progress updates
+            match load_workspace_projects(&workspace_path, vector_store_clone, Some(&indexing_progress_clone)) {
+                Ok(loaded_collections) => {
+                    info!("✅ Background workspace indexing completed: {} collections loaded", loaded_collections);
+                }
+                Err(e) => {
+                    error!("❌ Background workspace indexing failed: {}", e);
+                    
+                    // Mark remaining collections as failed
+                    for collection in &workspace_collections {
+                        let status = {
+                            let progress = indexing_progress_clone.lock().unwrap();
+                            progress.get(&collection.name).map(|s| s.status.clone()).unwrap_or_default()
+                        };
+                        if status == "pending" || status == "indexing" {
+                            update_indexing_progress(&indexing_progress_clone, &collection.name, "failed", 0.0, 0, 0);
+                        }
+                    }
                 }
             }
-            Err(e) => {
-                error!("❌ Workspace indexing failed: {}", e);
-
-                // Mark all collections as failed
-                for collection in &workspace_collections {
-                    update_indexing_progress(&indexing_progress, &collection.name, "failed", 0.0, 0, 0);
-                }
-                return Err(e.into());
-            }
-        }
+        });
     }
-
-    // Now start HTTP server with completed indexing state
-    info!("🚀 Starting Vectorizer HTTP server...");
-    let server = VectorizerServer::new(&args.host, args.port, vector_store, embedding_manager);
+    
+    // Start the server (this will run indefinitely)
+    info!("🎯 Vectorizer server ready - collections will be indexed in background");
     server.start().await?;
 
     Ok(())
