@@ -1,0 +1,166 @@
+   Compiling ring v0.17.14
+   Compiling jsonwebtoken v9.3.1
+   Compiling vectorizer v0.1.0 (/mnt/f/Node/hivellm/vectorizer)
+warning: unused import: `std::process`
+  --> src/bin/vzr.rs:16:5
+   |
+16 | use std::process;
+   |     ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::fs`
+   --> src/bin/vzr.rs:928:13
+    |
+928 |         use std::fs;
+    |             ^^^^^^^
+
+warning: unused import: `std::fs`
+    --> src/bin/vzr.rs:1001:13
+     |
+1001 |         use std::fs;
+     |             ^^^^^^^
+
+warning: unused variable: `port`
+   --> src/bin/vzr.rs:751:104
+    |
+751 | async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: PathBuf, host: String, port: u16, mcp_port: u16) {
+    |                                                                                                        ^^^^ help: if this is intentional, prefix it with an underscore: `_port`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `mcp_port`
+   --> src/bin/vzr.rs:751:115
+    |
+751 | async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: PathBuf, host: String, port: u16, mcp_port: u16) {
+    |                                                                                                                   ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mcp_port`
+
+warning: function `create_project_workspace_info` is never used
+   --> src/bin/vzr.rs:320:4
+    |
+320 | fn create_project_workspace_info(workspace_manager: &WorkspaceManager, project: &vectorizer::workspace::config::ProjectConfig) -> String {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `create_workspace_info` is never used
+   --> src/bin/vzr.rs:380:4
+    |
+380 | fn create_workspace_info(workspace_manager: &WorkspaceManager, enabled_projects: &[&vectorizer::workspace::config::ProjectConfig]) -> Str...
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `vectorizer` (bin "vzr") generated 7 warnings (run `cargo fix --bin "vzr"` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.19s
+     Running `target/debug/vzr start --workspace vectorize-workspace.yml`
+🚀 Starting Vectorizer Servers...
+📄 Logs: vectorizer-workspace.log
+[2m2025-09-25T13:14:46.616576Z[0m [32m INFO[0m [2mvectorizer::workspace::manager[0m[2m:[0m Loading workspace from: vectorize-workspace.yml
+[2m2025-09-25T13:14:46.616619Z[0m [32m INFO[0m [2mvectorizer::workspace::parser[0m[2m:[0m Parsing workspace configuration from: vectorize-workspace.yml
+[2m2025-09-25T13:14:46.619110Z[0m [32m INFO[0m [2mvectorizer::workspace::parser[0m[2m:[0m Successfully parsed workspace configuration
+[2m2025-09-25T13:14:46.619132Z[0m [32m INFO[0m [2mvectorizer::workspace::manager[0m[2m:[0m Parsed workspace config with 7 projects from YAML
+[2m2025-09-25T13:14:46.619150Z[0m [32m INFO[0m [2mvectorizer::workspace::validator[0m[2m:[0m Validating workspace configuration
+[2m2025-09-25T13:14:46.619323Z[0m [32m INFO[0m [2mvectorizer::workspace::validator[0m[2m:[0m Workspace configuration validation passed
+[2m2025-09-25T13:14:46.619439Z[0m [32m INFO[0m [2mvectorizer::workspace::manager[0m[2m:[0m Workspace has 7 total projects, 7 enabled
+📊 HiveLLM Development Workspace - 7 projects
+Starting MCP server with workspace...
+[2m2025-09-25T13:14:46.619596Z[0m [32m INFO[0m [2mvectorizer::workspace::manager[0m[2m:[0m Workspace has 7 total projects, 7 enabled
+📂 Loading 7 projects from workspace:
+   📁 governance-bip-specs - 🏛️ Governance (BIP Specs) - HiveLLM Governance System with BIPs, proposals, and voting
+      Path: ../gov
+      Collections: 6
+         🗂️  gov-bips (512D, cosine)
+         🗂️  gov-proposals (512D, cosine)
+         🗂️  gov-minutes (512D, cosine)
+         🗂️  gov-guidelines (512D, cosine)
+         🗂️  gov-teams (512D, cosine)
+         🗂️  gov-docs (512D, cosine)
+   📁 governance-dashboard - 🏛️ Governance Dashboard - Implementation of the governance system
+      Path: ../governance
+      Collections: 2
+         🗂️  governance_dashboard (512D, cosine)
+         🗂️  governance_configurations (512D, cosine)
+   📁 ts-workspace - 🔷 TypeScript (BIP-01,02,03) - TypeScript development workspace with packages
+      Path: ../ts-workspace
+      Collections: 2
+         🗂️  ts-workspace (512D, cosine)
+         🗂️  ts-workspace-configurations (512D, cosine)
+   📁 cursor-extension - 🎯 Cursor Extension (BIP-00) - Cursor IDE extension for HiveLLM
+      Path: ../cursor-extension
+      Collections: 2
+         🗂️  cursor-extension (512D, cosine)
+         🗂️  scripts (512D, cosine)
+   📁 py-env-security - 🔒 Security Environment (BIP-04) - Python security environment and tools
+      Path: ../py-env-security
+      Collections: 1
+         🗂️  py-env-security (512D, cosine)
+   📁 umicp - 🌐 UMICP Protocol (BIP-05) - Universal Matrix Inter-Communication Protocol
+      Path: ../umicp
+      Collections: 2
+         🗂️  umicp_protocol_docs (512D, cosine)
+         🗂️  umicp_cpp_implementation (512D, cosine)
+   📁 chat-hub - 💬 Chat Hub & Monitoring - Centralized chat hub for HiveLLM ecosystem
+      Path: ../chat-hub
+      Collections: 2
+         🗂️  chat-hub (512D, cosine)
+         🗂️  chat-hub-monitoring (512D, cosine)
+✅ Unified server running
+  REST API: http://127.0.0.1:15001
+  MCP Server: http://127.0.0.1:15002/sse
+  Collections: 17 from 7 projects
+
+⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log
+
+warning: unused import: `std::fs`
+  --> src/bin/vectorizer-server.rs:10:5
+   |
+10 | use std::fs;
+   |     ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `tokio::task`
+  --> src/bin/vectorizer-server.rs:11:5
+   |
+11 | use tokio::task;
+   |     ^^^^^^^^^^^
+
+warning: unused imports: `CacheManager` and `CacheResult`
+  --> src/bin/vectorizer-server.rs:17:13
+   |
+17 |     cache::{CacheManager, CacheConfig, CacheResult},
+   |             ^^^^^^^^^^^^               ^^^^^^^^^^^
+
+warning: unused variable: `config`
+  --> src/bin/vectorizer-server.rs:94:9
+   |
+94 |     let config = serde_yaml::Value::Null;
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `load_single_project` is never used
+   --> src/bin/vectorizer-server.rs:363:4
+    |
+363 | fn load_single_project(project_path: &str, vector_store: Arc<VectorStore>) -> anyhow::Result<()> {
+    |    ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `embedding_manager`
+   --> src/bin/vectorizer-mcp-server.rs:105:9
+    |
+105 |     let embedding_manager = {
+    |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_embedding_manager`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> src/bin/vectorizer-mcp-server.rs:53:9
+   |
+53 |     let mut vector_store = if vector_store_path.exists() {
+   |         ----^^^^^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+

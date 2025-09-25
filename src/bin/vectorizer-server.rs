@@ -14,6 +14,7 @@ use vectorizer::{
     api::{handlers::AppState, types::IndexingStatus, VectorizerServer},
     db::VectorStore,
     document_loader::{DocumentLoader, LoaderConfig},
+    cache::{CacheManager, CacheConfig, CacheResult},
 };
 
 /// Update indexing progress for a collection
@@ -92,32 +93,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configuration loading disabled for now
     let config = serde_yaml::Value::Null;
 
-    // Try to load existing vector store first
-    let vector_store_path = if let Some(project_path) = &args.project {
-        PathBuf::from(project_path).join(".vectorizer").join("vector_store.bin")
-    } else {
-        PathBuf::from(".vectorizer").join("vector_store.bin")
-    };
-
-    info!("Vector store path: {:?}", vector_store_path);
-    info!("Vector store path exists: {}", vector_store_path.exists());
-
-    let vector_store = if vector_store_path.exists() {
-        info!("Loading existing vector store from: {:?}", vector_store_path);
-        match VectorStore::load(&vector_store_path) {
-            Ok(store) => {
-                info!("Successfully loaded vector store with {} collections", store.list_collections().len());
-                Arc::new(store)
-            }
-            Err(e) => {
-                warn!("Failed to load vector store from {:?}: {}, creating new one", vector_store_path, e);
-                Arc::new(VectorStore::new())
-            }
-        }
-    } else {
-        info!("No existing vector store found, creating new one");
-        Arc::new(VectorStore::new())
-    };
+    // Note: Vector stores are now loaded per-project in load_workspace_projects
+    // Create a global vector store for AppState (will be populated by background indexing)
+    let app_vector_store = Arc::new(VectorStore::new());
 
     // Create shared indexing progress tracker
     let indexing_progress: Arc<std::sync::Mutex<HashMap<String, IndexingStatus>>> = Arc::new(std::sync::Mutex::new(HashMap::new()));
@@ -130,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create app state with indexing progress
-    let app_state = AppState::new_with_progress(Arc::clone(&vector_store), embedding_manager, Arc::clone(&indexing_progress));
+    let app_state = AppState::new_with_progress(Arc::clone(&app_vector_store), embedding_manager, Arc::clone(&indexing_progress));
     
     // Start HTTP server immediately
     info!("🚀 Starting Vectorizer HTTP server on {}:{}...", args.host, args.port);
@@ -138,8 +116,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Clone variables for the background thread
     let workspace_path_clone = args.workspace.clone();
-    let vector_store_clone = Arc::clone(&vector_store);
     let indexing_progress_clone = Arc::clone(&indexing_progress);
+    let app_vector_store_clone = Arc::clone(&app_vector_store);
     
     // Start indexing in a separate thread
     if let Some(workspace_path) = workspace_path_clone {
@@ -155,11 +133,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             
             // Process collections one by one with progress updates
-            match load_workspace_projects(&workspace_path, vector_store_clone, Some(&indexing_progress_clone)) {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            match rt.block_on(load_workspace_projects(&workspace_path, Arc::clone(&app_vector_store_clone), Some(&indexing_progress_clone))) {
                 Ok(loaded_collections) => {
                     info!("✅ Background workspace indexing completed: {} collections loaded", loaded_collections);
-                }
-                Err(e) => {
+            }
+            Err(e) => {
                     error!("❌ Background workspace indexing failed: {}", e);
                     
                     // Mark remaining collections as failed
@@ -184,10 +163,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Load all projects from a workspace configuration
-fn load_workspace_projects(
+/// Load all projects from a workspace configuration with cache management
+async fn load_workspace_projects(
     workspace_path: &str,
-    vector_store: Arc<VectorStore>,
+    app_vector_store: Arc<VectorStore>,
     progress_tracker: Option<&Arc<std::sync::Mutex<HashMap<String, IndexingStatus>>>>,
 ) -> anyhow::Result<usize> {
     info!("Loading workspace info from: {}", workspace_path);
@@ -207,14 +186,15 @@ fn load_workspace_projects(
     for project_value in projects {
         if let Some(project_name) = project_value.get("name").and_then(|n| n.as_str()) {
             info!("Loading project: {}", project_name);
+            
+            let project_path = project_value.get("path")
+                .and_then(|p| p.as_str())
+                .unwrap_or(".");
 
             // Load collections for this project
             if let Some(collections) = project_value.get("collections").and_then(|c| c.as_array()) {
                 for collection in collections {
                     if let Some(collection_name) = collection.get("name").and_then(|n| n.as_str()) {
-                        let project_path = project_value.get("path")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or(".");
 
                         info!("Loading collection '{}' for project '{}'", collection_name, project_name);
 
@@ -248,16 +228,140 @@ fn load_workspace_projects(
                             update_indexing_progress(tracker, collection_name, "processing", 10.0, 0, 0);
                         }
 
-                        let mut loader = DocumentLoader::new(loader_config);
-                        match loader.load_project(project_path, &vector_store) {
-                            Ok(_) => {
-                                info!("Successfully loaded collection '{}' with documents", collection_name);
+                        // Create cache configuration
+                        let cache_config = CacheConfig {
+                            cache_path: PathBuf::from(project_path).join(".vectorizer/cache"),
+                            validation_level: vectorizer::cache::ValidationLevel::Basic,
+                            cleanup: vectorizer::cache::CleanupConfig::default(),
+                            compression: vectorizer::cache::CompressionConfig::default(),
+                            max_size_bytes: 5 * 1024 * 1024 * 1024, // 5GB
+                            ttl_seconds: 7 * 24 * 60 * 60, // 7 days
+                        };
+
+                        info!("🔧 Creating cache config for '{}' at path: {:?}", collection_name, cache_config.cache_path);
+
+                        // Create loader with cache management
+                        let mut loader = match DocumentLoader::new_with_cache(loader_config.clone(), cache_config).await {
+                            Ok(loader) => {
+                                info!("✅ Successfully created loader with cache for '{}'", collection_name);
+                                loader
+                            },
+                            Err(e) => {
+                                warn!("❌ Failed to create loader with cache for '{}': {}, falling back to regular loader", collection_name, e);
+                                DocumentLoader::new(loader_config)
+                            }
+                        };
+
+                        info!("🔍 Cache manager present for '{}': {}", collection_name, loader.cache_manager.is_some());
+
+                        // Each collection gets its own vector store file
+                        let collection_vector_store_path = PathBuf::from(project_path)
+                            .join(".vectorizer")
+                            .join(format!("{}_vector_store.bin", collection_name));
+                        
+                        let (collection_vector_store, already_loaded) = if collection_vector_store_path.exists() {
+                            info!("Loading existing collection vector store from: {:?}", collection_vector_store_path);
+                            match VectorStore::load(&collection_vector_store_path) {
+                                Ok(store) => {
+                                    let collections = store.list_collections();
+                                    info!("Loaded VectorStore contains {} collections: {:?}", collections.len(), collections);
+                                    
+                                    let has_vectors = if let Ok(coll) = store.get_collection(collection_name) {
+                                        let count = coll.vector_count();
+                                        info!("Successfully loaded collection '{}' with {} vectors", collection_name, count);
+                                        count > 0
+                                    } else {
+                                        warn!("Collection '{}' not found in loaded VectorStore!", collection_name);
+                                        false
+                                    };
+                                    (Arc::new(store), has_vectors)
+                                }
+                                Err(e) => {
+                                    warn!("Failed to load collection vector store: {}, creating new one", e);
+                                    (Arc::new(VectorStore::new()), false)
+                                }
+                            }
+                        } else {
+                            info!("No existing collection vector store found, creating new one for '{}'", collection_name);
+                            (Arc::new(VectorStore::new()), false)
+                        };
+                        
+                        info!("🔍 Using collection vector store for '{}' (already_loaded: {})", collection_name, already_loaded);
+
+                        // Skip processing if already loaded from persistent store
+                        let result = if already_loaded {
+                            info!("✅ Collection '{}' already loaded from persistent store, skipping reprocessing", collection_name);
+                            if let Ok(coll) = collection_vector_store.get_collection(collection_name) {
+                                Ok(coll.vector_count())
+                            } else {
+                                Ok(0)
+                            }
+                        } else {
+                            // Try cache-enabled loading first, fall back to regular loading
+                            if loader.cache_manager.is_some() {
+                                info!("🚀 Attempting cache-enabled loading for '{}'", collection_name);
+                                info!("🔍 About to call load_project_with_cache for '{}'", collection_name);
+                                let cache_result = loader.load_project_with_cache(project_path, &collection_vector_store).await;
+                                info!("🔍 load_project_with_cache completed for '{}'", collection_name);
+                                match cache_result {
+                                    Ok(count) => {
+                                        info!("✅ Cache-enabled loading succeeded for '{}' with {} vectors", collection_name, count);
+                                        Ok(count)
+                                    },
+                                    Err(e) => {
+                                        warn!("❌ Cache-enabled loading failed for '{}': {}, falling back to regular loading", collection_name, e);
+                                        loader.load_project(project_path, &collection_vector_store)
+                                    }
+                                }
+                            } else {
+                                info!("⚠️ No cache manager for '{}', using regular loading", collection_name);
+                                loader.load_project(project_path, &collection_vector_store)
+                            }
+                        };
+
+                        match result {
+                            Ok(vector_count) => {
+                                info!("Successfully loaded collection '{}' with {} vectors", collection_name, vector_count);
                                 total_collections += 1;
+
+                                // Save collection-specific vector store only if it wasn't already loaded
+                                if !already_loaded {
+                                    let store_to_save = Arc::clone(&collection_vector_store);
+                                    let save_path = collection_vector_store_path.clone();
+                                    tokio::task::spawn_blocking(move || {
+                                        if let Err(e) = store_to_save.save(&save_path) {
+                                            warn!("Failed to save collection vector store to {:?}: {}", save_path, e);
+                                        } else {
+                                            info!("Collection vector store saved successfully to {:?}", save_path);
+                                        }
+                                    });
+                                }
+                                
+                                // Merge freshly loaded/cached collection into global app vector store directly from memory
+                                if let Ok(src_collection) = collection_vector_store.get_collection(collection_name) {
+                                    let meta = src_collection.metadata();
+                                    // Create collection in app store if missing
+                                    if app_vector_store.get_collection(collection_name).is_err() {
+                                        let _ = app_vector_store.create_collection(collection_name, meta.config.clone());
+                                    }
+                                    let vectors = src_collection.get_all_vectors();
+                                    if let Err(e) = app_vector_store.insert(collection_name, vectors) {
+                                        warn!("Failed to merge collection '{}' into app store: {}", collection_name, e);
+                                    } else if let Ok(dest) = app_vector_store.get_collection(collection_name) {
+                                        info!(
+                                            "Merged collection '{}' into app store with {} vectors",
+                                            collection_name,
+                                            dest.vector_count()
+                                        );
+                                    }
+                                }
 
                                 // Update progress: completed
                                 if let Some(tracker) = progress_tracker {
-                                    update_indexing_progress(tracker, collection_name, "completed", 100.0, 1, 1);
-                    }
+                                    if vector_count > 0 {
+                                        update_indexing_progress(tracker, collection_name, "completed", 100.0, 1, 1);
+                                    }
+                                }
                 }
                 Err(e) => {
                                 warn!("Failed to load collection '{}': {}", collection_name, e);

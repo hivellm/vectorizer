@@ -40,6 +40,8 @@ impl BenchmarkDataset {
             collection_name: "gov_benchmark".to_string(),
             max_chunk_size: 1000,
             chunk_overlap: 200,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
             embedding_dimension: 384, // MiniLM compatible
             embedding_type: "bm25".to_string(),
             allowed_extensions: vec![".md".to_string(), ".txt".to_string(), ".json".to_string()],

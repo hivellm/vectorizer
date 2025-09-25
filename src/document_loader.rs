@@ -4,6 +4,7 @@ use crate::{
     VectorStore,
     embedding::{EmbeddingManager, TfIdfEmbedding, Bm25Embedding, SvdEmbedding, BertEmbedding, MiniLmEmbedding, BagOfWordsEmbedding, CharNGramEmbedding},
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+    cache::{CacheManager, CacheConfig, CacheResult, CacheError, IncrementalProcessor, IncrementalConfig},
 };
 use anyhow::{Context, Result};
 use std::{
@@ -14,6 +15,7 @@ use std::{
 };
 use glob::Pattern;
 use tracing::{debug, info, warn, error};
+use sha2::Digest;
 
 /// Document chunk with metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -166,6 +168,10 @@ pub struct DocumentLoader {
     embedding_manager: EmbeddingManager,
     /// Processed document chunks
     processed_chunks: Vec<String>,
+    /// Cache manager
+    pub cache_manager: Option<CacheManager>,
+    /// Incremental processor
+    pub incremental_processor: Option<IncrementalProcessor>,
 }
 
 impl DocumentLoader {
@@ -245,7 +251,29 @@ impl DocumentLoader {
             config,
             embedding_manager,
             processed_chunks,
+            cache_manager: None,
+            incremental_processor: None,
         }
+    }
+
+    /// Create a new document loader with cache management
+    pub async fn new_with_cache(config: LoaderConfig, cache_config: CacheConfig) -> CacheResult<Self> {
+        let mut loader = Self::new(config.clone());
+        
+        // Initialize cache manager
+        let cache_manager = CacheManager::new(cache_config).await?;
+        
+        // Initialize incremental processor
+        let incremental_config = IncrementalConfig::default();
+        let incremental_processor = IncrementalProcessor::new(
+            std::sync::Arc::new(cache_manager.clone()),
+            incremental_config,
+        ).await?;
+        
+        loader.cache_manager = Some(cache_manager);
+        loader.incremental_processor = Some(incremental_processor);
+        
+        Ok(loader)
     }
 
     /// Load and index all documents from a project directory with caching
@@ -391,6 +419,254 @@ impl DocumentLoader {
             all_chunks.len()
         );
         Ok(all_chunks.len())
+    }
+
+    /// Load and index all documents from a project directory with advanced cache management
+    pub async fn load_project_with_cache(&mut self, project_path: &str, store: &VectorStore) -> CacheResult<usize> {
+        info!("🔍 Starting load_project_with_cache for collection '{}'", self.config.collection_name);
+        
+        if self.cache_manager.is_none() {
+            warn!("❌ Cache manager not initialized for '{}'", self.config.collection_name);
+            return Err(CacheError::Validation("Cache manager not initialized".to_string()));
+        }
+
+        info!("✅ Cache manager is initialized for '{}'", self.config.collection_name);
+        let cache_manager = self.cache_manager.as_ref().unwrap();
+        let incremental_processor = self.incremental_processor.as_ref().unwrap();
+
+        // Ensure .vectorizer directory exists
+        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+            warn!("Failed to create .vectorizer directory {}: {}", vectorizer_dir.display(), e);
+        }
+
+        // Check if collection exists in cache
+        let collection_name = &self.config.collection_name;
+        info!("🔍 Checking if collection '{}' exists in cache", collection_name);
+        let has_collection = cache_manager.has_collection(collection_name).await;
+        info!("🔍 Collection '{}' exists in cache: {}", collection_name, has_collection);
+        
+        if has_collection {
+            // Try to load from cache first
+            if let Some(collection_info) = cache_manager.get_collection_info(collection_name).await {
+                info!("Found cache for collection '{}' with {} files", collection_name, collection_info.file_count);
+                
+                // Validate cache integrity
+                let validation_result = cache_manager.validate().await?;
+                if !validation_result.is_valid() {
+                    warn!("Cache validation failed: {}", validation_result.summary());
+                    // Fall back to full reindexing
+                    return self.load_project_fallback(project_path, store).await;
+                }
+                
+                // Try to load from cache
+                match self.load_from_cache(project_path, &collection_info, store).await {
+                    Ok(vector_count) => {
+                        info!("Successfully loaded collection '{}' from cache with {} vectors", collection_name, vector_count);
+                        cache_manager.record_hit().await?;
+                        return Ok(vector_count);
+                    }
+                    Err(e) => {
+                        warn!("Failed to load from cache: {}, falling back to full indexing", e);
+                        cache_manager.record_miss().await?;
+                        return self.load_project_fallback(project_path, store).await;
+                    }
+                }
+            }
+        }
+
+        // Cache miss - perform full indexing
+        info!("Cache miss for collection '{}', performing full indexing", collection_name);
+        cache_manager.record_miss().await?;
+        
+        self.load_project_fallback(project_path, store).await
+    }
+
+    /// Fallback method for full project loading
+    async fn load_project_fallback(&mut self, project_path: &str, store: &VectorStore) -> CacheResult<usize> {
+        // Use the existing load_project method
+        let result = self.load_project(project_path, store)
+            .map_err(|e| CacheError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        
+            // Save collection-specific vector store to disk
+            let vectorizer_dir = std::path::PathBuf::from(project_path).join(".vectorizer");
+            if let Err(e) = std::fs::create_dir_all(&vectorizer_dir) {
+                warn!("Failed to create .vectorizer directory {}: {}", vectorizer_dir.display(), e);
+            }
+
+            let vector_store_path = vectorizer_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
+            if let Err(e) = store.save(&vector_store_path) {
+                warn!("Failed to save collection vector store to {}: {}", vector_store_path.display(), e);
+            } else {
+                info!("Collection vector store saved successfully to {}", vector_store_path.display());
+            }
+        
+        // Update cache metadata
+        if let Some(cache_manager) = &self.cache_manager {
+            self.update_cache_metadata(cache_manager, project_path, store).await?;
+        }
+        
+        Ok(result)
+    }
+
+    /// Load collection from cache
+    async fn load_from_cache(
+        &self,
+        project_path: &str,
+        collection_info: &crate::cache::CollectionCacheInfo,
+        store: &VectorStore,
+    ) -> CacheResult<usize> {
+        info!(
+            "Loading collection '{}' from cache with {} files",
+            collection_info.name,
+            collection_info.file_count
+        );
+
+        // If collection already exists in the provided store, just return its count
+        if let Ok(collection) = store.get_collection(&collection_info.name) {
+            let vector_count = collection.vector_count();
+            info!(
+                "Collection '{}' already exists in vector store with {} vectors",
+                collection_info.name, vector_count
+            );
+            return Ok(vector_count);
+        }
+
+        // Attempt to load the collection-specific persisted vector store
+        let vector_store_path = PathBuf::from(project_path)
+            .join(".vectorizer")
+            .join(format!("{}_vector_store.bin", collection_info.name));
+
+        if !vector_store_path.exists() {
+            warn!(
+                "Persisted vector store not found at {}, cannot load from cache",
+                vector_store_path.display()
+            );
+            return Err(CacheError::Validation(format!(
+                "Persisted vector store not found for collection '{}'",
+                collection_info.name
+            )));
+        }
+
+        match VectorStore::load(&vector_store_path) {
+            Ok(project_store) => {
+                match project_store.get_collection(&collection_info.name) {
+                    Ok(src_collection) => {
+                        let metadata = src_collection.metadata();
+                        // Create destination collection if missing
+                        if store.get_collection(&collection_info.name).is_err() {
+                            // Map any error into CacheError::Validation for simplicity
+                            store
+                                .create_collection(&collection_info.name, metadata.config.clone())
+                                .map_err(|e| CacheError::Validation(e.to_string()))?;
+                        }
+
+                        // Move vectors from persisted store into the provided store
+                        let vectors = src_collection.get_all_vectors();
+                        store
+                            .insert(&collection_info.name, vectors)
+                            .map_err(|e| CacheError::Validation(e.to_string()))?;
+
+                        // Return the updated vector count
+                        if let Ok(dest_collection) = store.get_collection(&collection_info.name) {
+                            let count = dest_collection.vector_count();
+                            info!(
+                                "Loaded collection '{}' from persisted store with {} vectors",
+                                collection_info.name, count
+                            );
+                            return Ok(count);
+                        }
+
+                        Err(CacheError::Validation(format!(
+                            "Failed to access destination collection '{}' after insert",
+                            collection_info.name
+                        )))
+                    }
+                    Err(_) => {
+                        warn!(
+                            "Collection '{}' not found inside persisted store at {}",
+                            collection_info.name,
+                            vector_store_path.display()
+                        );
+                        Err(CacheError::Validation(format!(
+                            "Collection '{}' missing in persisted store",
+                            collection_info.name
+                        )))
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to load persisted vector store from {}: {}",
+                    vector_store_path.display(),
+                    e
+                );
+                Err(CacheError::Validation(format!(
+                    "Error loading persisted vector store: {}",
+                    e
+                )))
+            }
+        }
+    }
+
+    /// Update cache metadata after processing
+    async fn update_cache_metadata(&self, cache_manager: &CacheManager, project_path: &str, store: &VectorStore) -> CacheResult<()> {
+        let collection_name = &self.config.collection_name;
+        
+        // Collect documents to get file information
+        let documents = self.collect_documents(project_path)
+            .map_err(|e| CacheError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        
+        // Create collection cache info
+        let mut collection_info = crate::cache::CollectionCacheInfo::new(
+            collection_name.clone(),
+            self.config.embedding_type.clone(),
+            "1.0.0".to_string(), // TODO: Get actual embedding version
+        );
+        
+        // Update file information
+        for (file_path, _content) in &documents {
+            if let Ok(metadata) = std::fs::metadata(file_path) {
+                let modified_time = chrono::DateTime::from_timestamp(
+                    metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64,
+                    0,
+                ).unwrap_or_else(chrono::Utc::now);
+                
+                // Calculate file hash
+                let content_hash = self.calculate_file_hash(file_path).await?;
+                
+                let file_info = crate::cache::FileHashInfo::new(
+                    content_hash,
+                    metadata.len(),
+                    modified_time,
+                    1, // TODO: Get actual chunk count
+                    vec![], // Empty vector IDs - will be populated during actual indexing
+                );
+                
+                collection_info.update_file_hash(file_path.clone(), file_info);
+            }
+        }
+        
+        collection_info.update_indexed();
+        
+        // Get actual vector count from the store
+        if let Ok(collection) = store.get_collection(collection_name) {
+            collection_info.vector_count = collection.vector_count();
+        }
+        
+        // Update cache metadata
+        cache_manager.update_collection_info(collection_info).await?;
+        
+        Ok(())
+    }
+
+    /// Calculate file hash
+    async fn calculate_file_hash(&self, file_path: &std::path::PathBuf) -> CacheResult<String> {
+        let content = tokio::fs::read(file_path).await?;
+        let mut hasher = sha2::Sha256::default();
+        hasher.update(&content);
+        let hash = hasher.finalize();
+        Ok(format!("{:x}", hash))
     }
 
     /// Collect all documents from the project directory
@@ -642,6 +918,12 @@ impl DocumentLoader {
     /// Create the collection in the vector store
     #[allow(dead_code)]
     fn create_collection(&self, store: &VectorStore) -> Result<()> {
+        // Check if collection already exists
+        if store.get_collection(&self.config.collection_name).is_ok() {
+            info!("Collection '{}' already exists, skipping creation", self.config.collection_name);
+            return Ok(());
+        }
+        
         let config = CollectionConfig {
             dimension: self.config.embedding_dimension,
             metric: DistanceMetric::Cosine,
@@ -654,9 +936,6 @@ impl DocumentLoader {
             quantization: None,
             compression: Default::default(),
         };
-
-        // Delete existing collection if it exists
-        let _ = store.delete_collection(&self.config.collection_name);
 
         store
             .create_collection(&self.config.collection_name, config)

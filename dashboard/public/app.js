@@ -48,6 +48,12 @@ class VectorizerDashboard {
     }
 
     async loadPage(page) {
+        // Stop any existing refresh intervals
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+        
         // Update navigation
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
@@ -75,6 +81,7 @@ class VectorizerDashboard {
             switch (page) {
                 case 'overview':
                     await this.loadOverview(content);
+                    this.startOverviewAutoRefresh();
                     break;
                 case 'collections':
                     await this.loadCollections(content);
@@ -153,6 +160,11 @@ class VectorizerDashboard {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Indexing Progress -->
+                <div class="section" id="indexing-progress-section">
+                    ${await this.renderIndexingProgressSection()}
                 </div>
 
                 <!-- Collections Overview -->
@@ -924,6 +936,77 @@ class VectorizerDashboard {
         }
     }
 
+    async renderIndexingProgressSection() {
+        try {
+            const progressData = await this.fetchAPI('/indexing/progress');
+            
+            // Calculate overall stats
+            const totalCollections = progressData.total_collections || 0;
+            const completedCollections = progressData.completed_collections || 0;
+            const processingCollections = progressData.processing_collections || 0;
+            const overallProgress = progressData.overall_progress || 0;
+            
+            // Check if any indexing is happening
+            const isIndexing = processingCollections > 0 || completedCollections < totalCollections;
+            
+            if (!isIndexing && completedCollections === totalCollections) {
+                return ''; // Don't show section if all indexing is complete
+            }
+            
+            // Get collections being processed
+            const activeCollections = progressData.collections
+                ? progressData.collections.filter(c => c.status === 'processing' || c.status === 'pending')
+                : [];
+            
+            return `
+                <div class="section-header">
+                    <h2><i class="fas fa-sync fa-spin"></i> Indexação em Progresso</h2>
+                    <span class="indexing-stats">
+                        ${completedCollections}/${totalCollections} collections completas
+                    </span>
+                </div>
+                <div class="indexing-overview">
+                    <div class="overall-progress">
+                        <div class="progress-info">
+                            <span>Progresso Geral</span>
+                            <span class="progress-percent">${Math.round(overallProgress)}%</span>
+                        </div>
+                        <div class="progress-bar large">
+                            <div class="progress-fill" style="width: ${overallProgress}%"></div>
+                        </div>
+                    </div>
+                    
+                    ${activeCollections.length > 0 ? `
+                        <div class="active-collections">
+                            <h4>Collections Ativas:</h4>
+                            <div class="collection-progress-list">
+                                ${activeCollections.map(col => `
+                                    <div class="collection-progress-item">
+                                        <div class="collection-info">
+                                            <span class="collection-name">${col.name}</span>
+                                            <span class="collection-status status-${col.status}">
+                                                ${this.formatStatus(col.status)}
+                                            </span>
+                                        </div>
+                                        ${col.status === 'processing' ? `
+                                            <div class="progress-bar small">
+                                                <div class="progress-fill" style="width: ${col.progress}%"></div>
+                                            </div>
+                                            <span class="progress-text">${Math.round(col.progress)}%</span>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading indexing progress:', error);
+            return '';
+        }
+    }
+
     renderIndexingProgress(indexingStatus) {
         if (indexingStatus.status === 'completed' || indexingStatus.status === 'failed') {
             return '';
@@ -943,6 +1026,29 @@ class VectorizerDashboard {
     truncateText(text, maxLength) {
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + '...';
+    }
+    
+    startOverviewAutoRefresh() {
+        // Only refresh indexing progress section
+        this.refreshInterval = setInterval(async () => {
+            if (this.currentPage !== 'overview') return;
+            
+            try {
+                const progressSection = document.getElementById('indexing-progress-section');
+                if (progressSection) {
+                    const progressHTML = await this.renderIndexingProgressSection();
+                    progressSection.innerHTML = progressHTML;
+                    
+                    // If no indexing is happening, stop refreshing
+                    if (!progressHTML) {
+                        clearInterval(this.refreshInterval);
+                        this.refreshInterval = null;
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing indexing progress:', error);
+            }
+        }, 2000); // Refresh every 2 seconds
     }
 
     getUptime() {
