@@ -93,10 +93,29 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🔗 Connect your MCP client to: http://{}/sse", bind_address);
 
     // Create the VectorizerService that will make GRPC calls to vzr
-    server.with_service(move || VectorizerService::new(grpc_server_url.clone()));
+    let service = VectorizerService::new(grpc_server_url.clone());
     
-    // Wait for cancellation
-    ct.cancelled().await;
+    // Start the server with the service
+    let server_handle = tokio::spawn(async move {
+        server.with_service(move || service.clone());
+        // Keep the server running
+        tokio::time::sleep(tokio::time::Duration::from_secs(u64::MAX)).await;
+        Ok::<(), anyhow::Error>(())
+    });
+    
+    // Wait for cancellation or server completion
+    tokio::select! {
+        _ = ct.cancelled() => {
+            tracing::info!("Received cancellation signal");
+        }
+        result = server_handle => {
+            match result {
+                Ok(Ok(())) => tracing::info!("Server completed successfully"),
+                Ok(Err(e)) => tracing::error!("Server error: {}", e),
+                Err(e) => tracing::error!("Server task error: {}", e),
+            }
+        }
+    }
 
     Ok(())
 }

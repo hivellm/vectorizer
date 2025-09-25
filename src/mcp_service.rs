@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::grpc::client::VectorizerGrpcClient;
 use crate::config::GrpcConfig;
 
+#[derive(Clone)]
 pub struct VectorizerService {
     grpc_server_url: String,
 }
