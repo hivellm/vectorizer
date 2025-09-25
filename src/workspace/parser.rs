@@ -13,7 +13,7 @@ use tracing::{debug, info};
 pub fn parse_workspace_config<P: AsRef<Path>>(path: P) -> Result<WorkspaceConfig> {
     let path = path.as_ref();
 
-    info!("Parsing workspace configuration from: {}", path.display());
+    debug!("Parsing workspace configuration from: {}", path.display());
 
     // Check if file exists
     if !path.exists() {
@@ -31,7 +31,7 @@ pub fn parse_workspace_config<P: AsRef<Path>>(path: P) -> Result<WorkspaceConfig
     // Parse YAML
     let config: WorkspaceConfig = serde_yaml::from_str(&content)?;
 
-    info!("Successfully parsed workspace configuration");
+    debug!("Successfully parsed workspace configuration");
     debug!(
         "Workspace: {}, Projects: {}",
         config.workspace.name,

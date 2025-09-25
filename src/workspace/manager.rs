@@ -40,12 +40,12 @@ impl WorkspaceManager {
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
 
-        info!("Loading workspace from: {}", config_path.display());
+        debug!("Loading workspace from: {}", config_path.display());
 
         // Parse configuration
         let config = parse_workspace_config(config_path)?;
 
-        info!(
+        debug!(
             "Parsed workspace config with {} projects from YAML",
             config.projects.len()
         );
@@ -142,7 +142,7 @@ impl WorkspaceManager {
             .iter()
             .filter(|p| p.enabled)
             .collect::<Vec<_>>();
-        tracing::info!(
+        debug!(
             "Workspace has {} total projects, {} enabled",
             total_projects,
             enabled.len()

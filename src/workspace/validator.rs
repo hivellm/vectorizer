@@ -54,7 +54,7 @@ pub fn validate_workspace_config(
 ) -> ValidationResult {
     let mut result = ValidationResult::new();
 
-    info!("Validating workspace configuration");
+    debug!("Validating workspace configuration");
 
     // Validate workspace metadata
     validate_workspace_metadata(config, &mut result);
@@ -75,7 +75,7 @@ pub fn validate_workspace_config(
     validate_validation_settings(config, &mut result);
 
     if result.is_valid {
-        info!("Workspace configuration validation passed");
+        debug!("Workspace configuration validation passed");
     } else {
         error!(
             "Workspace configuration validation failed with {} errors",
