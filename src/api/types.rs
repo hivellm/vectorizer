@@ -55,6 +55,8 @@ pub struct CollectionInfo {
     pub metric: DistanceMetric,
     /// Number of vectors
     pub vector_count: usize,
+    /// Number of documents indexed
+    pub document_count: usize,
     /// Creation timestamp
     pub created_at: String,
     /// Last update timestamp

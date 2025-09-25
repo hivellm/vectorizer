@@ -726,6 +726,10 @@
                                         <span class="stat-value">{{ formatNumber(collection.vector_count) }}</span>
                                     </div>
                                     <div class="stat-row">
+                                        <span class="stat-label">Documents:</span>
+                                        <span class="stat-value">{{ formatNumber(collection.document_count) }}</span>
+                                    </div>
+                                    <div class="stat-row">
                                         <span class="stat-label">Source:</span>
                                         <span class="stat-value" :style="{ color: collection.indexing_status.status === 'cached' ? 'var(--success)' : 'var(--text-primary)' }">
                                             {{ collection.indexing_status.status === 'cached' ? 'Cache' : 'Indexed' }}

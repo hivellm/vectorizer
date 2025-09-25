@@ -108,6 +108,7 @@ impl VectorizerService for VectorizerGrpcService {
                         CollectionInfo {
                             name: workspace_collection.name.clone(),
                             vector_count: metadata.vector_count as i32,
+                            document_count: metadata.document_count as i32,
                             dimension: metadata.config.dimension as i32,
                             similarity_metric: "cosine".to_string(),
                             status: "ready".to_string(),
@@ -119,6 +120,7 @@ impl VectorizerService for VectorizerGrpcService {
                         CollectionInfo {
                             name: workspace_collection.name.clone(),
                             vector_count: 0,
+                            document_count: 0,
                             dimension: workspace_collection.dimension as i32,
                             similarity_metric: "cosine".to_string(),
                             status: "error".to_string(),
@@ -141,6 +143,7 @@ impl VectorizerService for VectorizerGrpcService {
                 CollectionInfo {
                     name: workspace_collection.name.clone(),
                     vector_count: 0,
+                    document_count: 0,
                     dimension: workspace_collection.dimension as i32,
                     similarity_metric: "cosine".to_string(),
                     status: format!("{}-{}", status, (progress * 100.0) as i32),
@@ -168,6 +171,7 @@ impl VectorizerService for VectorizerGrpcService {
         Ok(Response::new(CollectionInfo {
             name: req.collection_name,
             vector_count: metadata.vector_count as i32,
+            document_count: metadata.document_count as i32,
             dimension: metadata.config.dimension as i32,
             similarity_metric: "cosine".to_string(),
             status: "ready".to_string(),

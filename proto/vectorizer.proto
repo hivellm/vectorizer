@@ -49,11 +49,12 @@ message Empty {}
 message CollectionInfo {
   string name = 1;
   int32 vector_count = 2;
-  int32 dimension = 3;
-  string similarity_metric = 4;
-  string status = 5;
-  string last_updated = 6;
-  optional string error_message = 7;
+  int32 document_count = 3;
+  int32 dimension = 4;
+  string similarity_metric = 5;
+  string status = 6;
+  string last_updated = 7;
+  optional string error_message = 8;
 }
 
 message ListCollectionsResponse {

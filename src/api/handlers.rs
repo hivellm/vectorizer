@@ -418,6 +418,7 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                     .map(|collection| CollectionInfo {
                         name: collection.name,
                         vector_count: collection.vector_count as usize,
+                        document_count: collection.document_count as usize,
                         dimension: collection.dimension as usize,
                         metric: DistanceMetric::Cosine, // Default metric
                         created_at: collection.last_updated.clone(),
@@ -517,6 +518,7 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                 dimension: metadata.config.dimension,
                 metric: metadata.config.metric.into(),
                 vector_count: metadata.vector_count,
+                document_count: metadata.document_count,
                 created_at: metadata.created_at.to_rfc3339(),
                 updated_at: metadata.updated_at.to_rfc3339(),
                 indexing_status,
@@ -533,6 +535,7 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                     _ => crate::api::types::DistanceMetric::Cosine,
                 },
                 vector_count: 0,
+                document_count: 0,
                 created_at: Utc::now().to_rfc3339(), // Placeholder
                 updated_at: Utc::now().to_rfc3339(), // Placeholder
                 indexing_status,
@@ -563,6 +566,7 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                     dimension: metadata.config.dimension,
                     metric: metadata.config.metric.into(),
                     vector_count: metadata.vector_count,
+                    document_count: metadata.document_count,
                     created_at: metadata.created_at.to_rfc3339(),
                     updated_at: metadata.updated_at.to_rfc3339(),
                     indexing_status,
@@ -768,6 +772,7 @@ pub async fn get_collection(
                 dimension: metadata.config.dimension,
                 metric: metadata.config.metric.into(),
                 vector_count: metadata.vector_count,
+                document_count: metadata.document_count,
                 created_at: metadata.created_at.to_rfc3339(),
                 updated_at: metadata.updated_at.to_rfc3339(),
                 indexing_status,

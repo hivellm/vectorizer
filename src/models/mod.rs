@@ -153,6 +153,8 @@ pub struct CollectionMetadata {
     pub updated_at: chrono::DateTime<chrono::Utc>,
     /// Number of vectors
     pub vector_count: usize,
+    /// Number of documents indexed
+    pub document_count: usize,
     /// Collection configuration
     pub config: CollectionConfig,
 }

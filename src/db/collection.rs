@@ -28,6 +28,8 @@ pub struct Collection {
     index: Arc<RwLock<OptimizedHnswIndex>>,
     /// Embedding type used for this collection
     embedding_type: Arc<RwLock<String>>,
+    /// Set of unique document IDs (for counting documents)
+    document_ids: Arc<DashMap<String, ()>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -69,6 +71,7 @@ impl Collection {
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
             embedding_type: Arc::new(RwLock::new(embedding_type)),
+            document_ids: Arc::new(DashMap::new()),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
         }
@@ -81,6 +84,7 @@ impl Collection {
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
             vector_count: self.vectors.len(),
+            document_count: self.document_ids.len(),
             config: self.config.clone(),
         }
     }
@@ -118,6 +122,15 @@ impl Collection {
             if matches!(self.config.metric, DistanceMetric::Cosine) {
                 data = vector_utils::normalize_vector(&data);
                 vector.data = data.clone(); // Update stored vector to normalized version
+            }
+
+            // Extract document ID from payload for tracking unique documents
+            if let Some(payload) = &vector.payload {
+                if let Some(file_path) = payload.data.get("file_path") {
+                    if let Some(file_path_str) = file_path.as_str() {
+                        self.document_ids.insert(file_path_str.to_string(), ());
+                    }
+                }
             }
 
             // Store vector
