@@ -29,6 +29,9 @@ cargo run --bin vzr -- start --project ../gov
 - ✅ **Real-time Search**: Live vector search capabilities through MCP tools
 - ✅ **Collection Management**: Create, manage, and query collections via MCP
 - ✅ **Authentication**: Secure API key-based authentication for MCP connections
+- 🚧 **Dynamic Vector Operations**: Real-time vector creation/update/delete (planned)
+- 🚧 **Intelligent Summarization**: Context optimization for better responses (planned)
+- 🚧 **Chat History**: Persistent conversation memory across sessions (planned)
 
 ### Check Server Status
 ```bash
@@ -80,6 +83,32 @@ cargo run --bin vzr -- workspace list
 # Start servers with workspace configuration
 cargo run --bin vzr -- start --workspace vectorize-workspace.yml
 ```
+
+## 🚀 **Advanced Features (Planned)**
+
+Vectorizer is evolving to become an intelligent, learning system with advanced capabilities:
+
+### **Production Performance** 🔥
+- **Intelligent Cache Management**: Sub-second startup times through smart caching
+- **Incremental Indexing**: Only process changed files, reducing resource usage by 90%
+- **Background Processing**: Non-blocking operations for improved user experience
+
+### **User Experience Enhancements** 💡
+- **Dynamic MCP Operations**: Real-time vector creation/update/delete during conversations
+- **Intelligent Summarization**: 80% reduction in context usage while maintaining quality
+- **Persistent Summarization**: Reusable summaries for improved performance
+
+### **Advanced Intelligence Features** 🧠
+- **Chat History Collections**: Persistent conversation memory across sessions
+- **Multi-Model Discussions**: Collaborative AI interactions with consensus building
+- **Context Linking**: Cross-session knowledge sharing and continuity
+
+### **Implementation Timeline**
+- **Phase 1** (Weeks 1-4): Cache Management & Incremental Indexing
+- **Phase 2** (Weeks 5-8): MCP Enhancements & Summarization
+- **Phase 3** (Weeks 9-12): Chat History & Multi-Model Discussions
+
+For detailed technical specifications, see the [Advanced Features Documentation](docs/ADVANCED_FEATURES_ROADMAP.md).
 
 ### Manual Commands
 ```bash

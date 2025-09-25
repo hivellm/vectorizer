@@ -1,0 +1,378 @@
+[2m2025-09-25T10:40:33.141543Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m No existing vector store found, creating new one
+[2m2025-09-25T10:40:33.141632Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T10:40:33.141852Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:40:33.141883Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Project loaded successfully
+[2m2025-09-25T10:40:33.141884Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting document loading in background thread...
+[2m2025-09-25T10:40:33.142287Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Vectorizer MCP SSE Server started on 127.0.0.1:15002
+[2m2025-09-25T10:40:33.146953Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading workspace configuration from: /tmp/vectorizer-workspace-full.json
+[2m2025-09-25T10:40:33.147078Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading workspace info from: /tmp/vectorizer-workspace-full.json
+[2m2025-09-25T10:40:33.147624Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: governance-bip-specs
+[2m2025-09-25T10:40:33.147645Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-bips' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:40:33.225019Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:40:33.252594Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 232 documents in '../gov' for collection 'gov-bips'
+[2m2025-09-25T10:40:33.363459Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:40:33.363505Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 232 documents
+[2m2025-09-25T10:40:33.363513Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:40:33.603964Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:40:33.605568Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:40:33.605590Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:40:33.605598Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:40:33.605605Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:40:33.605615Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:40:33.605861Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-bips' created successfully
+[2m2025-09-25T10:40:33.605877Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-bips'
+[2m2025-09-25T10:40:33.605887Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-bips
+[2m2025-09-25T10:40:33.605897Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 4316 chunks for collection 'gov-bips' - this may take a while...
+[2m2025-09-25T10:40:35.880122Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0mfd281278-8335-4875-9aa2-7fbe0ee204b1 [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "mcp-protocol-version": "2025-03-26", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-25T10:40:35.880321Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:42:04.043049Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m No existing vector store found, creating new one
+[2m2025-09-25T10:42:04.043122Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T10:42:04.043284Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting document loading in background thread...
+[2m2025-09-25T10:42:04.043312Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading workspace configuration from: /tmp/vectorizer-workspace-full.json
+[2m2025-09-25T10:42:04.043311Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:42:04.043326Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading workspace info from: /tmp/vectorizer-workspace-full.json
+[2m2025-09-25T10:42:04.043331Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Project loaded successfully
+[2m2025-09-25T10:42:04.043700Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Vectorizer MCP SSE Server started on 127.0.0.1:15002
+[2m2025-09-25T10:42:04.043841Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: governance-bip-specs
+[2m2025-09-25T10:42:04.043859Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-bips' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:42:04.093168Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:42:04.117758Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 232 documents in '../gov' for collection 'gov-bips'
+[2m2025-09-25T10:42:04.220720Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:42:04.220770Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 232 documents
+[2m2025-09-25T10:42:04.220781Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:42:04.461338Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:42:04.462943Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:42:04.462967Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:42:04.462974Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:42:04.462982Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:42:04.462992Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:42:04.463206Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-bips' created successfully
+[2m2025-09-25T10:42:04.463220Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-bips'
+[2m2025-09-25T10:42:04.463230Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-bips
+[2m2025-09-25T10:42:04.463240Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 4316 chunks for collection 'gov-bips' - this may take a while...
+[2m2025-09-25T10:42:04.735908Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0m972373cb-d04e-4ba6-bb60-00613fda1f06 [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "mcp-protocol-version": "2025-03-26", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-25T10:42:04.736150Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:43:55.781728Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-bips' indexed successfully: 4316 chunks embedded and stored
+[2m2025-09-25T10:43:55.789829Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 232 documents into 4316 chunks
+[2m2025-09-25T10:43:55.795642Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-bips' completed successfully
+[2m2025-09-25T10:43:55.797200Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-proposals' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:43:55.886622Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:43:55.922755Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 420 documents in '../gov' for collection 'gov-proposals'
+[2m2025-09-25T10:43:56.103878Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:43:56.103926Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 420 documents
+[2m2025-09-25T10:43:56.103940Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:43:56.558971Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:43:56.561066Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:43:56.561093Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:43:56.561103Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:43:56.561112Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:43:56.561123Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:43:56.561357Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-proposals' created successfully
+[2m2025-09-25T10:43:56.561373Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-proposals'
+[2m2025-09-25T10:43:56.561384Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-proposals
+[2m2025-09-25T10:43:56.561394Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 6496 chunks for collection 'gov-proposals' - this may take a while...
+[2m2025-09-25T10:46:51.168982Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-proposals' indexed successfully: 6496 chunks embedded and stored
+[2m2025-09-25T10:46:51.178598Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 420 documents into 6496 chunks
+[2m2025-09-25T10:46:51.185798Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-proposals' completed successfully
+[2m2025-09-25T10:46:51.186059Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-minutes' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:46:51.261178Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:46:51.292336Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 420 documents in '../gov' for collection 'gov-minutes'
+[2m2025-09-25T10:46:51.432726Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:46:51.432773Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 420 documents
+[2m2025-09-25T10:46:51.432818Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:46:51.918832Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:46:51.920948Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:46:51.920968Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:46:51.920977Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:46:51.920987Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:46:51.920998Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:46:51.921221Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-minutes' created successfully
+[2m2025-09-25T10:46:51.921237Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-minutes'
+[2m2025-09-25T10:46:51.921249Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-minutes
+[2m2025-09-25T10:46:51.921259Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 6496 chunks for collection 'gov-minutes' - this may take a while...
+[2m2025-09-25T10:48:32.948454Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0m125e5610-d274-495c-89e6-feca3e23b299 [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-25T10:48:32.948667Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:48:32.952711Z[0m [32m INFO[0m [2mrmcp::handler::server[0m[2m:[0m client initialized
+[2m2025-09-25T10:48:32.952873Z[0m [32m INFO[0m [1mserve_inner[0m[2m:[0m [2mrmcp::service[0m[2m:[0m Service initialized as server [3mpeer_info[0m[2m=[0mSome(InitializeRequestParam { protocol_version: ProtocolVersion("2025-06-18"), capabilities: ClientCapabilities { experimental: None, roots: Some(RootsCapabilities { list_changed: Some(false) }), sampling: None, elicitation: Some(ElicitationCapability { schema_validation: None }) }, client_info: Implementation { name: "cursor-vscode", title: None, version: "1.0.0", icons: None, website_url: None } })
+[2m2025-09-25T10:49:44.299368Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-minutes' indexed successfully: 6496 chunks embedded and stored
+[2m2025-09-25T10:49:44.313702Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 420 documents into 6496 chunks
+[2m2025-09-25T10:49:44.322063Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-minutes' completed successfully
+[2m2025-09-25T10:49:44.322241Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-guidelines' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:49:44.383343Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.403478Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 34 documents in '../gov' for collection 'gov-guidelines'
+[2m2025-09-25T10:49:44.419617Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.419661Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 34 documents
+[2m2025-09-25T10:49:44.419672Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:49:44.455915Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:49:44.457930Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:49:44.457957Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:49:44.457967Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:49:44.457976Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:49:44.457987Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:49:44.458237Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-guidelines' created successfully
+[2m2025-09-25T10:49:44.458256Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-guidelines'
+[2m2025-09-25T10:49:44.458268Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-guidelines
+[2m2025-09-25T10:49:44.458279Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 498 chunks for collection 'gov-guidelines' - this may take a while...
+[2m2025-09-25T10:49:44.624072Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-guidelines' indexed successfully: 498 chunks embedded and stored
+[2m2025-09-25T10:49:44.624945Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 34 documents into 498 chunks
+[2m2025-09-25T10:49:44.626152Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-guidelines' completed successfully
+[2m2025-09-25T10:49:44.626348Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-issues' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:49:44.633113Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.648013Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-issues'
+[2m2025-09-25T10:49:44.648073Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory
+[2m2025-09-25T10:49:44.648089Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-issues' completed successfully
+[2m2025-09-25T10:49:44.648120Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-teams' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:49:44.654424Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.668503Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 1 documents in '../gov' for collection 'gov-teams'
+[2m2025-09-25T10:49:44.669745Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.669767Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 1 documents
+[2m2025-09-25T10:49:44.669776Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:49:44.673069Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:49:44.674676Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:49:44.674695Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:49:44.674705Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:49:44.674714Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:49:44.674727Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:49:44.674994Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-teams' created successfully
+[2m2025-09-25T10:49:44.675012Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-teams'
+[2m2025-09-25T10:49:44.675024Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-teams
+[2m2025-09-25T10:49:44.675034Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 33 chunks for collection 'gov-teams' - this may take a while...
+[2m2025-09-25T10:49:44.685838Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-teams' indexed successfully: 33 chunks embedded and stored
+[2m2025-09-25T10:49:44.685901Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 1 documents into 33 chunks
+[2m2025-09-25T10:49:44.685992Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-teams' completed successfully
+[2m2025-09-25T10:49:44.686046Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'gov-docs' for project 'governance-bip-specs' (512D, bm25)
+[2m2025-09-25T10:49:44.686779Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.719332Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 232 documents in '../gov' for collection 'gov-docs'
+[2m2025-09-25T10:49:44.848101Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:44.848151Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 232 documents
+[2m2025-09-25T10:49:44.848161Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:49:45.161927Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:49:45.164211Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:49:45.164240Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:49:45.164250Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:49:45.164260Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:49:45.164272Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:49:45.164532Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-docs' created successfully
+[2m2025-09-25T10:49:45.164552Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-docs'
+[2m2025-09-25T10:49:45.164564Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-docs
+[2m2025-09-25T10:49:45.164574Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 4316 chunks for collection 'gov-docs' - this may take a while...
+[2m2025-09-25T10:51:38.342942Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-docs' indexed successfully: 4316 chunks embedded and stored
+[2m2025-09-25T10:51:38.351094Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 232 documents into 4316 chunks
+[2m2025-09-25T10:51:38.358633Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'gov-docs' completed successfully
+[2m2025-09-25T10:51:38.359328Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: governance-dashboard
+[2m2025-09-25T10:51:38.359354Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'governance_dashboard' for project 'governance-dashboard' (512D, bm25)
+[2m2025-09-25T10:51:38.384650Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:38.398979Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 113 documents in '../governance' for collection 'governance_dashboard'
+[2m2025-09-25T10:51:38.454036Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:38.454073Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 113 documents
+[2m2025-09-25T10:51:38.454087Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:38.580064Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:38.582250Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:51:38.582278Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:51:38.582289Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:51:38.582300Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:51:38.582312Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:51:38.582569Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'governance_dashboard' created successfully
+[2m2025-09-25T10:51:38.582586Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'governance_dashboard'
+[2m2025-09-25T10:51:38.582598Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: governance_dashboard
+[2m2025-09-25T10:51:38.582609Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1817 chunks for collection 'governance_dashboard' - this may take a while...
+[2m2025-09-25T10:51:50.794653Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'governance_dashboard' indexed successfully: 1817 chunks embedded and stored
+[2m2025-09-25T10:51:50.798249Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 113 documents into 1817 chunks
+[2m2025-09-25T10:51:50.800198Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'governance_dashboard' completed successfully
+[2m2025-09-25T10:51:50.800298Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'governance_configurations' for project 'governance-dashboard' (512D, bm25)
+[2m2025-09-25T10:51:50.801017Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:50.807056Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 7 documents in '../governance' for collection 'governance_configurations'
+[2m2025-09-25T10:51:50.808003Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:50.808021Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 7 documents
+[2m2025-09-25T10:51:50.808030Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:50.810301Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:50.811579Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:51:50.811600Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:51:50.811609Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:51:50.811619Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:51:50.811631Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:51:50.811895Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'governance_configurations' created successfully
+[2m2025-09-25T10:51:50.811912Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'governance_configurations'
+[2m2025-09-25T10:51:50.811922Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: governance_configurations
+[2m2025-09-25T10:51:50.811932Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 28 chunks for collection 'governance_configurations' - this may take a while...
+[2m2025-09-25T10:51:50.818136Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'governance_configurations' indexed successfully: 28 chunks embedded and stored
+[2m2025-09-25T10:51:50.818184Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 7 documents into 28 chunks
+[2m2025-09-25T10:51:50.818264Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'governance_configurations' completed successfully
+[2m2025-09-25T10:51:50.818304Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: ts-workspace
+[2m2025-09-25T10:51:50.818313Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'ts-workspace' for project 'ts-workspace' (512D, bm25)
+[2m2025-09-25T10:51:50.837969Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:51:50.848373Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 81 documents in '../ts-workspace' for collection 'ts-workspace'
+[2m2025-09-25T10:51:50.895810Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:51:50.895868Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 81 documents
+[2m2025-09-25T10:51:50.895879Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:51.005615Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:51.007166Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:51:51.007187Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:51:51.007195Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:51:51.007202Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:51:51.007210Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:51:51.007411Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace' created successfully
+[2m2025-09-25T10:51:51.007427Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'ts-workspace'
+[2m2025-09-25T10:51:51.007436Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: ts-workspace
+[2m2025-09-25T10:51:51.007443Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1511 chunks for collection 'ts-workspace' - this may take a while...
+[2m2025-09-25T10:52:03.897634Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'ts-workspace' indexed successfully: 1511 chunks embedded and stored
+[2m2025-09-25T10:52:03.900826Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 81 documents into 1511 chunks
+[2m2025-09-25T10:52:03.903700Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'ts-workspace' completed successfully
+[2m2025-09-25T10:52:03.903847Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'ts-workspace-configurations' for project 'ts-workspace' (512D, bm25)
+[2m2025-09-25T10:52:03.905269Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:52:03.910982Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 14 documents in '../ts-workspace' for collection 'ts-workspace-configurations'
+[2m2025-09-25T10:52:03.912941Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:52:03.912961Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 14 documents
+[2m2025-09-25T10:52:03.912971Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:03.916510Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:03.917988Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:03.918008Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:03.918017Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:03.918026Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:03.918037Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:03.918267Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace-configurations' created successfully
+[2m2025-09-25T10:52:03.918284Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'ts-workspace-configurations'
+[2m2025-09-25T10:52:03.918296Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: ts-workspace-configurations
+[2m2025-09-25T10:52:03.918307Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 56 chunks for collection 'ts-workspace-configurations' - this may take a while...
+[2m2025-09-25T10:52:03.933407Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'ts-workspace-configurations' indexed successfully: 56 chunks embedded and stored
+[2m2025-09-25T10:52:03.933517Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 14 documents into 56 chunks
+[2m2025-09-25T10:52:03.933752Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'ts-workspace-configurations' completed successfully
+[2m2025-09-25T10:52:03.933851Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: cursor-extension
+[2m2025-09-25T10:52:03.933866Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'cursor-extension' for project 'cursor-extension' (512D, bm25)
+[2m2025-09-25T10:52:03.951174Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:52:03.965184Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 97 documents in '../cursor-extension' for collection 'cursor-extension'
+[2m2025-09-25T10:52:04.001108Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:52:04.001155Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 97 documents
+[2m2025-09-25T10:52:04.001166Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:04.073644Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:04.075656Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:04.075684Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:04.075695Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:04.075705Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:04.075716Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:04.075957Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'cursor-extension' created successfully
+[2m2025-09-25T10:52:04.075974Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'cursor-extension'
+[2m2025-09-25T10:52:04.075985Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: cursor-extension
+[2m2025-09-25T10:52:04.075995Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1193 chunks for collection 'cursor-extension' - this may take a while...
+[2m2025-09-25T10:52:15.877122Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'cursor-extension' indexed successfully: 1193 chunks embedded and stored
+[2m2025-09-25T10:52:15.879382Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 97 documents into 1193 chunks
+[2m2025-09-25T10:52:15.880940Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'cursor-extension' completed successfully
+[2m2025-09-25T10:52:15.881027Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'scripts' for project 'cursor-extension' (512D, bm25)
+[2m2025-09-25T10:52:15.898578Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:52:15.911336Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 76 documents in '../cursor-extension' for collection 'scripts'
+[2m2025-09-25T10:52:15.945183Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:52:15.945224Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 76 documents
+[2m2025-09-25T10:52:15.945234Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:16.015870Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:16.017429Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:16.017452Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:16.017462Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:16.017471Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:16.017482Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:16.017703Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'scripts' created successfully
+[2m2025-09-25T10:52:16.017718Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'scripts'
+[2m2025-09-25T10:52:16.017729Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: scripts
+[2m2025-09-25T10:52:16.017738Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1201 chunks for collection 'scripts' - this may take a while...
+[2m2025-09-25T10:52:28.303751Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'scripts' indexed successfully: 1201 chunks embedded and stored
+[2m2025-09-25T10:52:28.306355Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 76 documents into 1201 chunks
+[2m2025-09-25T10:52:28.308613Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'scripts' completed successfully
+[2m2025-09-25T10:52:28.308718Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: py-env-security
+[2m2025-09-25T10:52:28.308732Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'py-env-security' for project 'py-env-security' (512D, bm25)
+[2m2025-09-25T10:52:28.316770Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../py-env-security/.vectorizer/cache.bin
+[2m2025-09-25T10:52:28.319200Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 24 documents in '../py-env-security' for collection 'py-env-security'
+[2m2025-09-25T10:52:28.333060Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../py-env-security/.vectorizer/cache.bin
+[2m2025-09-25T10:52:28.333088Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 24 documents
+[2m2025-09-25T10:52:28.333097Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:28.367025Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:28.369054Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:28.369078Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:28.369089Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:28.369098Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:28.369109Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:28.369333Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'py-env-security' created successfully
+[2m2025-09-25T10:52:28.369348Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'py-env-security'
+[2m2025-09-25T10:52:28.369359Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: py-env-security
+[2m2025-09-25T10:52:28.369369Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 498 chunks for collection 'py-env-security' - this may take a while...
+[2m2025-09-25T10:52:28.545192Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'py-env-security' indexed successfully: 498 chunks embedded and stored
+[2m2025-09-25T10:52:28.546083Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 24 documents into 498 chunks
+[2m2025-09-25T10:52:28.547062Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'py-env-security' completed successfully
+[2m2025-09-25T10:52:28.547222Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: umicp
+[2m2025-09-25T10:52:28.547236Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'umicp_protocol_docs' for project 'umicp' (512D, bm25)
+[2m2025-09-25T10:52:28.568173Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:28.576533Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 19 documents in '../umicp' for collection 'umicp_protocol_docs'
+[2m2025-09-25T10:52:28.592563Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:28.592615Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 19 documents
+[2m2025-09-25T10:52:28.592625Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:28.631189Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:28.633472Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:28.633510Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:28.633520Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:28.633534Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:28.633545Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:28.633784Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_protocol_docs' created successfully
+[2m2025-09-25T10:52:28.633804Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'umicp_protocol_docs'
+[2m2025-09-25T10:52:28.633816Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: umicp_protocol_docs
+[2m2025-09-25T10:52:28.633827Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 519 chunks for collection 'umicp_protocol_docs' - this may take a while...
+[2m2025-09-25T10:52:28.806606Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'umicp_protocol_docs' indexed successfully: 519 chunks embedded and stored
+[2m2025-09-25T10:52:28.807665Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 19 documents into 519 chunks
+[2m2025-09-25T10:52:28.809068Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'umicp_protocol_docs' completed successfully
+[2m2025-09-25T10:52:28.809268Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'umicp_cpp_implementation' for project 'umicp' (512D, bm25)
+[2m2025-09-25T10:52:28.817335Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:28.827499Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 67 documents in '../umicp' for collection 'umicp_cpp_implementation'
+[2m2025-09-25T10:52:28.879223Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:28.879268Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 67 documents
+[2m2025-09-25T10:52:28.879285Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:28.975684Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:28.977875Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:28.977900Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:28.977909Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:28.977919Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:28.977930Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:28.978182Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_cpp_implementation' created successfully
+[2m2025-09-25T10:52:28.978199Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'umicp_cpp_implementation'
+[2m2025-09-25T10:52:28.978211Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: umicp_cpp_implementation
+[2m2025-09-25T10:52:28.978221Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1717 chunks for collection 'umicp_cpp_implementation' - this may take a while...
+[2m2025-09-25T10:52:41.531271Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'umicp_cpp_implementation' indexed successfully: 1717 chunks embedded and stored
+[2m2025-09-25T10:52:41.534743Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 67 documents into 1717 chunks
+[2m2025-09-25T10:52:41.538836Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'umicp_cpp_implementation' completed successfully
+[2m2025-09-25T10:52:41.539229Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Loading project: chat-hub
+[2m2025-09-25T10:52:41.539251Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'chat-hub' for project 'chat-hub' (512D, bm25)
+[2m2025-09-25T10:52:41.543805Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:41.545471Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 9 documents in '../chat-hub' for collection 'chat-hub'
+[2m2025-09-25T10:52:41.580475Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:41.580522Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 9 documents
+[2m2025-09-25T10:52:41.580536Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:41.664173Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:41.666208Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:41.666236Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:41.666246Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:41.666255Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:41.666265Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:41.666485Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'chat-hub' created successfully
+[2m2025-09-25T10:52:41.666500Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'chat-hub'
+[2m2025-09-25T10:52:41.666511Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: chat-hub
+[2m2025-09-25T10:52:41.666521Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1203 chunks for collection 'chat-hub' - this may take a while...
+[2m2025-09-25T10:52:51.868462Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'chat-hub' indexed successfully: 1203 chunks embedded and stored
+[2m2025-09-25T10:52:51.870839Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 9 documents into 1203 chunks
+[2m2025-09-25T10:52:51.873917Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'chat-hub' completed successfully
+[2m2025-09-25T10:52:51.874249Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔄 Starting collection 'chat-hub-monitoring' for project 'chat-hub' (512D, bm25)
+[2m2025-09-25T10:52:51.891494Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:51.894867Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 5 documents in '../chat-hub' for collection 'chat-hub-monitoring'
+[2m2025-09-25T10:52:51.904226Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:51.904267Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 5 documents
+[2m2025-09-25T10:52:51.904278Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:51.923218Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:51.925376Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw max_nb_connection 16
+[2m2025-09-25T10:52:51.925403Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw nb elements 100000
+[2m2025-09-25T10:52:51.925413Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw ef_construction 200
+[2m2025-09-25T10:52:51.925422Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw distance "anndists::dist::distances::DistCosine"
+[2m2025-09-25T10:52:51.925433Z[0m [32m INFO[0m [2mhnsw_rs::hnsw[0m[2m:[0m Hnsw extend candidates false
+[2m2025-09-25T10:52:51.925721Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'chat-hub-monitoring' created successfully
+[2m2025-09-25T10:52:51.925740Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'chat-hub-monitoring'
+[2m2025-09-25T10:52:51.925751Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: chat-hub-monitoring
+[2m2025-09-25T10:52:51.925761Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 267 chunks for collection 'chat-hub-monitoring' - this may take a while...
+[2m2025-09-25T10:52:52.020415Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'chat-hub-monitoring' indexed successfully: 267 chunks embedded and stored
+[2m2025-09-25T10:52:52.021122Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 5 documents into 267 chunks
+[2m2025-09-25T10:52:52.022276Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Collection 'chat-hub-monitoring' completed successfully
+[2m2025-09-25T10:52:52.022620Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully loaded 18 collections from workspace
+[2m2025-09-25T10:54:32.188720Z[0m [33m WARN[0m [1mserve_inner[0m[2m:[0m [2mrmcp::service[0m[2m:[0m response error [3mid[0m[2m=[0m7 [3merror[0m[2m=[0mErrorData { code: ErrorCode(-32603), message: "Collection not found: gov-issues", data: None }

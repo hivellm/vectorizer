@@ -1,0 +1,529 @@
+[2m2025-09-25T10:40:34.423797Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-25T10:40:34.423915Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Vector store path: ".vectorizer/vector_store.bin"
+[2m2025-09-25T10:40:34.423996Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Vector store path exists: false
+[2m2025-09-25T10:40:34.424064Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m No existing vector store found, creating new one
+[2m2025-09-25T10:40:34.424096Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T10:40:34.429280Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:40:34.430026Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-25T10:40:34.430136Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - collections will be indexed in background
+[2m2025-09-25T10:40:34.430157Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-25T10:40:34.430195Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Starting workspace indexing in background thread...
+[2m2025-09-25T10:40:34.430694Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-bips' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430720Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430729Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-proposals' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430739Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430746Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-minutes' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430755Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430761Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-guidelines' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430771Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430778Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-issues' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430887Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430930Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-teams' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430946Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430957Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-docs' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430971Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.430981Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_dashboard' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.430994Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431004Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431019Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431029Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431096Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431110Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace-configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431162Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431179Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'cursor-extension' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431193Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431204Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431217Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431230Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'py-env-security' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431244Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431254Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_protocol_docs' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431268Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431279Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431274Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-25T10:40:34.431300Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431312Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431324Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431334Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub-monitoring' to status 'pending' progress 0.0%
+[2m2025-09-25T10:40:34.431347Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.431369Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading workspace info from: /tmp/vectorizer-workspace-full.json
+[2m2025-09-25T10:40:34.432032Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: governance-bip-specs
+[2m2025-09-25T10:40:34.432057Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-bips' for project 'governance-bip-specs'
+[2m2025-09-25T10:40:34.432077Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-bips' to status 'processing' progress 10.0%
+[2m2025-09-25T10:40:34.432101Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:40:34.494244Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:40:34.520087Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 232 documents in '../gov' for collection 'gov-bips'
+[2m2025-09-25T10:40:34.620892Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:40:34.620955Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 232 documents
+[2m2025-09-25T10:40:34.620963Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:40:34.859669Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:40:34.861425Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-bips' created successfully
+[2m2025-09-25T10:40:34.861451Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-bips'
+[2m2025-09-25T10:40:34.861461Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-bips
+[2m2025-09-25T10:40:34.861471Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 4316 chunks for collection 'gov-bips' - this may take a while...
+[2m2025-09-25T10:40:37.974419Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:40:40.936517Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:40:43.942655Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:40:53.370817Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:41:00.338841Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:41:09.109200Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:41:21.200154Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:41:22.559563Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:02.640722Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-25T10:42:02.640787Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Vector store path: ".vectorizer/vector_store.bin"
+[2m2025-09-25T10:42:02.640834Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Vector store path exists: false
+[2m2025-09-25T10:42:02.640865Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m No existing vector store found, creating new one
+[2m2025-09-25T10:42:02.640877Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T10:42:02.641012Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary is empty! This indicates a problem in build_vocabulary()
+[2m2025-09-25T10:42:02.641625Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-25T10:42:02.641696Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - collections will be indexed in background
+[2m2025-09-25T10:42:02.641712Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-25T10:42:02.641740Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Starting workspace indexing in background thread...
+[2m2025-09-25T10:42:02.642218Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-bips' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642241Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642249Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-proposals' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642259Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642266Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-minutes' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642274Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642313Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-guidelines' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642324Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642330Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-issues' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642338Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642344Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-teams' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642353Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642359Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-docs' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642367Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642373Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_dashboard' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642382Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642388Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642397Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642403Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642411Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642418Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace-configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642426Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642433Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'cursor-extension' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642441Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642448Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642456Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642462Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'py-env-security' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642470Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642467Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-25T10:42:02.642477Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_protocol_docs' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642486Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642493Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642501Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642507Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642532Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642539Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub-monitoring' to status 'pending' progress 0.0%
+[2m2025-09-25T10:42:02.642548Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.642557Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading workspace info from: /tmp/vectorizer-workspace-full.json
+[2m2025-09-25T10:42:02.642885Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: governance-bip-specs
+[2m2025-09-25T10:42:02.642899Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-bips' for project 'governance-bip-specs'
+[2m2025-09-25T10:42:02.642911Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-bips' to status 'processing' progress 10.0%
+[2m2025-09-25T10:42:02.642927Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:42:02.692289Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:42:02.718218Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 232 documents in '../gov' for collection 'gov-bips'
+[2m2025-09-25T10:42:02.816088Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:42:02.816137Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 232 documents
+[2m2025-09-25T10:42:02.816145Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:42:03.048768Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:42:03.050467Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-bips' created successfully
+[2m2025-09-25T10:42:03.050497Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-bips'
+[2m2025-09-25T10:42:03.050508Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-bips
+[2m2025-09-25T10:42:03.050518Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 4316 chunks for collection 'gov-bips' - this may take a while...
+[2m2025-09-25T10:42:03.600511Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:06.909370Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:07.939595Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:08.692398Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:09.378507Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:10.057054Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:11.398719Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:12.365431Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:16.053968Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:18.731972Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:28.302536Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:29.562639Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:34.277257Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:38.845029Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:39.594817Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:40.013072Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:43.823181Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:50.777063Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:52.145355Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:53.064742Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:42:53.912348Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:43:03.897246Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:43:32.545508Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:43:39.323711Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:43:40.468157Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:43:52.365605Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-bips' indexed successfully: 4316 chunks embedded and stored
+[2m2025-09-25T10:43:52.375012Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 232 documents into 4316 chunks
+[2m2025-09-25T10:43:52.382529Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-bips' with documents
+[2m2025-09-25T10:43:52.382589Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-bips' to status 'completed' progress 100.0%
+[2m2025-09-25T10:43:52.382677Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:43:52.382795Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-proposals' for project 'governance-bip-specs'
+[2m2025-09-25T10:43:52.382817Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-proposals' to status 'processing' progress 10.0%
+[2m2025-09-25T10:43:52.382830Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:43:52.438599Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:43:52.481510Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 420 documents in '../gov' for collection 'gov-proposals'
+[2m2025-09-25T10:43:52.686124Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:43:52.686175Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 420 documents
+[2m2025-09-25T10:43:52.686186Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:43:53.168636Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:43:53.171204Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-proposals' created successfully
+[2m2025-09-25T10:43:53.171240Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-proposals'
+[2m2025-09-25T10:43:53.171253Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-proposals
+[2m2025-09-25T10:43:53.171263Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 6496 chunks for collection 'gov-proposals' - this may take a while...
+[2m2025-09-25T10:43:56.697197Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:43:59.593853Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:07.601009Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:12.484640Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:23.378797Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:27.977096Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:37.600590Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:45.809948Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:50.030840Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:53.774020Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:44:58.272238Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:03.919171Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:06.571602Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:12.256609Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:22.917362Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:27.824115Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:38.172504Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:45.237379Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:47.189747Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:55.480371Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:45:56.836399Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:05.274077Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:14.742135Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:21.547788Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:27.190142Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:40.504674Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:41.884415Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:43.348618Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:44.632994Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-proposals' indexed successfully: 6496 chunks embedded and stored
+[2m2025-09-25T10:46:44.647144Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 420 documents into 6496 chunks
+[2m2025-09-25T10:46:44.657968Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-proposals' with documents
+[2m2025-09-25T10:46:44.658023Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-proposals' to status 'completed' progress 100.0%
+[2m2025-09-25T10:46:44.658060Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:46:44.659114Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-minutes' for project 'governance-bip-specs'
+[2m2025-09-25T10:46:44.659153Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-minutes' to status 'processing' progress 10.0%
+[2m2025-09-25T10:46:44.659171Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:46:44.752996Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:46:44.800422Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 420 documents in '../gov' for collection 'gov-minutes'
+[2m2025-09-25T10:46:45.018965Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:46:45.019019Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 420 documents
+[2m2025-09-25T10:46:45.019030Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:46:45.513417Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:46:45.515372Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-minutes' created successfully
+[2m2025-09-25T10:46:45.515408Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-minutes'
+[2m2025-09-25T10:46:45.515421Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-minutes
+[2m2025-09-25T10:46:45.515431Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 6496 chunks for collection 'gov-minutes' - this may take a while...
+[2m2025-09-25T10:46:50.496504Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:46:54.414060Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:47:14.962378Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:47:25.593466Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:47:43.867380Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:47:52.772465Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:48:04.498929Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:48:12.702710Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:48:19.273511Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:48:35.310098Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:48:49.215583Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:48:56.965329Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:49:10.112573Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:49:17.692162Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:49:35.481786Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-minutes' indexed successfully: 6496 chunks embedded and stored
+[2m2025-09-25T10:49:35.495912Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 420 documents into 6496 chunks
+[2m2025-09-25T10:49:35.508396Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-minutes' with documents
+[2m2025-09-25T10:49:35.508453Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-minutes' to status 'completed' progress 100.0%
+[2m2025-09-25T10:49:35.508483Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.509164Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-guidelines' for project 'governance-bip-specs'
+[2m2025-09-25T10:49:35.509206Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-guidelines' to status 'processing' progress 10.0%
+[2m2025-09-25T10:49:35.509225Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.597148Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:35.619146Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 34 documents in '../gov' for collection 'gov-guidelines'
+[2m2025-09-25T10:49:35.634858Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:35.634890Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 34 documents
+[2m2025-09-25T10:49:35.634900Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:49:35.671425Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:49:35.673829Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-guidelines' created successfully
+[2m2025-09-25T10:49:35.673863Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-guidelines'
+[2m2025-09-25T10:49:35.673876Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-guidelines
+[2m2025-09-25T10:49:35.673887Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 498 chunks for collection 'gov-guidelines' - this may take a while...
+[2m2025-09-25T10:49:35.848227Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-guidelines' indexed successfully: 498 chunks embedded and stored
+[2m2025-09-25T10:49:35.848958Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 34 documents into 498 chunks
+[2m2025-09-25T10:49:35.849740Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-guidelines' with documents
+[2m2025-09-25T10:49:35.849768Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-guidelines' to status 'completed' progress 100.0%
+[2m2025-09-25T10:49:35.849788Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.849917Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-issues' for project 'governance-bip-specs'
+[2m2025-09-25T10:49:35.849933Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-issues' to status 'processing' progress 10.0%
+[2m2025-09-25T10:49:35.849943Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.855676Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:35.870233Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-issues'
+[2m2025-09-25T10:49:35.870272Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory
+[2m2025-09-25T10:49:35.870286Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-issues' with documents
+[2m2025-09-25T10:49:35.870298Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-issues' to status 'completed' progress 100.0%
+[2m2025-09-25T10:49:35.870323Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.870345Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-teams' for project 'governance-bip-specs'
+[2m2025-09-25T10:49:35.870361Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-teams' to status 'processing' progress 10.0%
+[2m2025-09-25T10:49:35.870373Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.875966Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:35.890135Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 1 documents in '../gov' for collection 'gov-teams'
+[2m2025-09-25T10:49:35.891517Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:35.891537Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 1 documents
+[2m2025-09-25T10:49:35.891547Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:49:35.894817Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:49:35.896696Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-teams' created successfully
+[2m2025-09-25T10:49:35.896722Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-teams'
+[2m2025-09-25T10:49:35.896734Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-teams
+[2m2025-09-25T10:49:35.896743Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 33 chunks for collection 'gov-teams' - this may take a while...
+[2m2025-09-25T10:49:35.907612Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-teams' indexed successfully: 33 chunks embedded and stored
+[2m2025-09-25T10:49:35.907705Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 1 documents into 33 chunks
+[2m2025-09-25T10:49:35.907811Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-teams' with documents
+[2m2025-09-25T10:49:35.907827Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-teams' to status 'completed' progress 100.0%
+[2m2025-09-25T10:49:35.907851Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.907914Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'gov-docs' for project 'governance-bip-specs'
+[2m2025-09-25T10:49:35.907937Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-docs' to status 'processing' progress 10.0%
+[2m2025-09-25T10:49:35.907948Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:49:35.908700Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:35.941796Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 232 documents in '../gov' for collection 'gov-docs'
+[2m2025-09-25T10:49:36.082243Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../gov/.vectorizer/cache.bin
+[2m2025-09-25T10:49:36.082296Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 232 documents
+[2m2025-09-25T10:49:36.082308Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:49:36.406774Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:49:36.409146Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-docs' created successfully
+[2m2025-09-25T10:49:36.409189Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-docs'
+[2m2025-09-25T10:49:36.409201Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-docs
+[2m2025-09-25T10:49:36.409209Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 4316 chunks for collection 'gov-docs' - this may take a while...
+[2m2025-09-25T10:49:46.749241Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:49:50.708445Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:49:55.510281Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:50:00.546823Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:50:12.071651Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:50:15.324151Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:50:56.954403Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:50:59.079129Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:51:27.754339Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-docs' indexed successfully: 4316 chunks embedded and stored
+[2m2025-09-25T10:51:27.763235Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 232 documents into 4316 chunks
+[2m2025-09-25T10:51:27.769714Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'gov-docs' with documents
+[2m2025-09-25T10:51:27.769758Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'gov-docs' to status 'completed' progress 100.0%
+[2m2025-09-25T10:51:27.769789Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:27.770361Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: governance-dashboard
+[2m2025-09-25T10:51:27.770380Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'governance_dashboard' for project 'governance-dashboard'
+[2m2025-09-25T10:51:27.770417Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_dashboard' to status 'processing' progress 10.0%
+[2m2025-09-25T10:51:27.770431Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:27.771400Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:27.788030Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 113 documents in '../governance' for collection 'governance_dashboard'
+[2m2025-09-25T10:51:27.853254Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:27.853294Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 113 documents
+[2m2025-09-25T10:51:27.853304Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:27.978955Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:27.981257Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'governance_dashboard' created successfully
+[2m2025-09-25T10:51:27.981287Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'governance_dashboard'
+[2m2025-09-25T10:51:27.981298Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: governance_dashboard
+[2m2025-09-25T10:51:27.981305Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1817 chunks for collection 'governance_dashboard' - this may take a while...
+[2m2025-09-25T10:51:39.360928Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:51:40.474175Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'governance_dashboard' indexed successfully: 1817 chunks embedded and stored
+[2m2025-09-25T10:51:40.477862Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 113 documents into 1817 chunks
+[2m2025-09-25T10:51:40.480922Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'governance_dashboard' with documents
+[2m2025-09-25T10:51:40.480950Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_dashboard' to status 'completed' progress 100.0%
+[2m2025-09-25T10:51:40.480978Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:40.481264Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'governance_configurations' for project 'governance-dashboard'
+[2m2025-09-25T10:51:40.481299Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_configurations' to status 'processing' progress 10.0%
+[2m2025-09-25T10:51:40.481313Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:40.504798Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:40.513516Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 7 documents in '../governance' for collection 'governance_configurations'
+[2m2025-09-25T10:51:40.514513Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../governance/.vectorizer/cache.bin
+[2m2025-09-25T10:51:40.514541Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 7 documents
+[2m2025-09-25T10:51:40.514587Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:40.516325Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:40.517897Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'governance_configurations' created successfully
+[2m2025-09-25T10:51:40.517928Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'governance_configurations'
+[2m2025-09-25T10:51:40.517941Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: governance_configurations
+[2m2025-09-25T10:51:40.517950Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 28 chunks for collection 'governance_configurations' - this may take a while...
+[2m2025-09-25T10:51:40.524644Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'governance_configurations' indexed successfully: 28 chunks embedded and stored
+[2m2025-09-25T10:51:40.524704Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 7 documents into 28 chunks
+[2m2025-09-25T10:51:40.524802Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'governance_configurations' with documents
+[2m2025-09-25T10:51:40.524815Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'governance_configurations' to status 'completed' progress 100.0%
+[2m2025-09-25T10:51:40.524838Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:40.524933Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: ts-workspace
+[2m2025-09-25T10:51:40.524945Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'ts-workspace' for project 'ts-workspace'
+[2m2025-09-25T10:51:40.524961Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace' to status 'processing' progress 10.0%
+[2m2025-09-25T10:51:40.524996Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:40.526193Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:51:40.539407Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 81 documents in '../ts-workspace' for collection 'ts-workspace'
+[2m2025-09-25T10:51:40.569586Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:51:40.595877Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:51:40.595929Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 81 documents
+[2m2025-09-25T10:51:40.595940Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:40.699127Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:40.701384Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace' created successfully
+[2m2025-09-25T10:51:40.701417Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'ts-workspace'
+[2m2025-09-25T10:51:40.701429Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: ts-workspace
+[2m2025-09-25T10:51:40.701439Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1511 chunks for collection 'ts-workspace' - this may take a while...
+[2m2025-09-25T10:51:53.407198Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'ts-workspace' indexed successfully: 1511 chunks embedded and stored
+[2m2025-09-25T10:51:53.409820Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 81 documents into 1511 chunks
+[2m2025-09-25T10:51:53.412189Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'ts-workspace' with documents
+[2m2025-09-25T10:51:53.412205Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace' to status 'completed' progress 100.0%
+[2m2025-09-25T10:51:53.412230Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:53.412596Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'ts-workspace-configurations' for project 'ts-workspace'
+[2m2025-09-25T10:51:53.412618Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace-configurations' to status 'processing' progress 10.0%
+[2m2025-09-25T10:51:53.412633Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:53.432688Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:51:53.439957Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 14 documents in '../ts-workspace' for collection 'ts-workspace-configurations'
+[2m2025-09-25T10:51:53.442189Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../ts-workspace/.vectorizer/cache.bin
+[2m2025-09-25T10:51:53.442207Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 14 documents
+[2m2025-09-25T10:51:53.442217Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:53.445762Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:53.447543Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace-configurations' created successfully
+[2m2025-09-25T10:51:53.447571Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'ts-workspace-configurations'
+[2m2025-09-25T10:51:53.447585Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: ts-workspace-configurations
+[2m2025-09-25T10:51:53.447595Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 56 chunks for collection 'ts-workspace-configurations' - this may take a while...
+[2m2025-09-25T10:51:53.462954Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'ts-workspace-configurations' indexed successfully: 56 chunks embedded and stored
+[2m2025-09-25T10:51:53.463056Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 14 documents into 56 chunks
+[2m2025-09-25T10:51:53.463286Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'ts-workspace-configurations' with documents
+[2m2025-09-25T10:51:53.463300Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'ts-workspace-configurations' to status 'completed' progress 100.0%
+[2m2025-09-25T10:51:53.463323Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:53.463405Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: cursor-extension
+[2m2025-09-25T10:51:53.463417Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'cursor-extension' for project 'cursor-extension'
+[2m2025-09-25T10:51:53.463434Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'cursor-extension' to status 'processing' progress 10.0%
+[2m2025-09-25T10:51:53.463446Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:51:53.478389Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:51:53.494233Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 97 documents in '../cursor-extension' for collection 'cursor-extension'
+[2m2025-09-25T10:51:53.533513Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:51:53.533560Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 97 documents
+[2m2025-09-25T10:51:53.533572Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:51:53.597489Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:51:53.599353Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'cursor-extension' created successfully
+[2m2025-09-25T10:51:53.599387Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'cursor-extension'
+[2m2025-09-25T10:51:53.599399Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: cursor-extension
+[2m2025-09-25T10:51:53.599409Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1193 chunks for collection 'cursor-extension' - this may take a while...
+[2m2025-09-25T10:51:55.954908Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:52:03.027977Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:52:05.235992Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'cursor-extension' indexed successfully: 1193 chunks embedded and stored
+[2m2025-09-25T10:52:05.238449Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 97 documents into 1193 chunks
+[2m2025-09-25T10:52:05.240965Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'cursor-extension' with documents
+[2m2025-09-25T10:52:05.240990Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'cursor-extension' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:05.241022Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:05.241216Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'scripts' for project 'cursor-extension'
+[2m2025-09-25T10:52:05.241249Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'scripts' to status 'processing' progress 10.0%
+[2m2025-09-25T10:52:05.241262Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:05.258629Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:52:05.272473Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 76 documents in '../cursor-extension' for collection 'scripts'
+[2m2025-09-25T10:52:05.314537Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../cursor-extension/.vectorizer/cache.bin
+[2m2025-09-25T10:52:05.314581Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 76 documents
+[2m2025-09-25T10:52:05.314592Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:05.387647Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:05.389915Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'scripts' created successfully
+[2m2025-09-25T10:52:05.389950Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'scripts'
+[2m2025-09-25T10:52:05.389965Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: scripts
+[2m2025-09-25T10:52:05.389977Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1201 chunks for collection 'scripts' - this may take a while...
+[2m2025-09-25T10:52:17.539156Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'scripts' indexed successfully: 1201 chunks embedded and stored
+[2m2025-09-25T10:52:17.542001Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 76 documents into 1201 chunks
+[2m2025-09-25T10:52:17.545053Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'scripts' with documents
+[2m2025-09-25T10:52:17.545091Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'scripts' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:17.545123Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:17.545526Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: py-env-security
+[2m2025-09-25T10:52:17.545541Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'py-env-security' for project 'py-env-security'
+[2m2025-09-25T10:52:17.545559Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'py-env-security' to status 'processing' progress 10.0%
+[2m2025-09-25T10:52:17.545573Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:17.554313Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../py-env-security/.vectorizer/cache.bin
+[2m2025-09-25T10:52:17.556894Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 24 documents in '../py-env-security' for collection 'py-env-security'
+[2m2025-09-25T10:52:17.573584Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../py-env-security/.vectorizer/cache.bin
+[2m2025-09-25T10:52:17.573614Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 24 documents
+[2m2025-09-25T10:52:17.573625Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:17.611105Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:17.613541Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'py-env-security' created successfully
+[2m2025-09-25T10:52:17.613575Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'py-env-security'
+[2m2025-09-25T10:52:17.613588Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: py-env-security
+[2m2025-09-25T10:52:17.613598Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 498 chunks for collection 'py-env-security' - this may take a while...
+[2m2025-09-25T10:52:17.787705Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'py-env-security' indexed successfully: 498 chunks embedded and stored
+[2m2025-09-25T10:52:17.788673Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 24 documents into 498 chunks
+[2m2025-09-25T10:52:17.790001Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'py-env-security' with documents
+[2m2025-09-25T10:52:17.790017Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'py-env-security' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:17.790041Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:17.790238Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: umicp
+[2m2025-09-25T10:52:17.790256Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'umicp_protocol_docs' for project 'umicp'
+[2m2025-09-25T10:52:17.790275Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_protocol_docs' to status 'processing' progress 10.0%
+[2m2025-09-25T10:52:17.790334Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:17.814918Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:17.823067Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 19 documents in '../umicp' for collection 'umicp_protocol_docs'
+[2m2025-09-25T10:52:17.839704Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:17.839741Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 19 documents
+[2m2025-09-25T10:52:17.839751Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:17.881906Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:17.884122Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_protocol_docs' created successfully
+[2m2025-09-25T10:52:17.884148Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'umicp_protocol_docs'
+[2m2025-09-25T10:52:17.884160Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: umicp_protocol_docs
+[2m2025-09-25T10:52:17.884169Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 519 chunks for collection 'umicp_protocol_docs' - this may take a while...
+[2m2025-09-25T10:52:18.073484Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'umicp_protocol_docs' indexed successfully: 519 chunks embedded and stored
+[2m2025-09-25T10:52:18.074496Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 19 documents into 519 chunks
+[2m2025-09-25T10:52:18.075769Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'umicp_protocol_docs' with documents
+[2m2025-09-25T10:52:18.075795Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_protocol_docs' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:18.075822Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:18.075969Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'umicp_cpp_implementation' for project 'umicp'
+[2m2025-09-25T10:52:18.076031Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_cpp_implementation' to status 'processing' progress 10.0%
+[2m2025-09-25T10:52:18.076046Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:18.082723Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:18.092337Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 67 documents in '../umicp' for collection 'umicp_cpp_implementation'
+[2m2025-09-25T10:52:18.136818Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../umicp/.vectorizer/cache.bin
+[2m2025-09-25T10:52:18.136872Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 67 documents
+[2m2025-09-25T10:52:18.136887Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:18.234029Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:18.236135Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_cpp_implementation' created successfully
+[2m2025-09-25T10:52:18.236162Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'umicp_cpp_implementation'
+[2m2025-09-25T10:52:18.236172Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: umicp_cpp_implementation
+[2m2025-09-25T10:52:18.236181Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1717 chunks for collection 'umicp_cpp_implementation' - this may take a while...
+[2m2025-09-25T10:52:30.523297Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'umicp_cpp_implementation' indexed successfully: 1717 chunks embedded and stored
+[2m2025-09-25T10:52:30.527025Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 67 documents into 1717 chunks
+[2m2025-09-25T10:52:30.531435Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'umicp_cpp_implementation' with documents
+[2m2025-09-25T10:52:30.531474Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'umicp_cpp_implementation' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:30.531505Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:30.531887Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading project: chat-hub
+[2m2025-09-25T10:52:30.531902Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'chat-hub' for project 'chat-hub'
+[2m2025-09-25T10:52:30.531919Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub' to status 'processing' progress 10.0%
+[2m2025-09-25T10:52:30.531934Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:30.536257Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:30.537910Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 9 documents in '../chat-hub' for collection 'chat-hub'
+[2m2025-09-25T10:52:30.569305Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:30.569351Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 9 documents
+[2m2025-09-25T10:52:30.569363Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:30.654755Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:30.656608Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'chat-hub' created successfully
+[2m2025-09-25T10:52:30.656638Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'chat-hub'
+[2m2025-09-25T10:52:30.656648Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: chat-hub
+[2m2025-09-25T10:52:30.656656Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 1203 chunks for collection 'chat-hub' - this may take a while...
+[2m2025-09-25T10:52:40.847723Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'chat-hub' indexed successfully: 1203 chunks embedded and stored
+[2m2025-09-25T10:52:40.850192Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 9 documents into 1203 chunks
+[2m2025-09-25T10:52:40.853215Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'chat-hub' with documents
+[2m2025-09-25T10:52:40.853241Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:40.853271Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:40.853597Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Loading collection 'chat-hub-monitoring' for project 'chat-hub'
+[2m2025-09-25T10:52:40.853620Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub-monitoring' to status 'processing' progress 10.0%
+[2m2025-09-25T10:52:40.853635Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:40.870507Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Loaded cache from: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:40.874093Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 5 documents in '../chat-hub' for collection 'chat-hub-monitoring'
+[2m2025-09-25T10:52:40.882141Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Saved cache to: ../chat-hub/.vectorizer/cache.bin
+[2m2025-09-25T10:52:40.882169Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 5 documents
+[2m2025-09-25T10:52:40.882179Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T10:52:40.901927Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T10:52:40.903847Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'chat-hub-monitoring' created successfully
+[2m2025-09-25T10:52:40.903879Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'chat-hub-monitoring'
+[2m2025-09-25T10:52:40.903889Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: chat-hub-monitoring
+[2m2025-09-25T10:52:40.903897Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 267 chunks for collection 'chat-hub-monitoring' - this may take a while...
+[2m2025-09-25T10:52:40.998529Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'chat-hub-monitoring' indexed successfully: 267 chunks embedded and stored
+[2m2025-09-25T10:52:40.999000Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 5 documents into 267 chunks
+[2m2025-09-25T10:52:40.999998Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Successfully loaded collection 'chat-hub-monitoring' with documents
+[2m2025-09-25T10:52:41.000016Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Updating progress for 'chat-hub-monitoring' to status 'completed' progress 100.0%
+[2m2025-09-25T10:52:41.000039Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 📊 Progress map updated: 18 -> 18 entries
+[2m2025-09-25T10:52:41.000323Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Background workspace indexing completed: 18 collections loaded
+[2m2025-09-25T10:52:44.036652Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:52:45.405019Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:52:54.134897Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T10:55:21.167057Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T11:06:18.868376Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T11:06:19.834074Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T11:06:28.769188Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T11:08:38.377651Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
+[2m2025-09-25T11:10:30.874164Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 18 entries
