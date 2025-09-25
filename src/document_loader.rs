@@ -486,6 +486,15 @@ impl DocumentLoader {
         if let Some(cache_manager) = &self.cache_manager {
             self.update_cache_metadata(cache_manager, project_path, store).await?;
         }
+
+        // Save collection metadata
+        let mut metadata = self.create_metadata_from_config(project_path);
+        if let Err(e) = self.update_metadata_with_files(&mut metadata, &documents) {
+            warn!("Failed to update metadata with files: {}", e);
+        }
+        if let Err(e) = self.save_metadata(project_path, &metadata) {
+            warn!("Failed to save metadata: {}", e);
+        }
         
         Ok((vector_count, false))
     }
@@ -517,6 +526,13 @@ impl DocumentLoader {
         let app_collection = app_store.get_collection(collection_name)?;
         app_collection.fast_load_vectors(vectors)?;
         println!("✅ Successfully loaded {} vectors from cache (fast mode)", vector_count);
+        
+        // Try to load metadata if it exists
+        if let Some(project_path) = path.parent().and_then(|p| p.parent()) {
+            if let Ok(Some(metadata)) = self.load_metadata(project_path.to_str().unwrap()) {
+                debug!("Loaded metadata for collection '{}' with {} indexed files", collection_name, metadata.files.len());
+            }
+        }
         
         Ok(vector_count)
     }
