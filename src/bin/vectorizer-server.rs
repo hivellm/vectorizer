@@ -257,9 +257,9 @@ fn load_workspace_projects(
                                 // Update progress: completed
                                 if let Some(tracker) = progress_tracker {
                                     update_indexing_progress(tracker, collection_name, "completed", 100.0, 1, 1);
-                                }
-                            }
-                            Err(e) => {
+                    }
+                }
+                Err(e) => {
                                 warn!("Failed to load collection '{}': {}", collection_name, e);
 
                                 // Update progress: failed
