@@ -301,6 +301,15 @@ impl Collection {
         for mut vector in vectors {
             let id = vector.id.clone();
 
+            // Extract document ID from payload for tracking unique documents
+            if let Some(payload) = &vector.payload {
+                if let Some(file_path) = payload.data.get("file_path") {
+                    if let Some(file_path_str) = file_path.as_str() {
+                        self.document_ids.insert(file_path_str.to_string(), ());
+                    }
+                }
+            }
+
             // Normalize vector for cosine similarity (but don't add to index yet)
             if matches!(self.config.metric, crate::models::DistanceMetric::Cosine) {
                 vector.data = crate::models::vector_utils::normalize_vector(&vector.data);
