@@ -25,6 +25,23 @@ pub struct CreateCollectionResponse {
     pub collection: String,
 }
 
+/// Indexing status for collections
+#[derive(Debug, Serialize, Clone)]
+pub struct IndexingStatus {
+    /// Current status
+    pub status: String,
+    /// Progress percentage (0-100)
+    pub progress: f32,
+    /// Total documents to process
+    pub total_documents: usize,
+    /// Documents processed so far
+    pub processed_documents: usize,
+    /// Estimated time remaining (in seconds, if available)
+    pub estimated_time_remaining: Option<u64>,
+    /// Last update timestamp
+    pub last_updated: String,
+}
+
 /// Collection information
 #[derive(Debug, Serialize)]
 pub struct CollectionInfo {
@@ -40,6 +57,8 @@ pub struct CollectionInfo {
     pub created_at: String,
     /// Last update timestamp
     pub updated_at: String,
+    /// Indexing status
+    pub indexing_status: IndexingStatus,
 }
 
 /// List collections response
@@ -47,6 +66,19 @@ pub struct CollectionInfo {
 pub struct ListCollectionsResponse {
     /// Collections list
     pub collections: Vec<CollectionInfo>,
+}
+
+/// Indexing progress response
+#[derive(Debug, Serialize)]
+pub struct IndexingProgressResponse {
+    /// Overall indexing status
+    pub overall_status: String,
+    /// Collections being indexed
+    pub collections: Vec<IndexingStatus>,
+    /// Start time of indexing process
+    pub started_at: String,
+    /// Estimated completion time
+    pub estimated_completion: Option<String>,
 }
 
 /// Vector information

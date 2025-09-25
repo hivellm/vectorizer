@@ -19,6 +19,17 @@ use crate::{
 use std::sync::Mutex;
 
 use super::types::*;
+use std::collections::HashMap;
+
+/// Workspace collection definition
+#[derive(Clone, Debug)]
+pub struct WorkspaceCollection {
+    pub name: String,
+    pub description: String,
+    pub dimension: u64,
+    pub metric: String,
+    pub model: String,
+}
 
 /// Application state shared across handlers
 #[derive(Clone)]
@@ -29,24 +40,126 @@ pub struct AppState {
     pub embedding_manager: Arc<Mutex<EmbeddingManager>>,
     /// Server start time for uptime calculation
     pub start_time: Instant,
+    /// Indexing progress tracking
+    pub indexing_progress: Arc<Mutex<HashMap<String, IndexingStatus>>>,
+    /// Workspace collections (all defined collections, even if not yet indexed)
+    pub workspace_collections: Vec<WorkspaceCollection>,
 }
 
 impl AppState {
     /// Create new application state
     pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager) -> Self {
         // Check if BM25 vocabulary is empty and needs rebuilding
-        if let Some(provider) = embedding_manager.get_provider_mut("bm25") {
-            if let Some(bm25) = provider.as_any_mut().downcast_ref::<crate::embedding::Bm25Embedding>() {
-                if bm25.vocabulary_size() == 0 {
-                    eprintln!("WARNING: BM25 vocabulary is empty after transfer. This is expected - vocabulary is built during document loading.");
-                }
+        // Note: Vocabulary is built during document loading, so empty here is expected
+
+        // Initialize indexing progress for existing collections
+        let mut indexing_progress = HashMap::new();
+        for collection_name in store.list_collections() {
+            indexing_progress.insert(collection_name, IndexingStatus {
+                status: "completed".to_string(),
+                progress: 100.0,
+                total_documents: 0, // Will be updated when we have stats
+                processed_documents: 0,
+                estimated_time_remaining: None,
+                last_updated: Utc::now().to_rfc3339(),
+            });
+        }
+
+        // Load workspace collections
+        let workspace_collections = Self::load_workspace_collections();
+
+        // Initialize indexing progress for all workspace collections
+        for collection in &workspace_collections {
+            if !indexing_progress.contains_key(&collection.name) {
+                indexing_progress.insert(collection.name.clone(), IndexingStatus {
+                    status: "pending".to_string(),
+                    progress: 0.0,
+                    total_documents: 0,
+                    processed_documents: 0,
+                    estimated_time_remaining: None,
+                    last_updated: Utc::now().to_rfc3339(),
+                });
             }
         }
-        
+
         Self {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
             start_time: Instant::now(),
+            indexing_progress: Arc::new(Mutex::new(indexing_progress)),
+            workspace_collections,
+        }
+    }
+
+    /// Load workspace collections from environment variable
+    pub fn load_workspace_collections() -> Vec<WorkspaceCollection> {
+        if let Ok(workspace_path) = std::env::var("VECTORIZER_WORKSPACE_INFO") {
+            if let Ok(content) = std::fs::read_to_string(&workspace_path) {
+                if let Ok(workspace_json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(projects) = workspace_json.get("projects").and_then(|p| p.as_array()) {
+                        let mut collections = Vec::new();
+                        for project in projects {
+                            if let Some(project_collections) = project.get("collections").and_then(|c| c.as_array()) {
+                                for collection in project_collections {
+                                    if let (Some(name), Some(description)) = (
+                                        collection.get("name").and_then(|n| n.as_str()),
+                                        collection.get("description").and_then(|d| d.as_str())
+                                    ) {
+                                        let dimension = collection.get("dimension").and_then(|d| d.as_u64()).unwrap_or(512);
+                                        let metric = collection.get("metric").and_then(|m| m.as_str()).unwrap_or("cosine").to_string();
+                                        let model = collection.get("embedding").and_then(|e| e.get("model")).and_then(|m| m.as_str()).unwrap_or("bm25").to_string();
+
+                                        collections.push(WorkspaceCollection {
+                                            name: name.to_string(),
+                                            description: description.to_string(),
+                                            dimension,
+                                            metric,
+                                            model,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        return collections;
+                    }
+                }
+            }
+        }
+        Vec::new()
+    }
+
+    /// Create new application state with shared indexing progress
+    pub fn new_with_progress(
+        store: Arc<VectorStore>,
+        embedding_manager: EmbeddingManager,
+        indexing_progress: Arc<Mutex<HashMap<String, IndexingStatus>>>
+    ) -> Self {
+        // Load workspace collections
+        let workspace_collections = Self::load_workspace_collections();
+
+        // Initialize indexing progress for all workspace collections
+        {
+            let mut progress = indexing_progress.lock().unwrap();
+            for collection in &workspace_collections {
+                if !progress.contains_key(&collection.name) {
+                    progress.insert(collection.name.clone(), IndexingStatus {
+                        status: "pending".to_string(),
+                        progress: 0.0,
+                        total_documents: 0,
+                        processed_documents: 0,
+                        estimated_time_remaining: None,
+                        last_updated: Utc::now().to_rfc3339(),
+                    });
+                }
+            }
+        }
+
+        Self {
+            store,
+            embedding_manager: Arc::new(Mutex::new(embedding_manager)),
+            start_time: Instant::now(),
+            indexing_progress,
+            workspace_collections,
         }
     }
 }
@@ -81,11 +194,58 @@ pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse>
 pub async fn list_collections(State(state): State<AppState>) -> Json<ListCollectionsResponse> {
     debug!("Listing collections");
 
-    let collections = state.store.list_collections();
+    let existing_collections = state.store.list_collections();
     let mut collection_infos = Vec::new();
 
-    for name in collections {
-        if let Ok(metadata) = state.store.get_collection_metadata(&name) {
+    let indexing_progress = state.indexing_progress.lock().unwrap();
+    info!("📊 API: Indexing progress map has {} entries", indexing_progress.len());
+
+    // First, add all workspace-defined collections
+    for workspace_collection in &state.workspace_collections {
+        let name = &workspace_collection.name;
+
+        let (metadata, indexing_status) = if existing_collections.contains(name) {
+            // Collection exists in vector store
+            if let Ok(metadata) = state.store.get_collection_metadata(name) {
+                let status = indexing_progress.get(name)
+                    .cloned()
+                    .unwrap_or_else(|| IndexingStatus {
+                        status: "completed".to_string(),
+                        progress: 100.0,
+                        total_documents: 0,
+                        processed_documents: 0,
+                        estimated_time_remaining: None,
+                        last_updated: Utc::now().to_rfc3339(),
+                    });
+
+                (Some(metadata), status)
+            } else {
+                // Collection exists but can't get metadata - show as error
+                (None, IndexingStatus {
+                    status: "error".to_string(),
+                    progress: 0.0,
+                    total_documents: 0,
+                    processed_documents: 0,
+                    estimated_time_remaining: None,
+                    last_updated: Utc::now().to_rfc3339(),
+                })
+            }
+        } else {
+            // Collection defined in workspace but not yet indexed
+            (None, indexing_progress.get(name)
+                .cloned()
+                .unwrap_or_else(|| IndexingStatus {
+                    status: "pending".to_string(),
+                    progress: 0.0,
+                    total_documents: 0,
+                    processed_documents: 0,
+                    estimated_time_remaining: None,
+                    last_updated: Utc::now().to_rfc3339(),
+                }))
+        };
+
+        if let Some(metadata) = metadata {
+            // Collection exists
             collection_infos.push(CollectionInfo {
                 name: metadata.name,
                 dimension: metadata.config.dimension,
@@ -93,12 +253,104 @@ pub async fn list_collections(State(state): State<AppState>) -> Json<ListCollect
                 vector_count: metadata.vector_count,
                 created_at: metadata.created_at.to_rfc3339(),
                 updated_at: metadata.updated_at.to_rfc3339(),
+                indexing_status,
             });
+        } else {
+            // Collection defined but not yet created
+            collection_infos.push(CollectionInfo {
+                name: workspace_collection.name.clone(),
+                dimension: workspace_collection.dimension as usize,
+                metric: match workspace_collection.metric.as_str() {
+                    "cosine" => crate::api::types::DistanceMetric::Cosine,
+                    "euclidean" => crate::api::types::DistanceMetric::Euclidean,
+                    "dot_product" => crate::api::types::DistanceMetric::DotProduct,
+                    _ => crate::api::types::DistanceMetric::Cosine,
+                },
+                vector_count: 0,
+                created_at: Utc::now().to_rfc3339(), // Placeholder
+                updated_at: Utc::now().to_rfc3339(), // Placeholder
+                indexing_status,
+            });
+        }
+    }
+
+    // Also add any collections that exist in vector store but are not in workspace (legacy)
+    for name in existing_collections {
+        if !state.workspace_collections.iter().any(|wc| wc.name == name) {
+            if let Ok(metadata) = state.store.get_collection_metadata(&name) {
+                let indexing_status = indexing_progress.get(&name)
+                    .cloned()
+                    .unwrap_or_else(|| IndexingStatus {
+                        status: "completed".to_string(),
+                        progress: 100.0,
+                        total_documents: 0,
+                        processed_documents: 0,
+                        estimated_time_remaining: None,
+                        last_updated: Utc::now().to_rfc3339(),
+                    });
+
+                collection_infos.push(CollectionInfo {
+                    name: metadata.name,
+                    dimension: metadata.config.dimension,
+                    metric: metadata.config.metric.into(),
+                    vector_count: metadata.vector_count,
+                    created_at: metadata.created_at.to_rfc3339(),
+                    updated_at: metadata.updated_at.to_rfc3339(),
+                    indexing_status,
+                });
+            }
         }
     }
 
     Json(ListCollectionsResponse {
         collections: collection_infos,
+    })
+}
+
+/// Get indexing progress
+pub async fn get_indexing_progress(State(state): State<AppState>) -> Json<IndexingProgressResponse> {
+    debug!("Getting indexing progress");
+
+    let indexing_progress = state.indexing_progress.lock().unwrap();
+    let collections: Vec<IndexingStatus> = indexing_progress.values().cloned().collect();
+
+    // Determine overall status
+    let overall_status = if collections.is_empty() {
+        "idle".to_string()
+    } else if collections.iter().all(|c| c.status == "completed") {
+        "completed".to_string()
+    } else if collections.iter().any(|c| c.status == "indexing") {
+        "indexing".to_string()
+    } else {
+        "partial".to_string()
+    };
+
+    // Calculate estimated completion time based on active collections
+    let estimated_completion = if overall_status == "indexing" {
+        let active_collections: Vec<_> = collections.iter()
+            .filter(|c| c.status == "indexing" && c.estimated_time_remaining.is_some())
+            .collect();
+
+        if !active_collections.is_empty() {
+            let max_remaining = active_collections.iter()
+                .map(|c| c.estimated_time_remaining.unwrap())
+                .max()
+                .unwrap_or(0);
+
+            let completion_time = Utc::now() + chrono::Duration::seconds(max_remaining as i64);
+            Some(completion_time.to_rfc3339())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Json(IndexingProgressResponse {
+        overall_status,
+        collections,
+        started_at: Utc::now().to_rfc3339(), // This should be tracked from when indexing started
+        estimated_completion,
     })
 }
 
@@ -176,14 +428,29 @@ pub async fn get_collection(
     debug!("Getting collection info: {}", collection_name);
 
     match state.store.get_collection_metadata(&collection_name) {
-        Ok(metadata) => Ok(Json(CollectionInfo {
-            name: metadata.name,
-            dimension: metadata.config.dimension,
-            metric: metadata.config.metric.into(),
-            vector_count: metadata.vector_count,
-            created_at: metadata.created_at.to_rfc3339(),
-            updated_at: metadata.updated_at.to_rfc3339(),
-        })),
+        Ok(metadata) => {
+            let indexing_status = state.indexing_progress.lock().unwrap()
+                .get(&collection_name)
+                .cloned()
+                .unwrap_or_else(|| IndexingStatus {
+                    status: "completed".to_string(),
+                    progress: 100.0,
+                    total_documents: metadata.vector_count,
+                    processed_documents: metadata.vector_count,
+                    estimated_time_remaining: None,
+                    last_updated: Utc::now().to_rfc3339(),
+                });
+
+            Ok(Json(CollectionInfo {
+                name: metadata.name,
+                dimension: metadata.config.dimension,
+                metric: metadata.config.metric.into(),
+                vector_count: metadata.vector_count,
+                created_at: metadata.created_at.to_rfc3339(),
+                updated_at: metadata.updated_at.to_rfc3339(),
+                indexing_status,
+            }))
+        },
         Err(_) => Err((
             StatusCode::NOT_FOUND,
             Json(ErrorResponse {
@@ -635,8 +902,7 @@ fn create_text_embedding(query: &str, dimension: usize) -> anyhow::Result<Vec<f3
     // Debug: Check if embedding is all zeros
     let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
     if non_zero_count == 0 {
-        eprintln!("WARNING: Query '{}' produced all-zero embedding!", query);
-        // Fallback: create a simple hash-based embedding
+        // Fallback: create a simple hash-based embedding for zero embeddings
         let mut fallback_embedding = vec![0.0f32; dimension];
         let mut hasher = DefaultHasher::new();
         query.hash(&mut hasher);

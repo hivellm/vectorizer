@@ -231,12 +231,7 @@ impl Bm25Embedding {
             self.doc_freq.insert(word, df);
         }
 
-        // Debug: Log vocabulary construction
-        eprintln!("Bm25Embedding vocabulary built:");
-        eprintln!("  Total documents: {}", self.total_docs);
-        eprintln!("  Vocabulary size: {}", self.vocabulary.len());
-        eprintln!("  Dimension: {}", self.dimension);
-        eprintln!("  Sample vocabulary: {:?}", self.vocabulary.iter().take(5).collect::<Vec<_>>());
+        // Vocabulary construction completed silently
     }
 
     /// Tokenize text into words (simple whitespace splitting)
@@ -659,26 +654,20 @@ impl EmbeddingProvider for TfIdfEmbedding {
         let tf = self.compute_tf(text);
         let mut embedding = vec![0.0; self.dimension];
 
-        let mut matched_terms = 0;
+        let mut _matched_terms = 0;
         for (word, tf_value) in tf {
             if let Some(&idx) = self.vocabulary.get(&word) {
                 if idx < self.dimension {
                     let idf = self.idf_weights.get(idx).unwrap_or(&1.0);
                     embedding[idx] = tf_value * idf;
-                    matched_terms += 1;
+                    _matched_terms += 1;
                 }
             }
         }
 
-        // Debug: Check if embedding is all zeros
+        // Check if embedding is all zeros (fallback to hash-based embedding)
         let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
         if non_zero_count == 0 {
-            eprintln!("WARNING: TfIdfEmbedding produced all-zero embedding for '{}'", text);
-            eprintln!("Vocabulary size: {}, Matched terms: {}", self.vocabulary.len(), matched_terms);
-            eprintln!("Sample vocabulary: {:?}", self.vocabulary.iter().take(5).collect::<Vec<_>>());
-            
-            // Fallback: Generate a simple hash-based embedding to ensure non-zero vector
-            eprintln!("Using fallback hash-based embedding");
             return Ok(self.fallback_hash_embedding(text));
         }
 
@@ -782,7 +771,7 @@ impl EmbeddingProvider for Bm25Embedding {
 
         // Calculate BM25 scores for each term in vocabulary
         let mut embedding = vec![0.0; self.dimension];
-        let mut matched_terms = 0;
+        let mut _matched_terms = 0;
         for (term, &vocab_index) in &self.vocabulary {
             if vocab_index >= self.dimension {
                 continue;
@@ -793,7 +782,7 @@ impl EmbeddingProvider for Bm25Embedding {
 
             if tf > 0 {
                 embedding[vocab_index] = self.bm25_score(tf, doc_length, df);
-                matched_terms += 1;
+                _matched_terms += 1;
             }
         }
 
@@ -826,7 +815,6 @@ impl EmbeddingProvider for Bm25Embedding {
             }
 
             // Downgrade severity: this is expected for OOV queries
-            eprintln!("INFO: BM25 OOV hashing used for '{}'; vocab size {}", text, self.vocabulary.len());
             return Ok(final_embedding);
         }
 

@@ -40,6 +40,15 @@ impl VectorizerServer {
         Self { addr, state }
     }
 
+    /// Create a new server instance with existing AppState
+    pub fn new_with_state(host: &str, port: u16, state: AppState) -> Self {
+        let addr = format!("{}:{}", host, port)
+            .parse()
+            .expect("Invalid host/port combination");
+
+        Self { addr, state }
+    }
+
     /// Start the HTTP server
     pub async fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Starting Vectorizer HTTP server on {}", self.addr);

@@ -9,6 +9,9 @@ use std::process::{Command, Stdio};
 use tokio::process::Command as TokioCommand;
 use tracing_subscriber;
 
+#[cfg(target_os = "linux")]
+use libc::setsid;
+
 #[derive(Parser)]
 #[command(name = "vectorizer")]
 #[command(about = "Unified Vectorizer CLI for running servers and managing services")]
@@ -114,7 +117,7 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     use tokio::signal;
 
     println!("Starting MCP server...");
-    let mcp_child = TokioCommand::new("cargo")
+    let mut mcp_child = TokioCommand::new("cargo")
         .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -127,7 +130,7 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
     println!("Starting REST API server...");
-    let rest_child = TokioCommand::new("cargo")
+    let mut rest_child = TokioCommand::new("cargo")
         .args(&[
             "run", "--bin", "vectorizer-server", "--",
             "--host", &host,
@@ -170,9 +173,12 @@ async fn run_as_daemon(project: PathBuf, host: String, port: u16, mcp_port: u16)
                 .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
-                .pre_exec(|| {
+                .pre_exec(|| unsafe {
                     // Detach from controlling terminal
-                    setsid().map(|_| ()).map_err(|_| std::io::Error::last_os_error())
+                    if setsid() == -1 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    Ok(())
                 })
                 .spawn()
         };
@@ -210,12 +216,12 @@ async fn stop_servers() {
     let mcp_pids = find_processes("vectorizer-mcp-server");
     let rest_pids = find_processes("vectorizer-server");
 
-    for pid in mcp_pids {
+    for pid in &mcp_pids {
         println!("Stopping MCP server (PID: {})", pid);
         let _ = Command::new("kill").arg(&pid.to_string()).status();
     }
 
-    for pid in rest_pids {
+    for pid in &rest_pids {
         println!("Stopping REST server (PID: {})", pid);
         let _ = Command::new("kill").arg(&pid.to_string()).status();
     }
@@ -278,7 +284,7 @@ WantedBy=multi-user.target
         );
 
         let service_path = "/etc/systemd/system/vectorizer.service";
-        match fs::write(service_path, service_content) {
+        match std::fs::write(service_path, service_content) {
             Ok(_) => {
                 println!("✅ Service file created: {}", service_path);
                 println!("📋 To enable: sudo systemctl enable vectorizer");

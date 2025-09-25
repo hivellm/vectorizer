@@ -12,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     time::SystemTime,
 };
+use glob::Pattern;
 use tracing::{debug, info, warn, error};
 
 /// Document chunk with metadata
@@ -56,8 +57,12 @@ pub struct LoaderConfig {
     pub max_chunk_size: usize,
     /// Overlap between chunks in characters
     pub chunk_overlap: usize,
-    /// File extensions to process
+    /// File extensions to process (legacy - use include_patterns instead)
     pub allowed_extensions: Vec<String>,
+    /// Glob patterns for files to include
+    pub include_patterns: Vec<String>,
+    /// Glob patterns for files/directories to exclude
+    pub exclude_patterns: Vec<String>,
     /// Embedding dimension
     pub embedding_dimension: usize,
     /// Embedding type to use
@@ -136,6 +141,15 @@ impl Default for LoaderConfig {
                 "thrift".to_string(),
                 "avro".to_string(),
             ],
+            include_patterns: vec!["**/*.md".to_string(), "**/*.txt".to_string(), "**/*.json".to_string()],
+            exclude_patterns: vec![
+                "**/node_modules/**".to_string(),
+                "**/target/**".to_string(),
+                "**/dist/**".to_string(),
+                "**/__pycache__/**".to_string(),
+                "**/.git/**".to_string(),
+                "**/.vectorizer/**".to_string(),
+            ],
             embedding_dimension: 512, // Valor fixo adequado para TF-IDF
             embedding_type: "bm25".to_string(), // BM25 como padrão
             collection_name: "documents".to_string(),
@@ -155,6 +169,43 @@ pub struct DocumentLoader {
 }
 
 impl DocumentLoader {
+    /// Check if a file path matches the include/exclude patterns
+    fn matches_patterns(&self, file_path: &Path, project_root: &Path) -> bool {
+        // Convert to relative path from project root for pattern matching
+        let relative_path = match file_path.strip_prefix(project_root) {
+            Ok(rel) => rel,
+            Err(_) => return false,
+        };
+
+        let path_str = relative_path.to_string_lossy();
+
+        // Check exclude patterns first - if any match, exclude the file
+        for exclude_pattern in &self.config.exclude_patterns {
+            if let Ok(pattern) = Pattern::new(exclude_pattern) {
+                if pattern.matches(&path_str) {
+                    return false;
+                }
+            }
+        }
+
+        // Check include patterns - if any match, include the file
+        for include_pattern in &self.config.include_patterns {
+            if let Ok(pattern) = Pattern::new(include_pattern) {
+                if pattern.matches(&path_str) {
+                    return true;
+                }
+            }
+        }
+
+        // If no include patterns match, fall back to extension-based matching (legacy)
+        if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = extension.to_lowercase();
+            return self.config.allowed_extensions.contains(&ext_lower);
+        }
+
+        false
+    }
+
     /// Get mutable reference to embedding manager
     pub fn get_embedding_manager_mut(&mut self) -> &mut EmbeddingManager {
         &mut self.embedding_manager
@@ -199,7 +250,6 @@ impl DocumentLoader {
 
     /// Load and index all documents from a project directory with caching
     pub fn load_project(&mut self, project_path: &str, store: &VectorStore) -> Result<usize> {
-        info!("Loading project from: {}", project_path);
 
         // Ensure .vectorizer directory exists
         let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
@@ -216,7 +266,6 @@ impl DocumentLoader {
         
         // Check if cache is valid for current config
         if project_cache.config_hash != config_hash {
-            info!("Configuration changed, invalidating cache");
             project_cache = ProjectCache {
                 files: HashMap::new(),
                 config_hash,
@@ -225,7 +274,6 @@ impl DocumentLoader {
 
         // Collect all documents
         let documents = self.collect_documents(project_path)?;
-        info!("Found {} documents to process", documents.len());
 
         if documents.is_empty() {
             warn!("No documents found in project directory");
@@ -234,8 +282,8 @@ impl DocumentLoader {
 
         // Process documents with cache
         let mut all_chunks = Vec::new();
-        let mut cache_hits = 0;
-        let mut cache_misses = 0;
+        let mut _cache_hits = 0;
+        let mut _cache_misses = 0;
 
         for (file_path, content) in &documents {
             let file_path_str = file_path.to_string_lossy().to_string();
@@ -248,7 +296,7 @@ impl DocumentLoader {
                            metadata.len() == cache_entry.file_size {
                             // Cache hit - use cached chunks
                             all_chunks.extend(cache_entry.chunks.clone());
-                            cache_hits += 1;
+                            _cache_hits += 1;
                             debug!("Cache hit for: {}", file_path_str);
                             continue;
                         }
@@ -257,7 +305,7 @@ impl DocumentLoader {
             }
             
             // Cache miss - process file
-            cache_misses += 1;
+            _cache_misses += 1;
             debug!("Cache miss for: {}", file_path_str);
             
             let file_chunks = self.chunk_text(content, file_path)?;
@@ -275,7 +323,6 @@ impl DocumentLoader {
             }
         }
 
-        info!("Cache stats: {} hits, {} misses", cache_hits, cache_misses);
 
         // Save updated cache
         self.save_cache(&cache_path.to_string_lossy(), &project_cache)?;
@@ -292,7 +339,6 @@ impl DocumentLoader {
                         if let Err(e) = bm25.save_vocabulary_json(&tokenizer_path) {
                             warn!("Failed to save BM25 tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
                         } else {
-                            info!("Saved BM25 tokenizer to: {}", tokenizer_path.to_string_lossy());
                         }
                     }
                 }
@@ -304,7 +350,6 @@ impl DocumentLoader {
                         if let Err(e) = tfidf.save_vocabulary_json(&tokenizer_path) {
                             warn!("Failed to save TF-IDF tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
                         } else {
-                            info!("Saved TF-IDF tokenizer to: {}", tokenizer_path.to_string_lossy());
                         }
                     }
                 }
@@ -316,7 +361,6 @@ impl DocumentLoader {
                         if let Err(e) = bow.save_vocabulary_json(&tokenizer_path) {
                             warn!("Failed to save BagOfWords tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
                         } else {
-                            info!("Saved BagOfWords tokenizer to: {}", tokenizer_path.to_string_lossy());
                         }
                     }
                 }
@@ -328,7 +372,6 @@ impl DocumentLoader {
                         if let Err(e) = cng.save_vocabulary_json(&tokenizer_path) {
                             warn!("Failed to save CharNGram tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
                         } else {
-                            info!("Saved CharNGram tokenizer to: {}", tokenizer_path.to_string_lossy());
                         }
                     }
                 }
@@ -340,7 +383,6 @@ impl DocumentLoader {
         self.create_collection(store)?;
 
         // Store chunks in vector store
-        info!("Storing {} chunks in vector store", all_chunks.len());
         self.store_chunks(store, &all_chunks)?;
 
         info!(
@@ -356,7 +398,7 @@ impl DocumentLoader {
         let path = Path::new(project_path);
         let mut documents = Vec::new();
         self.collect_documents_recursive(path, &mut documents)?;
-        info!("collect_documents found {} documents", documents.len());
+        info!("📁 Found {} documents in '{}' for collection '{}'", documents.len(), project_path, self.config.collection_name);
         Ok(documents)
     }
 
@@ -424,37 +466,34 @@ impl DocumentLoader {
                     }
                 }
 
-                if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-                    let ext_lower = extension.to_lowercase();
-                    if self.config.allowed_extensions.contains(&ext_lower) {
-                        // Check file size
-                        match fs::metadata(&path) {
-                            Ok(metadata) => {
-                                let file_size = metadata.len();
-                                if file_size > self.config.max_file_size as u64 {
-                                    warn!("Skipping file {} (size: {} bytes, max: {} bytes)", path.display(), file_size, self.config.max_file_size);
-                                    continue;
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Failed to read metadata for {}: {}", path.display(), e);
+                if self.matches_patterns(&path, dir) {
+                    // Check file size
+                    match fs::metadata(&path) {
+                        Ok(metadata) => {
+                            let file_size = metadata.len();
+                            if file_size > self.config.max_file_size as u64 {
+                                warn!("Skipping file {} (size: {} bytes, max: {} bytes)", path.display(), file_size, self.config.max_file_size);
                                 continue;
                             }
                         }
+                        Err(e) => {
+                            warn!("Failed to read metadata for {}: {}", path.display(), e);
+                            continue;
+                        }
+                    }
 
-                        // Read file content
-                        match fs::read_to_string(&path) {
-                            Ok(content) => {
-                                documents.push((path, content));
-                            }
-                            Err(e) => {
-                                warn!("Failed to read file {}: {}", path.display(), e);
-                                return Err(anyhow::anyhow!(
-                                    "Failed to read file {}: {}",
-                                    path.display(),
-                                    e
-                                ));
-                            }
+                    // Read file content
+                    match fs::read_to_string(&path) {
+                        Ok(content) => {
+                            documents.push((path, content));
+                        }
+                        Err(e) => {
+                            warn!("Failed to read file {}: {}", path.display(), e);
+                            return Err(anyhow::anyhow!(
+                                "Failed to read file {}: {}",
+                                path.display(),
+                                e
+                            ));
                         }
                     }
                 }
@@ -525,6 +564,11 @@ impl DocumentLoader {
                     return Err(anyhow::anyhow!("BagOfWords provider not found"));
                 }
             },
+            "charngram" => {
+                // CharNGramEmbedding does not require a pre-built vocabulary.
+                // We log and proceed without additional preparation.
+                info!("CharNGram embedding selected - no vocabulary build step required");
+            }
             _ => {
                 return Err(anyhow::anyhow!("Unsupported embedding type: {}", embedding_type));
             }
@@ -539,12 +583,9 @@ impl DocumentLoader {
         
         let mut vectors = Vec::new();
         
-        info!("Starting to process {} chunks for embedding", chunks.len());
+        info!("📊 Processing {} chunks for collection '{}' - this may take a while...", chunks.len(), self.config.collection_name);
         
         for (i, chunk) in chunks.iter().enumerate() {
-            if i % 100 == 0 {
-                info!("Processing chunk {}/{}", i + 1, chunks.len());
-            }
             
             // Generate embedding for the chunk
             let embedding = match self.embedding_manager.embed(&chunk.content) {
@@ -579,19 +620,13 @@ impl DocumentLoader {
             vectors.push(vector);
         }
         
-        info!("Successfully created {} vectors, inserting in batches", vectors.len());
         
         // Insert vectors in larger batches for better performance
         const BATCH_SIZE: usize = 2000; // Lotes ainda maiores = ainda mais rápido
         for (batch_num, batch) in vectors.chunks(BATCH_SIZE).enumerate() {
-            info!("Inserting batch {}/{} ({} vectors)", 
-                  batch_num + 1, 
-                  (vectors.len() + BATCH_SIZE - 1) / BATCH_SIZE,
-                  batch.len());
             
             match store.insert(&self.config.collection_name, batch.to_vec()) {
                 Ok(_) => {
-                    info!("Successfully inserted batch {}", batch_num + 1);
                 }
                 Err(e) => {
                     error!("Failed to insert batch {}: {}", batch_num + 1, e);
@@ -600,8 +635,7 @@ impl DocumentLoader {
             }
         }
         
-        info!("Successfully stored {} chunks in collection '{}'", 
-              chunks.len(), self.config.collection_name);
+        info!("✅ Collection '{}' indexed successfully: {} chunks embedded and stored", self.config.collection_name, chunks.len());
         Ok(())
     }
 
@@ -880,6 +914,8 @@ impl DocumentLoader {
         self.config.embedding_dimension.hash(&mut hasher);
         self.config.embedding_type.hash(&mut hasher);
         self.config.allowed_extensions.hash(&mut hasher);
+        self.config.include_patterns.hash(&mut hasher);
+        self.config.exclude_patterns.hash(&mut hasher);
         self.config.max_file_size.hash(&mut hasher);
         
         hasher.finish()

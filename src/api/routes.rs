@@ -7,7 +7,7 @@ use axum::{
 
 use super::handlers::{
     AppState, create_collection, delete_collection, delete_vector, get_collection, get_vector,
-    health_check, insert_vectors, list_collections, list_files, list_vectors, search_by_file,
+    get_indexing_progress, health_check, insert_vectors, list_collections, list_files, list_vectors, search_by_file,
     search_vectors, search_vectors_by_text, list_embedding_providers, set_embedding_provider,
     // MCP handlers
     mcp_initialize, mcp_tools_list, mcp_tools_call, mcp_ping, mcp_sse, mcp_http_tools_call,
@@ -18,6 +18,8 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         // Health check
         .route("/health", get(health_check))
+        // Indexing progress
+        .route("/indexing/progress", get(get_indexing_progress))
         // Collection management
         .route("/collections", get(list_collections))
         .route("/collections", post(create_collection))

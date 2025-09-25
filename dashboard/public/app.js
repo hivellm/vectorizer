@@ -259,9 +259,10 @@ class VectorizerDashboard {
                                     <span class="stat-value">${col.metric}</span>
                                 </div>
                                 <div class="stat-row">
-                                    <span class="stat-label">Created:</span>
-                                    <span class="stat-value">${this.formatDate(col.created_at)}</span>
+                                    <span class="stat-label">Status:</span>
+                                    <span class="stat-value status-${col.indexing_status.status}">${this.formatStatus(col.indexing_status.status)}</span>
                                 </div>
+                                ${this.renderIndexingProgress(col.indexing_status)}
                             </div>
                             <div class="collection-actions">
                                 <button class="btn btn-secondary btn-sm" onclick="dashboard.viewCollectionDetails('${col.name}')">
@@ -912,6 +913,33 @@ class VectorizerDashboard {
         return new Date(dateString).toLocaleString('pt-BR');
     }
 
+    formatStatus(status) {
+        switch (status) {
+            case 'completed': return 'Concluído';
+            case 'processing': return 'Processando';
+            case 'indexing': return 'Indexando';
+            case 'pending': return 'Pendente';
+            case 'failed': return 'Falhou';
+            default: return status;
+        }
+    }
+
+    renderIndexingProgress(indexingStatus) {
+        if (indexingStatus.status === 'completed' || indexingStatus.status === 'failed') {
+            return '';
+        }
+
+        const progressPercent = Math.round(indexingStatus.progress);
+        return `
+            <div class="indexing-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                </div>
+                <div class="progress-text">${progressPercent}%</div>
+            </div>
+        `;
+    }
+
     truncateText(text, maxLength) {
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + '...';
@@ -936,11 +964,81 @@ class VectorizerDashboard {
             if (this.autoRefresh) {
                 this.refreshCurrentPage();
             }
-        }, 30000); // Refresh every 30 seconds
+        }, this.currentPage === 'collections' ? 5000 : 30000); // Refresh every 5 seconds on collections page, 30 seconds otherwise
     }
 
     refreshCurrentPage() {
-        this.loadPage(this.currentPage);
+        if (this.currentPage === 'collections') {
+            // Refresh only collections data without reloading the entire page
+            this.refreshCollections();
+        } else {
+            this.loadPage(this.currentPage);
+        }
+    }
+
+    async refreshCollections() {
+        try {
+            const response = await fetch('/api/collections');
+            const data = await response.json();
+
+            if (data.collections) {
+                this.collections = data.collections;
+                this.updateCollectionsDisplay();
+            }
+        } catch (error) {
+            console.error('Failed to refresh collections:', error);
+        }
+    }
+
+    updateCollectionsDisplay() {
+        const collectionsGrid = document.querySelector('.collections-grid');
+        if (collectionsGrid) {
+            // Find the collections grid and update its content
+            const newContent = this.collections.map(col => `
+                <div class="collection-card" data-collection="${col.name}">
+                    <div class="collection-header">
+                        <div class="collection-name">
+                            <i class="fas fa-database"></i>
+                            <span>${col.name}</span>
+                        </div>
+                        <div class="collection-menu">
+                            <button class="btn btn-icon" onclick="dashboard.showCollectionMenu('${col.name}', event)">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="collection-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Vectors:</span>
+                            <span class="stat-value">${this.formatNumber(col.vector_count)}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Dimension:</span>
+                            <span class="stat-value">${col.dimension}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Metric:</span>
+                            <span class="stat-value">${col.metric}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Status:</span>
+                            <span class="stat-value status-${col.indexing_status.status}">${this.formatStatus(col.indexing_status.status)}</span>
+                        </div>
+                        ${this.renderIndexingProgress(col.indexing_status)}
+                    </div>
+                    <div class="collection-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="dashboard.viewCollectionDetails('${col.name}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="dashboard.browseCollectionVectors('${col.name}')">
+                            <i class="fas fa-vector-square"></i> Browse
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            collectionsGrid.innerHTML = newContent;
+        }
     }
 
     formatJSON(obj) {

@@ -8,6 +8,109 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use tokio::process::Command as TokioCommand;
 use tracing_subscriber;
+use vectorizer::workspace::WorkspaceManager;
+use std::fs::OpenOptions;
+use std::io::Write;
+use chrono::Utc;
+use serde_json::json;
+use std::process;
+
+/// Structured logging for workspace operations
+struct WorkspaceLogger {
+    log_file: PathBuf,
+}
+
+impl WorkspaceLogger {
+    fn new() -> Self {
+        let log_file = PathBuf::from("vectorizer-workspace.log");
+        Self { log_file }
+    }
+
+    fn log(&self, level: &str, message: &str) {
+        let timestamp = Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC");
+        let log_entry = format!("[{}] {}: {}\n", timestamp, level, message);
+
+        // Write to log file
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.log_file)
+        {
+            let _ = file.write_all(log_entry.as_bytes());
+        }
+
+        // Also write to stderr for ERROR and WARN
+        if level == "ERROR" || level == "WARN" {
+            eprintln!("{}", log_entry.trim());
+        }
+    }
+
+    fn info(&self, message: &str) {
+        self.log("INFO", message);
+    }
+
+    fn warn(&self, message: &str) {
+        self.log("WARN", message);
+    }
+
+    fn error(&self, message: &str) {
+        self.log("ERROR", message);
+    }
+}
+
+/// Check if any vectorizer processes are already running
+fn check_existing_processes(logger: &WorkspaceLogger) -> bool {
+    logger.info("Checking for existing vectorizer processes...");
+    
+    // Only check for processes listening on our ports (more reliable)
+    let port_check = Command::new("lsof")
+        .args(&["-i", ":15001", "-i", ":15002"])
+        .output();
+    
+    if let Ok(output) = port_check {
+        if output.status.success() && !output.stdout.is_empty() {
+            logger.warn("Found processes listening on vectorizer ports (15001/15002)");
+            return true;
+        }
+    }
+    
+    logger.info("No existing vectorizer processes found");
+    false
+}
+
+/// Kill existing vectorizer processes
+fn kill_existing_processes(logger: &WorkspaceLogger) -> Result<(), Box<dyn std::error::Error>> {
+    logger.info("Killing existing vectorizer processes...");
+    
+    // Kill processes using our ports
+    let port_kill = Command::new("lsof")
+        .args(&["-ti", ":15001", ":15002"])
+        .output();
+    
+    if let Ok(output) = port_kill {
+        if output.status.success() && !output.stdout.is_empty() {
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            let pids: Vec<String> = stdout_str
+                .lines()
+                .filter(|line| !line.is_empty())
+                .map(|line| line.to_string())
+                .collect();
+            
+            for pid in pids {
+                logger.info(&format!("Killing process {} using vectorizer ports", pid));
+                let _ = Command::new("kill")
+                    .args(&["-9", &pid])
+                    .output();
+            }
+        }
+    }
+    
+    // Wait a moment for processes to terminate
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    
+    logger.info("Existing processes terminated");
+    Ok(())
+}
 
 #[cfg(target_os = "linux")]
 use libc::setsid;
@@ -27,9 +130,13 @@ struct Args {
 enum Commands {
     /// Start both REST API and MCP servers
     Start {
-        /// Project directory to index
-        #[arg(short, long, default_value = "../gov")]
-        project: PathBuf,
+        /// Project directory to index (legacy, use workspace instead)
+        #[arg(short, long)]
+        project: Option<PathBuf>,
+
+        /// Workspace configuration file
+        #[arg(short, long)]
+        workspace: Option<PathBuf>,
 
         /// Configuration file
         #[arg(short, long, default_value = "config.yml")]
@@ -61,6 +168,43 @@ enum Commands {
     Uninstall,
     /// Run legacy CLI commands
     Cli,
+    /// Workspace management commands
+    Workspace {
+        #[command(subcommand)]
+        command: WorkspaceCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkspaceCommands {
+    /// Initialize a new workspace
+    Init {
+        /// Workspace directory
+        #[arg(short, long, default_value = ".")]
+        directory: PathBuf,
+        
+        /// Workspace name
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+    /// Validate workspace configuration
+    Validate {
+        /// Workspace configuration file
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+    /// Show workspace status
+    Status {
+        /// Workspace configuration file
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+    /// List projects in workspace
+    List {
+        /// Workspace configuration file
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -71,10 +215,22 @@ async fn main() {
         .init();
 
     let args = Args::parse();
+    
+    // Check for duplicate processes before starting
+    let logger = WorkspaceLogger::new();
+    if check_existing_processes(&logger) {
+        logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
+        if let Err(e) = kill_existing_processes(&logger) {
+            logger.error(&format!("Failed to kill existing processes: {}", e));
+            eprintln!("❌ Failed to kill existing vectorizer processes: {}", e);
+            eprintln!("💡 Please manually kill existing processes with: pkill -f vectorizer");
+            std::process::exit(1);
+        }
+    }
 
     match args.command {
-        Commands::Start { project, config, daemon, host, port, mcp_port } => {
-            run_servers(project, config, daemon, host, port, mcp_port).await;
+        Commands::Start { project, workspace, config, daemon, host, port, mcp_port } => {
+            run_servers(project, workspace, config, daemon, host, port, mcp_port).await;
         }
         Commands::Stop => {
             stop_servers().await;
@@ -95,28 +251,452 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        Commands::Workspace { command } => {
+            handle_workspace_command(command).await;
+        }
     }
 }
 
-async fn run_servers(project: PathBuf, config: PathBuf, daemon: bool, host: String, port: u16, mcp_port: u16) {
-    // Validate project directory
-    if !project.exists() || !project.is_dir() {
-        eprintln!("Error: Project directory '{}' does not exist", project.display());
-        std::process::exit(1);
-    }
+async fn run_servers(project: Option<PathBuf>, workspace: Option<PathBuf>, config: PathBuf, daemon: bool, host: String, port: u16, mcp_port: u16) {
+    let logger = WorkspaceLogger::new();
+
+    logger.info("Starting Vectorizer Servers");
+    logger.info(&format!("Config: {}", config.display()));
+    logger.info(&format!("Workspace mode: {}", workspace.is_some()));
 
     println!("🚀 Starting Vectorizer Servers...");
-    println!("==================================");
-    println!("📁 Project Directory: {}", project.display());
-    println!("⚙️  Config File: {}", config.display());
-    println!("🌐 REST API: {}:{}", host, port);
-    println!("🔧 MCP Server: 127.0.0.1:{}", mcp_port);
+    println!("📄 Logs: vectorizer-workspace.log");
 
-    if daemon {
-        println!("👻 Running as daemon...");
-        run_as_daemon(project, config, host, port, mcp_port).await;
+    // Determine if using workspace or legacy project mode
+    if let Some(workspace_path) = workspace {
+        logger.info(&format!("Loading workspace from: {}", workspace_path.display()));
+
+        // Load and validate workspace
+        let workspace_manager = match WorkspaceManager::load_from_file(&workspace_path) {
+            Ok(manager) => {
+                logger.info("Workspace configuration loaded successfully");
+                manager
+            }
+            Err(e) => {
+                logger.error(&format!("Failed to load workspace configuration: {}", e));
+                eprintln!("❌ Error: Failed to load workspace configuration: {}", e);
+                std::process::exit(1);
+            }
+        };
+
+        let status = workspace_manager.get_status();
+        logger.info(&format!("Loaded {} projects", status.enabled_projects));
+        println!("📊 {} - {} projects", status.workspace_name, status.enabled_projects);
+        
+        if daemon {
+            println!("👻 Running as daemon...");
+            run_as_daemon_workspace(workspace_manager, config, host, port, mcp_port).await;
+        } else {
+            run_interactive_workspace(workspace_manager, config, host, port, mcp_port).await;
+        }
+    } else if let Some(project_path) = project {
+        // Legacy project mode
+        println!("📁 Project Directory: {}", project_path.display());
+        
+        // Validate project directory
+        if !project_path.exists() || !project_path.is_dir() {
+            eprintln!("Error: Project directory '{}' does not exist", project_path.display());
+            std::process::exit(1);
+        }
+        
+        if daemon {
+            println!("👻 Running as daemon...");
+            run_as_daemon(project_path, config, host, port, mcp_port).await;
+        } else {
+            run_interactive(project_path, config, host, port, mcp_port).await;
+        }
     } else {
-        run_interactive(project, config, host, port, mcp_port).await;
+        eprintln!("Error: Either --project or --workspace must be specified");
+        std::process::exit(1);
+    }
+}
+
+/// Create workspace info JSON for servers
+fn create_project_workspace_info(workspace_manager: &WorkspaceManager, project: &vectorizer::workspace::config::ProjectConfig) -> String {
+    use serde_json::json;
+
+    let project_path = workspace_manager.get_project_path(&project.name).unwrap();
+    let project_info = json!({
+        "workspace": {
+            "name": workspace_manager.config().workspace.name,
+            "version": workspace_manager.config().workspace.version,
+            "description": workspace_manager.config().workspace.description
+        },
+        "projects": [{
+            "name": project.name,
+            "description": project.description,
+            "path": project_path.to_string_lossy(),
+            "enabled": project.enabled,
+            "collections": project.collections.iter().map(|collection| {
+                json!({
+                    "name": collection.name,
+                    "description": collection.description,
+                    "dimension": collection.dimension,
+                    "metric": match collection.metric {
+                        vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                        vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                        vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                    },
+                    "embedding": {
+                        "model": match collection.embedding.model {
+                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::RealModel => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::OnnxModel => "bm25",
+                        },
+                        "dimension": collection.dimension,
+                        "parameters": {
+                            "k1": 1.5,
+                            "b": 0.75
+                        }
+                    },
+                    "indexing": {
+                        "index_type": collection.indexing.index_type,
+                        "parameters": collection.indexing.parameters
+                    },
+                    "processing": {
+                        "chunk_size": collection.processing.chunk_size,
+                        "chunk_overlap": collection.processing.chunk_overlap,
+                        "include_patterns": collection.processing.include_patterns,
+                        "exclude_patterns": collection.processing.exclude_patterns
+                    }
+                })
+            }).collect::<Vec<_>>()
+        }],
+        "total_projects": 1,
+        "total_collections": project.collections.len()
+    });
+
+    serde_json::to_string_pretty(&project_info).expect("Failed to serialize project workspace info")
+}
+
+fn create_workspace_info(workspace_manager: &WorkspaceManager, enabled_projects: &[&vectorizer::workspace::config::ProjectConfig]) -> String {
+    use serde_json::json;
+    
+    let projects_info: Vec<serde_json::Value> = enabled_projects.iter().map(|project| {
+        let project_path = workspace_manager.get_project_path(&project.name).unwrap();
+        json!({
+            "name": project.name,
+            "description": project.description,
+            "path": project_path.to_string_lossy(),
+            "enabled": project.enabled,
+            "collections": project.collections.iter().map(|collection| {
+                json!({
+                    "name": collection.name,
+                    "description": collection.description,
+                    "dimension": collection.dimension,
+                    "metric": match collection.metric {
+                        vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                        vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                        vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                    },
+                    "embedding": {
+                        "model": match collection.embedding.model {
+                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "native_bow",
+                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "native_hash",
+                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "native_ngram",
+                            vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
+                            vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
+                        },
+                        "dimension": collection.embedding.dimension,
+                        "parameters": collection.embedding.parameters
+                    },
+                    "indexing": {
+                        "index_type": collection.indexing.index_type,
+                        "parameters": collection.indexing.parameters
+                    },
+                    "processing": {
+                        "chunk_size": collection.processing.chunk_size,
+                        "chunk_overlap": collection.processing.chunk_overlap,
+                        "include_patterns": collection.processing.include_patterns,
+                        "exclude_patterns": collection.processing.exclude_patterns
+                    }
+                })
+            }).collect::<Vec<_>>()
+        })
+    }).collect();
+    
+    let workspace_info = json!({
+        "workspace": {
+            "name": workspace_manager.config().workspace.name,
+            "version": workspace_manager.config().workspace.version,
+            "description": workspace_manager.config().workspace.description
+        },
+        "projects": projects_info,
+        "total_projects": enabled_projects.len(),
+        "total_collections": enabled_projects.iter().map(|p| p.collections.len()).sum::<usize>()
+    });
+    
+    serde_json::to_string_pretty(&workspace_info).expect("Failed to serialize workspace info")
+}
+
+/// Handle workspace commands
+async fn handle_workspace_command(command: WorkspaceCommands) {
+    match command {
+        WorkspaceCommands::Init { directory, name } => {
+            init_workspace(directory, name).await;
+        }
+        WorkspaceCommands::Validate { config } => {
+            validate_workspace(config).await;
+        }
+        WorkspaceCommands::Status { config } => {
+            show_workspace_status(config).await;
+        }
+        WorkspaceCommands::List { config } => {
+            list_workspace_projects(config).await;
+        }
+    }
+}
+
+/// Initialize a new workspace
+async fn init_workspace(directory: PathBuf, name: Option<String>) {
+    println!("🚀 Initializing Vectorizer Workspace...");
+    println!("=====================================");
+    println!("📁 Directory: {}", directory.display());
+    
+    // Create workspace manager
+    let workspace_manager = match WorkspaceManager::create_default(&directory) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Error: Failed to create workspace: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    // Update workspace name if provided
+    if let Some(workspace_name) = name {
+        println!("📝 Setting workspace name: {}", workspace_name);
+        // Note: This would require modifying the WorkspaceManager to allow updating the name
+        // For now, we'll just show the created workspace
+    }
+    
+    let status = workspace_manager.get_status();
+    println!("✅ Workspace created successfully!");
+    println!("📊 Name: {}", status.workspace_name);
+    println!("📊 Version: {}", status.workspace_version);
+    println!("📁 Config file: {}", workspace_manager.config_path().display());
+    println!("\n💡 Next steps:");
+    println!("   1. Edit {} to configure your projects", workspace_manager.config_path().display());
+    println!("   2. Run 'vectorizer workspace validate' to check configuration");
+    println!("   3. Run 'vectorizer start --workspace {}' to start servers", workspace_manager.config_path().display());
+}
+
+/// Validate workspace configuration
+async fn validate_workspace(config: Option<PathBuf>) {
+    println!("🔍 Validating Workspace Configuration...");
+    println!("==========================================");
+    
+    let config_path = match config {
+        Some(path) => path,
+        None => {
+            // Try to find workspace config in current directory
+            match vectorizer::workspace::parser::find_workspace_config(".") {
+                Ok(Some(path)) => path,
+                Ok(None) => {
+                    eprintln!("Error: No workspace configuration found");
+                    eprintln!("💡 Run 'vectorizer workspace init' to create a new workspace");
+                    std::process::exit(1);
+                }
+                Err(e) => {
+                    eprintln!("Error: Failed to find workspace configuration: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+    
+    println!("📁 Config file: {}", config_path.display());
+    
+    // Load and validate workspace
+    let workspace_manager = match WorkspaceManager::load_from_file(&config_path) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Error: Failed to load workspace configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    let validation_result = workspace_manager.validate();
+    
+    if validation_result.is_valid() {
+        println!("✅ Workspace configuration is valid!");
+        
+        if !validation_result.warnings.is_empty() {
+            println!("\n⚠️  Warnings:");
+            for warning in &validation_result.warnings {
+                println!("   - {}", warning);
+            }
+        }
+        
+        let status = workspace_manager.get_status();
+        println!("\n📊 Workspace Status:");
+        println!("   Name: {}", status.workspace_name);
+        println!("   Version: {}", status.workspace_version);
+        println!("   Projects: {} enabled of {} total", status.enabled_projects, status.total_projects);
+        println!("   Collections: {} total", status.total_collections);
+    } else {
+        println!("❌ Workspace configuration has errors:");
+        for error in &validation_result.errors {
+            println!("   - {}", error);
+        }
+        
+        if !validation_result.warnings.is_empty() {
+            println!("\n⚠️  Warnings:");
+            for warning in &validation_result.warnings {
+                println!("   - {}", warning);
+            }
+        }
+        
+        std::process::exit(1);
+    }
+}
+
+/// Show workspace status
+async fn show_workspace_status(config: Option<PathBuf>) {
+    println!("📊 Workspace Status");
+    println!("===================");
+    
+    let config_path = match config {
+        Some(path) => path,
+        None => {
+            // Try to find workspace config in current directory
+            match vectorizer::workspace::parser::find_workspace_config(".") {
+                Ok(Some(path)) => path,
+                Ok(None) => {
+                    eprintln!("Error: No workspace configuration found");
+                    eprintln!("💡 Run 'vectorizer workspace init' to create a new workspace");
+                    std::process::exit(1);
+                }
+                Err(e) => {
+                    eprintln!("Error: Failed to find workspace configuration: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+    
+    println!("📁 Config file: {}", config_path.display());
+    
+    // Load workspace
+    let workspace_manager = match WorkspaceManager::load_from_file(&config_path) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Error: Failed to load workspace configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    let status = workspace_manager.get_status();
+    
+    println!("\n📋 Workspace Information:");
+    println!("   Name: {}", status.workspace_name);
+    println!("   Version: {}", status.workspace_version);
+    println!("   Last Updated: {}", status.last_updated);
+    
+    println!("\n📂 Projects:");
+    println!("   Total: {}", status.total_projects);
+    println!("   Enabled: {}", status.enabled_projects);
+    println!("   Disabled: {}", status.total_projects - status.enabled_projects);
+    
+    println!("\n🗂️  Collections:");
+    println!("   Total: {}", status.total_collections);
+    
+    // Show project details
+    let enabled_projects = workspace_manager.enabled_projects();
+    if !enabled_projects.is_empty() {
+        println!("\n📋 Enabled Projects:");
+        for project in enabled_projects {
+            println!("   📁 {} - {}", project.name, project.description);
+            println!("      Path: {}", project.path.display());
+            println!("      Collections: {}", project.collections.len());
+            
+            for collection in &project.collections {
+                println!("         🗂️  {} ({}D, {})", 
+                    collection.name, 
+                    collection.dimension, 
+                    match collection.metric {
+                        vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                        vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                        vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                    }
+                );
+            }
+        }
+    }
+}
+
+/// List workspace projects
+async fn list_workspace_projects(config: Option<PathBuf>) {
+    println!("📂 Workspace Projects");
+    println!("=====================");
+    
+    let config_path = match config {
+        Some(path) => path,
+        None => {
+            // Try to find workspace config in current directory
+            match vectorizer::workspace::parser::find_workspace_config(".") {
+                Ok(Some(path)) => path,
+                Ok(None) => {
+                    eprintln!("Error: No workspace configuration found");
+                    eprintln!("💡 Run 'vectorizer workspace init' to create a new workspace");
+                    std::process::exit(1);
+                }
+                Err(e) => {
+                    eprintln!("Error: Failed to find workspace configuration: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+    
+    println!("📁 Config file: {}", config_path.display());
+    
+    // Load workspace
+    let workspace_manager = match WorkspaceManager::load_from_file(&config_path) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Error: Failed to load workspace configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
+    
+    let config = workspace_manager.config();
+    
+    if config.projects.is_empty() {
+        println!("\n📭 No projects configured");
+        println!("💡 Add projects to your workspace configuration file");
+        return;
+    }
+    
+    println!("\n📋 All Projects:");
+    for (index, project) in config.projects.iter().enumerate() {
+        let status = if project.enabled { "✅" } else { "❌" };
+        println!("   {} {} {} - {}", index + 1, status, project.name, project.description);
+        println!("      Path: {}", project.path.display());
+        println!("      Collections: {}", project.collections.len());
+        
+        if !project.collections.is_empty() {
+            for collection in &project.collections {
+                println!("         🗂️  {} ({}D, {})", 
+                    collection.name, 
+                    collection.dimension, 
+                    match collection.metric {
+                        vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                        vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                        vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                    }
+                );
+            }
+        }
+        println!();
     }
 }
 
@@ -167,7 +747,255 @@ async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: 
     println!("✅ Servers stopped.");
 }
 
-async fn run_as_daemon(project: PathBuf, config: PathBuf, host: String, port: u16, mcp_port: u16) {
+/// Run servers interactively with workspace
+async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: PathBuf, host: String, port: u16, mcp_port: u16) {
+    use tokio::signal;
+
+    println!("Starting MCP server with workspace...");
+    
+    // Load all enabled projects from workspace
+    let enabled_projects = workspace_manager.enabled_projects();
+    if enabled_projects.is_empty() {
+        eprintln!("Error: No enabled projects found in workspace");
+        std::process::exit(1);
+    }
+    
+    println!("📂 Loading {} projects from workspace:", enabled_projects.len());
+    for project in &enabled_projects {
+        println!("   📁 {} - {}", project.name, project.description);
+        println!("      Path: {}", workspace_manager.get_project_path(&project.name).unwrap().display());
+        println!("      Collections: {}", project.collections.len());
+        for collection in &project.collections {
+            println!("         🗂️  {} ({}D, {})", 
+                collection.name, 
+                collection.dimension, 
+                match collection.metric {
+                    vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                    vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                    vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                }
+            );
+        }
+    }
+    
+    let logger = WorkspaceLogger::new();
+    
+    // Check for existing processes and kill them if found
+    if check_existing_processes(&logger) {
+        logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
+        if let Err(e) = kill_existing_processes(&logger) {
+            logger.error(&format!("Failed to kill existing processes: {}", e));
+            eprintln!("❌ Failed to kill existing vectorizer processes: {}", e);
+            eprintln!("💡 Please manually kill existing processes with: pkill -f vectorizer");
+            std::process::exit(1);
+        }
+    }
+    
+    logger.info(&format!("Starting unified server for workspace with {} projects", enabled_projects.len()));
+
+    // Create unified workspace info file with ALL projects
+    let workspace_info_path = std::env::temp_dir().join("vectorizer-workspace-full.json");
+
+    // Create unified workspace info containing ALL projects directly
+    let projects_array: Vec<serde_json::Value> = enabled_projects.iter().map(|project| {
+        let project_path = workspace_manager.get_project_path(&project.name).unwrap();
+        json!({
+            "name": project.name,
+            "description": project.description,
+            "path": project_path.to_string_lossy(),
+            "enabled": project.enabled,
+            "collections": project.collections.iter().map(|collection| {
+                json!({
+                    "name": collection.name,
+                    "description": collection.description,
+                    "dimension": collection.dimension,
+                    "metric": match collection.metric {
+                        vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                        vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                        vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                    },
+                    "embedding": {
+                        "model": match collection.embedding.model {
+                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "native_bow",
+                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "native_hash",
+                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "native_ngram",
+                            vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
+                            vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
+                        },
+                        "dimension": collection.embedding.dimension,
+                        "parameters": collection.embedding.parameters
+                    },
+                    "indexing": {
+                        "index_type": collection.indexing.index_type,
+                        "parameters": collection.indexing.parameters
+                    },
+                    "processing": {
+                        "chunk_size": collection.processing.chunk_size,
+                        "chunk_overlap": collection.processing.chunk_overlap,
+                        "include_patterns": collection.processing.include_patterns,
+                        "exclude_patterns": collection.processing.exclude_patterns
+                    }
+                })
+            }).collect::<Vec<_>>()
+        })
+    }).collect();
+
+    let workspace_info = json!({
+        "workspace_name": workspace_manager.config().workspace.name,
+        "workspace_version": workspace_manager.config().workspace.version,
+        "projects": projects_array
+    });
+
+    let workspace_info = serde_json::to_string(&workspace_info).unwrap();
+    if let Err(e) = std::fs::write(&workspace_info_path, workspace_info) {
+        logger.error(&format!("Failed to create unified workspace config: {}", e));
+        std::process::exit(1);
+    }
+
+    logger.info(&format!("Created unified workspace config at: {}", workspace_info_path.display()));
+
+    // Start SINGLE MCP server for all projects
+    let mut mcp_child = match TokioCommand::new("cargo")
+        .args(&["run", "--quiet", "--bin", "vectorizer-mcp-server"])
+        .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
+        .env("VECTORIZER_SERVER_PORT", "15002")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+    {
+        Ok(child) => {
+            logger.info(&format!("Started unified MCP server (PID:{}, Port:15002)", child.id().unwrap_or(0)));
+            child
+        }
+        Err(e) => {
+            logger.error(&format!("Failed to start unified MCP server: {}", e));
+            std::process::exit(1);
+        }
+    };
+
+    // Start SINGLE REST API server for all projects
+    let api_child = match TokioCommand::new("cargo")
+        .args(&[
+            "run", "--quiet", "--bin", "vectorizer-server", "--",
+            "--host", &host,
+            "--port", "15001",
+            "--workspace", &workspace_info_path.to_string_lossy(),
+            "--config", &config.to_string_lossy()
+        ])
+        .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+    {
+        Ok(child) => {
+            logger.info(&format!("Started unified REST API server (PID:{}, Port:15001)", child.id().unwrap_or(0)));
+            child
+        }
+        Err(e) => {
+            logger.error(&format!("Failed to start unified REST API server: {}", e));
+            let _ = mcp_child.kill().await;
+            std::process::exit(1);
+        }
+    };
+
+    let server_handles = vec![("unified".to_string(), mcp_child, api_child, 15001u16, 15002u16)];
+
+    // In unified mode, we either start both servers or fail completely
+    logger.info("Unified servers started successfully");
+
+    println!("✅ Unified server running");
+    println!("  REST API: http://{}:15001", host);
+    println!("  MCP Server: http://127.0.0.1:15002/sse");
+    println!("  Collections: {} from {} projects", enabled_projects.iter().map(|p| p.collections.len()).sum::<usize>(), enabled_projects.len());
+    println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
+
+    // Wait for shutdown signal
+    signal::ctrl_c().await.expect("Failed to listen for shutdown signal");
+
+    println!("\n🛑 Stopping unified server...");
+    for (_, mut mcp_child, mut api_child, _, _) in server_handles {
+        let _ = mcp_child.kill().await;
+        let _ = api_child.kill().await;
+    }
+    println!("✅ Stopped");
+}
+
+/// Run servers as daemon with workspace
+async fn run_as_daemon_workspace(workspace_manager: WorkspaceManager, _config: PathBuf, _host: String, _port: u16, _mcp_port: u16) {
+    #[cfg(target_os = "linux")]
+    {
+        use std::fs;
+        use std::os::unix::process::CommandExt;
+
+        println!("🐧 Setting up Linux daemon with workspace...");
+
+        // Load all enabled projects from workspace
+        let enabled_projects = workspace_manager.enabled_projects();
+        if enabled_projects.is_empty() {
+            eprintln!("Error: No enabled projects found in workspace");
+            std::process::exit(1);
+        }
+        
+        println!("📂 Loading {} projects from workspace:", enabled_projects.len());
+        for project in &enabled_projects {
+            println!("   📁 {} - {}", project.name, project.description);
+            println!("      Path: {}", workspace_manager.get_project_path(&project.name).unwrap().display());
+            println!("      Collections: {}", project.collections.len());
+        }
+        
+        // For now, we'll use the first enabled project as the default
+        // TODO: Implement multi-project daemon architecture
+        let first_project = &enabled_projects[0];
+        let project_path = workspace_manager.get_project_path(&first_project.name)
+            .expect("Failed to get project path");
+        
+        println!("\n🚀 Starting daemon with primary project: {} ({})", first_project.name, first_project.description);
+
+        // Daemonize the process
+        let result = unsafe {
+            Command::new("cargo")
+                .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project_path.to_string_lossy()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .pre_exec(|| {
+                    // Detach from controlling terminal
+                    match setsid() {
+                        -1 => Err(std::io::Error::last_os_error()),
+                        _ => Ok(()),
+                    }
+                })
+                .spawn()
+        };
+
+        match result {
+            Ok(mut child) => {
+                println!("✅ MCP daemon started (PID: {})", child.id());
+                let _ = child.wait();
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to start daemon: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        println!("🪟 Setting up Windows service with workspace...");
+        // Windows service implementation would go here
+        eprintln!("❌ Windows daemon mode not yet implemented");
+        std::process::exit(1);
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        eprintln!("❌ Daemon mode not supported on this platform");
+        std::process::exit(1);
+    }
+}
+
+async fn run_as_daemon(project: PathBuf, _config: PathBuf, _host: String, _port: u16, _mcp_port: u16) {
     #[cfg(target_os = "linux")]
     {
         use std::fs;

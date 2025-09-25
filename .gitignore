@@ -46,6 +46,7 @@ docs/_site/
 .env
 .env.local
 config.yml
+vectorize-workspace.yml
 
 # Vectorizer specific
 *.vdb

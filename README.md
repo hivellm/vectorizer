@@ -12,6 +12,24 @@ cargo run --bin vzr -- start --project ../gov
 ```
 This starts both the REST API server (port 15001) and MCP server (port 15002) simultaneously.
 
+### MCP (Model Context Protocol) Integration
+Vectorizer includes full MCP support for IDE integration and AI model communication:
+
+```bash
+# MCP server runs automatically with the unified CLI
+cargo run --bin vzr -- start --project ../gov
+
+# MCP endpoint: ws://127.0.0.1:15002/mcp
+# Available tools: search_vectors, list_collections, embed_text, create_collection, etc.
+```
+
+**MCP Features:**
+- ✅ **IDE Integration**: Compatible with Cursor, VS Code, and other MCP-enabled editors
+- ✅ **AI Model Communication**: Direct integration with LLMs via Model Context Protocol
+- ✅ **Real-time Search**: Live vector search capabilities through MCP tools
+- ✅ **Collection Management**: Create, manage, and query collections via MCP
+- ✅ **Authentication**: Secure API key-based authentication for MCP connections
+
 ### Check Server Status
 ```bash
 cargo run --bin vzr -- status
@@ -45,6 +63,24 @@ cargo run --bin vzr -- start --project ../gov --daemon
 cargo run --bin vzr -- start --help
 ```
 
+### Workspace Management (NEW!)
+```bash
+# Initialize a new workspace
+cargo run --bin vzr -- workspace init --directory ./my-workspace --name "My Workspace"
+
+# Validate workspace configuration
+cargo run --bin vzr -- workspace validate
+
+# Show workspace status
+cargo run --bin vzr -- workspace status
+
+# List all projects in workspace
+cargo run --bin vzr -- workspace list
+
+# Start servers with workspace configuration
+cargo run --bin vzr -- start --workspace vectorize-workspace.yml
+```
+
 ### Manual Commands
 ```bash
 # Start REST API server only
@@ -69,11 +105,11 @@ cargo run --bin vectorizer-mcp-server -- ../gov
 - ✅ Advanced embedding system: TF-IDF, BM25, SVD, BERT, MiniLM
 - ✅ Hybrid search pipeline: Sparse → Dense re-ranking
 - ✅ REST API with text search and embeddings
+- ✅ **MCP 100% OPERATIONAL** - Fully working with Cursor IDE
 - ✅ Comprehensive evaluation metrics (MRR, MAP, P@K, R@K)
 - ✅ **150+ tests passing (98% success rate)** with comprehensive coverage
 - ✅ **JWT + API Key Authentication** with role-based access control
 - ✅ **CLI Tools** for administration and management
-- ✅ **MCP Integration** for IDE usage (Model Context Protocol)
 - ✅ **CI/CD Pipeline** with security analysis and automated testing
 - ✅ **Docker Support** for containerized deployment (dev/prod)
 - ✅ **Code Quality**: Zero warnings in production code
@@ -365,6 +401,207 @@ results = client.search_by_text(
     k=5
 )
 ```
+
+## 🔧 MCP (Model Context Protocol) Integration
+
+Vectorizer provides comprehensive MCP support for seamless IDE integration and AI model communication. The MCP server runs alongside the REST API and provides real-time access to vector operations.
+
+### MCP Server Configuration
+
+The MCP server is automatically configured through the main configuration file (`config.yml`):
+
+```yaml
+mcp:
+  enabled: true
+  host: "127.0.0.1"
+  port: 15002
+  auth_required: true
+  max_connections: 10
+  
+  # Available tools
+  tools:
+    - search_vectors
+    - list_collections
+    - embed_text
+    - create_collection
+    - insert_vectors
+    - delete_vectors
+    - get_vector
+    - delete_collection
+    - get_database_stats
+```
+
+### MCP Tools Available
+
+#### Search Operations
+- **`search_vectors`**: Search for similar vectors in a collection
+- **`get_vector`**: Retrieve a specific vector by ID
+
+#### Collection Management
+- **`list_collections`**: List all available collections
+- **`get_collection_info`**: Get detailed information about a collection
+- **`create_collection`**: Create a new collection with custom settings
+- **`delete_collection`**: Remove a collection and all its data
+
+#### Vector Operations
+- **`insert_vectors`**: Insert multiple vectors into a collection
+- **`delete_vectors`**: Remove specific vectors from a collection
+- **`embed_text`**: Generate embeddings for text using configured models
+
+#### System Information
+- **`get_database_stats`**: Get comprehensive database statistics
+
+### MCP Usage Examples
+
+#### Cursor IDE Integration
+```json
+{
+  "mcpServers": {
+    "vectorizer": {
+      "command": "cargo",
+      "args": ["run", "--bin", "vectorizer-mcp-server", "--", "../gov"],
+      "env": {
+        "VECTORIZER_CONFIG": "config.yml"
+      }
+    }
+  }
+}
+```
+
+#### Direct MCP Client Usage
+```bash
+# Connect to MCP server
+curl -X POST http://127.0.0.1:15002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "search_vectors",
+      "arguments": {
+        "collection": "documents",
+        "query": "machine learning algorithms",
+        "limit": 5
+      }
+    }
+  }'
+```
+
+### MCP Authentication
+
+MCP connections support API key authentication:
+
+```bash
+# Generate API key for MCP access
+cargo run --bin vectorizer-cli -- api-keys create --name "mcp-client" --description "MCP Integration"
+
+# Use API key in MCP connection
+curl -X POST http://127.0.0.1:15002/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list"}'
+```
+
+### MCP Resources
+
+The MCP server provides access to system resources:
+
+- **`vectorizer://collections`**: Complete collection listing
+- **`vectorizer://stats`**: Real-time database statistics
+- **`vectorizer://health`**: Server health status
+
+## 📁 Workspace Configuration (NEW!)
+
+Vectorizer now supports multi-project workspaces through a centralized configuration file (`vectorize-workspace.yml`). This allows you to manage multiple projects, each with their own collections, embedding configurations, and processing settings.
+
+### Workspace Features
+
+- **Multi-Project Support**: Configure multiple projects in a single workspace
+- **Collection Management**: Define collections with custom embedding models and dimensions
+- **Flexible Configuration**: Override global settings per project or collection
+- **Validation**: Comprehensive validation of workspace configuration
+- **Status Monitoring**: Real-time workspace status and project information
+
+### Workspace Configuration Structure
+
+```yaml
+workspace:
+  name: "HiveLLM Development Workspace"
+  version: "1.0.0"
+  description: "Multi-project workspace for HiveLLM ecosystem"
+
+global:
+  default_embedding:
+    model: "native_bow"
+    dimension: 384
+  default_collection:
+    metric: "cosine"
+    compression:
+      enabled: true
+      threshold_bytes: 1024
+
+projects:
+  - name: "governance-bip-specs"
+    path: "../gov"
+    description: "🏛️ Governance (BIP Specs)"
+    enabled: true
+    collections:
+      - name: "bips"
+        description: "Blockchain Improvement Proposals"
+        dimension: 768
+        embedding:
+          model: "bm25"
+          parameters:
+            k1: 1.5
+            b: 0.75
+        processing:
+          chunk_size: 1024
+          include_patterns:
+            - "bips/**/*.md"
+```
+
+### Supported Embedding Models
+
+- **`native_bow`**: Native Bag of Words implementation
+- **`native_hash`**: Feature hashing for large vocabularies
+- **`native_ngram`**: N-gram based embeddings
+- **`bm25`**: BM25 sparse retrieval with configurable parameters
+- **`real_model`**: Real transformer models via Candle framework
+- **`onnx_model`**: ONNX Runtime models for production deployment
+
+### Workspace Commands
+
+```bash
+# Initialize workspace
+vectorizer workspace init --directory ./workspace --name "My Workspace"
+
+# Validate configuration
+vectorizer workspace validate --config vectorize-workspace.yml
+
+# Show status
+vectorizer workspace status
+
+# List projects
+vectorizer workspace list
+
+# Start with workspace
+vectorizer start --workspace vectorize-workspace.yml
+```
+
+### Example: HiveLLM Ecosystem Workspace
+
+The included `vectorize-workspace.example.yml` provides a complete configuration for the HiveLLM ecosystem:
+
+- **🏛️ Governance (BIP Specs)**: BIPs, proposals, and voting records
+- **🏛️ Governance Dashboard**: Implementation of the governance system
+- **🔷 TypeScript (BIP-01,02,03)**: TypeScript development workspace
+- **🎯 Cursor Extension (BIP-00)**: Cursor IDE extension
+- **🔒 Security Environment (BIP-04)**: Python security tools
+- **🌐 UMICP Protocol (BIP-05)**: Universal Matrix Inter-Communication Protocol
+- **💬 Chat Hub & Monitoring**: Centralized chat hub
+- **🔍 Vectorizer**: This vector database system
+
+Each project is configured with appropriate embedding models, dimensions, and processing settings optimized for its content type.
 
 ## 🌐 REST API (Currently Available)
 

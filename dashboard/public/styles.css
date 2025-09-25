@@ -94,7 +94,7 @@ body {
 }
 
 .sidebar-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
     display: flex;
@@ -158,7 +158,7 @@ body {
 }
 
 .breadcrumb {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -307,7 +307,7 @@ body {
 }
 
 .stat-value {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1;
@@ -346,7 +346,7 @@ body {
     align-items: center;
     gap: var(--space-3);
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
 }
 
@@ -419,7 +419,7 @@ body {
 }
 
 .header-content h1 {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
     display: flex;
@@ -463,7 +463,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -481,11 +481,58 @@ body {
 
 .stat-row .label {
     color: var(--text-secondary);
+    font-size: 0.875rem;
 }
 
 .stat-row .value {
     color: var(--text-primary);
     font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.stat-row .value.status-completed {
+    color: var(--success);
+}
+
+.stat-row .value.status-processing,
+.stat-row .value.status-indexing {
+    color: var(--warning);
+}
+
+.stat-row .value.status-pending {
+    color: var(--info);
+}
+
+.stat-row .value.status-failed {
+    color: var(--error);
+}
+
+/* Indexing Progress */
+.indexing-progress {
+    margin-top: var(--space-2);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: var(--space-1);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+    font-weight: 600;
 }
 
 .collection-actions {
@@ -647,7 +694,7 @@ body {
 
 .results-header h3 {
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
 }
 
@@ -746,7 +793,7 @@ body {
 
 .vectors-header h3 {
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
 }
 
@@ -827,7 +874,7 @@ body {
 
 .status-header h3 {
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
 }
 
@@ -910,7 +957,7 @@ body {
 
 .output-header h3 {
     color: var(--text-primary);
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 600;
 }
 
@@ -980,7 +1027,7 @@ body {
 
 .modal-header h2 {
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -1025,7 +1072,7 @@ body {
 
 .detail-section h3 {
     color: var(--text-primary);
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 600;
     margin-bottom: var(--space-4);
 }

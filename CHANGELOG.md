@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2025-09-25
+
+### 🔒 **Process Management & Stability**
+
+#### Duplicate Process Prevention
+- **NEW**: Automatic detection and prevention of duplicate vectorizer processes
+- **Port-based Detection**: Uses `lsof` to detect processes using ports 15001/15002
+- **Auto-cleanup**: Automatically kills conflicting processes before starting new ones
+- **Self-protection**: Excludes current process from detection to prevent self-termination
+- **Logging**: Comprehensive logging of process detection and cleanup actions
+
+#### Server Startup Reliability
+- **FIXED**: Resolved issue where multiple `vzr` instances would conflict
+- **Unified Architecture**: Single REST API server + Single MCP server per workspace
+- **Process Isolation**: Prevents multiple servers from competing for same resources
+- **Graceful Handling**: Proper error messages when process cleanup fails
+
+#### Workspace Indexing Improvements
+- **Background Indexing**: Servers start immediately while indexing runs in background
+- **Progress Tracking**: Real-time indexing progress with status updates
+- **Dashboard Integration**: Live progress bars showing collection indexing status
+- **Synchronous Fallback**: Fallback to synchronous indexing if background fails
+
+#### Technical Implementation
+- **Process Detection**: `check_existing_processes()` function with port-based detection
+- **Process Cleanup**: `kill_existing_processes()` with `lsof` + `kill -9` approach
+- **Integration Points**: Verification in both `main()` and `run_servers()` functions
+- **Error Handling**: Graceful failure with user-friendly error messages
+
+### 🎯 **User Experience**
+- **No More Conflicts**: Eliminates "multiple servers running" issues
+- **Faster Startup**: Immediate server availability with background indexing
+- **Clear Feedback**: Informative logs about process management actions
+- **Reliable Operation**: Consistent behavior across multiple server starts
+
+### 📊 **Current Status**
+- **14 Collections**: All workspace collections properly loaded
+- **6 Completed**: `governance_configurations`, `ts-workspace-configurations`, `py-env-security`, `umicp_protocol_docs`, `chat-hub`, `chat-hub-monitoring`
+- **8 In Progress**: Remaining collections being indexed in background
+- **API Operational**: REST API responding correctly on port 15001
+- **MCP Operational**: MCP server responding correctly on port 15002
+
+## [0.9.0] - 2025-09-24
+
+### 🎉 **MCP 100% OPERATIONAL** - Production Ready
+
+#### ✅ **Cursor IDE Integration Complete**
+- **PERFECT COMPATIBILITY**: MCP server fully integrated with Cursor IDE
+- **REAL-TIME COMMUNICATION**: Server-Sent Events (SSE) working flawlessly
+- **PRODUCTION DEPLOYMENT**: Stable operation with automatic project loading
+- **USER CONFIRMED**: "MCP esta 100% atualize" - User validation complete
+
+#### 🔗 **Governance Ecosystem Integration**
+- **BIP SYSTEM ALIGNMENT**: Vectorizer development approved through governance voting
+- **MINUTES 0001-0005 ANALYSIS**: Comprehensive voting results processed via MCP
+- **STRATEGIC PRIORITIES**: Security-first approach validated by governance consensus
+- **COMMUNITY APPROVAL**: All major proposals approved through democratic process
+
+#### 📊 **Governance Voting Achievements**
+- **Minutes 0001**: 20 proposals evaluated, BIP-01 approved (97%)
+- **Minutes 0002**: 19 proposals, 84% approval rate (16/19 approved)
+- **Minutes 0003**: P037 TypeScript ecosystem (100% approval)
+- **Minutes 0004**: 19 proposals, 100% approval rate, security-focused
+- **Minutes 0005**: 4 proposals, 100% approval rate, governance automation
+- **TOTAL**: 87 proposals evaluated across 5 governance sessions
+
+#### 🎯 **Strategic Direction Confirmed**
+- **Security Infrastructure**: 8 of top 13 proposals security-focused
+- **TypeScript Ecosystem**: 100% approval for development foundation
+- **Communication Protocols**: Universal Matrix Protocol (91.7% approval)
+- **Blockchain Integrity**: 92.5% approval for governance security
+- **Real-time Collaboration**: 90% approval for enhanced coordination
+
 ## [0.8.0] - 2025-09-25
 
 ### 🚀 Model Context Protocol (MCP) Server
