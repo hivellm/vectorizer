@@ -643,7 +643,7 @@ impl DocumentLoader {
     pub fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
         let path = Path::new(project_path);
         let mut documents = Vec::new();
-        self.collect_documents_recursive(path, &mut documents)?;
+        self.collect_documents_recursive(path, path, &mut documents)?;
         info!(
             "📁 Found {} documents in '{}' for collection '{}'",
             documents.len(),
@@ -658,6 +658,7 @@ impl DocumentLoader {
     fn collect_documents_recursive(
         &self,
         dir: &Path,
+        project_root: &Path,
         documents: &mut Vec<(PathBuf, String)>,
     ) -> Result<()> {
         debug!("Scanning directory: {}", dir.display());
@@ -694,7 +695,7 @@ impl DocumentLoader {
                         continue;
                     }
                 }
-                self.collect_documents_recursive(&path, documents)?;
+                self.collect_documents_recursive(&path, project_root, documents)?;
             } else if path.is_file() {
                 // Skip specific file names that should never be indexed
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
@@ -742,7 +743,7 @@ impl DocumentLoader {
                     }
                 }
 
-                if self.matches_patterns(&path, dir) {
+                if self.matches_patterns(&path, project_root) {
                     // Check file size
                     match fs::metadata(&path) {
                         Ok(metadata) => {

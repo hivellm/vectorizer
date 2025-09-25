@@ -2709,3 +2709,453 @@
 [2m2025-09-25T21:18:32.831121Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
 [2m2025-09-25T21:18:34.825122Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
 [2m2025-09-25T21:18:34.830994Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:36.825283Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:36.831304Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:38.824918Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:38.831022Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:40.825823Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:40.833516Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:42.826442Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:42.834056Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:44.825043Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:44.832935Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:46.825068Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:46.833532Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:48.826074Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:48.834204Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:50.825283Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:50.833510Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:52.825380Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:52.832274Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:54.825231Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:54.831543Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:56.824425Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:56.830882Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:58.824396Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:18:58.831320Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:00.825557Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:00.832679Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:02.825616Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:02.832003Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:04.826514Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:04.833882Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:06.825686Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:06.833414Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:08.825754Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:08.833004Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:10.825745Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:10.832132Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:12.826481Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:12.834227Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:14.825678Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:14.833970Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:16.827000Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:16.834144Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:18.824430Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:18.832112Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:20.837887Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:20.845050Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:22.825486Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:22.834162Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:24.824921Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:24.832434Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:26.825210Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:26.832197Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:28.824872Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:28.832685Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:30.824492Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:30.830715Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:32.825510Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:32.833019Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:34.825184Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:34.831224Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:36.825768Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:36.832669Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:38.825820Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:38.832825Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:40.825702Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:40.832087Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:42.825562Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:42.833528Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:44.825875Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:44.833787Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:46.825316Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:46.833062Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:48.825081Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:48.832188Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:50.824075Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:50.831445Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:52.825644Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:52.832629Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:54.825552Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:54.834069Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:56.825517Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:56.832138Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:58.825313Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:19:58.831837Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:00.825808Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:00.832330Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:02.827167Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:02.835152Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:04.824800Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:04.832182Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:06.825700Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:06.834056Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:08.826423Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:08.834888Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:10.827155Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:10.836434Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:11.259896Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:12.825207Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:12.832818Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:14.825956Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:14.833303Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:20:16.821238Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:16.821334Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:16.825244Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:16.825308Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:18.821897Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:18.822008Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:18.825653Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:18.825714Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:20.821726Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:20.821824Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:20.825263Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:20.825307Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:21.173515Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-25T21:20:21.173570Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T21:20:21.174216Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-bips' with default status 'pending'
+[2m2025-09-25T21:20:21.174245Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-proposals' with default status 'pending'
+[2m2025-09-25T21:20:21.174256Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-minutes' with default status 'pending'
+[2m2025-09-25T21:20:21.174269Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-guidelines' with default status 'pending'
+[2m2025-09-25T21:20:21.174280Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-teams' with default status 'pending'
+[2m2025-09-25T21:20:21.174290Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-docs' with default status 'pending'
+[2m2025-09-25T21:20:21.174301Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'governance_dashboard' with default status 'pending'
+[2m2025-09-25T21:20:21.174319Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'governance_configurations' with default status 'pending'
+[2m2025-09-25T21:20:21.174331Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'ts-workspace' with default status 'pending'
+[2m2025-09-25T21:20:21.174342Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'ts-workspace-configurations' with default status 'pending'
+[2m2025-09-25T21:20:21.174353Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'cursor-extension' with default status 'pending'
+[2m2025-09-25T21:20:21.174365Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'scripts' with default status 'pending'
+[2m2025-09-25T21:20:21.174376Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'py-env-security' with default status 'pending'
+[2m2025-09-25T21:20:21.174388Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'umicp_protocol_docs' with default status 'pending'
+[2m2025-09-25T21:20:21.174406Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'umicp_cpp_implementation' with default status 'pending'
+[2m2025-09-25T21:20:21.174420Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'chat-hub' with default status 'pending'
+[2m2025-09-25T21:20:21.174431Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'chat-hub-monitoring' with default status 'pending'
+[2m2025-09-25T21:20:21.174442Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-25T21:20:21.174826Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-bips' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174862Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174871Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-proposals' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174883Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174890Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-minutes' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174901Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174909Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-guidelines' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174921Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174928Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-teams' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174940Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174946Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-docs' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174957Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174964Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'governance_dashboard' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174976Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.174983Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'governance_configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.174995Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175002Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'ts-workspace' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175013Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175020Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'ts-workspace-configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175033Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175039Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'cursor-extension' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175050Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175093Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175107Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175114Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'py-env-security' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175126Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175133Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'umicp_protocol_docs' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175145Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175152Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'umicp_cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175163Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175172Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'chat-hub' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175183Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175190Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'chat-hub-monitoring' to status 'pending' progress 0.0%
+[2m2025-09-25T21:20:21.175201Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:20:21.175209Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 17 collections initialized
+[2m2025-09-25T21:20:21.175219Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-25T21:20:21.175635Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error
+[2m2025-09-25T21:20:21.175655Z[0m [33m WARN[0m [2mvectorizer_server[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error. Server will use local store only.
+[2m2025-09-25T21:20:21.175667Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-25T21:20:21.175680Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-25T21:20:21.175704Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-25T21:20:21.176359Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-25T21:20:22.821417Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:22.821499Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:22.825185Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:22.825234Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:24.821379Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:24.821500Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:24.825590Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:24.825684Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:26.821439Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:26.821538Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:26.825745Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:26.825824Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:28.820982Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:28.821111Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:28.824854Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:28.824904Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:30.821761Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:30.821841Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:30.825366Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:30.825463Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:32.821036Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:32.821134Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:32.824762Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:32.824825Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:34.822120Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:34.822217Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:34.826083Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:34.826144Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:36.822102Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:36.822182Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:36.826130Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:36.826226Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:38.820996Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:38.821081Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:38.825021Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:38.825116Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:40.822214Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:40.822309Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:40.826286Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:40.826369Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:42.821370Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:42.821470Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:42.825996Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:42.826118Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:44.822049Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:44.822147Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:44.826010Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:44.826114Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:46.821766Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:46.821863Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:46.825252Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:46.825313Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:48.821750Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:48.821832Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:48.825661Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:48.825747Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:50.821974Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:50.822083Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:50.826738Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:50.826822Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:52.822110Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:52.822211Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:52.826020Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:52.826094Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:54.821042Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:54.821145Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:54.824801Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:54.824874Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:56.821131Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:56.821234Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:56.824545Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:56.824600Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:58.822272Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:58.822350Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:20:58.825263Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:20:58.825312Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:00.821157Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:00.821261Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:00.824822Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:00.824895Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:02.822427Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:02.822537Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:02.826130Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:02.826192Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:04.822089Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:04.822202Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:04.826168Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:04.826238Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:06.821800Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:06.821924Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:06.826504Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:06.826588Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:08.821220Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:08.821317Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:08.825612Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:08.825707Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:10.821351Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:10.821427Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:10.825410Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:10.825498Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:12.821271Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:12.821369Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:12.825401Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:12.825491Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:14.821918Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:14.822018Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:14.825901Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:14.825991Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:16.820875Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:16.820965Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:16.824544Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:16.824609Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:18.821868Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:18.821956Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:18.825566Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:18.825638Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:20.821577Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:20.821690Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:20.825304Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:20.825360Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:22.821669Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:22.821773Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:22.825590Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:22.825653Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:24.821311Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:24.821413Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:24.825084Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:24.825137Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:26.821572Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:26.821661Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:26.824699Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:26.824752Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:28.821810Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:28.821889Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:28.825077Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:28.825132Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:30.821909Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:30.822033Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:30.825814Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:30.825888Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:32.821372Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:32.821488Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:32.825265Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:32.825350Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:34.821815Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:34.821930Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:34.826154Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:34.826227Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:36.822551Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:36.822627Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:36.826193Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:36.826252Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:38.821383Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:38.821503Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:38.825849Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ GRPC call failed, falling back to local store: status: Unavailable, message: "tcp connect error", details: [], metadata: MetadataMap { headers: {} }
+[2m2025-09-25T21:21:38.825922Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 17 entries
+[2m2025-09-25T21:21:40.153315Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:40.826547Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:40.834981Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:42.825554Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:42.832761Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:44.826095Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:44.834313Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:46.824894Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:46.833417Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:48.825360Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:48.833210Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:50.138080Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-25T21:21:50.138135Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T21:21:50.138769Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-bips' with default status 'pending'
+[2m2025-09-25T21:21:50.138799Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-proposals' with default status 'pending'
+[2m2025-09-25T21:21:50.138810Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-minutes' with default status 'pending'
+[2m2025-09-25T21:21:50.138823Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-guidelines' with default status 'pending'
+[2m2025-09-25T21:21:50.138835Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-teams' with default status 'pending'
+[2m2025-09-25T21:21:50.138845Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'gov-docs' with default status 'pending'
+[2m2025-09-25T21:21:50.138855Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'governance_dashboard' with default status 'pending'
+[2m2025-09-25T21:21:50.138873Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'governance_configurations' with default status 'pending'
+[2m2025-09-25T21:21:50.138884Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'ts-workspace' with default status 'pending'
+[2m2025-09-25T21:21:50.138898Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'ts-workspace-configurations' with default status 'pending'
+[2m2025-09-25T21:21:50.138910Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'cursor-extension' with default status 'pending'
+[2m2025-09-25T21:21:50.138921Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'scripts' with default status 'pending'
+[2m2025-09-25T21:21:50.138937Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'py-env-security' with default status 'pending'
+[2m2025-09-25T21:21:50.138948Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'umicp_protocol_docs' with default status 'pending'
+[2m2025-09-25T21:21:50.138962Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'umicp_cpp_implementation' with default status 'pending'
+[2m2025-09-25T21:21:50.138974Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'chat-hub' with default status 'pending'
+[2m2025-09-25T21:21:50.138985Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'chat-hub-monitoring' with default status 'pending'
+[2m2025-09-25T21:21:50.138996Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-25T21:21:50.139374Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-bips' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139407Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139415Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-proposals' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139426Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139433Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-minutes' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139444Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139450Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-guidelines' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139461Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139468Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-teams' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139479Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139485Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'gov-docs' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139496Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139502Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'governance_dashboard' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139513Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139519Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'governance_configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139530Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139538Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'ts-workspace' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139550Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139557Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'ts-workspace-configurations' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139568Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139574Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'cursor-extension' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139585Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139591Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139602Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139608Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'py-env-security' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139619Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139625Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'umicp_protocol_docs' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139636Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139642Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'umicp_cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139653Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139659Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'chat-hub' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139670Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139676Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'chat-hub-monitoring' to status 'pending' progress 0.0%
+[2m2025-09-25T21:21:50.139687Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 17 entries
+[2m2025-09-25T21:21:50.139694Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 17 collections initialized
+[2m2025-09-25T21:21:50.139703Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-25T21:21:50.140325Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ✅ GRPC client initialized successfully with config
+[2m2025-09-25T21:21:50.140346Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-25T21:21:50.140356Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-25T21:21:50.140380Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-25T21:21:50.141117Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-25T21:21:50.825006Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:50.834046Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:52.825591Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:52.832914Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:54.826201Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:54.833659Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:56.825770Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:56.833910Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:58.825543Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:21:58.833306Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:00.823652Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:00.830162Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:02.825228Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:02.831828Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:04.825210Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:04.831721Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:06.825635Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:06.832449Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:08.825822Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:08.833232Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:10.826389Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:10.833425Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:12.825638Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:12.833217Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:14.825965Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:14.833587Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:16.826559Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:16.834792Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:18.824518Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:18.831563Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:20.824794Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:20.831871Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:22.825558Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:22.832528Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:24.824532Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:24.832614Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:26.825523Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:26.832699Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:28.824589Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:28.830329Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:30.826481Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:30.832145Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:32.824486Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:32.831128Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:34.825896Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:34.831782Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections
+[2m2025-09-25T21:22:36.825908Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 17 collections

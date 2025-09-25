@@ -1,0 +1,417 @@
+   Compiling ring v0.17.14
+   Compiling rustls-webpki v0.103.6
+   Compiling jsonwebtoken v9.3.1
+   Compiling rustls v0.23.32
+   Compiling tokio-rustls v0.26.3
+   Compiling tonic v0.12.3
+   Compiling tonic-reflection v0.12.3
+   Compiling vectorizer v0.1.0 (/mnt/f/Node/hivellm/vectorizer)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.93s
+     Running `target/debug/vzr start --workspace vectorize-workspace.yml`
+🚀 Starting Vectorizer Servers...
+📊 HiveLLM Development Workspace - 7 projects
+📊 Loading 7 projects from workspace:
+   📁 governance-bip-specs - 🏛️ Governance (BIP Specs) - HiveLLM Governance System with BIPs, proposals, and voting
+      Path: ../gov
+      Collections: 6
+         🗂️  gov-bips (512D, cosine)
+         🗂️  gov-proposals (512D, cosine)
+         🗂️  gov-minutes (512D, cosine)
+         🗂️  gov-guidelines (512D, cosine)
+         🗂️  gov-teams (512D, cosine)
+         🗂️  gov-docs (512D, cosine)
+   📁 governance-dashboard - 🏛️ Governance Dashboard - Implementation of the governance system
+      Path: ../governance
+      Collections: 2
+         🗂️  governance_dashboard (512D, cosine)
+         🗂️  governance_configurations (512D, cosine)
+   📁 ts-workspace - 🔷 TypeScript (BIP-01,02,03) - TypeScript development workspace with packages
+      Path: ../ts-workspace
+      Collections: 2
+         🗂️  ts-workspace (512D, cosine)
+         🗂️  ts-workspace-configurations (512D, cosine)
+   📁 cursor-extension - 🎯 Cursor Extension (BIP-00) - Cursor IDE extension for HiveLLM
+      Path: ../cursor-extension
+      Collections: 2
+         🗂️  cursor-extension (512D, cosine)
+         🗂️  scripts (512D, cosine)
+   📁 py-env-security - 🔒 Security Environment (BIP-04) - Python security environment and tools
+      Path: ../py-env-security
+      Collections: 1
+         🗂️  py-env-security (512D, cosine)
+   📁 umicp - 🌐 UMICP Protocol (BIP-05) - Universal Matrix Inter-Communication Protocol
+      Path: ../umicp
+      Collections: 2
+         🗂️  umicp_protocol_docs (512D, cosine)
+         🗂️  umicp_cpp_implementation (512D, cosine)
+   📁 chat-hub - 💬 Chat Hub & Monitoring - Centralized chat hub for HiveLLM ecosystem
+      Path: ../chat-hub
+      Collections: 2
+         🗂️  chat-hub (512D, cosine)
+         🗂️  chat-hub-monitoring (512D, cosine)
+✅ Unified server running
+  REST API: http://127.0.0.1:15001
+  MCP Server: http://127.0.0.1:15002/sse
+  GRPC Server: http://127.0.0.1:15003
+  Collections: 17 from 7 projects
+
+⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log
+
+[2m2025-09-25T21:21:40.114398Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+🔄 Starting background indexing...
+⏳ Waiting for vectorizer-server to be ready...
+[2m2025-09-25T21:21:40.114665Z[0m [32m INFO[0m [2mvectorizer::grpc::server[0m[2m:[0m 🚀 Starting GRPC server on 127.0.0.1:15003
+✅ vectorizer-server is ready!
+📁 Processing project: governance-bip-specs
+🗂️ Processing collection: gov-bips from ../gov
+📁 Indexing collection 'gov-bips' from path: ../gov
+[2m2025-09-25T21:21:40.188318Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-bips', performing full indexing
+[2m2025-09-25T21:21:40.242545Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-bips'
+[2m2025-09-25T21:21:40.242589Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-bips'.
+✅ Indexed 0 documents for collection 'gov-bips'
+✅ Collection 'gov-bips' indexed successfully: 0 vectors
+🗂️ Processing collection: gov-proposals from ../gov
+📁 Indexing collection 'gov-proposals' from path: ../gov
+[2m2025-09-25T21:21:40.296393Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-proposals', performing full indexing
+[2m2025-09-25T21:21:40.359512Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 148 documents in '../gov' for collection 'gov-proposals'
+[2m2025-09-25T21:21:40.359614Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 1/148: ../gov/proposals/approved/001-project-overview.md
+[2m2025-09-25T21:21:40.359698Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/approved/001-project-overview.md
+[2m2025-09-25T21:21:40.359709Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 2/148: ../gov/proposals/approved/002-detailed-improvements.md
+[2m2025-09-25T21:21:40.359783Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/approved/002-detailed-improvements.md
+[2m2025-09-25T21:21:40.359790Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 3/148: ../gov/proposals/approved/005-ai-collaboration-methodology.md
+[2m2025-09-25T21:21:40.359862Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 22 chunks from ../gov/proposals/approved/005-ai-collaboration-methodology.md
+[2m2025-09-25T21:21:40.359869Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 4/148: ../gov/proposals/approved/008-gemini-i18n-framework-proposal.md
+[2m2025-09-25T21:21:40.359936Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 21 chunks from ../gov/proposals/approved/008-gemini-i18n-framework-proposal.md
+[2m2025-09-25T21:21:40.359943Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 5/148: ../gov/proposals/approved/009-gpt5-reputation-weighted-consensus-proposal.md
+[2m2025-09-25T21:21:40.359990Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 15 chunks from ../gov/proposals/approved/009-gpt5-reputation-weighted-consensus-proposal.md
+[2m2025-09-25T21:21:40.359997Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 6/148: ../gov/proposals/approved/010-gpt4o-enhancement-proposal.md
+[2m2025-09-25T21:21:40.360033Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/approved/010-gpt4o-enhancement-proposal.md
+[2m2025-09-25T21:21:40.360039Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 7/148: ../gov/proposals/approved/011-grok-core-fast-1-proposal.md
+[2m2025-09-25T21:21:40.360158Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 38 chunks from ../gov/proposals/approved/011-grok-core-fast-1-proposal.md
+[2m2025-09-25T21:21:40.360165Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 8/148: ../gov/proposals/approved/013-claude-3-5-sonnet-proposal.md
+[2m2025-09-25T21:21:40.360245Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 26 chunks from ../gov/proposals/approved/013-claude-3-5-sonnet-proposal.md
+[2m2025-09-25T21:21:40.360251Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 9/148: ../gov/proposals/approved/015-deepseek-v3-proposal.md
+[2m2025-09-25T21:21:40.360297Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/approved/015-deepseek-v3-proposal.md
+[2m2025-09-25T21:21:40.360303Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 10/148: ../gov/proposals/approved/016-claude-3.5-haiku-contribution.md
+[2m2025-09-25T21:21:40.360350Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/approved/016-claude-3.5-haiku-contribution.md
+[2m2025-09-25T21:21:40.360356Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 11/148: ../gov/proposals/approved/017-grok-3-proposal.md
+[2m2025-09-25T21:21:40.360396Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/approved/017-grok-3-proposal.md
+[2m2025-09-25T21:21:40.360402Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 12/148: ../gov/proposals/approved/018-claude-code-assistant-proposal.md
+[2m2025-09-25T21:21:40.360487Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 18 chunks from ../gov/proposals/approved/018-claude-code-assistant-proposal.md
+[2m2025-09-25T21:21:40.360494Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 13/148: ../gov/proposals/approved/019-claude-3-7-sonnet-proposal.md
+[2m2025-09-25T21:21:40.360581Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 29 chunks from ../gov/proposals/approved/019-claude-3-7-sonnet-proposal.md
+[2m2025-09-25T21:21:40.360587Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 14/148: ../gov/proposals/approved/022-023-034-049-quality-testing-validation.md
+[2m2025-09-25T21:21:40.360648Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/approved/022-023-034-049-quality-testing-validation.md
+[2m2025-09-25T21:21:40.360658Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 15/148: ../gov/proposals/approved/024-038-036-007-052-security-integrity-suite.md
+[2m2025-09-25T21:21:40.360716Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/approved/024-038-036-007-052-security-integrity-suite.md
+[2m2025-09-25T21:21:40.360723Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 16/148: ../gov/proposals/approved/025-grok-code-fast-1-secure-script-execution-environment.md
+[2m2025-09-25T21:21:40.360816Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 32 chunks from ../gov/proposals/approved/025-grok-code-fast-1-secure-script-execution-environment.md
+[2m2025-09-25T21:21:40.360822Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 17/148: ../gov/proposals/approved/026-027-006-scalability-performance.md
+[2m2025-09-25T21:21:40.360913Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/approved/026-027-006-scalability-performance.md
+[2m2025-09-25T21:21:40.360919Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 18/148: ../gov/proposals/approved/030-protocol-versioning-framework.md
+[2m2025-09-25T21:21:40.360969Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/approved/030-protocol-versioning-framework.md
+[2m2025-09-25T21:21:40.360975Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 19/148: ../gov/proposals/approved/031-enhanced-logging-framework.md
+[2m2025-09-25T21:21:40.361008Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 6 chunks from ../gov/proposals/approved/031-enhanced-logging-framework.md
+[2m2025-09-25T21:21:40.361014Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 20/148: ../gov/proposals/approved/032-automated-rollback-mechanisms.md
+[2m2025-09-25T21:21:40.361040Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 5 chunks from ../gov/proposals/approved/032-automated-rollback-mechanisms.md
+[2m2025-09-25T21:21:40.361046Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 21/148: ../gov/proposals/approved/033-error-handling-recovery-protocol.md
+[2m2025-09-25T21:21:40.361113Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/approved/033-error-handling-recovery-protocol.md
+[2m2025-09-25T21:21:40.361119Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 22/148: ../gov/proposals/approved/035-model-governance-registry.md
+[2m2025-09-25T21:21:40.361217Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 22 chunks from ../gov/proposals/approved/035-model-governance-registry.md
+[2m2025-09-25T21:21:40.361224Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 23/148: ../gov/proposals/approved/039-manus-ai-integration.md
+[2m2025-09-25T21:21:40.361286Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/approved/039-manus-ai-integration.md
+[2m2025-09-25T21:21:40.361292Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 24/148: ../gov/proposals/approved/040-041-047-057-058-056-governance-observability-platform.md
+[2m2025-09-25T21:21:40.361407Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 25 chunks from ../gov/proposals/approved/040-041-047-057-058-056-governance-observability-platform.md
+[2m2025-09-25T21:21:40.361414Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 25/148: ../gov/proposals/approved/044-042-045-046-review-governance-suite.md
+[2m2025-09-25T21:21:40.361508Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 21 chunks from ../gov/proposals/approved/044-042-045-046-review-governance-suite.md
+[2m2025-09-25T21:21:40.361515Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 26/148: ../gov/proposals/approved/051-model-explainability-transparency-framework.md
+[2m2025-09-25T21:21:40.361637Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 22 chunks from ../gov/proposals/approved/051-model-explainability-transparency-framework.md
+[2m2025-09-25T21:21:40.361643Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 27/148: ../gov/proposals/approved/053-automated-small-model-evaluation-and-integration.md
+[2m2025-09-25T21:21:40.361748Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/approved/053-automated-small-model-evaluation-and-integration.md
+[2m2025-09-25T21:21:40.361755Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 28/148: ../gov/proposals/approved/054-048-043-050-inter-model-communication.md
+[2m2025-09-25T21:21:40.361869Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 22 chunks from ../gov/proposals/approved/054-048-043-050-inter-model-communication.md
+[2m2025-09-25T21:21:40.361916Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 29/148: ../gov/proposals/approved/055-sustainable-funding-and-api-partnership-program.md
+[2m2025-09-25T21:21:40.361956Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/approved/055-sustainable-funding-and-api-partnership-program.md
+[2m2025-09-25T21:21:40.361964Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 30/148: ../gov/proposals/approved/README.md
+[2m2025-09-25T21:21:40.362006Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/approved/README.md
+[2m2025-09-25T21:21:40.362012Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 31/148: ../gov/proposals/consolidated/001-security-integrity-suite/MIGRATION.md
+[2m2025-09-25T21:21:40.362048Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/consolidated/001-security-integrity-suite/MIGRATION.md
+[2m2025-09-25T21:21:40.362054Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 32/148: ../gov/proposals/consolidated/001-security-integrity-suite/README.md
+[2m2025-09-25T21:21:40.362091Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 6 chunks from ../gov/proposals/consolidated/001-security-integrity-suite/README.md
+[2m2025-09-25T21:21:40.362099Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 33/148: ../gov/proposals/consolidated/002-quality-testing-validation/README.md
+[2m2025-09-25T21:21:40.362127Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 5 chunks from ../gov/proposals/consolidated/002-quality-testing-validation/README.md
+[2m2025-09-25T21:21:40.362160Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 34/148: ../gov/proposals/consolidated/003-governance-observability-platform/README.md
+[2m2025-09-25T21:21:40.362193Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 6 chunks from ../gov/proposals/consolidated/003-governance-observability-platform/README.md
+[2m2025-09-25T21:21:40.362199Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 35/148: ../gov/proposals/consolidated/004-review-governance-suite/README.md
+[2m2025-09-25T21:21:40.362229Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 5 chunks from ../gov/proposals/consolidated/004-review-governance-suite/README.md
+[2m2025-09-25T21:21:40.362234Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 36/148: ../gov/proposals/consolidated/005-scalability-performance/README.md
+[2m2025-09-25T21:21:40.362264Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 5 chunks from ../gov/proposals/consolidated/005-scalability-performance/README.md
+[2m2025-09-25T21:21:40.362270Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 37/148: ../gov/proposals/consolidated/006-inter-model-communication/README.md
+[2m2025-09-25T21:21:40.362301Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 5 chunks from ../gov/proposals/consolidated/006-inter-model-communication/README.md
+[2m2025-09-25T21:21:40.362307Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 38/148: ../gov/proposals/consolidated/007-model-governance-registry/README.md
+[2m2025-09-25T21:21:40.362330Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 4 chunks from ../gov/proposals/consolidated/007-model-governance-registry/README.md
+[2m2025-09-25T21:21:40.362338Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 39/148: ../gov/proposals/consolidated/README.md
+[2m2025-09-25T21:21:40.362401Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/consolidated/README.md
+[2m2025-09-25T21:21:40.362406Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 40/148: ../gov/proposals/consolidated-archive/006-claude4-sonnet-enhancement-proposal.md
+[2m2025-09-25T21:21:40.362549Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 27 chunks from ../gov/proposals/consolidated-archive/006-claude4-sonnet-enhancement-proposal.md
+[2m2025-09-25T21:21:40.362558Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 41/148: ../gov/proposals/consolidated-archive/007-deepseek-security-federation-proposal.md
+[2m2025-09-25T21:21:40.362604Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 9 chunks from ../gov/proposals/consolidated-archive/007-deepseek-security-federation-proposal.md
+[2m2025-09-25T21:21:40.362611Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 42/148: ../gov/proposals/consolidated-archive/023-grok-code-fast-1-python-script-testing-framework.md
+[2m2025-09-25T21:21:40.362725Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 22 chunks from ../gov/proposals/consolidated-archive/023-grok-code-fast-1-python-script-testing-framework.md
+[2m2025-09-25T21:21:40.362734Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 43/148: ../gov/proposals/consolidated-archive/027-grok-code-fast-1-performance-optimization-pipeline.md
+[2m2025-09-25T21:21:40.362994Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 49 chunks from ../gov/proposals/consolidated-archive/027-grok-code-fast-1-performance-optimization-pipeline.md
+[2m2025-09-25T21:21:40.363003Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 44/148: ../gov/proposals/consolidated-archive/034-automated-validation-script-extension.md
+[2m2025-09-25T21:21:40.363078Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/consolidated-archive/034-automated-validation-script-extension.md
+[2m2025-09-25T21:21:40.363087Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 45/148: ../gov/proposals/consolidated-archive/036-anti-sybil-mechanisms.md
+[2m2025-09-25T21:21:40.363156Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/consolidated-archive/036-anti-sybil-mechanisms.md
+[2m2025-09-25T21:21:40.363162Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 46/148: ../gov/proposals/consolidated-archive/038-blockchain-integrity-system.md
+[2m2025-09-25T21:21:40.363237Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/consolidated-archive/038-blockchain-integrity-system.md
+[2m2025-09-25T21:21:40.363246Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 47/148: ../gov/proposals/consolidated-archive/041-automated-ai-feedback-system.md
+[2m2025-09-25T21:21:40.363350Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 19 chunks from ../gov/proposals/consolidated-archive/041-automated-ai-feedback-system.md
+[2m2025-09-25T21:21:40.363356Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 48/148: ../gov/proposals/consolidated-archive/042-randomized-agent-selection-blind-reviews-devil-advocate.md
+[2m2025-09-25T21:21:40.363437Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 15 chunks from ../gov/proposals/consolidated-archive/042-randomized-agent-selection-blind-reviews-devil-advocate.md
+[2m2025-09-25T21:21:40.363446Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 49/148: ../gov/proposals/consolidated-archive/043-event-driven-queue-consumer.md
+[2m2025-09-25T21:21:40.363590Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 28 chunks from ../gov/proposals/consolidated-archive/043-event-driven-queue-consumer.md
+[2m2025-09-25T21:21:40.363599Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 50/148: ../gov/proposals/consolidated-archive/045-supervisor-model-orchestration.md
+[2m2025-09-25T21:21:40.363694Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 18 chunks from ../gov/proposals/consolidated-archive/045-supervisor-model-orchestration.md
+[2m2025-09-25T21:21:40.363700Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 51/148: ../gov/proposals/consolidated-archive/046-issues-governance-and-discussion.md
+[2m2025-09-25T21:21:40.363778Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 16 chunks from ../gov/proposals/consolidated-archive/046-issues-governance-and-discussion.md
+[2m2025-09-25T21:21:40.363786Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 52/148: ../gov/proposals/consolidated-archive/047-automated-documentation-knowledge-system.md
+[2m2025-09-25T21:21:40.363822Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/consolidated-archive/047-automated-documentation-knowledge-system.md
+[2m2025-09-25T21:21:40.363829Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 53/148: ../gov/proposals/consolidated-archive/048-real-time-ai-collaboration-communication-infrastructure.md
+[2m2025-09-25T21:21:40.363967Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 26 chunks from ../gov/proposals/consolidated-archive/048-real-time-ai-collaboration-communication-infrastructure.md
+[2m2025-09-25T21:21:40.363976Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 54/148: ../gov/proposals/consolidated-archive/049-unified-model-performance-benchmarking-system.md
+[2m2025-09-25T21:21:40.364023Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 9 chunks from ../gov/proposals/consolidated-archive/049-unified-model-performance-benchmarking-system.md
+[2m2025-09-25T21:21:40.364030Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 55/148: ../gov/proposals/consolidated-archive/050-bidirectional-feedback-system.md
+[2m2025-09-25T21:21:40.364135Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 21 chunks from ../gov/proposals/consolidated-archive/050-bidirectional-feedback-system.md
+[2m2025-09-25T21:21:40.364146Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 56/148: ../gov/proposals/consolidated-archive/052-ai-driven-security-threat-modeling.md
+[2m2025-09-25T21:21:40.364242Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 18 chunks from ../gov/proposals/consolidated-archive/052-ai-driven-security-threat-modeling.md
+[2m2025-09-25T21:21:40.364248Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 57/148: ../gov/proposals/consolidated-archive/README.md
+[2m2025-09-25T21:21:40.364309Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/consolidated-archive/README.md
+[2m2025-09-25T21:21:40.364315Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 58/148: ../gov/proposals/CONSOLIDATED_SYSTEM.md
+[2m2025-09-25T21:21:40.364404Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 18 chunks from ../gov/proposals/CONSOLIDATED_SYSTEM.md
+[2m2025-09-25T21:21:40.364412Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 59/148: ../gov/proposals/GOVERNANCE_STRUCTURE_V2.md
+[2m2025-09-25T21:21:40.364503Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 19 chunks from ../gov/proposals/GOVERNANCE_STRUCTURE_V2.md
+[2m2025-09-25T21:21:40.364510Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 60/148: ../gov/proposals/IMPLEMENTATION_STATUS.md
+[2m2025-09-25T21:21:40.364609Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 21 chunks from ../gov/proposals/IMPLEMENTATION_STATUS.md
+[2m2025-09-25T21:21:40.364615Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 61/148: ../gov/proposals/implemented/059-unification-approved-pending.md
+[2m2025-09-25T21:21:40.364716Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 17 chunks from ../gov/proposals/implemented/059-unification-approved-pending.md
+[2m2025-09-25T21:21:40.364724Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 62/148: ../gov/proposals/implemented/BIP-01-012-bip-automated-voting-system-proposal.md
+[2m2025-09-25T21:21:40.364845Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 30 chunks from ../gov/proposals/implemented/BIP-01-012-bip-automated-voting-system-proposal.md
+[2m2025-09-25T21:21:40.364851Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 63/148: ../gov/proposals/implemented/BIP-02-037-typescript-standardization-proposal.md
+[2m2025-09-25T21:21:40.364989Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 29 chunks from ../gov/proposals/implemented/BIP-02-037-typescript-standardization-proposal.md
+[2m2025-09-25T21:21:40.365099Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 64/148: ../gov/proposals/in-implementation/BIP-00-001-cursor-ide-extension.md
+[2m2025-09-25T21:21:40.365151Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 16 chunks from ../gov/proposals/in-implementation/BIP-00-001-cursor-ide-extension.md
+[2m2025-09-25T21:21:40.365160Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 65/148: ../gov/proposals/in-implementation/BIP-03-021-ai-model-resilience-framework.md
+[2m2025-09-25T21:21:40.365218Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 19 chunks from ../gov/proposals/in-implementation/BIP-03-021-ai-model-resilience-framework.md
+[2m2025-09-25T21:21:40.365226Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 66/148: ../gov/proposals/in-implementation/BIP-06-056-autonomous-governance-framework.md
+[2m2025-09-25T21:21:40.365284Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/in-implementation/BIP-06-056-autonomous-governance-framework.md
+[2m2025-09-25T21:21:40.365290Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 67/148: ../gov/proposals/INDEX.md
+[2m2025-09-25T21:21:40.365474Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 45 chunks from ../gov/proposals/INDEX.md
+[2m2025-09-25T21:21:40.365484Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 68/148: ../gov/proposals/metadata/001-cursor-ide-extension.json
+[2m2025-09-25T21:21:40.365535Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/001-cursor-ide-extension.json
+[2m2025-09-25T21:21:40.365541Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 69/148: ../gov/proposals/metadata/002-detailed-improvements.json
+[2m2025-09-25T21:21:40.365578Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/002-detailed-improvements.json
+[2m2025-09-25T21:21:40.365584Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 70/148: ../gov/proposals/metadata/003-implementation-discussion.json
+[2m2025-09-25T21:21:40.365619Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 6 chunks from ../gov/proposals/metadata/003-implementation-discussion.json
+[2m2025-09-25T21:21:40.365625Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 71/148: ../gov/proposals/metadata/004-executive-summary.json
+[2m2025-09-25T21:21:40.365663Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/004-executive-summary.json
+[2m2025-09-25T21:21:40.365670Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 72/148: ../gov/proposals/metadata/005-ai-collaboration-methodology.json
+[2m2025-09-25T21:21:40.365707Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/005-ai-collaboration-methodology.json
+[2m2025-09-25T21:21:40.365713Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 73/148: ../gov/proposals/metadata/006-claude4-sonnet-enhancement-proposal.json
+[2m2025-09-25T21:21:40.365760Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 10 chunks from ../gov/proposals/metadata/006-claude4-sonnet-enhancement-proposal.json
+[2m2025-09-25T21:21:40.365766Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 74/148: ../gov/proposals/metadata/007-deepseek-security-federation-proposal.json
+[2m2025-09-25T21:21:40.365817Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 10 chunks from ../gov/proposals/metadata/007-deepseek-security-federation-proposal.json
+[2m2025-09-25T21:21:40.365823Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 75/148: ../gov/proposals/metadata/008-gemini-i18n-framework-proposal.json
+[2m2025-09-25T21:21:40.365857Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/008-gemini-i18n-framework-proposal.json
+[2m2025-09-25T21:21:40.365865Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 76/148: ../gov/proposals/metadata/009-gpt5-reputation-weighted-consensus-proposal.json
+[2m2025-09-25T21:21:40.365924Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/009-gpt5-reputation-weighted-consensus-proposal.json
+[2m2025-09-25T21:21:40.365932Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 77/148: ../gov/proposals/metadata/010-gpt4o-enhancement-proposal.json
+[2m2025-09-25T21:21:40.365966Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/010-gpt4o-enhancement-proposal.json
+[2m2025-09-25T21:21:40.365972Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 78/148: ../gov/proposals/metadata/011-grok-core-fast-1-proposal.json
+[2m2025-09-25T21:21:40.366008Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/011-grok-core-fast-1-proposal.json
+[2m2025-09-25T21:21:40.366014Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 79/148: ../gov/proposals/metadata/012-bip-automated-voting-system-proposal.json
+[2m2025-09-25T21:21:40.366079Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/012-bip-automated-voting-system-proposal.json
+[2m2025-09-25T21:21:40.366087Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 80/148: ../gov/proposals/metadata/013-claude-3-5-sonnet-cognitive-optimization.json
+[2m2025-09-25T21:21:40.366135Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 10 chunks from ../gov/proposals/metadata/013-claude-3-5-sonnet-cognitive-optimization.json
+[2m2025-09-25T21:21:40.366141Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 81/148: ../gov/proposals/metadata/014-gpt4o-mini-contribution.json
+[2m2025-09-25T21:21:40.366177Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/014-gpt4o-mini-contribution.json
+[2m2025-09-25T21:21:40.366183Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 82/148: ../gov/proposals/metadata/015-deepseek-v3-proposal.json
+[2m2025-09-25T21:21:40.366218Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/015-deepseek-v3-proposal.json
+[2m2025-09-25T21:21:40.366224Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 83/148: ../gov/proposals/metadata/016-claude-3.5-haiku-contribution.json
+[2m2025-09-25T21:21:40.366260Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/016-claude-3.5-haiku-contribution.json
+[2m2025-09-25T21:21:40.366268Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 84/148: ../gov/proposals/metadata/017-grok-3-proposal.json
+[2m2025-09-25T21:21:40.366304Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/017-grok-3-proposal.json
+[2m2025-09-25T21:21:40.366310Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 85/148: ../gov/proposals/metadata/018-claude-code-assistant-proposal.json
+[2m2025-09-25T21:21:40.366345Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/018-claude-code-assistant-proposal.json
+[2m2025-09-25T21:21:40.366351Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 86/148: ../gov/proposals/metadata/019-claude-3-7-sonnet-contextual-understanding.json
+[2m2025-09-25T21:21:40.366411Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/019-claude-3-7-sonnet-contextual-understanding.json
+[2m2025-09-25T21:21:40.366417Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 87/148: ../gov/proposals/metadata/020-gpt-4.1-mini-contribution.json
+[2m2025-09-25T21:21:40.366452Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/020-gpt-4.1-mini-contribution.json
+[2m2025-09-25T21:21:40.366460Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 88/148: ../gov/proposals/metadata/021-ai-model-resilience-framework.json
+[2m2025-09-25T21:21:40.366521Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/021-ai-model-resilience-framework.json
+[2m2025-09-25T21:21:40.366527Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 89/148: ../gov/proposals/metadata/022-end-to-end-testing-framework.json
+[2m2025-09-25T21:21:40.366580Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/022-end-to-end-testing-framework.json
+[2m2025-09-25T21:21:40.366586Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 90/148: ../gov/proposals/metadata/023-python-script-testing-framework.json
+[2m2025-09-25T21:21:40.366637Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/023-python-script-testing-framework.json
+[2m2025-09-25T21:21:40.366645Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 91/148: ../gov/proposals/metadata/024-voting-chain-integrity-verification.json
+[2m2025-09-25T21:21:40.366696Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/024-voting-chain-integrity-verification.json
+[2m2025-09-25T21:21:40.366702Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 92/148: ../gov/proposals/metadata/025-grok-code-fast-1-secure-script-execution-environment.json
+[2m2025-09-25T21:21:40.366739Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/025-grok-code-fast-1-secure-script-execution-environment.json
+[2m2025-09-25T21:21:40.366745Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 93/148: ../gov/proposals/metadata/026-scalable-voting-chain-architecture.json
+[2m2025-09-25T21:21:40.366797Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/026-scalable-voting-chain-architecture.json
+[2m2025-09-25T21:21:40.366805Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 94/148: ../gov/proposals/metadata/027-performance-optimization-pipeline.json
+[2m2025-09-25T21:21:40.366865Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/027-performance-optimization-pipeline.json
+[2m2025-09-25T21:21:40.366871Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 95/148: ../gov/proposals/metadata/028-data-schema-validation-pipeline.json
+[2m2025-09-25T21:21:40.366909Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 8 chunks from ../gov/proposals/metadata/028-data-schema-validation-pipeline.json
+[2m2025-09-25T21:21:40.366915Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 96/148: ../gov/proposals/metadata/029-governance-state-management-service.json
+[2m2025-09-25T21:21:40.366948Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/029-governance-state-management-service.json
+[2m2025-09-25T21:21:40.366954Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 97/148: ../gov/proposals/metadata/030-protocol-versioning-framework.json
+[2m2025-09-25T21:21:40.366988Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/030-protocol-versioning-framework.json
+[2m2025-09-25T21:21:40.366995Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 98/148: ../gov/proposals/metadata/031-enhanced-logging-framework.json
+[2m2025-09-25T21:21:40.367030Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/031-enhanced-logging-framework.json
+[2m2025-09-25T21:21:40.367037Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 99/148: ../gov/proposals/metadata/032-automated-rollback-mechanisms.json
+[2m2025-09-25T21:21:40.367074Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/032-automated-rollback-mechanisms.json
+[2m2025-09-25T21:21:40.367080Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 100/148: ../gov/proposals/metadata/033-error-handling-recovery-protocol.json
+[2m2025-09-25T21:21:40.367114Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/033-error-handling-recovery-protocol.json
+[2m2025-09-25T21:21:40.367120Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 101/148: ../gov/proposals/metadata/034-automated-validation-script-extension.json
+[2m2025-09-25T21:21:40.367173Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/034-automated-validation-script-extension.json
+[2m2025-09-25T21:21:40.367181Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 102/148: ../gov/proposals/metadata/035-model-registry-unification.json
+[2m2025-09-25T21:21:40.367250Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 15 chunks from ../gov/proposals/metadata/035-model-registry-unification.json
+[2m2025-09-25T21:21:40.367256Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 103/148: ../gov/proposals/metadata/036-anti-sybil-mechanisms.json
+[2m2025-09-25T21:21:40.367308Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/036-anti-sybil-mechanisms.json
+[2m2025-09-25T21:21:40.367314Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 104/148: ../gov/proposals/metadata/037-typescript-standardization-proposal.json
+[2m2025-09-25T21:21:40.367372Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/metadata/037-typescript-standardization-proposal.json
+[2m2025-09-25T21:21:40.367380Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 105/148: ../gov/proposals/metadata/038-blockchain-integrity-system.json
+[2m2025-09-25T21:21:40.367433Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/038-blockchain-integrity-system.json
+[2m2025-09-25T21:21:40.367439Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 106/148: ../gov/proposals/metadata/039-manus-ai-integration.json
+[2m2025-09-25T21:21:40.367474Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/039-manus-ai-integration.json
+[2m2025-09-25T21:21:40.367480Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 107/148: ../gov/proposals/metadata/040-interactive-governance-dashboard.json
+[2m2025-09-25T21:21:40.367533Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/040-interactive-governance-dashboard.json
+[2m2025-09-25T21:21:40.367540Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 108/148: ../gov/proposals/metadata/041-automated-ai-feedback-system.json
+[2m2025-09-25T21:21:40.367596Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/041-automated-ai-feedback-system.json
+[2m2025-09-25T21:21:40.367602Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 109/148: ../gov/proposals/metadata/042-randomized-agent-selection-blind-reviews.json
+[2m2025-09-25T21:21:40.367656Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/042-randomized-agent-selection-blind-reviews.json
+[2m2025-09-25T21:21:40.367664Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 110/148: ../gov/proposals/metadata/043-event-driven-queue-consumer.json
+[2m2025-09-25T21:21:40.367715Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/043-event-driven-queue-consumer.json
+[2m2025-09-25T21:21:40.367721Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 111/148: ../gov/proposals/metadata/044-reviewer-workflow-and-templates.json
+[2m2025-09-25T21:21:40.367771Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/044-reviewer-workflow-and-templates.json
+[2m2025-09-25T21:21:40.367777Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 112/148: ../gov/proposals/metadata/045-supervisor-model-orchestration.json
+[2m2025-09-25T21:21:40.367841Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/045-supervisor-model-orchestration.json
+[2m2025-09-25T21:21:40.367849Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 113/148: ../gov/proposals/metadata/046-issues-governance-and-discussion.json
+[2m2025-09-25T21:21:40.367912Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/046-issues-governance-and-discussion.json
+[2m2025-09-25T21:21:40.367918Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 114/148: ../gov/proposals/metadata/047-automated-documentation-knowledge-system.json
+[2m2025-09-25T21:21:40.367978Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/047-automated-documentation-knowledge-system.json
+[2m2025-09-25T21:21:40.367984Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 115/148: ../gov/proposals/metadata/048-real-time-ai-collaboration-communication-infrastructure.json
+[2m2025-09-25T21:21:40.368057Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/048-real-time-ai-collaboration-communication-infrastructure.json
+[2m2025-09-25T21:21:40.368067Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 116/148: ../gov/proposals/metadata/049-unified-model-performance-benchmarking-system.json
+[2m2025-09-25T21:21:40.368130Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/049-unified-model-performance-benchmarking-system.json
+[2m2025-09-25T21:21:40.368136Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 117/148: ../gov/proposals/metadata/050-bidirectional-feedback-system.json
+[2m2025-09-25T21:21:40.368211Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/050-bidirectional-feedback-system.json
+[2m2025-09-25T21:21:40.368218Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 118/148: ../gov/proposals/metadata/051-model-explainability-transparency-framework.json
+[2m2025-09-25T21:21:40.368260Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/051-model-explainability-transparency-framework.json
+[2m2025-09-25T21:21:40.368268Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 119/148: ../gov/proposals/metadata/052-ai-driven-security-threat-modeling.json
+[2m2025-09-25T21:21:40.368329Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/metadata/052-ai-driven-security-threat-modeling.json
+[2m2025-09-25T21:21:40.368338Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 120/148: ../gov/proposals/metadata/053-automated-small-model-evaluation-and-integration.json
+[2m2025-09-25T21:21:40.368379Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/053-automated-small-model-evaluation-and-integration.json
+[2m2025-09-25T21:21:40.368386Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 121/148: ../gov/proposals/metadata/054-universal-matrix-based-inter-model-communication-protocol.json
+[2m2025-09-25T21:21:40.368455Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/054-universal-matrix-based-inter-model-communication-protocol.json
+[2m2025-09-25T21:21:40.368464Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 122/148: ../gov/proposals/metadata/055-sustainable-funding-and-api-partnership-program.json
+[2m2025-09-25T21:21:40.368504Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 7 chunks from ../gov/proposals/metadata/055-sustainable-funding-and-api-partnership-program.json
+[2m2025-09-25T21:21:40.368510Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 123/148: ../gov/proposals/metadata/056-autonomous-governance-framework.json
+[2m2025-09-25T21:21:40.368594Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 15 chunks from ../gov/proposals/metadata/056-autonomous-governance-framework.json
+[2m2025-09-25T21:21:40.368600Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 124/148: ../gov/proposals/metadata/057-chat-hub-orchestration-expansion.json
+[2m2025-09-25T21:21:40.368662Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/057-chat-hub-orchestration-expansion.json
+[2m2025-09-25T21:21:40.368670Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 125/148: ../gov/proposals/metadata/058-summarization-simplification.json
+[2m2025-09-25T21:21:40.368740Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/058-summarization-simplification.json
+[2m2025-09-25T21:21:40.368746Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 126/148: ../gov/proposals/metadata/059-unification-approved-pending.json
+[2m2025-09-25T21:21:40.368809Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/metadata/059-unification-approved-pending.json
+[2m2025-09-25T21:21:40.368815Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 127/148: ../gov/proposals/METADATA_MIGRATION.md
+[2m2025-09-25T21:21:40.368922Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 20 chunks from ../gov/proposals/METADATA_MIGRATION.md
+[2m2025-09-25T21:21:40.368930Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 128/148: ../gov/proposals/originals/022-end-to-end-testing-framework.md
+[2m2025-09-25T21:21:40.368999Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/originals/022-end-to-end-testing-framework.md
+[2m2025-09-25T21:21:40.369005Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 129/148: ../gov/proposals/originals/024-voting-chain-integrity-verification.md
+[2m2025-09-25T21:21:40.369073Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/originals/024-voting-chain-integrity-verification.md
+[2m2025-09-25T21:21:40.369081Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 130/148: ../gov/proposals/originals/026-scalable-voting-chain-architecture.md
+[2m2025-09-25T21:21:40.369154Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../gov/proposals/originals/026-scalable-voting-chain-architecture.md
+[2m2025-09-25T21:21:40.369160Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 131/148: ../gov/proposals/originals/035-gpt-5-model-registry-unification.md
+[2m2025-09-25T21:21:40.369302Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 27 chunks from ../gov/proposals/originals/035-gpt-5-model-registry-unification.md
+[2m2025-09-25T21:21:40.369310Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 132/148: ../gov/proposals/originals/040-interactive-governance-dashboard.md
+[2m2025-09-25T21:21:40.369402Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 18 chunks from ../gov/proposals/originals/040-interactive-governance-dashboard.md
+[2m2025-09-25T21:21:40.369410Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 133/148: ../gov/proposals/originals/044-reviewer-workflow-and-templates.md
+[2m2025-09-25T21:21:40.369493Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 16 chunks from ../gov/proposals/originals/044-reviewer-workflow-and-templates.md
+[2m2025-09-25T21:21:40.369499Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 134/148: ../gov/proposals/originals/054-universal-matrix-based-inter-model-communication-protocol.md
+[2m2025-09-25T21:21:40.369591Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 17 chunks from ../gov/proposals/originals/054-universal-matrix-based-inter-model-communication-protocol.md
+[2m2025-09-25T21:21:40.369599Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 135/148: ../gov/proposals/originals/056-auto-governance.md
+[2m2025-09-25T21:21:40.369692Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 18 chunks from ../gov/proposals/originals/056-auto-governance.md
+[2m2025-09-25T21:21:40.369697Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 136/148: ../gov/proposals/originals/057-chat-hub-orchestration-expansion.md
+[2m2025-09-25T21:21:40.369950Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 52 chunks from ../gov/proposals/originals/057-chat-hub-orchestration-expansion.md
+[2m2025-09-25T21:21:40.369960Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 137/148: ../gov/proposals/originals/058-summarization-simplification.md
+[2m2025-09-25T21:21:40.370016Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/originals/058-summarization-simplification.md
+[2m2025-09-25T21:21:40.370022Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 138/148: ../gov/proposals/originals/README.md
+[2m2025-09-25T21:21:40.370068Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 9 chunks from ../gov/proposals/originals/README.md
+[2m2025-09-25T21:21:40.370075Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 139/148: ../gov/proposals/README.md
+[2m2025-09-25T21:21:40.370135Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/README.md
+[2m2025-09-25T21:21:40.370140Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 140/148: ../gov/proposals/rejected/003-implementation-discussion.md
+[2m2025-09-25T21:21:40.370285Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 30 chunks from ../gov/proposals/rejected/003-implementation-discussion.md
+[2m2025-09-25T21:21:40.370293Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 141/148: ../gov/proposals/rejected/004-executive-summary.md
+[2m2025-09-25T21:21:40.370447Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 27 chunks from ../gov/proposals/rejected/004-executive-summary.md
+[2m2025-09-25T21:21:40.370456Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 142/148: ../gov/proposals/rejected/014-gpt4o-mini-contribution.md
+[2m2025-09-25T21:21:40.370499Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 14 chunks from ../gov/proposals/rejected/014-gpt4o-mini-contribution.md
+[2m2025-09-25T21:21:40.370505Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 143/148: ../gov/proposals/rejected/020-gpt-4.1-mini-contribution.md
+[2m2025-09-25T21:21:40.370551Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/rejected/020-gpt-4.1-mini-contribution.md
+[2m2025-09-25T21:21:40.370558Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 144/148: ../gov/proposals/rejected/028-data-schema-validation-pipeline.md
+[2m2025-09-25T21:21:40.370623Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 12 chunks from ../gov/proposals/rejected/028-data-schema-validation-pipeline.md
+[2m2025-09-25T21:21:40.370629Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 145/148: ../gov/proposals/rejected/029-governance-state-management-service.md
+[2m2025-09-25T21:21:40.370685Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 11 chunks from ../gov/proposals/rejected/029-governance-state-management-service.md
+[2m2025-09-25T21:21:40.370690Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 146/148: ../gov/proposals/STATUS.md
+[2m2025-09-25T21:21:40.370854Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 34 chunks from ../gov/proposals/STATUS.md
+[2m2025-09-25T21:21:40.370962Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 147/148: ../gov/proposals/TEMPLATE.md
+[2m2025-09-25T21:21:40.370987Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 6 chunks from ../gov/proposals/TEMPLATE.md
+[2m2025-09-25T21:21:40.370994Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 148/148: ../gov/proposals/UNIFIED_PRIORITY_TABLE.md
+[2m2025-09-25T21:21:40.371100Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 21 chunks from ../gov/proposals/UNIFIED_PRIORITY_TABLE.md
+[2m2025-09-25T21:21:40.371112Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 148 documents
+[2m2025-09-25T21:21:40.371119Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T21:21:40.483801Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T21:21:40.485385Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Saved tokenizer for 'gov-proposals' to ../gov/.vectorizer/gov-proposals_tokenizer.json
+[2m2025-09-25T21:21:40.485773Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-proposals' created successfully
+[2m2025-09-25T21:21:40.485792Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'gov-proposals'
+[2m2025-09-25T21:21:40.485802Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: gov-proposals
+[2m2025-09-25T21:21:40.485810Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 2165 chunks in batches for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.485819Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 1/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.491371Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 2/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.493647Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 3/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.498684Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 256)
+[2m2025-09-25T21:21:40.498706Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 4/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.501107Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 5/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.503058Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 6/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.509837Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 512)
+[2m2025-09-25T21:21:40.509874Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 7/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.512292Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 8/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.519022Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 768)
+[2m2025-09-25T21:21:40.519043Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 9/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.521341Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 10/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:40.524014Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 11/22 (100 chunks) for collection 'gov-proposals'...
+🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001
+🔧 Creating main router...
+✅ Router created, binding to address...
+[2m2025-09-25T21:21:52.041017Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1024)
+[2m2025-09-25T21:21:52.042711Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 12/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.046294Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 13/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.052334Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1280)
+[2m2025-09-25T21:21:52.052379Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 14/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.055364Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 15/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.057994Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 16/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.064533Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1536)
+[2m2025-09-25T21:21:52.064580Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 17/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.067072Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 18/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.074161Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1792)
+[2m2025-09-25T21:21:52.074211Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 19/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.076992Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 20/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:21:52.079958Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 21/22 (100 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:22:14.592017Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 2048)
+[2m2025-09-25T21:22:14.592074Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 22/22 (65 chunks) for collection 'gov-proposals'...
+[2m2025-09-25T21:22:14.595749Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Collection 'gov-proposals' indexed successfully: 2165 vectors stored.
+[2m2025-09-25T21:22:14.595789Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Successfully processed 148 documents into 2165 chunks for collection 'gov-proposals'
+[2m2025-09-25T21:22:14.595871Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T21:22:14.596277Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'gov-proposals' created successfully
