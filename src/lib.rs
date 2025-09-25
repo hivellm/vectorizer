@@ -24,6 +24,7 @@ pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
 pub mod workspace;
+pub mod utils;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};

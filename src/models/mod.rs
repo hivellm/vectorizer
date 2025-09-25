@@ -257,3 +257,6 @@ impl Payload {
         serde_json::from_value(self.data.clone())
     }
 }
+
+/// Collection metadata module for tracking indexed files
+pub mod collection_metadata;

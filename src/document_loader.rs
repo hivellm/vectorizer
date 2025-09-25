@@ -11,6 +11,8 @@ use crate::{
         MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding,
     },
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+    models::collection_metadata::{CollectionMetadataFile, FileMetadata, CollectionIndexingConfig, EmbeddingModelInfo},
+    utils::file_hash::{calculate_file_hash, get_file_modified_time},
 };
 use anyhow::{Context, Result};
 use glob::Pattern;
@@ -233,10 +235,20 @@ impl DocumentLoader {
 
         let path_str = relative_path.to_string_lossy();
 
+        // Debug logging for gov collections
+        if self.config.collection_name.starts_with("gov-") {
+            debug!("Checking file: {} against patterns for collection: {}", path_str, self.config.collection_name);
+            debug!("Include patterns: {:?}", self.config.include_patterns);
+            debug!("Exclude patterns: {:?}", self.config.exclude_patterns);
+        }
+
         // Check exclude patterns first - if any match, exclude the file
         for exclude_pattern in &self.config.exclude_patterns {
             if let Ok(pattern) = Pattern::new(exclude_pattern) {
                 if pattern.matches(&path_str) {
+                    if self.config.collection_name.starts_with("gov-") {
+                        debug!("File {} excluded by pattern: {}", path_str, exclude_pattern);
+                    }
                     return false;
                 }
             }
@@ -246,6 +258,9 @@ impl DocumentLoader {
         for include_pattern in &self.config.include_patterns {
             if let Ok(pattern) = Pattern::new(include_pattern) {
                 if pattern.matches(&path_str) {
+                    if self.config.collection_name.starts_with("gov-") {
+                        debug!("File {} included by pattern: {}", path_str, include_pattern);
+                    }
                     return true;
                 }
             }
@@ -254,15 +269,25 @@ impl DocumentLoader {
         // If include patterns are specified, don't fall back to extension-based matching
         // This ensures we only process files that match the specific patterns
         if !self.config.include_patterns.is_empty() {
+            if self.config.collection_name.starts_with("gov-") {
+                debug!("File {} not included (no pattern match, include patterns specified)", path_str);
+            }
             return false;
         }
 
         // Only fall back to extension-based matching if no include patterns are specified (legacy mode)
         if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
             let ext_lower = extension.to_lowercase();
-            return self.config.allowed_extensions.contains(&ext_lower);
+            let result = self.config.allowed_extensions.contains(&ext_lower);
+            if self.config.collection_name.starts_with("gov-") {
+                debug!("File {} extension-based check: {} (extension: {})", path_str, result, ext_lower);
+            }
+            return result;
         }
 
+        if self.config.collection_name.starts_with("gov-") {
+            debug!("File {} rejected (no extension)", path_str);
+        }
         false
     }
 
@@ -506,18 +531,18 @@ impl DocumentLoader {
         if matches!(embedding_type, "bm25" | "tfidf" | "char_ngram" | "cng" | "bag_of_words" | "bow") {
             let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
             
-            // Try to get the specific provider and save its vocabulary
-            if let Ok(provider) = self.embedding_manager.get_provider(embedding_type) {
-                // For now, we'll skip saving tokenizers as the EmbeddingManager interface
-                // doesn't expose the save_vocabulary_json method directly
-                // TODO: Add method to EmbeddingManager to save vocabulary for specific providers
-                info!("Tokenizer saving not yet implemented for {}", embedding_type);
-            } else {
-                info!("No provider found for embedding type: {}", embedding_type);
+            // Use the EmbeddingManager's save_vocabulary_json method
+            match self.embedding_manager.save_vocabulary_json(embedding_type, &tokenizer_path) {
+                Ok(_) => {
+                    info!("✅ Saved tokenizer for '{}' to {}", self.config.collection_name, tokenizer_path.display());
+            }
+            Err(e) => {
+                    warn!("Failed to save tokenizer for '{}': {}", embedding_type, e);
+                }
             }
         } else {
             // For other embedding types (BERT, MiniLM, etc.), no tokenizer to save
-            info!("No tokenizer to save for embedding type: {}", embedding_type);
+            debug!("No tokenizer to save for embedding type: {}", embedding_type);
         }
         
         Ok(())
@@ -1288,5 +1313,107 @@ impl DocumentLoader {
             "created_at": metadata.created_at.to_rfc3339(),
             "updated_at": metadata.updated_at.to_rfc3339(),
         }))
+    }
+
+    /// Save collection metadata to disk
+    fn save_metadata(&self, project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
+        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+            warn!(
+                "Failed to create .vectorizer directory {}: {}",
+                vectorizer_dir.display(),
+                e
+            );
+        }
+        
+        let metadata_path = vectorizer_dir.join("metadata.json");
+        let metadata_json = serde_json::to_string_pretty(metadata)?;
+        fs::write(&metadata_path, metadata_json)?;
+        
+        debug!("Saved metadata for collection '{}' to {}", self.config.collection_name, metadata_path.display());
+        Ok(())
+    }
+
+    /// Load collection metadata from disk
+    fn load_metadata(&self, project_path: &str) -> Result<Option<CollectionMetadataFile>> {
+        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+        let metadata_path = vectorizer_dir.join("metadata.json");
+        
+        if !metadata_path.exists() {
+            return Ok(None);
+        }
+        
+        let metadata_json = fs::read_to_string(&metadata_path)?;
+        let metadata: CollectionMetadataFile = serde_json::from_str(&metadata_json)?;
+        
+        debug!("Loaded metadata for collection '{}' from {}", self.config.collection_name, metadata_path.display());
+        Ok(Some(metadata))
+    }
+
+    /// Create collection metadata from current configuration
+    fn create_metadata_from_config(&self, project_path: &str) -> CollectionMetadataFile {
+        let config = CollectionIndexingConfig {
+            chunk_size: self.config.max_chunk_size,
+            chunk_overlap: self.config.chunk_overlap,
+            include_patterns: self.config.include_patterns.clone(),
+            exclude_patterns: self.config.exclude_patterns.clone(),
+            allowed_extensions: self.config.allowed_extensions.clone(),
+            max_file_size: self.config.max_file_size,
+        };
+
+        let mut parameters = HashMap::new();
+        // TODO: Add actual embedding parameters based on type
+        match self.config.embedding_type.as_str() {
+            "bm25" => {
+                parameters.insert("k1".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(1.5).unwrap()));
+                parameters.insert("b".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(0.75).unwrap()));
+            }
+            _ => {}
+        }
+
+        let embedding_model = EmbeddingModelInfo {
+            model_type: format!("{:?}", self.config.embedding_type).to_lowercase(),
+            dimension: self.config.embedding_dimension,
+            parameters,
+        };
+
+        CollectionMetadataFile::new(
+            self.config.collection_name.clone(),
+            project_path.to_string(),
+            config,
+            embedding_model,
+        )
+    }
+
+    /// Update metadata with file information
+    fn update_metadata_with_files(&mut self, metadata: &mut CollectionMetadataFile, documents: &[(PathBuf, String)]) -> Result<()> {
+        for (file_path, content) in documents {
+            let relative_path = file_path.strip_prefix(&metadata.project_path)
+                .unwrap_or(file_path)
+                .to_string_lossy()
+                .to_string();
+            
+            let file_modified = get_file_modified_time(file_path)?;
+            let content_hash = calculate_file_hash(file_path)?;
+            let file_size = fs::metadata(file_path)?.len();
+            
+            // Count chunks and vectors for this file
+            let chunks = self.chunk_documents(&[(file_path.clone(), content.clone())])?;
+            let vectors = self.create_vectors(&chunks)?;
+            
+            let file_metadata = FileMetadata {
+                path: relative_path.clone(),
+                size_bytes: file_size,
+                chunk_count: chunks.len(),
+                vector_count: vectors.len(),
+                indexed_at: chrono::Utc::now(),
+                file_modified_at: file_modified,
+                content_hash,
+            };
+            
+            metadata.add_file(file_metadata);
+        }
+        
+        Ok(())
     }
 }

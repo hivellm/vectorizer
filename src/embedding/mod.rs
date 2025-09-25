@@ -24,6 +24,9 @@ pub trait EmbeddingProvider: Send + Sync {
 
     /// Cast to Any for downcasting (mutable)
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+
+    /// Cast to Any for downcasting (immutable)
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Simple TF-IDF based embedding provider for demonstration
@@ -429,6 +432,10 @@ impl EmbeddingProvider for SvdEmbedding {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl BertEmbedding {
@@ -507,6 +514,10 @@ impl EmbeddingProvider for BertEmbedding {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl MiniLmEmbedding {
@@ -581,6 +592,10 @@ impl EmbeddingProvider for MiniLmEmbedding {
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 }
@@ -718,6 +733,10 @@ impl EmbeddingProvider for TfIdfEmbedding {
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 }
@@ -901,6 +920,10 @@ impl EmbeddingProvider for Bm25Embedding {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Simple Bag-of-Words embedding provider
@@ -994,6 +1017,10 @@ impl EmbeddingProvider for BagOfWordsEmbedding {
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 }
@@ -1183,6 +1210,10 @@ impl EmbeddingProvider for CharNGramEmbedding {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 impl CharNGramEmbedding {
@@ -1367,6 +1398,27 @@ impl EmbeddingManager {
     /// Check if a provider exists
     pub fn has_provider(&self, provider_name: &str) -> bool {
         self.providers.contains_key(provider_name)
+    }
+
+    /// Save vocabulary for a specific provider
+    pub fn save_vocabulary_json<P: AsRef<Path>>(&self, provider_name: &str, path: P) -> Result<()> {
+        let provider = self.get_provider(provider_name)?;
+        
+        // Try to downcast to specific embedding types that have save_vocabulary_json
+        if let Some(bm25) = provider.as_any().downcast_ref::<Bm25Embedding>() {
+            bm25.save_vocabulary_json(path)
+        } else if let Some(tfidf) = provider.as_any().downcast_ref::<TfIdfEmbedding>() {
+            tfidf.save_vocabulary_json(path)
+        } else if let Some(char_ngram) = provider.as_any().downcast_ref::<CharNGramEmbedding>() {
+            char_ngram.save_vocabulary_json(path)
+        } else if let Some(bow) = provider.as_any().downcast_ref::<BagOfWordsEmbedding>() {
+            bow.save_vocabulary_json(path)
+        } else {
+            Err(VectorizerError::Other(format!(
+                "Provider '{}' does not support vocabulary saving",
+                provider_name
+            )))
+        }
     }
 }
 

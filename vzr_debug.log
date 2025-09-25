@@ -1,0 +1,360 @@
+   Compiling ring v0.17.14
+   Compiling rustls v0.23.32
+   Compiling rustls-webpki v0.103.6
+   Compiling jsonwebtoken v9.3.1
+   Compiling tokio-rustls v0.26.3
+   Compiling tonic v0.12.3
+   Compiling tonic-reflection v0.12.3
+   Compiling vectorizer v0.1.0 (/mnt/f/Node/hivellm/vectorizer)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 13.38s
+     Running `target/debug/vzr start --workspace vectorize-workspace.yml`
+🚀 Starting Vectorizer Servers...
+📊 HiveLLM Development Workspace - 7 projects
+📊 Loading 7 projects from workspace:
+   📁 governance-bip-specs - 🏛️ Governance (BIP Specs) - HiveLLM Governance System with BIPs, proposals, and voting
+      Path: ../gov
+      Collections: 6
+         🗂️  gov-bips (512D, cosine)
+         🗂️  gov-proposals (512D, cosine)
+         🗂️  gov-minutes (512D, cosine)
+         🗂️  gov-guidelines (512D, cosine)
+         🗂️  gov-teams (512D, cosine)
+         🗂️  gov-docs (512D, cosine)
+   📁 governance-dashboard - 🏛️ Governance Dashboard - Implementation of the governance system
+      Path: ../governance
+      Collections: 2
+         🗂️  governance_dashboard (512D, cosine)
+         🗂️  governance_configurations (512D, cosine)
+   📁 ts-workspace - 🔷 TypeScript (BIP-01,02,03) - TypeScript development workspace with packages
+      Path: ../ts-workspace
+      Collections: 2
+         🗂️  ts-workspace (512D, cosine)
+         🗂️  ts-workspace-configurations (512D, cosine)
+   📁 cursor-extension - 🎯 Cursor Extension (BIP-00) - Cursor IDE extension for HiveLLM
+      Path: ../cursor-extension
+      Collections: 2
+         🗂️  cursor-extension (512D, cosine)
+         🗂️  scripts (512D, cosine)
+   📁 py-env-security - 🔒 Security Environment (BIP-04) - Python security environment and tools
+      Path: ../py-env-security
+      Collections: 1
+         🗂️  py-env-security (512D, cosine)
+   📁 umicp - 🌐 UMICP Protocol (BIP-05) - Universal Matrix Inter-Communication Protocol
+      Path: ../umicp
+      Collections: 2
+         🗂️  umicp_protocol_docs (512D, cosine)
+         🗂️  umicp_cpp_implementation (512D, cosine)
+   📁 chat-hub - 💬 Chat Hub & Monitoring - Centralized chat hub for HiveLLM ecosystem
+      Path: ../chat-hub
+      Collections: 2
+         🗂️  chat-hub (512D, cosine)
+         🗂️  chat-hub-monitoring (512D, cosine)
+✅ Unified server running
+  REST API: http://127.0.0.1:15001
+  MCP Server: http://127.0.0.1:15002/sse
+  GRPC Server: http://127.0.0.1:15003
+  Collections: 17 from 7 projects
+
+⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log
+
+[2m2025-09-25T20:39:58.132248Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+🔄 Starting background indexing...
+⏳ Waiting for vectorizer-server to be ready...
+[2m2025-09-25T20:39:58.132465Z[0m [32m INFO[0m [2mvectorizer::grpc::server[0m[2m:[0m 🚀 Starting GRPC server on 127.0.0.1:15003
+⏳ Waiting for server... (attempt 1/30)
+⏳ Waiting for server... (attempt 2/30)
+⏳ Waiting for server... (attempt 3/30)
+⏳ Waiting for server... (attempt 4/30)
+⏳ Waiting for server... (attempt 5/30)
+⏳ Waiting for server... (attempt 6/30)
+⏳ Waiting for server... (attempt 7/30)
+⏳ Waiting for server... (attempt 8/30)
+⏳ Waiting for server... (attempt 9/30)
+⏳ Waiting for server... (attempt 10/30)
+⏳ Waiting for server... (attempt 11/30)
+🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001
+🔧 Creating main router...
+✅ Router created, binding to address...
+✅ vectorizer-server is ready!
+📁 Processing project: governance-bip-specs
+🗂️ Processing collection: gov-bips from ../gov
+📁 Indexing collection 'gov-bips' from path: ../gov
+[2m2025-09-25T20:40:09.234190Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-bips', performing full indexing
+[2m2025-09-25T20:40:09.277339Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-bips'
+[2m2025-09-25T20:40:09.277389Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-bips'.
+✅ Indexed 0 documents for collection 'gov-bips'
+✅ Collection 'gov-bips' indexed successfully: 0 vectors
+🗂️ Processing collection: gov-proposals from ../gov
+📁 Indexing collection 'gov-proposals' from path: ../gov
+[2m2025-09-25T20:40:09.333508Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-proposals', performing full indexing
+[2m2025-09-25T20:40:09.377804Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-proposals'
+[2m2025-09-25T20:40:09.377845Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-proposals'.
+✅ Indexed 0 documents for collection 'gov-proposals'
+✅ Collection 'gov-proposals' indexed successfully: 0 vectors
+🗂️ Processing collection: gov-minutes from ../gov
+📁 Indexing collection 'gov-minutes' from path: ../gov
+[2m2025-09-25T20:40:09.435028Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-minutes', performing full indexing
+[2m2025-09-25T20:40:09.478509Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-minutes'
+[2m2025-09-25T20:40:09.478551Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-minutes'.
+✅ Indexed 0 documents for collection 'gov-minutes'
+✅ Collection 'gov-minutes' indexed successfully: 0 vectors
+🗂️ Processing collection: gov-guidelines from ../gov
+📁 Indexing collection 'gov-guidelines' from path: ../gov
+[2m2025-09-25T20:40:09.535130Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-guidelines', performing full indexing
+[2m2025-09-25T20:40:09.579434Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-guidelines'
+[2m2025-09-25T20:40:09.579479Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-guidelines'.
+✅ Indexed 0 documents for collection 'gov-guidelines'
+✅ Collection 'gov-guidelines' indexed successfully: 0 vectors
+🗂️ Processing collection: gov-teams from ../gov
+📁 Indexing collection 'gov-teams' from path: ../gov
+[2m2025-09-25T20:40:09.639384Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-teams', performing full indexing
+[2m2025-09-25T20:40:09.683711Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-teams'
+[2m2025-09-25T20:40:09.683749Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-teams'.
+✅ Indexed 0 documents for collection 'gov-teams'
+✅ Collection 'gov-teams' indexed successfully: 0 vectors
+🗂️ Processing collection: gov-docs from ../gov
+📁 Indexing collection 'gov-docs' from path: ../gov
+[2m2025-09-25T20:40:09.749745Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'gov-docs', performing full indexing
+[2m2025-09-25T20:40:09.797039Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../gov' for collection 'gov-docs'
+[2m2025-09-25T20:40:09.797079Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'gov-docs'.
+✅ Indexed 0 documents for collection 'gov-docs'
+✅ Collection 'gov-docs' indexed successfully: 0 vectors
+📁 Processing project: governance-dashboard
+🗂️ Processing collection: governance_dashboard from ../governance
+📁 Indexing collection 'governance_dashboard' from path: ../governance
+[2m2025-09-25T20:40:09.858956Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'governance_dashboard', performing full indexing
+[2m2025-09-25T20:40:09.875669Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 0 documents in '../governance' for collection 'governance_dashboard'
+[2m2025-09-25T20:40:09.875720Z[0m [33m WARN[0m [2mvectorizer::document_loader[0m[2m:[0m No documents found in project directory for collection 'governance_dashboard'.
+✅ Indexed 0 documents for collection 'governance_dashboard'
+✅ Collection 'governance_dashboard' indexed successfully: 0 vectors
+🗂️ Processing collection: governance_configurations from ../governance
+📁 Indexing collection 'governance_configurations' from path: ../governance
+[2m2025-09-25T20:40:09.939003Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'governance_configurations'
+🔄 Loading persisted store from: ../governance/.vectorizer/governance_configurations_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:09.939049Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../governance/.vectorizer/governance_configurations_vector_store.bin"
+[2m2025-09-25T20:40:09.943137Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:09.943572Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'governance_configurations' created successfully
+[2m2025-09-25T20:40:09.944861Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: governance_configurations
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:09.945182Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'governance_configurations' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 87 vectors, fast loading into app store...
+✅ Successfully loaded 87 vectors from cache (fast mode)
+[2m2025-09-25T20:40:09.949287Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 87 vectors from cache for 'governance_configurations'
+✅ Indexed 87 documents for collection 'governance_configurations'
+✅ Collection 'governance_configurations' indexed successfully: 87 vectors
+📁 Processing project: ts-workspace
+🗂️ Processing collection: ts-workspace from ../ts-workspace
+📁 Indexing collection 'ts-workspace' from path: ../ts-workspace
+[2m2025-09-25T20:40:10.017333Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'ts-workspace'
+🔄 Loading persisted store from: ../ts-workspace/.vectorizer/ts-workspace_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:10.017374Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../ts-workspace/.vectorizer/ts-workspace_vector_store.bin"
+[2m2025-09-25T20:40:10.151642Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:10.152289Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace' created successfully
+[2m2025-09-25T20:40:10.180928Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: ts-workspace
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:10.181334Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 1511 vectors, fast loading into app store...
+✅ Successfully loaded 1511 vectors from cache (fast mode)
+[2m2025-09-25T20:40:10.209743Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 1511 vectors from cache for 'ts-workspace'
+✅ Indexed 1511 documents for collection 'ts-workspace'
+✅ Collection 'ts-workspace' indexed successfully: 1511 vectors
+🗂️ Processing collection: ts-workspace-configurations from ../ts-workspace
+📁 Indexing collection 'ts-workspace-configurations' from path: ../ts-workspace
+[2m2025-09-25T20:40:10.270722Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'ts-workspace-configurations'
+🔄 Loading persisted store from: ../ts-workspace/.vectorizer/ts-workspace-configurations_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:10.270768Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../ts-workspace/.vectorizer/ts-workspace-configurations_vector_store.bin"
+[2m2025-09-25T20:40:10.278813Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:10.278949Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace-configurations' created successfully
+[2m2025-09-25T20:40:10.281471Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: ts-workspace-configurations
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:10.281783Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'ts-workspace-configurations' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 171 vectors, fast loading into app store...
+✅ Successfully loaded 171 vectors from cache (fast mode)
+[2m2025-09-25T20:40:10.283709Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 171 vectors from cache for 'ts-workspace-configurations'
+✅ Indexed 171 documents for collection 'ts-workspace-configurations'
+✅ Collection 'ts-workspace-configurations' indexed successfully: 171 vectors
+📁 Processing project: cursor-extension
+🗂️ Processing collection: cursor-extension from ../cursor-extension
+📁 Indexing collection 'cursor-extension' from path: ../cursor-extension
+[2m2025-09-25T20:40:10.339312Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'cursor-extension'
+🔄 Loading persisted store from: ../cursor-extension/.vectorizer/cursor-extension_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:10.339351Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../cursor-extension/.vectorizer/cursor-extension_vector_store.bin"
+[2m2025-09-25T20:40:10.468149Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:10.468552Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'cursor-extension' created successfully
+[2m2025-09-25T20:40:10.504806Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: cursor-extension
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:10.505176Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'cursor-extension' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 2265 vectors, fast loading into app store...
+✅ Successfully loaded 2265 vectors from cache (fast mode)
+[2m2025-09-25T20:40:10.539914Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 2265 vectors from cache for 'cursor-extension'
+✅ Indexed 2265 documents for collection 'cursor-extension'
+✅ Collection 'cursor-extension' indexed successfully: 2265 vectors
+🗂️ Processing collection: scripts from ../cursor-extension
+📁 Indexing collection 'scripts' from path: ../cursor-extension
+[2m2025-09-25T20:40:10.596275Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'scripts'
+🔄 Loading persisted store from: ../cursor-extension/.vectorizer/scripts_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:10.596358Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../cursor-extension/.vectorizer/scripts_vector_store.bin"
+[2m2025-09-25T20:40:10.840069Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:10.840468Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'scripts' created successfully
+[2m2025-09-25T20:40:10.916932Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: scripts
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:10.917277Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'scripts' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 4545 vectors, fast loading into app store...
+✅ Successfully loaded 4545 vectors from cache (fast mode)
+[2m2025-09-25T20:40:11.000797Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 4545 vectors from cache for 'scripts'
+✅ Indexed 4545 documents for collection 'scripts'
+✅ Collection 'scripts' indexed successfully: 4545 vectors
+📁 Processing project: py-env-security
+🗂️ Processing collection: py-env-security from ../py-env-security
+📁 Indexing collection 'py-env-security' from path: ../py-env-security
+[2m2025-09-25T20:40:11.060983Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'py-env-security'
+🔄 Loading persisted store from: ../py-env-security/.vectorizer/py-env-security_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:11.061022Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../py-env-security/.vectorizer/py-env-security_vector_store.bin"
+[2m2025-09-25T20:40:11.127545Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:11.127985Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'py-env-security' created successfully
+[2m2025-09-25T20:40:11.143090Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: py-env-security
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:11.143543Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'py-env-security' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 972 vectors, fast loading into app store...
+✅ Successfully loaded 972 vectors from cache (fast mode)
+[2m2025-09-25T20:40:11.156539Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 972 vectors from cache for 'py-env-security'
+✅ Indexed 972 documents for collection 'py-env-security'
+✅ Collection 'py-env-security' indexed successfully: 972 vectors
+📁 Processing project: umicp
+🗂️ Processing collection: umicp_protocol_docs from ../umicp
+📁 Indexing collection 'umicp_protocol_docs' from path: ../umicp
+[2m2025-09-25T20:40:11.215260Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'umicp_protocol_docs'
+🔄 Loading persisted store from: ../umicp/.vectorizer/umicp_protocol_docs_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:11.215294Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../umicp/.vectorizer/umicp_protocol_docs_vector_store.bin"
+[2m2025-09-25T20:40:11.241295Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:11.241763Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_protocol_docs' created successfully
+[2m2025-09-25T20:40:11.247665Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: umicp_protocol_docs
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:11.248039Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_protocol_docs' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 273 vectors, fast loading into app store...
+✅ Successfully loaded 273 vectors from cache (fast mode)
+[2m2025-09-25T20:40:11.251926Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 273 vectors from cache for 'umicp_protocol_docs'
+✅ Indexed 273 documents for collection 'umicp_protocol_docs'
+✅ Collection 'umicp_protocol_docs' indexed successfully: 273 vectors
+🗂️ Processing collection: umicp_cpp_implementation from ../umicp
+📁 Indexing collection 'umicp_cpp_implementation' from path: ../umicp
+[2m2025-09-25T20:40:11.319512Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🚀 Loading cached vector store for 'umicp_cpp_implementation'
+🔄 Loading persisted store from: ../umicp/.vectorizer/umicp_cpp_implementation_vector_store.bin
+📖 Calling VectorStore::load...
+[2m2025-09-25T20:40:11.319570Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Loading vector store from "../umicp/.vectorizer/umicp_cpp_implementation_vector_store.bin"
+[2m2025-09-25T20:40:11.546913Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-25T20:40:11.547463Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_cpp_implementation' created successfully
+[2m2025-09-25T20:40:11.606325Z[0m [32m INFO[0m [2mvectorizer::persistence[0m[2m:[0m Vector store loaded successfully
+📖 VectorStore loaded successfully
+🔍 Getting collection: umicp_cpp_implementation
+🔍 Collection retrieved successfully
+🏗️ Creating collection in app store...
+[2m2025-09-25T20:40:11.606766Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'umicp_cpp_implementation' created successfully
+🏗️ Collection created successfully
+📊 Getting all vectors...
+📊 Found 3395 vectors, fast loading into app store...
+✅ Successfully loaded 3395 vectors from cache (fast mode)
+[2m2025-09-25T20:40:11.673289Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Loaded 3395 vectors from cache for 'umicp_cpp_implementation'
+✅ Indexed 3395 documents for collection 'umicp_cpp_implementation'
+✅ Collection 'umicp_cpp_implementation' indexed successfully: 3395 vectors
+📁 Processing project: chat-hub
+🗂️ Processing collection: chat-hub from ../chat-hub
+📁 Indexing collection 'chat-hub' from path: ../chat-hub
+[2m2025-09-25T20:40:11.732012Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 No cache found for 'chat-hub', performing full indexing
+[2m2025-09-25T20:40:11.734283Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📁 Found 9 documents in '../chat-hub' for collection 'chat-hub'
+[2m2025-09-25T20:40:11.734319Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 1/9: ../chat-hub/api-test-cache.json
+[2m2025-09-25T20:40:11.734615Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 85 chunks from ../chat-hub/api-test-cache.json
+[2m2025-09-25T20:40:11.734626Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 2/9: ../chat-hub/handshake-response.js
+[2m2025-09-25T20:40:11.734637Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 2 chunks from ../chat-hub/handshake-response.js
+[2m2025-09-25T20:40:11.734645Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 3/9: ../chat-hub/index.html
+[2m2025-09-25T20:40:11.735750Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 363 chunks from ../chat-hub/index.html
+[2m2025-09-25T20:40:11.735782Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 4/9: ../chat-hub/issues.json
+[2m2025-09-25T20:40:11.739606Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 1133 chunks from ../chat-hub/issues.json
+[2m2025-09-25T20:40:11.739654Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 5/9: ../chat-hub/package.json
+[2m2025-09-25T20:40:11.739674Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 4 chunks from ../chat-hub/package.json
+[2m2025-09-25T20:40:11.739687Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 6/9: ../chat-hub/scripts/fix-issues.js
+[2m2025-09-25T20:40:11.739734Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 13 chunks from ../chat-hub/scripts/fix-issues.js
+[2m2025-09-25T20:40:11.739739Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 7/9: ../chat-hub/scripts/test-all-models.js
+[2m2025-09-25T20:40:11.739868Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 43 chunks from ../chat-hub/scripts/test-all-models.js
+[2m2025-09-25T20:40:11.739874Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 8/9: ../chat-hub/server.js
+[2m2025-09-25T20:40:11.741937Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 725 chunks from ../chat-hub/server.js
+[2m2025-09-25T20:40:11.741958Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Processing document 9/9: ../chat-hub/test-all-models.js
+[2m2025-09-25T20:40:11.742114Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created 53 chunks from ../chat-hub/test-all-models.js
+[2m2025-09-25T20:40:11.742127Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary from 9 documents
+[2m2025-09-25T20:40:11.742138Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Building vocabulary for embedding type: bm25
+[2m2025-09-25T20:40:11.806411Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m BM25 vocabulary built successfully
+[2m2025-09-25T20:40:11.806609Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Tokenizer saving not yet implemented for bm25
+[2m2025-09-25T20:40:11.806870Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Collection 'chat-hub' created successfully
+[2m2025-09-25T20:40:11.806887Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Set embedding type 'bm25' for collection 'chat-hub'
+[2m2025-09-25T20:40:11.806895Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m Created collection: chat-hub
+[2m2025-09-25T20:40:11.806902Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 📊 Processing 2421 chunks in batches for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.806914Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 1/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.809486Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 2/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.811423Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 3/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.816424Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 256)
+[2m2025-09-25T20:40:11.816445Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 4/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.818641Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 5/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.820969Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 6/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.825844Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 512)
+[2m2025-09-25T20:40:11.825875Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 7/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.828045Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 8/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.833020Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 768)
+[2m2025-09-25T20:40:11.833045Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 9/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.835265Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 10/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:11.837811Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 11/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.082838Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1024)
+[2m2025-09-25T20:40:19.082892Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 12/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.085376Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 13/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.091029Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1280)
+[2m2025-09-25T20:40:19.091085Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 14/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.093124Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 15/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.095129Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 16/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.100296Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1536)
+[2m2025-09-25T20:40:19.100339Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 17/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.102253Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 18/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.107769Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m ✅ Inserted 256 vectors (total: 1792)
+[2m2025-09-25T20:40:19.107830Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 19/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.109958Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 20/25 (100 chunks) for collection 'chat-hub'...
+[2m2025-09-25T20:40:19.111940Z[0m [32m INFO[0m [2mvectorizer::document_loader[0m[2m:[0m 🔄 Processing batch 21/25 (100 chunks) for collection 'chat-hub'...
