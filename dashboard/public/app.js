@@ -259,6 +259,10 @@ class VectorizerDashboard {
                             </div>
                             <div class="collection-stats">
                                 <div class="stat-row">
+                                    <span class="stat-label">Source:</span>
+                                    <span class="stat-value status-${col.indexing_status.status === 'cached' ? 'cached' : 'completed'}">${col.indexing_status.status === 'cached' ? 'Cache' : 'Indexed'}</span>
+                                </div>
+                                <div class="stat-row">
                                     <span class="stat-label">Vectors:</span>
                                     <span class="stat-value">${this.formatNumber(col.vector_count)}</span>
                                 </div>
@@ -821,6 +825,7 @@ class VectorizerDashboard {
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Source</th>
                         <th>Vectors</th>
                         <th>Dimension</th>
                         <th>Metric</th>
@@ -832,6 +837,7 @@ class VectorizerDashboard {
                     ${collections.map(col => `
                         <tr>
                             <td><strong>${col.name}</strong></td>
+                            <td><span class="status-badge status-${col.indexing_status.status === 'cached' ? 'cached' : 'completed'}">${col.indexing_status.status === 'cached' ? 'Cache' : 'Indexed'}</span></td>
                             <td>${this.formatNumber(col.vector_count)}</td>
                             <td>${col.dimension}</td>
                             <td>${col.metric}</td>
@@ -932,6 +938,7 @@ class VectorizerDashboard {
             case 'indexing': return 'Indexando';
             case 'pending': return 'Pendente';
             case 'failed': return 'Falhou';
+            case 'cached': return 'Do Cache';
             default: return status;
         }
     }
@@ -949,7 +956,7 @@ class VectorizerDashboard {
             // Check if any indexing is happening
             const isIndexing = processingCollections > 0 || completedCollections < totalCollections;
             
-            if (!isIndexing && completedCollections === totalCollections) {
+            if (!isIndexing && completedCollections === totalCollections && activeCollections.every(c => c.status === 'cached' || c.status === 'completed')) {
                 return ''; // Don't show section if all indexing is complete
             }
             
@@ -1114,6 +1121,10 @@ class VectorizerDashboard {
                         </div>
                     </div>
                     <div class="collection-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Source:</span>
+                            <span class="stat-value status-${col.indexing_status.status === 'cached' ? 'cached' : 'completed'}">${col.indexing_status.status === 'cached' ? 'Cache' : 'Indexed'}</span>
+                        </div>
                         <div class="stat-row">
                             <span class="stat-label">Vectors:</span>
                             <span class="stat-value">${this.formatNumber(col.vector_count)}</span>

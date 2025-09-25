@@ -128,7 +128,9 @@ impl McpServer {
 
                             // Send response
                             if let Ok(response_json) = serde_json::to_string(&response) {
-                                if let Err(e) = sender.send(Message::Text(response_json.into())).await {
+                                if let Err(e) =
+                                    sender.send(Message::Text(response_json.into())).await
+                                {
                                     error!("Failed to send response: {}", e);
                                     break;
                                 }

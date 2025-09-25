@@ -9,8 +9,9 @@ use crate::{
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tracing::debug;
 
-use super::optimized_hnsw::{OptimizedHnswIndex, OptimizedHnswConfig};
+use super::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
 
 /// A collection of vectors with an associated HNSW index
 #[derive(Clone, Debug)]
@@ -40,7 +41,11 @@ impl Collection {
     }
 
     /// Create a new collection with specific embedding type
-    pub fn new_with_embedding_type(name: String, config: CollectionConfig, embedding_type: String) -> Self {
+    pub fn new_with_embedding_type(
+        name: String,
+        config: CollectionConfig,
+        embedding_type: String,
+    ) -> Self {
         // Convert HnswConfig to OptimizedHnswConfig
         let optimized_config = OptimizedHnswConfig {
             max_connections: config.hnsw_config.m,
@@ -52,7 +57,7 @@ impl Collection {
             initial_capacity: 100_000,
             batch_size: 1000,
         };
-        
+
         let index = OptimizedHnswIndex::new(config.dimension, optimized_config)
             .expect("Failed to create optimized HNSW index");
         let now = chrono::Utc::now();
@@ -251,6 +256,55 @@ impl Collection {
         let total_per_vector = vector_size + entry_overhead;
 
         self.vectors.len() * total_per_vector
+    }
+
+    /// Fast load from cache without building HNSW index (index built lazily on first search)
+    pub fn load_from_cache(&self, persisted_vectors: Vec<crate::persistence::PersistedVector>) -> Result<()> {
+        use crate::persistence::PersistedVector;
+        
+        debug!("Fast loading {} vectors into collection '{}' (lazy index)", persisted_vectors.len(), self.name);
+
+        // Convert persisted vectors to runtime vectors
+        let mut runtime_vectors = Vec::with_capacity(persisted_vectors.len());
+        for pv in persisted_vectors {
+            runtime_vectors.push(pv.into_runtime()?);
+        }
+
+        // Use fast load for runtime vectors
+        self.fast_load_vectors(runtime_vectors)?;
+
+        debug!("Fast loaded {} vectors into collection '{}' (HNSW index will be built on first search)", self.vectors.len(), self.name);
+        Ok(())
+    }
+
+    /// Fast load vectors without building HNSW index (index built lazily on first search)
+    pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
+        debug!("Fast loading {} vectors into collection '{}' (lazy index)", vectors.len(), self.name);
+
+        // Fast load: store vectors without building HNSW index
+        // Index will be built lazily on first search operation
+        let mut vector_order = self.vector_order.write();
+        
+        for mut vector in vectors {
+            let id = vector.id.clone();
+
+            // Normalize vector for cosine similarity (but don't add to index yet)
+            if matches!(self.config.metric, crate::models::DistanceMetric::Cosine) {
+                vector.data = crate::models::vector_utils::normalize_vector(&vector.data);
+            }
+
+            // Store vector
+            self.vectors.insert(id.clone(), vector);
+
+            // Track insertion order
+            vector_order.push(id.clone());
+        }
+
+        // Update timestamp
+        *self.updated_at.write() = chrono::Utc::now();
+
+        debug!("Fast loaded {} vectors into collection '{}' (HNSW index will be built on first search)", vector_order.len(), self.name);
+        Ok(())
     }
 
     /// Get all vectors in the collection (for persistence)

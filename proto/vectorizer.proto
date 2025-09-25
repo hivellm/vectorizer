@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package vectorizer;
+
+// Serviço principal do Vectorizer
+service VectorizerService {
+  // Operações de busca
+  rpc Search(SearchRequest) returns (SearchResponse);
+  
+  // Operações de coleções
+  rpc ListCollections(Empty) returns (ListCollectionsResponse);
+  rpc GetCollectionInfo(GetCollectionInfoRequest) returns (CollectionInfo);
+  
+  // Operações de embedding
+  rpc EmbedText(EmbedRequest) returns (EmbedResponse);
+  
+  // Operações de indexação
+  rpc GetIndexingProgress(Empty) returns (IndexingProgressResponse);
+  rpc UpdateIndexingProgress(UpdateIndexingProgressRequest) returns (Empty);
+  
+  // Health check
+  rpc HealthCheck(Empty) returns (HealthResponse);
+}
+
+// Mensagens de busca
+message SearchRequest {
+  string collection = 1;
+  string query = 2;
+  int32 limit = 3;
+  optional float threshold = 4;
+}
+
+message SearchResult {
+  string id = 1;
+  string content = 2;
+  float score = 3;
+  map<string, string> metadata = 4;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+  int32 total_found = 2;
+  double search_time_ms = 3;
+}
+
+// Mensagens de coleções
+message Empty {}
+
+message CollectionInfo {
+  string name = 1;
+  int32 vector_count = 2;
+  int32 dimension = 3;
+  string similarity_metric = 4;
+  string status = 5;
+  string last_updated = 6;
+  optional string error_message = 7;
+}
+
+message ListCollectionsResponse {
+  repeated CollectionInfo collections = 1;
+  int32 total_collections = 2;
+}
+
+message GetCollectionInfoRequest {
+  string collection_name = 1;
+}
+
+// Mensagens de embedding
+message EmbedRequest {
+  string text = 1;
+  string provider = 2;
+}
+
+message EmbedResponse {
+  repeated float embedding = 1;
+  int32 dimension = 2;
+  string provider = 3;
+}
+
+// Mensagens de indexação
+message IndexingStatus {
+  string collection_name = 1;
+  string status = 2;
+  float progress = 3;
+  int32 vector_count = 4;
+  optional string error_message = 5;
+  string last_updated = 6;
+}
+
+message IndexingProgressResponse {
+  repeated IndexingStatus collections = 1;
+  bool is_indexing = 2;
+  string overall_status = 3;
+}
+
+message UpdateIndexingProgressRequest {
+  string collection_name = 1;
+  string status = 2;
+  float progress = 3;
+  int32 vector_count = 4;
+  optional string error_message = 5;
+}
+
+// Mensagens de health check
+message HealthResponse {
+  string status = 1;
+  string service = 2;
+  string version = 3;
+  string timestamp = 4;
+  optional string error_message = 5;
+}

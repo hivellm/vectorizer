@@ -2,16 +2,16 @@
 
 use axum::{
     Router,
-    routing::{get, post, delete},
     response::Json,
+    routing::{delete, get, post},
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
-    trace::TraceLayer,
     services::ServeDir,
+    trace::TraceLayer,
 };
 use tracing::info;
 
@@ -30,7 +30,12 @@ pub struct VectorizerServer {
 
 impl VectorizerServer {
     /// Create a new server instance
-    pub fn new(host: &str, port: u16, store: Arc<VectorStore>, embedding_manager: EmbeddingManager) -> Self {
+    pub fn new(
+        host: &str,
+        port: u16,
+        store: Arc<VectorStore>,
+        embedding_manager: EmbeddingManager,
+    ) -> Self {
         let addr = format!("{}:{}", host, port)
             .parse()
             .expect("Invalid host/port combination");
@@ -51,10 +56,13 @@ impl VectorizerServer {
 
     /// Start the HTTP server
     pub async fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+        println!("🚀 Starting Vectorizer HTTP server on {}", self.addr);
         info!("Starting Vectorizer HTTP server on {}", self.addr);
 
         // Create the main router
+        println!("🔧 Creating main router...");
         let app = self.create_app();
+        println!("✅ Router created, binding to address...");
 
         // Create TCP listener
         let listener = TcpListener::bind(self.addr).await?;
@@ -71,21 +79,29 @@ impl VectorizerServer {
         // Create the main router
         let api_router = create_router(self.state.clone());
 
-        // Create dashboard router with static files only
-        let dashboard_router = Router::new()
-            .route("/", get(|| async { 
-                axum::response::Redirect::permanent("/dashboard/static/index.html")
-            }))
-            .nest_service("/static", ServeDir::new("dashboard/public"));
-
         // Build the application with middleware
         Router::new()
-            .route("/test", get(|| async {
-                info!("Test endpoint called!");
-                Json(serde_json::json!({"message": "Server test endpoint working!"}))
-            }))
+            .route(
+                "/",
+                get(|| async {
+                    axum::response::Redirect::permanent("/static/index.html")
+                }),
+            )
+            .route(
+                "/dashboard",
+                get(|| async {
+                    axum::response::Redirect::permanent("/static/index.html")
+                }),
+            )
+            .route(
+                "/test",
+                get(|| async {
+                    info!("Test endpoint called!");
+                    Json(serde_json::json!({"message": "Server test endpoint working!"}))
+                }),
+            )
             .nest("/api/v1", api_router)
-            .nest("/dashboard", dashboard_router)
+            .nest_service("/static", ServeDir::new("dashboard/public"))
             .fallback(not_found_handler)
     }
 }

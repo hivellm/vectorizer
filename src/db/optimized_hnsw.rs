@@ -221,14 +221,12 @@ impl OptimizedHnswIndex {
         let results = neighbors
             .into_iter()
             .filter_map(|neighbor| {
-                reverse_map
-                    .get(&neighbor.d_id)
-                    .map(|id| {
-                        // Convert cosine distance to cosine similarity
-                        // For cosine distance: similarity = 1 - distance
-                        let similarity = 1.0 - neighbor.distance;
-                        (id.clone(), similarity)
-                    })
+                reverse_map.get(&neighbor.d_id).map(|id| {
+                    // Convert cosine distance to cosine similarity
+                    // For cosine distance: similarity = 1 - distance
+                    let similarity = 1.0 - neighbor.distance;
+                    (id.clone(), similarity)
+                })
             })
             .collect();
 
@@ -260,7 +258,7 @@ impl OptimizedHnswIndex {
         // Remove old vector and add new one
         self.remove(id)?;
         self.add(id.to_string(), data.to_vec())?;
-        
+
         Ok(())
     }
 

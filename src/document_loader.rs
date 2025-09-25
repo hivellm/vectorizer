@@ -2,20 +2,27 @@
 
 use crate::{
     VectorStore,
-    embedding::{EmbeddingManager, TfIdfEmbedding, Bm25Embedding, SvdEmbedding, BertEmbedding, MiniLmEmbedding, BagOfWordsEmbedding, CharNGramEmbedding},
+    api::handlers::IndexingProgressState,
+    cache::{
+        CacheConfig, CacheError, CacheManager, CacheResult, IncrementalConfig, IncrementalProcessor,
+    },
+    embedding::{
+        BagOfWordsEmbedding, BertEmbedding, Bm25Embedding, CharNGramEmbedding, EmbeddingManager,
+        MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding,
+    },
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
-    cache::{CacheManager, CacheConfig, CacheResult, CacheError, IncrementalProcessor, IncrementalConfig},
 };
 use anyhow::{Context, Result};
+use glob::Pattern;
+use rayon::prelude::*;
+use sha2::Digest;
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
     time::SystemTime,
 };
-use glob::Pattern;
-use tracing::{debug, info, warn, error};
-use sha2::Digest;
+use tracing::{debug, error, info, warn};
 
 /// Document chunk with metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -143,7 +150,11 @@ impl Default for LoaderConfig {
                 "thrift".to_string(),
                 "avro".to_string(),
             ],
-            include_patterns: vec!["**/*.md".to_string(), "**/*.txt".to_string(), "**/*.json".to_string()],
+            include_patterns: vec![
+                "**/*.md".to_string(),
+                "**/*.txt".to_string(),
+                "**/*.json".to_string(),
+            ],
             exclude_patterns: vec![
                 "**/node_modules/**".to_string(),
                 "**/target/**".to_string(),
@@ -151,6 +162,45 @@ impl Default for LoaderConfig {
                 "**/__pycache__/**".to_string(),
                 "**/.git/**".to_string(),
                 "**/.vectorizer/**".to_string(),
+                "**/*.png".to_string(),
+                "**/*.jpg".to_string(),
+                "**/*.jpeg".to_string(),
+                "**/*.gif".to_string(),
+                "**/*.bmp".to_string(),
+                "**/*.webp".to_string(),
+                "**/*.svg".to_string(),
+                "**/*.ico".to_string(),
+                "**/*.mp4".to_string(),
+                "**/*.avi".to_string(),
+                "**/*.mov".to_string(),
+                "**/*.wmv".to_string(),
+                "**/*.flv".to_string(),
+                "**/*.webm".to_string(),
+                "**/*.mp3".to_string(),
+                "**/*.wav".to_string(),
+                "**/*.flac".to_string(),
+                "**/*.aac".to_string(),
+                "**/*.ogg".to_string(),
+                "**/*.db".to_string(),
+                "**/*.sqlite".to_string(),
+                "**/*.sqlite3".to_string(),
+                "**/*.bin".to_string(),
+                "**/*.exe".to_string(),
+                "**/*.dll".to_string(),
+                "**/*.so".to_string(),
+                "**/*.dylib".to_string(),
+                "**/*.zip".to_string(),
+                "**/*.tar".to_string(),
+                "**/*.gz".to_string(),
+                "**/*.rar".to_string(),
+                "**/*.7z".to_string(),
+                "**/*.pdf".to_string(),
+                "**/*.doc".to_string(),
+                "**/*.docx".to_string(),
+                "**/*.xls".to_string(),
+                "**/*.xlsx".to_string(),
+                "**/*.ppt".to_string(),
+                "**/*.pptx".to_string(),
             ],
             embedding_dimension: 512, // Valor fixo adequado para TF-IDF
             embedding_type: "bm25".to_string(), // BM25 como padrão
@@ -170,8 +220,6 @@ pub struct DocumentLoader {
     processed_chunks: Vec<String>,
     /// Cache manager
     pub cache_manager: Option<CacheManager>,
-    /// Incremental processor
-    pub incremental_processor: Option<IncrementalProcessor>,
 }
 
 impl DocumentLoader {
@@ -245,418 +293,311 @@ impl DocumentLoader {
         embedding_manager.register_provider("charngram".to_string(), Box::new(char_ngram));
 
         // Set the configured embedding type as default
-        embedding_manager.set_default_provider(&config.embedding_type).unwrap();
+        embedding_manager
+            .set_default_provider(&config.embedding_type)
+            .unwrap();
 
         Self {
             config,
             embedding_manager,
             processed_chunks,
             cache_manager: None,
-            incremental_processor: None,
         }
     }
 
     /// Create a new document loader with cache management
-    pub async fn new_with_cache(config: LoaderConfig, cache_config: CacheConfig) -> CacheResult<Self> {
+    pub async fn new_with_cache(
+        config: LoaderConfig,
+        cache_config: CacheConfig,
+    ) -> CacheResult<Self> {
         let mut loader = Self::new(config.clone());
-        
+
         // Initialize cache manager
         let cache_manager = CacheManager::new(cache_config).await?;
-        
-        // Initialize incremental processor
-        let incremental_config = IncrementalConfig::default();
-        let incremental_processor = IncrementalProcessor::new(
-            std::sync::Arc::new(cache_manager.clone()),
-            incremental_config,
-        ).await?;
-        
+
         loader.cache_manager = Some(cache_manager);
-        loader.incremental_processor = Some(incremental_processor);
-        
+
         Ok(loader)
     }
 
-    /// Load and index all documents from a project directory with caching
+    /// Load and index all documents from a project directory
     pub fn load_project(&mut self, project_path: &str, store: &VectorStore) -> Result<usize> {
-
-        // Ensure .vectorizer directory exists
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
-            warn!("Failed to create .vectorizer directory {}: {}", vectorizer_dir.display(), e);
-        }
-
-        // Use .vectorizer for cache file
-        let cache_path = vectorizer_dir.join("cache.bin");
-        
-        // Try to load from cache first
-        let mut project_cache = self.load_cache(&cache_path.to_string_lossy())?;
-        let config_hash = self.calculate_config_hash();
-        
-        // Check if cache is valid for current config
-        if project_cache.config_hash != config_hash {
-            project_cache = ProjectCache {
-                files: HashMap::new(),
-                config_hash,
-            };
-        }
-
-        // Collect all documents
-        let documents = self.collect_documents(project_path)?;
-
-        if documents.is_empty() {
-            warn!("No documents found in project directory");
-            return Ok(0);
-        }
-
-        // Process documents with cache
-        let mut all_chunks = Vec::new();
-        let mut _cache_hits = 0;
-        let mut _cache_misses = 0;
-
-        for (file_path, content) in &documents {
-            let file_path_str = file_path.to_string_lossy().to_string();
-            
-            // Check if file is in cache and up to date
-            if let Some(cache_entry) = project_cache.files.get(&file_path_str) {
-                if let Ok(metadata) = fs::metadata(file_path) {
-                    if let Ok(modified_time) = metadata.modified() {
-                        if modified_time == cache_entry.modified_time && 
-                           metadata.len() == cache_entry.file_size {
-                            // Cache hit - use cached chunks
-                            all_chunks.extend(cache_entry.chunks.clone());
-                            _cache_hits += 1;
-                            debug!("Cache hit for: {}", file_path_str);
-                            continue;
-                        }
-                    }
-                }
-            }
-            
-            // Cache miss - process file
-            _cache_misses += 1;
-            debug!("Cache miss for: {}", file_path_str);
-            
-            let file_chunks = self.chunk_text(content, file_path)?;
-            all_chunks.extend(file_chunks.clone());
-            
-            // Update cache
-            if let Ok(metadata) = fs::metadata(file_path) {
-                if let Ok(modified_time) = metadata.modified() {
-                    project_cache.files.insert(file_path_str, CacheEntry {
-                        modified_time,
-                        file_size: metadata.len(),
-                        chunks: file_chunks,
-                    });
-                }
-            }
-        }
-
-
-        // Save updated cache
-        self.save_cache(&cache_path.to_string_lossy(), &project_cache)?;
-
-        // Build vocabulary from all documents for configured embedding
-        self.build_vocabulary(&documents)?;
-
-        // After building vocabulary, persist tokenizer file for configured provider
-        match self.config.embedding_type.as_str() {
-            "bm25" => {
-                if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
-                    if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
-                        let tokenizer_path = vectorizer_dir.join("tokenizer.bm25.json");
-                        if let Err(e) = bm25.save_vocabulary_json(&tokenizer_path) {
-                            warn!("Failed to save BM25 tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
-                        } else {
-                        }
-                    }
-                }
-            }
-            "tfidf" => {
-                if let Some(provider) = self.embedding_manager.get_provider_mut("tfidf") {
-                    if let Some(tfidf) = provider.as_any_mut().downcast_mut::<TfIdfEmbedding>() {
-                        let tokenizer_path = vectorizer_dir.join("tokenizer.tfidf.json");
-                        if let Err(e) = tfidf.save_vocabulary_json(&tokenizer_path) {
-                            warn!("Failed to save TF-IDF tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
-                        } else {
-                        }
-                    }
-                }
-            }
-            "bagofwords" => {
-                if let Some(provider) = self.embedding_manager.get_provider_mut("bagofwords") {
-                    if let Some(bow) = provider.as_any_mut().downcast_mut::<BagOfWordsEmbedding>() {
-                        let tokenizer_path = vectorizer_dir.join("tokenizer.bow.json");
-                        if let Err(e) = bow.save_vocabulary_json(&tokenizer_path) {
-                            warn!("Failed to save BagOfWords tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
-                        } else {
-                        }
-                    }
-                }
-            }
-            "charngram" => {
-                if let Some(provider) = self.embedding_manager.get_provider_mut("charngram") {
-                    if let Some(cng) = provider.as_any_mut().downcast_mut::<CharNGramEmbedding>() {
-                        let tokenizer_path = vectorizer_dir.join("tokenizer.charngram.json");
-                        if let Err(e) = cng.save_vocabulary_json(&tokenizer_path) {
-                            warn!("Failed to save CharNGram tokenizer to {}: {}", tokenizer_path.to_string_lossy(), e);
-                        } else {
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        // Create collection in vector store
-        self.create_collection(store)?;
-
-        // Store chunks in vector store
-        self.store_chunks(store, &all_chunks)?;
-
-        info!(
-            "Successfully processed {} documents into {} chunks",
-            documents.len(),
-            all_chunks.len()
-        );
-        Ok(all_chunks.len())
+        // This is now a simplified entry point that internally calls the async version.
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| anyhow::anyhow!("Failed to create Tokio runtime: {}", e))?;
+        rt.block_on(self.full_project_indexing(project_path, store, None))
+            .map(|(count, _)| count)
+            .map_err(|e| anyhow::anyhow!("Failed to index project: {}", e))
     }
 
     /// Load and index all documents from a project directory with advanced cache management
-    pub async fn load_project_with_cache(&mut self, project_path: &str, store: &VectorStore) -> CacheResult<usize> {
-        info!("🔍 Starting load_project_with_cache for collection '{}'", self.config.collection_name);
-        
-        if self.cache_manager.is_none() {
-            warn!("❌ Cache manager not initialized for '{}'", self.config.collection_name);
-            return Err(CacheError::Validation("Cache manager not initialized".to_string()));
-        }
-
-        info!("✅ Cache manager is initialized for '{}'", self.config.collection_name);
-        let cache_manager = self.cache_manager.as_ref().unwrap();
-        let incremental_processor = self.incremental_processor.as_ref().unwrap();
-
-        // Ensure .vectorizer directory exists
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
-            warn!("Failed to create .vectorizer directory {}: {}", vectorizer_dir.display(), e);
-        }
-
-        // Check if collection exists in cache
-        let collection_name = &self.config.collection_name;
-        info!("🔍 Checking if collection '{}' exists in cache", collection_name);
-        let has_collection = cache_manager.has_collection(collection_name).await;
-        info!("🔍 Collection '{}' exists in cache: {}", collection_name, has_collection);
-        
-        if has_collection {
-            // Try to load from cache first
-            if let Some(collection_info) = cache_manager.get_collection_info(collection_name).await {
-                info!("Found cache for collection '{}' with {} files", collection_name, collection_info.file_count);
-                
-                // Validate cache integrity
-                let validation_result = cache_manager.validate().await?;
-                if !validation_result.is_valid() {
-                    warn!("Cache validation failed: {}", validation_result.summary());
-                    // Fall back to full reindexing
-                    return self.load_project_fallback(project_path, store).await;
-                }
-                
-                // Try to load from cache
-                match self.load_from_cache(project_path, &collection_info, store).await {
-                    Ok(vector_count) => {
-                        info!("Successfully loaded collection '{}' from cache with {} vectors", collection_name, vector_count);
-                        cache_manager.record_hit().await?;
-                        return Ok(vector_count);
-                    }
-                    Err(e) => {
-                        warn!("Failed to load from cache: {}, falling back to full indexing", e);
-                        cache_manager.record_miss().await?;
-                        return self.load_project_fallback(project_path, store).await;
-                    }
-                }
-            }
-        }
-
-        // Cache miss - perform full indexing
-        info!("Cache miss for collection '{}', performing full indexing", collection_name);
-        cache_manager.record_miss().await?;
-        
-        self.load_project_fallback(project_path, store).await
+    pub async fn load_project_with_cache(
+        &mut self,
+        project_path: &str,
+        store: &VectorStore,
+    ) -> CacheResult<(usize, bool)> {
+        self.load_project_with_cache_and_progress(project_path, store, None).await
     }
 
-    /// Fallback method for full project loading
-    async fn load_project_fallback(&mut self, project_path: &str, store: &VectorStore) -> CacheResult<usize> {
-        // Use the existing load_project method
-        let result = self.load_project(project_path, store)
-            .map_err(|e| CacheError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        
-            // Save collection-specific vector store to disk
-            let vectorizer_dir = std::path::PathBuf::from(project_path).join(".vectorizer");
-            if let Err(e) = std::fs::create_dir_all(&vectorizer_dir) {
-                warn!("Failed to create .vectorizer directory {}: {}", vectorizer_dir.display(), e);
-            }
+    /// Load and index all documents from a project directory with progress callback
+    pub async fn load_project_with_cache_and_progress(
+        &mut self,
+        project_path: &str,
+        store: &VectorStore,
+        progress_callback: Option<&IndexingProgressState>,
+    ) -> CacheResult<(usize, bool)> {
+        println!("🔍 load_project_with_cache_and_progress called for collection: {}", self.config.collection_name);
+        let collection_name = &self.config.collection_name;
+        let vector_store_path = PathBuf::from(project_path).join(".vectorizer").join(format!("{}_vector_store.bin", collection_name));
+        println!("📂 Vector store path: {}", vector_store_path.display());
 
-            let vector_store_path = vectorizer_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
-            if let Err(e) = store.save(&vector_store_path) {
-                warn!("Failed to save collection vector store to {}: {}", vector_store_path.display(), e);
-            } else {
-                info!("Collection vector store saved successfully to {}", vector_store_path.display());
+        // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
+        if vector_store_path.exists() {
+            info!("🚀 Loading cached vector store for '{}' directly (fast path)", collection_name);
+            match self.load_persisted_store(&vector_store_path, store, collection_name) {
+                Ok(count) => {
+                    info!("✅ Loaded {} vectors from cache for '{}' in milliseconds", count, collection_name);
+                    // Record cache hit if cache manager is available
+                    if let Some(cache_manager) = &self.cache_manager {
+                        let _ = cache_manager.record_hit().await;
+                    }
+                    return Ok((count, true));
+                }
+                Err(e) => {
+                    warn!("Cache file exists but failed to load '{}': {}. Re-indexing...", vector_store_path.display(), e);
+                }
             }
+        }
+
+        // SLOW PATH: Full indexing when no cache exists
+        info!("📊 No cache found for '{}', performing full indexing", collection_name);
+
+        if let Some(cache_manager) = &self.cache_manager {
+            let _ = cache_manager.record_miss().await;
+        }
+
+        self.full_project_indexing(project_path, store, progress_callback).await
+    }
+
+    /// Performs a full indexing of the project.
+    async fn full_project_indexing(&mut self, project_path: &str, store: &VectorStore, progress_callback: Option<&IndexingProgressState>) -> CacheResult<(usize, bool)> {
+        // Update progress: Starting document collection (20%)
+        if let Some(callback) = progress_callback {
+            callback.update(&self.config.collection_name, "processing", 20.0, 0, 0);
+        }
+
+        let documents = self.collect_documents(project_path).map_err(|e| CacheError::Other(e.to_string()))?;
+        if documents.is_empty() {
+            warn!("No documents found in project directory for collection '{}'.", self.config.collection_name);
+            return Ok((0, false));
+        }
+
+        // Update progress: Documents collected, chunking (40%)
+        if let Some(callback) = progress_callback {
+            callback.update(&self.config.collection_name, "processing", 40.0, documents.len() as usize, 0);
+        }
+
+        let all_chunks = self.chunk_documents(&documents).map_err(|e| CacheError::Other(e.to_string()))?;
+
+        // Update progress: Chunks created, building vocabulary (60%)
+        if let Some(callback) = progress_callback {
+            callback.update(&self.config.collection_name, "processing", 60.0, documents.len() as usize, all_chunks.len() as usize);
+        }
+
+        self.build_vocabulary(&documents).map_err(|e| CacheError::Other(e.to_string()))?;
+
+        // Save tokenizer after building vocabulary
+        self.save_tokenizer(project_path).map_err(|e| CacheError::Other(e.to_string()))?;
+
+        // Update progress: Vocabulary built, creating collection (70%)
+        if let Some(callback) = progress_callback {
+            callback.update(&self.config.collection_name, "processing", 70.0, documents.len() as usize, all_chunks.len() as usize);
+        }
+
+        self.create_collection(store).map_err(|e| CacheError::Other(e.to_string()))?;
+
+        // Update progress: Collection created, storing vectors (80%)
+        if let Some(callback) = progress_callback {
+            callback.update(&self.config.collection_name, "processing", 80.0, documents.len() as usize, all_chunks.len() as usize);
+        }
+
+        let vector_count = self.store_chunks_parallel_with_progress(store, &all_chunks, progress_callback).map_err(|e| CacheError::Other(e.to_string()))?;
+
+        info!(
+            "Successfully processed {} documents into {} chunks for collection '{}'",
+            documents.len(),
+            all_chunks.len(),
+            self.config.collection_name
+        );
+
+        // Save the newly indexed store.
+        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+            warn!(
+                "Failed to create .vectorizer directory {}: {}",
+                vectorizer_dir.display(),
+                e
+            );
+        }
+        let vector_store_path = vectorizer_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
         
-        // Update cache metadata
+        if let Some(collection) = store.get_collection(&self.config.collection_name).ok() {
+            let sub_store = VectorStore::new();
+            let meta = collection.metadata();
+            sub_store.create_collection(&self.config.collection_name, meta.config.clone()).unwrap();
+            sub_store.insert(&self.config.collection_name, collection.get_all_vectors()).unwrap();
+
+            if let Err(e) = sub_store.save(&vector_store_path) {
+                 warn!("Failed to save collection vector store to '{}': {}", vector_store_path.display(), e);
+            } else {
+                 info!("Successfully saved collection vector store to '{}'", vector_store_path.display());
+            }
+        }
+
         if let Some(cache_manager) = &self.cache_manager {
             self.update_cache_metadata(cache_manager, project_path, store).await?;
         }
         
-        Ok(result)
+        Ok((vector_count, false))
     }
 
-    /// Load collection from cache
-    async fn load_from_cache(
-        &self,
-        project_path: &str,
-        collection_info: &crate::cache::CollectionCacheInfo,
-        store: &VectorStore,
-    ) -> CacheResult<usize> {
-        info!(
-            "Loading collection '{}' from cache with {} files",
-            collection_info.name,
-            collection_info.file_count
-        );
-
-        // If collection already exists in the provided store, just return its count
-        if let Ok(collection) = store.get_collection(&collection_info.name) {
-            let vector_count = collection.vector_count();
-            info!(
-                "Collection '{}' already exists in vector store with {} vectors",
-                collection_info.name, vector_count
-            );
-            return Ok(vector_count);
+    /// Loads a persisted vector store into the main application store.
+    fn load_persisted_store(&self, path: &Path, app_store: &VectorStore, collection_name: &str) -> Result<usize> {
+        println!("🔄 Loading persisted store from: {}", path.display());
+        println!("📖 Calling VectorStore::load...");
+        let persisted_store = VectorStore::load(path)?;
+        println!("📖 VectorStore loaded successfully");
+        
+        println!("🔍 Getting collection: {}", collection_name);
+        let src_collection = persisted_store.get_collection(collection_name)?;
+        println!("🔍 Collection retrieved successfully");
+        
+        let meta = src_collection.metadata();
+        if app_store.get_collection(collection_name).is_err() {
+            println!("🏗️ Creating collection in app store...");
+            app_store.create_collection(collection_name, meta.config.clone())?;
+            println!("🏗️ Collection created successfully");
         }
 
-        // Attempt to load the collection-specific persisted vector store
-        let vector_store_path = PathBuf::from(project_path)
-            .join(".vectorizer")
-            .join(format!("{}_vector_store.bin", collection_info.name));
+        println!("📊 Getting all vectors...");
+        let vectors = src_collection.get_all_vectors();
+        let vector_count = vectors.len();
+        println!("📊 Found {} vectors, fast loading into app store...", vector_count);
+        
+        // Fast load: insert vectors without rebuilding HNSW index
+        let app_collection = app_store.get_collection(collection_name)?;
+        app_collection.fast_load_vectors(vectors)?;
+        println!("✅ Successfully loaded {} vectors from cache (fast mode)", vector_count);
+        
+        Ok(vector_count)
+    }
 
-        if !vector_store_path.exists() {
-            warn!(
-                "Persisted vector store not found at {}, cannot load from cache",
-                vector_store_path.display()
-            );
-            return Err(CacheError::Validation(format!(
-                "Persisted vector store not found for collection '{}'",
-                collection_info.name
-            )));
-        }
-
-        match VectorStore::load(&vector_store_path) {
-            Ok(project_store) => {
-                match project_store.get_collection(&collection_info.name) {
-                    Ok(src_collection) => {
-                        let metadata = src_collection.metadata();
-                        // Create destination collection if missing
-                        if store.get_collection(&collection_info.name).is_err() {
-                            // Map any error into CacheError::Validation for simplicity
-                            store
-                                .create_collection(&collection_info.name, metadata.config.clone())
-                                .map_err(|e| CacheError::Validation(e.to_string()))?;
-                        }
-
-                        // Move vectors from persisted store into the provided store
-                        let vectors = src_collection.get_all_vectors();
-                        store
-                            .insert(&collection_info.name, vectors)
-                            .map_err(|e| CacheError::Validation(e.to_string()))?;
-
-                        // Return the updated vector count
-                        if let Ok(dest_collection) = store.get_collection(&collection_info.name) {
-                            let count = dest_collection.vector_count();
-                            info!(
-                                "Loaded collection '{}' from persisted store with {} vectors",
-                                collection_info.name, count
-                            );
-                            return Ok(count);
-                        }
-
-                        Err(CacheError::Validation(format!(
-                            "Failed to access destination collection '{}' after insert",
-                            collection_info.name
-                        )))
-                    }
-                    Err(_) => {
-                        warn!(
-                            "Collection '{}' not found inside persisted store at {}",
-                            collection_info.name,
-                            vector_store_path.display()
-                        );
-                        Err(CacheError::Validation(format!(
-                            "Collection '{}' missing in persisted store",
-                            collection_info.name
-                        )))
-                    }
-                }
+    /// Save tokenizer to .vectorizer directory
+    fn save_tokenizer(&self, project_path: &str) -> Result<()> {
+        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
+        fs::create_dir_all(&vectorizer_dir)?;
+        
+        match self.config.embedding_type.as_str() {
+            "bm25" => {
+                // Save BM25 vocabulary if available
+                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.bm25", self.config.collection_name));
+                info!("Attempting to save BM25 tokenizer to {}", tokenizer_path.display());
+                // Note: EmbeddingManager doesn't have save_vocabulary method yet
+                // This is a placeholder for future implementation
             }
-            Err(e) => {
-                warn!(
-                    "Failed to load persisted vector store from {}: {}",
-                    vector_store_path.display(),
-                    e
-                );
-                Err(CacheError::Validation(format!(
-                    "Error loading persisted vector store: {}",
-                    e
-                )))
+            "tfidf" => {
+                // Save TF-IDF vocabulary if available
+                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.tfidf", self.config.collection_name));
+                info!("Attempting to save TF-IDF tokenizer to {}", tokenizer_path.display());
+                // Note: EmbeddingManager doesn't have save_vocabulary method yet
+                // This is a placeholder for future implementation
+            }
+            "char_ngram" | "cng" => {
+                // Save CharNGram vocabulary if available
+                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.cng", self.config.collection_name));
+                info!("Attempting to save CharNGram tokenizer to {}", tokenizer_path.display());
+                // Note: EmbeddingManager doesn't have save_vocabulary method yet
+                // This is a placeholder for future implementation
+            }
+            "bag_of_words" | "bow" => {
+                // Save BagOfWords vocabulary if available
+                let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.bow", self.config.collection_name));
+                info!("Attempting to save BagOfWords tokenizer to {}", tokenizer_path.display());
+                // Note: EmbeddingManager doesn't have save_vocabulary method yet
+                // This is a placeholder for future implementation
+            }
+            _ => {
+                // For other embedding types (BERT, MiniLM, etc.), no tokenizer to save
+                info!("No tokenizer to save for embedding type: {}", self.config.embedding_type);
             }
         }
+        
+        Ok(())
     }
 
     /// Update cache metadata after processing
-    async fn update_cache_metadata(&self, cache_manager: &CacheManager, project_path: &str, store: &VectorStore) -> CacheResult<()> {
+    async fn update_cache_metadata(
+        &self,
+        cache_manager: &CacheManager,
+        project_path: &str,
+        store: &VectorStore,
+    ) -> CacheResult<()> {
         let collection_name = &self.config.collection_name;
-        
+
         // Collect documents to get file information
-        let documents = self.collect_documents(project_path)
-            .map_err(|e| CacheError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        
+        let documents = self.collect_documents(project_path).map_err(|e| {
+            CacheError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
+
         // Create collection cache info
         let mut collection_info = crate::cache::CollectionCacheInfo::new(
             collection_name.clone(),
             self.config.embedding_type.clone(),
             "1.0.0".to_string(), // TODO: Get actual embedding version
         );
-        
+
         // Update file information
         for (file_path, _content) in &documents {
             if let Ok(metadata) = std::fs::metadata(file_path) {
                 let modified_time = chrono::DateTime::from_timestamp(
-                    metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64,
+                    metadata
+                        .modified()?
+                        .duration_since(std::time::UNIX_EPOCH)?
+                        .as_secs() as i64,
                     0,
-                ).unwrap_or_else(chrono::Utc::now);
-                
+                )
+                .unwrap_or_else(chrono::Utc::now);
+
                 // Calculate file hash
                 let content_hash = self.calculate_file_hash(file_path).await?;
-                
+
                 let file_info = crate::cache::FileHashInfo::new(
                     content_hash,
                     metadata.len(),
                     modified_time,
-                    1, // TODO: Get actual chunk count
+                    1,      // TODO: Get actual chunk count
                     vec![], // Empty vector IDs - will be populated during actual indexing
                 );
-                
+
                 collection_info.update_file_hash(file_path.clone(), file_info);
             }
         }
-        
+
         collection_info.update_indexed();
-        
+
         // Get actual vector count from the store
         if let Ok(collection) = store.get_collection(collection_name) {
             collection_info.vector_count = collection.vector_count();
         }
-        
+
         // Update cache metadata
-        cache_manager.update_collection_info(collection_info).await?;
-        
+        cache_manager
+            .update_collection_info(collection_info)
+            .await?;
+
         Ok(())
     }
 
@@ -674,7 +615,12 @@ impl DocumentLoader {
         let path = Path::new(project_path);
         let mut documents = Vec::new();
         self.collect_documents_recursive(path, &mut documents)?;
-        info!("📁 Found {} documents in '{}' for collection '{}'", documents.len(), project_path, self.config.collection_name);
+        info!(
+            "📁 Found {} documents in '{}' for collection '{}'",
+            documents.len(),
+            project_path,
+            self.config.collection_name
+        );
         Ok(documents)
     }
 
@@ -742,13 +688,43 @@ impl DocumentLoader {
                     }
                 }
 
+                // Skip binary files by extension
+                if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
+                    let ext_lower = extension.to_lowercase();
+                    let binary_extensions = [
+                        // Images
+                        "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico",
+                        // Videos
+                        "mp4", "avi", "mov", "wmv", "flv", "webm", "mkv",
+                        // Audio
+                        "mp3", "wav", "flac", "aac", "ogg", "m4a",
+                        // Databases
+                        "db", "sqlite", "sqlite3",
+                        // Binaries
+                        "exe", "dll", "so", "dylib", "bin",
+                        // Archives
+                        "zip", "tar", "gz", "rar", "7z", "bz2", "xz",
+                        // Documents (binary formats)
+                        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+                    ];
+                    
+                    if binary_extensions.contains(&ext_lower.as_str()) {
+                        continue;
+                    }
+                }
+
                 if self.matches_patterns(&path, dir) {
                     // Check file size
                     match fs::metadata(&path) {
                         Ok(metadata) => {
                             let file_size = metadata.len();
                             if file_size > self.config.max_file_size as u64 {
-                                warn!("Skipping file {} (size: {} bytes, max: {} bytes)", path.display(), file_size, self.config.max_file_size);
+                                warn!(
+                                    "Skipping file {} (size: {} bytes, max: {} bytes)",
+                                    path.display(),
+                                    file_size,
+                                    self.config.max_file_size
+                                );
                                 continue;
                             }
                         }
@@ -794,7 +770,7 @@ impl DocumentLoader {
                     .iter()
                     .map(|(_, content)| content.as_str())
                     .collect();
-                
+
                 if let Some(provider) = self.embedding_manager.get_provider_mut("tfidf") {
                     if let Some(tfidf) = provider.as_any_mut().downcast_mut::<TfIdfEmbedding>() {
                         tfidf.build_vocabulary(&texts);
@@ -805,7 +781,7 @@ impl DocumentLoader {
                 } else {
                     return Err(anyhow::anyhow!("TF-IDF provider not found"));
                 }
-            },
+            }
             "bm25" => {
                 let texts: Vec<String> = documents
                     .iter()
@@ -822,13 +798,13 @@ impl DocumentLoader {
                 } else {
                     return Err(anyhow::anyhow!("BM25 provider not found"));
                 }
-            },
+            }
             "bagofwords" => {
                 let texts: Vec<&str> = documents
                     .iter()
                     .map(|(_, content)| content.as_str())
                     .collect();
-                
+
                 if let Some(provider) = self.embedding_manager.get_provider_mut("bagofwords") {
                     if let Some(bow) = provider.as_any_mut().downcast_mut::<BagOfWordsEmbedding>() {
                         bow.build_vocabulary(&texts);
@@ -839,30 +815,222 @@ impl DocumentLoader {
                 } else {
                     return Err(anyhow::anyhow!("BagOfWords provider not found"));
                 }
-            },
+            }
             "charngram" => {
                 // CharNGramEmbedding does not require a pre-built vocabulary.
                 // We log and proceed without additional preparation.
                 info!("CharNGram embedding selected - no vocabulary build step required");
             }
             _ => {
-                return Err(anyhow::anyhow!("Unsupported embedding type: {}", embedding_type));
+                return Err(anyhow::anyhow!(
+                    "Unsupported embedding type: {}",
+                    embedding_type
+                ));
             }
         }
 
         Ok(())
     }
 
+    /// Store chunks in the vector store using parallel processing with batch control and progress updates
+    fn store_chunks_parallel_with_progress(&self, store: &VectorStore, chunks: &[DocumentChunk], progress_callback: Option<&IndexingProgressState>) -> Result<usize> {
+        info!(
+            "📊 Processing {} chunks in batches for collection '{}'...",
+            chunks.len(),
+            self.config.collection_name
+        );
+
+        const PROCESSING_BATCH_SIZE: usize = 100; // Process 100 chunks at a time
+        const INSERT_BATCH_SIZE: usize = 256;     // Insert 256 vectors at a time
+        let mut total_vectors = 0;
+        let mut all_vectors = Vec::new();
+        let total_batches = (chunks.len() + PROCESSING_BATCH_SIZE - 1) / PROCESSING_BATCH_SIZE;
+
+        // Process chunks in smaller batches to avoid memory issues
+        for (batch_num, batch) in chunks.chunks(PROCESSING_BATCH_SIZE).enumerate() {
+            info!(
+                "🔄 Processing batch {}/{} ({} chunks) for collection '{}'...",
+                batch_num + 1,
+                total_batches,
+                batch.len(),
+                self.config.collection_name
+            );
+
+            // Update progress during batch processing
+            if let Some(callback) = progress_callback {
+                let progress = 80.0 + (batch_num as f32 / total_batches as f32) * 20.0; // 80-100%
+                callback.update(&self.config.collection_name, "processing", progress, chunks.len(), batch_num * PROCESSING_BATCH_SIZE);
+            }
+
+            let batch_vectors: Vec<Vector> = batch
+                .par_iter()
+                .filter_map(|chunk| {
+                    match self.embedding_manager.embed(&chunk.content) {
+                        Ok(embedding) => {
+                            if embedding.iter().all(|&x| x == 0.0) {
+                                warn!(
+                                    "Skipping chunk with zero embedding: '{}'",
+                                    chunk.content.chars().take(100).collect::<String>()
+                                );
+                                return None;
+                            }
+                            
+                            let vector = Vector {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                data: embedding,
+                                payload: Some(Payload {
+                                    data: serde_json::json!({
+                                        "content": chunk.content,
+                                        "file_path": chunk.file_path,
+                                        "chunk_index": chunk.chunk_index,
+                                        "metadata": chunk.metadata
+                                    }),
+                                }),
+                            };
+                            Some(vector)
+                        }
+                        Err(e) => {
+                            warn!("Failed to embed chunk '{}': {}", chunk.id, e);
+                            None
+                        }
+                    }
+                })
+                .collect();
+
+            all_vectors.extend(batch_vectors);
+
+            // Insert vectors in batches to avoid memory issues
+            if all_vectors.len() >= INSERT_BATCH_SIZE {
+                let vectors_to_insert = all_vectors.drain(0..INSERT_BATCH_SIZE).collect::<Vec<_>>();
+                if let Err(e) = store.insert(&self.config.collection_name, vectors_to_insert) {
+                    error!("Failed to insert batch: {}", e);
+                    return Err(e.into());
+                }
+                total_vectors += INSERT_BATCH_SIZE;
+                info!("✅ Inserted {} vectors (total: {})", INSERT_BATCH_SIZE, total_vectors);
+            }
+        }
+
+        // Insert remaining vectors
+        if !all_vectors.is_empty() {
+            let remaining_count = all_vectors.len();
+            if let Err(e) = store.insert(&self.config.collection_name, all_vectors) {
+                error!("Failed to insert final batch: {}", e);
+                return Err(e.into());
+            }
+            total_vectors += remaining_count;
+        }
+
+        info!(
+            "✅ Collection '{}' indexed successfully: {} vectors stored.",
+            self.config.collection_name,
+            total_vectors
+        );
+        Ok(total_vectors)
+    }
+
+    /// Store chunks in the vector store using parallel processing with batch control
+    fn store_chunks_parallel(&self, store: &VectorStore, chunks: &[DocumentChunk]) -> Result<usize> {
+        info!(
+            "📊 Processing {} chunks in batches for collection '{}'...",
+            chunks.len(),
+            self.config.collection_name
+        );
+
+        const PROCESSING_BATCH_SIZE: usize = 100; // Process 100 chunks at a time
+        const INSERT_BATCH_SIZE: usize = 256;     // Insert 256 vectors at a time
+        let mut total_vectors = 0;
+        let mut all_vectors = Vec::new();
+
+        // Process chunks in smaller batches to avoid memory issues
+        for (batch_num, batch) in chunks.chunks(PROCESSING_BATCH_SIZE).enumerate() {
+            info!(
+                "🔄 Processing batch {}/{} ({} chunks) for collection '{}'...",
+                batch_num + 1,
+                (chunks.len() + PROCESSING_BATCH_SIZE - 1) / PROCESSING_BATCH_SIZE,
+                batch.len(),
+                self.config.collection_name
+            );
+
+            let batch_vectors: Vec<Vector> = batch
+                .par_iter()
+                .filter_map(|chunk| {
+                    match self.embedding_manager.embed(&chunk.content) {
+                        Ok(embedding) => {
+                            if embedding.iter().all(|&x| x == 0.0) {
+                                warn!(
+                                    "Skipping chunk with zero embedding: '{}'",
+                                    chunk.content.chars().take(100).collect::<String>()
+                                );
+                                return None;
+                            }
+                            
+                            let vector = Vector {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                data: embedding,
+                                payload: Some(Payload {
+                                    data: serde_json::json!({
+                                        "content": chunk.content,
+                                        "file_path": chunk.file_path,
+                                        "chunk_index": chunk.chunk_index,
+                                        "metadata": chunk.metadata
+                                    }),
+                                }),
+                            };
+                            Some(vector)
+                        }
+                        Err(e) => {
+                            warn!("Failed to embed chunk '{}': {}", chunk.id, e);
+                            None
+                        }
+                    }
+                })
+                .collect();
+
+            all_vectors.extend(batch_vectors);
+
+            // Insert vectors in batches to avoid memory issues
+            if all_vectors.len() >= INSERT_BATCH_SIZE {
+                let vectors_to_insert = all_vectors.drain(0..INSERT_BATCH_SIZE).collect::<Vec<_>>();
+                if let Err(e) = store.insert(&self.config.collection_name, vectors_to_insert) {
+                    error!("Failed to insert batch: {}", e);
+                    return Err(e.into());
+                }
+                total_vectors += INSERT_BATCH_SIZE;
+                info!("✅ Inserted {} vectors (total: {})", INSERT_BATCH_SIZE, total_vectors);
+            }
+        }
+
+        // Insert remaining vectors
+        if !all_vectors.is_empty() {
+            let remaining_count = all_vectors.len();
+            if let Err(e) = store.insert(&self.config.collection_name, all_vectors) {
+                error!("Failed to insert final batch: {}", e);
+                return Err(e.into());
+            }
+            total_vectors += remaining_count;
+        }
+
+        info!(
+            "✅ Collection '{}' indexed successfully: {} vectors stored.",
+            self.config.collection_name,
+            total_vectors
+        );
+        Ok(total_vectors)
+    }
+
     /// Store chunks in the vector store
     #[allow(dead_code)]
     fn store_chunks(&self, store: &VectorStore, chunks: &[DocumentChunk]) -> Result<()> {
-        
         let mut vectors = Vec::new();
-        
-        info!("📊 Processing {} chunks for collection '{}' - this may take a while...", chunks.len(), self.config.collection_name);
-        
+
+        info!(
+            "📊 Processing {} chunks for collection '{}' - this may take a while...",
+            chunks.len(),
+            self.config.collection_name
+        );
+
         for (i, chunk) in chunks.iter().enumerate() {
-            
             // Generate embedding for the chunk
             let embedding = match self.embedding_manager.embed(&chunk.content) {
                 Ok(emb) => emb,
@@ -871,14 +1039,18 @@ impl DocumentLoader {
                     continue; // Skip this chunk
                 }
             };
-            
+
             // Validate embedding - reject zero vectors
             let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
             if non_zero_count == 0 {
-                warn!("Skipping chunk {} with zero embedding: '{}'", i, chunk.content.chars().take(100).collect::<String>());
+                warn!(
+                    "Skipping chunk {} with zero embedding: '{}'",
+                    i,
+                    chunk.content.chars().take(100).collect::<String>()
+                );
                 continue; // Skip zero vectors
             }
-            
+
             // Create vector data
             let vector = Vector {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -892,26 +1064,27 @@ impl DocumentLoader {
                     }),
                 }),
             };
-            
+
             vectors.push(vector);
         }
-        
-        
+
         // Insert vectors in larger batches for better performance
         const BATCH_SIZE: usize = 2000; // Lotes ainda maiores = ainda mais rápido
         for (batch_num, batch) in vectors.chunks(BATCH_SIZE).enumerate() {
-            
             match store.insert(&self.config.collection_name, batch.to_vec()) {
-                Ok(_) => {
-                }
+                Ok(_) => {}
                 Err(e) => {
                     error!("Failed to insert batch {}: {}", batch_num + 1, e);
                     return Err(e.into());
                 }
             }
         }
-        
-        info!("✅ Collection '{}' indexed successfully: {} chunks embedded and stored", self.config.collection_name, chunks.len());
+
+        info!(
+            "✅ Collection '{}' indexed successfully: {} chunks embedded and stored",
+            self.config.collection_name,
+            chunks.len()
+        );
         Ok(())
     }
 
@@ -920,10 +1093,13 @@ impl DocumentLoader {
     fn create_collection(&self, store: &VectorStore) -> Result<()> {
         // Check if collection already exists
         if store.get_collection(&self.config.collection_name).is_ok() {
-            info!("Collection '{}' already exists, skipping creation", self.config.collection_name);
+            info!(
+                "Collection '{}' already exists, skipping creation",
+                self.config.collection_name
+            );
             return Ok(());
         }
-        
+
         let config = CollectionConfig {
             dimension: self.config.embedding_dimension,
             metric: DistanceMetric::Cosine,
@@ -949,7 +1125,10 @@ impl DocumentLoader {
         // Set the embedding type for this collection
         if let Ok(collection) = store.get_collection(&self.config.collection_name) {
             collection.set_embedding_type(self.config.embedding_type.clone());
-            info!("Set embedding type '{}' for collection '{}'", self.config.embedding_type, self.config.collection_name);
+            info!(
+                "Set embedding type '{}' for collection '{}'",
+                self.config.embedding_type, self.config.collection_name
+            );
         }
 
         info!("Created collection: {}", self.config.collection_name);
@@ -1121,130 +1300,5 @@ impl DocumentLoader {
             "created_at": metadata.created_at.to_rfc3339(),
             "updated_at": metadata.updated_at.to_rfc3339(),
         }))
-    }
-
-    /// Load cache from file
-    pub fn load_cache(&self, cache_path: &str) -> Result<ProjectCache> {
-        match fs::read_to_string(cache_path) {
-            Ok(data) => {
-                // Try to deserialize from JSON
-                match serde_json::from_str(&data) {
-                    Ok(cache) => {
-                        info!("Loaded cache from: {}", cache_path);
-                        Ok(cache)
-                    }
-                    Err(e) => {
-                        // Try old bincode format for backward compatibility
-                        if let Ok(binary_data) = fs::read(cache_path) {
-                            if let Ok(cache) = bincode::deserialize::<ProjectCache>(&binary_data) {
-                                info!("Loaded legacy bincode cache from: {}", cache_path);
-                                return Ok(cache);
-                            }
-                        }
-                        
-                        warn!("Failed to deserialize cache: {}, creating new cache", e);
-                        Ok(ProjectCache {
-                            files: HashMap::new(),
-                            config_hash: 0,
-                        })
-                    }
-                }
-            }
-            Err(_) => {
-                info!("No cache file found, creating new cache");
-                Ok(ProjectCache {
-                    files: HashMap::new(),
-                    config_hash: 0,
-                })
-            }
-        }
-    }
-
-    /// Save cache to file
-    fn save_cache(&self, cache_path: &str, cache: &ProjectCache) -> Result<()> {
-        // Use JSON instead of bincode to avoid deserialize_any issues
-        let json_data = serde_json::to_string_pretty(cache)
-            .with_context(|| "Failed to serialize cache to JSON")?;
-        
-        fs::write(cache_path, json_data)
-            .with_context(|| format!("Failed to write cache to: {}", cache_path))?;
-        
-        info!("Saved cache to: {}", cache_path);
-        Ok(())
-    }
-
-    /// Check if cache is valid for current configuration
-    pub fn is_cache_valid(&self, cache_path: &str) -> Result<bool> {
-        if let Ok(cache) = self.load_cache(cache_path) {
-            let config_hash = self.calculate_config_hash();
-            Ok(cache.config_hash == config_hash)
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// Calculate hash of current configuration
-    pub fn calculate_config_hash(&self) -> u64 {
-        use std::hash::{Hash, Hasher, DefaultHasher};
-        
-        let mut hasher = DefaultHasher::new();
-        self.config.max_chunk_size.hash(&mut hasher);
-        self.config.chunk_overlap.hash(&mut hasher);
-        self.config.embedding_dimension.hash(&mut hasher);
-        self.config.embedding_type.hash(&mut hasher);
-        self.config.allowed_extensions.hash(&mut hasher);
-        self.config.include_patterns.hash(&mut hasher);
-        self.config.exclude_patterns.hash(&mut hasher);
-        self.config.max_file_size.hash(&mut hasher);
-        
-        hasher.finish()
-    }
-
-    /// Extract the embedding manager from the loader
-    pub fn into_embedding_manager(mut self) -> EmbeddingManager {
-        // CRITICAL FIX: Ensure vocabulary is preserved during transfer
-        // Extract and save vocabulary data before the move
-
-        let mut bm25_vocabulary_data = None;
-
-        // Extract vocabulary data before move
-        if let Some(provider) = self.embedding_manager.get_provider_mut("bm25") {
-            if let Some(bm25) = provider.as_any_mut().downcast_ref::<crate::embedding::Bm25Embedding>() {
-                if bm25.vocabulary_size() == 0 {
-                    warn!("BM25 vocabulary is empty! This indicates a problem in build_vocabulary()");
-                } else {
-                    debug!("BM25 vocabulary has {} terms before transfer", bm25.vocabulary_size());
-                    // Extract vocabulary data for restoration
-                    bm25_vocabulary_data = Some(bm25.extract_vocabulary_data());
-                }
-            }
-        }
-        
-        // Move the embedding manager
-        let mut manager = self.embedding_manager;
-        
-        // Restore vocabulary data after move if needed
-        if let Some(vocab_data) = bm25_vocabulary_data {
-            if let Some(provider) = manager.get_provider_mut("bm25") {
-                if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
-                    // Check if vocabulary was lost during move
-                    if bm25.vocabulary_size() == 0 {
-                        warn!("Vocabulary lost during move! Restoring...");
-                        bm25.restore_vocabulary_data(
-                            vocab_data.0,  // vocabulary
-                            vocab_data.1,  // doc_freq
-                            vocab_data.2,  // doc_lengths
-                            vocab_data.3,  // avg_doc_length
-                            vocab_data.4   // total_docs
-                        );
-                        debug!("Vocabulary restored with {} terms", bm25.vocabulary_size());
-                    } else {
-                        debug!("Vocabulary preserved during move: {} terms", bm25.vocabulary_size());
-                    }
-                }
-            }
-        }
-        
-        manager
     }
 }

@@ -36,6 +36,8 @@ pub struct IndexingStatus {
     pub total_documents: usize,
     /// Documents processed so far
     pub processed_documents: usize,
+    /// Number of vectors in the collection
+    pub vector_count: usize,
     /// Estimated time remaining (in seconds, if available)
     pub estimated_time_remaining: Option<u64>,
     /// Last update timestamp

@@ -1,9 +1,9 @@
-use std::env;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
-use tokio::net::TcpStream;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::env;
+use tokio::net::TcpStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 type WSStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -61,7 +61,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let init_msg = serde_json::to_string(&init_request)?;
-    write.send(tokio_tungstenite::tungstenite::Message::Text(init_msg.into())).await?;
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            init_msg.into(),
+        ))
+        .await?;
 
     // Handle initialization response
     if let Some(message) = read.next().await {
@@ -71,7 +75,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(result) = response.result {
                 println!("🚀 MCP inicializado com sucesso");
                 if let Some(server_info) = result.get("serverInfo") {
-                    println!("Server Info: {}", serde_json::to_string_pretty(server_info)?);
+                    println!(
+                        "Server Info: {}",
+                        serde_json::to_string_pretty(server_info)?
+                    );
                 }
             }
         }
@@ -93,7 +100,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let collections_msg = serde_json::to_string(&collections_request)?;
-    write.send(tokio_tungstenite::tungstenite::Message::Text(collections_msg.into())).await?;
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            collections_msg.into(),
+        ))
+        .await?;
 
     // Handle response
     if let Some(message) = read.next().await {
@@ -126,7 +137,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let search_msg = serde_json::to_string(&search_request)?;
-    write.send(tokio_tungstenite::tungstenite::Message::Text(search_msg.into())).await?;
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            search_msg.into(),
+        ))
+        .await?;
 
     // Handle response
     if let Some(message) = read.next().await {
@@ -155,7 +170,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let stats_msg = serde_json::to_string(&stats_request)?;
-    write.send(tokio_tungstenite::tungstenite::Message::Text(stats_msg.into())).await?;
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            stats_msg.into(),
+        ))
+        .await?;
 
     // Handle response
     if let Some(message) = read.next().await {
@@ -184,7 +203,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let embed_msg = serde_json::to_string(&embed_request)?;
-    write.send(tokio_tungstenite::tungstenite::Message::Text(embed_msg.into())).await?;
+    write
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            embed_msg.into(),
+        ))
+        .await?;
 
     // Handle response
     if let Some(message) = read.next().await {
@@ -193,16 +216,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let response: MCPResponse = serde_json::from_str(&text)?;
             if let Some(result) = response.result {
                 println!("✅ Embedding gerado:");
-                println!("Dimensão: {}", result.get("dimension").unwrap_or(&Value::Null));
-                println!("Provedor: {}", result.get("provider").unwrap_or(&Value::Null));
+                println!(
+                    "Dimensão: {}",
+                    result.get("dimension").unwrap_or(&Value::Null)
+                );
+                println!(
+                    "Provedor: {}",
+                    result.get("provider").unwrap_or(&Value::Null)
+                );
                 if let Some(embedding) = result.get("embedding") {
                     if let Some(arr) = embedding.as_array() {
-                        println!("Vetor (primeiros 5 valores): [{}, {}, {}, {}, {}]",
-                                arr.get(0).unwrap_or(&Value::Null),
-                                arr.get(1).unwrap_or(&Value::Null),
-                                arr.get(2).unwrap_or(&Value::Null),
-                                arr.get(3).unwrap_or(&Value::Null),
-                                arr.get(4).unwrap_or(&Value::Null));
+                        println!(
+                            "Vetor (primeiros 5 valores): [{}, {}, {}, {}, {}]",
+                            arr.get(0).unwrap_or(&Value::Null),
+                            arr.get(1).unwrap_or(&Value::Null),
+                            arr.get(2).unwrap_or(&Value::Null),
+                            arr.get(3).unwrap_or(&Value::Null),
+                            arr.get(4).unwrap_or(&Value::Null)
+                        );
                     }
                 }
             }

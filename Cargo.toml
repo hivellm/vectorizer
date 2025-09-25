@@ -77,7 +77,7 @@ sys-info = "0.9"
 # MCP (Model Context Protocol) dependencies
 futures-util = "0.3"
 tokio-tungstenite = "0.27"
-tokio-stream = "0.1"
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Optional ML dependencies
 candle-core = { version = "0.9.1", optional = true }
@@ -97,6 +97,14 @@ parquet = { version = "54", optional = true }
 rmcp = { version = "0.6", features = ["server", "transport-sse-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
+
+# gRPC dependencies
+tonic = { version = "0.12", features = ["tls"] }
+prost = "0.13"
+prost-types = "0.13"
+
+[build-dependencies]
+tonic-build = "0.12"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

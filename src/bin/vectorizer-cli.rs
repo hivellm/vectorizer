@@ -67,7 +67,13 @@ async fn main() {
     let args = Args::parse();
 
     match args.command {
-        Commands::Start { project, daemon, host, port, mcp_port } => {
+        Commands::Start {
+            project,
+            daemon,
+            host,
+            port,
+            mcp_port,
+        } => {
             run_servers(project, daemon, host, port, mcp_port).await;
         }
         Commands::Stop => {
@@ -95,7 +101,10 @@ async fn main() {
 async fn run_servers(project: PathBuf, daemon: bool, host: String, port: u16, mcp_port: u16) {
     // Validate project directory
     if !project.exists() || !project.is_dir() {
-        eprintln!("Error: Project directory '{}' does not exist", project.display());
+        eprintln!(
+            "Error: Project directory '{}' does not exist",
+            project.display()
+        );
         std::process::exit(1);
     }
 
@@ -118,13 +127,22 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
 
     println!("Starting MCP server...");
     let mut mcp_child = TokioCommand::new("cargo")
-        .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
+        .args(&[
+            "run",
+            "--bin",
+            "vectorizer-mcp-server",
+            "--",
+            &project.to_string_lossy(),
+        ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
         .expect("Failed to start MCP server");
 
-    println!("✅ MCP server started (PID: {})", mcp_child.id().unwrap_or(0));
+    println!(
+        "✅ MCP server started (PID: {})",
+        mcp_child.id().unwrap_or(0)
+    );
 
     // Wait a moment for MCP server to initialize
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
@@ -132,17 +150,26 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     println!("Starting REST API server...");
     let mut rest_child = TokioCommand::new("cargo")
         .args(&[
-            "run", "--bin", "vectorizer-server", "--",
-            "--host", &host,
-            "--port", &port.to_string(),
-            "--project", &project.to_string_lossy()
+            "run",
+            "--bin",
+            "vectorizer-server",
+            "--",
+            "--host",
+            &host,
+            "--port",
+            &port.to_string(),
+            "--project",
+            &project.to_string_lossy(),
         ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
         .expect("Failed to start REST API server");
 
-    println!("✅ REST API server started (PID: {})", rest_child.id().unwrap_or(0));
+    println!(
+        "✅ REST API server started (PID: {})",
+        rest_child.id().unwrap_or(0)
+    );
 
     println!("\n🎉 Both servers are running!");
     println!("==================================");
@@ -151,7 +178,9 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
     // Wait for shutdown signal
-    signal::ctrl_c().await.expect("Failed to listen for shutdown signal");
+    signal::ctrl_c()
+        .await
+        .expect("Failed to listen for shutdown signal");
 
     println!("\n🛑 Shutting down servers...");
     let _ = mcp_child.kill().await;
@@ -170,7 +199,13 @@ async fn run_as_daemon(project: PathBuf, host: String, port: u16, mcp_port: u16)
         // Daemonize the process
         let result = unsafe {
             Command::new("cargo")
-                .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
+                .args(&[
+                    "run",
+                    "--bin",
+                    "vectorizer-mcp-server",
+                    "--",
+                    &project.to_string_lossy(),
+                ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .pre_exec(|| unsafe {
@@ -240,8 +275,22 @@ async fn check_status() {
     let mcp_running = !find_processes("vectorizer-mcp-server").is_empty();
     let rest_running = !find_processes("vectorizer-server").is_empty();
 
-    println!("MCP Server: {}", if mcp_running { "✅ RUNNING" } else { "❌ NOT RUNNING" });
-    println!("REST API Server: {}", if rest_running { "✅ RUNNING" } else { "❌ NOT RUNNING" });
+    println!(
+        "MCP Server: {}",
+        if mcp_running {
+            "✅ RUNNING"
+        } else {
+            "❌ NOT RUNNING"
+        }
+    );
+    println!(
+        "REST API Server: {}",
+        if rest_running {
+            "✅ RUNNING"
+        } else {
+            "❌ NOT RUNNING"
+        }
+    );
 
     if rest_running {
         // Try to check REST API health
@@ -265,7 +314,8 @@ async fn install_service() {
     {
         println!("🐧 Installing as Linux systemd service...");
 
-        let service_content = format!(r#"[Unit]
+        let service_content = format!(
+            r#"[Unit]
 Description=Vectorizer Server
 After=network.target
 
@@ -321,8 +371,12 @@ async fn uninstall_service() {
         let service_path = "/etc/systemd/system/vectorizer.service";
 
         // Stop and disable service first
-        let _ = Command::new("sudo").args(&["systemctl", "stop", "vectorizer"]).status();
-        let _ = Command::new("sudo").args(&["systemctl", "disable", "vectorizer"]).status();
+        let _ = Command::new("sudo")
+            .args(&["systemctl", "stop", "vectorizer"])
+            .status();
+        let _ = Command::new("sudo")
+            .args(&["systemctl", "disable", "vectorizer"])
+            .status();
 
         match std::fs::remove_file(service_path) {
             Ok(_) => {

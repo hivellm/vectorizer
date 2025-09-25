@@ -3,17 +3,16 @@
 //! This binary provides a unified interface for running and managing Vectorizer servers,
 //! including REST API, MCP server, and daemon/service management.
 
+use chrono::Utc;
 use clap::{Parser, Subcommand};
+use serde_json::json;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use tokio::process::Command as TokioCommand;
 use tracing_subscriber;
 use vectorizer::workspace::WorkspaceManager;
-use std::fs::OpenOptions;
-use std::io::Write;
-use chrono::Utc;
-use serde_json::json;
-use std::process;
 
 /// Structured logging for workspace operations
 struct WorkspaceLogger {
@@ -61,19 +60,19 @@ impl WorkspaceLogger {
 /// Check if any vectorizer processes are already running
 fn check_existing_processes(logger: &WorkspaceLogger) -> bool {
     logger.info("Checking for existing vectorizer processes...");
-    
+
     // Only check for processes listening on our ports (more reliable)
     let port_check = Command::new("lsof")
         .args(&["-i", ":15001", "-i", ":15002"])
         .output();
-    
+
     if let Ok(output) = port_check {
         if output.status.success() && !output.stdout.is_empty() {
             logger.warn("Found processes listening on vectorizer ports (15001/15002)");
             return true;
         }
     }
-    
+
     logger.info("No existing vectorizer processes found");
     false
 }
@@ -81,12 +80,12 @@ fn check_existing_processes(logger: &WorkspaceLogger) -> bool {
 /// Kill existing vectorizer processes
 fn kill_existing_processes(logger: &WorkspaceLogger) -> Result<(), Box<dyn std::error::Error>> {
     logger.info("Killing existing vectorizer processes...");
-    
+
     // Kill processes using our ports
     let port_kill = Command::new("lsof")
         .args(&["-ti", ":15001", ":15002"])
         .output();
-    
+
     if let Ok(output) = port_kill {
         if output.status.success() && !output.stdout.is_empty() {
             let stdout_str = String::from_utf8_lossy(&output.stdout);
@@ -95,19 +94,17 @@ fn kill_existing_processes(logger: &WorkspaceLogger) -> Result<(), Box<dyn std::
                 .filter(|line| !line.is_empty())
                 .map(|line| line.to_string())
                 .collect();
-            
+
             for pid in pids {
                 logger.info(&format!("Killing process {} using vectorizer ports", pid));
-                let _ = Command::new("kill")
-                    .args(&["-9", &pid])
-                    .output();
+                let _ = Command::new("kill").args(&["-9", &pid]).output();
             }
         }
     }
-    
+
     // Wait a moment for processes to terminate
     std::thread::sleep(std::time::Duration::from_millis(1000));
-    
+
     logger.info("Existing processes terminated");
     Ok(())
 }
@@ -182,7 +179,7 @@ enum WorkspaceCommands {
         /// Workspace directory
         #[arg(short, long, default_value = ".")]
         directory: PathBuf,
-        
+
         /// Workspace name
         #[arg(short, long)]
         name: Option<String>,
@@ -215,7 +212,7 @@ async fn main() {
         .init();
 
     let args = Args::parse();
-    
+
     // Check for duplicate processes before starting
     let logger = WorkspaceLogger::new();
     if check_existing_processes(&logger) {
@@ -229,7 +226,15 @@ async fn main() {
     }
 
     match args.command {
-        Commands::Start { project, workspace, config, daemon, host, port, mcp_port } => {
+        Commands::Start {
+            project,
+            workspace,
+            config,
+            daemon,
+            host,
+            port,
+            mcp_port,
+        } => {
             run_servers(project, workspace, config, daemon, host, port, mcp_port).await;
         }
         Commands::Stop => {
@@ -257,7 +262,15 @@ async fn main() {
     }
 }
 
-async fn run_servers(project: Option<PathBuf>, workspace: Option<PathBuf>, config: PathBuf, daemon: bool, host: String, port: u16, mcp_port: u16) {
+async fn run_servers(
+    project: Option<PathBuf>,
+    workspace: Option<PathBuf>,
+    config: PathBuf,
+    daemon: bool,
+    host: String,
+    port: u16,
+    mcp_port: u16,
+) {
     let logger = WorkspaceLogger::new();
 
     logger.info("Starting Vectorizer Servers");
@@ -269,7 +282,10 @@ async fn run_servers(project: Option<PathBuf>, workspace: Option<PathBuf>, confi
 
     // Determine if using workspace or legacy project mode
     if let Some(workspace_path) = workspace {
-        logger.info(&format!("Loading workspace from: {}", workspace_path.display()));
+        logger.info(&format!(
+            "Loading workspace from: {}",
+            workspace_path.display()
+        ));
 
         // Load and validate workspace
         let workspace_manager = match WorkspaceManager::load_from_file(&workspace_path) {
@@ -286,8 +302,11 @@ async fn run_servers(project: Option<PathBuf>, workspace: Option<PathBuf>, confi
 
         let status = workspace_manager.get_status();
         logger.info(&format!("Loaded {} projects", status.enabled_projects));
-        println!("📊 {} - {} projects", status.workspace_name, status.enabled_projects);
-        
+        println!(
+            "📊 {} - {} projects",
+            status.workspace_name, status.enabled_projects
+        );
+
         if daemon {
             println!("👻 Running as daemon...");
             run_as_daemon_workspace(workspace_manager, config, host, port, mcp_port).await;
@@ -297,13 +316,16 @@ async fn run_servers(project: Option<PathBuf>, workspace: Option<PathBuf>, confi
     } else if let Some(project_path) = project {
         // Legacy project mode
         println!("📁 Project Directory: {}", project_path.display());
-        
+
         // Validate project directory
         if !project_path.exists() || !project_path.is_dir() {
-            eprintln!("Error: Project directory '{}' does not exist", project_path.display());
+            eprintln!(
+                "Error: Project directory '{}' does not exist",
+                project_path.display()
+            );
             std::process::exit(1);
         }
-        
+
         if daemon {
             println!("👻 Running as daemon...");
             run_as_daemon(project_path, config, host, port, mcp_port).await;
@@ -317,7 +339,10 @@ async fn run_servers(project: Option<PathBuf>, workspace: Option<PathBuf>, confi
 }
 
 /// Create workspace info JSON for servers
-fn create_project_workspace_info(workspace_manager: &WorkspaceManager, project: &vectorizer::workspace::config::ProjectConfig) -> String {
+fn create_project_workspace_info(
+    workspace_manager: &WorkspaceManager,
+    project: &vectorizer::workspace::config::ProjectConfig,
+) -> String {
     use serde_json::json;
 
     let project_path = workspace_manager.get_project_path(&project.name).unwrap();
@@ -377,9 +402,12 @@ fn create_project_workspace_info(workspace_manager: &WorkspaceManager, project: 
     serde_json::to_string_pretty(&project_info).expect("Failed to serialize project workspace info")
 }
 
-fn create_workspace_info(workspace_manager: &WorkspaceManager, enabled_projects: &[&vectorizer::workspace::config::ProjectConfig]) -> String {
+fn create_workspace_info(
+    workspace_manager: &WorkspaceManager,
+    enabled_projects: &[&vectorizer::workspace::config::ProjectConfig],
+) -> String {
     use serde_json::json;
-    
+
     let projects_info: Vec<serde_json::Value> = enabled_projects.iter().map(|project| {
         let project_path = workspace_manager.get_project_path(&project.name).unwrap();
         json!({
@@ -423,7 +451,7 @@ fn create_workspace_info(workspace_manager: &WorkspaceManager, enabled_projects:
             }).collect::<Vec<_>>()
         })
     }).collect();
-    
+
     let workspace_info = json!({
         "workspace": {
             "name": workspace_manager.config().workspace.name,
@@ -434,7 +462,7 @@ fn create_workspace_info(workspace_manager: &WorkspaceManager, enabled_projects:
         "total_projects": enabled_projects.len(),
         "total_collections": enabled_projects.iter().map(|p| p.collections.len()).sum::<usize>()
     });
-    
+
     serde_json::to_string_pretty(&workspace_info).expect("Failed to serialize workspace info")
 }
 
@@ -461,7 +489,7 @@ async fn init_workspace(directory: PathBuf, name: Option<String>) {
     println!("🚀 Initializing Vectorizer Workspace...");
     println!("=====================================");
     println!("📁 Directory: {}", directory.display());
-    
+
     // Create workspace manager
     let workspace_manager = match WorkspaceManager::create_default(&directory) {
         Ok(manager) => manager,
@@ -470,30 +498,39 @@ async fn init_workspace(directory: PathBuf, name: Option<String>) {
             std::process::exit(1);
         }
     };
-    
+
     // Update workspace name if provided
     if let Some(workspace_name) = name {
         println!("📝 Setting workspace name: {}", workspace_name);
         // Note: This would require modifying the WorkspaceManager to allow updating the name
         // For now, we'll just show the created workspace
     }
-    
+
     let status = workspace_manager.get_status();
     println!("✅ Workspace created successfully!");
     println!("📊 Name: {}", status.workspace_name);
     println!("📊 Version: {}", status.workspace_version);
-    println!("📁 Config file: {}", workspace_manager.config_path().display());
+    println!(
+        "📁 Config file: {}",
+        workspace_manager.config_path().display()
+    );
     println!("\n💡 Next steps:");
-    println!("   1. Edit {} to configure your projects", workspace_manager.config_path().display());
+    println!(
+        "   1. Edit {} to configure your projects",
+        workspace_manager.config_path().display()
+    );
     println!("   2. Run 'vectorizer workspace validate' to check configuration");
-    println!("   3. Run 'vectorizer start --workspace {}' to start servers", workspace_manager.config_path().display());
+    println!(
+        "   3. Run 'vectorizer start --workspace {}' to start servers",
+        workspace_manager.config_path().display()
+    );
 }
 
 /// Validate workspace configuration
 async fn validate_workspace(config: Option<PathBuf>) {
     println!("🔍 Validating Workspace Configuration...");
     println!("==========================================");
-    
+
     let config_path = match config {
         Some(path) => path,
         None => {
@@ -512,9 +549,9 @@ async fn validate_workspace(config: Option<PathBuf>) {
             }
         }
     };
-    
+
     println!("📁 Config file: {}", config_path.display());
-    
+
     // Load and validate workspace
     let workspace_manager = match WorkspaceManager::load_from_file(&config_path) {
         Ok(manager) => manager,
@@ -523,38 +560,41 @@ async fn validate_workspace(config: Option<PathBuf>) {
             std::process::exit(1);
         }
     };
-    
+
     let validation_result = workspace_manager.validate();
-    
+
     if validation_result.is_valid() {
         println!("✅ Workspace configuration is valid!");
-        
+
         if !validation_result.warnings.is_empty() {
             println!("\n⚠️  Warnings:");
             for warning in &validation_result.warnings {
                 println!("   - {}", warning);
             }
         }
-        
+
         let status = workspace_manager.get_status();
         println!("\n📊 Workspace Status:");
         println!("   Name: {}", status.workspace_name);
         println!("   Version: {}", status.workspace_version);
-        println!("   Projects: {} enabled of {} total", status.enabled_projects, status.total_projects);
+        println!(
+            "   Projects: {} enabled of {} total",
+            status.enabled_projects, status.total_projects
+        );
         println!("   Collections: {} total", status.total_collections);
     } else {
         println!("❌ Workspace configuration has errors:");
         for error in &validation_result.errors {
             println!("   - {}", error);
         }
-        
+
         if !validation_result.warnings.is_empty() {
             println!("\n⚠️  Warnings:");
             for warning in &validation_result.warnings {
                 println!("   - {}", warning);
             }
         }
-        
+
         std::process::exit(1);
     }
 }
@@ -563,7 +603,7 @@ async fn validate_workspace(config: Option<PathBuf>) {
 async fn show_workspace_status(config: Option<PathBuf>) {
     println!("📊 Workspace Status");
     println!("===================");
-    
+
     let config_path = match config {
         Some(path) => path,
         None => {
@@ -582,9 +622,9 @@ async fn show_workspace_status(config: Option<PathBuf>) {
             }
         }
     };
-    
+
     println!("📁 Config file: {}", config_path.display());
-    
+
     // Load workspace
     let workspace_manager = match WorkspaceManager::load_from_file(&config_path) {
         Ok(manager) => manager,
@@ -593,22 +633,25 @@ async fn show_workspace_status(config: Option<PathBuf>) {
             std::process::exit(1);
         }
     };
-    
+
     let status = workspace_manager.get_status();
-    
+
     println!("\n📋 Workspace Information:");
     println!("   Name: {}", status.workspace_name);
     println!("   Version: {}", status.workspace_version);
     println!("   Last Updated: {}", status.last_updated);
-    
+
     println!("\n📂 Projects:");
     println!("   Total: {}", status.total_projects);
     println!("   Enabled: {}", status.enabled_projects);
-    println!("   Disabled: {}", status.total_projects - status.enabled_projects);
-    
+    println!(
+        "   Disabled: {}",
+        status.total_projects - status.enabled_projects
+    );
+
     println!("\n🗂️  Collections:");
     println!("   Total: {}", status.total_collections);
-    
+
     // Show project details
     let enabled_projects = workspace_manager.enabled_projects();
     if !enabled_projects.is_empty() {
@@ -617,11 +660,12 @@ async fn show_workspace_status(config: Option<PathBuf>) {
             println!("   📁 {} - {}", project.name, project.description);
             println!("      Path: {}", project.path.display());
             println!("      Collections: {}", project.collections.len());
-            
+
             for collection in &project.collections {
-                println!("         🗂️  {} ({}D, {})", 
-                    collection.name, 
-                    collection.dimension, 
+                println!(
+                    "         🗂️  {} ({}D, {})",
+                    collection.name,
+                    collection.dimension,
                     match collection.metric {
                         vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
                         vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
@@ -637,7 +681,7 @@ async fn show_workspace_status(config: Option<PathBuf>) {
 async fn list_workspace_projects(config: Option<PathBuf>) {
     println!("📂 Workspace Projects");
     println!("=====================");
-    
+
     let config_path = match config {
         Some(path) => path,
         None => {
@@ -656,9 +700,9 @@ async fn list_workspace_projects(config: Option<PathBuf>) {
             }
         }
     };
-    
+
     println!("📁 Config file: {}", config_path.display());
-    
+
     // Load workspace
     let workspace_manager = match WorkspaceManager::load_from_file(&config_path) {
         Ok(manager) => manager,
@@ -667,27 +711,34 @@ async fn list_workspace_projects(config: Option<PathBuf>) {
             std::process::exit(1);
         }
     };
-    
+
     let config = workspace_manager.config();
-    
+
     if config.projects.is_empty() {
         println!("\n📭 No projects configured");
         println!("💡 Add projects to your workspace configuration file");
         return;
     }
-    
+
     println!("\n📋 All Projects:");
     for (index, project) in config.projects.iter().enumerate() {
         let status = if project.enabled { "✅" } else { "❌" };
-        println!("   {} {} {} - {}", index + 1, status, project.name, project.description);
+        println!(
+            "   {} {} {} - {}",
+            index + 1,
+            status,
+            project.name,
+            project.description
+        );
         println!("      Path: {}", project.path.display());
         println!("      Collections: {}", project.collections.len());
-        
+
         if !project.collections.is_empty() {
             for collection in &project.collections {
-                println!("         🗂️  {} ({}D, {})", 
-                    collection.name, 
-                    collection.dimension, 
+                println!(
+                    "         🗂️  {} ({}D, {})",
+                    collection.name,
+                    collection.dimension,
                     match collection.metric {
                         vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
                         vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
@@ -700,18 +751,33 @@ async fn list_workspace_projects(config: Option<PathBuf>) {
     }
 }
 
-async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: u16, mcp_port: u16) {
+async fn run_interactive(
+    project: PathBuf,
+    config: PathBuf,
+    host: String,
+    port: u16,
+    mcp_port: u16,
+) {
     use tokio::signal;
 
     println!("Starting MCP server...");
     let mut mcp_child = TokioCommand::new("cargo")
-        .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
+        .args(&[
+            "run",
+            "--bin",
+            "vectorizer-mcp-server",
+            "--",
+            &project.to_string_lossy(),
+        ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
         .expect("Failed to start MCP server");
 
-    println!("✅ MCP server started (PID: {})", mcp_child.id().unwrap_or(0));
+    println!(
+        "✅ MCP server started (PID: {})",
+        mcp_child.id().unwrap_or(0)
+    );
 
     // Wait a moment for MCP server to initialize
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
@@ -719,18 +785,28 @@ async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: 
     println!("Starting REST API server...");
     let mut rest_child = TokioCommand::new("cargo")
         .args(&[
-            "run", "--bin", "vectorizer-server", "--",
-            "--host", &host,
-            "--port", &port.to_string(),
-            "--project", &project.to_string_lossy(),
-            "--config", &config.to_string_lossy()
+            "run",
+            "--bin",
+            "vectorizer-server",
+            "--",
+            "--host",
+            &host,
+            "--port",
+            &port.to_string(),
+            "--project",
+            &project.to_string_lossy(),
+            "--config",
+            &config.to_string_lossy(),
         ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
         .expect("Failed to start REST API server");
 
-    println!("✅ REST API server started (PID: {})", rest_child.id().unwrap_or(0));
+    println!(
+        "✅ REST API server started (PID: {})",
+        rest_child.id().unwrap_or(0)
+    );
 
     println!("\n🎉 Both servers are running!");
     println!("==================================");
@@ -739,7 +815,9 @@ async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: 
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
     // Wait for shutdown signal
-    signal::ctrl_c().await.expect("Failed to listen for shutdown signal");
+    signal::ctrl_c()
+        .await
+        .expect("Failed to listen for shutdown signal");
 
     println!("\n🛑 Shutting down servers...");
     let _ = mcp_child.kill().await;
@@ -748,27 +826,47 @@ async fn run_interactive(project: PathBuf, config: PathBuf, host: String, port: 
 }
 
 /// Run servers interactively with workspace
-async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: PathBuf, host: String, port: u16, mcp_port: u16) {
+async fn run_interactive_workspace(
+    workspace_manager: WorkspaceManager,
+    config: PathBuf,
+    host: String,
+    _port: u16,
+    _mcp_port: u16,
+) {
     use tokio::signal;
 
     println!("Starting MCP server with workspace...");
-    
-    // Load all enabled projects from workspace
-    let enabled_projects = workspace_manager.enabled_projects();
-    if enabled_projects.is_empty() {
+
+    // Check if we have enabled projects
+    let enabled_projects_count = workspace_manager.enabled_projects().len();
+    if enabled_projects_count == 0 {
         eprintln!("Error: No enabled projects found in workspace");
         std::process::exit(1);
     }
+
+    println!(
+        "📂 Loading {} projects from workspace:",
+        enabled_projects_count
+    );
     
-    println!("📂 Loading {} projects from workspace:", enabled_projects.len());
+    // Load projects for display
+    let enabled_projects = workspace_manager.enabled_projects();
+    let _enabled_projects_clone = enabled_projects.clone();
     for project in &enabled_projects {
         println!("   📁 {} - {}", project.name, project.description);
-        println!("      Path: {}", workspace_manager.get_project_path(&project.name).unwrap().display());
+        println!(
+            "      Path: {}",
+            workspace_manager
+                .get_project_path(&project.name)
+                .unwrap()
+                .display()
+        );
         println!("      Collections: {}", project.collections.len());
         for collection in &project.collections {
-            println!("         🗂️  {} ({}D, {})", 
-                collection.name, 
-                collection.dimension, 
+            println!(
+                "         🗂️  {} ({}D, {})",
+                collection.name,
+                collection.dimension,
                 match collection.metric {
                     vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
                     vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
@@ -777,9 +875,9 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
             );
         }
     }
-    
+
     let logger = WorkspaceLogger::new();
-    
+
     // Check for existing processes and kill them if found
     if check_existing_processes(&logger) {
         logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
@@ -790,8 +888,11 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
             std::process::exit(1);
         }
     }
-    
-    logger.info(&format!("Starting unified server for workspace with {} projects", enabled_projects.len()));
+
+    logger.info(&format!(
+        "Starting unified server for workspace with {} projects",
+        enabled_projects.len()
+    ));
 
     // Create unified workspace info file with ALL projects
     let workspace_info_path = std::env::temp_dir().join("vectorizer-workspace-full.json");
@@ -853,7 +954,10 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
         std::process::exit(1);
     }
 
-    logger.info(&format!("Created unified workspace config at: {}", workspace_info_path.display()));
+    logger.info(&format!(
+        "Created unified workspace config at: {}",
+        workspace_info_path.display()
+    ));
 
     // Start SINGLE MCP server for all projects
     let mut mcp_child = match TokioCommand::new("cargo")
@@ -865,7 +969,10 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
         .spawn()
     {
         Ok(child) => {
-            logger.info(&format!("Started unified MCP server (PID:{}, Port:15002)", child.id().unwrap_or(0)));
+            logger.info(&format!(
+                "Started unified MCP server (PID:{}, Port:15002)",
+                child.id().unwrap_or(0)
+            ));
             child
         }
         Err(e) => {
@@ -877,11 +984,19 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
     // Start SINGLE REST API server for all projects
     let api_child = match TokioCommand::new("cargo")
         .args(&[
-            "run", "--quiet", "--bin", "vectorizer-server", "--",
-            "--host", &host,
-            "--port", "15001",
-            "--workspace", &workspace_info_path.to_string_lossy(),
-            "--config", &config.to_string_lossy()
+            "run",
+            "--quiet",
+            "--bin",
+            "vectorizer-server",
+            "--",
+            "--host",
+            &host,
+            "--port",
+            "15001",
+            "--workspace",
+            &workspace_info_path.to_string_lossy(),
+            "--config",
+            &config.to_string_lossy(),
         ])
         .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
         .stdout(Stdio::inherit())
@@ -889,7 +1004,10 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
         .spawn()
     {
         Ok(child) => {
-            logger.info(&format!("Started unified REST API server (PID:{}, Port:15001)", child.id().unwrap_or(0)));
+            logger.info(&format!(
+                "Started unified REST API server (PID:{}, Port:15001)",
+                child.id().unwrap_or(0)
+            ));
             child
         }
         Err(e) => {
@@ -899,7 +1017,13 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
         }
     };
 
-    let server_handles = vec![("unified".to_string(), mcp_child, api_child, 15001u16, 15002u16)];
+    let server_handles = vec![(
+        "unified".to_string(),
+        mcp_child,
+        api_child,
+        15001u16,
+        15002u16,
+    )];
 
     // In unified mode, we either start both servers or fail completely
     logger.info("Unified servers started successfully");
@@ -907,11 +1031,25 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
     println!("✅ Unified server running");
     println!("  REST API: http://{}:15001", host);
     println!("  MCP Server: http://127.0.0.1:15002/sse");
-    println!("  Collections: {} from {} projects", enabled_projects.iter().map(|p| p.collections.len()).sum::<usize>(), enabled_projects.len());
+    println!(
+        "  Collections: {} from {} projects",
+        enabled_projects
+            .iter()
+            .map(|p| p.collections.len())
+            .sum::<usize>(),
+        enabled_projects_count
+    );
     println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
 
+    // Start background indexing and status replication
+    tokio::spawn(async move {
+        start_background_indexing_with_config().await;
+    });
+
     // Wait for shutdown signal
-    signal::ctrl_c().await.expect("Failed to listen for shutdown signal");
+    signal::ctrl_c()
+        .await
+        .expect("Failed to listen for shutdown signal");
 
     println!("\n🛑 Stopping unified server...");
     for (_, mut mcp_child, mut api_child, _, _) in server_handles {
@@ -921,8 +1059,229 @@ async fn run_interactive_workspace(workspace_manager: WorkspaceManager, config: 
     println!("✅ Stopped");
 }
 
+/// Start background indexing process with configuration loading
+async fn start_background_indexing_with_config() {
+    println!("🔄 Starting background indexing...");
+    
+    // Wait for servers to be ready with health check
+    wait_for_server_ready().await;
+    
+    // Load workspace configuration
+    let workspace_manager = match vectorizer::workspace::manager::WorkspaceManager::load_from_file("vectorize-workspace.yml") {
+        Ok(manager) => manager,
+        Err(e) => {
+            println!("❌ Failed to load workspace configuration: {}", e);
+            return;
+        }
+    };
+    
+    let enabled_projects = workspace_manager.enabled_projects();
+    
+    // Process each project's collections from configuration
+    for project in &enabled_projects {
+        println!("📁 Processing project: {}", project.name);
+        
+        for collection in &project.collections {
+            println!("🗂️ Processing collection: {} from {}", collection.name, project.path.display());
+            
+            // Update status to processing
+            update_collection_status(&collection.name, "processing", 0.0, None).await;
+            
+            // Try real indexing
+            match do_real_indexing(&collection.name, &project.path.to_string_lossy()).await {
+                Ok(count) => {
+                    update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
+                    println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
+                }
+                Err(e) => {
+                    update_collection_status(&collection.name, "failed", 0.0, None).await;
+                    println!("❌ Collection '{}' indexing failed: {}", collection.name, e);
+                }
+            }
+        }
+    }
+    
+    println!("✅ Background indexing completed");
+}
+
+
+/// Wait for server to be ready with health check
+async fn wait_for_server_ready() {
+    println!("⏳ Waiting for vectorizer-server to be ready...");
+    
+    let client = reqwest::Client::new();
+    let mut attempts = 0;
+    let max_attempts = 30; // 30 seconds max
+    
+    loop {
+        match client.get("http://127.0.0.1:15001/api/v1/collections")
+            .timeout(std::time::Duration::from_secs(2))
+            .send()
+            .await 
+        {
+            Ok(response) if response.status().is_success() => {
+                println!("✅ vectorizer-server is ready!");
+                break;
+            }
+            Ok(_) => {
+                println!("⏳ Server responding but not ready yet...");
+            }
+            Err(_) => {
+                println!("⏳ Waiting for server... (attempt {}/{})", attempts + 1, max_attempts);
+            }
+        }
+        
+        attempts += 1;
+        if attempts >= max_attempts {
+            println!("⚠️ Server not ready after {} seconds, proceeding anyway...", max_attempts);
+            break;
+        }
+        
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
+}
+
+/// Update collection status via API with retry logic
+async fn update_collection_status(collection_name: &str, status: &str, progress: f32, vector_count: Option<usize>) {
+    let client = reqwest::Client::new();
+    let payload = serde_json::json!({
+        "collection": collection_name,
+        "status": status,
+        "progress": progress,
+        "total_documents": vector_count.unwrap_or(0),
+        "processed_documents": if status == "completed" { vector_count.unwrap_or(0) } else { (progress as usize) },
+        "vector_count": vector_count.unwrap_or(0)
+    });
+    
+    // Retry logic for API calls
+    let mut attempts = 0;
+    let max_attempts = 3;
+    
+    while attempts < max_attempts {
+        match client.post("http://127.0.0.1:15001/api/v1/indexing/progress")
+            .timeout(std::time::Duration::from_secs(5))
+            .json(&payload)
+            .send()
+            .await 
+        {
+            Ok(response) if response.status().is_success() => {
+                // Status updated successfully
+                return;
+            }
+            Ok(response) => {
+                println!("⚠️ Server returned status {} for {}", response.status(), collection_name);
+            }
+            Err(e) => {
+                println!("❌ Failed to update status for {} (attempt {}/{}): {}", 
+                    collection_name, attempts + 1, max_attempts, e);
+            }
+        }
+        
+        attempts += 1;
+        if attempts < max_attempts {
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        }
+    }
+}
+
+/// Do real indexing of a collection using DocumentLoader
+async fn do_real_indexing(
+    collection_name: &str,
+    project_path: &str,
+) -> Result<usize, String> {
+    println!("📁 Indexing collection '{}' from path: {}", collection_name, project_path);
+    
+    // Create loader config
+    let loader_config = vectorizer::document_loader::LoaderConfig {
+        collection_name: collection_name.to_string(),
+        max_chunk_size: 512,
+        chunk_overlap: 50,
+        allowed_extensions: vec![
+            "md".to_string(), "txt".to_string(), "rs".to_string(), "py".to_string(), 
+            "js".to_string(), "ts".to_string(), "json".to_string(), "yaml".to_string(),
+            "yml".to_string(), "toml".to_string(), "html".to_string(), "css".to_string()
+        ],
+        include_patterns: vec!["**/*".to_string()],
+        exclude_patterns: vec![
+            "**/target/**".to_string(), 
+            "**/node_modules/**".to_string(),
+            "**/.git/**".to_string(),
+            "**/dist/**".to_string(),
+            "**/build/**".to_string(),
+            "**/*.png".to_string(),
+            "**/*.jpg".to_string(),
+            "**/*.jpeg".to_string(),
+            "**/*.gif".to_string(),
+            "**/*.bmp".to_string(),
+            "**/*.webp".to_string(),
+            "**/*.svg".to_string(),
+            "**/*.ico".to_string(),
+            "**/*.mp4".to_string(),
+            "**/*.avi".to_string(),
+            "**/*.mov".to_string(),
+            "**/*.wmv".to_string(),
+            "**/*.flv".to_string(),
+            "**/*.webm".to_string(),
+            "**/*.mp3".to_string(),
+            "**/*.wav".to_string(),
+            "**/*.flac".to_string(),
+            "**/*.aac".to_string(),
+            "**/*.ogg".to_string(),
+            "**/*.db".to_string(),
+            "**/*.sqlite".to_string(),
+            "**/*.sqlite3".to_string(),
+            "**/*.bin".to_string(),
+            "**/*.exe".to_string(),
+            "**/*.dll".to_string(),
+            "**/*.so".to_string(),
+            "**/*.dylib".to_string(),
+            "**/*.zip".to_string(),
+            "**/*.tar".to_string(),
+            "**/*.gz".to_string(),
+            "**/*.rar".to_string(),
+            "**/*.7z".to_string(),
+            "**/*.pdf".to_string(),
+            "**/*.doc".to_string(),
+            "**/*.docx".to_string(),
+            "**/*.xls".to_string(),
+            "**/*.xlsx".to_string(),
+            "**/*.ppt".to_string(),
+            "**/*.pptx".to_string(),
+        ],
+        embedding_type: "bm25".to_string(),
+        embedding_dimension: 512,
+        max_file_size: 10 * 1024 * 1024, // 10MB
+    };
+    
+    // Create document loader
+    let mut loader = vectorizer::document_loader::DocumentLoader::new(loader_config);
+    
+    // Create a temporary vector store for this collection
+    let vector_store = std::sync::Arc::new(vectorizer::VectorStore::new());
+    
+    // Load project with real indexing (async version)
+    match loader.load_project_with_cache(project_path, &vector_store).await {
+        Ok((count, _cached)) => {
+            println!("✅ Indexed {} documents for collection '{}'", count, collection_name);
+            Ok(count)
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to index collection '{}': {}", collection_name, e);
+            println!("❌ {}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
+
+
 /// Run servers as daemon with workspace
-async fn run_as_daemon_workspace(workspace_manager: WorkspaceManager, _config: PathBuf, _host: String, _port: u16, _mcp_port: u16) {
+async fn run_as_daemon_workspace(
+    workspace_manager: WorkspaceManager,
+    _config: PathBuf,
+    _host: String,
+    _port: u16,
+    _mcp_port: u16,
+) {
     #[cfg(target_os = "linux")]
     {
         use std::fs;
@@ -936,26 +1295,45 @@ async fn run_as_daemon_workspace(workspace_manager: WorkspaceManager, _config: P
             eprintln!("Error: No enabled projects found in workspace");
             std::process::exit(1);
         }
-        
-        println!("📂 Loading {} projects from workspace:", enabled_projects.len());
+
+        println!(
+            "📂 Loading {} projects from workspace:",
+            enabled_projects.len()
+        );
         for project in &enabled_projects {
             println!("   📁 {} - {}", project.name, project.description);
-            println!("      Path: {}", workspace_manager.get_project_path(&project.name).unwrap().display());
+            println!(
+                "      Path: {}",
+                workspace_manager
+                    .get_project_path(&project.name)
+                    .unwrap()
+                    .display()
+            );
             println!("      Collections: {}", project.collections.len());
         }
-        
+
         // For now, we'll use the first enabled project as the default
         // TODO: Implement multi-project daemon architecture
         let first_project = &enabled_projects[0];
-        let project_path = workspace_manager.get_project_path(&first_project.name)
+        let project_path = workspace_manager
+            .get_project_path(&first_project.name)
             .expect("Failed to get project path");
-        
-        println!("\n🚀 Starting daemon with primary project: {} ({})", first_project.name, first_project.description);
+
+        println!(
+            "\n🚀 Starting daemon with primary project: {} ({})",
+            first_project.name, first_project.description
+        );
 
         // Daemonize the process
         let result = unsafe {
             Command::new("cargo")
-                .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project_path.to_string_lossy()])
+                .args(&[
+                    "run",
+                    "--bin",
+                    "vectorizer-mcp-server",
+                    "--",
+                    &project_path.to_string_lossy(),
+                ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .pre_exec(|| {
@@ -995,7 +1373,13 @@ async fn run_as_daemon_workspace(workspace_manager: WorkspaceManager, _config: P
     }
 }
 
-async fn run_as_daemon(project: PathBuf, _config: PathBuf, _host: String, _port: u16, _mcp_port: u16) {
+async fn run_as_daemon(
+    project: PathBuf,
+    _config: PathBuf,
+    _host: String,
+    _port: u16,
+    _mcp_port: u16,
+) {
     #[cfg(target_os = "linux")]
     {
         use std::fs;
@@ -1006,7 +1390,13 @@ async fn run_as_daemon(project: PathBuf, _config: PathBuf, _host: String, _port:
         // Daemonize the process
         let result = unsafe {
             Command::new("cargo")
-                .args(&["run", "--bin", "vectorizer-mcp-server", "--", &project.to_string_lossy()])
+                .args(&[
+                    "run",
+                    "--bin",
+                    "vectorizer-mcp-server",
+                    "--",
+                    &project.to_string_lossy(),
+                ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .pre_exec(|| {
@@ -1076,8 +1466,22 @@ async fn check_status() {
     let mcp_running = !find_processes("vectorizer-mcp-server").is_empty();
     let rest_running = !find_processes("vectorizer-server").is_empty();
 
-    println!("MCP Server: {}", if mcp_running { "✅ RUNNING" } else { "❌ NOT RUNNING" });
-    println!("REST API Server: {}", if rest_running { "✅ RUNNING" } else { "❌ NOT RUNNING" });
+    println!(
+        "MCP Server: {}",
+        if mcp_running {
+            "✅ RUNNING"
+        } else {
+            "❌ NOT RUNNING"
+        }
+    );
+    println!(
+        "REST API Server: {}",
+        if rest_running {
+            "✅ RUNNING"
+        } else {
+            "❌ NOT RUNNING"
+        }
+    );
 
     if rest_running {
         // Try to check REST API health
@@ -1101,7 +1505,8 @@ async fn install_service() {
     {
         println!("🐧 Installing as Linux systemd service...");
 
-        let service_content = format!(r#"[Unit]
+        let service_content = format!(
+            r#"[Unit]
 Description=Vectorizer Server
 After=network.target
 
@@ -1157,8 +1562,12 @@ async fn uninstall_service() {
         let service_path = "/etc/systemd/system/vectorizer.service";
 
         // Stop and disable service first
-        let _ = Command::new("sudo").args(&["systemctl", "stop", "vectorizer"]).status();
-        let _ = Command::new("sudo").args(&["systemctl", "disable", "vectorizer"]).status();
+        let _ = Command::new("sudo")
+            .args(&["systemctl", "stop", "vectorizer"])
+            .status();
+        let _ = Command::new("sudo")
+            .args(&["systemctl", "disable", "vectorizer"])
+            .status();
 
         match std::fs::remove_file(service_path) {
             Ok(_) => {

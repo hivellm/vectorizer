@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 use vectorizer::document_loader::{DocumentLoader, LoaderConfig};
 use vectorizer::embedding::{Bm25Embedding, EmbeddingManager};
 
@@ -97,5 +97,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("Tokenizer saved to {}", output_path);
     Ok(())
 }
-
-

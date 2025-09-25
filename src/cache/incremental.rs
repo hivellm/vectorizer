@@ -1,28 +1,28 @@
 //! Incremental indexing system
 
 use super::*;
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::Mutex as AsyncMutex;
 use tokio::time::{Duration, Instant};
-use sha2::{Sha256, Digest};
 use walkdir::WalkDir;
 
 /// Incremental indexing processor
 pub struct IncrementalProcessor {
     /// Cache manager
     cache_manager: Arc<CacheManager>,
-    
+
     /// File change detector
     change_detector: Arc<FileChangeDetector>,
-    
+
     /// Processing queue
     processing_queue: Arc<AsyncMutex<Vec<ProcessingTask>>>,
-    
+
     /// Background workers
     workers: Arc<AsyncMutex<Vec<tokio::task::JoinHandle<()>>>>,
-    
+
     /// Configuration
     config: IncrementalConfig,
 }
@@ -32,16 +32,16 @@ pub struct IncrementalProcessor {
 pub struct IncrementalConfig {
     /// Maximum number of workers
     pub max_workers: usize,
-    
+
     /// Batch size for processing
     pub batch_size: usize,
-    
+
     /// Debounce duration for file changes
     pub debounce_duration: Duration,
-    
+
     /// File watching enabled
     pub file_watching_enabled: bool,
-    
+
     /// Ignore patterns
     pub ignore_patterns: Vec<String>,
 }
@@ -69,13 +69,13 @@ impl Default for IncrementalConfig {
 pub struct FileChangeDetector {
     /// Watched directories
     watched_dirs: Arc<AsyncMutex<HashMap<String, PathBuf>>>,
-    
+
     /// Change buffer
     change_buffer: Arc<AsyncMutex<Vec<FileChangeEvent>>>,
-    
+
     /// Debounce timer
     debounce_timer: Arc<AsyncMutex<Option<Instant>>>,
-    
+
     /// Debounce duration
     debounce_duration: Duration,
 }
@@ -98,16 +98,16 @@ pub enum FileChangeEvent {
 pub struct ProcessingTask {
     /// Task ID
     pub id: String,
-    
+
     /// Task operation
     pub operation: ProcessingOperation,
-    
+
     /// Task priority
     pub priority: TaskPriority,
-    
+
     /// Creation timestamp
     pub created_at: DateTime<Utc>,
-    
+
     /// Retry count
     pub retry_count: u32,
 }
@@ -166,16 +166,16 @@ pub enum ReindexReason {
 pub struct ProcessingResult {
     /// Number of processed files
     pub processed_files: usize,
-    
+
     /// Number of processed chunks
     pub processed_chunks: usize,
-    
+
     /// Number of created vectors
     pub created_vectors: usize,
-    
+
     /// Processing duration
     pub duration: Duration,
-    
+
     /// Errors encountered
     pub errors: Vec<String>,
 }
@@ -194,9 +194,12 @@ impl ProcessingResult {
 
 impl IncrementalProcessor {
     /// Create new incremental processor
-    pub async fn new(cache_manager: Arc<CacheManager>, config: IncrementalConfig) -> CacheResult<Self> {
+    pub async fn new(
+        cache_manager: Arc<CacheManager>,
+        config: IncrementalConfig,
+    ) -> CacheResult<Self> {
         let change_detector = Arc::new(FileChangeDetector::new(config.debounce_duration));
-        
+
         Ok(Self {
             cache_manager,
             change_detector,
@@ -205,7 +208,7 @@ impl IncrementalProcessor {
             config,
         })
     }
-    
+
     /// Start background workers
     pub async fn start_workers(&self) -> CacheResult<()> {
         for worker_id in 0..self.config.max_workers {
@@ -213,14 +216,14 @@ impl IncrementalProcessor {
             let worker = tokio::spawn(async move {
                 Self::worker_loop(worker_id, processor).await;
             });
-            
+
             let mut workers = self.workers.lock().await;
             workers.push(worker);
         }
-        
+
         Ok(())
     }
-    
+
     /// Worker loop
     async fn worker_loop(worker_id: usize, processor: Arc<IncrementalProcessor>) {
         loop {
@@ -228,7 +231,7 @@ impl IncrementalProcessor {
                 let mut queue = processor.processing_queue.lock().await;
                 queue.pop()
             };
-            
+
             if let Some(task) = task {
                 if let Err(e) = processor.process_task(task).await {
                     eprintln!("Worker {} failed to process task: {}", worker_id, e);
@@ -239,28 +242,42 @@ impl IncrementalProcessor {
             }
         }
     }
-    
+
     /// Process a single task
     async fn process_task(&self, task: ProcessingTask) -> CacheResult<ProcessingResult> {
         let start_time = Instant::now();
         let mut result = ProcessingResult::new();
-        
+
         match task.operation {
-            ProcessingOperation::IndexFile { collection_name, file_path, change_type } => {
-                result = self.process_file_indexing(collection_name, file_path, change_type).await?;
+            ProcessingOperation::IndexFile {
+                collection_name,
+                file_path,
+                change_type,
+            } => {
+                result = self
+                    .process_file_indexing(collection_name, file_path, change_type)
+                    .await?;
             }
-            ProcessingOperation::ReindexCollection { collection_name, reason } => {
-                result = self.process_collection_reindexing(collection_name, reason).await?;
+            ProcessingOperation::ReindexCollection {
+                collection_name,
+                reason,
+            } => {
+                result = self
+                    .process_collection_reindexing(collection_name, reason)
+                    .await?;
             }
-            ProcessingOperation::UpdateMetadata { collection_name, updates } => {
+            ProcessingOperation::UpdateMetadata {
+                collection_name,
+                updates,
+            } => {
                 self.cache_manager.update_collection_info(updates).await?;
             }
         }
-        
+
         result.duration = start_time.elapsed();
         Ok(result)
     }
-    
+
     /// Process file indexing
     async fn process_file_indexing(
         &self,
@@ -269,7 +286,7 @@ impl IncrementalProcessor {
         change_type: FileChangeEvent,
     ) -> CacheResult<ProcessingResult> {
         let mut result = ProcessingResult::new();
-        
+
         match change_type {
             FileChangeEvent::Created(path) | FileChangeEvent::Modified(path) => {
                 result = self.index_file(collection_name, path).await?;
@@ -279,37 +296,53 @@ impl IncrementalProcessor {
             }
             FileChangeEvent::Moved(from, to) => {
                 // Handle file move as delete + create
-                let _ = self.remove_file_index(collection_name.clone(), from).await?;
+                let _ = self
+                    .remove_file_index(collection_name.clone(), from)
+                    .await?;
                 result = self.index_file(collection_name, to).await?;
             }
         }
-        
+
         Ok(result)
     }
-    
+
     /// Index a single file
-    async fn index_file(&self, collection_name: String, file_path: PathBuf) -> CacheResult<ProcessingResult> {
+    async fn index_file(
+        &self,
+        collection_name: String,
+        file_path: PathBuf,
+    ) -> CacheResult<ProcessingResult> {
         let mut result = ProcessingResult::new();
-        
+
         // Check if file exists
         if !file_path.exists() {
-            result.errors.push(format!("File {} does not exist", file_path.display()));
+            result
+                .errors
+                .push(format!("File {} does not exist", file_path.display()));
             return Ok(result);
         }
-        
+
         // Get file metadata
         let metadata = std::fs::metadata(&file_path)?;
         let file_size = metadata.len();
         let modified_time = DateTime::from_timestamp(
-            metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64,
+            metadata
+                .modified()?
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_secs() as i64,
             0,
-        ).unwrap_or_else(Utc::now);
-        
+        )
+        .unwrap_or_else(Utc::now);
+
         // Calculate file hash
         let content_hash = self.calculate_file_hash(&file_path).await?;
-        
+
         // Check if file has changed
-        if let Some(collection_info) = self.cache_manager.get_collection_info(&collection_name).await {
+        if let Some(collection_info) = self
+            .cache_manager
+            .get_collection_info(&collection_name)
+            .await
+        {
             if let Some(file_info) = collection_info.get_file_hash(&file_path) {
                 if file_info.content_hash == content_hash && !file_info.is_modified(modified_time) {
                     // File hasn't changed, skip indexing
@@ -317,7 +350,7 @@ impl IncrementalProcessor {
                 }
             }
         }
-        
+
         // TODO: Implement actual file indexing logic here
         // This would involve:
         // 1. Loading the file content
@@ -325,11 +358,11 @@ impl IncrementalProcessor {
         // 3. Creating embeddings
         // 4. Storing vectors in the vector store
         // 5. Updating cache metadata
-        
+
         result.processed_files = 1;
         result.processed_chunks = 1; // Placeholder
         result.created_vectors = 1; // Placeholder
-        
+
         // Update cache metadata
         let file_info = FileHashInfo::new(
             content_hash,
@@ -338,31 +371,47 @@ impl IncrementalProcessor {
             result.processed_chunks,
             vec!["vector_id_placeholder".to_string()],
         );
-        
-        if let Some(mut collection_info) = self.cache_manager.get_collection_info(&collection_name).await {
+
+        if let Some(mut collection_info) = self
+            .cache_manager
+            .get_collection_info(&collection_name)
+            .await
+        {
             collection_info.update_file_hash(file_path, file_info);
             collection_info.update_indexed();
-            self.cache_manager.update_collection_info(collection_info).await?;
+            self.cache_manager
+                .update_collection_info(collection_info)
+                .await?;
         }
-        
+
         Ok(result)
     }
-    
+
     /// Remove file index
-    async fn remove_file_index(&self, collection_name: String, file_path: PathBuf) -> CacheResult<ProcessingResult> {
+    async fn remove_file_index(
+        &self,
+        collection_name: String,
+        file_path: PathBuf,
+    ) -> CacheResult<ProcessingResult> {
         let mut result = ProcessingResult::new();
-        
-        if let Some(mut collection_info) = self.cache_manager.get_collection_info(&collection_name).await {
+
+        if let Some(mut collection_info) = self
+            .cache_manager
+            .get_collection_info(&collection_name)
+            .await
+        {
             if collection_info.remove_file_hash(&file_path).is_some() {
                 collection_info.update_indexed();
-                self.cache_manager.update_collection_info(collection_info).await?;
+                self.cache_manager
+                    .update_collection_info(collection_info)
+                    .await?;
                 result.processed_files = 1;
             }
         }
-        
+
         Ok(result)
     }
-    
+
     /// Process collection reindexing
     async fn process_collection_reindexing(
         &self,
@@ -370,20 +419,20 @@ impl IncrementalProcessor {
         reason: ReindexReason,
     ) -> CacheResult<ProcessingResult> {
         let mut result = ProcessingResult::new();
-        
+
         // TODO: Implement collection reindexing logic
         // This would involve:
         // 1. Finding all files in the collection
         // 2. Processing each file
         // 3. Updating cache metadata
-        
+
         result.processed_files = 0; // Placeholder
         result.processed_chunks = 0; // Placeholder
         result.created_vectors = 0; // Placeholder
-        
+
         Ok(result)
     }
-    
+
     /// Calculate file hash
     async fn calculate_file_hash(&self, file_path: &Path) -> CacheResult<String> {
         let content = fs::read(file_path).await?;
@@ -392,24 +441,24 @@ impl IncrementalProcessor {
         let hash = hasher.finalize();
         Ok(format!("{:x}", hash))
     }
-    
+
     /// Add processing task to queue
     pub async fn add_task(&self, task: ProcessingTask) -> CacheResult<()> {
         let mut queue = self.processing_queue.lock().await;
         queue.push(task);
-        
+
         // Sort by priority (highest first)
         queue.sort_by(|a, b| b.priority.cmp(&a.priority));
-        
+
         Ok(())
     }
-    
+
     /// Get processing queue size
     pub async fn queue_size(&self) -> usize {
         let queue = self.processing_queue.lock().await;
         queue.len()
     }
-    
+
     /// Stop all workers
     pub async fn stop_workers(&self) {
         let mut workers = self.workers.lock().await;
@@ -441,57 +490,61 @@ impl FileChangeDetector {
             debounce_duration,
         }
     }
-    
+
     /// Watch directory for changes
     pub async fn watch_directory(&self, name: String, path: PathBuf) -> CacheResult<()> {
         let mut watched_dirs = self.watched_dirs.lock().await;
         watched_dirs.insert(name, path);
         Ok(())
     }
-    
+
     /// Stop watching directory
     pub async fn unwatch_directory(&self, name: &str) -> CacheResult<()> {
         let mut watched_dirs = self.watched_dirs.lock().await;
         watched_dirs.remove(name);
         Ok(())
     }
-    
+
     /// Get pending changes
     pub async fn get_pending_changes(&self) -> CacheResult<Vec<FileChangeEvent>> {
         let mut buffer = self.change_buffer.lock().await;
         let changes = buffer.drain(..).collect();
         Ok(changes)
     }
-    
+
     /// Add change event
     pub async fn add_change(&self, event: FileChangeEvent) -> CacheResult<()> {
         let mut buffer = self.change_buffer.lock().await;
         buffer.push(event);
         Ok(())
     }
-    
+
     /// Scan directory for changes
     pub async fn scan_directory(&self, path: &Path) -> CacheResult<Vec<FileChangeEvent>> {
         let mut changes = Vec::new();
-        
+
         for entry in WalkDir::new(path) {
             let entry = entry?;
             let path = entry.path().to_path_buf();
-            
+
             if entry.file_type().is_file() {
                 // Check if file is new or modified
                 if let Ok(metadata) = std::fs::metadata(&path) {
                     let modified_time = DateTime::from_timestamp(
-                        metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64,
+                        metadata
+                            .modified()?
+                            .duration_since(std::time::UNIX_EPOCH)?
+                            .as_secs() as i64,
                         0,
-                    ).unwrap_or_else(Utc::now);
-                    
+                    )
+                    .unwrap_or_else(Utc::now);
+
                     // TODO: Compare with cached modification time
                     changes.push(FileChangeEvent::Modified(path));
                 }
             }
         }
-        
+
         Ok(changes)
     }
 }

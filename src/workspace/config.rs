@@ -11,19 +11,19 @@ use std::path::PathBuf;
 pub struct WorkspaceConfig {
     /// Workspace metadata
     pub workspace: WorkspaceMetadata,
-    
+
     /// Global settings applied to all projects
     pub global: GlobalSettings,
-    
+
     /// List of projects in the workspace
     pub projects: Vec<ProjectConfig>,
-    
+
     /// Workspace processing settings
     pub processing: ProcessingSettings,
-    
+
     /// Workspace monitoring settings
     pub monitoring: MonitoringSettings,
-    
+
     /// Workspace validation settings
     pub validation: ValidationSettings,
 }
@@ -33,16 +33,16 @@ pub struct WorkspaceConfig {
 pub struct WorkspaceMetadata {
     /// Workspace name
     pub name: String,
-    
+
     /// Workspace version
     pub version: String,
-    
+
     /// Workspace description
     pub description: String,
-    
+
     /// Creation timestamp
     pub created_at: String,
-    
+
     /// Last update timestamp
     pub last_updated: String,
 }
@@ -52,13 +52,13 @@ pub struct WorkspaceMetadata {
 pub struct GlobalSettings {
     /// Default embedding configuration
     pub default_embedding: EmbeddingConfig,
-    
+
     /// Default collection settings
     pub default_collection: CollectionDefaults,
-    
+
     /// Default indexing settings
     pub default_indexing: IndexingDefaults,
-    
+
     /// Processing settings
     pub processing: ProcessingDefaults,
 }
@@ -68,19 +68,19 @@ pub struct GlobalSettings {
 pub struct ProjectConfig {
     /// Project name (unique identifier)
     pub name: String,
-    
+
     /// Project path (relative to workspace root)
     pub path: PathBuf,
-    
+
     /// Project description
     pub description: String,
-    
+
     /// Whether this project is enabled
     pub enabled: bool,
-    
+
     /// Project-specific embedding configuration (overrides global)
     pub embedding: Option<EmbeddingConfig>,
-    
+
     /// Collections for this project
     pub collections: Vec<CollectionConfig>,
 }
@@ -90,22 +90,22 @@ pub struct ProjectConfig {
 pub struct CollectionConfig {
     /// Collection name
     pub name: String,
-    
+
     /// Collection description
     pub description: String,
-    
+
     /// Vector dimension
     pub dimension: usize,
-    
+
     /// Distance metric
     pub metric: DistanceMetric,
-    
+
     /// Collection-specific embedding configuration
     pub embedding: EmbeddingConfig,
-    
+
     /// Indexing configuration
     pub indexing: IndexingConfig,
-    
+
     /// Processing configuration
     pub processing: CollectionProcessing,
 }
@@ -115,10 +115,10 @@ pub struct CollectionConfig {
 pub struct EmbeddingConfig {
     /// Embedding model type
     pub model: EmbeddingModel,
-    
+
     /// Vector dimension
     pub dimension: usize,
-    
+
     /// Model-specific parameters
     pub parameters: HashMap<String, serde_json::Value>,
 }
@@ -129,23 +129,23 @@ pub enum EmbeddingModel {
     /// Native Bag of Words
     #[serde(rename = "native_bow")]
     NativeBow,
-    
+
     /// Native feature hashing
     #[serde(rename = "native_hash")]
     NativeHash,
-    
+
     /// Native N-gram
     #[serde(rename = "native_ngram")]
     NativeNgram,
-    
+
     /// BM25 sparse retrieval
     #[serde(rename = "bm25")]
     Bm25,
-    
+
     /// Real transformer model (Candle)
     #[serde(rename = "real_model")]
     RealModel,
-    
+
     /// ONNX model
     #[serde(rename = "onnx_model")]
     OnnxModel,
@@ -157,11 +157,11 @@ pub enum DistanceMetric {
     /// Cosine similarity
     #[serde(rename = "cosine")]
     Cosine,
-    
+
     /// Euclidean distance
     #[serde(rename = "euclidean")]
     Euclidean,
-    
+
     /// Dot product
     #[serde(rename = "dot_product")]
     DotProduct,
@@ -172,7 +172,7 @@ pub enum DistanceMetric {
 pub struct CollectionDefaults {
     /// Default distance metric
     pub metric: DistanceMetric,
-    
+
     /// Compression settings
     pub compression: CompressionConfig,
 }
@@ -182,10 +182,10 @@ pub struct CollectionDefaults {
 pub struct CompressionConfig {
     /// Whether compression is enabled
     pub enabled: bool,
-    
+
     /// Compression threshold in bytes
     pub threshold_bytes: usize,
-    
+
     /// Compression algorithm
     pub algorithm: String,
 }
@@ -195,7 +195,7 @@ pub struct CompressionConfig {
 pub struct IndexingDefaults {
     /// Index type
     pub index_type: String,
-    
+
     /// Index parameters
     pub parameters: HashMap<String, serde_json::Value>,
 }
@@ -205,7 +205,7 @@ pub struct IndexingDefaults {
 pub struct IndexingConfig {
     /// Index type
     pub index_type: String,
-    
+
     /// Index parameters
     pub parameters: HashMap<String, serde_json::Value>,
 }
@@ -215,13 +215,13 @@ pub struct IndexingConfig {
 pub struct ProcessingDefaults {
     /// Default chunk size
     pub chunk_size: usize,
-    
+
     /// Default chunk overlap
     pub chunk_overlap: usize,
-    
+
     /// Maximum file size in MB
     pub max_file_size_mb: usize,
-    
+
     /// Supported file extensions
     pub supported_extensions: Vec<String>,
 }
@@ -231,13 +231,13 @@ pub struct ProcessingDefaults {
 pub struct CollectionProcessing {
     /// Chunk size for this collection
     pub chunk_size: usize,
-    
+
     /// Chunk overlap for this collection
     pub chunk_overlap: usize,
-    
+
     /// File patterns to include
     pub include_patterns: Vec<String>,
-    
+
     /// File patterns to exclude
     pub exclude_patterns: Vec<String>,
 }
@@ -247,19 +247,19 @@ pub struct CollectionProcessing {
 pub struct ProcessingSettings {
     /// Whether to use parallel processing
     pub parallel_processing: bool,
-    
+
     /// Maximum concurrent projects
     pub max_concurrent_projects: usize,
-    
+
     /// Maximum concurrent collections
     pub max_concurrent_collections: usize,
-    
+
     /// File processing settings
     pub file_processing: FileProcessingSettings,
-    
+
     /// Memory management settings
     pub memory: MemorySettings,
-    
+
     /// Error handling settings
     pub error_handling: ErrorHandlingSettings,
 }
@@ -269,13 +269,13 @@ pub struct ProcessingSettings {
 pub struct FileProcessingSettings {
     /// Batch size for processing
     pub batch_size: usize,
-    
+
     /// Maximum file size in MB
     pub max_file_size_mb: usize,
-    
+
     /// Skip hidden files
     pub skip_hidden_files: bool,
-    
+
     /// Skip binary files
     pub skip_binary_files: bool,
 }
@@ -285,7 +285,7 @@ pub struct FileProcessingSettings {
 pub struct MemorySettings {
     /// Maximum memory usage in GB
     pub max_memory_usage_gb: f64,
-    
+
     /// Garbage collection threshold in MB
     pub gc_threshold_mb: usize,
 }
@@ -295,13 +295,13 @@ pub struct MemorySettings {
 pub struct ErrorHandlingSettings {
     /// Maximum retries
     pub max_retries: usize,
-    
+
     /// Retry delay in seconds
     pub retry_delay_seconds: usize,
-    
+
     /// Continue processing on error
     pub continue_on_error: bool,
-    
+
     /// Log errors
     pub log_errors: bool,
 }
@@ -311,10 +311,10 @@ pub struct ErrorHandlingSettings {
 pub struct MonitoringSettings {
     /// Health check settings
     pub health_check: HealthCheckSettings,
-    
+
     /// Metrics collection settings
     pub metrics: MetricsSettings,
-    
+
     /// Logging settings
     pub logging: LoggingSettings,
 }
@@ -324,13 +324,13 @@ pub struct MonitoringSettings {
 pub struct HealthCheckSettings {
     /// Whether health checks are enabled
     pub enabled: bool,
-    
+
     /// Health check interval in seconds
     pub interval_seconds: usize,
-    
+
     /// Check projects health
     pub check_projects: bool,
-    
+
     /// Check collections health
     pub check_collections: bool,
 }
@@ -340,13 +340,13 @@ pub struct HealthCheckSettings {
 pub struct MetricsSettings {
     /// Whether metrics collection is enabled
     pub enabled: bool,
-    
+
     /// Metrics collection interval in seconds
     pub collection_interval_seconds: usize,
-    
+
     /// Project metrics to collect
     pub project_metrics: Vec<String>,
-    
+
     /// Collection metrics to collect
     pub collection_metrics: Vec<String>,
 }
@@ -356,13 +356,13 @@ pub struct MetricsSettings {
 pub struct LoggingSettings {
     /// Log level
     pub level: String,
-    
+
     /// Log file path
     pub log_file: String,
-    
+
     /// Maximum log file size in MB
     pub max_log_size_mb: usize,
-    
+
     /// Maximum number of log files
     pub max_log_files: usize,
 }
@@ -372,10 +372,10 @@ pub struct LoggingSettings {
 pub struct ValidationSettings {
     /// Path validation settings
     pub paths: PathValidationSettings,
-    
+
     /// Configuration validation settings
     pub config: ConfigValidationSettings,
-    
+
     /// Data validation settings
     pub data: DataValidationSettings,
 }
@@ -385,10 +385,10 @@ pub struct ValidationSettings {
 pub struct PathValidationSettings {
     /// Validate path existence
     pub validate_existence: bool,
-    
+
     /// Validate path permissions
     pub validate_permissions: bool,
-    
+
     /// Create missing directories
     pub create_missing_dirs: bool,
 }
@@ -398,10 +398,10 @@ pub struct PathValidationSettings {
 pub struct ConfigValidationSettings {
     /// Validate embedding models
     pub validate_embedding_models: bool,
-    
+
     /// Validate dimensions
     pub validate_dimensions: bool,
-    
+
     /// Validate collections
     pub validate_collections: bool,
 }
@@ -411,10 +411,10 @@ pub struct ConfigValidationSettings {
 pub struct DataValidationSettings {
     /// Validate file types
     pub validate_file_types: bool,
-    
+
     /// Validate file sizes
     pub validate_file_sizes: bool,
-    
+
     /// Validate file encoding
     pub validate_encoding: bool,
 }

@@ -58,7 +58,7 @@ impl From<Vector> for PersistedVector {
 }
 
 impl PersistedVector {
-    fn into_runtime(self) -> Result<Vector> {
+    pub fn into_runtime(self) -> Result<Vector> {
         let payload = match self.payload_json {
             Some(bytes) => {
                 let value: serde_json::Value = serde_json::from_slice(&bytes)?;
@@ -142,17 +142,13 @@ impl VectorStore {
         // Create new vector store
         let store = VectorStore::new();
 
-        // Restore collections
+        // Restore collections with fast loading (no HNSW reconstruction)
         for collection in persisted.collections {
-            store.create_collection(&collection.name, collection.config)?;
+            store.create_collection(&collection.name, collection.config.clone())?;
 
             if !collection.vectors.is_empty() {
-                // Reconstruct runtime vectors
-                let mut runtime_vectors = Vec::with_capacity(collection.vectors.len());
-                for pv in collection.vectors {
-                    runtime_vectors.push(pv.into_runtime()?);
-                }
-                store.insert(&collection.name, runtime_vectors)?;
+                // Fast load: directly restore vectors and index without reconstruction
+                store.load_collection_from_cache(&collection.name, collection.vectors)?;
             }
         }
 

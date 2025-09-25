@@ -49,7 +49,7 @@ impl BenchmarkDataset {
         };
 
         let mut loader = DocumentLoader::new(config);
-        
+
         // Create a temporary vector store for loading documents
         let temp_store = VectorStore::new();
 

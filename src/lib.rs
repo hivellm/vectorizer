@@ -14,6 +14,7 @@ pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
+pub mod grpc;
 pub mod hybrid_search;
 pub mod mcp;
 pub mod mcp_service;
