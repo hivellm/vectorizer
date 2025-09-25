@@ -1343,7 +1343,7 @@ impl DocumentLoader {
             );
         }
         
-        let metadata_path = vectorizer_dir.join("metadata.json");
+        let metadata_path = vectorizer_dir.join(format!("{}_metadata.json", self.config.collection_name));
         let metadata_json = serde_json::to_string_pretty(metadata)?;
         fs::write(&metadata_path, metadata_json)?;
         
@@ -1354,7 +1354,7 @@ impl DocumentLoader {
     /// Load collection metadata from disk
     fn load_metadata(&self, project_path: &str) -> Result<Option<CollectionMetadataFile>> {
         let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        let metadata_path = vectorizer_dir.join("metadata.json");
+        let metadata_path = vectorizer_dir.join(format!("{}_metadata.json", self.config.collection_name));
         
         if !metadata_path.exists() {
             return Ok(None);
