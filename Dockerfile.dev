@@ -1,7 +1,7 @@
-# Development Dockerfile for Vectorizer
+# Development Dockerfile for Vectorizer (GRPC Architecture)
 FROM rust:1.75-slim
 
-# Install system dependencies for development
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -12,34 +12,32 @@ RUN apt-get update && apt-get install -y \
     htop \
     && rm -rf /var/lib/apt/lists/*
 
-# Install additional Rust tools
-RUN cargo install cargo-watch cargo-outdated cargo-audit
-
 # Set working directory
 WORKDIR /app
 
 # Copy manifest files
 COPY Cargo.toml Cargo.lock ./
+COPY build.rs ./
 
 # Copy source code
 COPY src/ src/
+COPY proto/ proto/
 COPY examples/ examples/
 COPY docs/ docs/
 COPY benches/ benches/
 COPY tests/ tests/
-COPY config.example.yml ./
+COPY scripts/ scripts/
+COPY config/ ./config/
 COPY audit.toml ./
 
-# Create development user
-RUN useradd -m -s /bin/bash dev && \
-    usermod -aG sudo dev && \
-    echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Make scripts executable
+RUN chmod +x scripts/*.sh
 
-# Switch to development user
-USER dev
+# Create data directory
+RUN mkdir -p /app/data
 
-# Expose ports for development
+# Expose ports for GRPC architecture
 EXPOSE 15001 15002 15003
 
-# Default command for development
-CMD ["bash"]
+# Development command - use development scripts
+CMD ["./scripts/start-dev.sh"]

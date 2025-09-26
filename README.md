@@ -58,15 +58,29 @@
 
 ## 🚀 Quick Start
 
-### Start All Services (GRPC + REST API + MCP)
-```bash
-# Using the unified CLI (recommended) - starts all services with GRPC architecture
-cargo run --bin vzr -- start --workspace vectorize-workspace.yml
+### Using Scripts (Recommended)
 
-# Legacy single project mode
-cargo run --bin vzr -- start --project ../gov
+```bash
+# Development mode (always uses cargo run)
+./scripts/start-dev.sh
+
+# Production mode (uses compiled binaries when available)
+./scripts/start.sh
+
+# Check status
+./scripts/status.sh
+
+# Stop servers
+./scripts/stop.sh      # Production mode
+./scripts/stop-dev.sh  # Development mode
 ```
-This starts the complete GRPC architecture:
+
+### Manual Start (GRPC Architecture)
+
+```bash
+# Using the unified CLI - starts all services with GRPC architecture
+cargo run --bin vzr -- start --workspace config/vectorize-workspace.yml
+```
 - **vzr** (port 15003) - GRPC orchestrator and indexing engine
 - **REST API** (port 15001) - HTTP API and dashboard
 - **MCP Server** (port 15002) - Model Context Protocol integration

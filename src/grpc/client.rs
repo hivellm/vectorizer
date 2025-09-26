@@ -6,6 +6,12 @@ use crate::grpc::vectorizer::{
     IndexingProgressResponse,
     UpdateIndexingProgressRequest,
     HealthResponse,
+    CreateCollectionRequest, CreateCollectionResponse,
+    DeleteCollectionRequest, DeleteCollectionResponse,
+    InsertVectorsRequest, InsertVectorsResponse,
+    DeleteVectorsRequest, DeleteVectorsResponse,
+    GetVectorRequest, GetVectorResponse,
+    GetCollectionInfoRequest, CollectionInfo,
 };
 use crate::config::GrpcClientConfig;
 use tonic::transport::Channel;
@@ -99,6 +105,98 @@ impl VectorizerGrpcClient {
     pub async fn health_check(&mut self) -> Result<HealthResponse, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(Empty {});
         let response = self.client.health_check(request).await?;
+        Ok(response.into_inner())
+    }
+
+    // Collection operations
+    pub async fn create_collection(
+        &mut self,
+        name: String,
+        dimension: i32,
+        similarity_metric: String,
+    ) -> Result<CreateCollectionResponse, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(CreateCollectionRequest {
+            name,
+            dimension,
+            similarity_metric,
+            hnsw_config: None,
+            compression_config: None,
+        });
+
+        let response = self.client.create_collection(request).await?;
+        Ok(response.into_inner())
+    }
+
+    pub async fn delete_collection(
+        &mut self,
+        collection_name: String,
+    ) -> Result<DeleteCollectionResponse, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(DeleteCollectionRequest { collection_name });
+        let response = self.client.delete_collection(request).await?;
+        Ok(response.into_inner())
+    }
+
+    pub async fn get_collection_info(
+        &mut self,
+        collection_name: String,
+    ) -> Result<CollectionInfo, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(GetCollectionInfoRequest { collection_name });
+        let response = self.client.get_collection_info(request).await?;
+        Ok(response.into_inner())
+    }
+
+    // Vector operations
+    pub async fn insert_vectors(
+        &mut self,
+        collection: String,
+        vectors: Vec<(String, Vec<f32>, Option<std::collections::HashMap<String, String>>)>,
+    ) -> Result<InsertVectorsResponse, Box<dyn std::error::Error>> {
+        let vector_data: Vec<crate::grpc::vectorizer::VectorData> = vectors
+            .into_iter()
+            .map(|(id, data, metadata)| {
+                let metadata_map = metadata.unwrap_or_default();
+                crate::grpc::vectorizer::VectorData {
+                    id,
+                    data,
+                    metadata: metadata_map,
+                }
+            })
+            .collect();
+
+        let request = tonic::Request::new(InsertVectorsRequest {
+            collection,
+            vectors: vector_data,
+        });
+
+        let response = self.client.insert_vectors(request).await?;
+        Ok(response.into_inner())
+    }
+
+    pub async fn delete_vectors(
+        &mut self,
+        collection: String,
+        vector_ids: Vec<String>,
+    ) -> Result<DeleteVectorsResponse, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(DeleteVectorsRequest {
+            collection,
+            vector_ids,
+        });
+
+        let response = self.client.delete_vectors(request).await?;
+        Ok(response.into_inner())
+    }
+
+    pub async fn get_vector(
+        &mut self,
+        collection: String,
+        vector_id: String,
+    ) -> Result<GetVectorResponse, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(GetVectorRequest {
+            collection,
+            vector_id,
+        });
+
+        let response = self.client.get_vector(request).await?;
         Ok(response.into_inner())
     }
 }

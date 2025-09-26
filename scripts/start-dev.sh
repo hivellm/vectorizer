@@ -45,7 +45,7 @@ usage() {
 }
 
 # Parse arguments
-WORKSPACE_FILE="vectorize-workspace.yml"
+WORKSPACE_FILE="config/vectorize-workspace.yml"
 
 while [[ $# -gt 0 ]]; do
     case $1 in

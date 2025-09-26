@@ -1,48 +1,55 @@
-# Rust build artifacts
+# Docker ignore file for Vectorizer
+
+# Target directory
 target/
-**/*.rs.bk
-Cargo.lock
+
+# Git
+.git/
+.gitignore
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Git
-.git/
-.gitignore
+# Logs
+*.log
+logs/
+
+# Data directories
+data/
+.vectorizer/
+
+# Cache directories
+.cargo/
+node_modules/
 
 # Documentation build
 docs/_build/
-docs/build/
 
 # Test artifacts
 test-results/
 coverage/
 
-# Logs
-*.log
-logs/
-
 # Temporary files
-tmp/
-temp/
+*.tmp
+*.temp
 
-# Node modules (if any)
-node_modules/
+# Models (too large for Docker)
+models/
 
-# Python cache (if any)
-__pycache__/
-*.pyc
-*.pyo
+# Benchmark results
+benchmark/results/
+benchmark/reports/
 
-# Docker files
-Dockerfile*
-docker-compose*.yml
-.dockerignore
+# Client SDKs (separate builds)
+client-sdks/
+
+# Dashboard build artifacts
+dashboard/dist/
+dashboard/build/

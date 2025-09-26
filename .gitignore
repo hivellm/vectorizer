@@ -49,5 +49,7 @@ config.yml
 vectorize-workspace.yml
 
 # Vectorizer specific
+.vectorizer
 *.vdb
 *.bin
+*.log

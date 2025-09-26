@@ -11,6 +11,12 @@ use crate::grpc::vectorizer::{
     IndexingProgressResponse, IndexingStatus,
     UpdateIndexingProgressRequest,
     HealthResponse,
+    CreateCollectionRequest, CreateCollectionResponse,
+    DeleteCollectionRequest, DeleteCollectionResponse,
+    InsertVectorsRequest, InsertVectorsResponse,
+    DeleteVectorsRequest, DeleteVectorsResponse,
+    GetVectorRequest, GetVectorResponse,
+    VectorData,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -283,6 +289,158 @@ impl VectorizerService for VectorizerGrpcService {
             version: env!("CARGO_PKG_VERSION").to_string(),
             timestamp: Utc::now().to_rfc3339(),
             error_message: None,
+        }))
+    }
+
+    async fn create_collection(&self, request: Request<CreateCollectionRequest>) -> Result<Response<CreateCollectionResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC CreateCollection request: name={}, dimension={}, metric={}", 
+                       req.name, req.dimension, req.similarity_metric);
+
+        use crate::models::{CollectionConfig, DistanceMetric};
+
+        let distance_metric = match req.similarity_metric.to_lowercase().as_str() {
+            "euclidean" => DistanceMetric::Euclidean,
+            "cosine" => DistanceMetric::Cosine,
+            "dot_product" => DistanceMetric::DotProduct,
+            _ => DistanceMetric::Cosine, // Default
+        };
+
+        let config = CollectionConfig {
+            dimension: req.dimension as usize,
+            metric: distance_metric,
+            hnsw_config: crate::models::HnswConfig::default(),
+            quantization: None,
+            compression: crate::models::CompressionConfig::default(),
+        };
+
+        self.vector_store.create_collection(&req.name, config)
+            .map_err(|e| Status::internal(format!("Failed to create collection: {}", e)))?;
+
+        Ok(Response::new(CreateCollectionResponse {
+            name: req.name,
+            dimension: req.dimension,
+            similarity_metric: req.similarity_metric,
+            status: "created".to_string(),
+            message: "Collection created successfully".to_string(),
+        }))
+    }
+
+    async fn delete_collection(&self, request: Request<DeleteCollectionRequest>) -> Result<Response<DeleteCollectionResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC DeleteCollection request: name={}", req.collection_name);
+
+        self.vector_store.delete_collection(&req.collection_name)
+            .map_err(|e| Status::internal(format!("Failed to delete collection: {}", e)))?;
+
+        Ok(Response::new(DeleteCollectionResponse {
+            collection_name: req.collection_name,
+            status: "deleted".to_string(),
+            message: "Collection deleted successfully".to_string(),
+        }))
+    }
+
+    async fn insert_vectors(&self, request: Request<InsertVectorsRequest>) -> Result<Response<InsertVectorsResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC InsertVectors request: collection={}, vectors_count={}", 
+                       req.collection, req.vectors.len());
+
+        use crate::models::Vector;
+
+        let vector_objects: Vec<Vector> = req.vectors
+            .into_iter()
+            .map(|vector_data| {
+                // Convert metadata to JSON object
+                let mut metadata_obj = serde_json::Map::new();
+                for (key, value) in vector_data.metadata {
+                    metadata_obj.insert(key, serde_json::Value::String(value));
+                }
+                
+                let payload = crate::models::Payload::from_value(serde_json::Value::Object(metadata_obj))
+                    .unwrap_or_default();
+                
+                Vector::with_payload(vector_data.id, vector_data.data, payload)
+            })
+            .collect();
+
+        let inserted_count = vector_objects.len();
+        self.vector_store.insert(&req.collection, vector_objects)
+            .map_err(|e| Status::internal(format!("Failed to insert vectors: {}", e)))?;
+
+        Ok(Response::new(InsertVectorsResponse {
+            collection: req.collection,
+            inserted_count: inserted_count as i32,
+            status: "success".to_string(),
+            message: format!("Successfully inserted {} vectors", inserted_count),
+        }))
+    }
+
+    async fn delete_vectors(&self, request: Request<DeleteVectorsRequest>) -> Result<Response<DeleteVectorsResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC DeleteVectors request: collection={}, vector_ids_count={}", 
+                       req.collection, req.vector_ids.len());
+
+        let mut deleted_count = 0;
+        let mut errors = Vec::new();
+
+        for vector_id in req.vector_ids {
+            match self.vector_store.delete(&req.collection, &vector_id) {
+                Ok(_) => deleted_count += 1,
+                Err(e) => {
+                    errors.push(format!("Failed to delete {}: {}", vector_id, e));
+                }
+            }
+        }
+
+        let status = if errors.is_empty() { "success" } else { "partial_success" };
+        let message = if errors.is_empty() {
+            format!("Successfully deleted {} vectors", deleted_count)
+        } else {
+            format!("Deleted {} vectors, {} errors", deleted_count, errors.len())
+        };
+
+        Ok(Response::new(DeleteVectorsResponse {
+            collection: req.collection,
+            deleted_count: deleted_count as i32,
+            status: status.to_string(),
+            message,
+        }))
+    }
+
+    async fn get_vector(&self, request: Request<GetVectorRequest>) -> Result<Response<GetVectorResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC GetVector request: collection={}, vector_id={}", 
+                       req.collection, req.vector_id);
+
+        let vector = self.vector_store.get_vector(&req.collection, &req.vector_id)
+            .map_err(|e| Status::not_found(format!("Vector not found: {}", e)))?;
+
+        let mut metadata = std::collections::HashMap::new();
+        
+        // Convert payload to metadata
+        if let Some(payload) = vector.payload {
+            if let Some(obj) = payload.data.as_object() {
+                for (key, value) in obj {
+                    if let Some(str_value) = value.as_str() {
+                        metadata.insert(key.clone(), str_value.to_string());
+                    } else {
+                        metadata.insert(key.clone(), value.to_string());
+                    }
+                }
+            }
+        }
+
+        Ok(Response::new(GetVectorResponse {
+            id: vector.id,
+            data: vector.data,
+            metadata,
+            collection: req.collection,
+            status: "found".to_string(),
         }))
     }
 }

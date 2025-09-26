@@ -8,7 +8,7 @@ echo 🚀 Starting Vectorizer Servers (Development Mode)...
 echo ====================================================
 
 REM Set default workspace file
-set WORKSPACE_FILE=vectorize-workspace.yml
+set WORKSPACE_FILE=config\vectorize-workspace.yml
 
 REM Parse command line arguments
 :parse_args

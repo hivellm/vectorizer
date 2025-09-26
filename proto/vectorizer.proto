@@ -10,6 +10,13 @@ service VectorizerService {
   // Operações de coleções
   rpc ListCollections(Empty) returns (ListCollectionsResponse);
   rpc GetCollectionInfo(GetCollectionInfoRequest) returns (CollectionInfo);
+  rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
+  rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
+  
+  // Operações de vetores
+  rpc InsertVectors(InsertVectorsRequest) returns (InsertVectorsResponse);
+  rpc DeleteVectors(DeleteVectorsRequest) returns (DeleteVectorsResponse);
+  rpc GetVector(GetVectorRequest) returns (GetVectorResponse);
   
   // Operações de embedding
   rpc EmbedText(EmbedRequest) returns (EmbedResponse);
@@ -64,6 +71,91 @@ message ListCollectionsResponse {
 
 message GetCollectionInfoRequest {
   string collection_name = 1;
+}
+
+// Mensagens para criação e exclusão de coleções
+message CreateCollectionRequest {
+  string name = 1;
+  int32 dimension = 2;
+  string similarity_metric = 3;
+  optional HnswConfig hnsw_config = 4;
+  optional CompressionConfig compression_config = 5;
+}
+
+message CreateCollectionResponse {
+  string name = 1;
+  int32 dimension = 2;
+  string similarity_metric = 3;
+  string status = 4;
+  string message = 5;
+}
+
+message DeleteCollectionRequest {
+  string collection_name = 1;
+}
+
+message DeleteCollectionResponse {
+  string collection_name = 1;
+  string status = 2;
+  string message = 3;
+}
+
+// Mensagens para operações de vetores
+message VectorData {
+  string id = 1;
+  repeated float data = 2;
+  map<string, string> metadata = 3;
+}
+
+message InsertVectorsRequest {
+  string collection = 1;
+  repeated VectorData vectors = 2;
+}
+
+message InsertVectorsResponse {
+  string collection = 1;
+  int32 inserted_count = 2;
+  string status = 3;
+  string message = 4;
+}
+
+message DeleteVectorsRequest {
+  string collection = 1;
+  repeated string vector_ids = 2;
+}
+
+message DeleteVectorsResponse {
+  string collection = 1;
+  int32 deleted_count = 2;
+  string status = 3;
+  string message = 4;
+}
+
+message GetVectorRequest {
+  string collection = 1;
+  string vector_id = 2;
+}
+
+message GetVectorResponse {
+  string id = 1;
+  repeated float data = 2;
+  map<string, string> metadata = 3;
+  string collection = 4;
+  string status = 5;
+}
+
+// Configurações
+message HnswConfig {
+  int32 m = 1;
+  int32 ef_construction = 2;
+  int32 ef_search = 3;
+  int32 seed = 4;
+}
+
+message CompressionConfig {
+  bool enabled = 1;
+  int32 threshold_bytes = 2;
+  string algorithm = 3;
 }
 
 // Mensagens de embedding
