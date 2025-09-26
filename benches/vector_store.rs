@@ -14,7 +14,7 @@ fn create_random_vector(id: String, dimension: usize) -> Vector {
 fn benchmark_insert(c: &mut Criterion) {
     let store = VectorStore::new();
     let config = CollectionConfig {
-        dimension: 768,
+        dimension: 512,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
         quantization: None,
@@ -26,7 +26,7 @@ fn benchmark_insert(c: &mut Criterion) {
     c.bench_function("insert_single_vector", |b| {
         let mut counter = 0;
         b.iter(|| {
-            let vector = create_random_vector(format!("v{}", counter), 768);
+            let vector = create_random_vector(format!("v{}", counter), 512);
             store.insert("bench", vec![black_box(vector)]).unwrap();
             counter += 1;
         });
@@ -36,7 +36,7 @@ fn benchmark_insert(c: &mut Criterion) {
 fn benchmark_search(c: &mut Criterion) {
     let store = VectorStore::new();
     let config = CollectionConfig {
-        dimension: 768,
+        dimension: 512,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
         quantization: None,
@@ -47,13 +47,13 @@ fn benchmark_search(c: &mut Criterion) {
 
     // Insert 1000 vectors
     let vectors: Vec<Vector> = (0..1000)
-        .map(|i| create_random_vector(format!("v{}", i), 768))
+        .map(|i| create_random_vector(format!("v{}", i), 512))
         .collect();
 
     store.insert("bench", vectors).unwrap();
 
     // Benchmark search
-    let query = vec![0.5f32; 768];
+    let query = vec![0.5f32; 512];
 
     c.bench_function("search_top_10", |b| {
         b.iter(|| {

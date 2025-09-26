@@ -33,3 +33,57 @@
 [2m2025-09-26T17:08:51.654624Z[0m [32m INFO[0m [1mserve_inner[0m[2m:[0m [2mrmcp::service[0m[2m:[0m Service initialized as server [3mpeer_info[0m[2m=[0mSome(InitializeRequestParam { protocol_version: ProtocolVersion("2025-06-18"), capabilities: ClientCapabilities { experimental: None, roots: Some(RootsCapabilities { list_changed: Some(false) }), sampling: None, elicitation: Some(ElicitationCapability { schema_validation: None }) }, client_info: Implementation { name: "cursor-vscode", title: None, version: "1.0.0", icons: None, website_url: None } })
 [2m2025-09-26T17:09:14.690957Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received shutdown signal
 [2m2025-09-26T17:09:14.691099Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received shutdown signal
+[2m2025-09-26T17:09:50.145300Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T17:09:50.145371Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:09:50.147193Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T17:09:50.147233Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T17:09:50.147243Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:09:50.147252Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T17:09:50.147553Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ MCP server ready on 127.0.0.1:15002
+[2m2025-09-26T17:09:50.754913Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0m7cf9f00a-7281-425c-8b52-073ec7bf4778 [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "mcp-protocol-version": "2025-03-26", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-26T17:09:54.553728Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T17:09:54.553759Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:09:54.554556Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T17:09:54.554575Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T17:09:54.554580Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:09:54.554585Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T17:09:54.554797Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ MCP server ready on 127.0.0.1:15002
+[2m2025-09-26T17:10:35.223025Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received shutdown signal
+[2m2025-09-26T17:10:35.223115Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received shutdown signal
+[2m2025-09-26T17:10:36.644431Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T17:10:36.644507Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:10:36.646798Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T17:10:36.646861Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T17:10:36.646874Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:10:36.646884Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T17:10:36.647305Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ MCP server ready on 127.0.0.1:15002
+[2m2025-09-26T17:10:38.228325Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0ma44d69b4-7cb5-41c8-9844-4ca8439651bc [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "mcp-protocol-version": "2025-03-26", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-26T17:10:40.953277Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T17:10:40.953313Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:10:40.954127Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T17:10:40.954144Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T17:10:40.954149Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:10:40.954154Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T17:10:40.954245Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ MCP server ready on 127.0.0.1:15002
+[2m2025-09-26T17:10:42.716620Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received shutdown signal
+[2m2025-09-26T17:10:42.716726Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received shutdown signal
+[2m2025-09-26T17:11:02.890923Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T17:11:02.891010Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:11:02.892721Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T17:11:02.892757Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T17:11:02.892768Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:11:02.892776Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T17:11:02.893092Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ MCP server ready on 127.0.0.1:15002
+[2m2025-09-26T17:11:03.736065Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0m192d3f5d-4274-421d-b606-71a95367fd7e [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "mcp-protocol-version": "2025-03-26", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-26T17:11:07.316378Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T17:11:07.316411Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:11:07.317227Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T17:11:07.317249Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T17:11:07.317254Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T17:11:07.317259Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T17:11:07.317356Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ MCP server ready on 127.0.0.1:15002
+[2m2025-09-26T17:13:12.328028Z[0m [32m INFO[0m [2mrmcp::transport::sse_server[0m[2m:[0m sse connection [3msession[0m[2m=[0m941e3535-47ec-468b-b129-96d9bd3d2943 [3mparts[0m[2m=[0mParts { method: GET, uri: /sse, version: HTTP/1.1, headers: {"host": "localhost:15002", "connection": "keep-alive", "user-agent": "Cursor/1.6.45 (win32 x64)", "accept": "text/event-stream", "accept-language": "*", "sec-fetch-mode": "cors", "pragma": "no-cache", "cache-control": "no-cache", "accept-encoding": "gzip, deflate"} }
+[2m2025-09-26T17:13:12.341367Z[0m [32m INFO[0m [2mrmcp::handler::server[0m[2m:[0m client initialized
+[2m2025-09-26T17:13:12.341538Z[0m [32m INFO[0m [1mserve_inner[0m[2m:[0m [2mrmcp::service[0m[2m:[0m Service initialized as server [3mpeer_info[0m[2m=[0mSome(InitializeRequestParam { protocol_version: ProtocolVersion("2025-06-18"), capabilities: ClientCapabilities { experimental: None, roots: Some(RootsCapabilities { list_changed: Some(false) }), sampling: None, elicitation: Some(ElicitationCapability { schema_validation: None }) }, client_info: Implementation { name: "cursor-vscode", title: None, version: "1.0.0", icons: None, website_url: None } })
+[2m2025-09-26T17:13:40.786911Z[0m [33m WARN[0m [1mserve_inner[0m[2m:[0m [2mrmcp::service[0m[2m:[0m response error [3mid[0m[2m=[0m6 [3merror[0m[2m=[0mErrorData { code: ErrorCode(-32603), message: "GRPC search failed: status: Internal, message: \"Search failed: Invalid dimension: expected 768, got 512\", details: [], metadata: MetadataMap { headers: {\"content-type\": \"application/grpc\", \"date\": \"Fri, 26 Sep 2025 17:13:40 GMT\", \"content-length\": \"0\"} }", data: None }
+[2m2025-09-26T17:13:42.777764Z[0m [33m WARN[0m [1mserve_inner[0m[2m:[0m [2mrmcp::service[0m[2m:[0m response error [3mid[0m[2m=[0m7 [3merror[0m[2m=[0mErrorData { code: ErrorCode(-32603), message: "GRPC search failed: status: Internal, message: \"Search failed: Invalid dimension: expected 768, got 512\", details: [], metadata: MetadataMap { headers: {\"content-type\": \"application/grpc\", \"date\": \"Fri, 26 Sep 2025 17:13:42 GMT\", \"content-length\": \"0\"} }", data: None }

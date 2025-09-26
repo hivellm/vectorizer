@@ -361,7 +361,7 @@ impl McpServer {
                 {
                     "name": "embeddings",
                     "vector_count": 500,
-                    "dimension": 768
+                    "dimension": 512
                 }
             ]
         })

@@ -136,7 +136,7 @@ Retrieves information about all available collections in the database.
       {
         "name": "code_snippets",
         "vector_count": 500,
-        "dimension": 768,
+        "dimension": 512,
         "metric": "euclidean",
         "hnsw_config": {
           "m": 16,
@@ -463,7 +463,7 @@ Creates a new collection with specified configuration.
     "name": "create_collection",
     "arguments": {
       "name": "code_snippets",
-      "dimension": 768,
+      "dimension": 512,
       "metric": "cosine"
     }
   }
@@ -475,7 +475,7 @@ Creates a new collection with specified configuration.
 {
   "result": {
     "name": "code_snippets",
-    "dimension": 768,
+    "dimension": 512,
     "metric": "cosine",
     "status": "created"
   }
@@ -572,7 +572,7 @@ Retrieves comprehensive database statistics and performance metrics.
       {
         "name": "code_snippets",
         "vector_count": 500,
-        "dimension": 768,
+        "dimension": 512,
         "memory_estimate_bytes": 1536000
       },
       {

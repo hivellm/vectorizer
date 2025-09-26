@@ -105,7 +105,7 @@ Content-Type: application/json
 {
   "name": "documents",
   "config": {
-    "dimension": 768,
+    "dimension": 512,
     "metric": "cosine",
     "quantization": {
       "type": "pq",
@@ -187,7 +187,7 @@ GET /collections/{name}/stats
   "collection": "documents",
   "stats": {
     "vector_count": 1000,
-    "dimension": 768,
+    "dimension": 512,
     "index_size_bytes": 1048576,
     "avg_query_time_ms": 0.8,
     "total_queries": 50000
@@ -474,7 +474,7 @@ client = VectorizerClient(
 # Create collection on server with compression
 client.create_collection(
     name="documents",
-    dimension=768,
+    dimension=512,
     metric="cosine",
     quantization={"type": "pq", "n_centroids": 256, "n_subquantizers": 8},
     embedding={"model": "native_bow", "vocab_size": 50000},
@@ -495,7 +495,7 @@ print(f"Vectors: {stats['vector_count']}")
 ```python
 # Insert vectors (vectors are processed and stored on server)
 vectors = [
-    [0.1, 0.2, 0.3, ...],  # 768 dimensions
+    [0.1, 0.2, 0.3, ...],  # 512 dimensions
     [0.4, 0.5, 0.6, ...],
 ]
 
@@ -617,7 +617,7 @@ const client = new VectorizerClient({
 ```typescript
 // Create collection on server with compression
 await client.createCollection('documents', {
-  dimension: 768,
+  dimension: 512,
   metric: 'cosine' as const,
   quantization: { type: 'pq', nCentroids: 256, nSubquantizers: 8 },
   embedding: { model: 'native_bow', vocabSize: 50000 },
@@ -638,7 +638,7 @@ console.log(`Vectors: ${stats.vectorCount}`);
 ```typescript
 // Insert vectors (processed and stored on server)
 const vectors = [
-  [0.1, 0.2, 0.3, ...],  // 768 dimensions
+  [0.1, 0.2, 0.3, ...],  // 512 dimensions
   [0.4, 0.5, 0.6, ...],
 ];
 
@@ -917,7 +917,7 @@ vectorizer config set \
 # Configure default embedding model
 vectorizer config set \
   embedding.model native_bow \
-  embedding.dimension 768
+  embedding.dimension 512
 ```
 
 ### Formatos de Saída
@@ -974,7 +974,7 @@ except VectorizerError as e:
     if e.code == "INVALID_DIMENSION":
         print(f"Dimensão incorreta: esperada {e.expected}, recebida {e.got}")
     elif e.code == "COLLECTION_NOT_FOUND":
-        db.create_collection("documents", dimension=768)
+        db.create_collection("documents", dimension=512)
         db.insert("documents", ids, vectors, payloads)
 ```
 
@@ -991,7 +991,7 @@ try {
         console.error(`Invalid dimension: expected ${error.expected}, got ${error.got}`);
         break;
       case 'COLLECTION_NOT_FOUND':
-        await db.createCollection('documents', { dimension: 768 });
+        await db.createCollection('documents', { dimension: 512 });
         await db.insert('documents', ids, vectors, payloads);
         break;
     }
@@ -1005,7 +1005,7 @@ try {
 
 | Recurso | Limite | Recomendação |
 |---------|--------|--------------|
-| Vector Dimension | ≤ 2048 | 384-768 for text |
+| Vector Dimension | ≤ 2048 | 384-512 for text |
 | Vectors per Collection | ≤ 10M | Sharding for >10M |
 | Payload Size | ≤ 1MB | Compress large payloads |
 | Queries per Second | ≤ 1000 | Implement cache |

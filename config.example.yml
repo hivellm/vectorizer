@@ -195,7 +195,7 @@ persistence:
 collections:
   defaults:
     # Vector settings
-    dimension: 768            # Default vector dimension
+    dimension: 512            # Default vector dimension
     metric: "cosine"          # Default distance metric: cosine/euclidean/dot_product
 
     # Quantization (memory optimization)
@@ -600,7 +600,7 @@ mcp:
           dimension:
             type: "integer"
             description: "Vector dimension"
-            default: 768
+            default: 512
           metric:
             type: "string"
             description: "Distance metric"

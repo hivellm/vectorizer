@@ -161,7 +161,7 @@ async fn test_multiple_collections_workflow() {
     let collections = [
         ("documents", 384, "cosine"),
         ("images", 512, "euclidean"),
-        ("code", 768, "dotproduct"),
+        ("code", 512, "dotproduct"),
     ];
 
     for (name, dimension, metric) in &collections {

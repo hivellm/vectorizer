@@ -512,7 +512,7 @@ mod integration_tests {
             (
                 "large",
                 CollectionConfig {
-                    dimension: 768,
+                    dimension: 512,
                     metric: crate::models::DistanceMetric::Cosine,
                     hnsw_config: crate::models::HnswConfig {
                         m: 32,
@@ -554,8 +554,8 @@ mod integration_tests {
         ];
 
         let large_vectors = vec![
-            Vector::new("large_1".to_string(), vec![0.1; 768]),
-            Vector::new("large_2".to_string(), vec![0.2; 768]),
+            Vector::new("large_1".to_string(), vec![0.1; 512]),
+            Vector::new("large_2".to_string(), vec![0.2; 512]),
         ];
 
         store.insert("small", small_vectors).unwrap();
@@ -568,11 +568,11 @@ mod integration_tests {
         assert_eq!(small_metadata.vector_count, 2);
         assert_eq!(small_metadata.config.dimension, 64);
         assert_eq!(large_metadata.vector_count, 2);
-        assert_eq!(large_metadata.config.dimension, 768);
+        assert_eq!(large_metadata.config.dimension, 512);
 
         // Test search in different collections
         let small_results = store.search("small", &vec![1.5; 64], 2).unwrap();
-        let large_results = store.search("large", &vec![0.15; 768], 2).unwrap();
+        let large_results = store.search("large", &vec![0.15; 512], 2).unwrap();
 
         assert_eq!(small_results.len(), 2);
         assert_eq!(large_results.len(), 2);
