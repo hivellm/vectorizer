@@ -9,8 +9,9 @@ use crate::{
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tracing::{debug, info, warn};
 
-use super::hnsw_index::HnswIndex;
+use super::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
 
 /// A collection of vectors with an associated HNSW index
 #[derive(Clone, Debug)]
@@ -24,7 +25,11 @@ pub struct Collection {
     /// Vector IDs in insertion order (for persistence consistency)
     vector_order: Arc<RwLock<Vec<String>>>,
     /// HNSW index for similarity search
-    index: Arc<RwLock<HnswIndex>>,
+    index: Arc<RwLock<OptimizedHnswIndex>>,
+    /// Embedding type used for this collection
+    embedding_type: Arc<RwLock<String>>,
+    /// Set of unique document IDs (for counting documents)
+    document_ids: Arc<DashMap<String, ()>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -34,7 +39,29 @@ pub struct Collection {
 impl Collection {
     /// Create a new collection
     pub fn new(name: String, config: CollectionConfig) -> Self {
-        let index = HnswIndex::new(config.hnsw_config.clone(), config.metric, config.dimension);
+        Self::new_with_embedding_type(name, config, "bm25".to_string())
+    }
+
+    /// Create a new collection with specific embedding type
+    pub fn new_with_embedding_type(
+        name: String,
+        config: CollectionConfig,
+        embedding_type: String,
+    ) -> Self {
+        // Convert HnswConfig to OptimizedHnswConfig
+        let optimized_config = OptimizedHnswConfig {
+            max_connections: config.hnsw_config.m,
+            max_connections_0: config.hnsw_config.m * 2,
+            ef_construction: config.hnsw_config.ef_construction,
+            seed: config.hnsw_config.seed,
+            distance_metric: config.metric,
+            parallel: true,
+            initial_capacity: 100_000,
+            batch_size: 1000,
+        };
+
+        let index = OptimizedHnswIndex::new(config.dimension, optimized_config)
+            .expect("Failed to create optimized HNSW index");
         let now = chrono::Utc::now();
 
         Self {
@@ -43,6 +70,8 @@ impl Collection {
             vectors: Arc::new(DashMap::new()),
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
+            embedding_type: Arc::new(RwLock::new(embedding_type)),
+            document_ids: Arc::new(DashMap::new()),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
         }
@@ -55,8 +84,19 @@ impl Collection {
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
             vector_count: self.vectors.len(),
+            document_count: self.document_ids.len(),
             config: self.config.clone(),
         }
+    }
+
+    /// Get the embedding type used for this collection
+    pub fn get_embedding_type(&self) -> String {
+        self.embedding_type.read().clone()
+    }
+
+    /// Set the embedding type for this collection
+    pub fn set_embedding_type(&self, embedding_type: String) {
+        *self.embedding_type.write() = embedding_type;
     }
 
     /// Insert a batch of vectors
@@ -72,7 +112,7 @@ impl Collection {
         }
 
         // Insert vectors and update index
-        let mut index = self.index.write();
+        let index = self.index.write();
         let mut vector_order = self.vector_order.write();
         for mut vector in vectors {
             let id = vector.id.clone();
@@ -84,6 +124,15 @@ impl Collection {
                 vector.data = data.clone(); // Update stored vector to normalized version
             }
 
+            // Extract document ID from payload for tracking unique documents
+            if let Some(payload) = &vector.payload {
+                if let Some(file_path) = payload.data.get("file_path") {
+                    if let Some(file_path_str) = file_path.as_str() {
+                        self.document_ids.insert(file_path_str.to_string(), ());
+                    }
+                }
+            }
+
             // Store vector
             self.vectors.insert(id.clone(), vector);
 
@@ -91,7 +140,7 @@ impl Collection {
             vector_order.push(id.clone());
 
             // Add to index
-            index.add(&id, &data)?;
+            index.add(id.clone(), data.clone())?;
         }
 
         // Update timestamp
@@ -133,7 +182,7 @@ impl Collection {
         self.vectors.insert(id.clone(), vector);
 
         // Update index
-        let mut index = self.index.write();
+        let index = self.index.write();
         index.update(&id, &data)?;
 
         // Update timestamp
@@ -154,7 +203,7 @@ impl Collection {
         vector_order.retain(|id| id != vector_id);
 
         // Remove from index
-        let mut index = self.index.write();
+        let index = self.index.write();
         index.remove(vector_id)?;
 
         // Update timestamp
@@ -222,6 +271,141 @@ impl Collection {
         self.vectors.len() * total_per_vector
     }
 
+    /// Fast load from cache without building HNSW index (index built lazily on first search)
+    pub fn load_from_cache(&self, persisted_vectors: Vec<crate::persistence::PersistedVector>) -> Result<()> {
+        use crate::persistence::PersistedVector;
+
+        debug!("Fast loading {} vectors into collection '{}' (lazy index)", persisted_vectors.len(), self.name);
+
+        // Convert persisted vectors to runtime vectors
+        let mut runtime_vectors = Vec::with_capacity(persisted_vectors.len());
+        for pv in persisted_vectors {
+            runtime_vectors.push(pv.into_runtime_with_payload()?);
+        }
+
+        // Use fast load for runtime vectors
+        self.fast_load_vectors(runtime_vectors)?;
+
+        debug!("Fast loaded {} vectors into collection '{}' with HNSW index", self.vectors.len(), self.name);
+        Ok(())
+    }
+
+    pub fn load_from_cache_with_hnsw_dump(&self, persisted_vectors: Vec<crate::persistence::PersistedVector>, hnsw_dump_path: Option<&std::path::Path>, hnsw_basename: Option<&str>) -> Result<()> {
+        use crate::persistence::PersistedVector;
+
+        debug!("Loading {} vectors into collection '{}' from cache", persisted_vectors.len(), self.name);
+
+        // Try to load HNSW index from dump first
+        let hnsw_loaded = if let (Some(path), Some(basename)) = (hnsw_dump_path, hnsw_basename) {
+            match self.load_hnsw_index_from_dump(path, basename) {
+                Ok(_) => {
+                    info!("Successfully loaded HNSW index from dump for collection '{}'", self.name);
+                    true
+                }
+                Err(e) => {
+                    warn!("Failed to load HNSW index from dump for collection '{}': {}, will rebuild", self.name, e);
+                    false
+                }
+            }
+        } else {
+            false
+        };
+
+        // Convert persisted vectors to runtime vectors
+        let mut runtime_vectors = Vec::with_capacity(persisted_vectors.len());
+        for pv in persisted_vectors {
+            runtime_vectors.push(pv.into_runtime_with_payload()?);
+        }
+
+        if hnsw_loaded {
+            // HNSW index already loaded, just load vectors into memory
+            debug!("Loading {} vectors into memory (HNSW index already loaded)", runtime_vectors.len());
+            self.load_vectors_into_memory(runtime_vectors)?;
+        } else {
+            // Build HNSW index from scratch
+            debug!("Building HNSW index from {} vectors", runtime_vectors.len());
+            self.fast_load_vectors(runtime_vectors)?;
+        }
+
+        debug!("Loaded {} vectors into collection '{}' {}", self.vectors.len(), self.name,
+               if hnsw_loaded { "(from dump)" } else { "(rebuilt)" });
+        Ok(())
+    }
+
+    /// Load vectors into memory without building HNSW index (assumes index is already loaded)
+    pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
+        let mut vector_order = self.vector_order.write();
+
+        for vector in vectors {
+            let id = vector.id.clone();
+
+            // Extract document ID from payload for tracking unique documents
+            if let Some(payload) = &vector.payload {
+                if let Some(file_path) = payload.data.get("file_path") {
+                    if let Some(file_path_str) = file_path.as_str() {
+                        self.document_ids.insert(file_path_str.to_string(), ());
+                    }
+                }
+            }
+
+            // Store vector
+            self.vectors.insert(id.clone(), vector);
+
+            // Track insertion order
+            vector_order.push(id.clone());
+        }
+
+        // Update timestamp
+        *self.updated_at.write() = chrono::Utc::now();
+
+        debug!("Loaded {} vectors into memory for collection '{}'", vector_order.len(), self.name);
+        Ok(())
+    }
+
+    /// Fast load vectors with HNSW index building
+    pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
+        debug!("Fast loading {} vectors into collection '{}' with HNSW index", vectors.len(), self.name);
+
+        let mut vector_order = self.vector_order.write();
+        let index = self.index.write();
+
+        // Prepare vectors for batch insertion
+        let mut batch_vectors = Vec::with_capacity(vectors.len());
+
+        for mut vector in vectors {
+            let id = vector.id.clone();
+
+            // Extract document ID from payload for tracking unique documents
+            if let Some(payload) = &vector.payload {
+                if let Some(file_path) = payload.data.get("file_path") {
+                    if let Some(file_path_str) = file_path.as_str() {
+                        self.document_ids.insert(file_path_str.to_string(), ());
+                    }
+                }
+            }
+
+            // Vector is already normalized by into_runtime_with_payload if needed
+
+            // Store vector
+            self.vectors.insert(id.clone(), vector.clone());
+
+            // Add to batch for HNSW index
+            batch_vectors.push((id.clone(), vector.data.clone()));
+
+            // Track insertion order
+            vector_order.push(id.clone());
+        }
+
+        // Batch insert into HNSW index
+        index.batch_add(batch_vectors)?;
+
+        // Update timestamp
+        *self.updated_at.write() = chrono::Utc::now();
+
+        debug!("Fast loaded {} vectors into collection '{}' with HNSW index", vector_order.len(), self.name);
+        Ok(())
+    }
+
     /// Get all vectors in the collection (for persistence)
     /// Returns vectors in insertion order to maintain HNSW index consistency
     pub fn get_all_vectors(&self) -> Vec<Vector> {
@@ -231,6 +415,51 @@ impl Collection {
             .filter_map(|id| self.vectors.get(id))
             .map(|entry| entry.value().clone())
             .collect()
+    }
+
+    /// Dump the HNSW index to files for faster reloading
+    pub fn dump_hnsw_index<P: AsRef<std::path::Path>>(&self, path: P) -> Result<String> {
+        let basename = format!("{}_hnsw", self.name);
+        (*self.index.write()).file_dump(path, &basename)?;
+        Ok(basename)
+    }
+
+    /// Load HNSW index from dump files
+    pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<()> {
+        (*self.index.write()).load_from_dump(path, basename)
+    }
+
+
+    /// Dump HNSW index to cache directory for faster future loading
+    pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(&self, project_path: P) -> Result<()> {
+        use tracing::{debug, info, warn};
+        
+        let cache_dir = project_path.as_ref().join(".vectorizer");
+        if !cache_dir.exists() {
+            std::fs::create_dir_all(&cache_dir)?;
+        }
+
+        let basename = format!("{}_hnsw", self.name);
+        
+        info!("🔍 COLLECTION DUMP DEBUG: Starting HNSW dump for collection '{}'", self.name);
+        info!("🔍 COLLECTION DUMP DEBUG: Cache directory: {}", cache_dir.display());
+        info!("🔍 COLLECTION DUMP DEBUG: Basename: {}", basename);
+        info!("🔍 COLLECTION DUMP DEBUG: Collection has {} vectors, {} documents", 
+              self.vector_count(), self.document_ids.len());
+        
+        // Check if index has vectors
+        let index_len = (*self.index.read()).len();
+        info!("🔍 COLLECTION DUMP DEBUG: Index length: {}", index_len);
+        
+        if index_len == 0 {
+            warn!("⚠️ COLLECTION DUMP WARNING: Index is empty for collection '{}'", self.name);
+            return Err(VectorizerError::IndexError(format!("Index is empty for collection '{}'", self.name)));
+        }
+        
+        debug!("🔍 COLLECTION DUMP DEBUG: Calling index.file_dump...");
+        (*self.index.write()).file_dump(&cache_dir, &basename)?;
+        info!("✅ Successfully dumped HNSW index for collection '{}' to cache", self.name);
+        Ok(())
     }
 }
 

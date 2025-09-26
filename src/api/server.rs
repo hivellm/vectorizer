@@ -2,21 +2,21 @@
 
 use axum::{
     Router,
-    http::{
-        Method,
-        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
-    },
+    response::Json,
+    routing::{delete, get, post},
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
+    services::ServeDir,
     trace::TraceLayer,
 };
 use tracing::info;
 
-use crate::VectorStore;
+use crate::{VectorStore, embedding::EmbeddingManager};
+use std::sync::Arc;
 
 use super::{handlers::AppState, routes::create_router};
 
@@ -30,22 +30,39 @@ pub struct VectorizerServer {
 
 impl VectorizerServer {
     /// Create a new server instance
-    pub fn new(host: &str, port: u16, store: VectorStore) -> Self {
+    pub fn new(
+        host: &str,
+        port: u16,
+        store: Arc<VectorStore>,
+        embedding_manager: EmbeddingManager,
+    ) -> Self {
         let addr = format!("{}:{}", host, port)
             .parse()
             .expect("Invalid host/port combination");
 
-        let state = AppState::new(store);
+        let state = AppState::new(store, embedding_manager);
+
+        Self { addr, state }
+    }
+
+    /// Create a new server instance with existing AppState
+    pub fn new_with_state(host: &str, port: u16, state: AppState) -> Self {
+        let addr = format!("{}:{}", host, port)
+            .parse()
+            .expect("Invalid host/port combination");
 
         Self { addr, state }
     }
 
     /// Start the HTTP server
     pub async fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+        println!("🚀 Starting Vectorizer HTTP server on {}", self.addr);
         info!("Starting Vectorizer HTTP server on {}", self.addr);
 
         // Create the main router
+        println!("🔧 Creating main router...");
         let app = self.create_app();
+        println!("✅ Router created, binding to address...");
 
         // Create TCP listener
         let listener = TcpListener::bind(self.addr).await?;
@@ -59,23 +76,32 @@ impl VectorizerServer {
 
     /// Create the Axum application with all middleware
     pub fn create_app(&self) -> Router {
-        // Create CORS layer
-        let cors = CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-            .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
-
         // Create the main router
         let api_router = create_router(self.state.clone());
 
         // Build the application with middleware
         Router::new()
-            .nest("/api/v1", api_router)
-            .layer(
-                ServiceBuilder::new()
-                    .layer(TraceLayer::new_for_http())
-                    .layer(cors),
+            .route(
+                "/",
+                get(|| async {
+                    axum::response::Redirect::permanent("/static/index.html")
+                }),
             )
+            .route(
+                "/dashboard",
+                get(|| async {
+                    axum::response::Redirect::permanent("/static/index.html")
+                }),
+            )
+            .route(
+                "/test",
+                get(|| async {
+                    info!("Test endpoint called!");
+                    Json(serde_json::json!({"message": "Server test endpoint working!"}))
+                }),
+            )
+            .nest("/api/v1", api_router)
+            .nest_service("/static", ServeDir::new("dashboard/public"))
             .fallback(not_found_handler)
     }
 }

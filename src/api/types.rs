@@ -25,6 +25,25 @@ pub struct CreateCollectionResponse {
     pub collection: String,
 }
 
+/// Indexing status for collections
+#[derive(Debug, Serialize, Clone)]
+pub struct IndexingStatus {
+    /// Current status
+    pub status: String,
+    /// Progress percentage (0-100)
+    pub progress: f32,
+    /// Total documents to process
+    pub total_documents: usize,
+    /// Documents processed so far
+    pub processed_documents: usize,
+    /// Number of vectors in the collection
+    pub vector_count: usize,
+    /// Estimated time remaining (in seconds, if available)
+    pub estimated_time_remaining: Option<u64>,
+    /// Last update timestamp
+    pub last_updated: String,
+}
+
 /// Collection information
 #[derive(Debug, Serialize)]
 pub struct CollectionInfo {
@@ -36,10 +55,14 @@ pub struct CollectionInfo {
     pub metric: DistanceMetric,
     /// Number of vectors
     pub vector_count: usize,
+    /// Number of documents indexed
+    pub document_count: usize,
     /// Creation timestamp
     pub created_at: String,
     /// Last update timestamp
     pub updated_at: String,
+    /// Indexing status
+    pub indexing_status: IndexingStatus,
 }
 
 /// List collections response
@@ -47,6 +70,44 @@ pub struct CollectionInfo {
 pub struct ListCollectionsResponse {
     /// Collections list
     pub collections: Vec<CollectionInfo>,
+}
+
+/// Indexing progress response
+#[derive(Debug, Serialize)]
+pub struct IndexingProgressResponse {
+    /// Overall indexing status
+    pub overall_status: String,
+    /// Collections being indexed
+    pub collections: Vec<IndexingStatus>,
+    /// Start time of indexing process
+    pub started_at: String,
+    /// Estimated completion time
+    pub estimated_completion: Option<String>,
+}
+
+/// Vector information
+#[derive(Debug, Serialize)]
+pub struct VectorResponse {
+    /// Vector ID
+    pub id: String,
+    /// Vector payload (optional)
+    pub payload: Option<serde_json::Value>,
+}
+
+/// List vectors response
+#[derive(Debug, Serialize)]
+pub struct ListVectorsResponse {
+    /// Vectors list
+    pub vectors: Vec<VectorResponse>,
+    /// Total number of vectors
+    pub total: usize,
+    /// Limit used
+    pub limit: usize,
+    /// Offset used
+    pub offset: usize,
+    /// Optional message explaining response behavior
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 /// Request to insert vectors
@@ -88,6 +149,8 @@ pub struct SearchRequest {
     pub limit: Option<usize>,
     /// Minimum score threshold
     pub score_threshold: Option<f32>,
+    /// Filter by file path (optional)
+    pub file_filter: Option<String>,
 }
 
 /// Search request with text (will be embedded automatically)
@@ -99,6 +162,8 @@ pub struct SearchTextRequest {
     pub limit: Option<usize>,
     /// Minimum score threshold
     pub score_threshold: Option<f32>,
+    /// Filter by file path (optional)
+    pub file_filter: Option<String>,
 }
 
 /// Unified search request supporting either vector or text
@@ -129,6 +194,52 @@ pub struct SearchResponse {
     pub results: Vec<SearchResult>,
     /// Query execution time in milliseconds
     pub query_time_ms: f64,
+}
+
+/// Search by file request
+#[derive(Debug, Deserialize)]
+pub struct SearchByFileRequest {
+    /// File path to search for
+    pub file_path: String,
+    /// Number of results to return
+    pub limit: Option<usize>,
+    /// Minimum score threshold
+    pub score_threshold: Option<f32>,
+}
+
+/// List files request
+#[derive(Debug, Deserialize)]
+pub struct ListFilesRequest {
+    /// Number of results to return
+    pub limit: Option<usize>,
+    /// Offset for pagination
+    pub offset: Option<usize>,
+    /// Filter by file extension (optional)
+    pub extension_filter: Option<String>,
+}
+
+/// File information
+#[derive(Debug, Serialize)]
+pub struct FileInfo {
+    /// File path
+    pub file_path: String,
+    /// Number of chunks in this file
+    pub chunk_count: usize,
+    /// File extension
+    pub extension: Option<String>,
+}
+
+/// List files response
+#[derive(Debug, Serialize)]
+pub struct ListFilesResponse {
+    /// Files list
+    pub files: Vec<FileInfo>,
+    /// Total number of files
+    pub total: usize,
+    /// Limit used
+    pub limit: usize,
+    /// Offset used
+    pub offset: usize,
 }
 
 /// Distance metric options
@@ -210,4 +321,36 @@ pub struct HealthResponse {
     pub collections: usize,
     /// Total vectors across all collections
     pub total_vectors: usize,
+}
+
+/// Request to set embedding provider
+#[derive(Debug, Deserialize)]
+pub struct SetEmbeddingProviderRequest {
+    pub provider_name: String,
+}
+
+/// Response for setting embedding provider
+#[derive(Debug, Serialize)]
+pub struct SetEmbeddingProviderResponse {
+    pub success: bool,
+    pub message: String,
+    pub provider_name: String,
+}
+
+/// Response for listing embedding providers
+#[derive(Debug, Serialize)]
+pub struct ListEmbeddingProvidersResponse {
+    pub providers: Vec<String>,
+    pub default_provider: Option<String>,
+}
+
+/// Query parameters for listing vectors
+#[derive(Debug, Deserialize)]
+pub struct ListVectorsQuery {
+    /// Maximum number of vectors to return
+    pub limit: Option<usize>,
+    /// Number of vectors to skip
+    pub offset: Option<usize>,
+    /// Minimum score threshold for filtering vectors (0.0 to 1.0)
+    pub min_score: Option<f32>,
 }

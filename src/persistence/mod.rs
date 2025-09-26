@@ -8,7 +8,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::{debug, error, info, warn};
 
 /// Persisted representation of a vector store
 #[derive(Serialize, Deserialize)]
@@ -28,6 +28,8 @@ pub struct PersistedCollection {
     config: CollectionConfig,
     /// Vectors in the collection
     vectors: Vec<PersistedVector>,
+    /// HNSW index dump basename (if available)
+    hnsw_dump_basename: Option<String>,
 }
 
 /// Persisted representation of a vector with payload serialized as JSON bytes
@@ -37,6 +39,8 @@ pub struct PersistedVector {
     data: Vec<f32>,
     /// Payload serialized as compact JSON bytes to satisfy bincode length requirements
     payload_json: Option<Vec<u8>>,
+    /// Whether the vector data is already normalized for cosine similarity
+    normalized: bool,
 }
 
 impl From<Vector> for PersistedVector {
@@ -49,16 +53,22 @@ impl From<Vector> for PersistedVector {
             .ok()
             .flatten();
 
+        // Check if vector is already normalized (for cosine similarity)
+        let norm_squared: f32 = v.data.iter().map(|x| x * x).sum();
+        let norm = norm_squared.sqrt();
+        let normalized = (norm - 1.0).abs() <= 1e-6;
+
         PersistedVector {
             id: v.id,
             data: v.data,
             payload_json,
+            normalized,
         }
     }
 }
 
 impl PersistedVector {
-    fn into_runtime(self) -> Result<Vector> {
+    pub fn into_runtime(self) -> Result<Vector> {
         let payload = match self.payload_json {
             Some(bytes) => {
                 let value: serde_json::Value = serde_json::from_slice(&bytes)?;
@@ -70,6 +80,37 @@ impl PersistedVector {
         Ok(Vector {
             id: self.id,
             data: self.data,
+            payload,
+        })
+    }
+
+    /// Convert to runtime vector with payload, skipping normalization if already normalized
+    pub fn into_runtime_with_payload(self) -> Result<Vector> {
+        let payload = match self.payload_json {
+            Some(bytes) => {
+                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+                Some(Payload::new(value))
+            }
+            None => None,
+        };
+
+        // If already normalized, use data as-is; otherwise normalize
+        let data = if self.normalized {
+            self.data
+        } else {
+            // Apply normalization for cosine similarity
+            let norm_squared: f32 = self.data.iter().map(|x| x * x).sum();
+            let norm = norm_squared.sqrt();
+            if norm == 0.0 {
+                self.data
+            } else {
+                self.data.iter().map(|x| x / norm).collect()
+            }
+        };
+
+        Ok(Vector {
+            id: self.id,
+            data,
             payload,
         })
     }
@@ -96,10 +137,14 @@ impl VectorStore {
                 .map(PersistedVector::from)
                 .collect();
 
+            // HNSW dump will be done after loading vectors into index, not during save
+            let hnsw_dump_basename = None;
+
             collections.push(PersistedCollection {
                 name: collection_name,
                 config: metadata.config,
                 vectors,
+                hnsw_dump_basename,
             });
         }
 
@@ -142,17 +187,13 @@ impl VectorStore {
         // Create new vector store
         let store = VectorStore::new();
 
-        // Restore collections
+        // Restore collections with fast loading (no HNSW reconstruction)
         for collection in persisted.collections {
-            store.create_collection(&collection.name, collection.config)?;
+            store.create_collection(&collection.name, collection.config.clone())?;
 
             if !collection.vectors.is_empty() {
-                // Reconstruct runtime vectors
-                let mut runtime_vectors = Vec::with_capacity(collection.vectors.len());
-                for pv in collection.vectors {
-                    runtime_vectors.push(pv.into_runtime()?);
-                }
-                store.insert(&collection.name, runtime_vectors)?;
+                // Load vectors from cache (HNSW dump not implemented yet)
+                store.load_collection_from_cache(&collection.name, collection.vectors)?;
             }
         }
 

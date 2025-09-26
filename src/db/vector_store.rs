@@ -157,6 +157,40 @@ impl VectorStore {
         collection.search(query_vector, k)
     }
 
+    /// Load a collection from cache without reconstructing the HNSW index
+    pub fn load_collection_from_cache(&self, collection_name: &str, persisted_vectors: Vec<crate::persistence::PersistedVector>) -> Result<()> {
+        use crate::persistence::PersistedVector;
+
+        debug!("Fast loading collection '{}' from cache with {} vectors", collection_name, persisted_vectors.len());
+
+        let collection = self
+            .collections
+            .get(collection_name)
+            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
+
+        // Fast load: restore vectors and index directly without reconstruction
+        collection.load_from_cache(persisted_vectors)?;
+
+        Ok(())
+    }
+
+    /// Load a collection from cache with optional HNSW dump for instant loading
+    pub fn load_collection_from_cache_with_hnsw_dump(&self, collection_name: &str, persisted_vectors: Vec<crate::persistence::PersistedVector>, hnsw_dump_path: Option<&std::path::Path>, hnsw_basename: Option<&str>) -> Result<()> {
+        use crate::persistence::PersistedVector;
+
+        debug!("Loading collection '{}' from cache with {} vectors (HNSW dump: {})", collection_name, persisted_vectors.len(), hnsw_basename.is_some());
+
+        let collection = self
+            .collections
+            .get(collection_name)
+            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
+
+        // Load with optional HNSW dump for instant index loading
+        collection.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?;
+
+        Ok(())
+    }
+
     /// Get statistics about the vector store
     pub fn stats(&self) -> VectorStoreStats {
         let mut total_vectors = 0;

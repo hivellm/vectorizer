@@ -1,0 +1,2974 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vectorizer Dashboard - Vue 3</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="api-client.js"></script>
+    <style>
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-card: #0a0a0a;
+            --bg-hover: #1f1f1f;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #888888;
+            --primary: #ff6b35;
+            --primary-hover: #ff5722;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --error: #f44336;
+            --border: #333333;
+            --border-light: #444444;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-6: 24px;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        .dashboard {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: var(--space-2) 0;
+        }
+
+        .nav-item {
+            padding: var(--space-2) var(--space-4);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+            font-size: 13px;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--bg-hover);
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .nav-item i {
+            width: 16px;
+            margin-right: var(--space-2);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breadcrumb {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .btn {
+            padding: var(--space-2) var(--space-3);
+            border: none;
+            border-radius: var(--radius-md);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 12px;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status-dot.online {
+            background: var(--success);
+        }
+
+        .content-area {
+            flex: 1;
+            padding: var(--space-4);
+            overflow-y: auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+            padding-bottom: var(--space-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header h3 {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+
+        .stat-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        /* Collections */
+        .collections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .collection-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            transition: var(--transition);
+        }
+
+        .collection-card:hover {
+            border-color: var(--primary);
+        }
+
+        .collection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+        }
+
+        .collection-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .collection-status {
+            font-size: 11px;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .collection-status.cached {
+            background: var(--success);
+            color: white;
+        }
+
+        .collection-status.indexing {
+            background: var(--warning);
+            color: white;
+        }
+
+        .collection-status.processing {
+            background: var(--primary);
+            color: white;
+        }
+
+        .collection-status.pending {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .collection-status.completed {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .collection-stats {
+            margin-bottom: var(--space-3);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-1) 0;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+
+        .stat-value {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 11px;
+        }
+
+        /* Progress Bars */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: var(--space-2) 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: var(--radius-sm);
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: var(--space-1);
+        }
+
+        /* Indexing Section */
+        .indexing-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+
+        .indexing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+        }
+
+        .indexing-header h3 {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .indexing-header .stats {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .overall-progress {
+            margin-bottom: var(--space-4);
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-1);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .progress-percent {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .active-collections {
+            margin-top: var(--space-4);
+        }
+
+        .active-collections h4 {
+            color: var(--text-primary);
+            font-size: 13px;
+            margin-bottom: var(--space-2);
+        }
+
+        .collection-progress-item {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            margin-bottom: var(--space-2);
+        }
+
+        .collection-progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-2);
+        }
+
+        .collection-progress-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .collection-progress-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .collection-progress-status.processing {
+            background: var(--primary);
+            color: white;
+        }
+
+        .collection-progress-status.indexing {
+            background: var(--warning);
+            color: white;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-6);
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+            margin-right: var(--space-2);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Search Page Styles */
+        .search-container {
+            padding: var(--space-6);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .search-header {
+            text-align: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .search-header h2 {
+            color: var(--primary);
+            margin-bottom: var(--space-2);
+            font-size: 2rem;
+        }
+
+        .search-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .search-form {
+            margin-bottom: var(--space-6);
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: var(--space-2);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .collection-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            min-width: 200px;
+            font-size: 0.9rem;
+        }
+
+        .search-input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1rem;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .search-results {
+            margin-top: var(--space-6);
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+            padding-bottom: var(--space-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .search-stats {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+
+        .result-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            transition: var(--transition);
+        }
+
+        .result-item:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+        }
+
+        .result-score {
+            flex-shrink: 0;
+        }
+
+        .score-badge {
+            background: var(--primary);
+            color: white;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .result-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: var(--space-1);
+        }
+
+        .file-path {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .chunk-info {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .result-content {
+            margin-bottom: var(--space-3);
+        }
+
+        .result-content p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .result-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .file-extension {
+            background: var(--bg-tertiary);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: var(--space-6);
+        }
+
+        .no-results-content {
+            color: var(--text-muted);
+        }
+
+        .no-results-content i {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+            color: var(--text-muted);
+        }
+
+        .no-results-content h3 {
+            margin-bottom: var(--space-2);
+            color: var(--text-secondary);
+        }
+
+        .search-help {
+            margin-top: var(--space-6);
+        }
+
+        .help-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+        }
+
+        .help-content h3 {
+            color: var(--primary);
+            margin-bottom: var(--space-3);
+        }
+
+        .help-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .help-content li {
+            padding: var(--space-2) 0;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .help-content li:last-child {
+            border-bottom: none;
+        }
+
+        .help-content li:before {
+            content: "✓";
+            color: var(--success);
+            font-weight: bold;
+            margin-right: var(--space-2);
+        }
+
+        /* Vectors Page Styles */
+        .vectors-page {
+            padding: var(--space-4);
+        }
+
+        .page-header {
+            margin-bottom: var(--space-6);
+        }
+
+        .page-header h1 {
+            color: var(--primary);
+            margin-bottom: var(--space-2);
+            font-size: 1.8rem;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .vectors-controls {
+            display: flex;
+            gap: var(--space-4);
+            align-items: end;
+            margin-bottom: var(--space-6);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+        }
+
+        .form-group label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .form-control {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-md);
+            font-size: 0.9rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .vectors-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .vectors-list-container {
+            min-height: 400px;
+        }
+
+        .vectors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .vector-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            transition: var(--transition);
+        }
+
+        .vector-card:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+
+        .vector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+        }
+
+        .vector-id {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .vector-preview {
+            margin-bottom: var(--space-3);
+        }
+
+        .payload-preview {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .payload-preview strong {
+            color: var(--text-primary);
+        }
+
+        .no-payload {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        .vector-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .vector-dimension {
+            background: var(--bg-tertiary);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+
+        .vector-score {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* Cluster Page Styles */
+        .cluster-page {
+            padding: var(--space-4);
+        }
+
+        .cluster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .cluster-status-card,
+        .node-info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+
+        .status-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .status-badge {
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.status-green {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-details,
+        .node-details {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-1) 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-item .label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .detail-item .value {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Console Page Styles */
+        .console-page {
+            padding: var(--space-4);
+        }
+
+        .console-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+            height: calc(100vh - 200px);
+        }
+
+        .console-form {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+
+        .form-row {
+            display: flex;
+            gap: var(--space-3);
+        }
+
+        .form-group.flex-1 {
+            flex: 1;
+        }
+
+        .code-editor {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            resize: vertical;
+        }
+
+        .console-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .console-output {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+            padding-bottom: var(--space-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .output-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .response-status {
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .response-status.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .response-status.error {
+            background: var(--error);
+            color: white;
+        }
+
+        .response-content {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-6);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            margin-bottom: var(--space-2);
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            margin-bottom: var(--space-4);
+            color: var(--text-muted);
+        }
+
+        /* Collections Page Styles */
+        .collections-page {
+            padding: var(--space-4);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .header-content h1 {
+            color: var(--primary);
+            margin-bottom: var(--space-2);
+            font-size: 1.8rem;
+        }
+
+        .header-content p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .collections-stats {
+            display: flex;
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+            padding: var(--space-4);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stat-item .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-1);
+        }
+
+        .stat-item .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .collection-menu {
+            position: relative;
+        }
+
+        .collection-actions {
+            display: flex;
+            gap: var(--space-2);
+            margin-top: var(--space-3);
+        }
+
+        .btn-sm {
+            padding: var(--space-1) var(--space-2);
+            font-size: 0.8rem;
+        }
+
+        /* Dropdown Menu */
+        .dropdown-menu {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+            min-width: 150px;
+        }
+
+        .dropdown-item {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: var(--space-2);
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: 0.9rem;
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .dropdown-item.danger {
+            color: var(--error);
+        }
+
+        .dropdown-item.danger:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            color: var(--text-primary);
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: var(--space-1);
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: var(--space-4);
+            flex: 1;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-2);
+            padding: var(--space-4);
+            border-top: 1px solid var(--border);
+        }
+
+        .collection-details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+        }
+
+        .detail-section h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--space-3);
+            font-size: 1rem;
+        }
+
+        .detail-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-2) 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-item .label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .detail-item .value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+
+        .loading-spinner {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-3);
+            color: var(--text-primary);
+        }
+
+        .loading-spinner i {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        /* Toast Styles */
+        .toast-container {
+            position: fixed;
+            top: var(--space-4);
+            right: var(--space-4);
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            min-width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast i {
+            font-size: 1.2rem;
+        }
+
+        .toast-success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast-success i {
+            color: var(--success);
+        }
+
+        .toast-error {
+            border-left: 4px solid var(--error);
+        }
+
+        .toast-error i {
+            color: var(--error);
+        }
+
+        .toast-warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .toast-warning i {
+            color: var(--warning);
+        }
+
+        .toast-info {
+            border-left: 4px solid var(--primary);
+        }
+
+        .toast-info i {
+            color: var(--primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .dashboard {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .collections-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .search-input-group {
+                flex-direction: column;
+            }
+            
+            .collection-select {
+                min-width: auto;
+            }
+            
+            .result-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-2);
+            }
+            
+            .result-meta {
+                align-items: flex-start;
+            }
+
+            .console-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .vectors-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cluster-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* Search Page Styles */
+        .search-container {
+            padding: var(--space-6);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .search-header {
+            text-align: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .search-header h2 {
+            color: var(--primary);
+            margin-bottom: var(--space-2);
+            font-size: 2rem;
+        }
+
+        .search-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .search-form {
+            margin-bottom: var(--space-6);
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: var(--space-2);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .collection-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            min-width: 200px;
+            font-size: 0.9rem;
+        }
+
+        .search-input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1rem;
+        }
+
+        .search-btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .search-results {
+            margin-top: var(--space-6);
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+            padding-bottom: var(--space-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .search-stats {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+
+        .result-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            transition: var(--transition);
+        }
+
+        .result-item:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-3);
+        }
+
+        .result-score {
+            flex-shrink: 0;
+        }
+
+        .score-badge {
+            background: var(--primary);
+            color: white;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .result-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: var(--space-1);
+        }
+
+        .file-path {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .chunk-info {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .result-content {
+            margin-bottom: var(--space-3);
+        }
+
+        .result-content p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .result-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .file-extension {
+            background: var(--bg-tertiary);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: var(--space-6);
+        }
+
+        .no-results-content {
+            color: var(--text-muted);
+        }
+
+        .no-results-content i {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+            color: var(--text-muted);
+        }
+
+        .no-results-content h3 {
+            margin-bottom: var(--space-2);
+            color: var(--text-secondary);
+        }
+
+        .search-help {
+            margin-top: var(--space-6);
+        }
+
+        .help-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+        }
+
+        .help-content h3 {
+            color: var(--primary);
+            margin-bottom: var(--space-3);
+        }
+
+        .help-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .help-content li {
+            padding: var(--space-2) 0;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .help-content li:last-child {
+            border-bottom: none;
+        }
+
+        .help-content li:before {
+            content: "✓";
+            color: var(--success);
+            font-weight: bold;
+            margin-right: var(--space-2);
+        }
+
+        @media (max-width: 768px) {
+            .search-input-group {
+                flex-direction: column;
+            }
+            
+            .collection-select {
+                min-width: auto;
+            }
+            
+            .result-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-2);
+            }
+            
+            .result-meta {
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="dashboard">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-database"></i> Vectorizer</h1>
+            </div>
+            <ul class="nav-menu">
+                <li :class="['nav-item', { active: currentPage === 'overview' }]" @click="setPage('overview')">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Overview</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'collections' }]" @click="setPage('collections')">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Collections</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'search' }]" @click="setPage('search')">
+                    <i class="fas fa-search"></i>
+                    <span>Search</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'vectors' }]" @click="setPage('vectors')">
+                    <i class="fas fa-vector-square"></i>
+                    <span>Vectors</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'cluster' }]" @click="setPage('cluster')">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>Cluster Info</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'console' }]" @click="setPage('console')">
+                    <i class="fas fa-terminal"></i>
+                    <span>Console</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="breadcrumb">
+                    <span>{{ pageTitle }}</span>
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn btn-icon" @click="refreshData" :disabled="loading">
+                        <i :class="['fas', loading ? 'fa-spinner fa-spin' : 'fa-sync-alt']"></i>
+                    </button>
+                    <div class="connection-status">
+                        <span :class="['status-dot', { online: connected }]"></span>
+                        <span>{{ connected ? 'Connected' : 'Disconnected' }}</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <!-- Overview Page -->
+                <div v-if="currentPage === 'overview'">
+                    <!-- Stats Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-layer-group"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">{{ collections.length }}</div>
+                                <div class="stat-label">Collections</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-vector-square"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">{{ formatNumber(totalVectors) }}</div>
+                                <div class="stat-label">Total Vectors</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-cube"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">{{ avgDimension }}</div>
+                                <div class="stat-label">Avg Dimension</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-server"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" style="color: var(--success)">Online</div>
+                                <div class="stat-label">Server Status</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Indexing Progress -->
+                    <div class="indexing-section" v-if="indexingProgress && (indexingProgress.processing_collections > 0 || indexingProgress.completed_collections < indexingProgress.total_collections)">
+                        <div class="indexing-header">
+                            <h3><i class="fas fa-sync fa-spin"></i> Indexação em Andamento</h3>
+                            <span class="stats">{{ indexingProgress.completed_collections }}/{{ indexingProgress.total_collections }} completas</span>
+                        </div>
+
+                        <div class="overall-progress">
+                            <div class="progress-label">
+                                <span>Progresso Geral</span>
+                                <span class="progress-percent">{{ Math.round(indexingProgress.overall_progress) }}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" :style="{ width: indexingProgress.overall_progress + '%' }"></div>
+                            </div>
+                        </div>
+
+                        <div class="active-collections" v-if="indexingProgress.collections && indexingProgress.collections.length > 0">
+                            <h4>Collections Ativas:</h4>
+                            <div v-for="collection in indexingProgress.collections.filter(c => c.status === 'processing' || c.status === 'indexing')" :key="collection.name" class="collection-progress-item">
+                                <div class="collection-progress-info">
+                                    <span class="collection-progress-name">{{ collection.name }}</span>
+                                    <span :class="['collection-progress-status', collection.status]">
+                                        {{ formatStatus(collection.status) }}
+                                    </span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" :style="{ width: collection.progress + '%' }"></div>
+                                </div>
+                                <div class="progress-text">{{ Math.round(collection.progress) }}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collections Overview -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-layer-group"></i> Collections Overview</h3>
+                            <button class="btn btn-primary" @click="setPage('collections')">
+                                <i class="fas fa-eye"></i> View All
+                            </button>
+                        </div>
+                        <div class="collections-grid">
+                            <div v-for="collection in collections.slice(0, 6)" :key="collection.name" class="collection-card">
+                                <div class="collection-header">
+                                    <div class="collection-name">
+                                        <i class="fas fa-database"></i>
+                                        <span>{{ collection.name }}</span>
+                                    </div>
+                                    <span :class="['collection-status', getStatusClass(collection.indexing_status.status)]">
+                                        {{ formatStatus(collection.indexing_status.status) }}
+                                    </span>
+                                </div>
+                                <div class="collection-stats">
+                                    <div class="stat-row">
+                                        <span class="stat-label">Vectors:</span>
+                                        <span class="stat-value">{{ formatNumber(collection.vector_count) }}</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Source:</span>
+                                        <span class="stat-value" :style="{ color: collection.indexing_status.status === 'cached' ? 'var(--success)' : 'var(--text-primary)' }">
+                                            {{ collection.indexing_status.status === 'cached' ? 'Cache' : 'Indexed' }}
+                                        </span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Dimension:</span>
+                                        <span class="stat-value">{{ collection.dimension }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+            </div>
+    </div>
+
+                <!-- Collections Page -->
+                <div v-else-if="currentPage === 'collections'">
+                    <div class="collections-page">
+                        <div class="page-header">
+                            <div class="header-content">
+                                <h1><i class="fas fa-layer-group"></i> Collections</h1>
+                                <p>Manage your vector collections</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" @click="showCreateCollectionModal">
+                                    <i class="fas fa-plus"></i> Create Collection
+                                </button>
+        </div>
+    </div>
+
+                        <div class="collections-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">{{ collections.length }}</span>
+                                <span class="stat-label">Collections</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">{{ formatNumber(totalVectors) }}</span>
+                                <span class="stat-label">Total Vectors</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">{{ avgDimension }}</span>
+                                <span class="stat-label">Avg Dimension</span>
+                            </div>
+                        </div>
+
+                        <div v-if="collections.length === 0" class="empty-state">
+                            <i class="fas fa-database"></i>
+                            <h3>No Collections Found</h3>
+                            <p>Create your first collection to start storing vectors</p>
+                            <button class="btn btn-primary" @click="showCreateCollectionModal">
+                                <i class="fas fa-plus"></i> Create Collection
+                            </button>
+                        </div>
+
+                        <div v-else class="collections-grid">
+                            <div v-for="collection in collections" :key="collection.name" class="collection-card">
+                                <div class="collection-header">
+                                    <div class="collection-name">
+                                        <i class="fas fa-database"></i>
+                                        <span>{{ collection.name }}</span>
+                                    </div>
+                                    <div class="collection-menu">
+                                        <button class="btn btn-icon" @click="showCollectionMenu(collection.name, $event)">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="collection-stats">
+                                    <div class="stat-row">
+                                        <span class="stat-label">Vectors:</span>
+                                        <span class="stat-value">{{ formatNumber(collection.vector_count) }}</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Documents:</span>
+                                        <span class="stat-value">{{ formatNumber(collection.document_count || 0) }}</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Source:</span>
+                                        <span class="stat-value" :style="{ color: collection.indexing_status.status === 'cached' ? 'var(--success)' : 'var(--text-primary)' }">
+                                            {{ collection.indexing_status.status === 'cached' ? 'Cache' : 'Indexed' }}
+                                        </span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Dimension:</span>
+                                        <span class="stat-value">{{ collection.dimension }}</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Metric:</span>
+                                        <span class="stat-value">{{ collection.metric }}</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">Status:</span>
+                                        <span :class="['collection-status', getStatusClass(collection.indexing_status.status)]">
+                                            {{ formatStatus(collection.indexing_status.status) }}
+                                        </span>
+                                    </div>
+                                    <div v-if="collection.indexing_status.status === 'processing' || collection.indexing_status.status === 'indexing'" class="stat-row">
+                                        <span class="stat-label">Progress:</span>
+                                        <span class="stat-value">{{ Math.round(collection.indexing_status.progress) }}%</span>
+                                    </div>
+                                </div>
+                                <div v-if="collection.indexing_status.status === 'processing' || collection.indexing_status.status === 'indexing'">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" :style="{ width: collection.indexing_status.progress + '%' }"></div>
+                                    </div>
+                                    <div class="progress-text">{{ Math.round(collection.indexing_status.progress) }}%</div>
+                                </div>
+                                <div class="collection-actions">
+                                    <button class="btn btn-secondary btn-sm" @click="viewCollectionDetails(collection.name)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" @click="browseCollectionVectors(collection.name)">
+                                        <i class="fas fa-vector-square"></i> Browse
+                                    </button>
+                            </div>
+                        </div>
+        </div>
+    </div>
+                    </div>
+
+                <!-- Search Page -->
+                <div v-else-if="currentPage === 'search'">
+                    <div class="search-container">
+                        <div class="search-header">
+                            <h2><i class="fas fa-search"></i> Document Search</h2>
+                            <p>Search across all collections using semantic similarity</p>
+                        </div>
+
+                        <div class="search-form">
+                            <div class="search-input-group">
+                                <select v-model="selectedCollection" class="collection-select">
+                                    <option value="">All Collections</option>
+                                    <option v-for="collection in collections" :key="collection.name" :value="collection.name">
+                                        {{ collection.name }} ({{ formatNumber(collection.vector_count) }} vectors)
+                                    </option>
+                                </select>
+                                <input 
+                                    v-model="searchQuery" 
+                                    type="text" 
+                                    placeholder="Enter your search query..." 
+                                    class="search-input"
+                                    @keyup.enter="performSearch"
+                                >
+                                <button @click="performSearch" :disabled="loading || !searchQuery.trim()" class="search-btn">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="search-results" v-if="searchResults.length > 0">
+                            <div class="results-header">
+                                <h3>Search Results ({{ searchResults.length }})</h3>
+                                <div class="search-stats">
+                                    <span>Search time: {{ searchTime }}ms</span>
+                                </div>
+                            </div>
+
+                            <div class="results-list">
+                                <div v-for="result in searchResults" :key="result.id || result.vector_id" class="result-item">
+                                    <div class="result-header">
+                                        <div class="result-score">
+                                            <span class="score-badge">{{ (result.score * 100).toFixed(1) }}%</span>
+                                        </div>
+                                        <div class="result-meta">
+                                            <span class="file-path">{{ result.metadata?.file_path || result.payload?.file_path || 'Unknown' }}</span>
+                                            <span class="chunk-info">Chunk {{ result.metadata?.chunk_index || result.payload?.chunk_index || 0 }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="result-content">
+                                        <p>{{ result.content || result.payload?.content || JSON.stringify(result.payload) }}</p>
+                                    </div>
+                                    <div class="result-footer">
+                                        <span class="file-extension">{{ result.metadata?.file_extension || result.payload?.file_extension || 'txt' }}</span>
+                                        <span class="chunk-size">{{ result.metadata?.chunk_size || result.payload?.chunk_size || 'N/A' }} chars</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="no-results" v-if="searchPerformed && searchResults.length === 0">
+                            <div class="no-results-content">
+                                <i class="fas fa-search"></i>
+                                <h3>No results found</h3>
+                                <p>Try adjusting your search query or selecting a different collection.</p>
+                            </div>
+                        </div>
+
+                        <div class="search-help" v-if="!searchPerformed">
+                            <div class="help-content">
+                                <h3><i class="fas fa-lightbulb"></i> Search Tips</h3>
+                                <ul>
+                                    <li>Use natural language queries for best results</li>
+                                    <li>Search for concepts, not exact phrases</li>
+                                    <li>Select a specific collection to narrow results</li>
+                                    <li>Results are ranked by semantic similarity</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vectors Page -->
+                <div v-else-if="currentPage === 'vectors'">
+                    <div class="vectors-page">
+                        <div class="page-header">
+                            <h1><i class="fas fa-vector-square"></i> Vector Browser</h1>
+                            <p>Browse and manage vectors in your collections</p>
+                        </div>
+
+                        <div class="vectors-controls">
+                            <div class="form-group">
+                                <label for="vector-collection">Collection</label>
+                                <select v-model="selectedVectorCollection" class="form-control" @change="loadVectorsList">
+                                    <option value="">Select a collection...</option>
+                                    <option v-for="collection in collections" :key="collection.name" :value="collection.name">
+                                        {{ collection.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="vector-min-score">Min Score</label>
+                                <input
+                                    v-model.number="vectorsMinScore"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="1"
+                                    class="form-control"
+                                    @input="updateVectorsFilters"
+                                    placeholder="0.0"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="vector-page-size">Page Size</label>
+                                <select v-model.number="vectorsPageSize" class="form-control" @change="updateVectorsFilters">
+                                    <option :value="10">10</option>
+                                    <option :value="25">25</option>
+                                    <option :value="50">50</option>
+                                </select>
+                            </div>
+                            <div class="vectors-actions">
+                                <button class="btn btn-secondary" @click="loadVectorsList" :disabled="!selectedVectorCollection">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Vectors Info Bar -->
+                        <div v-if="selectedVectorCollection && vectorsTotal > 0" class="vectors-info-bar">
+                            <div class="vectors-stats">
+                                <span class="stat-item">
+                                    <i class="fas fa-database"></i>
+                                    {{ formatNumber(vectorsTotal) }} total vectors
+                                </span>
+                                <span class="stat-item">
+                                    <i class="fas fa-list"></i>
+                                    Showing {{ vectors.length }} of {{ Math.min(vectorsPageSize, vectorsTotal - (vectorsCurrentPage - 1) * vectorsPageSize) }}
+                                </span>
+                                <span class="stat-item">
+                                    <i class="fas fa-filter"></i>
+                                    Min score: {{ vectorsMinScore.toFixed(2) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="vectors-list-container">
+                            <div v-if="!selectedVectorCollection" class="empty-state">
+                                <i class="fas fa-vector-square"></i>
+                                <h3>Select a Collection</h3>
+                                <p>Choose a collection to browse its vectors</p>
+                            </div>
+                            <div v-else-if="vectorsLoading" class="loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Loading vectors...</span>
+                            </div>
+                            <div v-else-if="vectors.length === 0" class="empty-state">
+                                <i class="fas fa-vector-square"></i>
+                                <h3>No Vectors Found</h3>
+                                <p>This collection doesn't have any vectors yet</p>
+                            </div>
+                            <div v-else class="vectors-grid">
+                                <div v-for="vector in vectors" :key="vector.id || vector.vector_id" class="vector-card">
+                                    <div class="vector-header">
+                                        <span class="vector-id">{{ vector.id || vector.vector_id }}</span>
+                                        <button class="btn btn-icon" @click="viewVectorDetails(vector)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="vector-preview">
+                                        <div v-if="vector.payload" class="payload-preview">
+                                            <strong>Content:</strong>
+                                            <span>{{ truncateText(vector.payload.content || JSON.stringify(vector.payload), 150) }}</span>
+                                        </div>
+                                        <span v-else class="no-payload">No payload</span>
+                                    </div>
+                                    <div class="vector-meta">
+                                        <span class="vector-dimension">{{ (vector.vector?.length || vector.dimension || 0) }}D</span>
+                                        <span class="vector-score" v-if="vector.score">Score: {{ vector.score.toFixed(4) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pagination Controls -->
+                            <div v-if="vectorsTotalPages > 1" class="vectors-pagination">
+                                <button
+                                    class="btn btn-sm btn-secondary"
+                                    @click="changeVectorsPage(vectorsCurrentPage - 1)"
+                                    :disabled="vectorsCurrentPage <= 1 || vectorsLoading"
+                                >
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+
+                                <span class="pagination-info">
+                                    Page {{ vectorsCurrentPage }} of {{ vectorsTotalPages }}
+                                </span>
+
+                                <button
+                                    class="btn btn-sm btn-secondary"
+                                    @click="changeVectorsPage(vectorsCurrentPage + 1)"
+                                    :disabled="vectorsCurrentPage >= vectorsTotalPages || vectorsLoading"
+                                >
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cluster Info Page -->
+                <div v-else-if="currentPage === 'cluster'">
+                    <div class="cluster-page">
+                        <div class="page-header">
+                            <h1><i class="fas fa-project-diagram"></i> Cluster Information</h1>
+                            <p>Overview of your Vectorizer cluster</p>
+                        </div>
+
+                        <div class="cluster-grid">
+                            <div class="cluster-status-card">
+                                <div class="status-header">
+                                    <h3>Cluster Status</h3>
+                                    <span class="status-badge status-green">ONLINE</span>
+                                </div>
+                                <div class="status-details">
+                                    <div class="detail-item">
+                                        <span class="label">Nodes:</span>
+                                        <span class="value">1</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Version:</span>
+                                        <span class="value">1.0.0</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Collections:</span>
+                                        <span class="value">{{ collections.length }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Total Vectors:</span>
+                                        <span class="value">{{ formatNumber(totalVectors) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="node-info-card">
+                                <h3>Node Information</h3>
+                                <div class="node-details">
+                                    <div class="detail-item">
+                                        <span class="label">Node ID:</span>
+                                        <span class="value">vectorizer-node-1</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Host:</span>
+                                        <span class="value">127.0.0.1:15001</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Role:</span>
+                                        <span class="value">Master</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Uptime:</span>
+                                        <span class="value">{{ getUptime() }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Console Page -->
+                <div v-else-if="currentPage === 'console'">
+                    <div class="console-page">
+                        <div class="page-header">
+                            <h1><i class="fas fa-terminal"></i> API Console</h1>
+                            <p>Test API endpoints directly from the dashboard</p>
+                        </div>
+
+                        <div class="console-container">
+                            <div class="console-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="console-method">Method</label>
+                                        <select id="console-method" class="form-control">
+                                            <option value="GET">GET</option>
+                                            <option value="POST">POST</option>
+                                            <option value="DELETE">DELETE</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group flex-1">
+                                        <label for="console-endpoint">Endpoint</label>
+                                        <input type="text" id="console-endpoint" class="form-control" placeholder="/collections" value="/collections">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="console-body">Request Body (JSON)</label>
+                                    <textarea id="console-body" class="form-control code-editor" rows="8" placeholder='{\n  "key": "value"\n}'></textarea>
+                                </div>
+
+                                <div class="console-actions">
+                                    <button class="btn btn-primary" @click="executeConsoleRequest">
+                                        <i class="fas fa-play"></i> Execute
+                                    </button>
+                                    <button class="btn btn-secondary" @click="clearConsole">
+                                        <i class="fas fa-trash"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="console-output">
+                                <div class="output-header">
+                                    <h3>Response</h3>
+                                    <span id="response-status" class="response-status"></span>
+                                </div>
+                                <pre id="console-response" class="response-content">Execute a request to see the response...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other Pages Placeholder -->
+                <div v-else class="card">
+                    <div class="card-header">
+                        <h3>{{ pageTitle }}</h3>
+                    </div>
+                    <div class="loading">
+                        <i class="fas fa-cog"></i>
+                        <span>This page is under development</span>
+                        </div>
+                    </div>
+                </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <!-- Modal content will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, onBeforeUnmount, watch } = Vue;
+
+        createApp({
+            setup() {
+                const currentPage = ref('overview');
+                const collections = ref([]);
+                const indexingProgress = ref(null);
+                const loading = ref(false);
+                const connected = ref(true);
+                const refreshInterval = ref(null);
+                const searchQuery = ref("");
+                const selectedCollection = ref("");
+                const searchResults = ref([]);
+                const searchPerformed = ref(false);
+                const searchTime = ref(0);
+                const selectedVectorCollection = ref("");
+                const vectors = ref([]);
+                const vectorsLoading = ref(false);
+                const vectorsCurrentPage = ref(1);
+                const vectorsPageSize = ref(10);
+                const vectorsTotal = ref(0);
+                const vectorsMinScore = ref(0.0);
+
+                const pageTitle = computed(() => {
+                    const titles = {
+                        overview: 'Overview',
+                        collections: 'Collections',
+                        search: 'Search',
+                        vectors: 'Vectors',
+                        cluster: 'Cluster Info',
+                        console: 'Console'
+                    };
+                    return titles[currentPage.value] || currentPage.value;
+                });
+
+                const totalVectors = computed(() => {
+                    return collections.value.reduce((sum, col) => sum + col.vector_count, 0);
+                });
+
+                const avgDimension = computed(() => {
+                    if (collections.value.length === 0) return 0;
+                    return Math.round(collections.value.reduce((sum, col) => sum + col.dimension, 0) / collections.value.length);
+                });
+
+                const vectorsTotalPages = computed(() => {
+                    return Math.ceil(vectorsTotal.value / vectorsPageSize.value);
+                });
+
+                const setPage = (page) => {
+                    currentPage.value = page;
+                    if (page === 'overview' || page === 'collections') {
+                        startIndexingRefresh();
+                    } else {
+                        stopIndexingRefresh();
+                    }
+                };
+
+                const refreshData = async () => {
+                    loading.value = true;
+                    try {
+                        await loadCollections();
+                        await loadIndexingProgress();
+                    } catch (error) {
+                        console.error('Error refreshing data:', error);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadCollections = async () => {
+                    try {
+                        const data = await window.apiClient.listCollections();
+                        collections.value = data.collections || [];
+                    } catch (error) {
+                        console.error('Error loading collections:', error);
+                        collections.value = [];
+                        showToast('Failed to load collections', 'error');
+                    }
+                };
+
+                const loadIndexingProgress = async () => {
+                    try {
+                        const data = await window.apiClient.getIndexingProgress();
+                        indexingProgress.value = data;
+                    } catch (error) {
+                        console.error('Error loading indexing progress:', error);
+                        indexingProgress.value = null;
+                    }
+                };
+                const performSearch = async () => {
+                    if (!searchQuery.value.trim()) return;
+                    
+                    loading.value = true;
+                    searchPerformed.value = true;
+                    const startTime = Date.now();
+                    
+                    try {
+                        const collectionName = selectedCollection.value || collections.value[0]?.name;
+                        if (!collectionName) {
+                            showToast('No collection selected', 'error');
+                            return;
+                        }
+
+                        const searchData = {
+                            query: searchQuery.value,
+                            limit: 10
+                        };
+                        
+                        const data = await window.apiClient.searchVectorsByText(collectionName, searchData);
+                        
+                        // Handle different response formats
+                        if (data.results) {
+                            searchResults.value = data.results;
+                        } else if (Array.isArray(data)) {
+                            searchResults.value = data;
+                        } else {
+                            searchResults.value = [];
+                        }
+                        
+                        searchTime.value = Date.now() - startTime;
+                        
+                        if (searchResults.value.length === 0) {
+                            showToast('No results found', 'info');
+                        } else {
+                            showToast(`Found ${searchResults.value.length} results`, 'success');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Search error:', error);
+                        searchResults.value = [];
+                        searchTime.value = Date.now() - startTime;
+                        showToast(`Search failed: ${error.message}`, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const loadVectorsList = async (page = vectorsCurrentPage.value, pageSize = vectorsPageSize.value, minScore = vectorsMinScore.value) => {
+                    if (!selectedVectorCollection.value) {
+                        vectors.value = [];
+                        vectorsTotal.value = 0;
+                        vectorsCurrentPage.value = 1;
+                        return;
+                    }
+
+                    vectorsLoading.value = true;
+
+                    try {
+                        const offset = (page - 1) * pageSize;
+                        const data = await window.apiClient.listVectors(selectedVectorCollection.value, pageSize, offset, minScore);
+                        vectors.value = data.vectors || [];
+                        vectorsTotal.value = data.total || 0;
+                        vectorsCurrentPage.value = page;
+                    } catch (error) {
+                        console.error('Error loading vectors:', error);
+                        vectors.value = [];
+                        vectorsTotal.value = 0;
+                        showToast('Failed to load vectors', 'error');
+                    } finally {
+                        vectorsLoading.value = false;
+                    }
+                };
+
+                const viewVectorDetails = (vector) => {
+                    // Show vector details in a modal or expand the card
+                    console.log('Viewing vector details:', vector);
+                    // TODO: Implement vector details modal
+                };
+
+                const changeVectorsPage = (page) => {
+                    if (page >= 1 && page <= vectorsTotalPages.value) {
+                        loadVectorsList(page);
+                    }
+                };
+
+                const updateVectorsFilters = () => {
+                    vectorsCurrentPage.value = 1; // Reset to first page when filters change
+                    loadVectorsList();
+                };
+
+                const executeConsoleRequest = async () => {
+                    const method = document.getElementById('console-method').value;
+                    const endpoint = document.getElementById('console-endpoint').value;
+                    const bodyText = document.getElementById('console-body').value.trim();
+                    
+                    const statusEl = document.getElementById('response-status');
+                    const responseEl = document.getElementById('console-response');
+
+                    try {
+                        let responseData;
+                        
+                        if (method === 'GET') {
+                            responseData = await window.apiClient.request(endpoint);
+                        } else if (method === 'POST') {
+                            const body = bodyText ? JSON.parse(bodyText) : {};
+                            responseData = await window.apiClient.request(endpoint, {
+                                method: 'POST',
+                                body: JSON.stringify(body)
+                            });
+                        } else if (method === 'DELETE') {
+                            responseData = await window.apiClient.request(endpoint, {
+                                method: 'DELETE'
+                            });
+                        }
+                        
+                        statusEl.textContent = '200 OK';
+                        statusEl.className = 'response-status success';
+                        responseEl.textContent = JSON.stringify(responseData, null, 2);
+                    } catch (error) {
+                        statusEl.textContent = 'Error';
+                        statusEl.className = 'response-status error';
+                        responseEl.textContent = error.message;
+                    }
+                };
+
+                const clearConsole = () => {
+                    document.getElementById('console-endpoint').value = '/collections';
+                    document.getElementById('console-body').value = '';
+                    document.getElementById('response-status').textContent = '';
+                    document.getElementById('console-response').textContent = 'Execute a request to see the response...';
+                };
+
+                const getUptime = () => {
+                    // Mock uptime
+                    return '2h 34m';
+                };
+
+                const truncateText = (text, maxLength) => {
+                    if (!text) return '';
+                    if (text.length <= maxLength) return text;
+                    return text.substring(0, maxLength) + '...';
+                };
+
+                // Collection Management Functions
+                const showCreateCollectionModal = () => {
+                    const modalContent = `
+                        <div class="modal-header">
+                            <h2><i class="fas fa-plus"></i> Create New Collection</h2>
+                            <button class="modal-close" onclick="closeModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="create-collection-form">
+                                <div class="form-group">
+                                    <label for="collection-name">Collection Name</label>
+                                    <input type="text" id="collection-name" class="form-control" placeholder="my-collection" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="collection-dimension">Vector Dimension</label>
+                                    <select id="collection-dimension" class="form-control" required>
+                                        <option value="384">384 (Default)</option>
+                                        <option value="768">768</option>
+                                        <option value="1536">1536</option>
+                                        <option value="3072">3072</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="collection-metric">Distance Metric</label>
+                                    <select id="collection-metric" class="form-control" required>
+                                        <option value="cosine">Cosine</option>
+                                        <option value="euclidean">Euclidean</option>
+                                        <option value="dot">Dot Product</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="collection-description">Description (Optional)</label>
+                                    <textarea id="collection-description" class="form-control" rows="3" placeholder="Describe what this collection will store..."></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="createCollection()">
+                                <i class="fas fa-plus"></i> Create Collection
+                            </button>
+                        </div>
+                    `;
+                    showModal(modalContent);
+                };
+
+                const showCollectionMenu = (collectionName, event) => {
+                    event.stopPropagation();
+                    const menuContent = `
+                        <div class="dropdown-menu" style="position: absolute; top: 100%; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-2); z-index: 1000;">
+                            <button class="dropdown-item" onclick="viewCollectionDetails('${collectionName}'); hideDropdown()">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                            <button class="dropdown-item" onclick="browseCollectionVectors('${collectionName}'); hideDropdown()">
+                                <i class="fas fa-vector-square"></i> Browse Vectors
+                            </button>
+                            <button class="dropdown-item" onclick="exportCollection('${collectionName}'); hideDropdown()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                            <hr style="margin: var(--space-1) 0; border-color: var(--border);">
+                            <button class="dropdown-item danger" onclick="deleteCollection('${collectionName}'); hideDropdown()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Remove existing dropdowns
+                    document.querySelectorAll('.dropdown-menu').forEach(menu => menu.remove());
+                    
+                    // Add new dropdown
+                    const button = event.target.closest('.btn');
+                    button.style.position = 'relative';
+                    button.insertAdjacentHTML('afterend', menuContent);
+                    
+                    // Close dropdown when clicking outside
+                    setTimeout(() => {
+                        document.addEventListener('click', hideDropdown);
+                    }, 100);
+                };
+
+                const hideDropdown = () => {
+                    document.querySelectorAll('.dropdown-menu').forEach(menu => menu.remove());
+                    document.removeEventListener('click', hideDropdown);
+                };
+
+                const viewCollectionDetails = async (collectionName) => {
+                    try {
+                        // Mock collection details
+                        const collection = collections.value.find(c => c.name === collectionName);
+                        if (!collection) return;
+
+                        const modalContent = `
+                            <div class="modal-header">
+                                <h2><i class="fas fa-database"></i> ${collectionName}</h2>
+                                <button class="modal-close" onclick="closeModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="collection-details-grid">
+                                    <div class="detail-section">
+                                        <h3>Basic Information</h3>
+                                        <div class="detail-list">
+                                            <div class="detail-item">
+                                                <span class="label">Name:</span>
+                                                <span class="value">${collection.name}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Vector Count:</span>
+                                                <span class="value">${formatNumber(collection.vector_count)}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Dimension:</span>
+                                                <span class="value">${collection.dimension}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Distance Metric:</span>
+                                                <span class="value">${collection.metric}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="detail-section">
+                                        <h3>Status Information</h3>
+                                        <div class="detail-list">
+                                            <div class="detail-item">
+                                                <span class="label">Status:</span>
+                                                <span class="value status-${getStatusClass(collection.indexing_status.status)}">${formatStatus(collection.indexing_status.status)}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Progress:</span>
+                                                <span class="value">${Math.round(collection.indexing_status.progress)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-primary" onclick="browseCollectionVectors('${collectionName}'); closeModal()">
+                                    <i class="fas fa-vector-square"></i> Browse Vectors
+                                </button>
+                                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                            </div>
+                        `;
+                        showModal(modalContent);
+                    } catch (error) {
+                        showToast(`Error loading collection details: ${error.message}`, 'error');
+                    }
+                };
+
+                const browseCollectionVectors = (collectionName) => {
+                    setPage('vectors');
+                    selectedVectorCollection.value = collectionName;
+                    loadVectorsList();
+                };
+
+                const createCollection = async () => {
+                    const name = document.getElementById('collection-name').value.trim();
+                    const dimension = parseInt(document.getElementById('collection-dimension').value);
+                    const metric = document.getElementById('collection-metric').value;
+                    const description = document.getElementById('collection-description').value.trim();
+
+                    if (!name) {
+                        showToast('Collection name is required', 'error');
+                        return;
+                    }
+
+                    try {
+                        showToast('Creating collection...', 'info');
+                        
+                        const collectionData = {
+                            name,
+                            dimension,
+                            metric,
+                            description: description || null
+                        };
+
+                        await window.apiClient.createCollection(collectionData);
+                        closeModal();
+                        showToast(`Collection "${name}" created successfully`, 'success');
+                        
+                        // Refresh collections
+                        await refreshData();
+                    } catch (error) {
+                        console.error('Error creating collection:', error);
+                        showToast(`Error creating collection: ${error.message}`, 'error');
+                    }
+                };
+
+                const deleteCollection = async (collectionName) => {
+                    if (!confirm(`Are you sure you want to delete collection "${collectionName}"? This action cannot be undone.`)) {
+                        return;
+                    }
+
+                    try {
+                        showToast('Deleting collection...', 'info');
+                        
+                        await window.apiClient.deleteCollection(collectionName);
+                        
+                        // Remove from collections array
+                        const index = collections.value.findIndex(c => c.name === collectionName);
+                        if (index > -1) {
+                            collections.value.splice(index, 1);
+                        }
+                        
+                        showToast(`Collection "${collectionName}" deleted successfully`, 'success');
+                    } catch (error) {
+                        console.error('Error deleting collection:', error);
+                        showToast(`Error deleting collection: ${error.message}`, 'error');
+                    }
+                };
+
+                const exportCollection = async (collectionName) => {
+                    try {
+                        showToast('Exporting collection...', 'info');
+                        
+                        // Mock export functionality
+                        const collection = collections.value.find(c => c.name === collectionName);
+                        if (collection) {
+                            const exportData = {
+                                name: collection.name,
+                                dimension: collection.dimension,
+                                metric: collection.metric,
+                                vector_count: collection.vector_count,
+                                exported_at: new Date().toISOString()
+                            };
+                            
+                            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${collectionName}-export.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            
+                            showToast(`Collection "${collectionName}" exported successfully`, 'success');
+                        }
+                    } catch (error) {
+                        showToast(`Error exporting collection: ${error.message}`, 'error');
+                    }
+                };
+
+                // Modal Functions
+                const showModal = (content) => {
+                    const overlay = document.getElementById('modal-overlay');
+                    const modal = document.getElementById('modal-content');
+                    
+                    modal.innerHTML = content;
+                    overlay.style.display = 'flex';
+                };
+
+                const closeModal = () => {
+                    const overlay = document.getElementById('modal-overlay');
+                    overlay.style.display = 'none';
+                };
+
+                const showToast = (message, type = 'info') => {
+                    const container = document.getElementById('toast-container');
+                    const toast = document.createElement('div');
+                    toast.className = `toast toast-${type}`;
+                    toast.innerHTML = `
+                        <i class="fas fa-${getToastIcon(type)}"></i>
+                        <span>${message}</span>
+                    `;
+                    
+                    container.appendChild(toast);
+                    
+                    setTimeout(() => toast.classList.add('show'), 100);
+                    setTimeout(() => {
+                        toast.classList.remove('show');
+                        setTimeout(() => container.removeChild(toast), 300);
+                    }, 3000);
+                };
+
+                const getToastIcon = (type) => {
+                    const icons = {
+                        success: 'check-circle',
+                        error: 'exclamation-circle',
+                        warning: 'exclamation-triangle',
+                        info: 'info-circle'
+                    };
+                    return icons[type] || 'info-circle';
+                };
+
+                const startIndexingRefresh = () => {
+                    stopIndexingRefresh();
+                    refreshInterval.value = setInterval(async () => {
+                        if (currentPage.value === 'overview' || currentPage.value === 'collections') {
+                            await loadCollections();
+                            await loadIndexingProgress();
+                        }
+                    }, 2000); // Refresh every 2 seconds
+                };
+
+                const stopIndexingRefresh = () => {
+                    if (refreshInterval.value) {
+                        clearInterval(refreshInterval.value);
+                        refreshInterval.value = null;
+                    }
+                };
+
+                const formatNumber = (num) => {
+                    return new Intl.NumberFormat().format(num);
+                };
+
+                const formatStatus = (status) => {
+                    switch (status) {
+                        case 'completed': return 'Concluído';
+                        case 'processing': return 'Processando';
+                        case 'indexing': return 'Indexando';
+                        case 'pending': return 'Pendente';
+                        case 'failed': return 'Falhou';
+                        case 'cached': return 'Do Cache';
+                        default: return status;
+                    }
+                };
+
+                const getStatusClass = (status) => {
+                    switch (status) {
+                        case 'cached': return 'cached';
+                        case 'processing':
+                        case 'indexing': return 'indexing';
+                        case 'pending': return 'pending';
+                        case 'failed': return 'failed';
+                        default: return 'completed';
+                    }
+                };
+
+                // Watch for indexing progress changes and update collections accordingly
+                watch(indexingProgress, (newProgress) => {
+                    if (newProgress && newProgress.collections) {
+                        // Update the status of collections based on progress
+                        collections.value.forEach(collection => {
+                            const progressInfo = newProgress.collections.find(c => c.name === collection.name);
+                            if (progressInfo) {
+                                collection.indexing_status = progressInfo;
+                            }
+                        });
+                    }
+                });
+
+                onMounted(async () => {
+                    // Test API connection first
+                    const connection = await window.apiClient.testConnection();
+                    if (!connection.connected) {
+                        showToast('API connection failed', 'error');
+                        connected.value = false;
+                    } else {
+                        connected.value = true;
+                    }
+                    
+                    await refreshData();
+                    startIndexingRefresh();
+                });
+
+                onBeforeUnmount(() => {
+                    stopIndexingRefresh();
+                });
+
+                return {
+                    currentPage,
+                    collections,
+                    indexingProgress,
+                    loading,
+                    connected,
+                    pageTitle,
+                    totalVectors,
+                    avgDimension,
+                    setPage,
+                    refreshData,
+                    formatNumber,
+                    formatStatus,
+                    getStatusClass,
+                    searchQuery,
+                    selectedCollection,
+                    searchResults,
+                    searchPerformed,
+                    searchTime,
+                    performSearch,
+                    selectedVectorCollection,
+                    vectors,
+                    vectorsLoading,
+                    vectorsCurrentPage,
+                    vectorsPageSize,
+                    vectorsTotal,
+                    vectorsTotalPages,
+                    loadVectorsList,
+                    viewVectorDetails,
+                    changeVectorsPage,
+                    updateVectorsFilters,
+                    executeConsoleRequest,
+                    clearConsole,
+                    getUptime,
+                    truncateText,
+                    showCreateCollectionModal,
+                    showCollectionMenu,
+                    viewCollectionDetails,
+                    browseCollectionVectors,
+                    createCollection,
+                    deleteCollection,
+                    exportCollection,
+                    showModal,
+                    closeModal,
+                    showToast
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

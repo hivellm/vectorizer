@@ -3,186 +3,147 @@
 //! This binary provides the main Vectorizer server with integrated MCP support
 //! for IDE integration and AI model communication.
 
-use axum::{Router, extract::State, response::Json, routing::get};
-use serde_json::json;
+use clap::Parser;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use vectorizer::{
-    auth::{AuthConfig, AuthManager},
+    api::{
+        VectorizerServer,
+        handlers::{AppState, IndexingProgressState},
+    },
+    cache::CacheConfig,
     db::VectorStore,
-    embedding::EmbeddingManager,
-    mcp::{McpConfig, McpServer},
+    document_loader::{DocumentLoader, LoaderConfig},
 };
 
-/// Application state
-#[derive(Clone)]
-struct AppState {
-    vector_store: Arc<VectorStore>,
-    #[allow(dead_code)]
-    embedding_manager: Arc<RwLock<EmbeddingManager>>,
-    auth_manager: Option<Arc<AuthManager>>,
-    mcp_server: Option<Arc<McpServer>>,
+/// Update indexing progress for a collection
+fn update_indexing_progress(
+    indexing_progress: &IndexingProgressState,
+    collection_name: &str,
+    status: &str,
+    progress: f32,
+    total_documents: usize,
+    processed_documents: usize,
+) {
+    indexing_progress.update(
+        collection_name,
+        status,
+        progress,
+        total_documents,
+        processed_documents,
+    );
 }
 
-/// Health check endpoint
-async fn health_check() -> Json<serde_json::Value> {
-    Json(json!({
-        "status": "healthy",
-        "service": "vectorizer",
-        "version": env!("CARGO_PKG_VERSION"),
-        "timestamp": chrono::Utc::now().to_rfc3339()
-    }))
-}
+#[derive(Parser)]
+#[command(name = "vectorizer-server")]
+#[command(about = "Vectorizer HTTP Server with document loading capabilities")]
+struct Args {
+    /// Host to bind the server to
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
 
-/// Get server status
-async fn get_status(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let collections = state.vector_store.list_collections();
-    let total_collections = collections.len();
+    /// Port to bind the server to
+    #[arg(long, default_value = "15001")]
+    port: u16,
 
-    let mut total_vectors = 0;
-    for collection_name in &collections {
-        if let Ok(metadata) = state.vector_store.get_collection_metadata(collection_name) {
-            total_vectors += metadata.vector_count;
-        }
-    }
+    /// Project directory to load and vectorize (legacy single project mode)
+    #[arg(long)]
+    project: Option<String>,
 
-    Json(json!({
-        "status": "running",
-        "collections": {
-            "count": total_collections,
-            "names": collections
-        },
-        "vectors": {
-            "total": total_vectors
-        },
-        "mcp": {
-            "enabled": state.mcp_server.is_some()
-        },
-        "auth": {
-            "enabled": state.auth_manager.is_some()
-        }
-    }))
-}
+    /// Workspace configuration file path (for multi-project mode)
+    #[arg(long)]
+    workspace: Option<String>,
 
-/// List collections endpoint
-async fn list_collections(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let collections = state.vector_store.list_collections();
-
-    let collection_info: Vec<serde_json::Value> = collections
-        .into_iter()
-        .map(
-            |name| match state.vector_store.get_collection_metadata(&name) {
-                Ok(metadata) => {
-                    json!({
-                        "name": name,
-                        "vector_count": metadata.vector_count,
-                        "dimension": metadata.config.dimension,
-                        "metric": metadata.config.metric
-                    })
-                }
-                Err(_) => {
-                    json!({
-                        "name": name,
-                        "error": "Failed to get metadata"
-                    })
-                }
-            },
-        )
-        .collect();
-
-    Json(json!({
-        "collections": collection_info
-    }))
-}
-
-/// Create application router
-fn create_app(state: AppState) -> Router {
-    Router::new()
-        .route("/health", get(health_check))
-        .route("/status", get(get_status))
-        .route("/collections", get(list_collections))
-        .with_state(state)
+    /// Configuration file path
+    #[arg(long, default_value = "config.yml")]
+    config: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
+    let args = Args::parse();
+
+    // Initialize logging to file (unique per port to avoid conflicts)
+    let log_filename = format!("vectorizer-server-{}.log", args.port);
+    let log_file = match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_filename)
+    {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Failed to open log file {}: {}", log_filename, e);
+            std::process::exit(1);
+        }
+    };
+
     tracing_subscriber::fmt()
         .with_env_filter("vectorizer=info")
+        .with_writer(move || log_file.try_clone().expect("Failed to clone log file"))
         .init();
 
-    info!("Starting Vectorizer Server with MCP integration");
+    info!("Starting Vectorizer Server with dashboard");
 
-    // Initialize vector store
-    let vector_store = Arc::new(VectorStore::new());
-    info!("Vector store initialized");
+    // Create a global vector store for AppState (will be populated by background indexing)
+    let app_vector_store = Arc::new(VectorStore::new());
 
-    // Initialize embedding manager
-    let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
-    info!("Embedding manager initialized");
+    // Create shared indexing progress tracker
+    let indexing_progress = IndexingProgressState::new();
 
-    // Initialize authentication (optional)
-    let auth_config = AuthConfig::default();
-    let auth_manager = if auth_config.enabled {
-        Some(Arc::new(AuthManager::new(auth_config)?))
-    } else {
-        None
-    };
+    // Create app state with indexing progress
+    let mut app_state = AppState::new_with_progress(
+        Arc::clone(&app_vector_store),
+        vectorizer::embedding::EmbeddingManager::new(),
+        indexing_progress.clone(),
+    );
 
-    if auth_manager.is_some() {
-        info!("Authentication enabled");
-    } else {
-        info!("Authentication disabled");
+    // Initialize collections as pending (dashboard will show them immediately)
+    if let Some(workspace_path) = args.workspace.clone() {
+        info!("🔄 Initializing collections for dashboard...");
+
+        // Set environment variable for workspace loading
+        unsafe {
+            std::env::set_var("VECTORIZER_WORKSPACE_INFO", &workspace_path);
+        }
+
+        // Load workspace collections to know what to track
+        let workspace_collections = AppState::load_workspace_collections();
+
+        // Initialize all collections as "pending" so dashboard shows them immediately
+        for collection in &workspace_collections {
+            update_indexing_progress(
+                &indexing_progress,
+                &collection.name,
+                "pending",
+                0.0,
+                0,
+                0,
+            );
+        }
+
+        info!("✅ Dashboard ready with {} collections initialized", workspace_collections.len());
     }
 
-    // Initialize MCP server
-    let mcp_config = McpConfig::default();
-    let mcp_server = if mcp_config.enabled {
-        Some(Arc::new(McpServer::new(
-            mcp_config.clone(),
-            Arc::clone(&vector_store),
-            auth_manager.clone(),
-        )))
-    } else {
-        None
-    };
-
-    if mcp_server.is_some() {
-        info!(
-            "MCP server enabled on {}:{}",
-            mcp_config.host, mcp_config.port
-        );
-    } else {
-        info!("MCP server disabled");
+    // Initialize GRPC client
+    info!("🔗 Initializing GRPC client for communication with vzr...");
+    if let Err(e) = app_state.init_grpc_client().await {
+        warn!("⚠️ Failed to initialize GRPC client: {}. Server will use local store only.", e);
     }
-
-    // Create application state
-    let app_state = AppState {
-        vector_store,
-        embedding_manager,
-        auth_manager,
-        mcp_server,
-    };
-
-    // Start MCP server if enabled
-    if let Some(mcp_server) = &app_state.mcp_server {
-        let mcp_server_clone = Arc::clone(mcp_server);
-        tokio::spawn(async move {
-            if let Err(e) = mcp_server_clone.start().await {
-                error!("Failed to start MCP server: {}", e);
-            }
-        });
-    }
-
-    // Create router
-    let app = create_app(app_state);
 
     // Start HTTP server
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:15001").await?;
-    info!("HTTP server listening on http://127.0.0.1:15001");
+    info!(
+        "🚀 Starting Vectorizer HTTP server on {}:{}...",
+        args.host, args.port
+    );
+    let server = VectorizerServer::new_with_state(&args.host, args.port, app_state);
 
-    axum::serve(listener, app).await?;
+    // No background indexing here - vzr handles that and replicates status to servers
+
+    // Start server
+    info!("🎯 Vectorizer server ready - dashboard accessible immediately");
+    server.start().await?;
 
     Ok(())
 }

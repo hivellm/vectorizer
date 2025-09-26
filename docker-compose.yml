@@ -6,31 +6,32 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "15001:15001"  # REST API
-      - "15002:15002"  # WebSocket API
-      - "15003:15003"  # MCP Server
+      - "15001:15001"  # REST API (GRPC client)
+      - "15002:15002"  # MCP Server (GRPC client)
+      - "15003:15003"  # vzr Orchestrator (GRPC server)
     volumes:
       - ./data:/app/data
-      - ./config.docker.yml:/app/config.yml
+      - ./config/vectorize-workspace.yml:/app/vectorize-workspace.yml
+      - ./config/config.docker.yml:/app/config.yml
     environment:
       - RUST_LOG=info
       - RUST_BACKTRACE=1
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:15001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:15001/api/v1/health", "&&", "curl", "-f", "http://localhost:15002/health", "&&", "curl", "-f", "http://localhost:15003/health"]
       interval: 30s
       timeout: 15s
       retries: 5
-      start_period: 10s
+      start_period: 30s
 
   vectorizer-dev:
     build:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "15001:15001"
-      - "15002:15002"
-      - "15003:15003"
+      - "15001:15001"  # REST API (GRPC client)
+      - "15002:15002"  # MCP Server (GRPC client)
+      - "15003:15003"  # vzr Orchestrator (GRPC server)
     volumes:
       - .:/app
       - cargo-cache:/usr/local/cargo/registry

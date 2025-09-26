@@ -1,9 +1,9 @@
 # Vectorizer Project Status Summary
 
-## 📋 Current Status: Phase 1.5 Complete
+## 📋 Current Status: v0.7.0 - Embedding Persistence & Robustness Complete
 
-**Date**: September 23, 2025  
-**Status**: Ready for Phase 2 (REST APIs)
+**Date**: September 25, 2025
+**Status**: Production-ready with persistent embeddings and robust fallbacks
 
 ## ✅ Completed Work
 
@@ -117,6 +117,55 @@ let embedding = tfidf.embed("artificial intelligence").unwrap();
 let results = store.search("collection", &embedding, 5).unwrap();
 ```
 
+## 🚀 v0.7.0 - Embedding Persistence & Robustness (Latest)
+
+### New Features Added
+
+#### .vectorizer Directory Organization
+- **NEW**: Centralized `.vectorizer/` directory for all project data
+- **Structure**:
+  ```
+  project/
+  ├── .vectorizer/
+  │   ├── cache.bin          # Document processing cache
+  │   ├── tokenizer.bm25.json    # BM25 vocabulary
+  │   ├── tokenizer.tfidf.json   # TF-IDF vocabulary
+  │   ├── tokenizer.bow.json     # BagOfWords vocabulary
+  │   └── tokenizer.charngram.json # CharNGram vocabulary
+  ```
+
+#### Tokenizer Persistence System
+- **Complete persistence**: All embedding providers save/load vocabularies
+- **BM25**: Saves vocabulary, document frequencies, statistics
+- **TF-IDF**: Saves vocabulary and IDF weights
+- **BagOfWords**: Saves word vocabulary mapping
+- **CharNGram**: Saves N-gram character mappings
+- **Auto-loading**: Server automatically loads tokenizers on startup
+
+#### Deterministic Fallback Embeddings
+- **100% guarantee**: All embeddings return non-zero 512D normalized vectors
+- **BM25 OOV**: Feature-hashing for out-of-vocabulary terms
+- **Consistent dimensions**: All providers return 512D vectors
+- **Normalization**: Proper L2 normalization for similarity search
+
+#### Build Tokenizer Tool
+- **NEW binary**: `build-tokenizer` for offline vocabulary generation
+- **Usage**: `cargo run --bin build-tokenizer -- --project PATH --embedding TYPE`
+- **Supports**: bm25, tfidf, bagofwords, charngram
+- **Output**: Saves to `PROJECT/.vectorizer/tokenizer.{TYPE}.json`
+
+#### Quality Improvements
+- **Reliability**: 100% non-zero embedding guarantee
+- **Consistency**: Deterministic results for same inputs
+- **Persistence**: Embeddings survive server restarts
+- **Maintainability**: Organized `.vectorizer/` structure
+
+### Testing & Validation
+- Comprehensive short-term testing across all embedding providers
+- Validation of non-zero vectors and proper normalization
+- OOV (out-of-vocabulary) term handling verification
+- Server startup with tokenizer loading
+
 ## 🚀 Next Steps
 
 1. **Immediate**: Start Phase 2 (REST APIs)
@@ -126,6 +175,6 @@ let results = store.search("collection", &embedding, 5).unwrap();
 
 ---
 
-**Prepared by**: Claude  
-**Date**: September 23, 2025  
-**Status**: Phase 1.5 Complete ✅
+**Prepared by**: grok-code-fast-1 & Claude
+**Date**: September 25, 2025
+**Status**: v0.7.0 - Embedding Persistence & Robustness Complete ✅

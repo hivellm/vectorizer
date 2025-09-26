@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vectorizer Dashboard Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .test-button {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #ff5722;
+        }
+        .test-result {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { border-left: 4px solid #4caf50; }
+        .error { border-left: 4px solid #f44336; }
+        .info { border-left: 4px solid #2196f3; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Vectorizer Dashboard - API Test</h1>
+        
+        <div class="test-section">
+            <h2>API Connection Test</h2>
+            <button class="test-button" onclick="testConnection()">Test Connection</button>
+            <div id="connection-result" class="test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Collections Test</h2>
+            <button class="test-button" onclick="testCollections()">List Collections</button>
+            <button class="test-button" onclick="testCreateCollection()">Create Test Collection</button>
+            <div id="collections-result" class="test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Search Test</h2>
+            <button class="test-button" onclick="testSearch()">Test Search</button>
+            <div id="search-result" class="test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Vectors Test</h2>
+            <button class="test-button" onclick="testVectors()">List Vectors</button>
+            <div id="vectors-result" class="test-result"></div>
+        </div>
+    </div>
+
+    <script src="api-client.js"></script>
+    <script>
+        function showResult(elementId, data, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(data, null, 2);
+            element.className = `test-result ${type}`;
+        }
+
+        async function testConnection() {
+            try {
+                const result = await window.apiClient.testConnection();
+                showResult('connection-result', result, result.connected ? 'success' : 'error');
+            } catch (error) {
+                showResult('connection-result', { error: error.message }, 'error');
+            }
+        }
+
+        async function testCollections() {
+            try {
+                const result = await window.apiClient.listCollections();
+                showResult('collections-result', result, 'success');
+            } catch (error) {
+                showResult('collections-result', { error: error.message }, 'error');
+            }
+        }
+
+        async function testCreateCollection() {
+            try {
+                const testCollection = {
+                    name: 'test-collection-' + Date.now(),
+                    dimension: 384,
+                    metric: 'cosine'
+                };
+                const result = await window.apiClient.createCollection(testCollection);
+                showResult('collections-result', result, 'success');
+            } catch (error) {
+                showResult('collections-result', { error: error.message }, 'error');
+            }
+        }
+
+        async function testSearch() {
+            try {
+                // First get collections
+                const collections = await window.apiClient.listCollections();
+                if (collections.collections && collections.collections.length > 0) {
+                    const collectionName = collections.collections[0].name;
+                    const searchData = {
+                        query: 'test search',
+                        limit: 5
+                    };
+                    const result = await window.apiClient.searchVectorsByText(collectionName, searchData);
+                    showResult('search-result', result, 'success');
+                } else {
+                    showResult('search-result', { message: 'No collections available for search test' }, 'info');
+                }
+            } catch (error) {
+                showResult('search-result', { error: error.message }, 'error');
+            }
+        }
+
+        async function testVectors() {
+            try {
+                // First get collections
+                const collections = await window.apiClient.listCollections();
+                if (collections.collections && collections.collections.length > 0) {
+                    const collectionName = collections.collections[0].name;
+                    const result = await window.apiClient.listVectors(collectionName, 10, 0);
+                    showResult('vectors-result', result, 'success');
+                } else {
+                    showResult('vectors-result', { message: 'No collections available for vectors test' }, 'info');
+                }
+            } catch (error) {
+                showResult('vectors-result', { error: error.message }, 'error');
+            }
+        }
+
+        // Auto-test connection on load
+        window.addEventListener('load', () => {
+            testConnection();
+        });
+    </script>
+</body>
+</html>
+

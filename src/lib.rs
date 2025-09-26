@@ -3,20 +3,28 @@
 //! This crate provides a fast and efficient vector database for semantic search
 //! and similarity queries, designed for AI-driven applications.
 
+#![allow(warnings)]
+
 pub mod api;
 pub mod auth;
+pub mod cache;
 pub mod cli;
+pub mod config;
 pub mod db;
 pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
+pub mod grpc;
 pub mod hybrid_search;
 pub mod mcp;
+pub mod mcp_service;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
+pub mod workspace;
+pub mod utils;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};

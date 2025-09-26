@@ -93,6 +93,7 @@ impl Default for McpConfig {
                     .to_string(),
             },
             tools: vec![
+                // Core vector operations
                 McpTool {
                     name: "search_vectors".to_string(),
                     description: "Search for similar vectors in a collection".to_string(),
@@ -135,6 +136,188 @@ impl Default for McpConfig {
                             "text": {"type": "string", "description": "Text to embed"}
                         },
                         "required": ["text"]
+                    }),
+                },
+                // Collection management
+                McpTool {
+                    name: "create_collection".to_string(),
+                    description: "Create a new collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"},
+                            "dimension": {"type": "integer", "description": "Vector dimension", "default": 384},
+                            "metric": {"type": "string", "description": "Distance metric", "default": "cosine"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_collection".to_string(),
+                    description: "Delete a collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                // Vector operations
+                McpTool {
+                    name: "insert_vectors".to_string(),
+                    description: "Insert vectors into a collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vectors": {
+                                "type": "array",
+                                "description": "Array of vectors to insert",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string", "description": "Vector ID"},
+                                        "data": {"type": "array", "description": "Vector data", "items": {"type": "number"}},
+                                        "payload": {"type": "object", "description": "Optional metadata"}
+                                    },
+                                    "required": ["id", "data"]
+                                }
+                            }
+                        },
+                        "required": ["collection", "vectors"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_vectors".to_string(),
+                    description: "Delete vectors from a collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_ids": {"type": "array", "description": "Array of vector IDs to delete", "items": {"type": "string"}}
+                        },
+                        "required": ["collection", "vector_ids"]
+                    }),
+                },
+                McpTool {
+                    name: "get_vector".to_string(),
+                    description: "Get a specific vector by ID".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_id": {"type": "string", "description": "Vector ID"}
+                        },
+                        "required": ["collection", "vector_id"]
+                    }),
+                },
+                McpTool {
+                    name: "get_database_stats".to_string(),
+                    description: "Get database statistics".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {}
+                    }),
+                },
+                // GRPC-specific tools
+                McpTool {
+                    name: "create_collection_grpc".to_string(),
+                    description: "Create a new collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"},
+                            "dimension": {"type": "integer", "description": "Vector dimension", "default": 384},
+                            "metric": {"type": "string", "description": "Distance metric", "default": "cosine"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_collection_grpc".to_string(),
+                    description: "Delete a collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                McpTool {
+                    name: "insert_vectors_grpc".to_string(),
+                    description: "Insert vectors into a collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vectors": {
+                                "type": "array",
+                                "description": "Array of vectors to insert",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string", "description": "Vector ID"},
+                                        "data": {"type": "array", "description": "Vector data", "items": {"type": "number"}},
+                                        "metadata": {"type": "object", "description": "Optional metadata"}
+                                    },
+                                    "required": ["id", "data"]
+                                }
+                            }
+                        },
+                        "required": ["collection", "vectors"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_vectors_grpc".to_string(),
+                    description: "Delete vectors from a collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_ids": {"type": "array", "description": "Array of vector IDs to delete", "items": {"type": "string"}}
+                        },
+                        "required": ["collection", "vector_ids"]
+                    }),
+                },
+                McpTool {
+                    name: "get_vector_grpc".to_string(),
+                    description: "Get a specific vector by ID via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_id": {"type": "string", "description": "Vector ID"}
+                        },
+                        "required": ["collection", "vector_id"]
+                    }),
+                },
+                McpTool {
+                    name: "get_collection_info_grpc".to_string(),
+                    description: "Get information about a specific collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"}
+                        },
+                        "required": ["collection"]
+                    }),
+                },
+                McpTool {
+                    name: "get_indexing_progress_grpc".to_string(),
+                    description: "Get indexing progress via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {}
+                    }),
+                },
+                McpTool {
+                    name: "health_check_grpc".to_string(),
+                    description: "Check GRPC service health".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {}
                     }),
                 },
             ],
@@ -298,6 +481,7 @@ impl McpServerState {
                     .to_string(),
             },
             tools: vec![
+                // Core vector operations
                 McpTool {
                     name: "search_vectors".to_string(),
                     description: "Search for similar vectors in a collection".to_string(),
@@ -340,6 +524,188 @@ impl McpServerState {
                             "text": {"type": "string", "description": "Text to embed"}
                         },
                         "required": ["text"]
+                    }),
+                },
+                // Collection management
+                McpTool {
+                    name: "create_collection".to_string(),
+                    description: "Create a new collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"},
+                            "dimension": {"type": "integer", "description": "Vector dimension", "default": 384},
+                            "metric": {"type": "string", "description": "Distance metric", "default": "cosine"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_collection".to_string(),
+                    description: "Delete a collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                // Vector operations
+                McpTool {
+                    name: "insert_vectors".to_string(),
+                    description: "Insert vectors into a collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vectors": {
+                                "type": "array",
+                                "description": "Array of vectors to insert",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string", "description": "Vector ID"},
+                                        "data": {"type": "array", "description": "Vector data", "items": {"type": "number"}},
+                                        "payload": {"type": "object", "description": "Optional metadata"}
+                                    },
+                                    "required": ["id", "data"]
+                                }
+                            }
+                        },
+                        "required": ["collection", "vectors"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_vectors".to_string(),
+                    description: "Delete vectors from a collection".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_ids": {"type": "array", "description": "Array of vector IDs to delete", "items": {"type": "string"}}
+                        },
+                        "required": ["collection", "vector_ids"]
+                    }),
+                },
+                McpTool {
+                    name: "get_vector".to_string(),
+                    description: "Get a specific vector by ID".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_id": {"type": "string", "description": "Vector ID"}
+                        },
+                        "required": ["collection", "vector_id"]
+                    }),
+                },
+                McpTool {
+                    name: "get_database_stats".to_string(),
+                    description: "Get database statistics".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {}
+                    }),
+                },
+                // GRPC-specific tools
+                McpTool {
+                    name: "create_collection_grpc".to_string(),
+                    description: "Create a new collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"},
+                            "dimension": {"type": "integer", "description": "Vector dimension", "default": 384},
+                            "metric": {"type": "string", "description": "Distance metric", "default": "cosine"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_collection_grpc".to_string(),
+                    description: "Delete a collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Collection name"}
+                        },
+                        "required": ["name"]
+                    }),
+                },
+                McpTool {
+                    name: "insert_vectors_grpc".to_string(),
+                    description: "Insert vectors into a collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vectors": {
+                                "type": "array",
+                                "description": "Array of vectors to insert",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string", "description": "Vector ID"},
+                                        "data": {"type": "array", "description": "Vector data", "items": {"type": "number"}},
+                                        "metadata": {"type": "object", "description": "Optional metadata"}
+                                    },
+                                    "required": ["id", "data"]
+                                }
+                            }
+                        },
+                        "required": ["collection", "vectors"]
+                    }),
+                },
+                McpTool {
+                    name: "delete_vectors_grpc".to_string(),
+                    description: "Delete vectors from a collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_ids": {"type": "array", "description": "Array of vector IDs to delete", "items": {"type": "string"}}
+                        },
+                        "required": ["collection", "vector_ids"]
+                    }),
+                },
+                McpTool {
+                    name: "get_vector_grpc".to_string(),
+                    description: "Get a specific vector by ID via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_id": {"type": "string", "description": "Vector ID"}
+                        },
+                        "required": ["collection", "vector_id"]
+                    }),
+                },
+                McpTool {
+                    name: "get_collection_info_grpc".to_string(),
+                    description: "Get information about a specific collection via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"}
+                        },
+                        "required": ["collection"]
+                    }),
+                },
+                McpTool {
+                    name: "get_indexing_progress_grpc".to_string(),
+                    description: "Get indexing progress via GRPC".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {}
+                    }),
+                },
+                McpTool {
+                    name: "health_check_grpc".to_string(),
+                    description: "Check GRPC service health".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {}
                     }),
                 },
             ],
