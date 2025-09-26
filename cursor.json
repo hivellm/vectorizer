@@ -1,0 +1,7 @@
+{
+    "mcp": {
+      "preferredServers": ["hive-vectorizer"],
+      "defaultUsage": "use with repo context"
+    }
+  }
+  
