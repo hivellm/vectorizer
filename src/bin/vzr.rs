@@ -1046,7 +1046,33 @@ async fn run_interactive_workspace(
 
     // Initialize GRPC server components
     let grpc_vector_store = Arc::new(VectorStore::new());
-    let grpc_embedding_manager = Arc::new(Mutex::new(EmbeddingManager::new()));
+    let grpc_embedding_manager = Arc::new(Mutex::new({
+        let mut manager = EmbeddingManager::new();
+        
+        // Register all embedding providers
+        use vectorizer::embedding::{
+            TfIdfEmbedding, Bm25Embedding, SvdEmbedding, 
+            BertEmbedding, MiniLmEmbedding, BagOfWordsEmbedding, CharNGramEmbedding
+        };
+        
+        let tfidf = TfIdfEmbedding::new(512);
+        let bm25 = Bm25Embedding::new(512);
+        let svd = SvdEmbedding::new(512, 512);
+        let bert = BertEmbedding::new(512);
+        let minilm = MiniLmEmbedding::new(512);
+        let bow = BagOfWordsEmbedding::new(512);
+        let char_ngram = CharNGramEmbedding::new(512, 3);
+        
+        manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager.register_provider("svd".to_string(), Box::new(svd));
+        manager.register_provider("bert".to_string(), Box::new(bert));
+        manager.register_provider("minilm".to_string(), Box::new(minilm));
+        manager.register_provider("bagofwords".to_string(), Box::new(bow));
+        manager.register_provider("charngram".to_string(), Box::new(char_ngram));
+        
+        manager
+    }));
     let grpc_indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
     
     // Start GRPC server

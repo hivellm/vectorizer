@@ -1,90 +1,124 @@
-[2m2025-09-25T21:49:25.858887Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:49:25.858982Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:49:25.861353Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:49:25.861406Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:49:25.861619Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:49:25.867007Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:49:25.867061Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
-[2m2025-09-25T21:52:03.345909Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:52:03.345990Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:52:03.347985Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:52:03.348025Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:52:03.348233Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:52:03.348245Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:52:03.348254Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
-[2m2025-09-25T21:53:25.291333Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:53:25.291485Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:53:25.291876Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:15003
-[2m2025-09-25T21:53:25.292424Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 127.0.0.1:15003
-[2m2025-09-25T21:53:25.292520Z[0m [34mDEBUG[0m [2mh2::client[0m[2m:[0m binding client connection
-[2m2025-09-25T21:53:25.292589Z[0m [34mDEBUG[0m [2mh2::client[0m[2m:[0m client connection bound
-[2m2025-09-25T21:53:25.292660Z[0m [34mDEBUG[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mSettings { flags: (0x0), enable_push: 0, initial_window_size: 2097152, max_frame_size: 16384, max_header_list_size: 16384 }
-[2m2025-09-25T21:53:25.293209Z[0m [34mDEBUG[0m [2mtower::buffer::worker[0m[2m:[0m [3mservice.ready[0m[2m=[0mtrue processing request
-[2m2025-09-25T21:53:25.293211Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mSettings { flags: (0x0), initial_window_size: 1048576, max_frame_size: 16384, max_header_list_size: 16384 }
-[2m2025-09-25T21:53:25.293337Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mSettings { flags: (0x1: ACK) }
-[2m2025-09-25T21:53:25.293515Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mWindowUpdate { stream_id: StreamId(0), size_increment: 983041 }
-[2m2025-09-25T21:53:25.293624Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mWindowUpdate { stream_id: StreamId(0), size_increment: 5177345 }
-[2m2025-09-25T21:53:25.293737Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mHeaders { stream_id: StreamId(1), flags: (0x4: END_HEADERS) }
-[2m2025-09-25T21:53:25.293814Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mData { stream_id: StreamId(1) }
-[2m2025-09-25T21:53:25.293845Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mData { stream_id: StreamId(1), flags: (0x1: END_STREAM) }
-[2m2025-09-25T21:53:25.294451Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mSettings { flags: (0x1: ACK) }
-[2m2025-09-25T21:53:25.294484Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::proto::settings[0m[2m:[0m received settings ACK; applying Settings { flags: (0x0), enable_push: 0, initial_window_size: 2097152, max_frame_size: 16384, max_header_list_size: 16384 }
-[2m2025-09-25T21:53:25.295005Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mHeaders { stream_id: StreamId(1), flags: (0x4: END_HEADERS) }
-[2m2025-09-25T21:53:25.295071Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mData { stream_id: StreamId(1) }
-[2m2025-09-25T21:53:25.295147Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mHeaders { stream_id: StreamId(1), flags: (0x5: END_HEADERS | END_STREAM) }
-[2m2025-09-25T21:53:25.295351Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:53:25.295401Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:53:25.295445Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mGoAway { error_code: NO_ERROR, last_stream_id: StreamId(0) }
-[2m2025-09-25T21:53:25.295487Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::proto::connection[0m[2m:[0m Connection::poll; connection error [3merror[0m[2m=[0mGoAway(b"", NO_ERROR, Library)
-[2m2025-09-25T21:53:25.295678Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:53:25.295696Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:53:25.295707Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
-[2m2025-09-25T21:54:49.197681Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:54:49.197749Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:54:49.199807Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:54:49.199850Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:54:49.200111Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:54:49.200137Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:54:49.200218Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
-[2m2025-09-25T21:56:08.825413Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:56:08.825474Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:56:08.827647Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:56:08.827719Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:56:08.828009Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:56:08.828026Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:56:08.828038Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
-[2m2025-09-25T21:57:30.375190Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:57:30.375264Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:57:30.375486Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connecting to 127.0.0.1:15003
-[2m2025-09-25T21:57:30.375904Z[0m [34mDEBUG[0m [2mhyper_util::client::legacy::connect::http[0m[2m:[0m connected to 127.0.0.1:15003
-[2m2025-09-25T21:57:30.376004Z[0m [34mDEBUG[0m [2mh2::client[0m[2m:[0m binding client connection
-[2m2025-09-25T21:57:30.376050Z[0m [34mDEBUG[0m [2mh2::client[0m[2m:[0m client connection bound
-[2m2025-09-25T21:57:30.376099Z[0m [34mDEBUG[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mSettings { flags: (0x0), enable_push: 0, initial_window_size: 2097152, max_frame_size: 16384, max_header_list_size: 16384 }
-[2m2025-09-25T21:57:30.376369Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mWindowUpdate { stream_id: StreamId(0), size_increment: 5177345 }
-[2m2025-09-25T21:57:30.376434Z[0m [34mDEBUG[0m [2mtower::buffer::worker[0m[2m:[0m [3mservice.ready[0m[2m=[0mtrue processing request
-[2m2025-09-25T21:57:30.376654Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mHeaders { stream_id: StreamId(1), flags: (0x4: END_HEADERS) }
-[2m2025-09-25T21:57:30.376725Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mData { stream_id: StreamId(1) }
-[2m2025-09-25T21:57:30.376744Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mData { stream_id: StreamId(1), flags: (0x1: END_STREAM) }
-[2m2025-09-25T21:57:30.377489Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mSettings { flags: (0x0), initial_window_size: 1048576, max_frame_size: 16384, max_header_list_size: 16384 }
-[2m2025-09-25T21:57:30.377521Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mSettings { flags: (0x1: ACK) }
-[2m2025-09-25T21:57:30.377782Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mSettings { flags: (0x1: ACK) }
-[2m2025-09-25T21:57:30.377811Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::proto::settings[0m[2m:[0m received settings ACK; applying Settings { flags: (0x0), enable_push: 0, initial_window_size: 2097152, max_frame_size: 16384, max_header_list_size: 16384 }
-[2m2025-09-25T21:57:30.377885Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mWindowUpdate { stream_id: StreamId(0), size_increment: 983041 }
-[2m2025-09-25T21:57:30.378141Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mHeaders { stream_id: StreamId(1), flags: (0x4: END_HEADERS) }
-[2m2025-09-25T21:57:30.378192Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mData { stream_id: StreamId(1) }
-[2m2025-09-25T21:57:30.378244Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_read[0m[2m:[0m received [3mframe[0m[2m=[0mHeaders { stream_id: StreamId(1), flags: (0x5: END_HEADERS | END_STREAM) }
-[2m2025-09-25T21:57:30.378403Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:57:30.378437Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:57:30.378459Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::codec::framed_write[0m[2m:[0m send [3mframe[0m[2m=[0mGoAway { error_code: NO_ERROR, last_stream_id: StreamId(0) }
-[2m2025-09-25T21:57:30.378491Z[0m [34mDEBUG[0m [1mConnection[0m[1m{[0m[3mpeer[0m[2m=[0mClient[1m}[0m[2m:[0m [2mh2::proto::connection[0m[2m:[0m Connection::poll; connection error [3merror[0m[2m=[0mGoAway(b"", NO_ERROR, Library)
-[2m2025-09-25T21:57:30.378690Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:57:30.378710Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:57:30.378720Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
-[2m2025-09-25T21:57:42.838087Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
-[2m2025-09-25T21:57:53.664384Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
-[2m2025-09-25T21:57:53.664471Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:57:53.666398Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
-[2m2025-09-25T21:57:53.666430Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
-[2m2025-09-25T21:57:53.666628Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
-[2m2025-09-25T21:57:53.666640Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
-[2m2025-09-25T21:57:53.666648Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:11:19.816336Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:11:19.816459Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:11:19.818388Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T04:11:19.818434Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:11:19.818642Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:11:19.819003Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:11:19.819027Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:14:25.619361Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T04:21:51.861346Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:21:51.861407Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:21:51.863304Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T04:21:51.863338Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:21:51.863529Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:21:51.863541Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:21:51.863549Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:29:44.802461Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:29:44.802524Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:29:44.804544Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T04:29:44.804582Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:29:44.804779Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:29:44.804791Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:29:44.804800Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:31:01.851595Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T04:31:01.851699Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received cancellation signal
+[2m2025-09-26T04:37:11.633116Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:37:11.633202Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:37:11.633720Z[0m [31mERROR[0m [2mvectorizer_mcp_server[0m[2m:[0m ❌ Failed to connect to GRPC server: transport error
+[2m2025-09-26T04:37:11.633740Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 💡 Make sure the vzr GRPC server is running on http://127.0.0.1:15003
+[2m2025-09-26T04:37:11.633765Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:37:11.633979Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:37:11.634030Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:37:11.634040Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:37:14.675481Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:37:14.675536Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:37:14.677190Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T04:37:14.677227Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:37:14.677415Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:37:14.677428Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:37:14.677436Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:37:28.610573Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T04:37:28.610685Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received cancellation signal
+[2m2025-09-26T04:48:57.299151Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:48:57.299210Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:48:57.301423Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T04:48:57.301470Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:48:57.301723Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:48:57.301743Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:48:57.301753Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:51:31.932270Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T04:51:31.932403Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received cancellation signal
+[2m2025-09-26T04:59:14.156951Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T04:59:14.157010Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:59:14.158936Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T04:59:14.158973Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T04:59:14.159169Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T04:59:14.159182Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T04:59:14.159191Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T04:59:35.479918Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T04:59:35.480887Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received cancellation signal
+[2m2025-09-26T05:12:25.365256Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:12:25.365359Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:12:25.367377Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:12:25.367409Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:12:25.367600Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:12:25.367615Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:12:25.367624Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:16:58.683885Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:16:58.683941Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:16:58.685653Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:16:58.685689Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:16:58.685894Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:16:58.685908Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:16:58.685918Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:17:12.295226Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T05:30:29.066882Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:30:29.066943Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:30:29.068785Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:30:29.068823Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:30:29.069019Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:30:29.069031Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:30:29.069040Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:30:37.676686Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Received Ctrl+C, shutting down...
+[2m2025-09-26T05:34:29.488732Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:34:29.488790Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:34:29.490440Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:34:29.490473Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:34:29.490683Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:34:29.490695Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:34:29.490705Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:36:18.132271Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:36:18.132387Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:36:18.137194Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:36:18.137233Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:36:18.137440Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:36:18.137453Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:36:18.137462Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:39:53.208866Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:39:53.208929Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:39:53.210517Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:39:53.210551Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:39:53.210745Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:39:53.210757Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:39:53.210768Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:47:26.723967Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:47:26.724023Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:47:26.725682Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:47:26.725720Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:47:26.725918Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:47:26.725930Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:47:26.725939Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:48:40.756051Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:48:40.756105Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:48:40.757913Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:48:40.757951Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:48:40.758134Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:48:40.758145Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:48:40.758154Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse
+[2m2025-09-26T05:51:18.391053Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server started - acting as GRPC client
+[2m2025-09-26T05:51:18.391121Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Connecting to GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:51:18.392740Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m ✅ Successfully connected to GRPC server: healthy
+[2m2025-09-26T05:51:18.392779Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m Starting MCP server on 127.0.0.1:15002
+[2m2025-09-26T05:51:18.392979Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🚀 MCP server running on 127.0.0.1:15002
+[2m2025-09-26T05:51:18.392992Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 📡 Using GRPC server at: http://127.0.0.1:15003
+[2m2025-09-26T05:51:18.393001Z[0m [32m INFO[0m [2mvectorizer_mcp_server[0m[2m:[0m 🔗 Connect your MCP client to: http://127.0.0.1:15002/sse

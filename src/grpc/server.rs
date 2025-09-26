@@ -70,11 +70,50 @@ impl VectorizerService for VectorizerGrpcService {
         let total_found = results.len();
         let grpc_results: Vec<SearchResult> = results
             .into_iter()
-            .map(|result| SearchResult {
-                id: result.id,
-                content: "".to_string(), // TODO: Extract content from payload
-                score: result.score,
-                metadata: std::collections::HashMap::new(), // TODO: Extract metadata from payload
+            .map(|result| {
+                let mut content = String::new();
+                let mut metadata = std::collections::HashMap::new();
+                
+                // Extract content and metadata from payload
+                if let Some(payload) = result.payload {
+                    // Extract content from payload
+                    if let Some(content_value) = payload.data.get("content") {
+                        if let Some(content_str) = content_value.as_str() {
+                            content = content_str.to_string();
+                        }
+                    }
+                    
+                    // Extract metadata from payload
+                    if let Some(metadata_value) = payload.data.get("metadata") {
+                        if let Some(metadata_obj) = metadata_value.as_object() {
+                            for (key, value) in metadata_obj {
+                                if let Some(str_value) = value.as_str() {
+                                    metadata.insert(key.clone(), str_value.to_string());
+                                } else {
+                                    metadata.insert(key.clone(), value.to_string());
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Also extract other fields as metadata
+                    for (key, value) in payload.data.as_object().unwrap_or(&serde_json::Map::new()) {
+                        if key != "content" && key != "metadata" {
+                            if let Some(str_value) = value.as_str() {
+                                metadata.insert(key.clone(), str_value.to_string());
+                            } else {
+                                metadata.insert(key.clone(), value.to_string());
+                            }
+                        }
+                    }
+                }
+                
+                SearchResult {
+                    id: result.id,
+                    content,
+                    score: result.score,
+                    metadata,
+                }
             })
             .collect();
 

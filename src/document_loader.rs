@@ -471,15 +471,20 @@ impl DocumentLoader {
         let vector_store_path = vectorizer_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
         
         if let Some(collection) = store.get_collection(&self.config.collection_name).ok() {
+            // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
+            info!("⚠️ HNSW dump temporarily disabled for collection '{}' due to library issues", self.config.collection_name);
+            
+            // SEGUNDO: Criar sub_store e salvar vetores
             let sub_store = VectorStore::new();
             let meta = collection.metadata();
             sub_store.create_collection(&self.config.collection_name, meta.config.clone()).unwrap();
             sub_store.insert(&self.config.collection_name, collection.get_all_vectors()).unwrap();
 
+            info!("🔄 Starting save of collection '{}' to '{}'", self.config.collection_name, vector_store_path.display());
             if let Err(e) = sub_store.save(&vector_store_path) {
-                 warn!("Failed to save collection vector store to '{}': {}", vector_store_path.display(), e);
+                 error!("❌ Failed to save collection vector store to '{}': {}", vector_store_path.display(), e);
             } else {
-                 info!("Successfully saved collection vector store to '{}'", vector_store_path.display());
+                 info!("✅ Successfully saved collection vector store to '{}'", vector_store_path.display());
             }
         }
 
@@ -495,6 +500,8 @@ impl DocumentLoader {
         if let Err(e) = self.save_metadata(project_path, &metadata) {
             warn!("Failed to save metadata: {}", e);
         }
+
+        // Note: HNSW dump is now done BEFORE sub_store creation (above)
         
         Ok((vector_count, false))
     }
@@ -520,13 +527,54 @@ impl DocumentLoader {
         println!("📊 Getting all vectors...");
         let vectors = src_collection.get_all_vectors();
         let vector_count = vectors.len();
-        println!("📊 Found {} vectors, fast loading into app store...", vector_count);
-        
-        // Fast load: insert vectors without rebuilding HNSW index
+
+        // Fast load: try to load HNSW dump first, fallback to rebuilding index
         let app_collection = app_store.get_collection(collection_name)?;
-        app_collection.fast_load_vectors(vectors)?;
-        println!("✅ Successfully loaded {} vectors from cache (fast mode)", vector_count);
-        
+
+        // Try to load HNSW dump first
+        let hnsw_loaded = if let Some(project_path) = path.parent().and_then(|p| p.parent()) {
+            let cache_dir = project_path.join(".vectorizer");
+            let basename = format!("{}_hnsw", collection_name);
+
+            // Check if dump files exist
+            let graph_file = cache_dir.join(format!("{}.hnsw.graph", basename));
+            let data_file = cache_dir.join(format!("{}.hnsw.data", basename));
+
+            if graph_file.exists() && data_file.exists() {
+                println!("🎯 Found HNSW dump files, attempting to load...");
+                match app_collection.load_hnsw_index_from_dump(&cache_dir, &basename) {
+                    Ok(_) => {
+                        println!("✅ Successfully loaded HNSW index from dump");
+                        // Load vectors into memory without rebuilding index
+                        app_collection.load_vectors_into_memory(vectors.clone())?;
+                        println!("✅ Successfully loaded {} vectors into memory (dump mode)", vector_count);
+                        true
+                    }
+                    Err(e) => {
+                        println!("❌ Failed to load HNSW dump: {}, falling back to rebuild", e);
+                        false
+                    }
+                }
+            } else {
+                println!("📝 No HNSW dump files found, rebuilding index...");
+                false
+            }
+        } else {
+            println!("📝 No project path available, rebuilding index...");
+            false
+        };
+
+        // If HNSW dump loading failed, rebuild the index
+        if !hnsw_loaded {
+            println!("🔄 Rebuilding HNSW index from {} vectors...", vector_count);
+            app_collection.fast_load_vectors(vectors)?;
+            println!("✅ Successfully loaded {} vectors from cache (rebuild mode)", vector_count);
+
+            // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
+            info!("⚠️ HNSW dump temporarily disabled for collection '{}' due to library issues", collection_name);
+        }
+
+
         // Try to load metadata if it exists
         if let Some(project_path) = path.parent().and_then(|p| p.parent()) {
             if let Ok(Some(metadata)) = self.load_metadata(project_path.to_str().unwrap()) {
