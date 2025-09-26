@@ -418,3 +418,212 @@
 [2025-09-26 05:51:11.633 UTC] INFO: Started unified MCP server (PID:12088, Port:15002)
 [2025-09-26 05:51:11.634 UTC] INFO: Started unified REST API server (PID:12089, Port:15001)
 [2025-09-26 05:51:11.634 UTC] INFO: Unified servers started successfully
+[2025-09-26 06:57:38.885 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 06:57:38.892 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 06:57:38.892 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 06:57:38.892 UTC] INFO: Config: config.yml
+[2025-09-26 06:57:38.892 UTC] INFO: Workspace mode: true
+[2025-09-26 06:57:38.892 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 06:57:38.893 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 06:57:38.894 UTC] INFO: Loaded 7 projects
+[2025-09-26 06:57:38.897 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 06:57:38.902 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 06:57:38.903 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 06:57:38.903 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 06:57:38.906 UTC] INFO: Started unified MCP server (PID:14688, Port:15002)
+[2025-09-26 06:57:38.908 UTC] INFO: Started unified REST API server (PID:14689, Port:15001)
+[2025-09-26 06:57:38.908 UTC] INFO: Unified servers started successfully
+[2025-09-26 06:59:23.284 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 06:59:23.290 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:01:11.308 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:01:11.315 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:01:11.315 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 07:01:11.316 UTC] INFO: Config: config.yml
+[2025-09-26 07:01:11.316 UTC] INFO: Workspace mode: true
+[2025-09-26 07:01:11.316 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 07:01:11.317 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 07:01:11.317 UTC] INFO: Loaded 7 projects
+[2025-09-26 07:01:11.320 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:01:11.327 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:01:11.327 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 07:01:11.327 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 07:01:11.329 UTC] INFO: Started unified MCP server (PID:15882, Port:15002)
+[2025-09-26 07:01:11.331 UTC] INFO: Started unified REST API server (PID:15883, Port:15001)
+[2025-09-26 07:01:11.331 UTC] INFO: Unified servers started successfully
+[2025-09-26 07:03:39.918 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:03:39.925 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:03:46.515 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:03:46.521 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:03:46.521 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 07:03:46.522 UTC] INFO: Config: config.yml
+[2025-09-26 07:03:46.522 UTC] INFO: Workspace mode: true
+[2025-09-26 07:03:46.522 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 07:03:46.523 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 07:03:46.523 UTC] INFO: Loaded 7 projects
+[2025-09-26 07:03:46.527 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:03:46.533 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:03:46.533 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 07:03:46.534 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 07:03:46.537 UTC] INFO: Started unified MCP server (PID:16306, Port:15002)
+[2025-09-26 07:03:46.538 UTC] INFO: Started unified REST API server (PID:16308, Port:15001)
+[2025-09-26 07:03:46.538 UTC] INFO: Unified servers started successfully
+[2025-09-26 07:04:10.867 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:04:10.875 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:04:10.875 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 07:04:10.875 UTC] INFO: Config: config.yml
+[2025-09-26 07:04:10.875 UTC] INFO: Workspace mode: true
+[2025-09-26 07:04:10.875 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 07:04:10.877 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 07:04:10.877 UTC] INFO: Loaded 7 projects
+[2025-09-26 07:04:10.881 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:04:10.887 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:04:10.887 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 07:04:10.887 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 07:04:10.890 UTC] INFO: Started unified MCP server (PID:17303, Port:15002)
+[2025-09-26 07:04:10.892 UTC] INFO: Started unified REST API server (PID:17304, Port:15001)
+[2025-09-26 07:04:10.892 UTC] INFO: Unified servers started successfully
+[2025-09-26 07:08:52.365 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:08:52.372 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:08:59.572 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:08:59.578 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:08:59.578 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 07:08:59.578 UTC] INFO: Config: config.yml
+[2025-09-26 07:08:59.578 UTC] INFO: Workspace mode: true
+[2025-09-26 07:08:59.578 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 07:08:59.580 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 07:08:59.580 UTC] INFO: Loaded 7 projects
+[2025-09-26 07:08:59.584 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:08:59.590 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:08:59.590 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 07:08:59.591 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 07:08:59.593 UTC] INFO: Started unified MCP server (PID:17792, Port:15002)
+[2025-09-26 07:08:59.595 UTC] INFO: Started unified REST API server (PID:17793, Port:15001)
+[2025-09-26 07:08:59.595 UTC] INFO: Unified servers started successfully
+[2025-09-26 07:11:32.873 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:11:32.879 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:14:03.953 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:14:03.961 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:14:05.993 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:14:05.998 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:14:05.999 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 07:14:05.999 UTC] INFO: Config: config.yml
+[2025-09-26 07:14:05.999 UTC] INFO: Workspace mode: true
+[2025-09-26 07:14:05.999 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 07:14:06.000 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 07:14:06.000 UTC] INFO: Loaded 7 projects
+[2025-09-26 07:14:06.004 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:14:06.009 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:14:06.010 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 07:14:06.010 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 07:14:06.013 UTC] INFO: Started unified MCP server (PID:19306, Port:15002)
+[2025-09-26 07:14:06.014 UTC] INFO: Started unified REST API server (PID:19307, Port:15001)
+[2025-09-26 07:14:06.014 UTC] INFO: Unified servers started successfully
+[2025-09-26 07:16:35.469 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:16:35.477 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:16:37.521 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:16:37.527 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:16:37.528 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 07:16:37.528 UTC] INFO: Config: config.yml
+[2025-09-26 07:16:37.528 UTC] INFO: Workspace mode: true
+[2025-09-26 07:16:37.528 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 07:16:37.529 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 07:16:37.529 UTC] INFO: Loaded 7 projects
+[2025-09-26 07:16:37.533 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 07:16:37.539 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 07:16:37.539 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 07:16:37.539 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 07:16:37.542 UTC] INFO: Started unified MCP server (PID:20532, Port:15002)
+[2025-09-26 07:16:37.544 UTC] INFO: Started unified REST API server (PID:20533, Port:15001)
+[2025-09-26 07:16:37.544 UTC] INFO: Unified servers started successfully
+[2025-09-26 13:45:07.224 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 13:45:07.233 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 13:45:07.233 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 13:45:07.233 UTC] INFO: Config: config.yml
+[2025-09-26 13:45:07.233 UTC] INFO: Workspace mode: true
+[2025-09-26 13:45:07.234 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 13:45:07.236 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 13:45:07.237 UTC] INFO: Loaded 7 projects
+[2025-09-26 13:45:07.240 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 13:45:07.247 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 13:45:07.247 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 13:45:07.248 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 13:45:07.252 UTC] INFO: Started unified MCP server (PID:22185, Port:15002)
+[2025-09-26 13:45:07.253 UTC] INFO: Started unified REST API server (PID:22186, Port:15001)
+[2025-09-26 13:45:07.253 UTC] INFO: Unified servers started successfully
+[2025-09-26 13:47:22.601 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 13:47:22.608 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 13:47:24.640 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 13:47:24.647 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 13:47:24.647 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 13:47:24.647 UTC] INFO: Config: config.yml
+[2025-09-26 13:47:24.647 UTC] INFO: Workspace mode: true
+[2025-09-26 13:47:24.647 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 13:47:24.648 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 13:47:24.649 UTC] INFO: Loaded 7 projects
+[2025-09-26 13:47:24.652 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 13:47:24.658 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 13:47:24.658 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 13:47:24.658 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 13:47:24.661 UTC] INFO: Started unified MCP server (PID:23426, Port:15002)
+[2025-09-26 13:47:24.663 UTC] INFO: Started unified REST API server (PID:23427, Port:15001)
+[2025-09-26 13:47:24.663 UTC] INFO: Unified servers started successfully
+[2025-09-26 14:11:49.137 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:11:49.146 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:11:49.146 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 14:11:49.146 UTC] INFO: Config: config.yml
+[2025-09-26 14:11:49.146 UTC] INFO: Workspace mode: true
+[2025-09-26 14:11:49.147 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 14:11:49.148 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 14:11:49.148 UTC] INFO: Loaded 7 projects
+[2025-09-26 14:11:49.152 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:11:49.158 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:11:49.158 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 14:11:49.158 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 14:11:49.161 UTC] INFO: Started unified MCP server (PID:25018, Port:15002)
+[2025-09-26 14:11:49.163 UTC] INFO: Started unified REST API server (PID:25019, Port:15001)
+[2025-09-26 14:11:49.163 UTC] INFO: Unified servers started successfully
+[2025-09-26 14:13:59.793 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:13:59.801 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:13:59.801 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 14:13:59.801 UTC] INFO: Config: config.yml
+[2025-09-26 14:13:59.801 UTC] INFO: Workspace mode: true
+[2025-09-26 14:13:59.801 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 14:13:59.802 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 14:13:59.802 UTC] INFO: Loaded 7 projects
+[2025-09-26 14:13:59.807 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:13:59.813 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:13:59.813 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 14:13:59.813 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 14:13:59.816 UTC] INFO: Started unified MCP server (PID:26015, Port:15002)
+[2025-09-26 14:13:59.817 UTC] INFO: Started unified REST API server (PID:26016, Port:15001)
+[2025-09-26 14:13:59.818 UTC] INFO: Unified servers started successfully
+[2025-09-26 14:21:15.714 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:21:15.723 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:21:15.723 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 14:21:15.723 UTC] INFO: Config: config.yml
+[2025-09-26 14:21:15.723 UTC] INFO: Workspace mode: true
+[2025-09-26 14:21:15.723 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 14:21:15.726 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 14:21:15.726 UTC] INFO: Loaded 7 projects
+[2025-09-26 14:21:15.730 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:21:15.738 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:21:15.738 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 14:21:15.739 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 14:21:15.742 UTC] INFO: Started unified MCP server (PID:27819, Port:15002)
+[2025-09-26 14:21:15.743 UTC] INFO: Started unified REST API server (PID:27820, Port:15001)
+[2025-09-26 14:21:15.743 UTC] INFO: Unified servers started successfully
+[2025-09-26 14:22:06.709 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:22:06.718 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:22:06.718 UTC] INFO: Starting Vectorizer Servers
+[2025-09-26 14:22:06.718 UTC] INFO: Config: config.yml
+[2025-09-26 14:22:06.718 UTC] INFO: Workspace mode: true
+[2025-09-26 14:22:06.719 UTC] INFO: Loading workspace from: vectorize-workspace.yml
+[2025-09-26 14:22:06.722 UTC] INFO: Workspace configuration loaded successfully
+[2025-09-26 14:22:06.722 UTC] INFO: Loaded 7 projects
+[2025-09-26 14:22:06.727 UTC] INFO: Checking for existing vectorizer processes...
+[2025-09-26 14:22:06.735 UTC] INFO: No existing vectorizer processes found
+[2025-09-26 14:22:06.735 UTC] INFO: Starting unified server for workspace with 7 projects
+[2025-09-26 14:22:06.736 UTC] INFO: Created unified workspace config at: /tmp/vectorizer-workspace-full.json
+[2025-09-26 14:22:06.739 UTC] INFO: Started unified MCP server (PID:29718, Port:15002)
+[2025-09-26 14:22:06.741 UTC] INFO: Started unified REST API server (PID:29719, Port:15001)
+[2025-09-26 14:22:06.741 UTC] INFO: Unified servers started successfully
