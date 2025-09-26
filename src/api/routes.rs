@@ -78,12 +78,5 @@ pub fn create_router(state: AppState) -> Router {
         // Embedding provider management
         .route("/embedding/providers", get(list_embedding_providers))
         .route("/embedding/providers/set", post(set_embedding_provider))
-        // MCP endpoints (Model Context Protocol)
-        .route("/mcp", get(mcp_sse))
-        .route("/mcp", post(mcp_http_tools_call))
-        .route("/mcp/initialize", post(mcp_initialize))
-        .route("/mcp/tools/list", get(mcp_tools_list))
-        .route("/mcp/tools/call", post(mcp_tools_call))
-        .route("/mcp/ping", get(mcp_ping))
         .with_state(state)
 }

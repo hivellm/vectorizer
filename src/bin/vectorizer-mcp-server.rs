@@ -6,6 +6,8 @@ use vectorizer::grpc::client::VectorizerGrpcClient;
 use vectorizer::config::GrpcConfig;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
+use axum::Router;
+use std::net::SocketAddr;
 
 
 fn get_bind_address() -> String {
@@ -67,6 +69,16 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let bind_address = get_bind_address();
+    let addr: SocketAddr = bind_address.parse()?;
+
+    tracing::info!("🚀 Starting MCP server on {}", bind_address);
+    tracing::info!("📡 Using GRPC server at: {}", grpc_server_url);
+    tracing::info!("🔗 Connect your MCP client to: http://{}/sse", bind_address);
+
+    // Create the VectorizerService that will make GRPC calls to vzr
+    let service = VectorizerService::new(grpc_server_url.clone());
+
+    // Create SSE server config
     let ct = CancellationToken::new();
     let config = SseServerConfig {
         bind: bind_address.parse()?,
@@ -76,46 +88,28 @@ async fn main() -> anyhow::Result<()> {
         sse_keep_alive: Some(Duration::from_secs(30)),
     };
 
-    tracing::info!("Starting MCP server on {}", bind_address);
+    // Create the SSE server and get the router
+    let (sse_server, router) = SseServer::new(config);
 
-    let (server, _router) = SseServer::new(config);
+    // Configure the service and get the axum router
+    let _ct = sse_server.with_service(move || service.clone());
 
-    // Handle Ctrl+C
-    let ct_clone = ct.clone();
-    tokio::spawn(async move {
+    // Use the router from rmcp with axum
+    let app = router;
+
+    // Start the axum server
+    let server = axum::serve(
+        tokio::net::TcpListener::bind(&addr).await?,
+        app.into_make_service(),
+    )
+    .with_graceful_shutdown(async {
         tokio::signal::ctrl_c().await.unwrap();
-        tracing::info!("Received Ctrl+C, shutting down...");
-        ct_clone.cancel();
+        tracing::info!("Received shutdown signal");
     });
 
-    tracing::info!("🚀 MCP server running on {}", bind_address);
-    tracing::info!("📡 Using GRPC server at: {}", grpc_server_url);
-    tracing::info!("🔗 Connect your MCP client to: http://{}/sse", bind_address);
+    tracing::info!("✅ MCP server ready on {}", bind_address);
 
-    // Create the VectorizerService that will make GRPC calls to vzr
-    let service = VectorizerService::new(grpc_server_url.clone());
-    
-    // Start the server with the service
-    let server_handle = tokio::spawn(async move {
-        server.with_service(move || service.clone());
-        // Keep the server running
-        tokio::time::sleep(tokio::time::Duration::from_secs(u64::MAX)).await;
-        Ok::<(), anyhow::Error>(())
-    });
-    
-    // Wait for cancellation or server completion
-    tokio::select! {
-        _ = ct.cancelled() => {
-            tracing::info!("Received cancellation signal");
-        }
-        result = server_handle => {
-            match result {
-                Ok(Ok(())) => tracing::info!("Server completed successfully"),
-                Ok(Err(e)) => tracing::error!("Server error: {}", e),
-                Err(e) => tracing::error!("Server task error: {}", e),
-            }
-        }
-    }
+    server.await?;
 
     Ok(())
 }

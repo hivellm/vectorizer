@@ -5,8 +5,11 @@
 use super::{McpRequest, McpResponse, McpServerState};
 use crate::db::VectorStore;
 use crate::embedding::EmbeddingManager;
+use crate::grpc::client::VectorizerGrpcClient;
 use serde_json;
 use tracing::{debug, info};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// MCP request handler
 pub struct McpHandler;
@@ -18,6 +21,7 @@ impl McpHandler {
         state: &McpServerState,
         vector_store: &VectorStore,
         embedding_manager: &EmbeddingManager,
+        mut grpc_client: Option<&mut VectorizerGrpcClient>,
     ) -> McpResponse {
         match request {
             McpRequest::Initialize {
@@ -27,12 +31,12 @@ impl McpHandler {
             } => Self::handle_initialize(protocol_version, capabilities, client_info, state).await,
             McpRequest::ToolsList => Self::handle_tools_list(state).await,
             McpRequest::ToolsCall { name, arguments } => {
-                Self::handle_tools_call(name, arguments, state, vector_store, embedding_manager)
+                Self::handle_tools_call(name, arguments, state, vector_store, embedding_manager, grpc_client)
                     .await
             }
             McpRequest::ResourcesList => Self::handle_resources_list(state).await,
             McpRequest::ResourcesRead { uri } => {
-                Self::handle_resources_read(uri, state, vector_store).await
+                Self::handle_resources_read(uri, state, vector_store, grpc_client).await
             }
             McpRequest::Ping => Self::handle_ping().await,
         }
@@ -115,16 +119,17 @@ impl McpHandler {
         _state: &McpServerState,
         vector_store: &VectorStore,
         embedding_manager: &EmbeddingManager,
+        mut grpc_client: Option<&mut VectorizerGrpcClient>,
     ) -> McpResponse {
         debug!("MCP ToolsCall - Tool: {}, Args: {:?}", name, arguments);
 
         let result = match name.as_str() {
             "search_vectors" => {
-                Self::handle_search_vectors_tool(arguments, vector_store, embedding_manager).await
+                Self::handle_search_vectors_tool(arguments, vector_store, embedding_manager, grpc_client).await
             }
-            "list_collections" => Self::handle_list_collections_tool(vector_store).await,
+            "list_collections" => Self::handle_list_collections_tool(vector_store, grpc_client).await,
             "get_collection_info" => {
-                Self::handle_get_collection_info_tool(arguments, vector_store).await
+                Self::handle_get_collection_info_tool(arguments, vector_store, grpc_client).await
             }
             "embed_text" => Self::handle_embed_text_tool(arguments, embedding_manager).await,
             "insert_vectors" => Self::handle_insert_vectors_tool(arguments, vector_store).await,
@@ -184,11 +189,12 @@ impl McpHandler {
         uri: String,
         _state: &McpServerState,
         vector_store: &VectorStore,
+        grpc_client: Option<&mut VectorizerGrpcClient>,
     ) -> McpResponse {
         debug!("MCP ResourcesRead - URI: {}", uri);
 
         let result = match uri.as_str() {
-            "vectorizer://collections" => Self::handle_list_collections_tool(vector_store).await,
+            "vectorizer://collections" => Self::handle_list_collections_tool(vector_store, grpc_client).await,
             "vectorizer://stats" => Self::handle_get_database_stats_tool(vector_store).await,
             _ => {
                 serde_json::json!({
@@ -225,6 +231,7 @@ impl McpHandler {
         arguments: serde_json::Value,
         vector_store: &VectorStore,
         embedding_manager: &EmbeddingManager,
+        mut grpc_client: Option<&mut VectorizerGrpcClient>,
     ) -> serde_json::Value {
         let collection = arguments
             .get("collection")
@@ -245,6 +252,35 @@ impl McpHandler {
             });
         }
 
+        // Try GRPC first, fallback to local vector store
+        if let Some(ref mut client) = grpc_client {
+            match client.search(collection.to_string(), query.to_string(), limit as i32).await {
+                Ok(grpc_response) => {
+                    let results: Vec<serde_json::Value> = grpc_response.results
+                        .into_iter()
+                        .map(|r| {
+                            serde_json::json!({
+                                "id": r.id,
+                                "content": r.content,
+                                "score": r.score,
+                                "metadata": r.metadata
+                            })
+                        })
+                        .collect();
+
+                    return serde_json::json!({
+                        "results": results,
+                        "total_found": grpc_response.total_found,
+                        "search_time_ms": grpc_response.search_time_ms
+                    });
+                }
+                Err(e) => {
+                    debug!("GRPC search failed, falling back to local store: {}", e);
+                }
+            }
+        }
+
+        // Fallback to local vector store
         match crate::mcp::tools::McpTools::search_vectors(
             collection,
             query,
@@ -261,7 +297,36 @@ impl McpHandler {
         }
     }
 
-    async fn handle_list_collections_tool(vector_store: &VectorStore) -> serde_json::Value {
+    async fn handle_list_collections_tool(vector_store: &VectorStore, mut grpc_client: Option<&mut VectorizerGrpcClient>) -> serde_json::Value {
+        // Try GRPC first
+        if let Some(ref mut client) = grpc_client {
+            match client.list_collections().await {
+                Ok(grpc_response) => {
+                    let collections: Vec<serde_json::Value> = grpc_response.collections
+                        .into_iter()
+                        .map(|c| {
+                            serde_json::json!({
+                                "name": c.name,
+                                "vector_count": c.vector_count,
+                                "document_count": c.document_count,
+                                "dimension": c.dimension,
+                                "status": c.status
+                            })
+                        })
+                        .collect();
+
+                    return serde_json::json!({
+                        "collections": collections,
+                        "total": collections.len()
+                    });
+                }
+                Err(e) => {
+                    debug!("GRPC list_collections failed, falling back to local store: {}", e);
+                }
+            }
+        }
+
+        // Fallback to local vector store
         match crate::mcp::tools::McpTools::list_collections(vector_store).await {
             Ok(result) => result,
             Err(e) => serde_json::json!({
@@ -273,6 +338,7 @@ impl McpHandler {
     async fn handle_get_collection_info_tool(
         arguments: serde_json::Value,
         vector_store: &VectorStore,
+        mut grpc_client: Option<&mut VectorizerGrpcClient>,
     ) -> serde_json::Value {
         let collection = arguments
             .get("collection")
@@ -285,6 +351,7 @@ impl McpHandler {
             });
         }
 
+        // Note: get_collection_info uses local store as GRPC doesn't have this endpoint yet
         match crate::mcp::tools::McpTools::get_collection_info(collection, vector_store).await {
             Ok(result) => result,
             Err(e) => serde_json::json!({

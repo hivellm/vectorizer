@@ -105,6 +105,9 @@ pub struct ListVectorsResponse {
     pub limit: usize,
     /// Offset used
     pub offset: usize,
+    /// Optional message explaining response behavior
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 /// Request to insert vectors
@@ -339,4 +342,15 @@ pub struct SetEmbeddingProviderResponse {
 pub struct ListEmbeddingProvidersResponse {
     pub providers: Vec<String>,
     pub default_provider: Option<String>,
+}
+
+/// Query parameters for listing vectors
+#[derive(Debug, Deserialize)]
+pub struct ListVectorsQuery {
+    /// Maximum number of vectors to return
+    pub limit: Option<usize>,
+    /// Number of vectors to skip
+    pub offset: Option<usize>,
+    /// Minimum score threshold for filtering vectors (0.0 to 1.0)
+    pub min_score: Option<f32>,
 }
