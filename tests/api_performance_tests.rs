@@ -8,17 +8,18 @@ use axum::{
     body::Body,
     http::{Method, Request, StatusCode},
 };
-use vectorizer::{api::server::VectorizerServer, auth::AuthManager, db::VectorStore};
-// use std::sync::Arc;
+use vectorizer::{api::server::VectorizerServer, auth::AuthManager, db::VectorStore, embedding::EmbeddingManager};
+use std::sync::Arc;
 use serde_json::json;
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
 use tower::ServiceExt;
 
 async fn create_test_app() -> Router {
-    let vector_store = VectorStore::new();
+    let vector_store = Arc::new(VectorStore::new());
     let _auth_manager = AuthManager::new_default().unwrap();
-    let server = VectorizerServer::new("127.0.0.1", 8080, vector_store);
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 8080, vector_store, embedding_manager);
     server.create_app()
 }
 

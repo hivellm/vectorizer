@@ -122,8 +122,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_endpoint() {
-        let store = VectorStore::new();
-        let server = VectorizerServer::new("127.0.0.1", 0, store);
+        let store = Arc::new(VectorStore::new());
+        let embedding_manager = EmbeddingManager::new();
+        let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
         let app = server.create_app();
 
         let response = app
@@ -141,8 +142,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_not_found() {
-        let store = VectorStore::new();
-        let server = VectorizerServer::new("127.0.0.1", 0, store);
+        let store = Arc::new(VectorStore::new());
+        let embedding_manager = EmbeddingManager::new();
+        let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
         let app = server.create_app();
 
         let response = app

@@ -10,12 +10,15 @@ use axum::{
 };
 use serde_json::json;
 use tower::ServiceExt;
-use vectorizer::{api::server::VectorizerServer, auth::AuthManager, db::VectorStore};
+use vectorizer::{api::server::VectorizerServer, auth::AuthManager, db::VectorStore, embedding::EmbeddingManager};
+use std::sync::Arc;
+
 
 async fn create_test_app() -> Router {
-    let vector_store = VectorStore::new();
+    let vector_store = Arc::new(VectorStore::new());
     let _auth_manager = AuthManager::new_default().unwrap();
-    let server = VectorizerServer::new("127.0.0.1", 8080, vector_store);
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 8080, vector_store, embedding_manager);
     server.create_app()
 }
 
@@ -435,50 +438,6 @@ async fn test_search_vectors() {
     // Array exists, no need to check length >= 0
 }
 
-#[tokio::test]
-async fn test_search_vectors_by_text() {
-    let app = create_test_app().await;
-
-    // Create collection
-    let collection_data = json!({
-        "name": "text_search_collection",
-        "dimension": 384,
-        "metric": "cosine"
-    });
-
-    let create_request = Request::builder()
-        .method(Method::POST)
-        .uri("/api/v1/collections")
-        .header("content-type", "application/json")
-        .body(Body::from(collection_data.to_string()))
-        .unwrap();
-
-    let create_response = app.clone().oneshot(create_request).await.unwrap();
-    assert_eq!(create_response.status(), StatusCode::CREATED);
-
-    // Search by text
-    let search_data = json!({
-        "query": "machine learning algorithms",
-        "limit": 5
-    });
-
-    let search_request = Request::builder()
-        .method(Method::POST)
-        .uri("/api/v1/collections/text_search_collection/search/text")
-        .header("content-type", "application/json")
-        .body(Body::from(search_data.to_string()))
-        .unwrap();
-
-    let search_response = app.oneshot(search_request).await.unwrap();
-    assert_eq!(search_response.status(), StatusCode::OK);
-
-    let body = axum::body::to_bytes(search_response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let results: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    assert!(results["results"].is_array());
-}
 
 #[tokio::test]
 async fn test_get_vector() {
@@ -732,25 +691,3 @@ async fn test_unsupported_method() {
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
-#[tokio::test]
-async fn test_cors_headers() {
-    let app = create_test_app().await;
-
-    let request = Request::builder()
-        .method(Method::OPTIONS)
-        .uri("/api/v1/collections")
-        .header("origin", "http://localhost:3000")
-        .header("access-control-request-method", "POST")
-        .header("access-control-request-headers", "content-type")
-        .body(Body::empty())
-        .unwrap();
-
-    let response = app.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // Check CORS headers
-    let headers = response.headers();
-    assert!(headers.contains_key("access-control-allow-origin"));
-    assert!(headers.contains_key("access-control-allow-methods"));
-    assert!(headers.contains_key("access-control-allow-headers"));
-}

@@ -3,8 +3,10 @@
 use crate::{
     api::server::VectorizerServer,
     db::VectorStore,
+    embedding::EmbeddingManager,
     models::{CollectionConfig, DistanceMetric, HnswConfig, Vector},
 };
+use std::sync::Arc;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -13,8 +15,9 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_api_health_check() {
-    let store = VectorStore::new();
-    let server = VectorizerServer::new("127.0.0.1", 0, store);
+    let store = Arc::new(VectorStore::new());
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
     let app = server.create_app();
 
     let response = app
@@ -32,7 +35,7 @@ async fn test_api_health_check() {
 
 #[tokio::test]
 async fn test_api_collections_list() {
-    let store = VectorStore::new();
+    let store = Arc::new(VectorStore::new());
 
     // Create a test collection first
     let config = CollectionConfig {
@@ -44,7 +47,8 @@ async fn test_api_collections_list() {
     };
     store.create_collection("test_collection", config).unwrap();
 
-    let server = VectorizerServer::new("127.0.0.1", 0, store);
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
     let app = server.create_app();
 
     let response = app
@@ -63,8 +67,9 @@ async fn test_api_collections_list() {
 #[cfg(feature = "onnx-models")]
 #[tokio::test]
 async fn test_api_create_collection() {
-    let store = VectorStore::new();
-    let server = VectorizerServer::new("127.0.0.1", 0, store);
+    let store = Arc::new(VectorStore::new());
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
     let app = server.create_app();
 
     let collection_config = serde_json::json!({
@@ -94,7 +99,7 @@ async fn test_api_create_collection() {
 #[cfg(feature = "onnx-models")]
 #[tokio::test]
 async fn test_api_insert_vectors() {
-    let store = VectorStore::new();
+    let store = Arc::new(VectorStore::new());
 
     // Create collection first
     let config = CollectionConfig {
@@ -106,7 +111,8 @@ async fn test_api_insert_vectors() {
     };
     store.create_collection("test_collection", config).unwrap();
 
-    let server = VectorizerServer::new("127.0.0.1", 0, store);
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
     let app = server.create_app();
 
     let vectors = serde_json::json!([
@@ -138,7 +144,7 @@ async fn test_api_insert_vectors() {
 #[cfg(feature = "onnx-models")]
 #[tokio::test]
 async fn test_api_search_vectors() {
-    let store = VectorStore::new();
+    let store = Arc::new(VectorStore::new());
 
     // Create collection and insert vectors first
     let config = CollectionConfig {
@@ -157,7 +163,8 @@ async fn test_api_search_vectors() {
     ];
     store.insert("test_collection", vectors).unwrap();
 
-    let server = VectorizerServer::new("127.0.0.1", 0, store);
+    let embedding_manager = EmbeddingManager::new();
+    let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
     let app = server.create_app();
 
     let search_query = serde_json::json!({
