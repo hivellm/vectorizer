@@ -574,6 +574,49 @@ mcp:
     - get_database_stats
 ```
 
+### MCP Client Configuration
+
+To connect to the Vectorizer MCP server from your IDE (Cursor, VS Code, etc.), add the following configuration to your `mcp.json` file:
+
+```json
+{
+  "mcpServers": {
+    "hive-vectorizer": {
+      "url": "http://localhost:15002/sse",
+      "type": "sse",
+      "protocol": "http"
+    }
+  }
+}
+```
+
+**Configuration Details:**
+- **URL**: `http://localhost:15002/sse` - Server-Sent Events endpoint
+- **Type**: `sse` - Server-Sent Events transport protocol
+- **Protocol**: `http` - HTTP-based communication
+- **Port**: `15002` - Default MCP server port (configurable in `config.yml`)
+
+**File Locations:**
+- **Cursor**: `~/.cursor/mcp.json` (Windows: `C:\Users\{username}\.cursor\mcp.json`)
+- **VS Code**: `~/.vscode/mcp.json` (Windows: `C:\Users\{username}\.vscode\mcp.json`)
+
+**Authentication:**
+If authentication is enabled in your `config.yml`, you may need to provide API keys:
+```json
+{
+  "mcpServers": {
+    "hive-vectorizer": {
+      "url": "http://localhost:15002/sse",
+      "type": "sse",
+      "protocol": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
 ### MCP Tools Available
 
 #### Search Operations

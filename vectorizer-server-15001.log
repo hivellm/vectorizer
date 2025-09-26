@@ -6802,3 +6802,628 @@
 [2m2025-09-26T16:19:18.369916Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 21 collections
 [2m2025-09-26T16:20:18.365547Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
 [2m2025-09-26T16:21:18.366595Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:44:40.892376Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-26T16:44:40.892431Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-26T16:44:40.892595Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-26T16:44:40.893826Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 0 collections initialized
+[2m2025-09-26T16:44:40.893860Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-26T16:44:40.894223Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error
+[2m2025-09-26T16:44:40.894238Z[0m [33m WARN[0m [2mvectorizer_server[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error. Server will use local store only.
+[2m2025-09-26T16:44:40.894246Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-26T16:44:40.894256Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-26T16:44:40.894426Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-26T16:44:40.894826Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-26T16:44:56.865654Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:44:56.881852Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:44:57.865421Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:01.055090Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:03.054861Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:05.056331Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:07.054842Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:09.054724Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:11.054616Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:45:13.054888Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 0 entries
+[2m2025-09-26T16:51:59.936798Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-26T16:51:59.936833Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-26T16:51:59.936877Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-26T16:51:59.937523Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 0 collections initialized
+[2m2025-09-26T16:51:59.937537Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-26T16:51:59.937772Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error
+[2m2025-09-26T16:51:59.937782Z[0m [33m WARN[0m [2mvectorizer_server[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error. Server will use local store only.
+[2m2025-09-26T16:51:59.937789Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-26T16:51:59.937796Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-26T16:51:59.937903Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-26T16:51:59.938214Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-26T16:57:43.082773Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-26T16:57:43.082839Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-26T16:57:43.082949Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-26T16:57:43.084871Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'bips' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.084923Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 0 -> 1 entries
+[2m2025-09-26T16:57:43.084932Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'proposals' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.084940Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 1 -> 2 entries
+[2m2025-09-26T16:57:43.084946Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'minutes' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.084954Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 2 -> 3 entries
+[2m2025-09-26T16:57:43.084960Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'guidelines' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.084968Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 3 -> 4 entries
+[2m2025-09-26T16:57:43.084975Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'schemas' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085040Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 4 -> 5 entries
+[2m2025-09-26T16:57:43.085051Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'source_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085060Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 5 -> 6 entries
+[2m2025-09-26T16:57:43.085068Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085076Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 6 -> 7 entries
+[2m2025-09-26T16:57:43.085082Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085092Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 7 -> 8 entries
+[2m2025-09-26T16:57:43.085098Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'packages' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085105Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 8 -> 9 entries
+[2m2025-09-26T16:57:43.085112Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085121Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 9 -> 9 entries
+[2m2025-09-26T16:57:43.085128Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'analytics' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085137Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 9 -> 10 entries
+[2m2025-09-26T16:57:43.085143Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'extension_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085151Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 10 -> 11 entries
+[2m2025-09-26T16:57:43.085157Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085165Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 11 -> 12 entries
+[2m2025-09-26T16:57:43.085171Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'testing_utils' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085181Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 12 -> 13 entries
+[2m2025-09-26T16:57:43.085186Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'security_tools' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085197Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 13 -> 14 entries
+[2m2025-09-26T16:57:43.085210Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085224Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 14 -> 14 entries
+[2m2025-09-26T16:57:43.085232Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085242Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 14 -> 14 entries
+[2m2025-09-26T16:57:43.085248Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'protocol_spec' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085258Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 14 -> 15 entries
+[2m2025-09-26T16:57:43.085292Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'implementations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085304Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 15 -> 16 entries
+[2m2025-09-26T16:57:43.085310Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085321Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 16 -> 17 entries
+[2m2025-09-26T16:57:43.085327Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'server_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085335Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 18 entries
+[2m2025-09-26T16:57:43.085343Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085353Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 18 -> 18 entries
+[2m2025-09-26T16:57:43.085360Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085370Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 18 -> 18 entries
+[2m2025-09-26T16:57:43.085377Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'rust_source' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085386Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 18 -> 19 entries
+[2m2025-09-26T16:57:43.085393Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085402Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:57:43.085408Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085418Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:57:43.085424Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:57:43.085435Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:57:43.085448Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 27 collections initialized
+[2m2025-09-26T16:57:43.085459Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-26T16:57:43.086186Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ✅ GRPC client initialized successfully with config
+[2m2025-09-26T16:57:43.086204Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-26T16:57:43.086214Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-26T16:57:43.093411Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-26T16:57:43.095473Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-26T16:57:43.119393Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:43.363578Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:45.064843Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:47.058322Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:49.057718Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:51.055737Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:51.424204Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:57:53.433304Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Using GRPC response with 0 collections
+[2m2025-09-26T16:58:20.051074Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-26T16:58:20.051139Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-26T16:58:20.051941Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'bips' with default status 'pending'
+[2m2025-09-26T16:58:20.051973Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'proposals' with default status 'pending'
+[2m2025-09-26T16:58:20.051984Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'minutes' with default status 'pending'
+[2m2025-09-26T16:58:20.051996Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'guidelines' with default status 'pending'
+[2m2025-09-26T16:58:20.052009Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'schemas' with default status 'pending'
+[2m2025-09-26T16:58:20.052019Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'source_code' with default status 'pending'
+[2m2025-09-26T16:58:20.052029Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'configurations' with default status 'pending'
+[2m2025-09-26T16:58:20.052047Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'documentation' with default status 'pending'
+[2m2025-09-26T16:58:20.052058Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'packages' with default status 'pending'
+[2m2025-09-26T16:58:20.052069Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'analytics' with default status 'pending'
+[2m2025-09-26T16:58:20.052079Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'extension_code' with default status 'pending'
+[2m2025-09-26T16:58:20.052091Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'scripts' with default status 'pending'
+[2m2025-09-26T16:58:20.052102Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'testing_utils' with default status 'pending'
+[2m2025-09-26T16:58:20.052113Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'security_tools' with default status 'pending'
+[2m2025-09-26T16:58:20.052127Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'protocol_spec' with default status 'pending'
+[2m2025-09-26T16:58:20.052138Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'implementations' with default status 'pending'
+[2m2025-09-26T16:58:20.052149Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'cpp_implementation' with default status 'pending'
+[2m2025-09-26T16:58:20.052161Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'server_code' with default status 'pending'
+[2m2025-09-26T16:58:20.052234Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'rust_source' with default status 'pending'
+[2m2025-09-26T16:58:20.052257Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-26T16:58:20.052768Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'bips' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052805Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052813Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'proposals' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052825Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052831Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'minutes' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052842Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052849Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'guidelines' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052860Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052866Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'schemas' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052877Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052883Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'source_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052894Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052900Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052911Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052918Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052928Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052935Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'packages' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052945Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052951Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052962Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052969Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'analytics' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052979Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.052986Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'extension_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.052996Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053003Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053036Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053044Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'testing_utils' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053055Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053062Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'security_tools' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053073Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053079Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053090Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053096Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053107Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053113Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'protocol_spec' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053124Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053131Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'implementations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053142Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053148Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053159Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053165Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'server_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053184Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053192Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053203Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053210Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053221Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053227Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'rust_source' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053238Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053245Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053256Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053262Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053273Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053280Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:58:20.053291Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:58:20.053300Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 27 collections initialized
+[2m2025-09-26T16:58:20.053313Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-26T16:58:20.053802Z[0m [33m WARN[0m [2mvectorizer::api::handlers[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error
+[2m2025-09-26T16:58:20.053821Z[0m [33m WARN[0m [2mvectorizer_server[0m[2m:[0m ⚠️ Failed to initialize GRPC client: transport error. Server will use local store only.
+[2m2025-09-26T16:58:20.053834Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-26T16:58:20.053844Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-26T16:58:20.054011Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-26T16:58:20.054916Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-26T16:58:21.431464Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:23.431746Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:25.432507Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:27.431800Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:29.433168Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:31.432657Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:33.433031Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:35.432810Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:37.431752Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:39.432032Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:41.431846Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:43.432943Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:45.432572Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:47.432268Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:49.432724Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:51.432637Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:53.432927Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:55.432471Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:57.432089Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:58:59.432408Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:01.432080Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:03.433106Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:05.431570Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:07.432769Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:09.432281Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:11.432524Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:13.432297Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:15.432846Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:17.432539Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:19.432337Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:21.443197Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:23.432577Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:23.616584Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:25.431692Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:27.432563Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:29.798737Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-26T16:59:29.798849Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-26T16:59:29.799822Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'bips' with default status 'pending'
+[2m2025-09-26T16:59:29.799854Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'proposals' with default status 'pending'
+[2m2025-09-26T16:59:29.799866Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'minutes' with default status 'pending'
+[2m2025-09-26T16:59:29.799877Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'guidelines' with default status 'pending'
+[2m2025-09-26T16:59:29.799887Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'schemas' with default status 'pending'
+[2m2025-09-26T16:59:29.799897Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'source_code' with default status 'pending'
+[2m2025-09-26T16:59:29.799907Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'configurations' with default status 'pending'
+[2m2025-09-26T16:59:29.799926Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'documentation' with default status 'pending'
+[2m2025-09-26T16:59:29.799936Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'packages' with default status 'pending'
+[2m2025-09-26T16:59:29.799954Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'analytics' with default status 'pending'
+[2m2025-09-26T16:59:29.799965Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'extension_code' with default status 'pending'
+[2m2025-09-26T16:59:29.799977Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'scripts' with default status 'pending'
+[2m2025-09-26T16:59:29.799988Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'testing_utils' with default status 'pending'
+[2m2025-09-26T16:59:29.799999Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'security_tools' with default status 'pending'
+[2m2025-09-26T16:59:29.800014Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'protocol_spec' with default status 'pending'
+[2m2025-09-26T16:59:29.800026Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'implementations' with default status 'pending'
+[2m2025-09-26T16:59:29.800037Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'cpp_implementation' with default status 'pending'
+[2m2025-09-26T16:59:29.800049Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'server_code' with default status 'pending'
+[2m2025-09-26T16:59:29.800061Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Initialized progress entry for 'rust_source' with default status 'pending'
+[2m2025-09-26T16:59:29.800072Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-26T16:59:29.800592Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'bips' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800629Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800637Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'proposals' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800649Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800655Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'minutes' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800667Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800674Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'guidelines' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800685Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800692Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'schemas' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800708Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800716Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'source_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800727Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800734Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800745Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800828Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800841Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800848Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'packages' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800859Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800866Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800877Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800884Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'analytics' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800895Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800901Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'extension_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800913Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800919Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800930Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800937Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'testing_utils' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800948Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800955Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'security_tools' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800966Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800972Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.800983Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.800990Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801001Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801008Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'protocol_spec' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801019Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801026Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'implementations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801037Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801044Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801055Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801062Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'server_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801074Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801081Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801093Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801099Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801110Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801117Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'rust_source' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801128Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801134Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801145Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801152Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801163Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801169Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:29.801180Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:29.801188Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 27 collections initialized
+[2m2025-09-26T16:59:29.801201Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-26T16:59:29.802008Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ✅ GRPC client initialized successfully with config
+[2m2025-09-26T16:59:29.802029Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-26T16:59:29.802042Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-26T16:59:29.802298Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-26T16:59:29.803354Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-26T16:59:30.948920Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:31.569522Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m Starting Vectorizer Server with dashboard
+[2m2025-09-26T16:59:31.569568Z[0m [32m INFO[0m [2mvectorizer::db::vector_store[0m[2m:[0m Creating new VectorStore
+[2m2025-09-26T16:59:31.569633Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔄 Initializing collections for dashboard...
+[2m2025-09-26T16:59:31.570723Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'bips' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570759Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 0 -> 1 entries
+[2m2025-09-26T16:59:31.570764Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'proposals' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570770Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 1 -> 2 entries
+[2m2025-09-26T16:59:31.570777Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'minutes' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570782Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 2 -> 3 entries
+[2m2025-09-26T16:59:31.570786Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'guidelines' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570792Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 3 -> 4 entries
+[2m2025-09-26T16:59:31.570796Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'schemas' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570801Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 4 -> 5 entries
+[2m2025-09-26T16:59:31.570806Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'source_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570811Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 5 -> 6 entries
+[2m2025-09-26T16:59:31.570815Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570820Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 6 -> 7 entries
+[2m2025-09-26T16:59:31.570824Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570831Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 7 -> 8 entries
+[2m2025-09-26T16:59:31.570835Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'packages' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570840Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 8 -> 9 entries
+[2m2025-09-26T16:59:31.570845Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570851Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 9 -> 9 entries
+[2m2025-09-26T16:59:31.570855Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'analytics' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570860Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 9 -> 10 entries
+[2m2025-09-26T16:59:31.570865Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'extension_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570870Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 10 -> 11 entries
+[2m2025-09-26T16:59:31.570874Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570880Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 11 -> 12 entries
+[2m2025-09-26T16:59:31.570884Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'testing_utils' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570890Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 12 -> 13 entries
+[2m2025-09-26T16:59:31.570894Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'security_tools' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570899Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 13 -> 14 entries
+[2m2025-09-26T16:59:31.570903Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570911Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 14 -> 14 entries
+[2m2025-09-26T16:59:31.570915Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570921Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 14 -> 14 entries
+[2m2025-09-26T16:59:31.570925Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'protocol_spec' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570931Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 14 -> 15 entries
+[2m2025-09-26T16:59:31.570935Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'implementations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570941Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 15 -> 16 entries
+[2m2025-09-26T16:59:31.570945Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'cpp_implementation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570951Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 16 -> 17 entries
+[2m2025-09-26T16:59:31.570955Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'server_code' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570961Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 17 -> 18 entries
+[2m2025-09-26T16:59:31.570965Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570971Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 18 -> 18 entries
+[2m2025-09-26T16:59:31.570976Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570981Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 18 -> 18 entries
+[2m2025-09-26T16:59:31.570986Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'rust_source' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.570992Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 18 -> 19 entries
+[2m2025-09-26T16:59:31.570996Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'documentation' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.571002Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:31.571006Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'configurations' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.571012Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:31.571016Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Updating progress for 'scripts' to status 'pending' progress 0.0%
+[2m2025-09-26T16:59:31.571023Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ?? Progress map updated: 19 -> 19 entries
+[2m2025-09-26T16:59:31.571027Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m ✅ Dashboard ready with 27 collections initialized
+[2m2025-09-26T16:59:31.571032Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🔗 Initializing GRPC client for communication with vzr...
+[2m2025-09-26T16:59:31.571464Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m ✅ GRPC client initialized successfully with config
+[2m2025-09-26T16:59:31.571481Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🚀 Starting Vectorizer HTTP server on 127.0.0.1:15001...
+[2m2025-09-26T16:59:31.571492Z[0m [32m INFO[0m [2mvectorizer_server[0m[2m:[0m 🎯 Vectorizer server ready - dashboard accessible immediately
+[2m2025-09-26T16:59:31.571723Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Starting Vectorizer HTTP server on 127.0.0.1:15001
+[2m2025-09-26T16:59:31.572107Z[0m [32m INFO[0m [2mvectorizer::api::server[0m[2m:[0m Server listening on 127.0.0.1:15001
+[2m2025-09-26T16:59:32.950104Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:34.950410Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:36.949809Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:38.949710Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:40.949213Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:42.948334Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:44.949729Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:46.949287Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:48.949615Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:50.949225Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:52.948498Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:54.948928Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:56.949081Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T16:59:58.949138Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:00.949048Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:02.949783Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:04.949856Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:06.949070Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:08.949089Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:10.948884Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:12.949439Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:14.949520Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:16.948879Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:18.949237Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:20.948190Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:22.949293Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:24.949446Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:26.948835Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:28.948598Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:30.949271Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:32.949711Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:34.949522Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:36.948489Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:38.950055Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:40.949272Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:42.948958Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:44.949655Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:46.948003Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:48.949862Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:50.948962Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:52.948635Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:54.949249Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:56.949150Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:00:58.948571Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:00.948856Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:02.949745Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:04.949390Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:06.948801Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:08.949258Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:10.949186Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:12.949553Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:14.949674Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:16.949143Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:18.948885Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:20.953730Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:22.956996Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:24.952401Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:26.950148Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:28.948905Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:30.948962Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:32.949550Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:34.949426Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:36.949798Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:38.949420Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:40.949741Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:42.949440Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:44.949642Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:46.949274Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:48.949106Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:50.949006Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:52.949190Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:54.948650Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:56.949481Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:01:58.949264Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:00.949426Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:02.949180Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:04.950129Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:06.948737Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:08.949142Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:10.949013Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:12.948574Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:14.949663Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:16.949592Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:18.950205Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:20.948632Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:22.949342Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:24.949440Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:26.949439Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:28.949183Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:30.949013Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:32.949512Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:34.950074Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:36.950159Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:38.949381Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:40.949504Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:42.950268Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:44.949020Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:46.949803Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:48.949452Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:50.950485Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:52.949284Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:54.949430Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:56.949573Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:02:58.949294Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:00.949313Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:02.949220Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:04.949748Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:06.949498Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:08.948958Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:10.949318Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:12.948498Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:14.949208Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:16.949207Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:18.949622Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:20.950698Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:22.949752Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:24.949297Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:26.949911Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:28.949284Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:30.949243Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:32.949038Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:34.950573Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:36.950004Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:38.949398Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:40.949464Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:42.949254Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:44.948566Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:46.948656Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:48.949400Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:50.950238Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:52.948517Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:54.949306Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:56.949323Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:03:58.949545Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:00.949522Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:02.949447Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:04.949158Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:06.949207Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:08.949849Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:10.948862Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:12.949112Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:14.948645Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:16.949355Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:18.949512Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:20.949430Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:22.948288Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:24.949528Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:26.950155Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:28.949952Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:30.949329Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:32.950259Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:34.949936Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:36.948461Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:38.949486Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:40.949270Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:42.949483Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:44.948324Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:46.948841Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:48.949138Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:50.949790Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:52.949565Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:54.949126Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:56.949615Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:04:58.948641Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:00.949106Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:02.948768Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:04.948831Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:06.949448Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:08.948861Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:10.948861Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:12.948656Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:14.949024Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:16.949419Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:18.949131Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:20.948449Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:22.949576Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:24.949186Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:26.950121Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:28.949006Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:30.949737Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:32.950141Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:34.949134Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:36.949862Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:38.949483Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:40.949953Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:42.948983Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:44.949395Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:46.949437Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:48.948968Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:50.948489Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:52.949241Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:54.949075Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:56.948998Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:05:58.949678Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:00.949113Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:02.949411Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:04.949827Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:06.949724Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:08.949281Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:10.949666Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:12.949413Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:14.949392Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:16.949363Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:18.948283Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:20.949553Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:22.948581Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:24.949674Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:26.949065Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:28.948962Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:30.949695Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:32.949431Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:34.949516Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:36.949912Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:38.950154Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:40.948539Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:42.948848Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:44.949200Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:46.948524Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:48.949088Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:50.948354Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:52.948311Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:54.949591Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:56.948937Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:06:58.949482Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:00.948583Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:02.948835Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:04.949627Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:06.949776Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:08.949753Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:10.949421Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:12.961639Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:14.949065Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:16.949052Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:18.949367Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:20.948580Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:22.949338Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:24.948539Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:26.948832Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:28.948602Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:30.948456Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:32.948722Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:34.949650Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:36.949021Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:38.949708Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:40.949240Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:42.949731Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:44.949807Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:46.949821Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:48.948855Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:50.948809Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:52.948778Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:54.949425Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:56.948880Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries
+[2m2025-09-26T17:07:58.949320Z[0m [32m INFO[0m [2mvectorizer::api::handlers[0m[2m:[0m 📊 API: Indexing progress map has 19 entries

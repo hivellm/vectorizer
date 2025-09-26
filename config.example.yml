@@ -400,6 +400,56 @@ experimental:
     embedding_cache_mmap: true     # Memory-mapped embedding cache
 
 # =============================================================================
+# GRPC CONFIGURATION
+# =============================================================================
+grpc:
+  # GRPC server configuration
+  server:
+    enabled: true                 # Enable GRPC server
+    host: "127.0.0.1"            # GRPC server bind address
+    port: 15003                   # GRPC server port (default: server.port + 2)
+    max_connections: 100          # Maximum concurrent GRPC connections
+    keep_alive_timeout: 30        # Keep-alive timeout in seconds
+    max_message_size: 4194304     # Maximum message size (4MB)
+    enable_reflection: true       # Enable GRPC reflection for debugging
+  
+  # GRPC client configuration
+  client:
+    server_url: "http://127.0.0.1:15003"  # GRPC server URL for clients
+    timeout_seconds: 30           # Client request timeout
+    retry_attempts: 3             # Number of retry attempts
+    retry_delay_ms: 1000          # Delay between retries (milliseconds)
+    keep_alive_interval: 30       # Keep-alive interval in seconds
+    max_receive_message_length: 4194304  # Max receive message size (4MB)
+    max_send_message_length: 4194304     # Max send message size (4MB)
+  
+  # GRPC service-specific configurations
+  services:
+    search:
+      timeout_seconds: 10         # Search operation timeout
+      max_results: 1000           # Maximum search results
+    
+    list_collections:
+      timeout_seconds: 5          # List collections timeout
+      max_results: null           # No limit on collection count
+    
+    get_collection_info:
+      timeout_seconds: 5          # Get collection info timeout
+      max_results: null           # No limit
+    
+    embed_text:
+      timeout_seconds: 15         # Text embedding timeout
+      max_results: null           # No limit
+    
+    get_indexing_progress:
+      timeout_seconds: 5          # Indexing progress timeout
+      max_results: null           # No limit
+    
+    update_indexing_progress:
+      timeout_seconds: 5          # Update progress timeout
+      max_results: null           # No limit
+
+# =============================================================================
 # MCP (MODEL CONTEXT PROTOCOL) CONFIGURATION
 # =============================================================================
 mcp:
@@ -408,7 +458,7 @@ mcp:
   
   # Server configuration
   host: "127.0.0.1"              # MCP server bind address
-  port: 15003                    # MCP server port (default: server.port + 2)
+  port: 15002                    # MCP server port (default: server.port + 1)
   
   # Connection management
   max_connections: 10            # Maximum concurrent MCP connections
@@ -425,6 +475,12 @@ mcp:
     name: "Vectorizer MCP Server"
     version: "1.0.0"
     description: "Model Context Protocol server for Vectorizer vector database"
+    protocol_version: "2024-11-05"
+    capabilities:
+      tools: true
+      resources: true
+      prompts: false
+      logging: true
   
   # Available MCP tools
   tools:
@@ -443,6 +499,10 @@ mcp:
             type: "integer"
             description: "Maximum number of results"
             default: 10
+          threshold:
+            type: "number"
+            description: "Similarity threshold (0.0-1.0)"
+            default: 0.0
         required: ["collection", "query"]
     
     - name: "list_collections"
@@ -469,6 +529,9 @@ mcp:
           text:
             type: "string"
             description: "Text to embed"
+          model:
+            type: "string"
+            description: "Embedding model to use (optional)"
         required: ["text"]
     
     - name: "insert_vectors"
@@ -537,12 +600,16 @@ mcp:
           dimension:
             type: "integer"
             description: "Vector dimension"
-            default: 384
+            default: 768
           metric:
             type: "string"
             description: "Distance metric"
             enum: ["euclidean", "cosine", "dot_product"]
             default: "cosine"
+          embedding_model:
+            type: "string"
+            description: "Embedding model to use"
+            default: "bm25"
         required: ["name"]
     
     - name: "delete_collection"
@@ -560,6 +627,32 @@ mcp:
       input_schema:
         type: "object"
         properties: {}
+    
+    - name: "get_indexing_progress"
+      description: "Get indexing progress for collections"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name (optional, returns all if not specified)"
+    
+    - name: "workspace_search"
+      description: "Search across workspace collections"
+      input_schema:
+        type: "object"
+        properties:
+          query:
+            type: "string"
+            description: "Search query"
+          workspace:
+            type: "string"
+            description: "Workspace name (optional)"
+          limit:
+            type: "integer"
+            description: "Maximum number of results"
+            default: 10
+        required: ["query"]
   
   # Available MCP resources
   resources:
@@ -571,6 +664,16 @@ mcp:
     - uri: "vectorizer://stats"
       name: "Database Statistics"
       description: "Current database statistics and performance metrics"
+      mime_type: "application/json"
+    
+    - uri: "vectorizer://workspace/{name}"
+      name: "Workspace Information"
+      description: "Information about a specific workspace"
+      mime_type: "application/json"
+    
+    - uri: "vectorizer://collection/{name}"
+      name: "Collection Details"
+      description: "Detailed information about a specific collection"
       mime_type: "application/json"
   
   # Performance settings
@@ -586,6 +689,12 @@ mcp:
     
     # Cleanup interval for inactive connections (seconds)
     cleanup_interval: 300         # 5 minutes
+    
+    # Request timeout (seconds)
+    request_timeout: 60
+    
+    # Enable compression for large responses
+    enable_compression: true
   
   # Logging for MCP
   logging:
@@ -593,6 +702,145 @@ mcp:
     log_requests: true            # Log all MCP requests
     log_responses: false          # Log MCP responses (can be verbose)
     log_errors: true              # Log MCP errors
+    log_connections: true         # Log connection events
+    log_file: "./logs/mcp.log"    # MCP-specific log file
+
+# =============================================================================
+# WORKSPACE CONFIGURATION
+# =============================================================================
+workspace:
+  # Enable workspace functionality
+  enabled: true
+  
+  # Default workspace file
+  default_workspace_file: "./vectorize-workspace.yml"
+  
+  # Workspace processing settings
+  processing:
+    parallel_processing: true
+    max_concurrent_projects: 6
+    max_concurrent_collections: 12
+    
+    # File processing
+    file_processing:
+      batch_size: 100
+      max_file_size_mb: 10
+      skip_hidden_files: true
+      skip_binary_files: true
+    
+    # Memory management
+    memory:
+      max_memory_usage_gb: 16.0
+      gc_threshold_mb: 2048
+    
+    # Error handling
+    error_handling:
+      max_retries: 3
+      retry_delay_seconds: 5
+      continue_on_error: true
+      log_errors: true
+  
+  # Workspace monitoring
+  monitoring:
+    health_check:
+      enabled: true
+      interval_seconds: 60
+      check_projects: true
+      check_collections: true
+    
+    metrics:
+      enabled: true
+      collection_interval_seconds: 300
+      
+      project_metrics:
+        - file_count
+        - total_size_mb
+        - processing_time_seconds
+        - error_count
+      
+      collection_metrics:
+        - vector_count
+        - index_size_mb
+        - query_latency_ms
+        - memory_usage_mb
+    
+    logging:
+      level: "info"
+      log_file: "./logs/workspace.log"
+      max_log_size_mb: 100
+      max_log_files: 5
+  
+  # Workspace validation
+  validation:
+    paths:
+      validate_existence: true
+      validate_permissions: true
+      create_missing_dirs: false
+    
+    config:
+      validate_embedding_models: true
+      validate_dimensions: true
+      validate_collections: true
+    
+    data:
+      validate_file_types: true
+      validate_file_sizes: true
+      validate_encoding: true
+
+# =============================================================================
+# REST-GRPC INTEGRATION CONFIGURATION
+# =============================================================================
+integration:
+  # REST to GRPC integration
+  rest_grpc:
+    enabled: true                 # Enable REST-GRPC bridge
+    grpc_client_pool_size: 10     # GRPC client connection pool size
+    request_timeout: 30           # Request timeout in seconds
+    retry_policy:
+      max_attempts: 3
+      initial_delay_ms: 100
+      max_delay_ms: 5000
+      backoff_multiplier: 2.0
+    
+    # Circuit breaker configuration
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5        # Failures before opening circuit
+      recovery_timeout: 30        # Seconds before attempting recovery
+      half_open_max_calls: 3      # Max calls in half-open state
+    
+    # Load balancing
+    load_balancing:
+      strategy: "round_robin"     # round_robin, least_connections, random
+      health_check_interval: 10   # Health check interval in seconds
+  
+  # MCP to GRPC integration
+  mcp_grpc:
+    enabled: true                 # Enable MCP-GRPC bridge
+    grpc_client_pool_size: 5      # GRPC client connection pool size
+    request_timeout: 60           # Request timeout in seconds (longer for MCP)
+    
+    # MCP-specific settings
+    streaming:
+      enabled: true               # Enable streaming responses
+      buffer_size: 1024           # Stream buffer size
+      flush_interval_ms: 100      # Flush interval for streaming
+  
+  # Service discovery
+  service_discovery:
+    enabled: false                # Enable service discovery
+    provider: "static"            # static, consul, etcd
+    
+    # Static configuration
+    static:
+      grpc_servers:
+        - "127.0.0.1:15003"
+    
+    # Health checking
+    health_check:
+      enabled: true
+      interval_seconds: 10
+      timeout_seconds: 5
 
 # =============================================================================
 # CUSTOM EXTENSIONS
@@ -629,16 +877,34 @@ extensions:
 #   vectorizer-cli server start --config config.yml
 #
 # MCP (Model Context Protocol) Integration:
-#   - MCP server runs on port 15003 by default (server.port + 2)
-#   - WebSocket endpoint: ws://127.0.0.1:15003/mcp
+#   - MCP server runs on port 15002 by default (server.port + 1)
+#   - WebSocket endpoint: ws://127.0.0.1:15002/mcp
 #   - Provides tools for IDE integration and AI model communication
 #   - Supports authentication via API keys
-#   - Tools include: search_vectors, list_collections, embed_text, etc.
+#   - Tools include: search_vectors, list_collections, embed_text, workspace_search, etc.
+#
+# GRPC Integration:
+#   - GRPC server runs on port 15003 by default (server.port + 2)
+#   - Provides high-performance inter-service communication
+#   - Used by MCP and REST servers to communicate with the core vectorizer
+#   - Supports reflection for debugging and service discovery
+#   - Configurable timeouts, retries, and connection pooling
+#
+# Workspace Integration:
+#   - Supports multi-project workspaces with centralized configuration
+#   - Automatic project discovery and indexing
+#   - Configurable processing pipelines per project
+#   - Real-time monitoring and health checks
 #
 # Port Allocation:
-#   - Main server: 15001 (configurable via server.port)
-#   - Dashboard: 15002 (configurable via dashboard.port)
-#   - MCP server: 15003 (configurable via mcp.port)
+#   - Main REST server: 15001 (configurable via server.port)
+#   - MCP server: 15002 (configurable via mcp.port)
+#   - GRPC server: 15003 (configurable via grpc.server.port)
+#
+# Architecture:
+#   Client → REST API (15001) → GRPC (15003) → Vector Store
+#   IDE/AI → MCP (15002) → GRPC (15003) → Vector Store
+#   vzr orchestrator manages all services and provides unified interface
 #
 # Validation:
 #   The server will validate the configuration on startup
