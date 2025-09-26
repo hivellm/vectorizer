@@ -10,49 +10,69 @@ This document outlines advanced features and improvements for the Vectorizer sys
 
 ---
 
-## 🚀 **Feature 1: Intelligent Cache Management & Incremental Indexing**
+## 🚀 **Feature 1: File Watcher System & GRPC Vector Operations**
 
 ### Problem Statement
-Currently, every server restart triggers a complete reindexing of all collections, causing:
-- **Slow Startup**: 30-60 seconds before system becomes usable
-- **Resource Waste**: Unnecessary CPU/memory consumption for unchanged data
-- **Poor User Experience**: Delayed response times during startup
+Currently, the system lacks real-time file monitoring and efficient vector update capabilities, causing:
+- **Manual Reindexing**: Users must manually trigger full reindexing for file changes
+- **No Real-time Updates**: Changes to indexed files are not automatically detected
+- **Limited Vector Operations**: GRPC lacks update/delete operations for vectors
+- **Resource Waste**: Full reindexing for minor file changes
+- **Poor User Experience**: No automatic synchronization with file system changes
 
 ### Technical Solution
 
-#### 1.1 Cache-First Loading Strategy
+#### 1.1 File Watcher System Architecture
 ```rust
 // Proposed Architecture
-pub struct IntelligentCacheManager {
-    cache_metadata: CacheMetadata,
-    incremental_tracker: IncrementalTracker,
-    file_watcher: FileWatcher,
+pub struct FileWatcherSystem {
+    watcher: notify::RecommendedWatcher,
+    change_queue: Arc<Mutex<VecDeque<FileChangeEvent>>>,
+    debounce_timer: Arc<Mutex<Option<tokio::time::Instant>>>,
+    grpc_client: GrpcClient,
 }
 
-pub struct CacheMetadata {
-    last_indexed: DateTime<Utc>,
-    file_hashes: HashMap<PathBuf, String>,
-    collection_versions: HashMap<String, u64>,
-    indexing_strategy: IndexingStrategy,
+pub struct FileChangeEvent {
+    path: PathBuf,
+    event_type: FileEventType,
+    timestamp: DateTime<Utc>,
+    content_hash: Option<String>,
+}
+
+pub enum FileEventType {
+    Created,
+    Modified,
+    Deleted,
+    Moved,
+}
+
+pub struct GrpcVectorOperations {
+    update_vector: fn(VectorUpdateRequest) -> Result<VectorUpdateResponse>,
+    batch_update_vectors: fn(BatchVectorUpdateRequest) -> Result<BatchVectorUpdateResponse>,
+    delete_vector: fn(VectorDeleteRequest) -> Result<VectorDeleteResponse>,
+    reindex_incremental: fn(IncrementalReindexRequest) -> Result<IncrementalReindexResponse>,
 }
 ```
 
-#### 1.2 Incremental Indexing Engine
-- **File Change Detection**: Monitor file modification timestamps and content hashes
-- **Delta Processing**: Only process changed/new files since last indexing
-- **Smart Reindexing**: Full reindexing only when embedding models change
-- **Background Updates**: Continuous monitoring with configurable intervals
+#### 1.2 GRPC Vector Operations Enhancement
+- **Vector Updates**: Real-time vector modification without full reindexing
+- **Batch Operations**: Efficient bulk updates for multiple vectors
+- **Incremental Reindexing**: Process only changed files via GRPC
+- **Real-time Synchronization**: Immediate index updates for file changes
 
-#### 1.3 Implementation Strategy
-1. **Cache Validation**: Verify cache integrity on startup
-2. **Fast Load**: Load existing vectors immediately (sub-second startup)
-3. **Background Sync**: Detect and process changes in background
-4. **Configurable Triggers**: Manual, scheduled, or event-driven reindexing
+#### 1.3 File Watcher Implementation Strategy
+1. **Cross-platform Monitoring**: Use notify crate for file system events
+2. **Debounced Processing**: Batch file changes to avoid excessive reindexing
+3. **Content Hash Validation**: Verify actual content changes vs timestamp changes
+4. **GRPC Integration**: Seamless communication with vector database engine
+5. **Error Recovery**: Handle file system errors and network interruptions gracefully
 
 ### Benefits
-- **Sub-second Startup**: System becomes usable immediately
-- **Resource Efficiency**: 90% reduction in startup CPU usage
-- **Real-time Updates**: Changes detected and processed automatically
+- **Real-time File Monitoring**: Automatic detection of file changes (< 1 second latency)
+- **Efficient Vector Operations**: Update/delete operations without full reindexing
+- **Resource Efficiency**: 90% reduction in processing for unchanged files
+- **Seamless Integration**: GRPC-based communication for optimal performance
+- **Cross-platform Support**: Works on Windows, macOS, and Linux
 - **Configurable Behavior**: Full control over indexing strategies
 
 ---

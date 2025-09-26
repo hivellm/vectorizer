@@ -44,6 +44,10 @@ Vectorizer implements a comprehensive MCP (Model Context Protocol) server that e
 - **create_collection**: Create new collections
 - **delete_collection**: Remove collections
 - **get_database_stats**: System performance metrics
+- **update_vector**: Update existing vectors (Phase 5)
+- **batch_update_vectors**: Bulk vector updates (Phase 5)
+- **reindex_incremental**: Incremental reindexing (Phase 5)
+- **watch_files**: Real-time file monitoring (Phase 5)
 
 ### 🔐 Security & Authentication
 - API key-based authentication

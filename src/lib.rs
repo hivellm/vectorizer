@@ -25,6 +25,7 @@ pub mod parallel;
 pub mod persistence;
 pub mod workspace;
 pub mod utils;
+pub mod file_watcher;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};

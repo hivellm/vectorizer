@@ -15,6 +15,9 @@ pub use types::{
     McpErrorMessage, McpMessage, McpNotificationMessage, McpRequestMessage, McpResponseMessage,
 };
 
+#[cfg(test)]
+mod comprehensive_tests;
+
 use crate::error::{Result, VectorizerError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
