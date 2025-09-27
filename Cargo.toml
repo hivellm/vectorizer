@@ -107,7 +107,7 @@ prost = "0.13"
 prost-types = "0.13"
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-build = "0.14"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
