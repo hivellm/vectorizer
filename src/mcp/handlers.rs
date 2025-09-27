@@ -170,6 +170,19 @@ impl McpHandler {
             "health_check_grpc" => {
                 Self::handle_health_check_grpc_tool(grpc_client).await
             }
+            // Batch operations - placeholder implementations
+            "batch_insert_vectors" => {
+                serde_json::json!({"error": "Batch insert not yet implemented in MCP"})
+            }
+            "batch_update_vectors" => {
+                serde_json::json!({"error": "Batch update not yet implemented in MCP"})
+            }
+            "batch_delete_vectors" => {
+                serde_json::json!({"error": "Batch delete not yet implemented in MCP"})
+            }
+            "batch_search_vectors" => {
+                serde_json::json!({"error": "Batch search not yet implemented in MCP"})
+            }
             _ => {
                 serde_json::json!({
                     "error": "Unknown tool",
