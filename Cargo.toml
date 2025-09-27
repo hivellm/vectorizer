@@ -14,7 +14,7 @@ categories = ["database", "science"]
 tokio = { version = "1.40", features = ["full"] }
 axum = { version = "0.8", features = ["ws"] }
 tower = "0.5"
-tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -23,7 +23,7 @@ glob = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
 walkdir = "2.4"
-notify = "6.1"
+notify = "8.2"
 
 # Index and vector operations
 hnsw_rs = "0.3"
@@ -71,14 +71,14 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 # Authentication and security
 jsonwebtoken = "9.3"
 uuid = { version = "1.8", features = ["v4", "serde"] }
-rand = "0.8"
+rand = "0.9"
 
 # CLI utilities
 sys-info = "0.9"
 
 # MCP (Model Context Protocol) dependencies
 futures-util = "0.3"
-tokio-tungstenite = "0.27"
+tokio-tungstenite = "0.28"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Optional ML dependencies
@@ -92,11 +92,11 @@ hf-hub = { version = "0.4.3", optional = true }
 ort = { version = "2.0.0-rc.10", optional = true, features = ["half"] }
 
 # Additional serialization formats
-arrow = { version = "54", optional = true }
-parquet = { version = "54", optional = true }
+arrow = { version = "56", optional = true }
+parquet = { version = "56", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.6", features = ["server", "transport-sse-server"] }
+rmcp = { version = "0.7", features = ["server", "transport-sse-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 
@@ -110,7 +110,7 @@ prost-types = "0.13"
 tonic-build = "0.12"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 proptest = "1.5"
 tempfile = "3.13"
 reqwest = { version = "0.12", features = ["json"] }

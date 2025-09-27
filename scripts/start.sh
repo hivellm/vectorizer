@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Load Rust environment
+source ~/.cargo/env
+
 # Detect OS and set appropriate binary paths
 detect_os() {
     case "$(uname -s)" in
@@ -123,7 +126,7 @@ echo "Starting vzr orchestrator (GRPC server)..."
 if [ "$USE_COMPILED" = true ]; then
     "$BIN_DIR/vzr$BIN_EXT" start --workspace "$WORKSPACE_FILE" &
 else
-    cargo run --bin vzr -- start --workspace "$WORKSPACE_FILE" &
+    rustup run nightly cargo run --bin vzr -- start --workspace "$WORKSPACE_FILE" &
 fi
 VZR_PID=$!
 echo "✅ vzr orchestrator started (PID: $VZR_PID) - Port 15003 (GRPC)"

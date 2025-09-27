@@ -3,6 +3,9 @@
 # Vectorizer Build Script
 # Builds optimized binaries for production deployment
 
+# Load Rust environment
+source ~/.cargo/env
+
 echo "🔨 Building Vectorizer Binaries..."
 echo "=================================="
 
@@ -18,7 +21,7 @@ echo "🖥️  Operating System: $OS"
 
 # Build release binaries
 echo "Building release binaries..."
-cargo build --release
+rustup run nightly cargo build --release
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
