@@ -78,7 +78,7 @@ sys-info = "0.9"
 
 # MCP (Model Context Protocol) dependencies
 futures-util = "0.3"
-tokio-tungstenite = "0.27"
+tokio-tungstenite = "0.28"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Optional ML dependencies
