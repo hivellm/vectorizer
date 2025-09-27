@@ -50,14 +50,7 @@ cleanup() {
         echo "Stopping vzr orchestrator (PID: $VZR_PID)"
         kill $VZR_PID 2>/dev/null || true
     fi
-    if [ ! -z "$MCP_PID" ]; then
-        echo "Stopping MCP server (PID: $MCP_PID)"
-        kill $MCP_PID 2>/dev/null || true
-    fi
-    if [ ! -z "$REST_PID" ]; then
-        echo "Stopping REST server (PID: $REST_PID)"
-        kill $REST_PID 2>/dev/null || true
-    fi
+    # MCP and REST servers are managed by vzr, no need to kill them separately
     echo "Servers stopped."
     exit 0
 }
@@ -125,7 +118,7 @@ echo "📁 Workspace File: $WORKSPACE_FILE"
 echo "🖥️  Operating System: $OS"
 echo "🔧 Binary Mode: $([ "$USE_COMPILED" = true ] && echo "Compiled" || echo "Development")"
 
-# Start vzr orchestrator first (GRPC server)
+# Start vzr orchestrator (handles all servers internally in workspace mode)
 echo "Starting vzr orchestrator (GRPC server)..."
 if [ "$USE_COMPILED" = true ]; then
     "$BIN_DIR/vzr$BIN_EXT" start --workspace "$WORKSPACE_FILE" &
@@ -135,31 +128,10 @@ fi
 VZR_PID=$!
 echo "✅ vzr orchestrator started (PID: $VZR_PID) - Port 15003 (GRPC)"
 
-# Wait for vzr to initialize
-sleep 5
-
-# Start MCP server (GRPC client)
-echo "Starting MCP server (GRPC client)..."
-if [ "$USE_COMPILED" = true ]; then
-    "$BIN_DIR/vectorizer-mcp-server$BIN_EXT" --workspace "$WORKSPACE_FILE" &
-else
-    cargo run --bin vectorizer-mcp-server -- --workspace "$WORKSPACE_FILE" &
-fi
-MCP_PID=$!
-echo "✅ MCP server started (PID: $MCP_PID) - Port 15002"
-
-# Wait a moment for MCP server to initialize
-sleep 3
-
-# Start REST server (GRPC client)
-echo "Starting REST API server (GRPC client)..."
-if [ "$USE_COMPILED" = true ]; then
-    "$BIN_DIR/vectorizer-server$BIN_EXT" --host 127.0.0.1 --port 15001 --workspace "$WORKSPACE_FILE" &
-else
-    cargo run --bin vectorizer-server -- --host 127.0.0.1 --port 15001 --workspace "$WORKSPACE_FILE" &
-fi
-REST_PID=$!
-echo "✅ REST API server started (PID: $REST_PID) - Port 15001"
+# In workspace mode, vzr handles all servers internally
+# No need to start MCP and REST servers separately
+MCP_PID=""
+REST_PID=""
 
 echo ""
 echo "🎉 All servers are running!"
@@ -170,13 +142,13 @@ echo "⚡ GRPC Orchestrator: http://127.0.0.1:15003"
 echo ""
 echo "📋 Server PIDs:"
 echo "   vzr (GRPC): $VZR_PID"
-echo "   MCP: $MCP_PID"
-echo "   REST: $REST_PID"
+echo "   MCP: (managed by vzr)"
+echo "   REST: (managed by vzr)"
 echo ""
 echo "🏗️  Architecture:"
 echo "   Client → REST/MCP → GRPC → vzr → Vector Store"
 echo ""
 echo "⚡ Press Ctrl+C to stop all servers"
 
-# Wait for all processes
-wait $VZR_PID $MCP_PID $REST_PID
+# Wait for vzr process (which manages all servers internally)
+wait $VZR_PID
