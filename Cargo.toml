@@ -102,7 +102,7 @@ async-trait = "0.1"
 
 # gRPC dependencies
 tonic = { version = "0.12", features = ["tls"] }
-tonic-reflection = "0.12"
+tonic-reflection = "0.14"
 prost = "0.13"
 prost-types = "0.13"
 
