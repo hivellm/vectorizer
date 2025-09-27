@@ -20,10 +20,34 @@ use crate::{
     models::{CollectionConfig, Payload, Vector},
     grpc::client::VectorizerGrpcClient,
     config::GrpcConfig,
+    batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder},
 };
 use std::sync::Mutex;
 
 use super::types::*;
+
+/// Helper function to convert BatchConfigRequest to BatchConfig
+fn convert_batch_config(config: Option<BatchConfigRequest>) -> BatchConfig {
+    if let Some(config) = config {
+        BatchConfig {
+            max_batch_size: config.max_batch_size.unwrap_or(1000),
+            max_memory_usage_mb: config.max_memory_usage_mb.unwrap_or(512),
+            parallel_workers: config.parallel_workers.unwrap_or(4),
+            chunk_size: config.chunk_size.unwrap_or(100),
+            atomic_by_default: true,
+            progress_reporting: config.progress_reporting.unwrap_or(true),
+            error_retry_attempts: 3,
+            error_retry_delay_ms: 1000,
+            operation_timeout_seconds: 300,
+            enable_metrics: true,
+            max_concurrent_batches: 10,
+            enable_compression: true,
+            compression_threshold_bytes: 1024,
+        }
+    } else {
+        BatchConfig::default()
+    }
+}
 
 /// Workspace collection definition
 #[derive(Clone, Debug)]
@@ -2591,6 +2615,231 @@ pub fn update_indexing_progress_internal(
             let total_time_estimated = (processed_documents as f32 / progress) * 100.0;
             let remaining_time = total_time_estimated - processed_documents as f32;
             collection_progress.estimated_time_remaining = Some(remaining_time as u64);
+        }
+    }
+}
+
+/// Batch insert vectors into a collection
+pub async fn batch_insert_vectors(
+    State(state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchInsertRequest>,
+) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    // Convert request vectors to batch operation
+    let vectors: Vec<Vector> = request.vectors.into_iter()
+        .map(|v| Vector {
+            id: v.id,
+            data: v.data,
+            payload: v.payload.map(|p| Payload { data: p }),
+        })
+        .collect();
+
+    let operation = BatchOperation::Insert {
+        vectors,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchResponse {
+                success: true,
+                collection: collection_name,
+                operation: "insert".to_string(),
+                total_operations: result.total_operations,
+                successful_operations: result.successful_count,
+                failed_operations: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch insert failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch insert failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Batch update vectors in a collection
+pub async fn batch_update_vectors(
+    State(state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchUpdateRequest>,
+) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    // Convert request updates to batch operation
+    let updates: Vec<crate::batch::VectorUpdate> = request.updates.into_iter()
+        .map(|u| crate::batch::VectorUpdate {
+            id: u.id,
+            data: u.data,
+            metadata: u.metadata,
+        })
+        .collect();
+
+    let operation = BatchOperation::Update {
+        updates,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchResponse {
+                success: true,
+                collection: collection_name,
+                operation: "update".to_string(),
+                total_operations: result.total_operations,
+                successful_operations: result.successful_count,
+                failed_operations: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch update failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch update failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Batch delete vectors from a collection
+pub async fn batch_delete_vectors(
+    State(state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchDeleteRequest>,
+) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    let operation = BatchOperation::Delete {
+        vector_ids: request.vector_ids,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchResponse {
+                success: true,
+                collection: collection_name,
+                operation: "delete".to_string(),
+                total_operations: result.total_operations,
+                successful_operations: result.successful_count,
+                failed_operations: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch delete failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch delete failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Batch search vectors in a collection
+pub async fn batch_search_vectors(
+    State(state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchSearchRequest>,
+) -> Result<Json<BatchSearchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    // Convert search queries
+    let queries: Vec<crate::batch::SearchQuery> = request.queries.into_iter()
+        .map(|q| crate::batch::SearchQuery {
+            query_vector: q.query_vector,
+            query_text: q.query_text,
+            limit: q.limit as i32,
+            threshold: q.threshold,
+            filters: q.filters.unwrap_or_default(),
+        })
+        .collect();
+
+    let operation = BatchOperation::Search {
+        queries,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchSearchResponse {
+                success: true,
+                collection: collection_name,
+                total_queries: result.total_operations,
+                successful_queries: result.successful_count,
+                failed_queries: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                results: vec![], // TODO: Implement proper search result handling
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch search failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch search failed",
+                    "message": e.to_string()
+                }))
+            ))
         }
     }
 }

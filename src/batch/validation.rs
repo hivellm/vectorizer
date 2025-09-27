@@ -501,7 +501,7 @@ mod tests {
         Vector {
             id: id.to_string(),
             data: vec![0.0; dimension],
-            payload: std::collections::HashMap::new(),
+            payload: None,
         }
     }
 
@@ -550,7 +550,7 @@ mod tests {
         let empty_vector = Vector {
             id: "test_id".to_string(),
             data: vec![],
-            payload: std::collections::HashMap::new(),
+            payload: None,
         };
         assert!(validator.validate_vector_data(&empty_vector, 0).is_err());
 

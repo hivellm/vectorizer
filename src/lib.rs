@@ -7,6 +7,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod batch;
 pub mod cache;
 pub mod cli;
 pub mod config;
@@ -35,6 +36,7 @@ pub use embedding::{BertEmbedding, Bm25Embedding, MiniLmEmbedding, SvdEmbedding}
 pub use error::{Result, VectorizerError};
 pub use evaluation::{EvaluationMetrics, QueryMetrics, QueryResult, evaluate_search_quality};
 pub use models::{CollectionConfig, Payload, SearchResult, Vector};
+pub use batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

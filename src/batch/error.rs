@@ -25,7 +25,7 @@ impl fmt::Display for BatchStatus {
 }
 
 /// Batch operation error types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum BatchErrorType {
     // Validation errors
     InvalidBatchSize,
@@ -427,7 +427,7 @@ mod tests {
         assert_eq!(result.failed_count, 1);
         assert_eq!(result.total_operations, 3);
         assert_eq!(result.status, BatchStatus::Partial);
-        assert_eq!(result.success_rate(), 66.66666666666667);
+        assert!((result.success_rate() - 66.66666666666667).abs() < 1e-10);
     }
 
     #[test]

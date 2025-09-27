@@ -354,3 +354,153 @@ pub struct ListVectorsQuery {
     /// Minimum score threshold for filtering vectors (0.0 to 1.0)
     pub min_score: Option<f32>,
 }
+
+/// Batch configuration for API requests
+#[derive(Debug, Deserialize, Clone)]
+pub struct BatchConfigRequest {
+    /// Maximum batch size
+    pub max_batch_size: Option<usize>,
+    /// Maximum memory usage in MB
+    pub max_memory_usage_mb: Option<usize>,
+    /// Number of parallel workers
+    pub parallel_workers: Option<usize>,
+    /// Chunk size for processing
+    pub chunk_size: Option<usize>,
+    /// Whether to enable progress reporting
+    pub progress_reporting: Option<bool>,
+}
+
+impl Default for BatchConfigRequest {
+    fn default() -> Self {
+        Self {
+            max_batch_size: Some(1000),
+            max_memory_usage_mb: Some(512),
+            parallel_workers: Some(4),
+            chunk_size: Some(100),
+            progress_reporting: Some(true),
+        }
+    }
+}
+
+/// Vector data for batch operations
+#[derive(Debug, Deserialize)]
+pub struct BatchVectorRequest {
+    /// Vector ID
+    pub id: String,
+    /// Vector data
+    pub data: Vec<f32>,
+    /// Optional payload
+    pub payload: Option<serde_json::Value>,
+}
+
+/// Vector update for batch operations
+#[derive(Debug, Deserialize)]
+pub struct BatchVectorUpdateRequest {
+    /// Vector ID
+    pub id: String,
+    /// New vector data (optional)
+    pub data: Option<Vec<f32>>,
+    /// New metadata (optional)
+    pub metadata: Option<HashMap<String, String>>,
+}
+
+/// Search query for batch operations
+#[derive(Debug, Deserialize)]
+pub struct BatchSearchQueryRequest {
+    /// Query vector (optional)
+    pub query_vector: Option<Vec<f32>>,
+    /// Query text (optional)
+    pub query_text: Option<String>,
+    /// Maximum number of results
+    pub limit: usize,
+    /// Score threshold (optional)
+    pub threshold: Option<f32>,
+    /// Metadata filters (optional)
+    pub filters: Option<HashMap<String, String>>,
+}
+
+/// Batch insert request
+#[derive(Debug, Deserialize)]
+pub struct BatchInsertRequest {
+    /// Vectors to insert
+    pub vectors: Vec<BatchVectorRequest>,
+    /// Batch configuration (optional)
+    pub config: Option<BatchConfigRequest>,
+    /// Whether operations should be atomic (optional, defaults to true)
+    pub atomic: Option<bool>,
+}
+
+/// Batch update request
+#[derive(Debug, Deserialize)]
+pub struct BatchUpdateRequest {
+    /// Updates to apply
+    pub updates: Vec<BatchVectorUpdateRequest>,
+    /// Batch configuration (optional)
+    pub config: Option<BatchConfigRequest>,
+    /// Whether operations should be atomic (optional, defaults to true)
+    pub atomic: Option<bool>,
+}
+
+/// Batch delete request
+#[derive(Debug, Deserialize)]
+pub struct BatchDeleteRequest {
+    /// Vector IDs to delete
+    pub vector_ids: Vec<String>,
+    /// Batch configuration (optional)
+    pub config: Option<BatchConfigRequest>,
+    /// Whether operations should be atomic (optional, defaults to true)
+    pub atomic: Option<bool>,
+}
+
+/// Batch search request
+#[derive(Debug, Deserialize)]
+pub struct BatchSearchRequest {
+    /// Search queries to execute
+    pub queries: Vec<BatchSearchQueryRequest>,
+    /// Batch configuration (optional)
+    pub config: Option<BatchConfigRequest>,
+    /// Whether operations should be atomic (optional, defaults to true)
+    pub atomic: Option<bool>,
+}
+
+/// Batch operation response
+#[derive(Debug, Serialize)]
+pub struct BatchResponse {
+    /// Whether the operation was successful
+    pub success: bool,
+    /// Collection name
+    pub collection: String,
+    /// Operation type
+    pub operation: String,
+    /// Total number of operations
+    pub total_operations: usize,
+    /// Number of successful operations
+    pub successful_operations: usize,
+    /// Number of failed operations
+    pub failed_operations: usize,
+    /// Duration in milliseconds
+    pub duration_ms: u64,
+    /// Error messages (if any)
+    pub errors: Vec<String>,
+}
+
+/// Batch search response
+#[derive(Debug, Serialize)]
+pub struct BatchSearchResponse {
+    /// Whether the operation was successful
+    pub success: bool,
+    /// Collection name
+    pub collection: String,
+    /// Total number of queries
+    pub total_queries: usize,
+    /// Number of successful queries
+    pub successful_queries: usize,
+    /// Number of failed queries
+    pub failed_queries: usize,
+    /// Duration in milliseconds
+    pub duration_ms: u64,
+    /// Search results
+    pub results: Vec<Vec<SearchResult>>,
+    /// Error messages (if any)
+    pub errors: Vec<String>,
+}

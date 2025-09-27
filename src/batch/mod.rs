@@ -86,14 +86,14 @@ pub struct SearchQuery {
 /// Batch processor factory
 pub struct BatchProcessorBuilder {
     vector_store: Arc<VectorStore>,
-    embedding_manager: Arc<RwLock<EmbeddingManager>>,
+    embedding_manager: Arc<std::sync::Mutex<EmbeddingManager>>,
     config: BatchConfig,
 }
 
 impl BatchProcessorBuilder {
     pub fn new(
         vector_store: Arc<VectorStore>,
-        embedding_manager: Arc<RwLock<EmbeddingManager>>,
+        embedding_manager: Arc<std::sync::Mutex<EmbeddingManager>>,
     ) -> Self {
         Self {
             vector_store,

@@ -25,7 +25,7 @@ pub type BatchResult<T> = std::result::Result<T, BatchError>;
 pub struct BatchProcessor {
     config: Arc<BatchConfig>,
     vector_store: Arc<VectorStore>,
-    embedding_manager: Arc<RwLock<EmbeddingManager>>,
+    embedding_manager: Arc<std::sync::Mutex<EmbeddingManager>>,
     // In-progress operations tracking (for progress reporting, cancellation, etc.)
     in_progress_operations: RwLock<HashMap<String, BatchStatus>>,
 }
@@ -35,7 +35,7 @@ impl BatchProcessor {
     pub fn new(
         config: Arc<BatchConfig>,
         vector_store: Arc<VectorStore>,
-        embedding_manager: Arc<RwLock<EmbeddingManager>>,
+        embedding_manager: Arc<std::sync::Mutex<EmbeddingManager>>,
     ) -> Self {
         Self {
             config,
@@ -526,14 +526,14 @@ impl BatchProcessor {
     // Helper for single search execution
     async fn execute_single_search_static(
         vector_store: &VectorStore,
-        embedding_manager: &Arc<RwLock<EmbeddingManager>>,
+        embedding_manager: &Arc<std::sync::Mutex<EmbeddingManager>>,
         collection: &str,
         query: SearchQuery,
     ) -> Result<Vec<SearchResult>> {
         let query_vector = if let Some(vec) = query.query_vector {
             vec
         } else if let Some(text) = query.query_text {
-            let manager = embedding_manager.read().await;
+            let manager = embedding_manager.lock().unwrap();
             manager.embed(&text)?
         } else {
             return Err(VectorizerError::Other("No query vector or text provided".to_string()));
@@ -544,5 +544,72 @@ impl BatchProcessor {
             &query_vector,
             query.limit as usize,
         )
+    }
+
+    /// Execute a batch operation with unified interface
+    pub async fn execute_operation(
+        &self,
+        collection: String,
+        operation: super::BatchOperation,
+    ) -> BatchResult<super::BatchResult<String>> {
+        use super::BatchOperation;
+
+        let start_time = std::time::Instant::now();
+
+        match operation {
+            BatchOperation::Insert { vectors, atomic } => {
+                // Get vector dimension from first vector or assume default
+                let dimension = vectors.first().map(|v| v.data.len()).unwrap_or(384);
+                match self.batch_insert(collection, vectors, Some(atomic), dimension).await {
+                    Ok(ids) => {
+                        let mut result = super::BatchResult::new();
+                        for id in ids {
+                            result.add_success(id);
+                        }
+                        result.processing_time_ms = start_time.elapsed().as_millis() as f64;
+                        Ok(result)
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            BatchOperation::Update { updates, atomic } => {
+                match self.batch_update(collection, updates, Some(atomic)).await {
+                    Ok(ids) => {
+                        let mut result = super::BatchResult::new();
+                        for id in ids {
+                            result.add_success(id);
+                        }
+                        result.processing_time_ms = start_time.elapsed().as_millis() as f64;
+                        Ok(result)
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            BatchOperation::Delete { vector_ids, atomic } => {
+                match self.batch_delete(collection, vector_ids, Some(atomic)).await {
+                    Ok(ids) => {
+                        let mut result = super::BatchResult::new();
+                        for id in ids {
+                            result.add_success(id);
+                        }
+                        result.processing_time_ms = start_time.elapsed().as_millis() as f64;
+                        Ok(result)
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            BatchOperation::Search { queries, atomic } => {
+                match self.batch_search(collection, queries, Some(atomic)).await {
+                    Ok(results) => {
+                        let mut result = super::BatchResult::new();
+                        // For search operations, we return a summary
+                        result.add_success("search_completed".to_string());
+                        result.processing_time_ms = start_time.elapsed().as_millis() as f64;
+                        Ok(result)
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+        }
     }
 }

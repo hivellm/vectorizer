@@ -7,6 +7,11 @@ use axum::{
 
 use super::handlers::{
     AppState,
+    // Batch handlers
+    batch_delete_vectors,
+    batch_insert_vectors,
+    batch_search_vectors,
+    batch_update_vectors,
     create_collection,
     delete_collection,
     delete_vector,
@@ -78,5 +83,22 @@ pub fn create_router(state: AppState) -> Router {
         // Embedding provider management
         .route("/embedding/providers", get(list_embedding_providers))
         .route("/embedding/providers/set", post(set_embedding_provider))
+        // Batch operations
+        .route(
+            "/collections/{collection_name}/batch/insert",
+            post(batch_insert_vectors),
+        )
+        .route(
+            "/collections/{collection_name}/batch/update",
+            post(batch_update_vectors),
+        )
+        .route(
+            "/collections/{collection_name}/batch/delete",
+            post(batch_delete_vectors),
+        )
+        .route(
+            "/collections/{collection_name}/batch/search",
+            post(batch_search_vectors),
+        )
         .with_state(state)
 }

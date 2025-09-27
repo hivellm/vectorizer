@@ -55,8 +55,9 @@ impl ParallelProcessor {
             let chunk = items[chunk_start..chunk_end].to_vec();
 
             let permit = self.semaphore.clone().acquire_owned().await.unwrap();
+            let processor_clone = processor.clone();
             let handle = tokio::spawn(async move {
-                let result = processor(chunk).await;
+                let result = processor_clone(chunk).await;
                 drop(permit);
                 result
             });
@@ -118,8 +119,9 @@ impl ParallelProcessor {
 
         for item in items {
             let permit = self.semaphore.clone().acquire_owned().await.unwrap();
+            let processor_clone = processor.clone();
             let handle = tokio::spawn(async move {
-                let result = processor(item).await;
+                let result = processor_clone(item).await;
                 drop(permit);
                 result
             });
