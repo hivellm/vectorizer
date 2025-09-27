@@ -170,15 +170,45 @@ impl McpTools {
         let vector_objects: Vec<Vector> = vectors
             .into_iter()
             .map(|(id, data, payload)| {
-                if let Some(payload_data) = payload {
-                    Vector::with_payload(
-                        id,
-                        data,
-                        crate::models::Payload::from_value(payload_data).unwrap_or_default(),
-                    )
+                // Create rich payload following document_loader.rs pattern
+                let mut payload_data = serde_json::Map::new();
+
+                // Add custom metadata if provided
+                if let Some(mut custom_payload) = payload.and_then(|p| p.as_object().cloned()) {
+                    // Extract content if present, otherwise use empty string
+                    let content = custom_payload.remove("content")
+                        .and_then(|c| c.as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| "No content provided".to_string());
+
+                    payload_data.insert("content".to_string(), serde_json::Value::String(content));
+
+                    // Add all other custom metadata
+                    for (key, value) in custom_payload {
+                        payload_data.insert(key, value);
+                    }
                 } else {
-                    Vector::new(id, data)
+                    // No payload provided - add default content
+                    payload_data.insert(
+                        "content".to_string(),
+                        serde_json::Value::String("No content provided".to_string())
+                    );
                 }
+
+                // Add MCP operation metadata
+                payload_data.insert(
+                    "operation_type".to_string(),
+                    serde_json::Value::String("mcp_insert".to_string()),
+                );
+                payload_data.insert(
+                    "created_at".to_string(),
+                    serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+                );
+
+                let rich_payload = crate::models::Payload {
+                    data: serde_json::Value::Object(payload_data),
+                };
+
+                Vector::with_payload(id, data, rich_payload)
             })
             .collect();
 
