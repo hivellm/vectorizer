@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.1] - 2025-09-27
+
+### 🔧 **Server Architecture Optimization & Stability Improvements**
+
+#### Server Duplication Resolution
+- **FIXED**: Resolved multiple REST API server instances being created simultaneously
+- **IMPROVED**: Workspace mode now properly managed by single vzr orchestrator
+- **OPTIMIZED**: Eliminated redundant server initialization in start.sh script
+- **ENHANCED**: Simplified process management with unified server control
+- **STABILIZED**: No more process conflicts or resource contention issues
+
+#### System Architecture Enhancement
+- **IMPROVED**: Unified server management across GRPC, MCP, and REST services
+- **OPTIMIZED**: Better resource utilization with reduced memory footprint
+- **ENHANCED**: More reliable startup and shutdown procedures
+- **STABILIZED**: Enterprise-grade process management and monitoring
+- **SIMPLIFIED**: Clean startup sequence without duplicate server instances
+
+### 🐛 **Bug Fixes**
+- **FIXED**: Server duplication issue in workspace mode causing multiple REST API instances
+- **FIXED**: Process management conflicts between script and internal server initialization
+- **FIXED**: Resource contention from multiple server instances running simultaneously
+- **FIXED**: Cleanup function attempting to kill non-existent processes
+
+### 📚 **Documentation Updates**
+- **UPDATED**: README.md with server architecture optimization details
+- **UPDATED**: CHANGELOG.md with comprehensive stability improvements
+- **UPDATED**: Process management documentation for workspace mode
+
+---
+
 ## [0.17.0] - 2025-09-27
 
 ### 🔄 **Incremental File Watcher System & Configuration Improvements**

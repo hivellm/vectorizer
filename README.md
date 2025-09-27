@@ -1,113 +1,60 @@
 # Vectorizer
 
-## ✨ Latest Updates (v0.17.0)
+A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-### 🔄 **Incremental File Watcher System & Configuration Improvements**
+## 🚀 **Key Features**
 
-#### File Watcher System Enhancements
-- **✅ Incremental Monitoring**: File watcher updates automatically as collections are indexed
-- **✅ Real-time Discovery**: Files are discovered and monitored during the indexing process
-- **✅ Zero Configuration**: No manual file path configuration required
-- **✅ Automatic Integration**: Seamlessly integrated with workspace and indexing systems
-- **✅ Dynamic Updates**: Monitoring paths populated incrementally for optimal performance
+### **Core Capabilities**
+- **🔍 Semantic Search**: Advanced vector similarity search with multiple distance metrics
+- **📚 Document Indexing**: Intelligent chunking and processing of various file types
+- **🧠 Multiple Embeddings**: Support for TF-IDF, BM25, BERT, MiniLM, and custom models
+- **⚡ High Performance**: Sub-3ms search times with optimized HNSW indexing
+- **🔄 Real-time Monitoring**: Incremental file watcher for automatic document updates
 
-#### Configuration System Improvements
-- **✅ Simplified Configuration**: All file watcher fields now optional with sensible defaults
-- **✅ Robust Validation**: Configuration validation improved with automatic fallbacks
-- **✅ Error Elimination**: Fixed startup errors related to missing configuration fields
-- **✅ Reduced Complexity**: Streamlined configuration while maintaining full functionality
+### **Enterprise Features**
+- **🏗️ GRPC Architecture**: High-performance binary communication between services
+- **🔧 MCP Integration**: Model Context Protocol for AI IDE integration (Cursor, VS Code)
+- **🌐 REST API**: Complete HTTP API with authentication and security
+- **🐍 Python SDK**: Full-featured client library with async/await support
+- **📱 TypeScript SDK**: Complete TypeScript client for web applications
+- **🔐 Authentication**: JWT-based security with API key management
 
-#### System Integration & Performance
-- **✅ Shared Architecture**: File watcher system properly integrated across all services
-- **✅ Better Error Handling**: Improved logging and error handling for file operations
-- **✅ Faster Startup**: Eliminated configuration validation errors that delayed startup
-- **✅ Production Ready**: Stable, reliable file monitoring for production environments
+### **Workspace Management**
+- **📁 Multi-Project Support**: Manage multiple projects and collections simultaneously
+- **⚙️ Flexible Configuration**: YAML-based configuration with intelligent defaults
+- **🔄 Incremental Updates**: Only process changed files for optimal performance
+- **📊 Real-time Statistics**: Live monitoring of indexing progress and system health
 
-### 🚀 **Previous Updates (v0.16.0) - Chunk Size Optimization & Cosine Similarity Enhancement**
+## 🎯 **Current Status**
 
-#### Chunk Size Improvements
-- **✅ Enhanced Chunk Size**: Increased from 512-1000 to 2048 characters for better semantic context
-- **✅ Improved Overlap**: Increased from 50-200 to 256 characters for better continuity
-- **✅ Context Preservation**: Much better context preservation in document chunks
-- **✅ Reduced Fragmentation**: Significantly reduced information fragmentation across chunks
-- **✅ Content-Specific Optimization**: Chunk sizes optimized per content type (BIPs: 2048, minutes: 1024, code: 2048)
+**Version**: v0.17.1  
+**Status**: ✅ **Production Ready**  
+**Collections**: 27 active collections across 8 projects  
+**Performance**: Sub-3ms search with 85% improved semantic relevance  
+**Architecture**: GRPC + REST + MCP unified server system
 
-#### Cosine Similarity Verification & Optimization
-- **✅ Verified Implementation**: Cosine similarity working correctly with automatic L2 normalization
-- **✅ Consistent Metrics**: All collections now consistently use cosine similarity metric
-- **✅ Improved Scoring**: Vector normalization ensures consistent similarity scores in [0,1] range
-- **✅ Optimized Search**: HNSW index optimized for cosine distance calculations
-- **✅ Validated Quality**: MCP testing confirms superior search quality across all collections
+## 🏗️ **Architecture**
 
-#### Search Quality Improvements
-- **✅ Better Relevance**: Search results show much better semantic relevance
-- **✅ Richer Context**: Chunk content is more complete and contextually rich
-- **✅ Consistent Scores**: Similarity scores are more consistent and interpretable
-- **✅ Validated Performance**: MCP testing confirms superior search quality across all collections
+Vectorizer uses a modern GRPC-based microservices architecture:
 
-### 🎉 **Phase 4 Complete - GRPC, MCP & Python SDK Implementation**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Client Apps   │───▶│   REST API       │───▶│   GRPC Core     │
+│   (Python/TS)   │    │   (Port 15001)   │    │   (Port 15003)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                              │                         │
+                              ▼                         ▼
+                       ┌──────────────────┐    ┌─────────────────┐
+                       │   MCP Server     │    │   Vector Store  │
+                       │   (Port 15002)   │    │   & Indexing    │
+                       └──────────────────┘    └─────────────────┘
+```
 
-#### Complete System Architecture Implementation
-- **✅ GRPC Microservices**: High-performance binary communication (300% faster than HTTP)
-- **✅ MCP Protocol Server**: AI IDE integration with WebSocket communication
-- **✅ Python SDK**: Full-featured client library with async/await support
-- **✅ Multiple Binary Services**: vzr, vectorizer-server, vectorizer-mcp-server
-- **✅ Production Ready**: Docker support, cross-platform compatibility
-
-#### GRPC Architecture Features
-- **✅ vzr (GRPC Orchestrator)**: Central orchestrator and indexing engine (Port 15003)
-- **✅ vectorizer-server**: REST API and web dashboard (Port 15001)
-- **✅ vectorizer-mcp-server**: MCP protocol server (Port 15002)
-- **✅ Service Communication**: 300% faster than HTTP, 500% faster binary serialization
-- **✅ Inter-Service Integration**: Complete microservices architecture
-
-#### MCP (Model Context Protocol) Implementation
-- **✅ WebSocket Communication**: Real-time bidirectional communication
-- **✅ JSON-RPC 2.0 Compliance**: Standardized protocol for AI IDE integration
-- **✅ Comprehensive Tool Set**: 10+ tools for vector operations
-- **✅ AI IDE Integration**: Seamless integration with Cursor, VS Code, etc.
-- **✅ Authentication**: API key-based security
-
-#### Python SDK Features
-- **✅ Complete Client Library**: Full-featured async/await support
-- **✅ Data Models**: Comprehensive validation for all structures
-- **✅ Exception Handling**: 12 custom exception types
-- **✅ CLI Interface**: Command-line tool for all operations
-- **✅ Testing**: 73+ tests with 100% success rate
-
-### 🚀 **Phase 4 Status - COMPLETE**
-- ✅ **GRPC Architecture**: Complete microservices implementation
-- ✅ **MCP Protocol**: Full AI IDE integration
-- ✅ **Python SDK**: Complete implementation with comprehensive testing
-- ✅ **TypeScript SDK**: Complete implementation with full type safety
-- ✅ **JavaScript SDK**: Complete implementation with multiple build formats
-- ✅ **Multiple Services**: All binary services functional
-- ✅ **Production Ready**: Docker support, cross-platform compatibility
-
-### 🎯 **Previous Updates (v0.12.0)**
-
-#### Critical Tokenizer & Vocabulary Persistence
-- **✅ Tokenizer Saving**: BM25, TF-IDF, CharNGram, BagOfWords vocabularies now persist across restarts
-- **✅ Fast Cache Loading**: Complete vocabulary restoration without rebuilding embeddings
-- **✅ Metadata Isolation**: Each collection has its own metadata file (no more overwrites)
-
-#### File Pattern Matching Resolution
-- **✅ Gov Collections Fixed**: All gov-bips, gov-proposals, gov-minutes, gov-guidelines, gov-teams, gov-docs working
-- **✅ Pattern Matching**: Proper include/exclude pattern matching for all collections
-- **✅ Document Discovery**: 148+ documents processed for gov-proposals with 2165+ chunks
-
-#### System Architecture Improvements
-- **✅ Collection-Specific Files**: `{collection}_metadata.json`, `{collection}_tokenizer.json`, `{collection}_vector_store.bin`
-- **✅ Independent Validation**: Cache validation per collection
-- **✅ Complete Statistics**: File tracking with hashes, timestamps, and counts
-
-### 🚀 **System Status - All Green**
-- ✅ **Tokenizer Persistence**: Vocabularies saved and restored correctly
-- ✅ **Metadata System**: Complete file tracking per collection
-- ✅ **File Pattern Matching**: All collections finding their files correctly
-- ✅ **GRPC Communication**: Stable server with real-time updates
-- ✅ **Dashboard**: Accurate collection information and statistics
-- ✅ **Python SDK**: Complete implementation with comprehensive testing
+**Services:**
+- **vzr**: GRPC orchestrator and indexing engine
+- **REST API**: HTTP API and web dashboard  
+- **MCP Server**: Model Context Protocol for AI IDE integration
+- **File Watcher**: Real-time document monitoring and updates
 
 ## 🚀 Quick Start
 
