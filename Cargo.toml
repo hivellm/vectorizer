@@ -23,7 +23,7 @@ glob = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
 walkdir = "2.4"
-notify = "6.1"
+notify = "8.2"
 
 # Index and vector operations
 hnsw_rs = "0.3"
