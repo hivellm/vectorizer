@@ -220,7 +220,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proper error handling for missing configuration fields
 - Fallback to sensible defaults when configuration fails
 
-## [0.14.0] - 2024-12-19
+## [0.14.0] - 2025-09-27
 
 ### 🧪 **Comprehensive Test Coverage Implementation**
 
