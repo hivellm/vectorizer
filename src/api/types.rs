@@ -122,11 +122,13 @@ pub struct InsertVectorsRequest {
 pub struct VectorData {
     /// Vector ID
     pub id: String,
-    /// Vector values
+    /// Vector values (optional - will be auto-generated if not provided)
     #[serde(alias = "data")]
-    pub vector: Vec<f32>,
-    /// Optional payload
-    pub payload: Option<serde_json::Value>,
+    pub vector: Option<Vec<f32>>,
+    /// Content text (required for context and embedding generation)
+    pub content: String,
+    /// Additional metadata (optional)
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Response for vector insertion

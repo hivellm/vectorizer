@@ -914,21 +914,75 @@ pub async fn insert_vectors(
         ));
     }
 
-    // Convert API vectors to internal format
+    // Convert API vectors to internal format with embedding generation
     let mut vectors = Vec::new();
+
     for vector_data in request.vectors {
-        // Validate embedding - reject zero vectors
-        let non_zero_count = vector_data.vector.iter().filter(|&&x| x != 0.0).count();
-        if non_zero_count == 0 {
-            warn!("Skipping vector {} with zero embedding", vector_data.id);
-            continue; // Skip zero vectors
+        // Generate embedding if not provided
+        let embedding_data = if let Some(vector) = vector_data.vector {
+            // Validate embedding - reject zero vectors
+            let non_zero_count = vector.iter().filter(|&&x| x != 0.0).count();
+            if non_zero_count == 0 {
+                warn!("Skipping vector {} with zero embedding", vector_data.id);
+                continue; // Skip zero vectors
+            }
+            vector
+        } else {
+            // Generate embedding from content
+            let manager = state.embedding_manager.lock().unwrap();
+            manager.embed(&vector_data.content)
+                .map_err(|e| {
+                    error!("Failed to generate embedding for vector {}: {}", vector_data.id, e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: "Embedding generation failed".to_string(),
+                            code: "EMBEDDING_GENERATION_FAILED".to_string(),
+                            details: Some({
+                                let mut map = std::collections::HashMap::new();
+                                map.insert("vector_id".to_string(), serde_json::Value::String(vector_data.id.clone()));
+                                map.insert("error_message".to_string(), serde_json::Value::String(e.to_string()));
+                                map
+                            }),
+                        })
+                    )
+                })?
+        };
+
+        // Create rich payload with content and metadata
+        let mut payload_data = serde_json::Map::new();
+        payload_data.insert(
+            "content".to_string(),
+            serde_json::Value::String(vector_data.content.clone()),
+        );
+
+        // Add custom metadata if provided
+        if let Some(metadata) = vector_data.metadata {
+            if let serde_json::Value::Object(meta_obj) = metadata {
+                for (key, value) in meta_obj {
+                    payload_data.insert(key, value);
+                }
+            }
         }
 
-        let payload = vector_data.payload.map(Payload::new);
+        // Add operation metadata
+        payload_data.insert(
+            "operation_type".to_string(),
+            serde_json::Value::String("single_insert".to_string()),
+        );
+        payload_data.insert(
+            "created_at".to_string(),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        );
+
+        let payload = Payload {
+            data: serde_json::Value::Object(payload_data),
+        };
+
         vectors.push(Vector {
             id: vector_data.id,
-            data: vector_data.vector,
-            payload,
+            data: embedding_data,
+            payload: Some(payload),
         });
     }
 
@@ -1463,11 +1517,44 @@ pub async fn get_vector(
     );
 
     match state.store.get_vector(&collection_name, &vector_id) {
-        Ok(vector) => Ok(Json(VectorData {
-            id: vector.id,
-            vector: vector.data,
-            payload: vector.payload.map(|p| p.data),
-        })),
+        Ok(vector) => {
+            // Extract content from payload if available
+            let content = if let Some(payload) = &vector.payload {
+                if let Some(content_val) = payload.data.get("content") {
+                    content_val.as_str().unwrap_or("No content available").to_string()
+                } else {
+                    "No content available".to_string()
+                }
+            } else {
+                "No content available".to_string()
+            };
+
+            // Extract metadata (all fields except content, operation_type, created_at)
+            let metadata = if let Some(payload) = &vector.payload {
+                let mut meta_obj = serde_json::Map::new();
+                if let serde_json::Value::Object(obj) = &payload.data {
+                    for (key, value) in obj {
+                        if !["content", "operation_type", "created_at", "batch_id"].contains(&key.as_str()) {
+                            meta_obj.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+                if meta_obj.is_empty() {
+                    None
+                } else {
+                    Some(serde_json::Value::Object(meta_obj))
+                }
+            } else {
+                None
+            };
+
+            Ok(Json(VectorData {
+                id: vector.id,
+                vector: Some(vector.data),
+                content,
+                metadata,
+            }))
+        },
         Err(e) => {
             error!(
                 "Failed to get vector '{}' from collection '{}': {}",

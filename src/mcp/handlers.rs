@@ -6,10 +6,13 @@ use super::{McpRequest, McpResponse, McpServerState};
 use crate::db::VectorStore;
 use crate::embedding::EmbeddingManager;
 use crate::grpc::client::VectorizerGrpcClient;
+use crate::batch::{BatchProcessor, BatchProcessorBuilder, BatchOperation, BatchConfig};
 use serde_json;
 use tracing::{debug, info};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use chrono;
+use uuid;
 
 /// MCP request handler
 pub struct McpHandler;
@@ -954,11 +957,14 @@ impl McpHandler {
             })
         }
     }
-}
+    }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+
+
+
+
+    #[cfg(test)]
+    mod tests {
 
     #[tokio::test]
     async fn test_handle_ping() {
