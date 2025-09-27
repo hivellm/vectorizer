@@ -96,7 +96,7 @@ arrow = { version = "54", optional = true }
 parquet = { version = "54", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.6", features = ["server", "transport-sse-server"] }
+rmcp = { version = "0.7", features = ["server", "transport-sse-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 
