@@ -495,13 +495,25 @@ pub fn validate_collection_name(collection: &str) -> Result<(), BatchError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::Vector;
+    use crate::models::{Vector, Payload};
 
     fn create_test_vector(id: &str, dimension: usize) -> Vector {
+        let mut payload_data = serde_json::Map::new();
+        payload_data.insert(
+            "content".to_string(),
+            serde_json::Value::String(format!("Test content for {}", id)),
+        );
+        payload_data.insert(
+            "operation_type".to_string(),
+            serde_json::Value::String("test".to_string()),
+        );
+
         Vector {
             id: id.to_string(),
             data: vec![0.0; dimension],
-            payload: None,
+            payload: Some(Payload {
+                data: serde_json::Value::Object(payload_data),
+            }),
         }
     }
 
@@ -550,7 +562,9 @@ mod tests {
         let empty_vector = Vector {
             id: "test_id".to_string(),
             data: vec![],
-            payload: None,
+            payload: Some(Payload {
+                data: serde_json::json!({"content": "empty test", "operation_type": "test"}),
+            }),
         };
         assert!(validator.validate_vector_data(&empty_vector, 0).is_err());
 

@@ -2635,14 +2635,66 @@ pub async fn batch_insert_vectors(
     .with_config(convert_batch_config(request.config))
     .build();
 
-    // Convert request vectors to batch operation
-    let vectors: Vec<Vector> = request.vectors.into_iter()
-        .map(|v| Vector {
-            id: v.id,
-            data: v.data,
-            payload: v.payload.map(|p| Payload { data: p }),
-        })
-        .collect();
+    // Convert request vectors to batch operation with embedding generation
+    let mut vectors = Vec::new();
+
+    for v in request.vectors {
+        // Generate embedding if not provided
+        let embedding_data = if let Some(data) = v.data {
+            data
+        } else {
+            // Generate embedding from content
+            let manager = state.embedding_manager.lock().unwrap();
+            manager.embed(&v.content)
+                .map_err(|e| {
+                    error!("Failed to generate embedding for vector {}: {}", v.id, e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({
+                            "error": "Embedding generation failed",
+                            "vector_id": v.id,
+                            "message": e.to_string()
+                        }))
+                    )
+                })?
+        };
+
+        // Create rich payload with content and metadata
+        let mut payload_data = serde_json::Map::new();
+        payload_data.insert(
+            "content".to_string(),
+            serde_json::Value::String(v.content.clone()),
+        );
+
+        // Add custom metadata if provided
+        if let Some(metadata) = v.metadata {
+            if let serde_json::Value::Object(meta_obj) = metadata {
+                for (key, value) in meta_obj {
+                    payload_data.insert(key, value);
+                }
+            }
+        }
+
+        // Add batch operation metadata
+        payload_data.insert(
+            "operation_type".to_string(),
+            serde_json::Value::String("batch_insert".to_string()),
+        );
+        payload_data.insert(
+            "created_at".to_string(),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        );
+        payload_data.insert(
+            "batch_id".to_string(),
+            serde_json::Value::String(format!("batch_{}", uuid::Uuid::new_v4())),
+        );
+
+        let payload = Payload {
+            data: serde_json::Value::Object(payload_data),
+        };
+
+        vectors.push(Vector::with_payload(v.id, embedding_data, payload));
+    }
 
     let operation = BatchOperation::Insert {
         vectors,

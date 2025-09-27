@@ -387,10 +387,12 @@ impl Default for BatchConfigRequest {
 pub struct BatchVectorRequest {
     /// Vector ID
     pub id: String,
-    /// Vector data
-    pub data: Vec<f32>,
-    /// Optional payload
-    pub payload: Option<serde_json::Value>,
+    /// Vector data (optional - will be auto-generated if not provided)
+    pub data: Option<Vec<f32>>,
+    /// Content text (required for context and embedding generation)
+    pub content: String,
+    /// Additional metadata (optional)
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Vector update for batch operations
