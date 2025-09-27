@@ -512,7 +512,7 @@ impl Default for WorkspaceConfig {
                 },
                 logging: LoggingSettings {
                     level: "info".to_string(),
-                    log_file: "./logs/workspace.log".to_string(),
+                    log_file: "./.logs/workspace.log".to_string(),
                     max_log_size_mb: 100,
                     max_log_files: 5,
                 },

@@ -37,7 +37,7 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
         .open(&log_path)?;
 
     // Initialize tracing with both console and file output
-    tracing_subscriber::registry()
+    let result = tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| format!("{}={}", service_name, "info").into()),
@@ -58,7 +58,12 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
                 .with_file(true)
                 .with_line_number(true),
         )
-        .init();
+        .try_init();
+    
+    if let Err(e) = result {
+        eprintln!("Failed to initialize tracing: {}", e);
+        return Err(format!("Failed to initialize tracing: {}", e).into());
+    }
 
     info!("Logging initialized for {} - Log file: {:?}", service_name, log_path);
     Ok(())

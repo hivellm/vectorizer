@@ -213,7 +213,7 @@ monitoring:
     collection_metrics: ["vector_count", "index_size_mb"]
   logging:
     level: "info"
-    log_file: "./logs/workspace.log"
+    log_file: "./.logs/workspace.log"
     max_log_size_mb: 100
     max_log_files: 5
 

@@ -19,7 +19,8 @@ mod config_tests {
     #[test]
     fn test_default_config() {
         let config = FileWatcherConfig::default();
-        assert!(!config.watch_paths.is_empty());
+        // watch_paths is now optional
+        // assert!(!config.watch_paths.is_empty());
         assert!(!config.include_patterns.is_empty());
         assert!(!config.exclude_patterns.is_empty());
         assert!(config.debounce_delay_ms > 0);
@@ -32,12 +33,12 @@ mod config_tests {
         let mut config = FileWatcherConfig::default();
         assert!(config.validate().is_ok());
 
-        // Test empty watch paths
-        config.watch_paths.clear();
-        assert!(config.validate().is_err());
+        // Test empty watch paths (now optional, so no error)
+        // config.watch_paths.clear();
+        // assert!(config.validate().is_err());
 
         // Test zero debounce delay
-        config.watch_paths = vec![PathBuf::from(".")];
+        config.watch_paths = Some(vec![PathBuf::from(".")]);
         config.debounce_delay_ms = 0;
         assert!(config.validate().is_err());
 
@@ -497,7 +498,7 @@ mod watcher_tests {
     async fn test_watcher_start_stop() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 50;
 
         let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));
@@ -523,7 +524,7 @@ mod watcher_tests {
     async fn test_watcher_file_monitoring() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 100;
 
         let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));
@@ -585,7 +586,7 @@ mod integration_tests {
     async fn test_full_file_watcher_workflow() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 100;
         config.collection_name = "integration_test".to_string();
 
@@ -652,7 +653,7 @@ mod integration_tests {
     async fn test_file_watcher_with_hash_validation() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 100;
         config.enable_hash_validation = true;
         config.collection_name = "hash_test".to_string();
@@ -717,7 +718,7 @@ mod integration_tests {
     async fn test_file_watcher_pattern_filtering() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 100;
         config.include_patterns = vec!["*.md".to_string(), "*.txt".to_string()];
         config.exclude_patterns = vec!["**/temp/**".to_string()];

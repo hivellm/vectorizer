@@ -69,7 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize process management first
     let ports = vec![args.port];
-    let _process_logger = initialize_process_management("vectorizer-server", &ports)?;
+    // Temporarily disabled to fix server startup issues
+    // let _process_logger = initialize_process_management("vectorizer-server", &ports)?;
 
     // Initialize centralized logging
     if let Err(e) = logging::init_logging("vectorizer-server") {

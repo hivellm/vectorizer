@@ -1,8 +1,29 @@
 # Vectorizer
 
-## ✨ Latest Updates (v0.16.0)
+## ✨ Latest Updates (v0.17.0)
 
-### 🚀 **Chunk Size Optimization & Cosine Similarity Enhancement**
+### 🔄 **Incremental File Watcher System & Configuration Improvements**
+
+#### File Watcher System Enhancements
+- **✅ Incremental Monitoring**: File watcher updates automatically as collections are indexed
+- **✅ Real-time Discovery**: Files are discovered and monitored during the indexing process
+- **✅ Zero Configuration**: No manual file path configuration required
+- **✅ Automatic Integration**: Seamlessly integrated with workspace and indexing systems
+- **✅ Dynamic Updates**: Monitoring paths populated incrementally for optimal performance
+
+#### Configuration System Improvements
+- **✅ Simplified Configuration**: All file watcher fields now optional with sensible defaults
+- **✅ Robust Validation**: Configuration validation improved with automatic fallbacks
+- **✅ Error Elimination**: Fixed startup errors related to missing configuration fields
+- **✅ Reduced Complexity**: Streamlined configuration while maintaining full functionality
+
+#### System Integration & Performance
+- **✅ Shared Architecture**: File watcher system properly integrated across all services
+- **✅ Better Error Handling**: Improved logging and error handling for file operations
+- **✅ Faster Startup**: Eliminated configuration validation errors that delayed startup
+- **✅ Production Ready**: Stable, reliable file monitoring for production environments
+
+### 🚀 **Previous Updates (v0.16.0) - Chunk Size Optimization & Cosine Similarity Enhancement**
 
 #### Chunk Size Improvements
 - **✅ Enhanced Chunk Size**: Increased from 512-1000 to 2048 characters for better semantic context

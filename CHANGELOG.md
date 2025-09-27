@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2025-09-27
+
+### 🔄 **Incremental File Watcher System & Configuration Improvements**
+
+#### File Watcher System Enhancements
+- **NEW**: Implemented incremental file watcher that updates during indexing process
+- **IMPROVED**: File watcher now discovers and monitors files as collections are indexed
+- **ENHANCED**: Real-time file monitoring with automatic collection-based file discovery
+- **OPTIMIZED**: File watcher starts immediately and populates monitoring paths incrementally
+- **FIXED**: Eliminated need for manual file path configuration in workspace settings
+
+#### Configuration System Improvements
+- **FIXED**: All file watcher configuration fields now optional with sensible defaults
+- **IMPROVED**: Configuration validation no longer requires manual watch_paths specification
+- **ENHANCED**: Automatic fallback to default values when configuration fields are missing
+- **SIMPLIFIED**: Reduced configuration complexity while maintaining full functionality
+
+#### System Integration
+- **INTEGRATED**: File watcher system properly integrated with vzr CLI and workspace management
+- **ENHANCED**: Shared file watcher instance across indexing and monitoring processes
+- **IMPROVED**: Better error handling and logging for file watcher operations
+- **OPTIMIZED**: Reduced startup time by eliminating configuration validation errors
+
+### 🐛 **Bug Fixes**
+- **FIXED**: File watcher configuration validation errors that prevented server startup
+- **FIXED**: Missing field errors for watch_paths, recursive, debounce_delay_ms, etc.
+- **FIXED**: Type annotation issues in file watcher configuration parsing
+- **FIXED**: Ownership issues in file watcher incremental updates
+
+### 📚 **Documentation Updates**
+- **UPDATED**: CHANGELOG.md with comprehensive file watcher improvements
+- **UPDATED**: README.md with incremental file watcher functionality
+- **UPDATED**: Configuration examples with simplified file watcher settings
+
+---
+
 ## [0.16.0] - 2025-09-27
 
 ### 🚀 **Chunk Size Optimization & Cosine Similarity Enhancement**

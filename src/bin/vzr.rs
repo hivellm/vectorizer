@@ -1075,8 +1075,6 @@ async fn run_interactive(
             "run",
             "--bin",
             "vectorizer-mcp-server",
-            "--",
-            &project.to_string_lossy(),
         ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -1168,6 +1166,7 @@ async fn run_interactive(
             file_watcher_vector_store,
             file_watcher_embedding_manager,
             format!("http://{}:{}", host, port),
+            Arc::new(Mutex::new(None::<vectorizer::file_watcher::FileWatcherSystem>)),
         ).await {
             eprintln!("❌ Failed to start File Watcher System: {}", e);
         }
@@ -1455,28 +1454,34 @@ async fn run_interactive_workspace(
         }
     });
 
+    // Initialize and start File Watcher System with shared reference
+    let file_watcher_vector_store = Arc::clone(&grpc_vector_store);
+    let file_watcher_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    let file_watcher_system = Arc::new(Mutex::new(None::<vectorizer::file_watcher::FileWatcherSystem>));
+
     // Start background indexing and status replication
     let indexing_vector_store = Arc::clone(&grpc_vector_store);
     let indexing_embedding_manager = Arc::clone(&grpc_embedding_manager);
     let indexing_progress = Arc::clone(&grpc_indexing_progress);
+    let indexing_file_watcher = Arc::clone(&file_watcher_system);
     
     tokio::spawn(async move {
         start_background_indexing_with_config(
             indexing_vector_store,
             indexing_embedding_manager,
             indexing_progress,
+            indexing_file_watcher,
         ).await;
     });
-
-    // Initialize and start File Watcher System
-    let file_watcher_vector_store = Arc::clone(&grpc_vector_store);
-    let file_watcher_embedding_manager = Arc::clone(&grpc_embedding_manager);
     
+    // Start file watcher system
+    let file_watcher_system_clone = Arc::clone(&file_watcher_system);
     tokio::spawn(async move {
         if let Err(e) = start_file_watcher_system_with_grpc(
             file_watcher_vector_store,
             file_watcher_embedding_manager,
             format!("http://{}:{}", host, port),
+            file_watcher_system_clone,
         ).await {
             eprintln!("❌ Failed to start File Watcher System: {}", e);
         }
@@ -1500,6 +1505,7 @@ async fn start_background_indexing_with_config(
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
+    file_watcher_system: Arc<Mutex<Option<vectorizer::file_watcher::FileWatcherSystem>>>,
 ) {
     println!("🔄 Starting background indexing...");
     
@@ -1537,6 +1543,16 @@ async fn start_background_indexing_with_config(
                 Ok(count) => {
                     update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
                     println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
+                    
+                    // Update file watcher with newly indexed collection
+                    let mut system = file_watcher_system.lock().await;
+                    if let Some(ref mut watcher) = *system {
+                        if let Err(e) = watcher.update_with_collection(&collection.name).await {
+                            eprintln!("⚠️ Failed to update file watcher with collection '{}': {}", collection.name, e);
+                        } else {
+                            println!("👁️ File watcher updated with collection: {}", collection.name);
+                        }
+                    }
                 }
                 Err(e) => {
                     update_collection_status(&collection.name, "failed", 0.0, None).await;
@@ -1554,6 +1570,7 @@ async fn start_file_watcher_system_with_grpc(
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     grpc_endpoint: String,
+    file_watcher_system: Arc<Mutex<Option<vectorizer::file_watcher::FileWatcherSystem>>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("👁️ Starting File Watcher System...");
     
@@ -1620,13 +1637,16 @@ async fn start_file_watcher_system_with_grpc(
     );
 
     println!("👁️ File Watcher System initialized");
-    println!("📁 Watching paths: {:?}", file_watcher_config.watch_paths);
-    println!("🔄 Debounce delay: {}ms", file_watcher_config.debounce_delay_ms);
-    println!("📝 Collection: {}", file_watcher_config.collection_name);
+    println!("📁 Watching paths: [] (will be populated incrementally)");
+    println!("🔄 Debounce delay: {}ms", file_watcher_config.debounce_delay_ms.unwrap_or(1000));
+    println!("📝 Collection: {}", file_watcher_config.collection_name.unwrap_or_else(|| "default_collection".to_string()));
 
-    // Start the file watcher
-    file_watcher.start().await?;
-    
+    // Store the file watcher system for incremental updates
+    {
+        let mut system = file_watcher_system.lock().await;
+        *system = Some(file_watcher);
+    }
+
     println!("✅ File Watcher System started successfully");
     
     // Keep the file watcher running
@@ -1899,8 +1919,6 @@ async fn run_as_daemon_workspace(
                     "run",
                     "--bin",
                     "vectorizer-mcp-server",
-                    "--",
-                    &project_path.to_string_lossy(),
                 ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -1962,8 +1980,6 @@ async fn run_as_daemon(
                     "run",
                     "--bin",
                     "vectorizer-mcp-server",
-                    "--",
-                    &project.to_string_lossy(),
                 ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -2228,7 +2244,7 @@ async fn start_background_indexing_for_project(
     wait_for_server_ready().await;
     
     // Create a default collection for the project
-    let collection_name = "project_files";
+    let collection_name = "workspace-files";
     
     // Update status to processing
     update_collection_status(&collection_name, "processing", 0.0, None).await;

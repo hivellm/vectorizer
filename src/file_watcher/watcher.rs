@@ -74,8 +74,10 @@ impl Watcher {
         let mut watcher = notify::recommended_watcher(tx)
             .map_err(|e| FileWatcherError::Notify(e))?;
 
-        // Start watching paths
-        for path in &self.config.watch_paths {
+        // Start watching paths (if any are configured)
+        let empty_paths = vec![];
+        let watch_paths = self.config.watch_paths.as_ref().unwrap_or(&empty_paths);
+        for path in watch_paths {
             let recursive_mode = if self.config.recursive {
                 RecursiveMode::Recursive
             } else {
@@ -293,7 +295,7 @@ mod tests {
     async fn test_watcher_start_stop() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 50;
 
         let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));
@@ -319,7 +321,7 @@ mod tests {
     async fn test_watcher_file_monitoring() {
         let temp_dir = tempdir().unwrap();
         let mut config = FileWatcherConfig::default();
-        config.watch_paths = vec![temp_dir.path().to_path_buf()];
+        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
         config.debounce_delay_ms = 100;
 
         let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));

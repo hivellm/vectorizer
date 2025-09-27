@@ -86,9 +86,13 @@ impl FileWatcherSystem {
     pub async fn start(&self) -> Result<()> {
         tracing::info!("Starting File Watcher System with config: {:?}", self.config);
         
-        // Initialize the watcher
+        // Start with empty paths - will be populated incrementally
+        let mut dynamic_config = self.config.clone();
+        dynamic_config.watch_paths = Some(vec![]);
+        
+        // Initialize the watcher with empty paths initially
         let mut watcher = watcher::Watcher::new(
-            self.config.clone(),
+            dynamic_config,
             self.debouncer.clone(),
             self.hash_validator.clone(),
             self.grpc_operations.clone(),
@@ -98,6 +102,91 @@ impl FileWatcherSystem {
         watcher.start().await?;
 
         Ok(())
+    }
+
+    /// Update file watcher with new indexed files (called after each collection is indexed)
+    pub async fn update_with_collection(&self, collection_name: &str) -> Result<()> {
+        tracing::info!("Updating file watcher with collection: {}", collection_name);
+        
+        // Discover files from this specific collection
+        if let Ok(collection) = self.vector_store.get_collection(collection_name) {
+            let vectors = collection.get_all_vectors();
+            let mut new_files = Vec::new();
+            
+            for vector in vectors {
+                if let Some(payload) = &vector.payload {
+                    if let Some(metadata) = payload.data.get("metadata") {
+                        if let Some(file_path) = metadata.get("file_path")
+                            .or_else(|| metadata.get("source"))
+                            .or_else(|| metadata.get("path")) {
+                            
+                            if let Some(path_str) = file_path.as_str() {
+                                let path = std::path::PathBuf::from(path_str);
+                                if path.exists() && !new_files.contains(&path) {
+                                    new_files.push(path.clone());
+                                    tracing::debug!("Added file to watcher: {:?}", path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            tracing::info!("Added {} files from collection '{}' to file watcher", new_files.len(), collection_name);
+        }
+        
+        Ok(())
+    }
+
+    /// Discover files that are already indexed in collections
+    async fn discover_indexed_files(&self) -> Result<Vec<std::path::PathBuf>> {
+        let mut indexed_files = std::collections::HashSet::new();
+        
+        // Get all collections from vector store
+        let collections = self.vector_store.list_collections();
+        tracing::info!("Found {} collections to scan for indexed files", collections.len());
+        
+        for collection_name in collections {
+            if let Ok(collection) = self.vector_store.get_collection(&collection_name) {
+                tracing::debug!("Scanning collection '{}' for indexed files", collection_name);
+                
+                // Get all vectors in the collection
+                let vectors = collection.get_all_vectors();
+                tracing::debug!("Collection '{}' has {} vectors", collection_name, vectors.len());
+                
+                // Extract file paths from vector payload
+                for vector in vectors {
+                    if let Some(payload) = &vector.payload {
+                        // Look for file path in payload metadata
+                        if let Some(metadata) = payload.data.get("metadata") {
+                            if let Some(file_path) = metadata.get("file_path")
+                                .or_else(|| metadata.get("source"))
+                                .or_else(|| metadata.get("path")) {
+                                
+                                if let Some(path_str) = file_path.as_str() {
+                                    let path = std::path::PathBuf::from(path_str);
+                                    if path.exists() {
+                                        indexed_files.insert(path.clone());
+                                        tracing::debug!("Added indexed file: {:?}", path);
+                                    } else {
+                                        tracing::warn!("Indexed file not found: {:?}", path);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        let file_count = indexed_files.len();
+        if file_count == 0 {
+            tracing::warn!("No indexed files found. File watcher will start with empty watch list.");
+        } else {
+            tracing::info!("Discovered {} unique indexed files to monitor", file_count);
+        }
+        
+        Ok(indexed_files.into_iter().collect())
     }
 
     /// Stop the file watcher system

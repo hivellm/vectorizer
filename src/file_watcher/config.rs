@@ -7,8 +7,8 @@ use std::time::Duration;
 /// Configuration for the File Watcher System
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileWatcherConfig {
-    /// Paths to watch for changes
-    pub watch_paths: Vec<PathBuf>,
+    /// Paths to watch for changes (optional - auto-discovered if not provided)
+    pub watch_paths: Option<Vec<PathBuf>>,
     
     /// File patterns to include (glob patterns)
     pub include_patterns: Vec<String>,
@@ -56,7 +56,7 @@ pub struct FileWatcherConfig {
 impl Default for FileWatcherConfig {
     fn default() -> Self {
         Self {
-            watch_paths: vec![PathBuf::from(".")],
+            watch_paths: None, // Auto-discovered from indexed files
             include_patterns: vec![
                 "*.md".to_string(),
                 "*.txt".to_string(),
@@ -123,9 +123,10 @@ impl FileWatcherConfig {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), String> {
-        if self.watch_paths.is_empty() {
-            return Err("At least one watch path must be specified".to_string());
-        }
+        // watch_paths is now optional (auto-discovered)
+        // if self.watch_paths.is_empty() {
+        //     return Err("At least one watch path must be specified".to_string());
+        // }
 
         if self.debounce_delay_ms == 0 {
             return Err("Debounce delay must be greater than 0".to_string());
@@ -147,10 +148,12 @@ impl FileWatcherConfig {
             return Err("Collection name cannot be empty".to_string());
         }
 
-        // Validate watch paths exist
-        for path in &self.watch_paths {
-            if !path.exists() {
-                return Err(format!("Watch path does not exist: {:?}", path));
+        // Validate watch paths exist (if provided)
+        if let Some(watch_paths) = &self.watch_paths {
+            for path in watch_paths {
+                if !path.exists() {
+                    return Err(format!("Watch path does not exist: {:?}", path));
+                }
             }
         }
 
@@ -206,7 +209,8 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = FileWatcherConfig::default();
-        assert!(!config.watch_paths.is_empty());
+        // watch_paths is now optional
+        // assert!(!config.watch_paths.is_empty());
         assert!(!config.include_patterns.is_empty());
         assert!(!config.exclude_patterns.is_empty());
         assert!(config.debounce_delay_ms > 0);
@@ -219,12 +223,12 @@ mod tests {
         let mut config = FileWatcherConfig::default();
         assert!(config.validate().is_ok());
 
-        // Test empty watch paths
-        config.watch_paths.clear();
-        assert!(config.validate().is_err());
+        // Test empty watch paths (now optional, so no error)
+        // config.watch_paths.clear();
+        // assert!(config.validate().is_err());
 
         // Test zero debounce delay
-        config.watch_paths = vec![PathBuf::from(".")];
+        config.watch_paths = Some(vec![PathBuf::from(".")]);
         config.debounce_delay_ms = 0;
         assert!(config.validate().is_err());
 

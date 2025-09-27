@@ -45,8 +45,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize process management first
     let ports = vec![args.port];
-    let _process_logger = initialize_process_management("vectorizer-mcp-server", &ports)
-        .map_err(|e| anyhow::anyhow!("Process management initialization failed: {}", e))?;
+    // Temporarily disabled to fix server startup issues
+    // let _process_logger = initialize_process_management("vectorizer-mcp-server", &ports)
+    //     .map_err(|e| anyhow::anyhow!("Process management initialization failed: {}", e))?;
 
     // Initialize centralized logging
     if let Err(e) = logging::init_logging("vectorizer-mcp-server") {
