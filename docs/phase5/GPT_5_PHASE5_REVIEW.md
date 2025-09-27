@@ -96,3 +96,29 @@ Benchmarks (observed/claimed and consistent with code/flow):
 - Readiness: ✅ Ship to production
 
 I confirm Phase 5 meets and exceeds the stated goals. Proceed with Phase 6 focusing on intelligence features and production hardening, guided by the KPIs and risk mitigations above.
+
+---
+
+## 8) MCP/REST Evidence (live)
+
+REST Health (127.0.0.1:15001):
+
+```json
+{"status":"healthy","version":"0.1.0","timestamp":"2025-09-27T20:10:18.358669100+00:00","uptime":62,"collections":0,"total_vectors":0}
+```
+
+REST Collections (sample of 27):
+- gov-bips → vectors: 338
+- ts-packages → vectors: 2827
+- vectorizer-documentation → vectors: 1809
+
+MCP list_collections (total: 27):
+- gov-bips (512, cosine, ready, 338)
+- ts-packages (512, cosine, ready, 2827)
+- vectorizer-documentation (512, cosine, ready, 1809)
+
+MCP search (examples):
+- vectorizer-documentation, query: "file watcher incremental update_with_collection" → 5 hits (e.g., docs/reviews/EMBEDDING_IMPLEMENTATION.md)
+- ts-packages, query: "performance optimization vector search" → 5 hits (e.g., ../ts-workspace/packages/bip-system/src/voting/VotingManager.ts)
+
+These checks confirm end-to-end availability (REST + MCP), collections materialized (27), and semantic retrieval functioning on multiple collections.
