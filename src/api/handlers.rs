@@ -157,6 +157,8 @@ pub struct AppState {
     pub indexing_progress: IndexingProgressState,
     /// Workspace collections (all defined collections, even if not yet indexed)
     pub workspace_collections: Vec<WorkspaceCollection>,
+    /// File watcher system for real-time file monitoring
+    pub file_watcher: Option<Arc<Mutex<crate::file_watcher::FileWatcherSystem>>>,
 }
 
 impl AppState {
@@ -213,6 +215,7 @@ impl AppState {
             start_time: Instant::now(),
             indexing_progress: IndexingProgressState::from_map(indexing_progress),
             workspace_collections,
+            file_watcher: None,
         }
     }
 
@@ -373,7 +376,56 @@ impl AppState {
             start_time: Instant::now(),
             indexing_progress,
             workspace_collections,
+            file_watcher: None,
         }
+    }
+
+    /// Initialize file watcher system
+    pub async fn init_file_watcher(
+        &mut self,
+        config: crate::file_watcher::FileWatcherConfig,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Initializing File Watcher System...");
+        
+        // Convert Mutex to RwLock for compatibility
+        // For now, create a new EmbeddingManager with default providers
+        let mut new_manager = EmbeddingManager::new();
+        
+        // Register default providers
+        use crate::embedding::{TfIdfEmbedding, Bm25Embedding};
+        let tfidf = TfIdfEmbedding::new(128);
+        let bm25 = Bm25Embedding::new(128);
+        new_manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+        new_manager.register_provider("bm25".to_string(), Box::new(bm25));
+        new_manager.set_default_provider("tfidf").unwrap();
+        
+        let embedding_manager_rwlock = Arc::new(tokio::sync::RwLock::new(new_manager));
+        
+        let file_watcher = crate::file_watcher::FileWatcherSystem::new(
+            config,
+            self.store.clone(),
+            embedding_manager_rwlock,
+            None, // No GRPC client for now
+        );
+
+        // Start the file watcher
+        file_watcher.start().await?;
+        
+        self.file_watcher = Some(Arc::new(Mutex::new(file_watcher)));
+        info!("File Watcher System initialized successfully");
+        
+        Ok(())
+    }
+
+    /// Stop file watcher system
+    pub async fn stop_file_watcher(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(watcher) = self.file_watcher.take() {
+            info!("Stopping File Watcher System...");
+            let mut watcher = watcher.lock().unwrap();
+            watcher.stop().await?;
+            info!("File Watcher System stopped");
+        }
+        Ok(())
     }
 }
 

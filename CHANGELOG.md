@@ -5,6 +5,105 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2025-01-27
+
+### 🔧 **Process Management & File Watcher Improvements**
+
+#### Process Duplication Prevention System
+- **NEW**: Comprehensive process management system to prevent duplicate server instances
+- **NEW**: Cross-platform process detection (Windows and Unix-like systems)
+- **NEW**: PID file management for reliable process tracking
+- **NEW**: Automatic cleanup of stale processes and PID files
+- **NEW**: Enhanced process verification and termination
+- **NEW**: Centralized process management module (`process_manager.rs`)
+
+#### File Watcher Error Corrections
+- **FIXED**: "Is a directory" errors when file watcher tries to process directories
+- **FIXED**: "File not found" errors for temporary Cargo build files
+- **FIXED**: Improved file filtering to skip temporary and build artifacts
+- **ENHANCED**: Robust filtering for hidden files, temporary files, and system files
+- **ENHANCED**: Better exclusion patterns for Rust build artifacts (`/target/` directory)
+
+#### Configuration Schema Updates
+- **FIXED**: Missing `grpc_port` and `mcp_port` fields in server configuration
+- **ENHANCED**: Proper configuration loading for `vectorizer-mcp-server`
+- **ENHANCED**: Unified configuration structure across all server binaries
+- **ENHANCED**: Better error handling for configuration loading failures
+
+#### Server Binary Improvements
+- **ENHANCED**: `vectorizer-mcp-server.rs` now uses file-based configuration instead of environment variables
+- **ENHANCED**: `vectorizer-server.rs` includes process management integration
+- **ENHANCED**: `vzr.rs` uses improved process management with enhanced checking
+- **ENHANCED**: All server binaries now prevent duplicate instances automatically
+
+### 🛠️ **Technical Improvements**
+
+#### Process Management Features
+- **Platform Support**: Windows (`tasklist`, `netstat`, `taskkill`) and Unix-like (`ps`, `lsof`, `pkill`)
+- **PID File Management**: Create, read, and cleanup PID files for process tracking
+- **Process Verification**: Verify processes are actually running before operations
+- **Graceful Cleanup**: Automatic cleanup on server shutdown using `scopeguard`
+- **Error Handling**: Comprehensive error handling with detailed logging
+
+#### File Filtering Enhancements
+- **Directory Skipping**: Automatic detection and skipping of directories
+- **Temporary File Filtering**: Skip files with `.tmp`, `.part`, `.lock` extensions
+- **Hidden File Filtering**: Skip files starting with `.` or `~`
+- **Build Artifact Filtering**: Skip entire `/target/` directory tree
+- **System File Filtering**: Skip `.DS_Store`, `Thumbs.db`, and other system files
+
+#### Configuration Management
+- **Schema Validation**: Proper validation of configuration fields
+- **Default Values**: Comprehensive default configuration with all required fields
+- **Error Recovery**: Graceful fallback to default configuration on load errors
+- **Type Safety**: Proper type handling for all configuration parameters
+
+### 📊 **Quality Improvements**
+
+#### Error Reduction
+- **Eliminated**: "Is a directory" errors in file watcher logs
+- **Eliminated**: "File not found" errors for temporary files
+- **Eliminated**: Configuration loading errors for MCP server
+- **Reduced**: Log noise from processing irrelevant files
+
+#### Performance Enhancements
+- **Faster**: File watcher processing by skipping irrelevant files
+- **More Efficient**: Process management with targeted operations
+- **Better Resource Usage**: Reduced CPU and I/O from unnecessary file processing
+
+#### Reliability Improvements
+- **No Duplicate Servers**: Prevents multiple instances from running simultaneously
+- **Automatic Cleanup**: Ensures proper cleanup of processes and files
+- **Robust Error Handling**: Better error recovery and logging
+- **Cross-Platform**: Consistent behavior across Windows and Unix-like systems
+
+### 🔄 **Dependencies**
+
+#### New Dependencies
+- **scopeguard**: Added for automatic cleanup on scope exit
+- **Enhanced CLI**: Improved argument parsing for all server binaries
+
+#### Configuration Files
+- **Updated**: `config.yml` with proper `grpc_port` and `mcp_port` fields
+- **Enhanced**: File watcher configuration with comprehensive exclusion patterns
+
+### 🎯 **Usage**
+
+#### Process Management
+- All server binaries now automatically check for and terminate duplicate instances
+- PID files are created for reliable process tracking
+- Cleanup is automatic on server shutdown
+
+#### File Watcher
+- Automatically skips directories, temporary files, and build artifacts
+- Processes only relevant files based on include/exclude patterns
+- More efficient and less noisy operation
+
+#### Configuration
+- All servers use unified configuration schema
+- Proper error handling for missing configuration fields
+- Fallback to sensible defaults when configuration fails
+
 ## [0.14.0] - 2024-12-19
 
 ### 🧪 **Comprehensive Test Coverage Implementation**

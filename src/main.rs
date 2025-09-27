@@ -2,6 +2,8 @@
 
 use clap::Parser;
 use tracing::info;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Vectorizer - High-performance vector database
 #[derive(Parser, Debug)]
@@ -26,16 +28,27 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse arguments first
+    let args = Args::parse();
+
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter("vectorizer=debug,tower_http=debug,axum=debug")
+        .with_target(false)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
         .init();
 
-    // Parse arguments
-    let args = Args::parse();
-
+    println!("🚀 Starting Vectorizer v{}", vectorizer::VERSION);
+    println!("🔗 Binding to {}:{}", args.host, args.port);
+    println!("📁 Project argument: {:?}", args.project);
+    println!("⚙️ Config argument: {:?}", args.config);
+    
     info!("Starting Vectorizer v{}", vectorizer::VERSION);
     info!("Binding to {}:{}", args.host, args.port);
+    info!("Project argument: {:?}", args.project);
+    info!("Config argument: {:?}", args.config);
 
     // Initialize vector store
     let store = vectorizer::VectorStore::new();
@@ -43,13 +56,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load project documents if specified
     let embedding_manager = if let Some(project_path) = &args.project {
+        println!("📁 Loading project from: {}", project_path);
         info!("Loading project from: {}", project_path);
 
-        let config = vectorizer::document_loader::LoaderConfig::default();
+        // Load configuration from vectorize.yml if available
+        let config = if let Some(config_path) = &args.config {
+            if std::path::Path::new(config_path).exists() {
+                match load_loader_config_from_yaml(config_path) {
+                    Ok(config) => {
+                        println!("✅ Loaded configuration from {}", config_path);
+                        config
+                    }
+                    Err(e) => {
+                        println!("⚠️ Failed to load config from {}: {}. Using defaults.", config_path, e);
+                        vectorizer::document_loader::LoaderConfig::default()
+                    }
+                }
+            } else {
+                println!("⚠️ Config file {} not found. Using defaults.", config_path);
+                vectorizer::document_loader::LoaderConfig::default()
+            }
+        } else {
+            vectorizer::document_loader::LoaderConfig::default()
+        };
+        
         let mut loader = vectorizer::document_loader::DocumentLoader::new(config);
 
         match loader.load_project(project_path, &store) {
             Ok(count) => {
+                println!("✅ Successfully loaded {} document chunks", count);
                 info!("Successfully loaded {} document chunks", count);
 
                 // Print collection statistics
@@ -139,12 +174,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 manager
             }
             Err(e) => {
+                println!("❌ Failed to load project: {}", e);
                 eprintln!("Failed to load project: {}", e);
                 std::process::exit(1);
             }
         }
     } else {
         // Create a default embedding manager if no project is loaded
+        println!("ℹ️ No project specified, using default embedding manager");
         vectorizer::embedding::EmbeddingManager::new()
     };
 
@@ -160,4 +197,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     server.start().await?;
 
     Ok(())
+}
+
+/// Load LoaderConfig from vectorize.yml
+fn load_loader_config_from_yaml(config_path: &str) -> Result<vectorizer::document_loader::LoaderConfig, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(config_path)?;
+    let yaml_config: YamlConfig = serde_yaml::from_str(&content)?;
+    
+    // Convert to LoaderConfig
+    let mut config = vectorizer::document_loader::LoaderConfig::default();
+    
+    // Find the first project and its first collection
+    if let Some(project) = yaml_config.projects.first() {
+        if let Some(collection) = project.collections.first() {
+            config.collection_name = collection.name.clone();
+            config.max_chunk_size = collection.chunk_size;
+            config.chunk_overlap = collection.chunk_overlap;
+            config.embedding_type = collection.embedding_provider.clone();
+            config.embedding_dimension = collection.dimension;
+            config.include_patterns = collection.include_patterns.clone();
+            config.exclude_patterns = collection.exclude_patterns.clone();
+        }
+    }
+    
+    Ok(config)
+}
+
+#[derive(Debug, Deserialize)]
+struct YamlConfig {
+    projects: Vec<Project>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Project {
+    name: String,
+    path: String,
+    collections: Vec<Collection>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Collection {
+    name: String,
+    include_patterns: Vec<String>,
+    exclude_patterns: Vec<String>,
+    chunk_size: usize,
+    chunk_overlap: usize,
+    embedding_provider: String,
+    dimension: usize,
 }

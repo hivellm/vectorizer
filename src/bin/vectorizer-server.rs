@@ -16,6 +16,7 @@ use vectorizer::{
     cache::CacheConfig,
     db::VectorStore,
     document_loader::{DocumentLoader, LoaderConfig},
+    process_manager::{initialize_process_management, cleanup_process_management},
 };
 
 /// Update indexing progress for a collection
@@ -64,6 +65,10 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
+    // Initialize process management first
+    let ports = vec![args.port];
+    let _process_logger = initialize_process_management("vectorizer-server", &ports)?;
 
     // Initialize logging to file (unique per port to avoid conflicts)
     let log_filename = format!("vectorizer-server-{}.log", args.port);
@@ -143,7 +148,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start server
     info!("🎯 Vectorizer server ready - dashboard accessible immediately");
-    server.start().await?;
+    
+    // Setup cleanup on exit
+    let cleanup_guard = scopeguard::guard((), |_| {
+        cleanup_process_management("vectorizer-server");
+    });
+    
+    let result = server.start().await;
+    
+    // Cleanup will be called automatically when cleanup_guard goes out of scope
+    drop(cleanup_guard);
 
-    Ok(())
+    result
 }

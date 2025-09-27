@@ -395,7 +395,7 @@ class VectorizerDashboard {
                 <div class="vectors-controls">
                     <div class="form-group">
                         <label for="vector-collection">Collection</label>
-                        <select id="vector-collection" class="form-control" onchange="dashboard.loadVectorsList()">
+                        <select id="vector-collection" class="form-control" onchange="dashboard.loadVectorsList(1, 20)">
                             <option value="">Select a collection...</option>
                             ${collections.collections.map(col => 
                                 `<option value="${col.name}">${col.name}</option>`
@@ -403,7 +403,7 @@ class VectorizerDashboard {
                         </select>
                     </div>
                     <div class="vectors-actions">
-                        <button class="btn btn-secondary" onclick="dashboard.loadVectorsList()" disabled id="refresh-vectors">
+                        <button class="btn btn-secondary" onclick="dashboard.loadVectorsList(1, 20)" disabled id="refresh-vectors">
                             <i class="fas fa-sync-alt"></i> Refresh
                         </button>
                     </div>
@@ -631,7 +631,7 @@ class VectorizerDashboard {
                     <div class="result-item">
                         <div class="result-header">
                             <span class="result-rank">#${index + 1}</span>
-                            <span class="result-score">Score: ${result.score.toFixed(4)}</span>
+                            <span class="result-score">Score: ${result.score ? result.score.toFixed(4) : '0.0000'}</span>
                             <span class="result-id">ID: ${result.id}</span>
                         </div>
                         <div class="result-content">
@@ -651,7 +651,7 @@ class VectorizerDashboard {
     }
 
     // Vector Management
-    async loadVectorsList() {
+    async loadVectorsList(page = 1, limit = 20) {
         const collection = document.getElementById('vector-collection').value;
         const container = document.getElementById('vectors-list');
         const refreshBtn = document.getElementById('refresh-vectors');
@@ -672,15 +672,53 @@ class VectorizerDashboard {
 
         try {
             this.showLoading();
-            const data = await this.fetchAPI(`/collections/${collection}/vectors`);
+            // Ensure page and limit are valid numbers to avoid NaN
+            const validPage = Math.max(1, parseInt(page) || 1);
+            const validLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+            
+            // Calculate offset properly to avoid NaN
+            const offset = (validPage - 1) * validLimit;
+            
+            // Debug logging
+            console.log('Vector Browser Debug:', {
+                originalPage: page,
+                originalLimit: limit,
+                validPage,
+                validLimit,
+                offset,
+                collection
+            });
+            
+            const data = await this.fetchAPI(`/collections/${collection}/vectors?limit=${validLimit}&offset=${offset}`);
             
             container.innerHTML = `
                 <div class="vectors-header">
                     <h3>Vectors in ${collection}</h3>
-                    <span class="vectors-count">${data.total} total vectors</span>
+                    <span class="vectors-count">${data.total || 0} total vectors</span>
                 </div>
+                
+                <!-- Pagination Controls -->
+                <div class="pagination-controls">
+                    <div class="pagination-info">
+                        Showing ${offset + 1}-${Math.min(offset + validLimit, data.total || 0)} of ${data.total || 0} vectors
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="btn btn-secondary btn-sm" 
+                                onclick="dashboard.loadVectorsList(${validPage - 1}, ${validLimit})" 
+                                ${validPage <= 1 ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <span class="pagination-page">Page ${validPage}</span>
+                        <button class="btn btn-secondary btn-sm" 
+                                onclick="dashboard.loadVectorsList(${validPage + 1}, ${validLimit})" 
+                                ${(offset + validLimit) >= (data.total || 0) ? 'disabled' : ''}>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="vectors-grid">
-                    ${data.vectors.map((vector, index) => `
+                    ${(data.vectors || []).map((vector, index) => `
                         <div class="vector-card">
                             <div class="vector-header">
                                 <span class="vector-id">${vector.id}</span>
@@ -688,17 +726,68 @@ class VectorizerDashboard {
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
-                            <div class="vector-preview">
-                                ${vector.payload ? `
-                                    <div class="payload-preview">
-                                        <strong>Content:</strong>
-                                        <span>${this.truncateText(this.formatJSON(vector.payload), 150)}</span>
+                            
+                            <div class="vector-content">
+                                <div class="vector-preview">
+                                    ${vector.payload ? `
+                                        <div class="payload-preview">
+                                            <strong>Content:</strong>
+                                            <div class="content-text">${this.truncateText(this.formatJSON(vector.payload), 120)}</div>
+                                        </div>
+                                    ` : '<span class="no-payload">No payload</span>'}
+                                </div>
+                                
+                                <div class="vector-metadata">
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">Source:</span>
+                                        <span class="metadata-value">${vector.metadata?.source || 'Unknown'}</span>
                                     </div>
-                                ` : '<span class="no-payload">No payload</span>'}
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">File Type:</span>
+                                        <span class="metadata-value">${vector.metadata?.file_type || 'Unknown'}</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">Chunk:</span>
+                                        <span class="metadata-value">${vector.metadata?.chunk_index || 0}</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">Model:</span>
+                                        <span class="metadata-value">${vector.metadata?.embedding_model || 'Unknown'}</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">Dimension:</span>
+                                        <span class="metadata-value">${vector.metadata?.dimension || 'Unknown'}</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">Score:</span>
+                                        <span class="metadata-value">${vector.metadata?.similarity_score ? vector.metadata.similarity_score.toFixed(3) : 'N/A'}</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <span class="metadata-label">Created:</span>
+                                        <span class="metadata-value">${vector.metadata?.created_at ? this.formatDateTime(vector.metadata.created_at) : 'Unknown'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="vector-actions">
+                                <button class="btn btn-primary btn-sm" onclick="dashboard.viewVectorDetails('${collection}', '${vector.id}')">
+                                    <i class="fas fa-eye"></i> View Details
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="dashboard.copyVectorId('${vector.id}')">
+                                    <i class="fas fa-copy"></i> Copy ID
+                                </button>
                             </div>
                         </div>
                     `).join('')}
                 </div>
+                
+                ${(!data.vectors || data.vectors.length === 0) ? `
+                    <div class="empty-state">
+                        <i class="fas fa-vector-square"></i>
+                        <h3>No Vectors Found</h3>
+                        <p>This collection appears to be empty</p>
+                    </div>
+                ` : ''}
             `;
         } catch (error) {
             container.innerHTML = `<div class="error">Error loading vectors: ${error.message}</div>`;
@@ -773,7 +862,138 @@ class VectorizerDashboard {
         // Switch to vectors page and select the collection
         await this.loadPage('vectors');
         document.getElementById('vector-collection').value = collectionName;
-        await this.loadVectorsList();
+        await this.loadVectorsList(1, 20);
+    }
+
+    // Vector Details Modal
+    async viewVectorDetails(collectionName, vectorId) {
+        try {
+            this.showLoading();
+            const vector = await this.fetchAPI(`/collections/${collectionName}/vectors/${vectorId}`);
+            
+            const modalContent = `
+                <div class="modal-header">
+                    <h2><i class="fas fa-vector-square"></i> Vector Details</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="vector-details-grid">
+                        <div class="detail-section">
+                            <h3>Basic Information</h3>
+                            <div class="detail-list">
+                                <div class="detail-item">
+                                    <span class="label">Vector ID:</span>
+                                    <span class="value">${vector.id}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Collection:</span>
+                                    <span class="value">${collectionName}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Dimension:</span>
+                                    <span class="value">${vector.metadata?.dimension || 'Unknown'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Embedding Model:</span>
+                                    <span class="value">${vector.metadata?.embedding_model || 'Unknown'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Similarity Score:</span>
+                                    <span class="value">${vector.metadata?.similarity_score ? vector.metadata.similarity_score.toFixed(4) : 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>Source Information</h3>
+                            <div class="detail-list">
+                                <div class="detail-item">
+                                    <span class="label">Source File:</span>
+                                    <span class="value">${vector.metadata?.source || 'Unknown'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">File Type:</span>
+                                    <span class="value">${vector.metadata?.file_type || 'Unknown'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Chunk Index:</span>
+                                    <span class="value">${vector.metadata?.chunk_index || 0}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Created:</span>
+                                    <span class="value">${vector.metadata?.created_at ? this.formatDateTime(vector.metadata.created_at) : 'Unknown'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-section full-width">
+                            <h3>Vector Content</h3>
+                            <div class="vector-content-display">
+                                ${vector.payload ? `
+                                    <div class="content-section">
+                                        <h4>Payload Data:</h4>
+                                        <pre class="json-display">${this.formatJSON(vector.payload)}</pre>
+                                    </div>
+                                ` : '<p class="no-content">No payload data available</p>'}
+                                
+                                <div class="content-section">
+                                    <h4>Vector Embedding (first 10 values):</h4>
+                                    <pre class="vector-display">${vector.embedding ? 
+                                        JSON.stringify(vector.embedding.slice(0, 10), null, 2) + '\n...' : 
+                                        'Embedding data not available'
+                                    }</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="dashboard.copyVectorId('${vectorId}'); dashboard.closeModal();">
+                        <i class="fas fa-copy"></i> Copy ID
+                    </button>
+                    <button class="btn btn-primary" onclick="dashboard.copyVectorData('${collectionName}', '${vectorId}'); dashboard.closeModal();">
+                        <i class="fas fa-download"></i> Copy Data
+                    </button>
+                    <button class="btn btn-secondary" onclick="dashboard.closeModal()">Close</button>
+                </div>
+            `;
+            
+            this.showModal(modalContent);
+        } catch (error) {
+            this.showToast(`Error loading vector details: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // Utility function to copy vector ID
+    copyVectorId(vectorId) {
+        navigator.clipboard.writeText(vectorId).then(() => {
+            this.showToast('Vector ID copied to clipboard', 'success');
+        }).catch(() => {
+            this.showToast('Failed to copy vector ID', 'error');
+        });
+    }
+
+    // Utility function to copy vector data
+    async copyVectorData(collectionName, vectorId) {
+        try {
+            const vector = await this.fetchAPI(`/collections/${collectionName}/vectors/${vectorId}`);
+            const dataToCopy = {
+                id: vector.id,
+                metadata: vector.metadata,
+                payload: vector.payload,
+                embedding: vector.embedding ? vector.embedding.slice(0, 10) : null // First 10 values only
+            };
+            
+            navigator.clipboard.writeText(JSON.stringify(dataToCopy, null, 2)).then(() => {
+                this.showToast('Vector data copied to clipboard', 'success');
+            }).catch(() => {
+                this.showToast('Failed to copy vector data', 'error');
+            });
+        } catch (error) {
+            this.showToast(`Error copying vector data: ${error.message}`, 'error');
+        }
     }
 
     // Console Functions
@@ -1173,7 +1393,41 @@ class VectorizerDashboard {
     }
 }
 
+    // Test function to verify offset calculation
+    testOffsetCalculation() {
+        console.log('Testing offset calculations:');
+        
+        const testCases = [
+            { page: 1, limit: 20, expected: 0 },
+            { page: 2, limit: 20, expected: 20 },
+            { page: 3, limit: 10, expected: 20 },
+            { page: undefined, limit: undefined, expected: 0 },
+            { page: null, limit: null, expected: 0 },
+            { page: '2', limit: '20', expected: 20 }
+        ];
+        
+        testCases.forEach((testCase, index) => {
+            const validPage = Math.max(1, parseInt(testCase.page) || 1);
+            const validLimit = Math.max(1, Math.min(100, parseInt(testCase.limit) || 20));
+            const offset = (validPage - 1) * validLimit;
+            
+            console.log(`Test ${index + 1}:`, {
+                input: testCase,
+                validPage,
+                validLimit,
+                calculatedOffset: offset,
+                expected: testCase.expected,
+                passed: offset === testCase.expected
+            });
+        });
+    }
+
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.dashboard = new VectorizerDashboard();
+    
+    // Run offset calculation test
+    setTimeout(() => {
+        window.dashboard.testOffsetCalculation();
+    }, 1000);
 });

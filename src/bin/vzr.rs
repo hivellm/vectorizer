@@ -12,14 +12,18 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use tokio::process::Command as TokioCommand;
+use std::collections::HashMap;
 use tokio::sync::Mutex;
+use std::fs;
 use tracing_subscriber;
 use vectorizer::workspace::WorkspaceManager;
 use vectorizer::{
     db::VectorStore,
     embedding::EmbeddingManager,
     grpc::server::start_grpc_server,
-    config::GrpcConfig,
+    grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient,
+    config::{GrpcConfig, FileWatcherYamlConfig},
+    file_watcher::FileWatcherSystem,
 };
 
 /// Structured logging for workspace operations
@@ -69,19 +73,102 @@ impl WorkspaceLogger {
 fn check_existing_processes(logger: &WorkspaceLogger) -> bool {
     logger.info("Checking for existing vectorizer processes...");
 
-    // Only check for processes listening on our ports (more reliable)
-    let port_check = Command::new("lsof")
-        .args(&["-i", ":15001", "-i", ":15002"])
-        .output();
+    // Check for processes by name first
+    if check_processes_by_name(logger) {
+        return true;
+    }
 
-    if let Ok(output) = port_check {
-        if output.status.success() && !output.stdout.is_empty() {
-            logger.warn("Found processes listening on vectorizer ports (15001/15002)");
-            return true;
-        }
+    // Then check for processes using our ports
+    if check_processes_by_ports(logger) {
+        return true;
     }
 
     logger.info("No existing vectorizer processes found");
+    false
+}
+
+/// Check for processes by executable name
+fn check_processes_by_name(logger: &WorkspaceLogger) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Use tasklist command
+        let output = Command::new("tasklist")
+            .args(&["/FI", "IMAGENAME eq vectorizer.exe", "/FI", "STATUS eq RUNNING"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                // tasklist returns header lines, so we check if there are actual process entries
+                let lines: Vec<&str> = stdout.lines().collect();
+                if lines.len() > 3 { // Header + separator + at least one process
+                    logger.warn("Found existing vectorizer.exe processes");
+                    return true;
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Unix-like systems: Use ps command
+        let output = Command::new("ps")
+            .args(&["aux"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    if line.contains("vectorizer") && !line.contains("grep") {
+                        logger.warn("Found existing vectorizer processes");
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// Check for processes using our specific ports
+fn check_processes_by_ports(logger: &WorkspaceLogger) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Use netstat to find processes using our ports
+        let output = Command::new("netstat")
+            .args(&["-ano"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    if line.contains(":15001") || line.contains(":15002") {
+                        logger.warn("Found processes listening on vectorizer ports (15001/15002)");
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Unix-like systems: Use lsof
+        let output = Command::new("lsof")
+            .args(&["-i", ":15001", "-i", ":15002"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() && !output.stdout.is_empty() {
+                logger.warn("Found processes listening on vectorizer ports (15001/15002)");
+                return true;
+            }
+        }
+    }
+
     false
 }
 
@@ -89,38 +176,252 @@ fn check_existing_processes(logger: &WorkspaceLogger) -> bool {
 fn kill_existing_processes(logger: &WorkspaceLogger) -> Result<(), Box<dyn std::error::Error>> {
     logger.info("Killing existing vectorizer processes...");
 
-    // Kill processes using our ports
-    let port_kill = Command::new("lsof")
-        .args(&["-ti", ":15001", ":15002"])
-        .output();
+    // First, try to kill processes by name
+    kill_processes_by_name(logger)?;
 
-    if let Ok(output) = port_kill {
-        if output.status.success() && !output.stdout.is_empty() {
-            let stdout_str = String::from_utf8_lossy(&output.stdout);
-            let pids: Vec<String> = stdout_str
-                .lines()
-                .filter(|line| !line.is_empty())
-                .map(|line| line.to_string())
-                .collect();
+    // Then kill processes using our ports
+    kill_processes_by_ports(logger)?;
 
-            for pid in pids {
-                logger.info(&format!("Killing process {} using vectorizer ports", pid));
-                let _ = Command::new("kill").args(&["-9", &pid]).output();
+    // Wait a moment for processes to terminate
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+
+    // Verify that processes are actually terminated
+    if check_existing_processes(logger) {
+        logger.warn("Some processes may still be running after kill attempt");
+        return Err("Failed to completely terminate existing processes".into());
+    }
+
+    logger.info("Existing processes terminated successfully");
+    Ok(())
+}
+
+/// Kill processes by executable name
+fn kill_processes_by_name(logger: &WorkspaceLogger) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Use taskkill command
+        let output = Command::new("taskkill")
+            .args(&["/F", "/IM", "vectorizer.exe"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                logger.info("Killed vectorizer.exe processes");
+            } else {
+                // Check if it's because no processes were found
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if !stderr.contains("not found") {
+                    logger.warn(&format!("taskkill warning: {}", stderr));
+                }
             }
         }
     }
 
-    // Wait a moment for processes to terminate
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Unix-like systems: Use pkill
+        let output = Command::new("pkill")
+            .args(&["-f", "vectorizer"])
+            .output();
 
-    logger.info("Existing processes terminated");
+        if let Ok(output) = output {
+            if output.status.success() {
+                logger.info("Killed vectorizer processes using pkill");
+            } else {
+                // pkill returns non-zero if no processes found, which is fine
+                logger.info("No vectorizer processes found to kill");
+            }
+        }
+
+        // Fallback: use killall if pkill is not available
+        let killall_output = Command::new("killall")
+            .args(&["-9", "vectorizer"])
+            .output();
+
+        if let Ok(killall_output) = killall_output {
+            if killall_output.status.success() {
+                logger.info("Killed vectorizer processes using killall");
+            }
+        }
+    }
+
     Ok(())
+}
+
+/// Kill processes using our specific ports
+fn kill_processes_by_ports(logger: &WorkspaceLogger) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Find PIDs using netstat and kill with taskkill
+        let netstat_output = Command::new("netstat")
+            .args(&["-ano"])
+            .output();
+
+        if let Ok(netstat_output) = netstat_output {
+            if netstat_output.status.success() {
+                let stdout = String::from_utf8_lossy(&netstat_output.stdout);
+                let mut pids_to_kill = std::collections::HashSet::new();
+
+                for line in stdout.lines() {
+                    if line.contains(":15001") || line.contains(":15002") {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() >= 5 {
+                            if let Ok(pid) = parts[4].parse::<u32>() {
+                                pids_to_kill.insert(pid);
+                            }
+                        }
+                    }
+                }
+
+                for pid in pids_to_kill {
+                    logger.info(&format!("Killing process {} using vectorizer ports", pid));
+                    let _ = Command::new("taskkill")
+                        .args(&["/F", "/PID", &pid.to_string()])
+                        .output();
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Unix-like systems: Use lsof to find PIDs and kill them
+        let lsof_output = Command::new("lsof")
+            .args(&["-ti", ":15001", ":15002"])
+            .output();
+
+        if let Ok(lsof_output) = lsof_output {
+            if lsof_output.status.success() && !lsof_output.stdout.is_empty() {
+                let stdout_str = String::from_utf8_lossy(&lsof_output.stdout);
+                let pids: Vec<String> = stdout_str
+                    .lines()
+                    .filter(|line| !line.is_empty())
+                    .map(|line| line.trim().to_string())
+                    .collect();
+
+                for pid in pids {
+                    logger.info(&format!("Killing process {} using vectorizer ports", pid));
+                    let _ = Command::new("kill").args(&["-9", &pid]).output();
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// PID file management for process tracking
+struct PidFile {
+    path: PathBuf,
+}
+
+impl PidFile {
+    fn new(server_type: &str) -> Self {
+        let pid_file = format!("vectorizer-{}-{}.pid", server_type, std::process::id());
+        Self {
+            path: PathBuf::from(pid_file),
+        }
+    }
+
+    fn create(&self, pid: u32) -> Result<(), Box<dyn std::error::Error>> {
+        let content = format!("{}\n", pid);
+        fs::write(&self.path, content)?;
+        Ok(())
+    }
+
+    fn read_pid(&self) -> Result<Option<u32>, Box<dyn std::error::Error>> {
+        if !self.path.exists() {
+            return Ok(None);
+        }
+
+        let content = fs::read_to_string(&self.path)?;
+        let pid_str = content.trim();
+        match pid_str.parse::<u32>() {
+            Ok(pid) => Ok(Some(pid)),
+            Err(_) => Ok(None),
+        }
+    }
+
+    fn cleanup(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.path.exists() {
+            fs::remove_file(&self.path)?;
+        }
+        Ok(())
+    }
+}
+
+/// Check if a process is actually running by PID
+fn is_process_running(pid: u32) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("tasklist")
+            .args(&["/FI", &format!("PID eq {}", pid), "/FO", "CSV"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                // Check if the PID appears in the output (excluding header)
+                let lines: Vec<&str> = stdout.lines().collect();
+                lines.len() > 1 // More than just the header line
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let output = Command::new("ps")
+            .args(&["-p", &pid.to_string()])
+            .output();
+
+        if let Ok(output) = output {
+            output.status.success()
+        } else {
+            false
+        }
+    }
+}
+
+/// Enhanced process checking with PID file support
+fn check_existing_processes_enhanced(logger: &WorkspaceLogger) -> bool {
+    logger.info("Enhanced check for existing vectorizer processes...");
+
+    // Check PID files first
+    let mcp_pid_file = PidFile::new("mcp-server");
+    let rest_pid_file = PidFile::new("rest-server");
+
+    // Check MCP server PID file
+    if let Ok(Some(pid)) = mcp_pid_file.read_pid() {
+        if is_process_running(pid) {
+            logger.warn(&format!("Found running MCP server with PID {}", pid));
+            return true;
+        } else {
+            logger.info("Found stale MCP server PID file, cleaning up...");
+            let _ = mcp_pid_file.cleanup();
+        }
+    }
+
+    // Check REST server PID file
+    if let Ok(Some(pid)) = rest_pid_file.read_pid() {
+        if is_process_running(pid) {
+            logger.warn(&format!("Found running REST server with PID {}", pid));
+            return true;
+        } else {
+            logger.info("Found stale REST server PID file, cleaning up...");
+            let _ = rest_pid_file.cleanup();
+        }
+    }
+
+    // Fall back to the original check methods
+    check_existing_processes(logger)
 }
 
 #[cfg(target_os = "linux")]
 use libc::setsid;
-#[cfg(target_os = "linux")]
-use std::fs;
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
@@ -223,7 +524,7 @@ async fn main() {
 
     // Check for duplicate processes before starting
     let logger = WorkspaceLogger::new();
-    if check_existing_processes(&logger) {
+    if check_existing_processes_enhanced(&logger) {
         logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
         if let Err(e) = kill_existing_processes(&logger) {
             logger.error(&format!("Failed to kill existing processes: {}", e));
@@ -821,14 +1122,75 @@ async fn run_interactive(
     println!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
+    // Initialize File Watcher System for legacy mode with GRPC connection
+    let file_watcher_vector_store = Arc::new(VectorStore::new());
+    let file_watcher_embedding_manager = Arc::new(Mutex::new({
+        let mut manager = EmbeddingManager::new();
+        
+        // Register default providers
+        use vectorizer::embedding::{TfIdfEmbedding, Bm25Embedding};
+        let tfidf = TfIdfEmbedding::new(128);
+        let bm25 = Bm25Embedding::new(128);
+        manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager.set_default_provider("tfidf").unwrap();
+        
+        manager
+    }));
+    
+    // Wait for REST API server to be ready before starting File Watcher and indexing
+    let project_path_clone = project.clone();
+    tokio::spawn(async move {
+        // Wait for server to be ready
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        
+        // Start background indexing for the project
+        println!("🔄 Starting background indexing for project: {}", project_path_clone.display());
+        let indexing_vector_store = Arc::clone(&file_watcher_vector_store);
+        let indexing_embedding_manager = Arc::clone(&file_watcher_embedding_manager);
+        
+        // Create a simple indexing progress tracker
+        let indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
+        
+        // Start indexing in background
+        tokio::spawn(async move {
+            start_background_indexing_for_project(
+                project_path_clone.to_string_lossy().to_string(),
+                indexing_vector_store,
+                indexing_embedding_manager,
+                indexing_progress,
+            ).await;
+        });
+        
+        // Start file watcher
+        if let Err(e) = start_file_watcher_system_with_grpc(
+            file_watcher_vector_store,
+            file_watcher_embedding_manager,
+            format!("http://{}:{}", host, port),
+        ).await {
+            eprintln!("❌ Failed to start File Watcher System: {}", e);
+        }
+    });
+
     // Wait for shutdown signal
     signal::ctrl_c()
         .await
         .expect("Failed to listen for shutdown signal");
 
     println!("\n🛑 Shutting down servers...");
-    let _ = mcp_child.kill().await;
-    let _ = rest_child.kill().await;
+    
+    // Kill child processes
+    if let Err(e) = mcp_child.kill().await {
+        eprintln!("Warning: Failed to kill MCP server: {}", e);
+    }
+    if let Err(e) = rest_child.kill().await {
+        eprintln!("Warning: Failed to kill REST server: {}", e);
+    }
+    
+    // Wait for processes to terminate
+    let _ = mcp_child.wait().await;
+    let _ = rest_child.wait().await;
+    
     println!("✅ Servers stopped.");
 }
 
@@ -837,7 +1199,7 @@ async fn run_interactive_workspace(
     workspace_manager: WorkspaceManager,
     config: PathBuf,
     host: String,
-    _port: u16,
+    port: u16,
     _mcp_port: u16,
 ) {
     use tokio::signal;
@@ -1105,6 +1467,20 @@ async fn run_interactive_workspace(
         ).await;
     });
 
+    // Initialize and start File Watcher System
+    let file_watcher_vector_store = Arc::clone(&grpc_vector_store);
+    let file_watcher_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    
+    tokio::spawn(async move {
+        if let Err(e) = start_file_watcher_system_with_grpc(
+            file_watcher_vector_store,
+            file_watcher_embedding_manager,
+            format!("http://{}:{}", host, port),
+        ).await {
+            eprintln!("❌ Failed to start File Watcher System: {}", e);
+        }
+    });
+
     // Wait for shutdown signal
     signal::ctrl_c()
         .await
@@ -1170,6 +1546,120 @@ async fn start_background_indexing_with_config(
     }
     
     println!("✅ Background indexing completed");
+}
+
+/// Start File Watcher System for real-time file monitoring with GRPC connection
+async fn start_file_watcher_system_with_grpc(
+    vector_store: Arc<VectorStore>,
+    embedding_manager: Arc<Mutex<EmbeddingManager>>,
+    grpc_endpoint: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("👁️ Starting File Watcher System...");
+    
+    // Load file watcher configuration from vectorize.yml
+    // Try multiple possible locations for the config file
+    let possible_config_paths = vec![
+        std::path::PathBuf::from("vectorize.yml"),
+        std::path::PathBuf::from("test_watcher/vectorize.yml"),
+        std::path::PathBuf::from("./vectorize.yml"),
+        std::path::PathBuf::from("./test_watcher/vectorize.yml"),
+    ];
+    
+    let config_path = possible_config_paths.iter()
+        .find(|path| path.exists())
+        .cloned()
+        .unwrap_or_else(|| std::path::PathBuf::from("vectorize.yml"));
+    let file_watcher_config = if config_path.exists() {
+        match load_file_watcher_config(&config_path).await {
+            Ok(config) => {
+                println!("✅ File Watcher config loaded from {}", config_path.display());
+                config
+            }
+            Err(e) => {
+                println!("⚠️ Failed to load file watcher config: {}. Using defaults.", e);
+                FileWatcherYamlConfig::default()
+            }
+        }
+    } else {
+        println!("⚠️ vectorize.yml not found at any location. Using default file watcher config.");
+        FileWatcherYamlConfig::default()
+    };
+
+    // Check if file watcher is enabled
+    if !file_watcher_config.enabled {
+        println!("ℹ️ File Watcher is disabled in configuration");
+        return Ok(());
+    }
+
+    // Convert to FileWatcherConfig and set GRPC endpoint
+    let mut watcher_config = file_watcher_config.to_file_watcher_config();
+    watcher_config.grpc_endpoint = Some(grpc_endpoint.clone());
+    
+    // Convert Mutex to RwLock for compatibility
+    // For now, create a new EmbeddingManager with default providers
+    let mut new_manager = EmbeddingManager::new();
+    
+    // Register default providers
+    use vectorizer::embedding::{TfIdfEmbedding, Bm25Embedding};
+    let tfidf = TfIdfEmbedding::new(128);
+    let bm25 = Bm25Embedding::new(128);
+    new_manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+    new_manager.register_provider("bm25".to_string(), Box::new(bm25));
+    new_manager.set_default_provider("tfidf").unwrap();
+    
+    let embedding_manager_rwlock = Arc::new(tokio::sync::RwLock::new(new_manager));
+    
+    // Create GRPC client for communication with vectorizer-server
+    let grpc_client = match create_grpc_client(&grpc_endpoint).await {
+        Ok(client) => {
+            println!("✅ GRPC client connected to {}", grpc_endpoint);
+            Some(Arc::new(client))
+        }
+        Err(e) => {
+            println!("⚠️ Failed to create GRPC client: {}. File Watcher will use local operations.", e);
+            None
+        }
+    };
+    
+    // Create and start File Watcher System
+    let file_watcher = FileWatcherSystem::new(
+        watcher_config,
+        vector_store,
+        embedding_manager_rwlock,
+        grpc_client,
+    );
+
+    println!("👁️ File Watcher System initialized");
+    println!("📁 Watching paths: {:?}", file_watcher_config.watch_paths);
+    println!("🔄 Debounce delay: {}ms", file_watcher_config.debounce_delay_ms);
+    println!("📝 Collection: {}", file_watcher_config.collection_name);
+
+    // Start the file watcher
+    file_watcher.start().await?;
+    
+    println!("✅ File Watcher System started successfully");
+    
+    // Keep the file watcher running
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        // File watcher runs in background, this is just to keep the task alive
+    }
+}
+
+/// Load file watcher configuration from YAML file
+async fn load_file_watcher_config(config_path: &std::path::Path) -> Result<FileWatcherYamlConfig, Box<dyn std::error::Error>> {
+    let content = tokio::fs::read_to_string(config_path).await?;
+    
+    // Parse the YAML and extract file_watcher section
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&content)?;
+    
+    if let Some(file_watcher_section) = yaml.get("file_watcher") {
+        let config: FileWatcherYamlConfig = serde_yaml::from_value(file_watcher_section.clone())?;
+        Ok(config)
+    } else {
+        // Return default config if no file_watcher section found
+        Ok(FileWatcherYamlConfig::default())
+    }
 }
 
 
@@ -1705,5 +2195,68 @@ fn find_processes(name: &str) -> Vec<u32> {
             .collect()
     } else {
         vec![]
+    }
+}
+
+/// Create GRPC client for communication with vectorizer-server
+async fn create_grpc_client(grpc_endpoint: &str) -> Result<VectorizerServiceClient<tonic::transport::Channel>, Box<dyn std::error::Error>> {
+    // Convert HTTP endpoint to GRPC endpoint
+    let grpc_url = grpc_endpoint.replace("http://", "").replace("https://", "");
+    let grpc_endpoint = format!("http://{}", grpc_url);
+    
+    // Add retry logic and better error handling
+    let mut attempts = 0;
+    let max_attempts = 3;
+    
+    while attempts < max_attempts {
+        match VectorizerServiceClient::connect(grpc_endpoint.clone()).await {
+            Ok(client) => return Ok(client),
+            Err(e) => {
+                attempts += 1;
+                if attempts >= max_attempts {
+                    return Err(Box::new(e));
+                }
+                println!("⚠️ GRPC connection attempt {} failed: {}. Retrying...", attempts, e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+        }
+    }
+    
+    Err("Failed to connect to GRPC server after multiple attempts".into())
+}
+
+/// Start background indexing for a single project
+async fn start_background_indexing_for_project(
+    project_path: String,
+    vector_store: Arc<VectorStore>,
+    embedding_manager: Arc<Mutex<EmbeddingManager>>,
+    _indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
+) {
+    println!("🔄 Starting background indexing for project: {}", project_path);
+    
+    // Wait for servers to be ready with health check
+    wait_for_server_ready().await;
+    
+    // Create a default collection for the project
+    let collection_name = "project_files";
+    
+    // Update status to processing
+    update_collection_status(&collection_name, "processing", 0.0, None).await;
+    
+    // Try real indexing
+    match do_real_indexing(
+        &collection_name, 
+        &project_path,
+        Arc::clone(&vector_store),
+        Arc::clone(&embedding_manager),
+    ).await {
+        Ok(count) => {
+            update_collection_status(&collection_name, "completed", 100.0, Some(count)).await;
+            println!("✅ Project '{}' indexed successfully: {} vectors", project_path, count);
+        }
+        Err(e) => {
+            update_collection_status(&collection_name, "failed", 0.0, None).await;
+            println!("❌ Project '{}' indexing failed: {}", project_path, e);
+        }
     }
 }

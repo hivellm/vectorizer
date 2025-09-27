@@ -5,1707 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vectorizer Dashboard - Vue 3</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="api-client.js"></script>
-    <style>
-        :root {
-            --bg-primary: #000000;
-            --bg-secondary: #111111;
-            --bg-tertiary: #1a1a1a;
-            --bg-card: #0a0a0a;
-            --bg-hover: #1f1f1f;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #888888;
-            --primary: #ff6b35;
-            --primary-hover: #ff5722;
-            --success: #4caf50;
-            --warning: #ff9800;
-            --error: #f44336;
-            --border: #333333;
-            --border-light: #444444;
-            --radius-sm: 4px;
-            --radius-md: 6px;
-            --radius-lg: 8px;
-            --space-1: 4px;
-            --space-2: 8px;
-            --space-3: 12px;
-            --space-4: 16px;
-            --space-6: 24px;
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            --transition: all 0.2s ease;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-family);
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-size: 13px;
-            line-height: 1.4;
-            overflow-x: hidden;
-        }
-
-        .dashboard {
-            display: flex;
-            height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 220px;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            padding: var(--space-4);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .sidebar-header h1 {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: var(--space-2) 0;
-        }
-
-        .nav-item {
-            padding: var(--space-2) var(--space-4);
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: var(--transition);
-            border-left: 3px solid transparent;
-            font-size: 13px;
-        }
-
-        .nav-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .nav-item.active {
-            background: var(--bg-hover);
-            color: var(--primary);
-            border-left-color: var(--primary);
-        }
-
-        .nav-item i {
-            width: 16px;
-            margin-right: var(--space-2);
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .top-bar {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            padding: var(--space-3) var(--space-4);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .breadcrumb {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
-        .top-bar-actions {
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-        }
-
-        .btn {
-            padding: var(--space-2) var(--space-3);
-            border: none;
-            border-radius: var(--radius-md);
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 12px;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-1);
-        }
-
-        .btn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        .connection-status {
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-            color: var(--text-secondary);
-            font-size: 12px;
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--error);
-        }
-
-        .status-dot.online {
-            background: var(--success);
-        }
-
-        .content-area {
-            flex: 1;
-            padding: var(--space-4);
-            overflow-y: auto;
-        }
-
-        /* Cards */
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            margin-bottom: var(--space-4);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-            padding-bottom: var(--space-2);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .card-header h3 {
-            color: var(--text-primary);
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: var(--space-3);
-            margin-bottom: var(--space-4);
-        }
-
-        .stat-card {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: var(--space-3);
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-        }
-
-        .stat-icon {
-            width: 32px;
-            height: 32px;
-            background: var(--primary);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-        }
-
-        .stat-content {
-            flex: 1;
-        }
-
-        .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-primary);
-            line-height: 1;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 11px;
-            margin-top: 2px;
-        }
-
-        /* Collections */
-        .collections-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: var(--space-4);
-        }
-
-        .collection-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            transition: var(--transition);
-        }
-
-        .collection-card:hover {
-            border-color: var(--primary);
-        }
-
-        .collection-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-        }
-
-        .collection-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
-        .collection-status {
-            font-size: 11px;
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-
-        .collection-status.cached {
-            background: var(--success);
-            color: white;
-        }
-
-        .collection-status.indexing {
-            background: var(--warning);
-            color: white;
-        }
-
-        .collection-status.processing {
-            background: var(--primary);
-            color: white;
-        }
-
-        .collection-status.pending {
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-        }
-
-        .collection-status.completed {
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-        }
-
-        .collection-stats {
-            margin-bottom: var(--space-3);
-        }
-
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-1) 0;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 11px;
-        }
-
-        .stat-value {
-            color: var(--text-primary);
-            font-weight: 500;
-            font-size: 11px;
-        }
-
-        /* Progress Bars */
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--bg-tertiary);
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            margin: var(--space-2) 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--success));
-            border-radius: var(--radius-sm);
-            transition: width 0.3s ease;
-        }
-
-        .progress-text {
-            font-size: 10px;
-            color: var(--text-secondary);
-            text-align: center;
-            margin-top: var(--space-1);
-        }
-
-        /* Indexing Section */
-        .indexing-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            margin-bottom: var(--space-4);
-        }
-
-        .indexing-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-        }
-
-        .indexing-header h3 {
-            color: var(--text-primary);
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
-        .indexing-header .stats {
-            color: var(--text-secondary);
-            font-size: 12px;
-        }
-
-        .overall-progress {
-            margin-bottom: var(--space-4);
-        }
-
-        .progress-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-1);
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .progress-percent {
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .active-collections {
-            margin-top: var(--space-4);
-        }
-
-        .active-collections h4 {
-            color: var(--text-primary);
-            font-size: 13px;
-            margin-bottom: var(--space-2);
-        }
-
-        .collection-progress-item {
-            background: var(--bg-tertiary);
-            border-radius: var(--radius-md);
-            padding: var(--space-3);
-            margin-bottom: var(--space-2);
-        }
-
-        .collection-progress-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-2);
-        }
-
-        .collection-progress-name {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
-        .collection-progress-status {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: var(--radius-sm);
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-
-        .collection-progress-status.processing {
-            background: var(--primary);
-            color: white;
-        }
-
-        .collection-progress-status.indexing {
-            background: var(--warning);
-            color: white;
-        }
-
-        /* Loading */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-6);
-            color: var(--text-secondary);
-        }
-
-        .spinner {
-            animation: spin 1s linear infinite;
-            margin-right: var(--space-2);
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        /* Search Page Styles */
-        .search-container {
-            padding: var(--space-6);
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .search-header {
-            text-align: center;
-            margin-bottom: var(--space-6);
-        }
-
-        .search-header h2 {
-            color: var(--primary);
-            margin-bottom: var(--space-2);
-            font-size: 2rem;
-        }
-
-        .search-header p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        .search-form {
-            margin-bottom: var(--space-6);
-        }
-
-        .search-input-group {
-            display: flex;
-            gap: var(--space-2);
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .collection-select {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: var(--space-3);
-            border-radius: var(--radius-md);
-            min-width: 200px;
-            font-size: 0.9rem;
-        }
-
-        .search-input {
-            flex: 1;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: var(--space-3);
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .search-btn {
-            background: var(--primary);
-            border: none;
-            color: white;
-            padding: var(--space-3) var(--space-4);
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            transition: var(--transition);
-            font-size: 1rem;
-        }
-
-        .search-btn:hover:not(:disabled) {
-            background: var(--primary-hover);
-        }
-
-        .search-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .search-results {
-            margin-top: var(--space-6);
-        }
-
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-4);
-            padding-bottom: var(--space-2);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .results-header h3 {
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .search-stats {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        .results-list {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-4);
-        }
-
-        .result-item {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            transition: var(--transition);
-        }
-
-        .result-item:hover {
-            border-color: var(--primary);
-            background: var(--bg-hover);
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-        }
-
-        .result-score {
-            flex-shrink: 0;
-        }
-
-        .score-badge {
-            background: var(--primary);
-            color: white;
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .result-meta {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: var(--space-1);
-        }
-
-        .file-path {
-            color: var(--text-primary);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .chunk-info {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
-
-        .result-content {
-            margin-bottom: var(--space-3);
-        }
-
-        .result-content p {
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin: 0;
-        }
-
-        .result-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .file-extension {
-            background: var(--bg-tertiary);
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            text-transform: uppercase;
-        }
-
-        .no-results {
-            text-align: center;
-            padding: var(--space-6);
-        }
-
-        .no-results-content {
-            color: var(--text-muted);
-        }
-
-        .no-results-content i {
-            font-size: 3rem;
-            margin-bottom: var(--space-4);
-            color: var(--text-muted);
-        }
-
-        .no-results-content h3 {
-            margin-bottom: var(--space-2);
-            color: var(--text-secondary);
-        }
-
-        .search-help {
-            margin-top: var(--space-6);
-        }
-
-        .help-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-        }
-
-        .help-content h3 {
-            color: var(--primary);
-            margin-bottom: var(--space-3);
-        }
-
-        .help-content ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .help-content li {
-            padding: var(--space-2) 0;
-            color: var(--text-secondary);
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .help-content li:last-child {
-            border-bottom: none;
-        }
-
-        .help-content li:before {
-            content: "✓";
-            color: var(--success);
-            font-weight: bold;
-            margin-right: var(--space-2);
-        }
-
-        /* Vectors Page Styles */
-        .vectors-page {
-            padding: var(--space-4);
-        }
-
-        .page-header {
-            margin-bottom: var(--space-6);
-        }
-
-        .page-header h1 {
-            color: var(--primary);
-            margin-bottom: var(--space-2);
-            font-size: 1.8rem;
-        }
-
-        .page-header p {
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-
-        .vectors-controls {
-            display: flex;
-            gap: var(--space-4);
-            align-items: end;
-            margin-bottom: var(--space-6);
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-1);
-        }
-
-        .form-group label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .form-control {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: var(--space-2) var(--space-3);
-            border-radius: var(--radius-md);
-            font-size: 0.9rem;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .vectors-actions {
-            display: flex;
-            gap: var(--space-2);
-        }
-
-        .vectors-list-container {
-            min-height: 400px;
-        }
-
-        .vectors-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: var(--space-4);
-        }
-
-        .vector-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            transition: var(--transition);
-        }
-
-        .vector-card:hover {
-            border-color: var(--primary);
-            background: var(--bg-hover);
-        }
-
-        .vector-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-        }
-
-        .vector-id {
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .vector-preview {
-            margin-bottom: var(--space-3);
-        }
-
-        .payload-preview {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            line-height: 1.4;
-        }
-
-        .payload-preview strong {
-            color: var(--text-primary);
-        }
-
-        .no-payload {
-            color: var(--text-muted);
-            font-style: italic;
-            font-size: 0.85rem;
-        }
-
-        .vector-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .vector-dimension {
-            background: var(--bg-tertiary);
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-        }
-
-        .vector-score {
-            color: var(--primary);
-            font-weight: 500;
-        }
-
-        /* Cluster Page Styles */
-        .cluster-page {
-            padding: var(--space-4);
-        }
-
-        .cluster-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: var(--space-4);
-        }
-
-        .cluster-status-card,
-        .node-info-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-        }
-
-        .status-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-4);
-        }
-
-        .status-header h3 {
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .status-badge {
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .status-badge.status-green {
-            background: var(--success);
-            color: white;
-        }
-
-        .status-details,
-        .node-details {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-        }
-
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-1) 0;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .detail-item:last-child {
-            border-bottom: none;
-        }
-
-        .detail-item .label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .detail-item .value {
-            color: var(--text-primary);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        /* Console Page Styles */
-        .console-page {
-            padding: var(--space-4);
-        }
-
-        .console-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--space-4);
-            height: calc(100vh - 200px);
-        }
-
-        .console-form {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-4);
-        }
-
-        .form-row {
-            display: flex;
-            gap: var(--space-3);
-        }
-
-        .form-group.flex-1 {
-            flex: 1;
-        }
-
-        .code-editor {
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            line-height: 1.4;
-            resize: vertical;
-        }
-
-        .console-actions {
-            display: flex;
-            gap: var(--space-2);
-        }
-
-        .console-output {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .output-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-            padding-bottom: var(--space-2);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .output-header h3 {
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .response-status {
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .response-status.success {
-            background: var(--success);
-            color: white;
-        }
-
-        .response-status.error {
-            background: var(--error);
-            color: white;
-        }
-
-        .response-content {
-            flex: 1;
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: var(--space-3);
-            color: var(--text-secondary);
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            line-height: 1.4;
-            overflow: auto;
-            white-space: pre-wrap;
-        }
-
-        /* Empty State */
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-6);
-            text-align: center;
-            color: var(--text-muted);
-        }
-
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: var(--space-4);
-            color: var(--text-muted);
-        }
-
-        .empty-state h3 {
-            margin-bottom: var(--space-2);
-            color: var(--text-secondary);
-        }
-
-        .empty-state p {
-            margin-bottom: var(--space-4);
-            color: var(--text-muted);
-        }
-
-        /* Collections Page Styles */
-        .collections-page {
-            padding: var(--space-4);
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-6);
-        }
-
-        .header-content h1 {
-            color: var(--primary);
-            margin-bottom: var(--space-2);
-            font-size: 1.8rem;
-        }
-
-        .header-content p {
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: var(--space-2);
-        }
-
-        .collections-stats {
-            display: flex;
-            gap: var(--space-4);
-            margin-bottom: var(--space-6);
-            padding: var(--space-4);
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
-        .stat-item .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: var(--space-1);
-        }
-
-        .stat-item .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .collection-menu {
-            position: relative;
-        }
-
-        .collection-actions {
-            display: flex;
-            gap: var(--space-2);
-            margin-top: var(--space-3);
-        }
-
-        .btn-sm {
-            padding: var(--space-1) var(--space-2);
-            font-size: 0.8rem;
-        }
-
-        /* Dropdown Menu */
-        .dropdown-menu {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-1);
-            min-width: 150px;
-        }
-
-        .dropdown-item {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            padding: var(--space-2);
-            text-align: left;
-            cursor: pointer;
-            transition: var(--transition);
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-            font-size: 0.9rem;
-        }
-
-        .dropdown-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .dropdown-item.danger {
-            color: var(--error);
-        }
-
-        .dropdown-item.danger:hover {
-            background: var(--error);
-            color: white;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-4);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .modal-header h2 {
-            color: var(--text-primary);
-            margin: 0;
-            font-size: 1.2rem;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: var(--space-1);
-            border-radius: var(--radius-sm);
-            transition: var(--transition);
-        }
-
-        .modal-close:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .modal-body {
-            padding: var(--space-4);
-            flex: 1;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: var(--space-2);
-            padding: var(--space-4);
-            border-top: 1px solid var(--border);
-        }
-
-        .collection-details-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--space-4);
-        }
-
-        .detail-section h3 {
-            color: var(--text-primary);
-            margin-bottom: var(--space-3);
-            font-size: 1rem;
-        }
-
-        .detail-list {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-        }
-
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-2) 0;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .detail-item:last-child {
-            border-bottom: none;
-        }
-
-        .detail-item .label {
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .detail-item .value {
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        /* Loading Overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 999;
-        }
-
-        .loading-spinner {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-6);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: var(--space-3);
-            color: var(--text-primary);
-        }
-
-        .loading-spinner i {
-            font-size: 2rem;
-            color: var(--primary);
-        }
-
-        /* Toast Styles */
-        .toast-container {
-            position: fixed;
-            top: var(--space-4);
-            right: var(--space-4);
-            z-index: 1001;
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-        }
-
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: var(--space-3) var(--space-4);
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-            min-width: 300px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        }
-
-        .toast.show {
-            transform: translateX(0);
-        }
-
-        .toast i {
-            font-size: 1.2rem;
-        }
-
-        .toast-success {
-            border-left: 4px solid var(--success);
-        }
-
-        .toast-success i {
-            color: var(--success);
-        }
-
-        .toast-error {
-            border-left: 4px solid var(--error);
-        }
-
-        .toast-error i {
-            color: var(--error);
-        }
-
-        .toast-warning {
-            border-left: 4px solid var(--warning);
-        }
-
-        .toast-warning i {
-            color: var(--warning);
-        }
-
-        .toast-info {
-            border-left: 4px solid var(--primary);
-        }
-
-        .toast-info i {
-            color: var(--primary);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .dashboard {
-                flex-direction: column;
-                height: auto;
-            }
-
-            .collections-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            }
-
-            .search-input-group {
-                flex-direction: column;
-            }
-            
-            .collection-select {
-                min-width: auto;
-            }
-            
-            .result-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: var(--space-2);
-            }
-            
-            .result-meta {
-                align-items: flex-start;
-            }
-
-            .console-container {
-                grid-template-columns: 1fr;
-                height: auto;
-            }
-
-            .vectors-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .cluster-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        /* Search Page Styles */
-        .search-container {
-            padding: var(--space-6);
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .search-header {
-            text-align: center;
-            margin-bottom: var(--space-6);
-        }
-
-        .search-header h2 {
-            color: var(--primary);
-            margin-bottom: var(--space-2);
-            font-size: 2rem;
-        }
-
-        .search-header p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        .search-form {
-            margin-bottom: var(--space-6);
-        }
-
-        .search-input-group {
-            display: flex;
-            gap: var(--space-2);
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .collection-select {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: var(--space-3);
-            border-radius: var(--radius-md);
-            min-width: 200px;
-            font-size: 0.9rem;
-        }
-
-        .search-input {
-            flex: 1;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: var(--space-3);
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .search-btn {
-            background: var(--primary);
-            border: none;
-            color: white;
-            padding: var(--space-3) var(--space-4);
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            transition: var(--transition);
-            font-size: 1rem;
-        }
-
-        .search-btn:hover:not(:disabled) {
-            background: var(--primary-hover);
-        }
-
-        .search-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .search-results {
-            margin-top: var(--space-6);
-        }
-
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-4);
-            padding-bottom: var(--space-2);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .results-header h3 {
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .search-stats {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        .results-list {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-4);
-        }
-
-        .result-item {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-            transition: var(--transition);
-        }
-
-        .result-item:hover {
-            border-color: var(--primary);
-            background: var(--bg-hover);
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--space-3);
-        }
-
-        .result-score {
-            flex-shrink: 0;
-        }
-
-        .score-badge {
-            background: var(--primary);
-            color: white;
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .result-meta {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: var(--space-1);
-        }
-
-        .file-path {
-            color: var(--text-primary);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .chunk-info {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
-
-        .result-content {
-            margin-bottom: var(--space-3);
-        }
-
-        .result-content p {
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin: 0;
-        }
-
-        .result-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .file-extension {
-            background: var(--bg-tertiary);
-            padding: var(--space-1) var(--space-2);
-            border-radius: var(--radius-sm);
-            text-transform: uppercase;
-        }
-
-        .no-results {
-            text-align: center;
-            padding: var(--space-6);
-        }
-
-        .no-results-content {
-            color: var(--text-muted);
-        }
-
-        .no-results-content i {
-            font-size: 3rem;
-            margin-bottom: var(--space-4);
-            color: var(--text-muted);
-        }
-
-        .no-results-content h3 {
-            margin-bottom: var(--space-2);
-            color: var(--text-secondary);
-        }
-
-        .search-help {
-            margin-top: var(--space-6);
-        }
-
-        .help-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-4);
-        }
-
-        .help-content h3 {
-            color: var(--primary);
-            margin-bottom: var(--space-3);
-        }
-
-        .help-content ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .help-content li {
-            padding: var(--space-2) 0;
-            color: var(--text-secondary);
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .help-content li:last-child {
-            border-bottom: none;
-        }
-
-        .help-content li:before {
-            content: "✓";
-            color: var(--success);
-            font-weight: bold;
-            margin-right: var(--space-2);
-        }
-
-        @media (max-width: 768px) {
-            .search-input-group {
-                flex-direction: column;
-            }
-            
-            .collection-select {
-                min-width: auto;
-            }
-            
-            .result-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: var(--space-2);
-            }
-            
-            .result-meta {
-                align-items: flex-start;
-            }
-        }
-    </style>
 </head>
 <body>
     <div id="app" class="dashboard">
@@ -2022,7 +324,7 @@
                                 <div v-for="result in searchResults" :key="result.id || result.vector_id" class="result-item">
                                     <div class="result-header">
                                         <div class="result-score">
-                                            <span class="score-badge">{{ (result.score * 100).toFixed(1) }}%</span>
+                                            <span class="score-badge">{{ safeToFixed(result.score ? result.score * 100 : 0, 1) }}%</span>
                                         </div>
                                         <div class="result-meta">
                                             <span class="file-path">{{ result.metadata?.file_path || result.payload?.file_path || 'Unknown' }}</span>
@@ -2111,18 +413,16 @@
                         <!-- Vectors Info Bar -->
                         <div v-if="selectedVectorCollection && vectorsTotal > 0" class="vectors-info-bar">
                             <div class="vectors-stats">
-                                <span class="stat-item">
+                                <div class="stat-item">
                                     <i class="fas fa-database"></i>
-                                    {{ formatNumber(vectorsTotal) }} total vectors
-                                </span>
-                                <span class="stat-item">
+                                    <span class="stat-value">{{ formatNumber(vectorsTotal) }}</span>
+                                    <span class="stat-label">total vectors</span>
+                                </div>
+                                <div class="stat-item">
                                     <i class="fas fa-list"></i>
-                                    Showing {{ vectors.length }} of {{ Math.min(vectorsPageSize, vectorsTotal - (vectorsCurrentPage - 1) * vectorsPageSize) }}
-                                </span>
-                                <span class="stat-item">
-                                    <i class="fas fa-filter"></i>
-                                    Min score: {{ vectorsMinScore.toFixed(2) }}
-                                </span>
+                                    <span class="stat-value">{{ vectors.length }}</span>
+                                    <span class="stat-label">of {{ formatNumber(vectorsTotal) }}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -2149,41 +449,64 @@
                                             <i class="fas fa-eye"></i>
                                         </button>
                                     </div>
-                                    <div class="vector-preview">
-                                        <div v-if="vector.payload" class="payload-preview">
-                                            <strong>Content:</strong>
-                                            <span>{{ truncateText(vector.payload.content || JSON.stringify(vector.payload), 150) }}</span>
+                                    
+                                    <div class="vector-content">
+                                        <div class="vector-preview">
+                                            <div v-if="vector.payload" class="payload-preview">
+                                                <strong>Content:</strong>
+                                                <div class="content-text">{{ truncateText(vector.payload.content || JSON.stringify(vector.payload), 120) }}</div>
+                                            </div>
+                                            <span v-else class="no-payload">No payload</span>
                                         </div>
-                                        <span v-else class="no-payload">No payload</span>
+                                        
+                                        <div class="vector-metadata">
+                                            <div class="metadata-row">
+                                                <span class="metadata-label">Source:</span>
+                                                <span class="metadata-value">{{ getVectorSource(vector) }}</span>
+                                            </div>
+                                            <div class="metadata-row">
+                                                <span class="metadata-label">File Type:</span>
+                                                <span class="metadata-value">{{ getVectorFileType(vector) }}</span>
+                                            </div>
+                                            <div class="metadata-row">
+                                                <span class="metadata-label">Chunk:</span>
+                                                <span class="metadata-value">{{ getVectorChunkIndex(vector) }}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="vector-meta">
-                                        <span class="vector-dimension">{{ (vector.vector?.length || vector.dimension || 0) }}D</span>
-                                        <span class="vector-score" v-if="vector.score">Score: {{ vector.score.toFixed(4) }}</span>
+                                    
+                                    <div class="vector-actions">
+                                        <button class="btn btn-primary btn-sm" @click="viewVectorDetails(vector)">
+                                            <i class="fas fa-eye"></i> View Details
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" @click="navigator.clipboard.writeText(vector.id || vector.vector_id); showToast('Vector ID copied', 'success')">
+                                            <i class="fas fa-copy"></i> Copy ID
+                                        </button>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Pagination Controls -->
                             <div v-if="vectorsTotalPages > 1" class="vectors-pagination">
-                                <button
-                                    class="btn btn-sm btn-secondary"
-                                    @click="changeVectorsPage(vectorsCurrentPage - 1)"
-                                    :disabled="vectorsCurrentPage <= 1 || vectorsLoading"
-                                >
-                                    <i class="fas fa-chevron-left"></i> Previous
-                                </button>
-
-                                <span class="pagination-info">
-                                    Page {{ vectorsCurrentPage }} of {{ vectorsTotalPages }}
-                                </span>
-
-                                <button
-                                    class="btn btn-sm btn-secondary"
-                                    @click="changeVectorsPage(vectorsCurrentPage + 1)"
-                                    :disabled="vectorsCurrentPage >= vectorsTotalPages || vectorsLoading"
-                                >
-                                    Next <i class="fas fa-chevron-right"></i>
-                                </button>
+                                <div class="pagination-info">
+                                    <span>Page {{ vectorsCurrentPage }} of {{ vectorsTotalPages }}</span>
+                                </div>
+                                <div class="pagination-buttons">
+                                    <button
+                                        class="btn btn-sm btn-secondary"
+                                        @click="changeVectorsPage(vectorsCurrentPage - 1)"
+                                        :disabled="vectorsCurrentPage <= 1 || vectorsLoading"
+                                    >
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-secondary"
+                                        @click="changeVectorsPage(vectorsCurrentPage + 1)"
+                                        :disabled="vectorsCurrentPage >= vectorsTotalPages || vectorsLoading"
+                                    >
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2315,7 +638,7 @@
 
     <!-- Modals -->
     <div id="modal-overlay" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
+        <div id="modal-content" class="modal-content">
             <!-- Modal content will be inserted here -->
         </div>
     </div>
@@ -2354,6 +677,13 @@
                 const vectorsPageSize = ref(10);
                 const vectorsTotal = ref(0);
                 const vectorsMinScore = ref(0.0);
+                
+                // Ensure vectorsMinScore is always a valid number
+                watch(vectorsMinScore, (newValue) => {
+                    if (typeof newValue !== 'number' || isNaN(newValue)) {
+                        vectorsMinScore.value = 0.0;
+                    }
+                });
 
                 const pageTitle = computed(() => {
                     const titles = {
@@ -2480,11 +810,27 @@
                     vectorsLoading.value = true;
 
                     try {
-                        const offset = (page - 1) * pageSize;
-                        const data = await window.apiClient.listVectors(selectedVectorCollection.value, pageSize, offset, minScore);
+                        // Ensure page and pageSize are valid numbers to avoid NaN
+                        const validPage = Math.max(1, parseInt(page) || 1);
+                        const validPageSize = Math.max(1, Math.min(100, parseInt(pageSize) || 20));
+                        const validMinScore = parseFloat(minScore) || 0.0;
+                        
+                        const offset = (validPage - 1) * validPageSize;
+                        
+                        // Debug logging
+                        console.log('Vue Vector Browser Debug:', {
+                            originalPage: page,
+                            originalPageSize: pageSize,
+                            validPage,
+                            validPageSize,
+                            offset,
+                            collection: selectedVectorCollection.value
+                        });
+                        
+                        const data = await window.apiClient.listVectors(selectedVectorCollection.value, validPageSize, offset, validMinScore);
                         vectors.value = data.vectors || [];
                         vectorsTotal.value = data.total || 0;
-                        vectorsCurrentPage.value = page;
+                        vectorsCurrentPage.value = validPage;
                     } catch (error) {
                         console.error('Error loading vectors:', error);
                         vectors.value = [];
@@ -2495,19 +841,114 @@
                     }
                 };
 
-                const viewVectorDetails = (vector) => {
-                    // Show vector details in a modal or expand the card
-                    console.log('Viewing vector details:', vector);
-                    // TODO: Implement vector details modal
+                const viewVectorDetails = async (vector) => {
+                    try {
+                        showToast('Loading vector details...', 'info');
+                        
+                        const modalContent = `
+                            <div class="modal-header">
+                                <h2><i class="fas fa-vector-square"></i> Vector Details</h2>
+                                <button class="modal-close">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="vector-details-grid">
+                                    <div class="detail-section">
+                                        <h3>Basic Information</h3>
+                                        <div class="detail-list">
+                                            <div class="detail-item">
+                                                <span class="label">Vector ID:</span>
+                                                <span class="value">${vector.id || vector.vector_id}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Collection:</span>
+                                                <span class="value">${selectedVectorCollection.value}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Dimension:</span>
+                                                <span class="value">${getVectorDimension(vector)}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Score:</span>
+                                                <span class="value">${safeToFixed(vector.score || 0, 4)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="detail-section">
+                                        <h3>Source Information</h3>
+                                        <div class="detail-list">
+                                            <div class="detail-item">
+                                                <span class="label">Source File:</span>
+                                                <span class="value">${getVectorSource(vector)}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">File Type:</span>
+                                                <span class="value">${getVectorFileType(vector)}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Chunk Index:</span>
+                                                <span class="value">${getVectorChunkIndex(vector)}</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="label">Created:</span>
+                                                <span class="value">${vector.metadata?.created_at || vector.payload?.created_at || 'Unknown'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="detail-section full-width">
+                                        <h3>Vector Content</h3>
+                                        <div class="vector-content-display">
+                                            ${vector.payload ? `
+                                                <div class="content-section">
+                                                    <h4>Payload Data:</h4>
+                                                    <pre class="json-display">${formatVectorPayload(vector.payload)}</pre>
+                                                </div>
+                                            ` : '<p class="no-content">No payload data available</p>'}
+                                            
+                                            <div class="content-section">
+                                                <h4>Vector Embedding (first 10 values):</h4>
+                                                <pre class="vector-display">${formatVectorEmbedding(vector)}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" onclick="copyVectorId('${vector.id || vector.vector_id}')">
+                                    <i class="fas fa-copy"></i> Copy ID
+                                </button>
+                                <button class="btn btn-primary" onclick="copyVectorData('${JSON.stringify(vector).replace(/"/g, '\\"')}')">
+                                    <i class="fas fa-download"></i> Copy Data
+                                </button>
+                                <button class="btn btn-secondary modal-close">Close</button>
+                            </div>
+                        `;
+                        
+                        showModal(modalContent);
+                        showToast('Vector details loaded', 'success');
+                    } catch (error) {
+                        console.error('Error loading vector details:', error);
+                        showToast('Failed to load vector details', 'error');
+                    }
                 };
 
                 const changeVectorsPage = (page) => {
-                    if (page >= 1 && page <= vectorsTotalPages.value) {
-                        loadVectorsList(page);
+                    const validPage = parseInt(page) || 1;
+                    if (validPage >= 1 && validPage <= vectorsTotalPages.value) {
+                        loadVectorsList(validPage);
                     }
                 };
 
                 const updateVectorsFilters = () => {
+                    // Ensure all filter values are valid
+                    if (typeof vectorsMinScore.value !== 'number' || isNaN(vectorsMinScore.value)) {
+                        vectorsMinScore.value = 0.0;
+                    }
+                    if (typeof vectorsPageSize.value !== 'number' || isNaN(vectorsPageSize.value)) {
+                        vectorsPageSize.value = 10;
+                    }
+                    
                     vectorsCurrentPage.value = 1; // Reset to first page when filters change
                     loadVectorsList();
                 };
@@ -2563,6 +1004,87 @@
                     if (!text) return '';
                     if (text.length <= maxLength) return text;
                     return text.substring(0, maxLength) + '...';
+                };
+
+                const safeToFixed = (value, decimals = 2) => {
+                    if (typeof value !== 'number' || isNaN(value)) {
+                        return '0.' + '0'.repeat(decimals);
+                    }
+                    return value.toFixed(decimals);
+                };
+
+                // Vector metadata helper functions
+                const getVectorSource = (vector) => {
+                    // Try multiple sources for file path
+                    return vector.metadata?.source || 
+                           vector.payload?.metadata?.file_path || 
+                           vector.payload?.file_path ||
+                           vector.metadata?.file_path ||
+                           'Unknown';
+                };
+
+                const getVectorFileType = (vector) => {
+                    // Try multiple sources for file type
+                    return vector.metadata?.file_type ||
+                           vector.metadata?.file_extension ||
+                           vector.payload?.metadata?.file_extension ||
+                           vector.payload?.file_extension ||
+                           getFileExtensionFromPath(getVectorSource(vector));
+                };
+
+                const getVectorChunkIndex = (vector) => {
+                    return vector.metadata?.chunk_index ||
+                           vector.payload?.metadata?.chunk_index ||
+                           vector.payload?.chunk_index ||
+                           0;
+                };
+
+                const getVectorDimension = (vector) => {
+                    // Try multiple sources for dimension
+                    return vector.metadata?.dimension ||
+                           vector.dimension ||
+                           vector.vector?.length ||
+                           (vector.embedding && vector.embedding.length) ||
+                           0;
+                };
+
+                const getFileExtensionFromPath = (filePath) => {
+                    if (!filePath || filePath === 'Unknown') return 'Unknown';
+                    const parts = filePath.split('.');
+                    return parts.length > 1 ? parts[parts.length - 1] : 'Unknown';
+                };
+
+                // Vector content formatting functions
+                const formatVectorPayload = (payload) => {
+                    try {
+                        // Clean up the payload for better display
+                        const cleanPayload = { ...payload };
+                        
+                        // Format content field if it exists
+                        if (cleanPayload.content && typeof cleanPayload.content === 'string') {
+                            cleanPayload.content = cleanPayload.content
+                                .replace(/\\r\\n/g, '\n')
+                                .replace(/\\n/g, '\n')
+                                .replace(/\\t/g, '\t')
+                                .replace(/\\\\/g, '\\');
+                        }
+                        
+                        return JSON.stringify(cleanPayload, null, 2);
+                    } catch (error) {
+                        return JSON.stringify(payload, null, 2);
+                    }
+                };
+
+                const formatVectorEmbedding = (vector) => {
+                    // Try multiple sources for embedding data
+                    const embedding = vector.vector || vector.embedding;
+                    
+                    if (embedding && Array.isArray(embedding) && embedding.length > 0) {
+                        const preview = embedding.slice(0, 10);
+                        return JSON.stringify(preview, null, 2) + '\n... (showing first 10 of ' + embedding.length + ' values)';
+                    } else {
+                        return 'Embedding data not available';
+                    }
                 };
 
                 // Collection Management Functions
@@ -2811,11 +1333,46 @@
                     
                     modal.innerHTML = content;
                     overlay.style.display = 'flex';
+                    
+                    // Add event listeners for modal close buttons
+                    const closeButtons = modal.querySelectorAll('.modal-close');
+                    closeButtons.forEach(button => {
+                        button.addEventListener('click', closeModal);
+                    });
+                    
+                    // Close modal when clicking overlay
+                    overlay.addEventListener('click', (e) => {
+                        if (e.target === overlay) {
+                            closeModal();
+                        }
+                    });
                 };
 
                 const closeModal = () => {
                     const overlay = document.getElementById('modal-overlay');
                     overlay.style.display = 'none';
+                };
+
+                // Global functions for modal actions
+                window.copyVectorId = (vectorId) => {
+                    navigator.clipboard.writeText(vectorId).then(() => {
+                        showToast('Vector ID copied to clipboard', 'success');
+                    }).catch(() => {
+                        showToast('Failed to copy vector ID', 'error');
+                    });
+                };
+
+                window.copyVectorData = (vectorDataStr) => {
+                    try {
+                        const vectorData = JSON.parse(vectorDataStr);
+                        navigator.clipboard.writeText(JSON.stringify(vectorData, null, 2)).then(() => {
+                            showToast('Vector data copied to clipboard', 'success');
+                        }).catch(() => {
+                            showToast('Failed to copy vector data', 'error');
+                        });
+                    } catch (error) {
+                        showToast('Error copying vector data', 'error');
+                    }
                 };
 
                 const showToast = (message, type = 'info') => {
@@ -2956,6 +1513,13 @@
                     clearConsole,
                     getUptime,
                     truncateText,
+                    safeToFixed,
+                    getVectorSource,
+                    getVectorFileType,
+                    getVectorChunkIndex,
+                    getVectorDimension,
+                    formatVectorPayload,
+                    formatVectorEmbedding,
                     showCreateCollectionModal,
                     showCollectionMenu,
                     viewCollectionDetails,

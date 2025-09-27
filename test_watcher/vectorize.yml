@@ -1,0 +1,40 @@
+# Configuração para teste do File Watcher System
+projects:
+  - name: "test_watcher"
+    path: "."
+    collections:
+      - name: "test_collection"
+        include_patterns: ["*.txt"]
+        exclude_patterns: ["*.log", "*.tmp"]
+        chunk_size: 100
+        chunk_overlap: 20
+        embedding_provider: "tfidf"
+        dimension: 128
+
+# Configuração do File Watcher
+file_watcher:
+  enabled: true
+  watch_paths: ["."]
+  recursive: true
+  debounce_delay_ms: 1000
+  include_patterns: ["*.txt"]
+  exclude_patterns: ["*.log", "*.tmp"]
+  min_file_size_bytes: 1
+  max_file_size_bytes: 10485760  # 10MB
+  hash_validation_enabled: true
+  grpc_enabled: true
+  collection_name: "test_collection"
+
+# Configuração do servidor
+server:
+  host: "127.0.0.1"
+  port: 15001
+  grpc_port: 15002
+  mcp_port: 15003
+
+# Configuração de logging
+logging:
+  level: "info"
+  log_requests: true
+  log_responses: false
+  log_errors: true
