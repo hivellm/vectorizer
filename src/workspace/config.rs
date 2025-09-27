@@ -448,8 +448,8 @@ impl Default for WorkspaceConfig {
                     parameters: HashMap::new(),
                 },
                 processing: ProcessingDefaults {
-                    chunk_size: 512,
-                    chunk_overlap: 50,
+                    chunk_size: 2048,  // Chunks maiores para melhor contexto
+                    chunk_overlap: 256, // Overlap maior para melhor continuidade
                     max_file_size_mb: 10,
                     supported_extensions: vec![
                         ".md".to_string(),

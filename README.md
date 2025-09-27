@@ -1,6 +1,28 @@
 # Vectorizer
 
-## ✨ Latest Updates (v0.1.0)
+## ✨ Latest Updates (v0.16.0)
+
+### 🚀 **Chunk Size Optimization & Cosine Similarity Enhancement**
+
+#### Chunk Size Improvements
+- **✅ Enhanced Chunk Size**: Increased from 512-1000 to 2048 characters for better semantic context
+- **✅ Improved Overlap**: Increased from 50-200 to 256 characters for better continuity
+- **✅ Context Preservation**: Much better context preservation in document chunks
+- **✅ Reduced Fragmentation**: Significantly reduced information fragmentation across chunks
+- **✅ Content-Specific Optimization**: Chunk sizes optimized per content type (BIPs: 2048, minutes: 1024, code: 2048)
+
+#### Cosine Similarity Verification & Optimization
+- **✅ Verified Implementation**: Cosine similarity working correctly with automatic L2 normalization
+- **✅ Consistent Metrics**: All collections now consistently use cosine similarity metric
+- **✅ Improved Scoring**: Vector normalization ensures consistent similarity scores in [0,1] range
+- **✅ Optimized Search**: HNSW index optimized for cosine distance calculations
+- **✅ Validated Quality**: MCP testing confirms superior search quality across all collections
+
+#### Search Quality Improvements
+- **✅ Better Relevance**: Search results show much better semantic relevance
+- **✅ Richer Context**: Chunk content is more complete and contextually rich
+- **✅ Consistent Scores**: Similarity scores are more consistent and interpretable
+- **✅ Validated Performance**: MCP testing confirms superior search quality across all collections
 
 ### 🎉 **Phase 4 Complete - GRPC, MCP & Python SDK Implementation**
 

@@ -175,8 +175,8 @@ global:
     index_type: "hnsw"
     parameters: {}
   processing:
-    chunk_size: 512
-    chunk_overlap: 50
+    chunk_size: 2048
+    chunk_overlap: 256
     max_file_size_mb: 10
     supported_extensions: [".md", ".txt"]
 

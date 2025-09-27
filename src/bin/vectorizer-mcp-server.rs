@@ -1,11 +1,11 @@
 use clap::Parser;
 use std::sync::Arc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use vectorizer::mcp_service::VectorizerService;
 use rmcp::transport::sse_server::{SseServer, SseServerConfig};
 use vectorizer::grpc::client::VectorizerGrpcClient;
 use vectorizer::config::{GrpcConfig, VectorizerConfig};
 use vectorizer::process_manager::{initialize_process_management, cleanup_process_management};
+use vectorizer::logging;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use axum::Router;
@@ -48,30 +48,11 @@ async fn main() -> anyhow::Result<()> {
     let _process_logger = initialize_process_management("vectorizer-mcp-server", &ports)
         .map_err(|e| anyhow::anyhow!("Process management initialization failed: {}", e))?;
 
-    // Initialize logging to file (unique per port to avoid conflicts)
-    let log_filename = format!("vectorizer-mcp-server-{}.log", args.port);
-    let log_file = match std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_filename)
-    {
-        Ok(file) => file,
-        Err(e) => {
-            eprintln!("Failed to open log file {}: {}", log_filename, e);
-            std::process::exit(1);
-        }
-    };
-
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".to_string().into()),
-        )
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_writer(move || log_file.try_clone().expect("Failed to clone log file")),
-        )
-        .init();
+    // Initialize centralized logging
+    if let Err(e) = logging::init_logging("vectorizer-mcp-server") {
+        eprintln!("Failed to initialize logging: {}", e);
+        std::process::exit(1);
+    }
 
     // MCP server now acts as a GRPC client to the vzr GRPC server
     let grpc_server_url = &args.grpc_url;

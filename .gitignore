@@ -53,3 +53,6 @@ vectorize-workspace.yml
 *.vdb
 *.bin
 *.log
+
+# Logs directory
+.logs/

@@ -87,8 +87,8 @@ pub struct LoaderConfig {
 impl Default for LoaderConfig {
     fn default() -> Self {
         Self {
-            max_chunk_size: 1000, // Valor fixo adequado
-            chunk_overlap: 200,   // Valor fixo adequado
+            max_chunk_size: 2048, // Chunks maiores para melhor contexto
+            chunk_overlap: 256,   // Overlap maior para melhor continuidade
             allowed_extensions: vec![
                 // Documentos
                 "md".to_string(),

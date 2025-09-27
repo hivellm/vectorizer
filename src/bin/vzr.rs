@@ -15,7 +15,7 @@ use tokio::process::Command as TokioCommand;
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use std::fs;
-use tracing_subscriber;
+use vectorizer::logging;
 use vectorizer::workspace::WorkspaceManager;
 use vectorizer::{
     db::VectorStore,
@@ -515,10 +515,11 @@ enum WorkspaceCommands {
 
 #[tokio::main]
 async fn main() {
-    // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("vectorizer=info")
-        .init();
+    // Initialize centralized logging
+    if let Err(e) = logging::init_logging("vzr") {
+        eprintln!("Failed to initialize logging: {}", e);
+        std::process::exit(1);
+    }
 
     let args = Args::parse();
 

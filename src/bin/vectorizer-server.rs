@@ -17,6 +17,7 @@ use vectorizer::{
     db::VectorStore,
     document_loader::{DocumentLoader, LoaderConfig},
     process_manager::{initialize_process_management, cleanup_process_management},
+    logging,
 };
 
 /// Update indexing progress for a collection
@@ -70,24 +71,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ports = vec![args.port];
     let _process_logger = initialize_process_management("vectorizer-server", &ports)?;
 
-    // Initialize logging to file (unique per port to avoid conflicts)
-    let log_filename = format!("vectorizer-server-{}.log", args.port);
-    let log_file = match std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_filename)
-    {
-        Ok(file) => file,
-        Err(e) => {
-            eprintln!("Failed to open log file {}: {}", log_filename, e);
-            std::process::exit(1);
-        }
-    };
-
-    tracing_subscriber::fmt()
-        .with_env_filter("vectorizer=info")
-        .with_writer(move || log_file.try_clone().expect("Failed to clone log file"))
-        .init();
+    // Initialize centralized logging
+    if let Err(e) = logging::init_logging("vectorizer-server") {
+        eprintln!("Failed to initialize logging: {}", e);
+        std::process::exit(1);
+    }
 
     info!("Starting Vectorizer Server with dashboard");
 
