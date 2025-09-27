@@ -13,6 +13,8 @@ pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
 pub use grpc_operations::GrpcVectorOperations;
 
+// Re-export FileWatcherSystem for external use
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -25,8 +25,9 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
     // Clean up old logs before initializing
     cleanup_old_logs(&logs_dir)?;
 
-    // Generate log filename with date
-    let log_filename = generate_log_filename(service_name);
+    // Generate log filename with date using the standard format
+    let date_str = Local::now().format("%Y-%m-%d").to_string();
+    let log_filename = format!("{}-{}.log", service_name, date_str);
     let log_path = logs_dir.join(log_filename);
 
     // Create log file
@@ -63,12 +64,6 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-/// Generate log filename with current date
-fn generate_log_filename(service_name: &str) -> String {
-    let now = Local::now();
-    let date_str = now.format("%Y-%m-%d").to_string();
-    format!("{}-{}.log", service_name, date_str)
-}
 
 /// Clean up log files older than 1 day
 fn cleanup_old_logs(logs_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -136,13 +131,6 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
-    #[test]
-    fn test_generate_log_filename() {
-        let filename = generate_log_filename("test-service");
-        assert!(filename.starts_with("test-service-"));
-        assert!(filename.ends_with(".log"));
-        assert!(filename.contains("-")); // Should contain date separator
-    }
 
     #[test]
     fn test_get_log_file_path() {

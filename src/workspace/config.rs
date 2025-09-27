@@ -26,6 +26,9 @@ pub struct WorkspaceConfig {
 
     /// Workspace validation settings
     pub validation: ValidationSettings,
+
+    /// File watcher configuration
+    pub file_watcher: Option<crate::config::FileWatcherYamlConfig>,
 }
 
 /// Workspace metadata
@@ -531,6 +534,7 @@ impl Default for WorkspaceConfig {
                     validate_encoding: true,
                 },
             },
+            file_watcher: None,
         }
     }
 }

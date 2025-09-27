@@ -1557,34 +1557,23 @@ async fn start_file_watcher_system_with_grpc(
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("👁️ Starting File Watcher System...");
     
-    // Load file watcher configuration from vectorize.yml
-    // Try multiple possible locations for the config file
-    let possible_config_paths = vec![
-        std::path::PathBuf::from("vectorize.yml"),
-        std::path::PathBuf::from("test_watcher/vectorize.yml"),
-        std::path::PathBuf::from("./vectorize.yml"),
-        std::path::PathBuf::from("./test_watcher/vectorize.yml"),
-    ];
-    
-    let config_path = possible_config_paths.iter()
-        .find(|path| path.exists())
-        .cloned()
-        .unwrap_or_else(|| std::path::PathBuf::from("vectorize.yml"));
-    let file_watcher_config = if config_path.exists() {
-        match load_file_watcher_config(&config_path).await {
-            Ok(config) => {
-                println!("✅ File Watcher config loaded from {}", config_path.display());
-                config
-            }
-            Err(e) => {
-                println!("⚠️ Failed to load file watcher config: {}. Using defaults.", e);
-                FileWatcherYamlConfig::default()
-            }
+    // Load workspace configuration first
+    let workspace_config = match vectorizer::workspace::WorkspaceManager::load_from_file("vectorize-workspace.yml") {
+        Ok(manager) => {
+            println!("✅ Workspace config loaded successfully");
+            manager.config().clone()
         }
-    } else {
-        println!("⚠️ vectorize.yml not found at any location. Using default file watcher config.");
-        FileWatcherYamlConfig::default()
+        Err(e) => {
+            println!("⚠️ Failed to load workspace config: {}. Using defaults.", e);
+            vectorizer::workspace::config::WorkspaceConfig::default()
+        }
     };
+
+    // Get file watcher configuration from workspace or use defaults
+    let file_watcher_config = workspace_config.file_watcher.unwrap_or_else(|| {
+        println!("ℹ️ No file watcher config in workspace, using defaults");
+        FileWatcherYamlConfig::default()
+    });
 
     // Check if file watcher is enabled
     if !file_watcher_config.enabled {
