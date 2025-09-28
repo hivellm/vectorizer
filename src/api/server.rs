@@ -127,7 +127,7 @@ mod tests {
     async fn test_health_endpoint() {
         let store = Arc::new(VectorStore::new());
         let embedding_manager = EmbeddingManager::new();
-        let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
+        let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager, None);
         let app = server.create_app();
 
         let response = app
@@ -147,7 +147,7 @@ mod tests {
     async fn test_not_found() {
         let store = Arc::new(VectorStore::new());
         let embedding_manager = EmbeddingManager::new();
-        let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager);
+        let server = VectorizerServer::new("127.0.0.1", 0, store, embedding_manager, None);
         let app = server.create_app();
 
         let response = app

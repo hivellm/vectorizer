@@ -1,2 +1,0 @@
-Este é um arquivo de teste para o file watcher.
-Vamos ver se o sistema detecta mudanças neste arquivo.

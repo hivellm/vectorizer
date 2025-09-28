@@ -1065,16 +1065,17 @@ impl McpHandler {
 
     #[cfg(test)]
     mod tests {
+        use super::*;
+        
+        #[tokio::test]
+        async fn test_handle_ping() {
+            let response = McpHandler::handle_ping().await;
+            assert!(response.error.is_none());
+            assert!(response.result.is_some());
 
-    #[tokio::test]
-    async fn test_handle_ping() {
-        let response = McpHandler::handle_ping().await;
-        assert!(response.error.is_none());
-        assert!(response.result.is_some());
-
-        let result = response.result.unwrap();
-        assert!(result.get("pong").unwrap().as_bool().unwrap());
-    }
+            let result = response.result.unwrap();
+            assert!(result.get("pong").unwrap().as_bool().unwrap());
+        }
 
     #[tokio::test]
     async fn test_handle_tools_list() {

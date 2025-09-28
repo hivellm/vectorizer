@@ -1668,10 +1668,7 @@ impl DocumentLoader {
                 info!("Skipping summary for file '{}' - too short ({} chars)", file_path, full_document_text.len());
                 continue;
             }
-            
-            println!("📄 Generating file summary for: {} ({} chunks, {} chars)", 
-                     file_path, sorted_chunks.len(), full_document_text.len());
-            
+                        
             // Generate summary using the summarization manager
             let summary_result = summarization_manager.summarize_text(crate::summarization::types::SummarizationParams {
                 text: full_document_text.clone(),
@@ -1716,8 +1713,6 @@ impl DocumentLoader {
                                 }),
                             };
                             file_summary_vectors.push(summary_vector);
-                            println!("✅ Generated file summary for: {} ({} -> {} chars)", 
-                                     file_path, summary_result.original_length, summary_result.summary_length);
                         }
                         Err(e) => {
                             eprintln!("⚠️  Failed to embed file summary for {}: {}", file_path, e);

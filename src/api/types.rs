@@ -576,7 +576,7 @@ pub struct CollectionStats {
 // =============================================================================
 
 /// Request to summarize text
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SummarizeTextRequest {
     /// Text to summarize
     pub text: String,
@@ -593,7 +593,7 @@ pub struct SummarizeTextRequest {
 }
 
 /// Response for text summarization
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SummarizeTextResponse {
     /// Summary ID
     pub summary_id: String,
@@ -620,7 +620,7 @@ pub struct SummarizeTextResponse {
 }
 
 /// Request to summarize context
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SummarizeContextRequest {
     /// Context to summarize
     pub context: String,
@@ -637,7 +637,7 @@ pub struct SummarizeContextRequest {
 }
 
 /// Response for context summarization
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SummarizeContextResponse {
     /// Summary ID
     pub summary_id: String,
@@ -664,7 +664,7 @@ pub struct SummarizeContextResponse {
 }
 
 /// Response for getting a summary
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GetSummaryResponse {
     /// Summary ID
     pub summary_id: String,
@@ -704,7 +704,7 @@ pub struct ListSummariesQuery {
 }
 
 /// Summary information for listing
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SummaryInfo {
     /// Summary ID
     pub summary_id: String,
@@ -725,7 +725,7 @@ pub struct SummaryInfo {
 }
 
 /// Response for listing summaries
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ListSummariesResponse {
     /// List of summaries
     pub summaries: Vec<SummaryInfo>,

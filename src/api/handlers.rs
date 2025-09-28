@@ -3368,7 +3368,7 @@ pub async fn summarize_text(
             max_length: req.max_length,
             compression_ratio: req.compression_ratio,
             language: req.language.clone(),
-            metadata: req.metadata.unwrap_or_default(),
+            metadata: req.metadata.clone().unwrap_or_default(),
         };
         
         match grpc_client.summarize_text(grpc_req).await {
@@ -3396,14 +3396,77 @@ pub async fn summarize_text(
     }
 
     // Fallback to local processing if GRPC fails or is not available
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        Json(ErrorResponse {
-            error: "Summarization not available without GRPC connection".to_string(),
-            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
-            details: None,
-        }),
-    ))
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let mut manager = summarization_manager.lock().unwrap();
+        
+        // Convert string method to enum
+        let method = match req.method.as_str() {
+            "extractive" => crate::summarization::SummarizationMethod::Extractive,
+            "abstractive" => crate::summarization::SummarizationMethod::Abstractive,
+            "keyword" => crate::summarization::SummarizationMethod::Keyword,
+            "sentence" => crate::summarization::SummarizationMethod::Sentence,
+            _ => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: format!("Unsupported summarization method: {}", req.method),
+                        code: "UNSUPPORTED_METHOD".to_string(),
+                        details: None,
+                    }),
+                ));
+            }
+        };
+        
+        let metadata = req.metadata.unwrap_or_default();
+        
+        let params = crate::summarization::SummarizationParams {
+            text: req.text,
+            method,
+            max_length: req.max_length.map(|v| v as usize),
+            compression_ratio: req.compression_ratio,
+            language: req.language,
+            metadata,
+        };
+        
+        match manager.summarize_text(params) {
+            Ok(result) => {
+                let response = SummarizeTextResponse {
+                    summary_id: result.summary_id,
+                    original_text: result.original_text,
+                    summary: result.summary,
+                    method: result.method.to_string(),
+                    original_length: result.original_length as i32,
+                    summary_length: result.summary_length as i32,
+                    compression_ratio: result.compression_ratio,
+                    language: result.language,
+                    status: "success".to_string(),
+                    message: "Text summarized successfully".to_string(),
+                    metadata: result.metadata,
+                };
+                Ok(Json(response))
+            },
+            Err(e) => {
+                error!("Local summarization failed: {}", e);
+                Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: format!("Summarization failed: {}", e),
+                        code: "SUMMARIZATION_ERROR".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Summarization not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
 }
 
 /// Summarize context using GRPC backend
@@ -3420,7 +3483,7 @@ pub async fn summarize_context(
             max_length: req.max_length,
             compression_ratio: req.compression_ratio,
             language: req.language.clone(),
-            metadata: req.metadata.unwrap_or_default(),
+            metadata: req.metadata.clone().unwrap_or_default(),
         };
         
         match grpc_client.summarize_context(grpc_req).await {
@@ -3448,14 +3511,77 @@ pub async fn summarize_context(
     }
 
     // Fallback to local processing if GRPC fails or is not available
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        Json(ErrorResponse {
-            error: "Context summarization not available without GRPC connection".to_string(),
-            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
-            details: None,
-        }),
-    ))
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let mut manager = summarization_manager.lock().unwrap();
+        
+        // Convert string method to enum
+        let method = match req.method.as_str() {
+            "extractive" => crate::summarization::SummarizationMethod::Extractive,
+            "abstractive" => crate::summarization::SummarizationMethod::Abstractive,
+            "keyword" => crate::summarization::SummarizationMethod::Keyword,
+            "sentence" => crate::summarization::SummarizationMethod::Sentence,
+            _ => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: format!("Unsupported summarization method: {}", req.method),
+                        code: "UNSUPPORTED_METHOD".to_string(),
+                        details: None,
+                    }),
+                ));
+            }
+        };
+        
+        let metadata = req.metadata.unwrap_or_default();
+        
+        let params = crate::summarization::ContextSummarizationParams {
+            context: req.context,
+            method,
+            max_length: req.max_length.map(|v| v as usize),
+            compression_ratio: req.compression_ratio,
+            language: req.language,
+            metadata,
+        };
+        
+        match manager.summarize_context(params) {
+            Ok(result) => {
+                let response = SummarizeContextResponse {
+                    summary_id: result.summary_id,
+                    original_context: result.original_text,
+                    summary: result.summary,
+                    method: result.method.to_string(),
+                    original_length: result.original_length as i32,
+                    summary_length: result.summary_length as i32,
+                    compression_ratio: result.compression_ratio,
+                    language: result.language,
+                    status: "success".to_string(),
+                    message: "Context summarized successfully".to_string(),
+                    metadata: result.metadata,
+                };
+                Ok(Json(response))
+            },
+            Err(e) => {
+                error!("Local context summarization failed: {}", e);
+                Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: format!("Context summarization failed: {}", e),
+                        code: "SUMMARIZATION_ERROR".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Context summarization not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
 }
 
 /// Get summary by ID using GRPC backend
@@ -3494,14 +3620,46 @@ pub async fn get_summary(
     }
 
     // Fallback to local processing if GRPC fails or is not available
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        Json(ErrorResponse {
-            error: "Summary retrieval not available without GRPC connection".to_string(),
-            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
-            details: None,
-        }),
-    ))
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let manager = summarization_manager.lock().unwrap();
+        match manager.get_summary(&summary_id) {
+            Some(result) => {
+                let response = GetSummaryResponse {
+                    summary_id: result.summary_id.clone(),
+                    original_text: result.original_text.clone(),
+                    summary: result.summary.clone(),
+                    method: result.method.to_string(),
+                    original_length: result.original_length as i32,
+                    summary_length: result.summary_length as i32,
+                    compression_ratio: result.compression_ratio,
+                    language: result.language.clone(),
+                    created_at: result.created_at.to_string(),
+                    metadata: result.metadata.clone(),
+                    status: "success".to_string(),
+                };
+                Ok(Json(response))
+            },
+            None => {
+                Err((
+                    StatusCode::NOT_FOUND,
+                    Json(ErrorResponse {
+                        error: "Summary not found".to_string(),
+                        code: "SUMMARY_NOT_FOUND".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Summary retrieval not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
 }
 
 /// List summaries using GRPC backend
@@ -3512,8 +3670,8 @@ pub async fn list_summaries(
     // Try to use GRPC client first
     if let Some(ref mut grpc_client) = state.grpc_client {
         let req = crate::grpc::vectorizer::ListSummariesRequest {
-            method: params.method,
-            language: params.language,
+            method: params.method.clone(),
+            language: params.language.clone(),
             limit: params.limit,
             offset: params.offset,
         };
@@ -3530,7 +3688,7 @@ pub async fn list_summaries(
                         original_length: summary.original_length,
                         summary_length: summary.summary_length,
                         compression_ratio: summary.compression_ratio,
-                        created_at: summary.created_at,
+                        created_at: summary.created_at.to_string(),
                         metadata: summary.metadata,
                     })
                     .collect();
@@ -3549,12 +3707,47 @@ pub async fn list_summaries(
     }
 
     // Fallback to local processing if GRPC fails or is not available
-    Err((
-        StatusCode::NOT_IMPLEMENTED,
-        Json(ErrorResponse {
-            error: "Summary listing not available without GRPC connection".to_string(),
-            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
-            details: None,
-        }),
-    ))
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let manager = summarization_manager.lock().unwrap();
+        
+        let method = params.method.as_ref().map(|s| s.as_str());
+        let language = params.language.as_ref().map(|s| s.as_str());
+        
+        let summaries = manager.list_summaries(
+            method,
+            language,
+            params.limit.map(|v| v as usize),
+            params.offset.map(|v| v as usize),
+        );
+        
+        let summary_infos: Vec<SummaryInfo> = summaries
+            .iter()
+            .map(|summary| SummaryInfo {
+                summary_id: summary.summary_id.clone(),
+                method: summary.method.to_string(),
+                language: summary.language.clone(),
+                original_length: summary.original_length as i32,
+                summary_length: summary.summary_length as i32,
+                compression_ratio: summary.compression_ratio,
+                created_at: summary.created_at.to_string(),
+                metadata: summary.metadata.clone(),
+            })
+            .collect();
+        
+        let response = ListSummariesResponse {
+            summaries: summary_infos,
+            total_count: summaries.len() as i32,
+            status: "success".to_string(),
+        };
+        Ok(Json(response))
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Summary listing not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
 }

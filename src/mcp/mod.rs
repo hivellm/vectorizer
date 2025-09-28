@@ -16,7 +16,7 @@ pub use types::{
 };
 
 #[cfg(test)]
-mod comprehensive_tests;
+mod tests;
 
 use crate::error::{Result, VectorizerError};
 use serde::{Deserialize, Serialize};
@@ -906,57 +906,5 @@ impl McpServerState {
         }
 
         Ok(inactive_connections.len())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mcp_config_default() {
-        let config = McpConfig::default();
-        assert!(config.enabled);
-        assert_eq!(config.port, 15003);
-        assert_eq!(config.host, "127.0.0.1");
-        assert_eq!(config.max_connections, 10);
-    }
-
-    #[test]
-    fn test_mcp_server_state_creation() {
-        let config = McpConfig::default();
-        let state = McpServerState::new(config);
-
-        assert_eq!(state.capabilities.server_info.name, "Vectorizer MCP Server");
-        assert!(!state.capabilities.tools.is_empty());
-        assert!(!state.capabilities.resources.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_mcp_connection_management() {
-        let config = McpConfig::default();
-        let state = McpServerState::new(config);
-
-        let connection = McpConnection {
-            id: "test_connection".to_string(),
-            client_capabilities: serde_json::json!({}),
-            connected_at: chrono::Utc::now(),
-            last_activity: chrono::Utc::now(),
-            authenticated: false,
-        };
-
-        // Add connection
-        state
-            .add_connection("test_connection".to_string(), connection)
-            .await
-            .unwrap();
-        assert_eq!(state.connection_count().await, 1);
-
-        // Update activity
-        state.update_activity("test_connection").await.unwrap();
-
-        // Remove connection
-        state.remove_connection("test_connection").await.unwrap();
-        assert_eq!(state.connection_count().await, 0);
     }
 }

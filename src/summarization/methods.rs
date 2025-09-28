@@ -182,7 +182,51 @@ impl SummarizationMethodTrait for ExtractiveSummarizer {
             .map(|idx| filtered_sentences[idx].clone())
             .collect();
         
-        Ok(summary_sentences.join(". ") + ".")
+        let summary = summary_sentences.join(". ") + ".";
+        
+        // Garantir que o sumário seja menor que o texto original
+        if summary.len() >= params.text.len() {
+            // Se o sumário for igual ou maior, pegar apenas as primeiras frases
+            let target_length = (params.text.len() as f32 * config.compression_ratio) as usize;
+            if summary_sentences.len() > 1 {
+                let mut truncated_summary = String::new();
+                for sentence in &summary_sentences {
+                    if truncated_summary.len() + sentence.len() + 2 <= target_length {
+                        if !truncated_summary.is_empty() {
+                            truncated_summary.push_str(". ");
+                        }
+                        truncated_summary.push_str(sentence);
+                    } else {
+                        break;
+                    }
+                }
+                if !truncated_summary.is_empty() {
+                    return Ok(truncated_summary + ".");
+                }
+            }
+            // Se ainda for muito grande, truncar o primeiro sentence
+            if !summary_sentences.is_empty() {
+                let first_sentence = &summary_sentences[0];
+                if first_sentence.len() > target_length {
+                    return Ok(first_sentence[..target_length.min(first_sentence.len())].to_string() + "...");
+                }
+            }
+        }
+        
+        // Aplicar max_length se especificado
+        if let Some(max_length) = params.max_length {
+            if summary.len() > max_length {
+                // Truncar para o max_length especificado
+                let truncated = if max_length > 3 {
+                    summary[..max_length - 3].to_string() + "..."
+                } else {
+                    summary[..max_length].to_string()
+                };
+                return Ok(truncated);
+            }
+        }
+        
+        Ok(summary)
     }
     
     fn is_available(&self) -> bool {
