@@ -41,9 +41,9 @@ await client.createCollection({
   similarity_metric: 'cosine'
 });
 
-// Insert vectors
-await client.insertVectors('documents', [{
-  data: [0.1, 0.2, 0.3, /* ... 768 dimensions */],
+// Insert texts
+await client.insertTexts('documents', [{
+  text: 'This is a sample document',
   metadata: { source: 'document.pdf' }
 }]);
 
@@ -71,12 +71,12 @@ await client.create_collection(
     metric="cosine"
 )
 
-# Insert vectors
-vectors = [{
-    "data": [0.1, 0.2, 0.3, ...],  # 768-dimensional vector
+# Insert texts
+texts = [{
+    "text": "This is a sample document",
     "metadata": {"source": "document.pdf"}
 }]
-await client.insert_texts("documents", vectors)
+await client.insert_texts("documents", texts)
 
 # Search
 results = await client.search_vectors(

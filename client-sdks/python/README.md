@@ -39,8 +39,12 @@ async def main():
             metadata={"text": "Hello, world!"}
         )
         
-        # Insert vector
-        await client.insert_texts("my_collection", [vector])
+        # Insert text
+        await client.insert_texts("my_collection", [{
+            "id": "doc1",
+            "text": "Hello, world!",
+            "metadata": {"source": "example"}
+        }])
         
         # Search for similar vectors
         results = await client.search_vectors(

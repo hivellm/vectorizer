@@ -537,31 +537,29 @@ mcp:
         required: ["text"]
     
     - name: "insert_texts"
-      description: "Insert vectors into a collection"
+      description: "Insert texts into a collection (embeddings generated automatically)"
       input_schema:
         type: "object"
         properties:
           collection:
             type: "string"
             description: "Collection name"
-          vectors:
+          texts:
             type: "array"
-            description: "Array of vectors to insert"
+            description: "Array of texts to insert"
             items:
               type: "object"
               properties:
                 id:
                   type: "string"
-                  description: "Vector ID"
-                data:
-                  type: "array"
-                  description: "Vector data"
-                  items:
-                    type: "number"
-                payload:
+                  description: "Text ID"
+                text:
+                  type: "string"
+                  description: "Text content"
+                metadata:
                   type: "object"
-                  description: "Optional payload data"
-        required: ["collection", "vectors"]
+                  description: "Optional metadata"
+        required: ["collection", "texts"]
     
     - name: "delete_vectors"
       description: "Delete vectors from a collection"
