@@ -16,7 +16,7 @@ pub use types::{
 };
 
 #[cfg(test)]
-mod comprehensive_tests;
+mod tests;
 
 use crate::error::{Result, VectorizerError};
 use serde::{Deserialize, Serialize};
@@ -168,8 +168,8 @@ impl Default for McpConfig {
                 },
                 // Vector operations
                 McpTool {
-                    name: "insert_vectors".to_string(),
-                    description: "Insert vectors into a collection".to_string(),
+                    name: "insert_texts".to_string(),
+                    description: "Insert texts into a collection (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -249,8 +249,8 @@ impl Default for McpConfig {
                     }),
                 },
                 McpTool {
-                    name: "insert_vectors_grpc".to_string(),
-                    description: "Insert vectors into a collection via GRPC".to_string(),
+                    name: "insert_texts_grpc".to_string(),
+                    description: "Insert texts into a collection via GRPC (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -556,8 +556,8 @@ impl McpServerState {
                 },
                 // Vector operations
                 McpTool {
-                    name: "insert_vectors".to_string(),
-                    description: "Insert vectors into a collection".to_string(),
+                    name: "insert_texts".to_string(),
+                    description: "Insert texts into a collection (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -637,8 +637,8 @@ impl McpServerState {
                     }),
                 },
                 McpTool {
-                    name: "insert_vectors_grpc".to_string(),
-                    description: "Insert vectors into a collection via GRPC".to_string(),
+                    name: "insert_texts_grpc".to_string(),
+                    description: "Insert texts into a collection via GRPC (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -709,6 +709,118 @@ impl McpServerState {
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {}
+                    }),
+                },
+                // Batch operations
+                McpTool {
+                    name: "batch_insert_texts".to_string(),
+                    description: "Batch insert texts with automatic embedding generation".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "texts": {
+                                "type": "array",
+                                "description": "Array of texts to insert",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string", "description": "Text ID"},
+                                        "text": {"type": "string", "description": "Text content"},
+                                        "metadata": {"type": "object", "description": "Optional metadata"}
+                                    },
+                                    "required": ["id", "text"]
+                                }
+                            },
+                            "config": {
+                                "type": "object",
+                                "properties": {
+                                    "parallel_workers": {"type": "integer", "description": "Number of parallel workers", "default": 4},
+                                    "atomic": {"type": "boolean", "description": "If true, all operations in batch succeed or all fail", "default": true}
+                                }
+                            }
+                        },
+                        "required": ["collection", "texts"]
+                    }),
+                },
+                McpTool {
+                    name: "batch_update_vectors".to_string(),
+                    description: "Batch update existing vectors".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "updates": {
+                                "type": "array",
+                                "description": "Array of vector updates",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string", "description": "Vector ID"},
+                                        "data": {"type": "array", "description": "New vector data (optional)", "items": {"type": "number"}},
+                                        "metadata": {"type": "object", "description": "New metadata (optional)"}
+                                    },
+                                    "required": ["id"]
+                                }
+                            },
+                            "config": {
+                                "type": "object",
+                                "properties": {
+                                    "parallel_workers": {"type": "integer", "description": "Number of parallel workers", "default": 4},
+                                    "atomic": {"type": "boolean", "description": "If true, all operations in batch succeed or all fail", "default": true}
+                                }
+                            }
+                        },
+                        "required": ["collection", "updates"]
+                    }),
+                },
+                McpTool {
+                    name: "batch_delete_vectors".to_string(),
+                    description: "Batch delete vectors by ID".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "vector_ids": {"type": "array", "description": "Array of vector IDs to delete", "items": {"type": "string"}},
+                            "config": {
+                                "type": "object",
+                                "properties": {
+                                    "parallel_workers": {"type": "integer", "description": "Number of parallel workers", "default": 4},
+                                    "atomic": {"type": "boolean", "description": "If true, all operations in batch succeed or all fail", "default": true}
+                                }
+                            }
+                        },
+                        "required": ["collection", "vector_ids"]
+                    }),
+                },
+                McpTool {
+                    name: "batch_search_vectors".to_string(),
+                    description: "Batch search with multiple queries".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string", "description": "Collection name"},
+                            "queries": {
+                                "type": "array",
+                                "description": "Array of search queries",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {"type": "string", "description": "Search query text"},
+                                        "limit": {"type": "integer", "description": "Maximum number of results", "default": 10},
+                                        "score_threshold": {"type": "number", "description": "Minimum score threshold"}
+                                    },
+                                    "required": ["query"]
+                                }
+                            },
+                            "config": {
+                                "type": "object",
+                                "properties": {
+                                    "parallel_workers": {"type": "integer", "description": "Number of parallel workers", "default": 4}
+                                }
+                            }
+                        },
+                        "required": ["collection", "queries"]
                     }),
                 },
             ],
@@ -794,57 +906,5 @@ impl McpServerState {
         }
 
         Ok(inactive_connections.len())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mcp_config_default() {
-        let config = McpConfig::default();
-        assert!(config.enabled);
-        assert_eq!(config.port, 15003);
-        assert_eq!(config.host, "127.0.0.1");
-        assert_eq!(config.max_connections, 10);
-    }
-
-    #[test]
-    fn test_mcp_server_state_creation() {
-        let config = McpConfig::default();
-        let state = McpServerState::new(config);
-
-        assert_eq!(state.capabilities.server_info.name, "Vectorizer MCP Server");
-        assert!(!state.capabilities.tools.is_empty());
-        assert!(!state.capabilities.resources.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_mcp_connection_management() {
-        let config = McpConfig::default();
-        let state = McpServerState::new(config);
-
-        let connection = McpConnection {
-            id: "test_connection".to_string(),
-            client_capabilities: serde_json::json!({}),
-            connected_at: chrono::Utc::now(),
-            last_activity: chrono::Utc::now(),
-            authenticated: false,
-        };
-
-        // Add connection
-        state
-            .add_connection("test_connection".to_string(), connection)
-            .await
-            .unwrap();
-        assert_eq!(state.connection_count().await, 1);
-
-        // Update activity
-        state.update_activity("test_connection").await.unwrap();
-
-        // Remove connection
-        state.remove_connection("test_connection").await.unwrap();
-        assert_eq!(state.connection_count().await, 0);
     }
 }

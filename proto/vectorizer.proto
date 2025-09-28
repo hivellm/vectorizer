@@ -14,7 +14,7 @@ service VectorizerService {
   rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
   
   // Operações de vetores
-  rpc InsertVectors(InsertVectorsRequest) returns (InsertVectorsResponse);
+  rpc InsertTexts(InsertTextsRequest) returns (InsertTextsResponse);
   rpc DeleteVectors(DeleteVectorsRequest) returns (DeleteVectorsResponse);
   rpc GetVector(GetVectorRequest) returns (GetVectorResponse);
   
@@ -27,6 +27,12 @@ service VectorizerService {
   
   // Health check
   rpc HealthCheck(Empty) returns (HealthResponse);
+  
+  // Operações de sumarização
+  rpc SummarizeText(SummarizeTextRequest) returns (SummarizeTextResponse);
+  rpc SummarizeContext(SummarizeContextRequest) returns (SummarizeContextResponse);
+  rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse);
+  rpc ListSummaries(ListSummariesRequest) returns (ListSummariesResponse);
 }
 
 // Mensagens de busca
@@ -101,18 +107,19 @@ message DeleteCollectionResponse {
 }
 
 // Mensagens para operações de vetores
-message VectorData {
+message TextData {
   string id = 1;
-  repeated float data = 2;
+  string text = 2;
   map<string, string> metadata = 3;
 }
 
-message InsertVectorsRequest {
+message InsertTextsRequest {
   string collection = 1;
-  repeated VectorData vectors = 2;
+  repeated TextData texts = 2;
+  string provider = 3;
 }
 
-message InsertVectorsResponse {
+message InsertTextsResponse {
   string collection = 1;
   int32 inserted_count = 2;
   string status = 3;
@@ -201,4 +208,93 @@ message HealthResponse {
   string version = 3;
   string timestamp = 4;
   optional string error_message = 5;
+}
+
+// Mensagens de sumarização
+message SummarizeTextRequest {
+  string text = 1;
+  string method = 2;  // extractive, abstractive, keyword, sentence
+  optional int32 max_length = 3;  // Maximum summary length
+  optional float compression_ratio = 4;  // Compression ratio (0.1-0.9)
+  optional string language = 5;  // Language code (en, pt, es, etc.)
+  map<string, string> metadata = 6;  // Additional metadata
+}
+
+message SummarizeTextResponse {
+  string summary_id = 1;
+  string original_text = 2;
+  string summary = 3;
+  string method = 4;
+  int32 original_length = 5;
+  int32 summary_length = 6;
+  float compression_ratio = 7;
+  string language = 8;
+  string status = 9;
+  string message = 10;
+  map<string, string> metadata = 11;
+}
+
+message SummarizeContextRequest {
+  string context = 1;
+  string method = 2;  // extractive, abstractive, keyword, sentence
+  optional int32 max_length = 3;
+  optional float compression_ratio = 4;
+  optional string language = 5;
+  map<string, string> metadata = 6;
+}
+
+message SummarizeContextResponse {
+  string summary_id = 1;
+  string original_context = 2;
+  string summary = 3;
+  string method = 4;
+  int32 original_length = 5;
+  int32 summary_length = 6;
+  float compression_ratio = 7;
+  string language = 8;
+  string status = 9;
+  string message = 10;
+  map<string, string> metadata = 11;
+}
+
+message GetSummaryRequest {
+  string summary_id = 1;
+}
+
+message GetSummaryResponse {
+  string summary_id = 1;
+  string original_text = 2;
+  string summary = 3;
+  string method = 4;
+  int32 original_length = 5;
+  int32 summary_length = 6;
+  float compression_ratio = 7;
+  string language = 8;
+  string created_at = 9;
+  map<string, string> metadata = 10;
+  string status = 11;
+}
+
+message ListSummariesRequest {
+  optional string method = 1;  // Filter by summarization method
+  optional string language = 2;  // Filter by language
+  optional int32 limit = 3;  // Maximum number of summaries to return
+  optional int32 offset = 4;  // Offset for pagination
+}
+
+message SummaryInfo {
+  string summary_id = 1;
+  string method = 2;
+  string language = 3;
+  int32 original_length = 4;
+  int32 summary_length = 5;
+  float compression_ratio = 6;
+  string created_at = 7;
+  map<string, string> metadata = 8;
+}
+
+message ListSummariesResponse {
+  repeated SummaryInfo summaries = 1;
+  int32 total_count = 2;
+  string status = 3;
 }

@@ -268,7 +268,7 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "batch_insert_vectors",
+  "name": "batch_insert_texts",
   "description": "Insert multiple vectors into a collection in a single operation",
   "inputSchema": {
     "type": "object",

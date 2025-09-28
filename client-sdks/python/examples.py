@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any
 
 from client import VectorizerClient
-from models import Vector, CollectionInfo, SearchResult
+from models import Vector, CollectionInfo, SearchResult, BatchInsertRequest, BatchTextRequest, BatchSearchRequest, BatchSearchQuery, BatchDeleteRequest, BatchConfig, SummarizeTextRequest, SummarizeContextRequest
 from exceptions import (
     VectorizerError,
     CollectionNotFoundError,
@@ -67,7 +67,7 @@ async def basic_example():
             vectors.append(vector)
         
         # Insert vectors
-        result = await client.insert_vectors("example_collection", vectors)
+        result = await client.insert_texts("example_collection", vectors)
         print(f"Inserted {len(vectors)} vectors")
         
         # Search for similar vectors
@@ -127,7 +127,7 @@ async def advanced_example():
                 vectors.append(vector)
             
             # Insert vectors in batch
-            await client.insert_vectors("advanced_collection", vectors)
+            await client.insert_texts("advanced_collection", vectors)
             print(f"Inserted {len(vectors)} vectors in batch")
             
             # Multiple search queries
@@ -262,7 +262,7 @@ async def real_world_example():
             vectors.append(vector)
         
         # Insert all documents
-        await client.insert_vectors("document_search", vectors)
+        await client.insert_texts("document_search", vectors)
         print(f"Indexed {len(documents)} documents")
         
         # Search for similar documents
@@ -290,6 +290,104 @@ async def real_world_example():
         print("\nCleaned up document search collection")
 
 
+async def batch_operations_example():
+    """Example demonstrating batch operations."""
+    print("=== Batch Operations Example ===")
+    
+    async with VectorizerClient(
+        base_url="http://localhost:15001",
+        api_key="your-api-key-here"
+    ) as client:
+        
+        collection_name = "batch_example_collection"
+        
+        try:
+            # Create collection for batch operations
+            await client.create_collection(
+                name=collection_name,
+                dimension=512,
+                description="Collection for batch operations testing"
+            )
+            print(f"Created collection: {collection_name}")
+            
+            # Batch insert texts
+            print("\n--- Batch Insert Texts ---")
+            batch_insert_request = BatchInsertRequest(
+                texts=[
+                    BatchTextRequest(
+                        id="batch-text-1",
+                        text="This is the first batch text for testing",
+                        metadata={"source": "batch_test", "type": "example"}
+                    ),
+                    BatchTextRequest(
+                        id="batch-text-2",
+                        text="This is the second batch text for testing",
+                        metadata={"source": "batch_test", "type": "example"}
+                    ),
+                    BatchTextRequest(
+                        id="batch-text-3",
+                        text="This is the third batch text for testing",
+                        metadata={"source": "batch_test", "type": "example"}
+                    )
+                ],
+                config=BatchConfig(
+                    max_batch_size=100,
+                    parallel_workers=4,
+                    atomic=True
+                )
+            )
+            
+            batch_insert_result = await client.batch_insert_texts(collection_name, batch_insert_request)
+            print(f"Batch insert completed:")
+            print(f"  - Successful: {batch_insert_result.successful_operations}")
+            print(f"  - Failed: {batch_insert_result.failed_operations}")
+            print(f"  - Duration: {batch_insert_result.duration_ms}ms")
+            
+            # Batch search
+            print("\n--- Batch Search ---")
+            batch_search_request = BatchSearchRequest(
+                queries=[
+                    BatchSearchQuery(query="batch text", limit=5),
+                    BatchSearchQuery(query="testing", limit=3),
+                    BatchSearchQuery(query="example", limit=2)
+                ],
+                config=BatchConfig(parallel_workers=2)
+            )
+            
+            batch_search_result = await client.batch_search_vectors(collection_name, batch_search_request)
+            print(f"Batch search completed:")
+            print(f"  - Successful queries: {batch_search_result.successful_queries}")
+            print(f"  - Failed queries: {batch_search_result.failed_queries}")
+            print(f"  - Duration: {batch_search_result.duration_ms}ms")
+            print(f"  - Total results: {sum(len(r) for r in batch_search_result.results)}")
+            
+            # Batch delete
+            print("\n--- Batch Delete ---")
+            batch_delete_request = BatchDeleteRequest(
+                vector_ids=["batch-text-1", "batch-text-2", "batch-text-3"],
+                config=BatchConfig(atomic=True)
+            )
+            
+            batch_delete_result = await client.batch_delete_vectors(collection_name, batch_delete_request)
+            print(f"Batch delete completed:")
+            print(f"  - Successful: {batch_delete_result.successful_operations}")
+            print(f"  - Failed: {batch_delete_result.failed_operations}")
+            print(f"  - Duration: {batch_delete_result.duration_ms}ms")
+            
+            # Clean up
+            await client.delete_collection(collection_name)
+            print(f"\nCleaned up collection: {collection_name}")
+            
+        except Exception as e:
+            logger.error(f"Batch operations example failed: {e}")
+            # Try to clean up on error
+            try:
+                await client.delete_collection(collection_name)
+            except:
+                pass
+            raise
+
+
 async def main():
     """Run all examples."""
     try:
@@ -297,6 +395,7 @@ async def main():
         await advanced_example()
         await error_handling_example()
         await real_world_example()
+        await batch_operations_example()
         
         print("\n=== All Examples Completed Successfully ===")
         
@@ -305,6 +404,89 @@ async def main():
         raise
 
 
-if __name__ == "__main__":
-    # Run examples
-    asyncio.run(main())
+async def summarization_example():
+    """Example demonstrating text and context summarization."""
+    print("=== Summarization Example ===")
+    
+    async with VectorizerClient(
+        base_url="http://localhost:15001",
+        api_key="your-api-key-here"
+    ) as client:
+        
+        # Example text to summarize
+        long_text = """
+        Artificial Intelligence (AI) has revolutionized numerous industries and continues to shape the future of technology. 
+        From healthcare to finance, AI applications are transforming how we work, live, and interact with the world around us.
+        
+        In healthcare, AI is being used for medical diagnosis, drug discovery, and personalized treatment plans. 
+        Machine learning algorithms can analyze vast amounts of medical data to identify patterns and predict outcomes.
+        
+        In finance, AI powers algorithmic trading, fraud detection, and risk assessment. 
+        These systems can process millions of transactions in real-time to identify suspicious activities.
+        
+        The automotive industry is leveraging AI for autonomous vehicles, traffic optimization, and predictive maintenance.
+        Self-driving cars use computer vision and machine learning to navigate roads safely.
+        
+        As AI technology continues to advance, we can expect even more innovative applications across various sectors.
+        However, it's important to consider the ethical implications and ensure responsible AI development.
+        """
+        
+        try:
+            # Summarize text using extractive method
+            print("Summarizing text using extractive method...")
+            text_request = SummarizeTextRequest(
+                text=long_text,
+                method="extractive",
+                compression_ratio=0.3,
+                language="en"
+            )
+            
+            text_response = await client.summarize_text(text_request)
+            print(f"Original length: {text_response.original_length} characters")
+            print(f"Summary length: {text_response.summary_length} characters")
+            print(f"Compression ratio: {text_response.compression_ratio:.2f}")
+            print(f"Summary: {text_response.summary}")
+            
+            # Summarize context using keyword method
+            print("\nSummarizing context using keyword method...")
+            context_request = SummarizeContextRequest(
+                context=long_text,
+                method="keyword",
+                max_length=100,
+                language="en"
+            )
+            
+            context_response = await client.summarize_context(context_request)
+            print(f"Context summary: {context_response.summary}")
+            
+            # Get the summary by ID
+            print(f"\nRetrieving summary by ID: {text_response.summary_id}")
+            summary = await client.get_summary(text_response.summary_id)
+            print(f"Retrieved summary: {summary.summary}")
+            
+            # List all summaries
+            print("\nListing all summaries...")
+            summaries = await client.list_summaries(limit=5)
+            print(f"Found {summaries.total_count} total summaries")
+            for summary_info in summaries.summaries:
+                print(f"- {summary_info.summary_id}: {summary_info.method} ({summary_info.language})")
+            
+            print("\n=== Summarization Example Completed Successfully ===")
+            
+        except Exception as e:
+            logger.error(f"Summarization example failed: {e}")
+            raise
+
+
+async def main():
+    """Run all examples."""
+    try:
+        await basic_example()
+        await batch_operations_example()
+        await summarization_example()
+        
+        print("\n=== All Examples Completed Successfully ===")
+        
+    except Exception as e:
+        logger.error(f"Example failed: {e}")
+        raise

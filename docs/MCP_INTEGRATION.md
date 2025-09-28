@@ -38,7 +38,7 @@ Vectorizer implements a comprehensive MCP (Model Context Protocol) server that e
 - **list_collections**: Enumerate all available collections
 - **get_collection_info**: Detailed collection metadata
 - **embed_text**: Generate embeddings for text
-- **insert_vectors**: Add vectors to collections
+- **insert_texts**: Add vectors to collections
 - **delete_vectors**: Remove vectors from collections
 - **get_vector**: Retrieve specific vectors
 - **create_collection**: Create new collections
@@ -299,7 +299,7 @@ Generate embeddings for text.
 }
 ```
 
-### insert_vectors
+### insert_texts
 
 Insert vectors into a collection.
 
@@ -313,7 +313,7 @@ Insert vectors into a collection.
   "jsonrpc": "2.0",
   "method": "tools/call",
   "params": {
-    "name": "insert_vectors",
+    "name": "insert_texts",
     "arguments": {
       "collection": "documents",
       "vectors": [

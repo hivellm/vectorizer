@@ -13,6 +13,7 @@ use crate::{
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
     models::collection_metadata::{CollectionMetadataFile, FileMetadata, CollectionIndexingConfig, EmbeddingModelInfo},
     utils::file_hash::{calculate_file_hash, get_file_modified_time},
+    summarization::{SummarizationManager, SummarizationConfig},
 };
 use anyhow::{Context, Result};
 use glob::Pattern;
@@ -222,6 +223,8 @@ pub struct DocumentLoader {
     processed_chunks: Vec<String>,
     /// Cache manager
     pub cache_manager: Option<CacheManager>,
+    /// Summarization manager
+    summarization_manager: Option<SummarizationManager>,
 }
 
 impl DocumentLoader {
@@ -333,7 +336,19 @@ impl DocumentLoader {
             embedding_manager,
             processed_chunks,
             cache_manager: None,
+            summarization_manager: None,
         }
+    }
+    
+    /// Create a new document loader with summarization
+    pub fn new_with_summarization(config: LoaderConfig, summarization_config: Option<SummarizationConfig>) -> Self {
+        let mut loader = Self::new(config);
+        
+        if let Some(summarization_config) = summarization_config {
+            loader.summarization_manager = Some(SummarizationManager::new(summarization_config).unwrap());
+        }
+        
+        loader
     }
 
     /// Create a new document loader with cache management
@@ -377,13 +392,13 @@ impl DocumentLoader {
         store: &VectorStore,
         progress_callback: Option<&IndexingProgressState>,
     ) -> CacheResult<(usize, bool)> {
-        let collection_name = &self.config.collection_name;
+        let collection_name = self.config.collection_name.clone();
         let vector_store_path = PathBuf::from(project_path).join(".vectorizer").join(format!("{}_vector_store.bin", collection_name));
 
         // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
         if vector_store_path.exists() {
             info!("🚀 Loading cached vector store for '{}'", collection_name);
-            match self.load_persisted_store(&vector_store_path, store, collection_name) {
+            match self.load_persisted_store(&vector_store_path, store, &collection_name) {
                 Ok(count) => {
                     info!("✅ Loaded {} vectors from cache for '{}'", count, collection_name);
                     // Record cache hit if cache manager is available
@@ -507,7 +522,7 @@ impl DocumentLoader {
     }
 
     /// Loads a persisted vector store into the main application store.
-    fn load_persisted_store(&self, path: &Path, app_store: &VectorStore, collection_name: &str) -> Result<usize> {
+    fn load_persisted_store(&mut self, path: &Path, app_store: &VectorStore, collection_name: &str) -> Result<usize> {
         println!("🔄 Loading persisted store from: {}", path.display());
         println!("📖 Calling VectorStore::load...");
         let persisted_store = VectorStore::load(path)?;
@@ -567,7 +582,7 @@ impl DocumentLoader {
         // If HNSW dump loading failed, rebuild the index
         if !hnsw_loaded {
             println!("🔄 Rebuilding HNSW index from {} vectors...", vector_count);
-            app_collection.fast_load_vectors(vectors)?;
+            app_collection.fast_load_vectors(vectors.clone())?;
             println!("✅ Successfully loaded {} vectors from cache (rebuild mode)", vector_count);
 
             // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
@@ -579,6 +594,68 @@ impl DocumentLoader {
         if let Some(project_path) = path.parent().and_then(|p| p.parent()) {
             if let Ok(Some(metadata)) = self.load_metadata(project_path.to_str().unwrap()) {
                 debug!("Loaded metadata for collection '{}' with {} indexed files", collection_name, metadata.files.len());
+            }
+        }
+        
+        // Generate summaries if summarization is enabled and summary collection doesn't exist
+        if let Some(summarization_manager) = self.summarization_manager.take() {
+            let summary_collection_name = format!("{}_summaries", collection_name);
+            
+            // Check if summary collection already exists
+            if app_store.get_collection(&summary_collection_name).is_err() {
+                info!("📝 Generating summaries for cached collection '{}'", collection_name);
+                
+                // Convert vectors to DocumentChunk format for summarization
+                let mut file_chunks: HashMap<String, Vec<DocumentChunk>> = HashMap::new();
+                
+                for vector in &vectors {
+                    if let Some(payload) = &vector.payload {
+                        if let Some(content) = payload.data.get("content").and_then(|v| v.as_str()) {
+                            if let Some(file_path) = payload.data.get("file_path").and_then(|v| v.as_str()) {
+                                if let Some(chunk_index) = payload.data.get("chunk_index").and_then(|v| v.as_u64()) {
+                                    let mut metadata = HashMap::new();
+                                    if let Some(meta) = payload.data.get("metadata") {
+                                        if let Some(meta_obj) = meta.as_object() {
+                                            for (k, v) in meta_obj {
+                                                metadata.insert(k.clone(), v.clone());
+                                            }
+                                        }
+                                    }
+                                    
+                                    let chunk = DocumentChunk {
+                                        id: vector.id.clone(),
+                                        content: content.to_string(),
+                                        file_path: file_path.to_string(),
+                                        chunk_index: chunk_index as usize,
+                                        metadata,
+                                    };
+                                    
+                                    file_chunks.entry(file_path.to_string()).or_insert_with(Vec::new).push(chunk);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Convert to flat vector for generate_document_summaries
+                let all_chunks: Vec<DocumentChunk> = file_chunks.values().flatten().cloned().collect();
+                
+                if !all_chunks.is_empty() {
+                    let (result, summarization_manager) = self.generate_document_summaries(app_store, &all_chunks, summarization_manager);
+                    if let Err(e) = result {
+                        warn!("Failed to generate summaries for cached collection '{}': {}", collection_name, e);
+                    } else {
+                        info!("✅ Generated summaries for cached collection '{}'", collection_name);
+                    }
+                    // Put the summarization manager back
+                    self.summarization_manager = Some(summarization_manager);
+                } else {
+                    info!("ℹ️ No chunks found for summarization in cached collection '{}'", collection_name);
+                    self.summarization_manager = Some(summarization_manager);
+                }
+            } else {
+                info!("ℹ️ Summary collection '{}' already exists, skipping summarization", summary_collection_name);
+                self.summarization_manager = Some(summarization_manager);
             }
         }
         
@@ -911,7 +988,7 @@ impl DocumentLoader {
     }
 
     /// Store chunks in the vector store using parallel processing with batch control and progress updates
-    fn store_chunks_parallel_with_progress(&self, store: &VectorStore, chunks: &[DocumentChunk], progress_callback: Option<&IndexingProgressState>) -> Result<usize> {
+    fn store_chunks_parallel_with_progress(&mut self, store: &VectorStore, chunks: &[DocumentChunk], progress_callback: Option<&IndexingProgressState>) -> Result<usize> {
         info!(
             "📊 Processing {} chunks in batches for collection '{}'...",
             chunks.len(),
@@ -997,6 +1074,16 @@ impl DocumentLoader {
                 return Err(e.into());
             }
             total_vectors += remaining_count;
+        }
+
+        // Generate summaries if summarization is enabled
+        if let Some(summarization_manager) = self.summarization_manager.take() {
+            let (result, summarization_manager) = self.generate_document_summaries(store, chunks, summarization_manager);
+            if let Err(e) = result {
+                warn!("Failed to generate summaries for collection '{}': {}", self.config.collection_name, e);
+            }
+            // Put the summarization manager back
+            self.summarization_manager = Some(summarization_manager);
         }
 
         info!(
@@ -1480,5 +1567,244 @@ impl DocumentLoader {
         }
         
         Ok(())
+    }
+    
+    /// Generate summaries for documents and store them in a separate collection
+    fn generate_document_summaries(
+        &self,
+        store: &VectorStore,
+        chunks: &[DocumentChunk],
+        mut summarization_manager: SummarizationManager,
+    ) -> (Result<()>, SummarizationManager) {
+        println!("📝 Generating summaries for collection '{}'", self.config.collection_name);
+        
+        // Group chunks by file path to create one summary per file
+        let mut file_chunks: HashMap<String, Vec<&DocumentChunk>> = HashMap::new();
+        for chunk in chunks {
+            file_chunks.entry(chunk.file_path.clone()).or_insert_with(Vec::new).push(chunk);
+        }
+        
+        let summary_collection_name = format!("{}_summaries", self.config.collection_name);
+        let chunk_summary_collection_name = format!("{}_chunk_summaries", self.config.collection_name);
+        
+        // Create summary collection if it doesn't exist
+        if store.get_collection(&summary_collection_name).is_err() {
+            let config = CollectionConfig {
+                dimension: self.config.embedding_dimension,
+                metric: DistanceMetric::Cosine,
+                hnsw_config: HnswConfig {
+                    m: 16,
+                    ef_construction: 200,
+                    ef_search: 64,
+                    seed: Some(42),
+                },
+                quantization: None,
+                compression: Default::default(),
+            };
+            
+            match store.create_collection(&summary_collection_name, config) {
+                Ok(_) => {
+                    println!("✅ Created file summary collection: {}", summary_collection_name);
+                    if let Ok(c) = store.get_collection(&summary_collection_name) {
+                        c.set_embedding_type(self.config.embedding_type.clone());
+                    }
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to create file summary collection: {}", e);
+                    return (Err(e.into()), summarization_manager);
+                }
+            }
+        }
+        // Create chunk summary collection if it doesn't exist
+        if store.get_collection(&chunk_summary_collection_name).is_err() {
+            let config = CollectionConfig {
+                dimension: self.config.embedding_dimension,
+                metric: DistanceMetric::Cosine,
+                hnsw_config: HnswConfig {
+                    m: 16,
+                    ef_construction: 200,
+                    ef_search: 64,
+                    seed: Some(42),
+                },
+                quantization: None,
+                compression: Default::default(),
+            };
+            match store.create_collection(&chunk_summary_collection_name, config) {
+                Ok(_) => {
+                    println!("✅ Created chunk summary collection: {}", chunk_summary_collection_name);
+                    if let Ok(c) = store.get_collection(&chunk_summary_collection_name) {
+                        c.set_embedding_type(self.config.embedding_type.clone());
+                    }
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to create chunk summary collection: {}", e);
+                    return (Err(e.into()), summarization_manager);
+                }
+            }
+        }
+        
+        let mut file_summary_vectors = Vec::new();
+        let mut chunk_summary_vectors = Vec::new();
+        
+        // Generate one summary per file
+        for (file_path, file_chunks) in file_chunks {
+            if file_chunks.is_empty() {
+                continue;
+            }
+            
+            // Sort chunks by chunk_index to maintain document order
+            let mut sorted_chunks = file_chunks.clone();
+            sorted_chunks.sort_by_key(|chunk| chunk.chunk_index);
+            
+            // Combine all chunks from the same file in order
+            let full_document_text = sorted_chunks
+                .iter()
+                .map(|chunk| chunk.content.as_str())
+                .collect::<Vec<_>>()
+                .join(" ");
+            
+            // Only summarize if document is long enough
+            if full_document_text.len() < 200 {
+                info!("Skipping summary for file '{}' - too short ({} chars)", file_path, full_document_text.len());
+                continue;
+            }
+                        
+            // Generate summary using the summarization manager
+            let summary_result = summarization_manager.summarize_text(crate::summarization::types::SummarizationParams {
+                text: full_document_text.clone(),
+                method: crate::summarization::types::SummarizationMethod::Extractive,
+                max_length: Some(500),
+                compression_ratio: Some(0.3),
+                language: Some("en".to_string()),
+                metadata: {
+                    let mut meta = HashMap::new();
+                    meta.insert("source_file".to_string(), file_path.clone());
+                    meta.insert("original_collection".to_string(), self.config.collection_name.clone());
+                    meta.insert("chunk_count".to_string(), sorted_chunks.len().to_string());
+                    meta.insert("document_length".to_string(), full_document_text.len().to_string());
+                    meta
+                },
+            });
+            
+            match summary_result {
+                Ok(summary_result) => {
+                    // Generate embedding for the summary
+                    match self.embedding_manager.embed(&summary_result.summary) {
+                        Ok(summary_embedding) => {
+                            // Create summary vector with comprehensive metadata
+                            let summary_vector = Vector {
+                                id: format!("summary_file_{}", uuid::Uuid::new_v4()),
+                                data: summary_embedding,
+                                payload: Some(Payload {
+                                    data: serde_json::json!({
+                                        "content": summary_result.summary,
+                                        "source_file": file_path,
+                                        "original_collection": self.config.collection_name,
+                                        "summary_method": summary_result.method,
+                                        "compression_ratio": summary_result.compression_ratio,
+                                        "is_summary": true,
+                                        "summary_type": "document_summary",
+                                        "chunk_count": sorted_chunks.len(),
+                                        "original_length": summary_result.original_length,
+                                        "summary_length": summary_result.summary_length,
+                                        "created_at": chrono::Utc::now().to_rfc3339(),
+                                        "file_extension": file_path.split('.').last().unwrap_or("unknown"),
+                                    }),
+                                }),
+                            };
+                            file_summary_vectors.push(summary_vector);
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️  Failed to embed file summary for {}: {}", file_path, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("⚠️  Failed to generate file summary for {}: {}", file_path, e);
+                }
+            }
+
+            // Generate per-chunk summaries (short summaries for each chunk)
+            for chunk in &sorted_chunks {
+                // Only summarize substantial chunks
+                if chunk.content.len() < 200 {
+                    continue;
+                }
+                let chunk_summary_result = summarization_manager.summarize_text(crate::summarization::types::SummarizationParams {
+                    text: chunk.content.clone(),
+                    method: crate::summarization::types::SummarizationMethod::Extractive,
+                    max_length: Some(220),
+                    compression_ratio: Some(0.25),
+                    language: Some("en".to_string()),
+                    metadata: {
+                        let mut meta = HashMap::new();
+                        meta.insert("source_file".to_string(), file_path.clone());
+                        meta.insert("original_collection".to_string(), self.config.collection_name.clone());
+                        meta.insert("chunk_index".to_string(), chunk.chunk_index.to_string());
+                        meta.insert("chunk_size".to_string(), chunk.content.len().to_string());
+                        meta
+                    },
+                });
+                if let Ok(cs) = chunk_summary_result {
+                    match self.embedding_manager.embed(&cs.summary) {
+                        Ok(embedding) => {
+                            let vector = Vector {
+                                id: format!("summary_chunk_{}_{}", uuid::Uuid::new_v4(), chunk.chunk_index),
+                                data: embedding,
+                                payload: Some(Payload { data: serde_json::json!({
+                                    "content": cs.summary,
+                                    "source_file": file_path,
+                                    "original_collection": self.config.collection_name,
+                                    "summary_method": cs.method,
+                                    "compression_ratio": cs.compression_ratio,
+                                    "is_summary": true,
+                                    "summary_type": "chunk_summary",
+                                    "chunk_index": chunk.chunk_index,
+                                    "original_length": cs.original_length,
+                                    "summary_length": cs.summary_length,
+                                    "created_at": chrono::Utc::now().to_rfc3339(),
+                                    "file_extension": file_path.split('.').last().unwrap_or("unknown"),
+                                })}),
+                            };
+                            chunk_summary_vectors.push(vector);
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️  Failed to embed chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
+                        }
+                    }
+                } else if let Err(e) = chunk_summary_result {
+                    eprintln!("⚠️  Failed to generate chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
+                }
+            }
+        }
+        // Insert file summary vectors in batches
+        if !file_summary_vectors.is_empty() {
+            const SUMMARY_BATCH_SIZE: usize = 50;
+            for batch in file_summary_vectors.chunks(SUMMARY_BATCH_SIZE) {
+                if let Err(e) = store.insert(&summary_collection_name, batch.to_vec()) {
+                    eprintln!("❌ Failed to insert file summary batch: {}", e);
+                    return (Err(e.into()), summarization_manager);
+                }
+            }
+            println!("✅ Inserted {} file summaries into '{}'", file_summary_vectors.len(), summary_collection_name);
+        } else {
+            println!("ℹ️ No file summaries generated for '{}' (no suitable documents)", self.config.collection_name);
+        }
+
+        // Insert chunk summary vectors in batches
+        if !chunk_summary_vectors.is_empty() {
+            const CHUNK_SUMMARY_BATCH_SIZE: usize = 100;
+            for batch in chunk_summary_vectors.chunks(CHUNK_SUMMARY_BATCH_SIZE) {
+                if let Err(e) = store.insert(&chunk_summary_collection_name, batch.to_vec()) {
+                    eprintln!("❌ Failed to insert chunk summary batch: {}", e);
+                    return (Err(e.into()), summarization_manager);
+                }
+            }
+            println!("✅ Inserted {} chunk summaries into '{}'", chunk_summary_vectors.len(), chunk_summary_collection_name);
+        } else {
+            println!("ℹ️ No chunk summaries generated for '{}' (no suitable documents)", self.config.collection_name);
+        }
+        
+        (Ok(()), summarization_manager)
     }
 }

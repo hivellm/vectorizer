@@ -234,6 +234,68 @@ collections:
         use_int8: true        # Enable INT8 quantization
         num_threads: 1        # Threads per worker
 
+    # Summarization settings
+    summarization:
+      enabled: true           # Enable automatic summarization
+      auto_summarize: true    # Automatically summarize during indexing
+      summary_collection: "summaries"  # Collection name for summaries
+      
+      # Default summarization method
+      default_method: "extractive"  # extractive, abstractive, keyword, sentence
+      
+      # Method-specific settings
+      methods:
+        extractive:
+          enabled: true
+          compression_ratio: 0.3  # Keep 30% of original text
+          max_sentences: 5        # Maximum sentences in summary
+          min_sentence_length: 10 # Minimum sentence length
+          use_tfidf: true         # Use TF-IDF for sentence scoring
+          
+        abstractive:
+          enabled: false          # Requires external LLM
+          model: "gpt-3.5-turbo" # LLM model for abstractive summarization
+          api_key: ""            # API key for LLM service
+          max_tokens: 150        # Maximum tokens in summary
+          temperature: 0.3       # Temperature for generation
+          
+        keyword:
+          enabled: true
+          max_keywords: 10       # Maximum keywords to extract
+          min_keyword_length: 3  # Minimum keyword length
+          use_stopwords: true    # Remove stopwords
+          language: "en"         # Language for stopwords
+          
+        sentence:
+          enabled: true
+          compression_ratio: 0.4  # Keep 40% of sentences
+          max_sentences: 3        # Maximum sentences
+          min_sentence_length: 15 # Minimum sentence length
+          use_position_weight: true # Weight sentences by position
+          
+      # Language support
+      languages:
+        en:
+          stopwords: true
+          stemming: true
+        pt:
+          stopwords: true
+          stemming: true
+        es:
+          stopwords: true
+          stemming: true
+        fr:
+          stopwords: true
+          stemming: true
+          
+      # Summary metadata
+      metadata:
+        include_original_id: true    # Include reference to original document
+        include_file_path: true      # Include original file path
+        include_timestamp: true      # Include creation timestamp
+        include_method: true         # Include summarization method
+        include_compression_ratio: true # Include compression ratio
+
     # Compression settings
     compression:
       enabled: true
@@ -402,6 +464,80 @@ experimental:
     embedding_cache_mmap: true     # Memory-mapped embedding cache
 
 # =============================================================================
+# SUMMARIZATION CONFIGURATION
+# =============================================================================
+summarization:
+  # Enable automatic summarization system
+  enabled: true
+  
+  # Default summarization method
+  default_method: "extractive"  # extractive, keyword, sentence, abstractive
+  
+  # Method-specific configurations
+  methods:
+    extractive:
+      enabled: true
+      max_sentences: 5           # Maximum sentences in summary
+      lambda: 0.7                # MMR lambda parameter (0.0-1.0)
+      min_sentence_length: 10    # Minimum sentence length
+      use_tfidf: true           # Use TF-IDF for sentence scoring
+      
+    keyword:
+      enabled: true
+      max_keywords: 10           # Maximum keywords to extract
+      min_keyword_length: 3      # Minimum keyword length
+      use_stopwords: true        # Remove stopwords
+      language: "en"             # Language for stopwords
+      
+    sentence:
+      enabled: true
+      max_sentences: 3           # Maximum sentences
+      min_sentence_length: 15    # Minimum sentence length
+      use_position_weight: true  # Weight sentences by position
+      
+    abstractive:
+      enabled: false             # Requires external LLM
+      max_length: 200           # Maximum summary length
+      model: "gpt-3.5-turbo"    # LLM model for abstractive summarization
+      api_key: ""               # API key for LLM service
+      temperature: 0.3          # Temperature for generation
+  
+  # Language support
+  languages:
+    en:
+      stopwords: true
+      stemming: true
+    pt:
+      stopwords: true
+      stemming: true
+    es:
+      stopwords: true
+      stemming: true
+    fr:
+      stopwords: true
+      stemming: true
+  
+  # Summary metadata configuration
+  metadata:
+    include_original_id: true      # Include reference to original document
+    include_file_path: true        # Include original file path
+    include_timestamp: true        # Include creation timestamp
+    include_method: true           # Include summarization method
+    include_compression_ratio: true # Include compression ratio
+  
+  # Collection naming patterns
+  collection_patterns:
+    file_summaries: "{collection_name}_summaries"      # File-level summaries
+    chunk_summaries: "{collection_name}_chunk_summaries" # Chunk-level summaries
+  
+  # Performance settings
+  performance:
+    parallel_processing: true     # Enable parallel summarization
+    max_concurrent_tasks: 4       # Maximum concurrent summarization tasks
+    batch_size: 10                # Batch size for processing
+    timeout_seconds: 30           # Summarization timeout
+
+# =============================================================================
 # GRPC CONFIGURATION
 # =============================================================================
 grpc:
@@ -536,32 +672,30 @@ mcp:
             description: "Embedding model to use (optional)"
         required: ["text"]
     
-    - name: "insert_vectors"
-      description: "Insert vectors into a collection"
+    - name: "insert_texts"
+      description: "Insert texts into a collection (embeddings generated automatically)"
       input_schema:
         type: "object"
         properties:
           collection:
             type: "string"
             description: "Collection name"
-          vectors:
+          texts:
             type: "array"
-            description: "Array of vectors to insert"
+            description: "Array of texts to insert"
             items:
               type: "object"
               properties:
                 id:
                   type: "string"
-                  description: "Vector ID"
-                data:
-                  type: "array"
-                  description: "Vector data"
-                  items:
-                    type: "number"
-                payload:
+                  description: "Text ID"
+                text:
+                  type: "string"
+                  description: "Text content"
+                metadata:
                   type: "object"
-                  description: "Optional payload data"
-        required: ["collection", "vectors"]
+                  description: "Optional metadata"
+        required: ["collection", "texts"]
     
     - name: "delete_vectors"
       description: "Delete vectors from a collection"
@@ -629,6 +763,113 @@ mcp:
       input_schema:
         type: "object"
         properties: {}
+    
+    # Batch Operations
+    - name: "batch_insert_texts"
+      description: "Batch insert texts with automatic embedding generation"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          texts:
+            type: "array"
+            description: "Array of texts to insert"
+            items:
+              type: "object"
+              properties:
+                id:
+                  type: "string"
+                  description: "Text ID"
+                text:
+                  type: "string"
+                  description: "Text content"
+                metadata:
+                  type: "object"
+                  description: "Optional metadata"
+              required: ["id", "text"]
+          provider:
+            type: "string"
+            description: "Embedding provider"
+            default: "bm25"
+        required: ["collection", "texts"]
+    
+    - name: "batch_search_vectors"
+      description: "Batch search with multiple queries"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          queries:
+            type: "array"
+            description: "Array of search queries"
+            items:
+              type: "object"
+              properties:
+                query:
+                  type: "string"
+                  description: "Search query text"
+                limit:
+                  type: "integer"
+                  description: "Maximum number of results"
+                  default: 10
+                score_threshold:
+                  type: "number"
+                  description: "Minimum score threshold"
+              required: ["query"]
+          provider:
+            type: "string"
+            description: "Embedding provider"
+            default: "bm25"
+        required: ["collection", "queries"]
+    
+    - name: "batch_update_vectors"
+      description: "Batch update existing vectors"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          updates:
+            type: "array"
+            description: "Array of vector updates"
+            items:
+              type: "object"
+              properties:
+                id:
+                  type: "string"
+                  description: "Vector ID"
+                text:
+                  type: "string"
+                  description: "New text content (optional)"
+                metadata:
+                  type: "object"
+                  description: "New metadata (optional)"
+              required: ["id"]
+          provider:
+            type: "string"
+            description: "Embedding provider"
+            default: "bm25"
+        required: ["collection", "updates"]
+    
+    - name: "batch_delete_vectors"
+      description: "Batch delete vectors by ID"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          vector_ids:
+            type: "array"
+            description: "Array of vector IDs to delete"
+            items:
+              type: "string"
+        required: ["collection", "vector_ids"]
     
     - name: "get_indexing_progress"
       description: "Get indexing progress for collections"

@@ -177,7 +177,7 @@ class TestVectorizerClient:
             await client.embed_text(None)
     
     @pytest.mark.asyncio
-    async def test_insert_vectors_success(self, client, sample_vector):
+    async def test_insert_texts_success(self, client, sample_vector):
         """Test successful vector insertion."""
         mock_response = Mock()
         mock_response.status = 201
@@ -189,16 +189,16 @@ class TestVectorizerClient:
         with patch.object(client, '_session') as mock_session:
             mock_session.post.return_value.__aenter__.return_value = mock_response
             
-            result = await client.insert_vectors("test_collection", [sample_vector])
+            result = await client.insert_texts("test_collection", [sample_vector])
             
             assert result["inserted"] == 1
             assert result["collection"] == "test_collection"
     
     @pytest.mark.asyncio
-    async def test_insert_vectors_validation_error(self, client):
+    async def test_insert_texts_validation_error(self, client):
         """Test vector insertion with invalid input."""
         with pytest.raises(ValidationError):
-            await client.insert_vectors("test_collection", [])
+            await client.insert_texts("test_collection", [])
     
     @pytest.mark.asyncio
     async def test_search_vectors_success(self, client):
@@ -452,7 +452,7 @@ class TestIntegration:
             )
             
             # Insert vector
-            result = await integration_client.insert_vectors(collection_name, [vector])
+            result = await integration_client.insert_texts(collection_name, [vector])
             assert result is not None
             
             # Search vectors

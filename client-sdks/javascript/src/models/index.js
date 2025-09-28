@@ -11,3 +11,5 @@ export * from './search-result.js';
 export * from './embedding-request.js';
 export * from './search-request.js';
 export * from './collection-info.js';
+export * from './batch.js';
+export * from './summarization.js';

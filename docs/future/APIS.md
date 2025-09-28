@@ -504,7 +504,7 @@ payloads = [
     {"text": "Second document", "source": "doc2.txt"},
 ]
 
-client.insert_vectors(
+client.insert_texts(
     collection="documents",
     ids=["doc1", "doc2"],
     vectors=vectors,

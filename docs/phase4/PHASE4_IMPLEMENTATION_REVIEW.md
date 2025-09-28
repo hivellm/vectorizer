@@ -148,7 +148,7 @@ vectorizer/
   - `list_collections`: Collection enumeration
   - `create_collection`: Collection creation
   - `delete_collection`: Collection deletion
-  - `insert_vectors`: Vector insertion
+  - `insert_texts`: Vector insertion
   - `delete_vectors`: Vector deletion
   - `get_vector`: Vector retrieval
   - `embed_text`: Text embedding generation

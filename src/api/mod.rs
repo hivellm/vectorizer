@@ -7,4 +7,7 @@ pub mod routes;
 pub mod server;
 pub mod types;
 
+#[cfg(test)]
+mod tests;
+
 pub use server::VectorizerServer;

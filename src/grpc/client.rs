@@ -8,7 +8,7 @@ use crate::grpc::vectorizer::{
     HealthResponse,
     CreateCollectionRequest, CreateCollectionResponse,
     DeleteCollectionRequest, DeleteCollectionResponse,
-    InsertVectorsRequest, InsertVectorsResponse,
+    InsertTextsRequest, InsertTextsResponse,
     DeleteVectorsRequest, DeleteVectorsResponse,
     GetVectorRequest, GetVectorResponse,
     GetCollectionInfoRequest, CollectionInfo,
@@ -146,29 +146,31 @@ impl VectorizerGrpcClient {
     }
 
     // Vector operations
-    pub async fn insert_vectors(
+    pub async fn insert_texts(
         &mut self,
         collection: String,
-        vectors: Vec<(String, Vec<f32>, Option<std::collections::HashMap<String, String>>)>,
-    ) -> Result<InsertVectorsResponse, Box<dyn std::error::Error>> {
-        let vector_data: Vec<crate::grpc::vectorizer::VectorData> = vectors
+        texts: Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+        provider: String,
+    ) -> Result<InsertTextsResponse, Box<dyn std::error::Error>> {
+        let text_data: Vec<crate::grpc::vectorizer::TextData> = texts
             .into_iter()
-            .map(|(id, data, metadata)| {
+            .map(|(id, text, metadata)| {
                 let metadata_map = metadata.unwrap_or_default();
-                crate::grpc::vectorizer::VectorData {
+                crate::grpc::vectorizer::TextData {
                     id,
-                    data,
+                    text,
                     metadata: metadata_map,
                 }
             })
             .collect();
 
-        let request = tonic::Request::new(InsertVectorsRequest {
+        let request = tonic::Request::new(InsertTextsRequest {
             collection,
-            vectors: vector_data,
+            texts: text_data,
+            provider,
         });
 
-        let response = self.client.insert_vectors(request).await?;
+        let response = self.client.insert_texts(request).await?;
         Ok(response.into_inner())
     }
 
@@ -197,6 +199,46 @@ impl VectorizerGrpcClient {
         });
 
         let response = self.client.get_vector(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// Summarize text using GRPC
+    pub async fn summarize_text(
+        &mut self,
+        request: crate::grpc::vectorizer::SummarizeTextRequest,
+    ) -> Result<crate::grpc::vectorizer::SummarizeTextResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.summarize_text(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// Summarize context using GRPC
+    pub async fn summarize_context(
+        &mut self,
+        request: crate::grpc::vectorizer::SummarizeContextRequest,
+    ) -> Result<crate::grpc::vectorizer::SummarizeContextResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.summarize_context(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// Get summary by ID using GRPC
+    pub async fn get_summary(
+        &mut self,
+        request: crate::grpc::vectorizer::GetSummaryRequest,
+    ) -> Result<crate::grpc::vectorizer::GetSummaryResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.get_summary(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// List summaries using GRPC
+    pub async fn list_summaries(
+        &mut self,
+        request: crate::grpc::vectorizer::ListSummariesRequest,
+    ) -> Result<crate::grpc::vectorizer::ListSummariesResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.list_summaries(request).await?;
         Ok(response.into_inner())
     }
 }

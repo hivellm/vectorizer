@@ -513,6 +513,23 @@ enum WorkspaceCommands {
     },
 }
 
+/// Load summarization configuration from YAML file
+fn load_summarization_config_from_yaml(config_path: &str) -> Result<vectorizer::summarization::SummarizationConfig, Box<dyn std::error::Error>> {
+    use std::fs;
+    use serde_yaml;
+    
+    let content = fs::read_to_string(config_path)?;
+    let config: serde_yaml::Value = serde_yaml::from_str(&content)?;
+    
+    if let Some(summarization_section) = config.get("summarization") {
+        let summarization_config: vectorizer::summarization::SummarizationConfig = serde_yaml::from_value(summarization_section.clone())?;
+        Ok(summarization_config)
+    } else {
+        // Return default config if no summarization section found
+        Ok(vectorizer::summarization::SummarizationConfig::default())
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize centralized logging
@@ -984,6 +1001,21 @@ async fn show_workspace_status(config: Option<PathBuf>) {
             }
         }
     }
+
+    // Try to connect to the GRPC server to get actual collections
+    println!("\n📊 Actual Collections in Vector Store:");
+    match check_actual_collections().await {
+        Ok(collections) => {
+            println!("   Total: {}", collections.len());
+            for (name, info) in collections {
+                println!("   🗂️  {} ({}D, {} vectors)", name, info.dimension, info.vector_count);
+            }
+        }
+        Err(e) => {
+            println!("   ⚠️  Could not connect to server: {}", e);
+            println!("   💡 Start the server with './scripts/start.sh' to see actual collections");
+        }
+    }
 }
 
 /// List workspace projects
@@ -1437,6 +1469,9 @@ async fn run_interactive_workspace(
     }));
     let grpc_indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
     
+    // Load summarization configuration
+    let summarization_config = load_summarization_config_from_yaml("config.yml").ok();
+    
     // Start GRPC server
     let grpc_config = GrpcConfig::from_env();
     let grpc_vector_store_clone = Arc::clone(&grpc_vector_store);
@@ -1449,6 +1484,7 @@ async fn run_interactive_workspace(
             grpc_vector_store_clone,
             grpc_embedding_manager_clone,
             grpc_indexing_progress_clone,
+            summarization_config,
         ).await {
             eprintln!("❌ Failed to start GRPC server: {}", e);
         }
@@ -1543,7 +1579,15 @@ async fn start_background_indexing_with_config(
                 Ok(count) => {
                     update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
                     println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
-                    
+
+                    // Create summary collections for this collection
+                    create_summary_collections_for_project(
+                        &collection.name,
+                        &project.path.to_string_lossy(),
+                        Arc::clone(&vector_store),
+                        Arc::clone(&embedding_manager),
+                    ).await;
+
                     // Update file watcher with newly indexed collection
                     let mut system = file_watcher_system.lock().await;
                     if let Some(ref mut watcher) = *system {
@@ -1844,8 +1888,9 @@ async fn do_real_indexing(
         max_file_size: 10 * 1024 * 1024, // 10MB
     };
     
-    // Create document loader
-    let mut loader = vectorizer::document_loader::DocumentLoader::new(loader_config);
+    // Create document loader with summarization
+    let summarization_config = load_summarization_config_from_yaml("config.yml").ok();
+    let mut loader = vectorizer::document_loader::DocumentLoader::new_with_summarization(loader_config, summarization_config);
     
     // Load project with real indexing (async version) using shared vector store
     match loader.load_project_with_cache(project_path, &vector_store).await {
@@ -2265,4 +2310,110 @@ async fn start_background_indexing_for_project(
             println!("❌ Project '{}' indexing failed: {}", project_path, e);
         }
     }
+}
+
+/// Verify summary collections for a project collection
+async fn create_summary_collections_for_project(
+    collection_name: &str,
+    _project_path: &str,
+    vector_store: Arc<VectorStore>,
+    _embedding_manager: Arc<Mutex<EmbeddingManager>>,
+) {
+    println!("📄 Verifying summary collections for '{}'", collection_name);
+
+    // Summary collection names
+    let file_summary_collection = format!("{}_summaries", collection_name);
+    let chunk_summary_collection = format!("{}_chunk_summaries", collection_name);
+
+    // Check if summary collections exist
+    let file_collection_exists = vector_store.get_collection(&file_summary_collection).is_ok();
+    let chunk_collection_exists = vector_store.get_collection(&chunk_summary_collection).is_ok();
+
+    if file_collection_exists {
+        println!("✅ File summary collection exists: {}", file_summary_collection);
+        if let Ok(collection) = vector_store.get_collection(&file_summary_collection) {
+            let count = collection.vector_count();
+            println!("   📊 Contains {} summaries", count);
+        }
+    } else {
+        println!("⚠️ File summary collection not found: {}", file_summary_collection);
+    }
+
+    if chunk_collection_exists {
+        println!("✅ Chunk summary collection exists: {}", chunk_summary_collection);
+        if let Ok(collection) = vector_store.get_collection(&chunk_summary_collection) {
+            let count = collection.vector_count();
+            println!("   📊 Contains {} summaries", count);
+        }
+    } else {
+        println!("⚠️ Chunk summary collection not found: {}", chunk_summary_collection);
+    }
+
+    // Note: The actual summary generation happens in DocumentLoader during indexing
+    // This function only verifies the collections were created
+}
+
+/// Create a summary collection in the vector store
+async fn create_summary_collection(
+    collection_name: &str,
+    vector_store: Arc<VectorStore>,
+) -> Result<(), String> {
+    use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig};
+
+    let config = CollectionConfig {
+        dimension: 512, // Same as main collections
+        metric: DistanceMetric::Cosine,
+        hnsw_config: HnswConfig {
+            m: 16,
+            ef_construction: 200,
+            ef_search: 64,
+            seed: Some(42),
+        },
+        quantization: None,
+        compression: Default::default(),
+    };
+
+    vector_store.create_collection(collection_name, config)
+        .map_err(|e| format!("Failed to create collection '{}': {}", collection_name, e))
+}
+
+#[derive(Debug)]
+struct CollectionInfo {
+    dimension: usize,
+    vector_count: usize,
+}
+
+/// Check actual collections in the vector store via GRPC
+async fn check_actual_collections() -> Result<std::collections::HashMap<String, CollectionInfo>, Box<dyn std::error::Error>> {
+    use std::collections::HashMap;
+    use tonic::transport::Channel;
+    use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
+    use vectorizer::grpc::vectorizer::Empty;
+    
+    // Connect to GRPC server
+    let channel = Channel::from_static("http://127.0.0.1:15003")
+        .connect()
+        .await?;
+    
+    let mut client = VectorizerServiceClient::new(channel);
+    
+    // List collections - this returns full CollectionInfo for each collection
+    let request = tonic::Request::new(Empty {});
+    let response = client.list_collections(request).await?;
+    let collections_list = response.into_inner();
+    
+    let mut collection_map = HashMap::new();
+    
+    // The list_collections already returns CollectionInfo with all metadata
+    for collection_info in collections_list.collections {
+        collection_map.insert(
+            collection_info.name.clone(),
+            CollectionInfo {
+                dimension: collection_info.dimension as usize,
+                vector_count: collection_info.vector_count as usize,
+            }
+        );
+    }
+    
+    Ok(collection_map)
 }

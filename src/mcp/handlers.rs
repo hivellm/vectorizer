@@ -6,10 +6,13 @@ use super::{McpRequest, McpResponse, McpServerState};
 use crate::db::VectorStore;
 use crate::embedding::EmbeddingManager;
 use crate::grpc::client::VectorizerGrpcClient;
+use crate::batch::{BatchProcessor, BatchProcessorBuilder, BatchOperation, BatchConfig};
 use serde_json;
 use tracing::{debug, info};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::Mutex;
+use chrono;
+use uuid;
 
 /// MCP request handler
 pub struct McpHandler;
@@ -132,7 +135,7 @@ impl McpHandler {
                 Self::handle_get_collection_info_tool(arguments, vector_store, grpc_client).await
             }
             "embed_text" => Self::handle_embed_text_tool(arguments, embedding_manager).await,
-            "insert_vectors" => Self::handle_insert_vectors_tool(arguments, vector_store).await,
+            "insert_texts" => Self::handle_insert_texts_tool(arguments, vector_store).await,
             "delete_vectors" => Self::handle_delete_vectors_tool(arguments, vector_store).await,
             "get_vector" => Self::handle_get_vector_tool(arguments, vector_store).await,
             "create_collection" => {
@@ -149,8 +152,8 @@ impl McpHandler {
             "delete_collection_grpc" => {
                 Self::handle_delete_collection_grpc_tool(arguments, grpc_client).await
             }
-            "insert_vectors_grpc" => {
-                Self::handle_insert_vectors_grpc_tool(arguments, grpc_client).await
+            "insert_texts_grpc" => {
+                Self::handle_insert_texts_grpc_tool(arguments, grpc_client).await
             }
             "delete_vectors_grpc" => {
                 Self::handle_delete_vectors_grpc_tool(arguments, grpc_client).await
@@ -166,6 +169,19 @@ impl McpHandler {
             }
             "health_check_grpc" => {
                 Self::handle_health_check_grpc_tool(grpc_client).await
+            }
+            // Batch operations - placeholder implementations
+            "batch_insert_texts" => {
+                Self::handle_batch_insert_texts_tool(arguments, grpc_client).await
+            }
+            "batch_update_vectors" => {
+                serde_json::json!({"error": "Batch update not yet implemented in MCP"})
+            }
+            "batch_delete_vectors" => {
+                serde_json::json!({"error": "Batch delete not yet implemented in MCP"})
+            }
+            "batch_search_vectors" => {
+                serde_json::json!({"error": "Batch search not yet implemented in MCP"})
             }
             _ => {
                 serde_json::json!({
@@ -405,7 +421,7 @@ impl McpHandler {
         }
     }
 
-    async fn handle_insert_vectors_tool(
+    async fn handle_insert_texts_tool(
         arguments: serde_json::Value,
         vector_store: &VectorStore,
     ) -> serde_json::Value {
@@ -453,7 +469,7 @@ impl McpHandler {
 
         match parsed_vectors {
             Ok(vectors_data) => {
-                match crate::mcp::tools::McpTools::insert_vectors(
+                match crate::mcp::tools::McpTools::insert_texts(
                     collection,
                     vectors_data,
                     vector_store,
@@ -672,7 +688,7 @@ impl McpHandler {
         }
     }
 
-    async fn handle_insert_vectors_grpc_tool(
+    async fn handle_insert_texts_grpc_tool(
         arguments: serde_json::Value,
         mut grpc_client: Option<&mut VectorizerGrpcClient>,
     ) -> serde_json::Value {
@@ -681,22 +697,26 @@ impl McpHandler {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         let empty_vec = vec![];
-        let vectors = arguments
-            .get("vectors")
+        let texts = arguments
+            .get("texts")
             .and_then(|v| v.as_array())
             .unwrap_or(&empty_vec);
+        let provider = arguments
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("bm25");
 
-        if collection.is_empty() || vectors.is_empty() {
+        if collection.is_empty() || texts.is_empty() {
             return serde_json::json!({
-                "error": "Missing required parameters: collection and vectors"
+                "error": "Missing required parameters: collection and texts"
             });
         }
 
-        // Parse vectors
-        let parsed_vectors: std::result::Result<
-            Vec<(String, Vec<f32>, Option<std::collections::HashMap<String, String>>)>,
+        // Parse texts
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
             _,
-        > = vectors
+        > = texts
             .iter()
             .map(|v| {
                 let id = v
@@ -704,15 +724,11 @@ impl McpHandler {
                     .and_then(|x| x.as_str())
                     .unwrap_or("")
                     .to_string();
-                let data = v
-                    .get("data")
-                    .and_then(|x| x.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|x| x.as_f64().map(|f| f as f32))
-                            .collect()
-                    })
-                    .unwrap_or_default();
+                let text = v
+                    .get("text")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 let metadata = v
                     .get("metadata")
                     .and_then(|x| x.as_object())
@@ -723,14 +739,14 @@ impl McpHandler {
                             })
                             .collect()
                     });
-                Ok::<(String, Vec<f32>, Option<std::collections::HashMap<String, String>>), String>((id, data, metadata))
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((id, text, metadata))
             })
             .collect();
 
-        match parsed_vectors {
-            Ok(vectors_data) => {
+        match parsed_texts {
+            Ok(texts_data) => {
                 if let Some(ref mut client) = grpc_client {
-                    match client.insert_vectors(collection.to_string(), vectors_data).await {
+                    match client.insert_texts(collection.to_string(), texts_data, provider.to_string()).await {
                         Ok(response) => {
                             serde_json::json!({
                                 "collection": response.collection,
@@ -741,7 +757,7 @@ impl McpHandler {
                         }
                         Err(e) => {
                             serde_json::json!({
-                                "error": format!("GRPC insert_vectors failed: {}", e)
+                                "error": format!("GRPC insert_texts failed: {}", e)
                             })
                         }
                     }
@@ -752,7 +768,94 @@ impl McpHandler {
                 }
             }
             Err(e) => serde_json::json!({
-                "error": format!("Failed to parse vectors: {}", e)
+                "error": format!("Failed to parse texts: {}", e)
+            }),
+        }
+    }
+
+    async fn handle_batch_insert_texts_tool(
+        arguments: serde_json::Value,
+        mut grpc_client: Option<&mut VectorizerGrpcClient>,
+    ) -> serde_json::Value {
+        let collection = arguments
+            .get("collection")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let empty_vec = vec![];
+        let texts = arguments
+            .get("texts")
+            .and_then(|v| v.as_array())
+            .unwrap_or(&empty_vec);
+        let provider = arguments
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("bm25");
+
+        if collection.is_empty() || texts.is_empty() {
+            return serde_json::json!({
+                "error": "Missing required parameters: collection and texts"
+            });
+        }
+
+        // Parse texts for GRPC
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+            _,
+        > = texts
+            .iter()
+            .map(|v| {
+                let id = v
+                    .get("id")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let text = v
+                    .get("text")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let metadata = v
+                    .get("metadata")
+                    .and_then(|x| x.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k.clone(), s.to_string()))
+                            })
+                            .collect()
+                    });
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((id, text, metadata))
+            })
+            .collect();
+
+        match parsed_texts {
+            Ok(texts_data) => {
+                if let Some(ref mut client) = grpc_client {
+                    match client.insert_texts(collection.to_string(), texts_data, provider.to_string()).await {
+                        Ok(response) => {
+                            serde_json::json!({
+                                "success": true,
+                                "collection": response.collection,
+                                "inserted_count": response.inserted_count,
+                                "status": response.status,
+                                "message": response.message,
+                                "operation": "batch_insert_texts"
+                            })
+                        }
+                        Err(e) => {
+                            serde_json::json!({
+                                "error": format!("GRPC batch insert_texts failed: {}", e)
+                            })
+                        }
+                    }
+                } else {
+                    serde_json::json!({
+                        "error": "GRPC client not available"
+                    })
+                }
+            }
+            Err(e) => serde_json::json!({
+                "error": format!("Failed to parse texts: {}", e)
             }),
         }
     }
@@ -954,21 +1057,25 @@ impl McpHandler {
             })
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_handle_ping() {
-        let response = McpHandler::handle_ping().await;
-        assert!(response.error.is_none());
-        assert!(response.result.is_some());
-
-        let result = response.result.unwrap();
-        assert!(result.get("pong").unwrap().as_bool().unwrap());
     }
+
+
+
+
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        
+        #[tokio::test]
+        async fn test_handle_ping() {
+            let response = McpHandler::handle_ping().await;
+            assert!(response.error.is_none());
+            assert!(response.result.is_some());
+
+            let result = response.result.unwrap();
+            assert!(result.get("pong").unwrap().as_bool().unwrap());
+        }
 
     #[tokio::test]
     async fn test_handle_tools_list() {

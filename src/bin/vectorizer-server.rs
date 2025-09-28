@@ -91,6 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::clone(&app_vector_store),
         vectorizer::embedding::EmbeddingManager::new(),
         indexing_progress.clone(),
+        None, // summarization_config
     );
 
     // Initialize collections as pending (dashboard will show them immediately)

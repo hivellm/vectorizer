@@ -41,7 +41,7 @@ Evidence snapshot (code/docs reviewed):
 ## 3) Validation Results
 - File watcher ignores transient artifacts (tmp, target, node_modules, hidden) and directories
 - Incremental updates: watcher.update_with_collection called per collection indexed
-- MCP tools: insert_vectors/delete_vectors/get_vector present and functional
+- MCP tools: insert_texts/delete_vectors/get_vector present and functional
 - Dashboard: text overflow, pagination, details modal, and CSS loading fixed; metadata displayed
 - Process management: duplicate servers prevented; start.sh delegates to vzr in workspace mode
 

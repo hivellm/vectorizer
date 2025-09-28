@@ -7,6 +7,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod batch;
 pub mod cache;
 pub mod cli;
 pub mod config;
@@ -23,6 +24,7 @@ pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
+pub mod summarization;
 pub mod workspace;
 pub mod utils;
 pub mod file_watcher;
@@ -35,6 +37,8 @@ pub use embedding::{BertEmbedding, Bm25Embedding, MiniLmEmbedding, SvdEmbedding}
 pub use error::{Result, VectorizerError};
 pub use evaluation::{EvaluationMetrics, QueryMetrics, QueryResult, evaluate_search_quality};
 pub use models::{CollectionConfig, Payload, SearchResult, Vector};
+pub use batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder};
+pub use summarization::{SummarizationManager, SummarizationConfig, SummarizationMethod, SummarizationResult, SummarizationError};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

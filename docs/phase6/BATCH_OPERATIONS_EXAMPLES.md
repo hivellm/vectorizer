@@ -30,7 +30,7 @@ for document in documents:
     })
 
 # Single batch insert - takes ~200ms total
-batch_insert_vectors(collection="documents", vectors=vectors, atomic=True)
+batch_insert_texts(collection="documents", vectors=vectors, atomic=True)
 # 250x performance improvement!
 ```
 
@@ -93,7 +93,7 @@ batch_update_vectors(collection="analysis", updates=batch_updates, atomic=True)
 
 ```javascript
 // Using MCP in Cursor IDE or other MCP-compatible tools
-const batchInsertResult = await mcp_hive_vectorizer_batch_insert_vectors({
+const batchInsertResult = await mcp_hive_vectorizer_batch_insert_texts({
   collection: "research_papers",
   vectors: [
     {
@@ -245,7 +245,7 @@ curl -X DELETE "http://localhost:15001/api/v1/collections/documents/vectors/batc
 
 ```python
 # Batch operation with some failures
-result = batch_insert_vectors(
+result = batch_insert_texts(
     collection="test",
     vectors=[
         {"id": "valid_1", "data": [0.1, 0.2, 0.3]},  # Success
@@ -301,7 +301,7 @@ def load_training_batch(examples):
         })
     
     # Insert 1000 training examples in single call
-    result = batch_insert_vectors(
+    result = batch_insert_texts(
         collection="training_data",
         vectors=vectors,
         atomic=True

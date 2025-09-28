@@ -1,6 +1,9 @@
 pub mod server;
 pub mod client;
 
+#[cfg(test)]
+mod tests;
+
 // Re-export generated types
 pub use vectorizer::vectorizer_service_server::VectorizerServiceServer;
 pub use vectorizer::vectorizer_service_client::VectorizerServiceClient;
@@ -8,6 +11,3 @@ pub use vectorizer::vectorizer_service_client::VectorizerServiceClient;
 pub mod vectorizer {
     tonic::include_proto!("vectorizer");
 }
-
-#[cfg(test)]
-mod tests;

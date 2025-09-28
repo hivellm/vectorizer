@@ -153,8 +153,8 @@ impl McpTools {
         }))
     }
 
-    /// Insert vectors into a collection
-    pub async fn insert_vectors(
+    /// Insert texts into a collection (embeddings generated automatically)
+    pub async fn insert_texts(
         collection: &str,
         vectors: Vec<(String, Vec<f32>, Option<serde_json::Value>)>,
         vector_store: &VectorStore,
@@ -170,15 +170,45 @@ impl McpTools {
         let vector_objects: Vec<Vector> = vectors
             .into_iter()
             .map(|(id, data, payload)| {
-                if let Some(payload_data) = payload {
-                    Vector::with_payload(
-                        id,
-                        data,
-                        crate::models::Payload::from_value(payload_data).unwrap_or_default(),
-                    )
+                // Create rich payload following document_loader.rs pattern
+                let mut payload_data = serde_json::Map::new();
+
+                // Add custom metadata if provided
+                if let Some(mut custom_payload) = payload.and_then(|p| p.as_object().cloned()) {
+                    // Extract content if present, otherwise use empty string
+                    let content = custom_payload.remove("content")
+                        .and_then(|c| c.as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| "No content provided".to_string());
+
+                    payload_data.insert("content".to_string(), serde_json::Value::String(content));
+
+                    // Add all other custom metadata
+                    for (key, value) in custom_payload {
+                        payload_data.insert(key, value);
+                    }
                 } else {
-                    Vector::new(id, data)
+                    // No payload provided - add default content
+                    payload_data.insert(
+                        "content".to_string(),
+                        serde_json::Value::String("No content provided".to_string())
+                    );
                 }
+
+                // Add MCP operation metadata
+                payload_data.insert(
+                    "operation_type".to_string(),
+                    serde_json::Value::String("mcp_insert".to_string()),
+                );
+                payload_data.insert(
+                    "created_at".to_string(),
+                    serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+                );
+
+                let rich_payload = crate::models::Payload {
+                    data: serde_json::Value::Object(payload_data),
+                };
+
+                Vector::with_payload(id, data, rich_payload)
             })
             .collect();
 
@@ -296,6 +326,94 @@ impl McpTools {
         Ok(serde_json::json!({
             "name": name,
             "status": "deleted"
+        }))
+    }
+
+    /// Batch insert texts into a collection (embeddings generated automatically)
+    pub async fn batch_insert_texts(
+        collection: &str,
+        texts: Vec<(String, String, Option<serde_json::Value>)>,
+        vector_store: &VectorStore,
+        embedding_manager: &EmbeddingManager,
+    ) -> Result<serde_json::Value> {
+        debug!(
+            "Batch inserting {} texts into collection '{}'",
+            texts.len(),
+            collection
+        );
+
+        use crate::models::Vector;
+
+        let mut vector_objects = Vec::new();
+        let mut errors = Vec::new();
+
+        for (id, text, metadata) in texts {
+            // Generate embedding for the text
+            let embedding_data = embedding_manager
+                .embed(&text)
+                .map_err(|e| {
+                    let error_msg = format!("Failed to generate embedding for text {}: {}", id, e);
+                    errors.push(error_msg.clone());
+                    VectorizerError::Other(error_msg)
+                })?;
+
+            // Create rich payload with content and metadata
+            let mut payload_data = serde_json::Map::new();
+            payload_data.insert(
+                "content".to_string(),
+                serde_json::Value::String(text.clone()),
+            );
+
+            // Add custom metadata if provided
+            if let Some(metadata) = metadata {
+                if let serde_json::Value::Object(meta_obj) = metadata {
+                    for (key, value) in meta_obj {
+                        payload_data.insert(key, value);
+                    }
+                }
+            }
+
+            // Add batch operation metadata
+            payload_data.insert(
+                "operation_type".to_string(),
+                serde_json::Value::String("batch_insert_texts".to_string()),
+            );
+            payload_data.insert(
+                "created_at".to_string(),
+                serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+            );
+
+            let rich_payload = crate::models::Payload {
+                data: serde_json::Value::Object(payload_data),
+            };
+
+            vector_objects.push(Vector::with_payload(id, embedding_data, rich_payload));
+        }
+
+        let inserted_count = vector_objects.len();
+        
+        if !vector_objects.is_empty() {
+            vector_store.insert(collection, vector_objects)
+                .map_err(|e| VectorizerError::Other(format!("Failed to insert vectors: {}", e)))?;
+        }
+
+        let status = if errors.is_empty() { "success" } else if inserted_count > 0 { "partial_success" } else { "error" };
+        let message = if errors.is_empty() {
+            format!("Successfully batch inserted {} texts", inserted_count)
+        } else {
+            format!("Batch inserted {} texts, {} errors: {}", inserted_count, errors.len(), errors.join(", "))
+        };
+
+        Ok(serde_json::json!({
+            "success": true,
+            "collection": collection,
+            "operation": "batch_insert_texts",
+            "total_operations": inserted_count,
+            "successful_operations": inserted_count,
+            "failed_operations": errors.len(),
+            "errors": errors,
+            "status": status,
+            "message": message
         }))
     }
 

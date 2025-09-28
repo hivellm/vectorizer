@@ -151,23 +151,38 @@ impl GrpcVectorOperations {
     /// Insert vector using GRPC
     async fn insert_vector_grpc(
         &self,
-        client: &VectorizerServiceClient<tonic::transport::Channel>,
+        grpc_client: &VectorizerServiceClient<tonic::transport::Channel>,
         collection_name: &str,
         vector: crate::models::Vector,
     ) -> Result<()> {
         use crate::grpc::vectorizer::{
-            InsertVectorsRequest, VectorData, InsertVectorsResponse
+            InsertTextsRequest, TextData, InsertTextsResponse
         };
 
-        let vector_data = VectorData {
+        // Extrair texto do payload para embedding
+        let text = {
+            let mut text_content = String::new();
+            if let Ok(value) = serde_json::to_value(vector.payload.clone()) {
+                if let Some(obj) = value.as_object() {
+                    if let Some(content) = obj.get("content").and_then(|v| v.as_str()) {
+                        text_content = content.to_string();
+                    }
+                }
+            }
+            text_content
+        };
+
+        let text_data = TextData {
             id: vector.id,
-            data: vector.data,
+            text,
             metadata: {
                 let mut map = std::collections::HashMap::new();
-                if let Ok(value) = serde_json::to_value(vector.payload) {
+                if let Ok(value) = serde_json::to_value(vector.payload.clone()) {
                     if let Some(obj) = value.as_object() {
                         for (k, v) in obj {
-                            map.insert(k.clone(), v.to_string());
+                            if k != "content" { // Não incluir content no metadata
+                                map.insert(k.clone(), v.to_string());
+                            }
                         }
                     }
                 }
@@ -175,14 +190,15 @@ impl GrpcVectorOperations {
             },
         };
 
-        let request = InsertVectorsRequest {
+        let request = InsertTextsRequest {
             collection: collection_name.to_string(),
-            vectors: vec![vector_data],
+            texts: vec![text_data],
+            provider: "bm25".to_string(), // Provider padrão
         };
 
-        let mut grpc_client = client.clone();
-        let response: Response<InsertVectorsResponse> = grpc_client
-            .insert_vectors(Request::new(request))
+        let mut grpc_client = grpc_client.clone();
+        let response: Response<InsertTextsResponse> = grpc_client
+            .insert_texts(Request::new(request))
             .await
             .map_err(|e| FileWatcherError::Grpc(e))?;
 

@@ -20,10 +20,35 @@ use crate::{
     models::{CollectionConfig, Payload, Vector},
     grpc::client::VectorizerGrpcClient,
     config::GrpcConfig,
+    batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder},
+    summarization::{SummarizationManager, SummarizationConfig},
 };
 use std::sync::Mutex;
 
 use super::types::*;
+
+/// Helper function to convert BatchConfigRequest to BatchConfig
+fn convert_batch_config(config: Option<BatchConfigRequest>) -> BatchConfig {
+    if let Some(config) = config {
+        BatchConfig {
+            max_batch_size: config.max_batch_size.unwrap_or(1000),
+            max_memory_usage_mb: config.max_memory_usage_mb.unwrap_or(512),
+            parallel_workers: config.parallel_workers.unwrap_or(4),
+            chunk_size: config.chunk_size.unwrap_or(100),
+            atomic_by_default: true,
+            progress_reporting: config.progress_reporting.unwrap_or(true),
+            error_retry_attempts: 3,
+            error_retry_delay_ms: 1000,
+            operation_timeout_seconds: 300,
+            enable_metrics: true,
+            max_concurrent_batches: 10,
+            enable_compression: true,
+            compression_threshold_bytes: 1024,
+        }
+    } else {
+        BatchConfig::default()
+    }
+}
 
 /// Workspace collection definition
 #[derive(Clone, Debug)]
@@ -151,6 +176,8 @@ pub struct AppState {
     pub embedding_manager: Arc<Mutex<EmbeddingManager>>,
     /// GRPC client for communication with vzr
     pub grpc_client: Option<VectorizerGrpcClient>,
+    /// Summarization manager for automatic summarization
+    pub summarization_manager: Option<Arc<Mutex<SummarizationManager>>>,
     /// Server start time for uptime calculation
     pub start_time: Instant,
     /// Indexing progress tracking
@@ -163,12 +190,32 @@ pub struct AppState {
 
 impl AppState {
     /// Create new application state
-    pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager) -> Self {
-        // Check if BM25 vocabulary is empty and needs rebuilding
-        // Note: Vocabulary is built during document loading, so empty here is expected
+    pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager, summarization_config: Option<SummarizationConfig>) -> Self {
+        // Register default providers if not already registered
+        if !embedding_manager.has_provider("bm25") {
+            let bm25 = Box::new(crate::embedding::Bm25Embedding::new(512));
+            embedding_manager.register_provider("bm25".to_string(), bm25);
+            println!("🔧 Registered BM25 provider");
+        }
+        if !embedding_manager.has_provider("tfidf") {
+            let tfidf = Box::new(crate::embedding::TfIdfEmbedding::new(512));
+            embedding_manager.register_provider("tfidf".to_string(), tfidf);
+            println!("🔧 Registered TFIDF provider");
+        }
+        if embedding_manager.get_default_provider().is_err() {
+            embedding_manager.set_default_provider("bm25").unwrap();
+            println!("🔧 Set BM25 as default provider");
+        }
 
         // Initialize GRPC client
         let grpc_client = None; // Will be initialized later if needed
+
+        // Initialize summarization manager
+        let summarization_manager = summarization_config.map(|config| {
+            Arc::new(Mutex::new(
+                SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config())
+            ))
+        });
 
         // Initialize indexing progress for existing collections
         let mut indexing_progress = HashMap::new();
@@ -212,6 +259,7 @@ impl AppState {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
             grpc_client,
+            summarization_manager,
             start_time: Instant::now(),
             indexing_progress: IndexingProgressState::from_map(indexing_progress),
             workspace_collections,
@@ -352,6 +400,7 @@ impl AppState {
         store: Arc<VectorStore>,
         embedding_manager: EmbeddingManager,
         indexing_progress: IndexingProgressState,
+        summarization_config: Option<SummarizationConfig>,
     ) -> Self {
         // Load workspace collections
         let workspace_collections = Self::load_workspace_collections();
@@ -369,10 +418,18 @@ impl AppState {
             });
         }
 
+        // Initialize summarization manager
+        let summarization_manager = summarization_config.map(|config| {
+            Arc::new(Mutex::new(
+                SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config())
+            ))
+        });
+
         Self {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
             grpc_client: None, // Will be initialized later if needed
+            summarization_manager,
             start_time: Instant::now(),
             indexing_progress,
             workspace_collections,
@@ -867,44 +924,141 @@ pub async fn delete_collection(
     }
 }
 
-/// Insert vectors into a collection
-pub async fn insert_vectors(
-    State(state): State<AppState>,
+/// Insert texts into a collection (embeddings generated automatically)
+pub async fn insert_texts(
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
-    Json(request): Json<InsertVectorsRequest>,
-) -> Result<(StatusCode, Json<InsertVectorsResponse>), (StatusCode, Json<ErrorResponse>)> {
+    Json(request): Json<InsertTextsRequest>,
+) -> Result<(StatusCode, Json<InsertTextsResponse>), (StatusCode, Json<ErrorResponse>)> {
     info!(
-        "Inserting {} vectors into collection: {}",
-        request.vectors.len(),
+        "Inserting {} texts into collection: {}",
+        request.texts.len(),
         collection_name
     );
 
-    if request.vectors.is_empty() {
+    if request.texts.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
-                error: "No vectors provided".to_string(),
-                code: "NO_VECTORS".to_string(),
+                error: "No texts provided".to_string(),
+                code: "NO_TEXTS".to_string(),
                 details: None,
             }),
         ));
     }
 
-    // Convert API vectors to internal format
+    // Convert API vectors to internal format with embedding generation
     let mut vectors = Vec::new();
-    for vector_data in request.vectors {
-        // Validate embedding - reject zero vectors
-        let non_zero_count = vector_data.vector.iter().filter(|&&x| x != 0.0).count();
-        if non_zero_count == 0 {
-            warn!("Skipping vector {} with zero embedding", vector_data.id);
-            continue; // Skip zero vectors
+
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Parse texts for GRPC
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+            _,
+        > = request.texts
+            .iter()
+            .map(|text_data| {
+                let metadata = text_data.metadata.as_ref()
+                    .and_then(|m| m.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k.clone(), s.to_string()))
+                            })
+                            .collect()
+                    });
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((
+                    text_data.id.clone(),
+                    text_data.text.clone(),
+                    metadata,
+                ))
+            })
+            .collect();
+
+        match parsed_texts {
+            Ok(texts_data) => {
+                match grpc_client.insert_texts(collection_name.clone(), texts_data, "bm25".to_string()).await {
+                    Ok(response) => {
+                        return Ok((
+                            StatusCode::OK,
+                            Json(InsertTextsResponse {
+                                message: response.message,
+                                inserted: response.inserted_count as usize,
+                                inserted_count: response.inserted_count as usize,
+                            })
+                        ));
+                    }
+                    Err(e) => {
+                        error!("GRPC insert_texts failed: {}", e);
+                        // Fall through to local processing
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to parse texts for GRPC: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    for text_data in request.texts {
+        // Generate embedding if not provided
+        // Generate embedding from text content
+        let manager = state.embedding_manager.lock().unwrap();
+        let embedding_data = manager.embed(&text_data.text)
+                .map_err(|e| {
+                    error!("Failed to generate embedding for text {}: {}", text_data.id, e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ErrorResponse {
+                            error: "Embedding generation failed".to_string(),
+                            code: "EMBEDDING_GENERATION_FAILED".to_string(),
+                            details: Some({
+                                let mut map = std::collections::HashMap::new();
+                                map.insert("text_id".to_string(), serde_json::Value::String(text_data.id.clone()));
+                                map.insert("error_message".to_string(), serde_json::Value::String(e.to_string()));
+                                map
+                            }),
+                        })
+                    )
+                })?;
+
+        // Create rich payload with content and metadata
+        let mut payload_data = serde_json::Map::new();
+        payload_data.insert(
+            "content".to_string(),
+            serde_json::Value::String(text_data.text.clone()),
+        );
+
+        // Add custom metadata if provided
+        if let Some(metadata) = text_data.metadata {
+            if let serde_json::Value::Object(meta_obj) = metadata {
+                for (key, value) in meta_obj {
+                    payload_data.insert(key, value);
+                }
+            }
         }
 
-        let payload = vector_data.payload.map(Payload::new);
+        // Add operation metadata
+        payload_data.insert(
+            "operation_type".to_string(),
+            serde_json::Value::String("single_insert".to_string()),
+        );
+        payload_data.insert(
+            "created_at".to_string(),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        );
+
+        let payload = Payload {
+            data: serde_json::Value::Object(payload_data),
+        };
+
         vectors.push(Vector {
-            id: vector_data.id,
-            data: vector_data.vector,
-            payload,
+            id: text_data.id,
+            data: embedding_data,
+            payload: Some(payload),
         });
     }
 
@@ -918,7 +1072,7 @@ pub async fn insert_vectors(
             );
             Ok((
                 StatusCode::CREATED,
-                Json(InsertVectorsResponse {
+                Json(InsertTextsResponse {
                     message: "Vectors inserted successfully".to_string(),
                     inserted: vector_count,
                     inserted_count: vector_count,
@@ -944,12 +1098,49 @@ pub async fn insert_vectors(
 
 /// Search for similar vectors
 pub async fn search_vectors(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<SearchUnifiedRequest>,
 ) -> Result<Json<SearchResponse>, (StatusCode, Json<ErrorResponse>)> {
     let start_time = Instant::now();
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match request {
+            SearchUnifiedRequest::Text(ref req) => {
+                match grpc_client.search(collection_name.clone(), req.query.clone(), req.limit.unwrap_or(10) as i32).await {
+                    Ok(grpc_response) => {
+                        let results = grpc_response.results
+                            .into_iter()
+                            .map(|r| SearchResult {
+                                id: r.id,
+                                score: r.score,
+                                vector: vec![], // GRPC doesn't return vector data
+                                payload: Some(serde_json::json!({
+                                    "content": r.content,
+                                    "metadata": r.metadata
+                                })),
+                            })
+                            .collect();
+
+                        return Ok(Json(SearchResponse {
+                            results,
+                            query_time_ms: grpc_response.search_time_ms as f64,
+                        }));
+                    }
+                    Err(e) => {
+                        error!("GRPC search failed: {}", e);
+                        // Fall through to local processing
+                    }
+                }
+            }
+            SearchUnifiedRequest::Vector(_) => {
+                // Vector search not supported by GRPC, fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Determine input type and prepare vector + optional threshold and limit
     let (query_vector, limit, score_threshold) = match request {
         SearchUnifiedRequest::Vector(req) => {
@@ -1430,7 +1621,7 @@ pub async fn set_embedding_provider(
 
 /// Get a specific vector by ID
 pub async fn get_vector(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<VectorData>, (StatusCode, Json<ErrorResponse>)> {
     debug!(
@@ -1438,12 +1629,84 @@ pub async fn get_vector(
         vector_id, collection_name
     );
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.get_vector(collection_name.clone(), vector_id.clone()).await {
+            Ok(grpc_response) => {
+                // Extract content from metadata if available
+                let content = if let Some(content_val) = grpc_response.metadata.get("content") {
+                    content_val.clone()
+                } else {
+                    "No content available".to_string()
+                };
+
+                // Extract metadata (excluding content)
+                let mut metadata_map = std::collections::HashMap::new();
+                for (key, value) in &grpc_response.metadata {
+                    if key != "content" {
+                        metadata_map.insert(key.clone(), serde_json::Value::String(value.clone()));
+                    }
+                }
+                let metadata = if metadata_map.is_empty() { 
+                    None 
+                } else { 
+                    Some(serde_json::Value::Object(metadata_map.into_iter().collect()))
+                };
+
+                return Ok(Json(VectorData {
+                    id: grpc_response.id,
+                    vector: Some(grpc_response.data),
+                    content,
+                    metadata,
+                }));
+            }
+            Err(e) => {
+                error!("GRPC get_vector failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     match state.store.get_vector(&collection_name, &vector_id) {
-        Ok(vector) => Ok(Json(VectorData {
-            id: vector.id,
-            vector: vector.data,
-            payload: vector.payload.map(|p| p.data),
-        })),
+        Ok(vector) => {
+            // Extract content from payload if available
+            let content = if let Some(payload) = &vector.payload {
+                if let Some(content_val) = payload.data.get("content") {
+                    content_val.as_str().unwrap_or("No content available").to_string()
+                } else {
+                    "No content available".to_string()
+                }
+            } else {
+                "No content available".to_string()
+            };
+
+            // Extract metadata (all fields except content, operation_type, created_at)
+            let metadata = if let Some(payload) = &vector.payload {
+                let mut meta_obj = serde_json::Map::new();
+                if let serde_json::Value::Object(obj) = &payload.data {
+                    for (key, value) in obj {
+                        if !["content", "operation_type", "created_at", "batch_id"].contains(&key.as_str()) {
+                            meta_obj.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+                if meta_obj.is_empty() {
+                    None
+                } else {
+                    Some(serde_json::Value::Object(meta_obj))
+                }
+            } else {
+                None
+            };
+
+            Ok(Json(VectorData {
+                id: vector.id,
+                vector: Some(vector.data),
+                content,
+                metadata,
+            }))
+        },
         Err(e) => {
             error!(
                 "Failed to get vector '{}' from collection '{}': {}",
@@ -2592,5 +2855,899 @@ pub fn update_indexing_progress_internal(
             let remaining_time = total_time_estimated - processed_documents as f32;
             collection_progress.estimated_time_remaining = Some(remaining_time as u64);
         }
+    }
+}
+
+/// Batch insert texts into a collection (embeddings generated automatically)
+pub async fn batch_insert_texts(
+    State(mut state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchInsertRequest>,
+) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Parse texts for GRPC
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+            _,
+        > = request.texts
+            .iter()
+            .map(|text_data| {
+                let metadata = text_data.metadata.as_ref()
+                    .and_then(|m| m.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k.clone(), s.to_string()))
+                            })
+                            .collect()
+                    });
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((
+                    text_data.id.clone(),
+                    text_data.content.clone(),
+                    metadata,
+                ))
+            })
+            .collect();
+
+        match parsed_texts {
+            Ok(texts_data) => {
+                match grpc_client.insert_texts(collection_name.clone(), texts_data, "bm25".to_string()).await {
+                    Ok(response) => {
+                        return Ok(Json(BatchResponse {
+                            success: true,
+                            collection: collection_name,
+                            operation: "insert".to_string(),
+                            total_operations: response.inserted_count as usize,
+                            successful_operations: response.inserted_count as usize,
+                            failed_operations: 0,
+                            duration_ms: start_time.elapsed().as_millis() as u64,
+                            errors: vec![],
+                        }));
+                    }
+                    Err(e) => {
+                        error!("GRPC batch insert_texts failed: {}", e);
+                        // Fall through to local processing
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to parse texts for GRPC batch: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    // Convert request vectors to batch operation with embedding generation
+    let mut vectors = Vec::new();
+
+    for v in request.texts {
+        // Generate embedding if not provided
+        let embedding_data = if let Some(data) = v.data {
+            data
+        } else {
+            // Generate embedding from content
+            let manager = state.embedding_manager.lock().unwrap();
+            manager.embed(&v.content)
+                .map_err(|e| {
+                    error!("Failed to generate embedding for vector {}: {}", v.id, e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({
+                            "error": "Embedding generation failed",
+                            "vector_id": v.id,
+                            "message": e.to_string()
+                        }))
+                    )
+                })?
+        };
+
+        // Create rich payload with content and metadata
+        let mut payload_data = serde_json::Map::new();
+        payload_data.insert(
+            "content".to_string(),
+            serde_json::Value::String(v.content.clone()),
+        );
+
+        // Add custom metadata if provided
+        if let Some(metadata) = v.metadata {
+            if let serde_json::Value::Object(meta_obj) = metadata {
+                for (key, value) in meta_obj {
+                    payload_data.insert(key, value);
+                }
+            }
+        }
+
+        // Add batch operation metadata
+        payload_data.insert(
+            "operation_type".to_string(),
+            serde_json::Value::String("batch_insert".to_string()),
+        );
+        payload_data.insert(
+            "created_at".to_string(),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        );
+        payload_data.insert(
+            "batch_id".to_string(),
+            serde_json::Value::String(format!("batch_{}", uuid::Uuid::new_v4())),
+        );
+
+        let payload = Payload {
+            data: serde_json::Value::Object(payload_data),
+        };
+
+        vectors.push(Vector::with_payload(v.id, embedding_data, payload));
+    }
+
+    let operation = BatchOperation::Insert {
+        vectors,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchResponse {
+                success: true,
+                collection: collection_name,
+                operation: "insert".to_string(),
+                total_operations: result.total_operations,
+                successful_operations: result.successful_count,
+                failed_operations: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch insert failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch insert failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Batch update vectors in a collection
+pub async fn batch_update_vectors(
+    State(mut state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchUpdateRequest>,
+) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let mut successful_updates = 0;
+        let mut failed_updates = 0;
+        let mut errors = Vec::new();
+
+        for update in request.updates {
+            // For batch update, we need to get the existing vector first to extract text
+            // Since BatchVectorUpdateRequest doesn't have text field, we'll skip GRPC for now
+            // and fall through to local processing
+            failed_updates += 1;
+            errors.push(format!("GRPC batch update not supported for vector updates without text content"));
+        }
+
+        return Ok(Json(BatchResponse {
+            success: true,
+            collection: collection_name,
+            operation: "update".to_string(),
+            total_operations: successful_updates + failed_updates,
+            successful_operations: successful_updates,
+            failed_operations: failed_updates,
+            duration_ms: start_time.elapsed().as_millis() as u64,
+            errors,
+        }));
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    // Convert request updates to batch operation
+    let updates: Vec<crate::batch::VectorUpdate> = request.updates.into_iter()
+        .map(|u| crate::batch::VectorUpdate {
+            id: u.id,
+            data: u.data,
+            metadata: u.metadata,
+        })
+        .collect();
+
+    let operation = BatchOperation::Update {
+        updates,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchResponse {
+                success: true,
+                collection: collection_name,
+                operation: "update".to_string(),
+                total_operations: result.total_operations,
+                successful_operations: result.successful_count,
+                failed_operations: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch update failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch update failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Batch delete vectors from a collection
+pub async fn batch_delete_vectors(
+    State(mut state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchDeleteRequest>,
+) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.delete_vectors(collection_name.clone(), request.vector_ids.clone()).await {
+            Ok(response) => {
+                return Ok(Json(BatchResponse {
+                    success: true,
+                    collection: collection_name,
+                    operation: "delete".to_string(),
+                    total_operations: response.deleted_count as usize,
+                    successful_operations: response.deleted_count as usize,
+                    failed_operations: 0,
+                    duration_ms: start_time.elapsed().as_millis() as u64,
+                    errors: vec![],
+                }));
+            }
+            Err(e) => {
+                error!("GRPC batch delete_vectors failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    let operation = BatchOperation::Delete {
+        vector_ids: request.vector_ids,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchResponse {
+                success: true,
+                collection: collection_name,
+                operation: "delete".to_string(),
+                total_operations: result.total_operations,
+                successful_operations: result.successful_count,
+                failed_operations: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch delete failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch delete failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Batch search vectors in a collection
+pub async fn batch_search_vectors(
+    State(mut state): State<AppState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<BatchSearchRequest>,
+) -> Result<Json<BatchSearchResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let start_time = Instant::now();
+
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let mut batch_results = Vec::new();
+        let mut successful_queries = 0;
+        let mut failed_queries = 0;
+
+        for (i, query) in request.queries.iter().enumerate() {
+            // Use text query if available, otherwise use vector query
+            if let Some(query_text) = &query.query_text {
+                let limit = query.limit as i32;
+                let threshold = query.threshold;
+
+                match grpc_client.search(collection_name.clone(), query_text.clone(), limit).await {
+                    Ok(search_response) => {
+                        let results: Vec<crate::api::types::SearchResult> = search_response.results
+                            .into_iter()
+                            .filter(|result| {
+                                if let Some(thresh) = threshold {
+                                    result.score >= thresh as f32
+                                } else {
+                                    true
+                                }
+                            })
+                            .map(|result| crate::api::types::SearchResult {
+                                id: result.id,
+                                score: result.score,
+                                vector: vec![], // GRPC doesn't return vector data
+                                payload: Some(serde_json::json!({
+                                    "content": result.content,
+                                    "metadata": result.metadata
+                                })),
+                            })
+                            .collect();
+
+                        batch_results.push(results);
+                        successful_queries += 1;
+                    }
+                    Err(e) => {
+                        batch_results.push(vec![]);
+                        failed_queries += 1;
+                    }
+                }
+            } else {
+                failed_queries += 1;
+                batch_results.push(vec![]);
+            }
+        }
+
+        return Ok(Json(BatchSearchResponse {
+            success: true,
+            collection: collection_name,
+            total_queries: request.queries.len(),
+            successful_queries,
+            failed_queries,
+            duration_ms: start_time.elapsed().as_millis() as u64,
+            results: batch_results,
+            errors: vec![],
+        }));
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    // Create batch processor
+    let batch_processor = BatchProcessorBuilder::new(
+        Arc::clone(&state.store),
+        Arc::clone(&state.embedding_manager),
+    )
+    .with_config(convert_batch_config(request.config))
+    .build();
+
+    // Convert search queries
+    let queries: Vec<crate::batch::SearchQuery> = request.queries.into_iter()
+        .map(|q| crate::batch::SearchQuery {
+            query_vector: q.query_vector,
+            query_text: q.query_text,
+            limit: q.limit as i32,
+            threshold: q.threshold,
+            filters: q.filters.unwrap_or_default(),
+        })
+        .collect();
+
+    let operation = BatchOperation::Search {
+        queries,
+        atomic: request.atomic.unwrap_or(true),
+    };
+
+    // Execute batch operation
+    match batch_processor.execute_operation(collection_name.clone(), operation).await {
+        Ok(result) => {
+            let response = BatchSearchResponse {
+                success: true,
+                collection: collection_name,
+                total_queries: result.total_operations,
+                successful_queries: result.successful_count,
+                failed_queries: result.failed_count,
+                duration_ms: start_time.elapsed().as_millis() as u64,
+                results: vec![], // TODO: Implement proper search result handling
+                errors: result.failed_operations.into_iter().map(|e| e.error_message).collect(),
+            };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            error!("Batch search failed: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Batch search failed",
+                    "message": e.to_string()
+                }))
+            ))
+        }
+    }
+}
+
+/// Get system statistics
+pub async fn get_stats(
+    State(mut state): State<AppState>,
+) -> Result<Json<StatsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // GRPC doesn't have get_stats, fall through to local processing
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    let collections = state.store.list_collections();
+    let mut total_vectors = 0;
+    let mut total_documents = 0;
+    let mut collection_stats = Vec::new();
+
+    for collection_name in &collections {
+        if let Ok(collection) = state.store.get_collection(collection_name) {
+            let metadata = collection.metadata();
+            let vector_count = metadata.vector_count;
+            let document_count = metadata.document_count;
+            total_vectors += vector_count;
+            total_documents += document_count;
+
+            collection_stats.push(CollectionStats {
+                name: collection_name.clone(),
+                vector_count,
+                document_count,
+                dimension: metadata.config.dimension,
+                metric: metadata.config.metric.to_string(),
+                last_updated: chrono::Utc::now().to_rfc3339(),
+            });
+        }
+    }
+
+    let uptime = state.start_time.elapsed().as_secs();
+    
+    // Get memory usage (simplified)
+    let memory_usage_mb = std::process::id() as f64 * 0.1; // Placeholder
+    
+    // Get CPU usage (simplified)
+    let cpu_usage_percent = 0.0; // Placeholder
+
+    Ok(Json(StatsResponse {
+        total_collections: collections.len(),
+        total_vectors,
+        total_documents,
+        uptime_seconds: uptime,
+        memory_usage_mb,
+        cpu_usage_percent,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    }))
+}
+
+/// Summarize text using GRPC backend
+pub async fn summarize_text(
+    State(mut state): State<AppState>,
+    Json(req): Json<SummarizeTextRequest>,
+) -> Result<Json<SummarizeTextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Convert API request to GRPC request
+        let grpc_req = crate::grpc::vectorizer::SummarizeTextRequest {
+            text: req.text.clone(),
+            method: req.method.clone(),
+            max_length: req.max_length,
+            compression_ratio: req.compression_ratio,
+            language: req.language.clone(),
+            metadata: req.metadata.clone().unwrap_or_default(),
+        };
+        
+        match grpc_client.summarize_text(grpc_req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let api_response = SummarizeTextResponse {
+                    summary_id: response.summary_id,
+                    original_text: response.original_text,
+                    summary: response.summary,
+                    method: response.method,
+                    original_length: response.original_length,
+                    summary_length: response.summary_length,
+                    compression_ratio: response.compression_ratio,
+                    language: response.language,
+                    status: response.status,
+                    message: response.message,
+                    metadata: response.metadata,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC summarize_text failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let mut manager = summarization_manager.lock().unwrap();
+        
+        // Convert string method to enum
+        let method = match req.method.as_str() {
+            "extractive" => crate::summarization::SummarizationMethod::Extractive,
+            "abstractive" => crate::summarization::SummarizationMethod::Abstractive,
+            "keyword" => crate::summarization::SummarizationMethod::Keyword,
+            "sentence" => crate::summarization::SummarizationMethod::Sentence,
+            _ => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: format!("Unsupported summarization method: {}", req.method),
+                        code: "UNSUPPORTED_METHOD".to_string(),
+                        details: None,
+                    }),
+                ));
+            }
+        };
+        
+        let metadata = req.metadata.unwrap_or_default();
+        
+        let params = crate::summarization::SummarizationParams {
+            text: req.text,
+            method,
+            max_length: req.max_length.map(|v| v as usize),
+            compression_ratio: req.compression_ratio,
+            language: req.language,
+            metadata,
+        };
+        
+        match manager.summarize_text(params) {
+            Ok(result) => {
+                let response = SummarizeTextResponse {
+                    summary_id: result.summary_id,
+                    original_text: result.original_text,
+                    summary: result.summary,
+                    method: result.method.to_string(),
+                    original_length: result.original_length as i32,
+                    summary_length: result.summary_length as i32,
+                    compression_ratio: result.compression_ratio,
+                    language: result.language,
+                    status: "success".to_string(),
+                    message: "Text summarized successfully".to_string(),
+                    metadata: result.metadata,
+                };
+                Ok(Json(response))
+            },
+            Err(e) => {
+                error!("Local summarization failed: {}", e);
+                Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: format!("Summarization failed: {}", e),
+                        code: "SUMMARIZATION_ERROR".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Summarization not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
+}
+
+/// Summarize context using GRPC backend
+pub async fn summarize_context(
+    State(mut state): State<AppState>,
+    Json(req): Json<SummarizeContextRequest>,
+) -> Result<Json<SummarizeContextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Convert API request to GRPC request
+        let grpc_req = crate::grpc::vectorizer::SummarizeContextRequest {
+            context: req.context.clone(),
+            method: req.method.clone(),
+            max_length: req.max_length,
+            compression_ratio: req.compression_ratio,
+            language: req.language.clone(),
+            metadata: req.metadata.clone().unwrap_or_default(),
+        };
+        
+        match grpc_client.summarize_context(grpc_req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let api_response = SummarizeContextResponse {
+                    summary_id: response.summary_id,
+                    original_context: response.original_context,
+                    summary: response.summary,
+                    method: response.method,
+                    original_length: response.original_length,
+                    summary_length: response.summary_length,
+                    compression_ratio: response.compression_ratio,
+                    language: response.language,
+                    status: response.status,
+                    message: response.message,
+                    metadata: response.metadata,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC summarize_context failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let mut manager = summarization_manager.lock().unwrap();
+        
+        // Convert string method to enum
+        let method = match req.method.as_str() {
+            "extractive" => crate::summarization::SummarizationMethod::Extractive,
+            "abstractive" => crate::summarization::SummarizationMethod::Abstractive,
+            "keyword" => crate::summarization::SummarizationMethod::Keyword,
+            "sentence" => crate::summarization::SummarizationMethod::Sentence,
+            _ => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: format!("Unsupported summarization method: {}", req.method),
+                        code: "UNSUPPORTED_METHOD".to_string(),
+                        details: None,
+                    }),
+                ));
+            }
+        };
+        
+        let metadata = req.metadata.unwrap_or_default();
+        
+        let params = crate::summarization::ContextSummarizationParams {
+            context: req.context,
+            method,
+            max_length: req.max_length.map(|v| v as usize),
+            compression_ratio: req.compression_ratio,
+            language: req.language,
+            metadata,
+        };
+        
+        match manager.summarize_context(params) {
+            Ok(result) => {
+                let response = SummarizeContextResponse {
+                    summary_id: result.summary_id,
+                    original_context: result.original_text,
+                    summary: result.summary,
+                    method: result.method.to_string(),
+                    original_length: result.original_length as i32,
+                    summary_length: result.summary_length as i32,
+                    compression_ratio: result.compression_ratio,
+                    language: result.language,
+                    status: "success".to_string(),
+                    message: "Context summarized successfully".to_string(),
+                    metadata: result.metadata,
+                };
+                Ok(Json(response))
+            },
+            Err(e) => {
+                error!("Local context summarization failed: {}", e);
+                Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        error: format!("Context summarization failed: {}", e),
+                        code: "SUMMARIZATION_ERROR".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Context summarization not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
+}
+
+/// Get summary by ID using GRPC backend
+pub async fn get_summary(
+    State(mut state): State<AppState>,
+    Path(summary_id): Path<String>,
+) -> Result<Json<GetSummaryResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let req = crate::grpc::vectorizer::GetSummaryRequest {
+            summary_id: summary_id.clone(),
+        };
+        
+        match grpc_client.get_summary(req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let api_response = GetSummaryResponse {
+                    summary_id: response.summary_id,
+                    original_text: response.original_text,
+                    summary: response.summary,
+                    method: response.method,
+                    original_length: response.original_length,
+                    summary_length: response.summary_length,
+                    compression_ratio: response.compression_ratio,
+                    language: response.language,
+                    created_at: response.created_at,
+                    metadata: response.metadata,
+                    status: response.status,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC get_summary failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let manager = summarization_manager.lock().unwrap();
+        match manager.get_summary(&summary_id) {
+            Some(result) => {
+                let response = GetSummaryResponse {
+                    summary_id: result.summary_id.clone(),
+                    original_text: result.original_text.clone(),
+                    summary: result.summary.clone(),
+                    method: result.method.to_string(),
+                    original_length: result.original_length as i32,
+                    summary_length: result.summary_length as i32,
+                    compression_ratio: result.compression_ratio,
+                    language: result.language.clone(),
+                    created_at: result.created_at.to_string(),
+                    metadata: result.metadata.clone(),
+                    status: "success".to_string(),
+                };
+                Ok(Json(response))
+            },
+            None => {
+                Err((
+                    StatusCode::NOT_FOUND,
+                    Json(ErrorResponse {
+                        error: "Summary not found".to_string(),
+                        code: "SUMMARY_NOT_FOUND".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Summary retrieval not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
+    }
+}
+
+/// List summaries using GRPC backend
+pub async fn list_summaries(
+    State(mut state): State<AppState>,
+    Query(params): Query<ListSummariesQuery>,
+) -> Result<Json<ListSummariesResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let req = crate::grpc::vectorizer::ListSummariesRequest {
+            method: params.method.clone(),
+            language: params.language.clone(),
+            limit: params.limit,
+            offset: params.offset,
+        };
+        
+        match grpc_client.list_summaries(req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let summaries: Vec<SummaryInfo> = response.summaries
+                    .into_iter()
+                    .map(|summary| SummaryInfo {
+                        summary_id: summary.summary_id,
+                        method: summary.method,
+                        language: summary.language,
+                        original_length: summary.original_length,
+                        summary_length: summary.summary_length,
+                        compression_ratio: summary.compression_ratio,
+                        created_at: summary.created_at.to_string(),
+                        metadata: summary.metadata,
+                    })
+                    .collect();
+                
+                let api_response = ListSummariesResponse {
+                    summaries,
+                    total_count: response.total_count,
+                    status: response.status,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC list_summaries failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    if let Some(ref summarization_manager) = state.summarization_manager {
+        let manager = summarization_manager.lock().unwrap();
+        
+        let method = params.method.as_ref().map(|s| s.as_str());
+        let language = params.language.as_ref().map(|s| s.as_str());
+        
+        let summaries = manager.list_summaries(
+            method,
+            language,
+            params.limit.map(|v| v as usize),
+            params.offset.map(|v| v as usize),
+        );
+        
+        let summary_infos: Vec<SummaryInfo> = summaries
+            .iter()
+            .map(|summary| SummaryInfo {
+                summary_id: summary.summary_id.clone(),
+                method: summary.method.to_string(),
+                language: summary.language.clone(),
+                original_length: summary.original_length as i32,
+                summary_length: summary.summary_length as i32,
+                compression_ratio: summary.compression_ratio,
+                created_at: summary.created_at.to_string(),
+                metadata: summary.metadata.clone(),
+            })
+            .collect();
+        
+        let response = ListSummariesResponse {
+            summaries: summary_infos,
+            total_count: summaries.len() as i32,
+            status: "success".to_string(),
+        };
+        Ok(Json(response))
+    } else {
+        Err((
+            StatusCode::NOT_IMPLEMENTED,
+            Json(ErrorResponse {
+                error: "Summary listing not available without GRPC connection or local manager".to_string(),
+                code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+                details: None,
+            }),
+        ))
     }
 }

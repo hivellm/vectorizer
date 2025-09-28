@@ -169,7 +169,7 @@ impl VectorizerService for VectorizerGrpcService {
     async fn list_collections()   ✅ Collection enumeration
     async fn create_collection()  ✅ Dynamic collection creation
     async fn delete_collection()  ✅ Safe collection removal
-    async fn insert_vectors()     ✅ Bulk vector insertion
+    async fn insert_texts()     ✅ Bulk vector insertion
     async fn delete_vectors()     ✅ Selective vector deletion
     async fn get_vector()         ✅ Individual vector retrieval
     async fn embed_text()         ✅ Text-to-vector conversion

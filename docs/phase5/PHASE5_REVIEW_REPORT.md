@@ -173,7 +173,7 @@ async fn start_background_indexing_with_config(
 **Dynamic Operations:**
 ```rust
 impl McpTools {
-    pub async fn insert_vectors(
+    pub async fn insert_texts(
         collection: &str,
         vectors: Vec<(String, Vec<f32>, Option<serde_json::Value>)>,
         vector_store: &VectorStore,

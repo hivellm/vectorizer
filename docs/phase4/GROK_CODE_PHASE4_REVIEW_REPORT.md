@@ -149,7 +149,7 @@ search_vectors()     // Semantic search
 list_collections()   // Collection enumeration
 create_collection()  // Collection creation
 delete_collection()  // Collection deletion
-insert_vectors()     // Vector insertion
+insert_texts()     // Vector insertion
 delete_vectors()     // Vector deletion
 get_vector()         // Vector retrieval
 embed_text()         // Text embedding
@@ -178,7 +178,7 @@ health_check()       // Service health
 └── delete_collection ✅ Collection deletion
 
 📝 Vector Operations:
-├── insert_vectors    ✅ Vector insertion
+├── insert_texts    ✅ Vector insertion
 ├── delete_vectors    ✅ Vector deletion
 └── embed_text       ✅ Text embedding
 
