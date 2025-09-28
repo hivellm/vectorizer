@@ -328,8 +328,11 @@ mod tests {
             hnsw_config: HnswConfig {
                 m: 16,
                 ef_construction: 200,
+                ef_search: 64,
                 seed: Some(42),
             },
+            compression: None,
+            quantization: None,
         }
     }
 

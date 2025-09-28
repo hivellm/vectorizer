@@ -76,7 +76,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_bend_batch_processor_creation() {
-        let base_processor = Arc::new(BatchProcessor::new(BatchConfig::default()));
+        use crate::db::VectorStore;
+        use crate::embedding::EmbeddingManager;
+        use std::sync::Arc;
+        
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let base_processor = Arc::new(BatchProcessor::new(
+            Arc::new(BatchConfig::default()),
+            vector_store,
+            embedding_manager
+        ));
         let bend_config = BendConfig::default();
         
         let processor = BendBatchProcessor::new(base_processor, bend_config);

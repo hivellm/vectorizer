@@ -408,7 +408,8 @@ mod tests {
         let generator = BendCodeGenerator::new(config);
         let query_vector = vec![1.0, 0.0, 0.0];
         
-        let code = generator.generate_cosine_similarity_search(&query_vector, 100).unwrap();
+        let vectors = vec![vec![1.0, 0.0, 0.0], vec![0.0, 1.0, 0.0]];
+        let code = generator.generate_cosine_similarity_search(&query_vector, &vectors).unwrap();
         assert!(code.contains("cosine_similarity"));
         assert!(code.contains("parallel_similarity_search"));
         assert!(code.contains("[1.000000, 0.000000, 0.000000]"));
