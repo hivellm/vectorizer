@@ -932,7 +932,7 @@ monitoring:
   # Logging
   logging:
     level: "info"
-    log_file: "./logs/workspace.log"
+    log_file: "./.logs/workspace.log"
     max_log_size_mb: 100
     max_log_files: 5
 
@@ -961,15 +961,10 @@ validation:
 # =============================================================================
 # FILE WATCHER CONFIGURATION
 # =============================================================================
+# File watcher automatically discovers and monitors indexed files
+# No manual configuration needed - it reads from existing collections
 file_watcher:
   enabled: true
-  watch_paths: ["."]
-  recursive: true
   debounce_delay_ms: 1000
-  include_patterns: ["*.md", "*.txt", "*.rs", "*.js", "*.ts", "*.py", "*.json", "*.yml", "*.yaml"]
-  exclude_patterns: ["*.log", "*.tmp", "**/target/**", "**/node_modules/**", "**/.git/**", "**/.*", "**/*.tmp*", "**/*~"]
-  min_file_size_bytes: 1
-  max_file_size_bytes: 10485760  # 10MB
   hash_validation_enabled: true
   grpc_enabled: true
-  collection_name: "workspace-files"

@@ -4,6 +4,21 @@
 # and modify the settings according to your needs.
 
 # =============================================================================
+# FILE WATCHER CONFIGURATION
+# =============================================================================
+file_watcher:
+  enabled: true
+  debounce_delay_ms: 1000
+  min_file_size_bytes: 1
+  max_file_size_bytes: 10485760  # 10MB
+  hash_validation_enabled: true
+  grpc_enabled: true
+  collection_name: "workspace-files"
+
+# Projects configuration (empty for now)
+projects: []
+
+# =============================================================================
 # SERVER CONFIGURATION
 # =============================================================================
 server:
@@ -152,6 +167,83 @@ performance:
     max_batch_size: 1000      # Maximum batch operation size
 
 # =============================================================================
+# BATCH OPERATIONS CONFIGURATION - Phase 6
+# =============================================================================
+batch_operations:
+  # Basic batch settings
+  max_batch_size: 1000        # Maximum vectors per batch operation
+  max_memory_usage_mb: 512    # Maximum memory usage for batch operations
+  parallel_workers: 4         # Number of parallel workers for processing
+  chunk_size: 100             # Size of chunks for streaming large batches
+  
+  # Operation behavior
+  atomic_by_default: true     # Whether operations should be atomic by default
+  progress_reporting: true    # Whether to report progress during long operations
+  
+  # Error handling
+  error_retry_attempts: 3     # Number of retry attempts for failed operations
+  error_retry_delay_ms: 100   # Delay between retry attempts in milliseconds
+  operation_timeout_seconds: 300 # Timeout for individual batch operations (5 minutes)
+  
+  # Performance and monitoring
+  enable_metrics: true        # Whether to enable performance metrics collection
+  max_concurrent_batches: 10  # Maximum concurrent batch operations
+  
+  # Compression settings
+  enable_compression: false   # Whether to enable compression for large payloads
+  compression_threshold_bytes: 1048576 # Compression threshold (1MB)
+  
+  # Performance presets
+  presets:
+    # High-performance configuration for production
+    production:
+      max_batch_size: 10000
+      max_memory_usage_mb: 2048
+      parallel_workers: 8
+      chunk_size: 500
+      atomic_by_default: true
+      progress_reporting: false  # Disable for production performance
+      error_retry_attempts: 5
+      error_retry_delay_ms: 50
+      operation_timeout_seconds: 600  # 10 minutes
+      enable_metrics: true
+      max_concurrent_batches: 20
+      enable_compression: true
+      compression_threshold_bytes: 524288  # 512KB
+    
+    # Development configuration with verbose logging
+    development:
+      max_batch_size: 100
+      max_memory_usage_mb: 128
+      parallel_workers: 2
+      chunk_size: 10
+      atomic_by_default: true
+      progress_reporting: true
+      error_retry_attempts: 1
+      error_retry_delay_ms: 1000
+      operation_timeout_seconds: 60  # 1 minute
+      enable_metrics: true
+      max_concurrent_batches: 3
+      enable_compression: false
+      compression_threshold_bytes: 1048576
+    
+    # Testing configuration
+    testing:
+      max_batch_size: 10
+      max_memory_usage_mb: 64
+      parallel_workers: 1
+      chunk_size: 5
+      atomic_by_default: true
+      progress_reporting: false
+      error_retry_attempts: 0
+      error_retry_delay_ms: 10
+      operation_timeout_seconds: 30
+      enable_metrics: false
+      max_concurrent_batches: 1
+      enable_compression: false
+      compression_threshold_bytes: 1024
+
+# =============================================================================
 # COMPRESSION CONFIGURATION
 # =============================================================================
 compression:
@@ -234,68 +326,6 @@ collections:
         use_int8: true        # Enable INT8 quantization
         num_threads: 1        # Threads per worker
 
-    # Summarization settings
-    summarization:
-      enabled: true           # Enable automatic summarization
-      auto_summarize: true    # Automatically summarize during indexing
-      summary_collection: "summaries"  # Collection name for summaries
-      
-      # Default summarization method
-      default_method: "extractive"  # extractive, abstractive, keyword, sentence
-      
-      # Method-specific settings
-      methods:
-        extractive:
-          enabled: true
-          compression_ratio: 0.3  # Keep 30% of original text
-          max_sentences: 5        # Maximum sentences in summary
-          min_sentence_length: 10 # Minimum sentence length
-          use_tfidf: true         # Use TF-IDF for sentence scoring
-          
-        abstractive:
-          enabled: false          # Requires external LLM
-          model: "gpt-3.5-turbo" # LLM model for abstractive summarization
-          api_key: ""            # API key for LLM service
-          max_tokens: 150        # Maximum tokens in summary
-          temperature: 0.3       # Temperature for generation
-          
-        keyword:
-          enabled: true
-          max_keywords: 10       # Maximum keywords to extract
-          min_keyword_length: 3  # Minimum keyword length
-          use_stopwords: true    # Remove stopwords
-          language: "en"         # Language for stopwords
-          
-        sentence:
-          enabled: true
-          compression_ratio: 0.4  # Keep 40% of sentences
-          max_sentences: 3        # Maximum sentences
-          min_sentence_length: 15 # Minimum sentence length
-          use_position_weight: true # Weight sentences by position
-          
-      # Language support
-      languages:
-        en:
-          stopwords: true
-          stemming: true
-        pt:
-          stopwords: true
-          stemming: true
-        es:
-          stopwords: true
-          stemming: true
-        fr:
-          stopwords: true
-          stemming: true
-          
-      # Summary metadata
-      metadata:
-        include_original_id: true    # Include reference to original document
-        include_file_path: true      # Include original file path
-        include_timestamp: true      # Include creation timestamp
-        include_method: true         # Include summarization method
-        include_compression_ratio: true # Include compression ratio
-
     # Compression settings
     compression:
       enabled: true
@@ -323,6 +353,12 @@ logging:
   # Log levels
   level: "info"               # Global log level: error/warn/info/debug/trace
   format: "json"              # Log format: json/text
+  
+  # Request/Response logging
+  log_requests: true          # Log all requests
+  log_responses: false        # Log responses (can be verbose)
+  log_errors: true            # Log errors
+  log_connections: true       # Log connection events
 
   # Log outputs
   outputs:
@@ -464,80 +500,6 @@ experimental:
     embedding_cache_mmap: true     # Memory-mapped embedding cache
 
 # =============================================================================
-# SUMMARIZATION CONFIGURATION
-# =============================================================================
-summarization:
-  # Enable automatic summarization system
-  enabled: true
-  
-  # Default summarization method
-  default_method: "extractive"  # extractive, keyword, sentence, abstractive
-  
-  # Method-specific configurations
-  methods:
-    extractive:
-      enabled: true
-      max_sentences: 5           # Maximum sentences in summary
-      lambda: 0.7                # MMR lambda parameter (0.0-1.0)
-      min_sentence_length: 10    # Minimum sentence length
-      use_tfidf: true           # Use TF-IDF for sentence scoring
-      
-    keyword:
-      enabled: true
-      max_keywords: 10           # Maximum keywords to extract
-      min_keyword_length: 3      # Minimum keyword length
-      use_stopwords: true        # Remove stopwords
-      language: "en"             # Language for stopwords
-      
-    sentence:
-      enabled: true
-      max_sentences: 3           # Maximum sentences
-      min_sentence_length: 15    # Minimum sentence length
-      use_position_weight: true  # Weight sentences by position
-      
-    abstractive:
-      enabled: false             # Requires external LLM
-      max_length: 200           # Maximum summary length
-      model: "gpt-3.5-turbo"    # LLM model for abstractive summarization
-      api_key: ""               # API key for LLM service
-      temperature: 0.3          # Temperature for generation
-  
-  # Language support
-  languages:
-    en:
-      stopwords: true
-      stemming: true
-    pt:
-      stopwords: true
-      stemming: true
-    es:
-      stopwords: true
-      stemming: true
-    fr:
-      stopwords: true
-      stemming: true
-  
-  # Summary metadata configuration
-  metadata:
-    include_original_id: true      # Include reference to original document
-    include_file_path: true        # Include original file path
-    include_timestamp: true        # Include creation timestamp
-    include_method: true           # Include summarization method
-    include_compression_ratio: true # Include compression ratio
-  
-  # Collection naming patterns
-  collection_patterns:
-    file_summaries: "{collection_name}_summaries"      # File-level summaries
-    chunk_summaries: "{collection_name}_chunk_summaries" # Chunk-level summaries
-  
-  # Performance settings
-  performance:
-    parallel_processing: true     # Enable parallel summarization
-    max_concurrent_tasks: 4       # Maximum concurrent summarization tasks
-    batch_size: 10                # Batch size for processing
-    timeout_seconds: 30           # Summarization timeout
-
-# =============================================================================
 # GRPC CONFIGURATION
 # =============================================================================
 grpc:
@@ -673,29 +635,31 @@ mcp:
         required: ["text"]
     
     - name: "insert_texts"
-      description: "Insert texts into a collection (embeddings generated automatically)"
+      description: "Insert vectors into a collection"
       input_schema:
         type: "object"
         properties:
           collection:
             type: "string"
             description: "Collection name"
-          texts:
+          vectors:
             type: "array"
-            description: "Array of texts to insert"
+            description: "Array of vectors to insert"
             items:
               type: "object"
               properties:
                 id:
                   type: "string"
-                  description: "Text ID"
-                text:
-                  type: "string"
-                  description: "Text content"
-                metadata:
+                  description: "Vector ID"
+                data:
+                  type: "array"
+                  description: "Vector data"
+                  items:
+                    type: "number"
+                payload:
                   type: "object"
-                  description: "Optional metadata"
-        required: ["collection", "texts"]
+                  description: "Optional payload data"
+        required: ["collection", "vectors"]
     
     - name: "delete_vectors"
       description: "Delete vectors from a collection"
@@ -763,113 +727,6 @@ mcp:
       input_schema:
         type: "object"
         properties: {}
-    
-    # Batch Operations
-    - name: "batch_insert_texts"
-      description: "Batch insert texts with automatic embedding generation"
-      input_schema:
-        type: "object"
-        properties:
-          collection:
-            type: "string"
-            description: "Collection name"
-          texts:
-            type: "array"
-            description: "Array of texts to insert"
-            items:
-              type: "object"
-              properties:
-                id:
-                  type: "string"
-                  description: "Text ID"
-                text:
-                  type: "string"
-                  description: "Text content"
-                metadata:
-                  type: "object"
-                  description: "Optional metadata"
-              required: ["id", "text"]
-          provider:
-            type: "string"
-            description: "Embedding provider"
-            default: "bm25"
-        required: ["collection", "texts"]
-    
-    - name: "batch_search_vectors"
-      description: "Batch search with multiple queries"
-      input_schema:
-        type: "object"
-        properties:
-          collection:
-            type: "string"
-            description: "Collection name"
-          queries:
-            type: "array"
-            description: "Array of search queries"
-            items:
-              type: "object"
-              properties:
-                query:
-                  type: "string"
-                  description: "Search query text"
-                limit:
-                  type: "integer"
-                  description: "Maximum number of results"
-                  default: 10
-                score_threshold:
-                  type: "number"
-                  description: "Minimum score threshold"
-              required: ["query"]
-          provider:
-            type: "string"
-            description: "Embedding provider"
-            default: "bm25"
-        required: ["collection", "queries"]
-    
-    - name: "batch_update_vectors"
-      description: "Batch update existing vectors"
-      input_schema:
-        type: "object"
-        properties:
-          collection:
-            type: "string"
-            description: "Collection name"
-          updates:
-            type: "array"
-            description: "Array of vector updates"
-            items:
-              type: "object"
-              properties:
-                id:
-                  type: "string"
-                  description: "Vector ID"
-                text:
-                  type: "string"
-                  description: "New text content (optional)"
-                metadata:
-                  type: "object"
-                  description: "New metadata (optional)"
-              required: ["id"]
-          provider:
-            type: "string"
-            description: "Embedding provider"
-            default: "bm25"
-        required: ["collection", "updates"]
-    
-    - name: "batch_delete_vectors"
-      description: "Batch delete vectors by ID"
-      input_schema:
-        type: "object"
-        properties:
-          collection:
-            type: "string"
-            description: "Collection name"
-          vector_ids:
-            type: "array"
-            description: "Array of vector IDs to delete"
-            items:
-              type: "string"
-        required: ["collection", "vector_ids"]
     
     - name: "get_indexing_progress"
       description: "Get indexing progress for collections"
@@ -1104,51 +961,57 @@ extensions:
       - mcp_connection_established
       - mcp_tool_called
 
----
-# Configuration Notes:
-#
-# 1. All paths are relative to the server working directory
-# 2. Boolean values: true/false
-# 3. Arrays use YAML list syntax: [item1, item2]
-# 4. Comments starting with # are ignored
-# 5. Environment variables can be used: ${ENV_VAR_NAME}
-# 6. Sensitive data (API keys) should be stored securely
-#
-# Usage:
-#   vectorizer server --config config.yml
-#   vectorizer server --config /path/to/custom/config.yml
-#   vectorizer-cli server start --config config.yml
-#
-# MCP (Model Context Protocol) Integration:
-#   - MCP server runs on port 15002 by default (server.port + 1)
-#   - WebSocket endpoint: ws://127.0.0.1:15002/mcp
-#   - Provides tools for IDE integration and AI model communication
-#   - Supports authentication via API keys
-#   - Tools include: search_vectors, list_collections, embed_text, workspace_search, etc.
-#
-# GRPC Integration:
-#   - GRPC server runs on port 15003 by default (server.port + 2)
-#   - Provides high-performance inter-service communication
-#   - Used by MCP and REST servers to communicate with the core vectorizer
-#   - Supports reflection for debugging and service discovery
-#   - Configurable timeouts, retries, and connection pooling
-#
-# Workspace Integration:
-#   - Supports multi-project workspaces with centralized configuration
-#   - Automatic project discovery and indexing
-#   - Configurable processing pipelines per project
-#   - Real-time monitoring and health checks
-#
-# Port Allocation:
-#   - Main REST server: 15001 (configurable via server.port)
-#   - MCP server: 15002 (configurable via mcp.port)
-#   - GRPC server: 15003 (configurable via grpc.server.port)
-#
-# Architecture:
-#   Client → REST API (15001) → GRPC (15003) → Vector Store
-#   IDE/AI → MCP (15002) → GRPC (15003) → Vector Store
-#   vzr orchestrator manages all services and provides unified interface
-#
-# Validation:
-#   The server will validate the configuration on startup
-#   Invalid configurations will prevent server startup with detailed error messages
+# =============================================================================
+# SUMMARIZATION CONFIGURATION
+# =============================================================================
+    summarization:
+      enabled: true           # Enable automatic summarization
+      auto_summarize: true    # Automatically summarize during indexing
+      summary_collection: "summaries"  # Collection name for summaries
+      
+      # Default summarization method
+      default_method: "extractive"  # extractive, abstractive, keyword, sentence
+      
+      # Method-specific settings
+      methods:
+        extractive:
+          enabled: true
+          compression_ratio: 0.3  # Keep 30% of original text
+          max_sentences: 5        # Maximum sentences in summary
+          min_sentence_length: 10 # Minimum sentence length
+          use_tfidf: true         # Use TF-IDF for sentence scoring
+          
+        abstractive:
+          enabled: false          # Requires external LLM
+          model: "gpt-3.5-turbo" # LLM model for abstractive summarization
+          api_key: ""            # API key for LLM service
+          max_tokens: 150        # Maximum tokens in summary
+          temperature: 0.3       # Temperature for generation
+          
+        keyword:
+          enabled: true
+          max_keywords: 10       # Maximum keywords to extract
+          min_keyword_length: 3  # Minimum keyword length
+          use_stopwords: true    # Remove stopwords
+          language: "en"         # Language for stopwords
+          
+        sentence:
+          enabled: true
+          compression_ratio: 0.4  # Keep 40% of sentences
+          max_sentences: 3        # Maximum sentences
+          min_sentence_length: 15 # Minimum sentence length
+          use_position_weight: true # Weight sentences by position
+          
+      # Language support
+      languages:
+        en:
+          stopwords: true
+          stemming: true
+        pt:
+          stopwords: true
+          stemming: true
+        es:
+          stopwords: true
+          stemming: true
+        fr:
+          stopwords: true
