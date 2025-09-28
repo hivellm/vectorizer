@@ -12,3 +12,4 @@ export * from './embedding-request';
 export * from './search-request';
 export * from './collection-info';
 export * from './batch';
+export * from './summarization';

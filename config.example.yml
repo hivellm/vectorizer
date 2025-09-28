@@ -234,6 +234,68 @@ collections:
         use_int8: true        # Enable INT8 quantization
         num_threads: 1        # Threads per worker
 
+    # Summarization settings
+    summarization:
+      enabled: true           # Enable automatic summarization
+      auto_summarize: true    # Automatically summarize during indexing
+      summary_collection: "summaries"  # Collection name for summaries
+      
+      # Default summarization method
+      default_method: "extractive"  # extractive, abstractive, keyword, sentence
+      
+      # Method-specific settings
+      methods:
+        extractive:
+          enabled: true
+          compression_ratio: 0.3  # Keep 30% of original text
+          max_sentences: 5        # Maximum sentences in summary
+          min_sentence_length: 10 # Minimum sentence length
+          use_tfidf: true         # Use TF-IDF for sentence scoring
+          
+        abstractive:
+          enabled: false          # Requires external LLM
+          model: "gpt-3.5-turbo" # LLM model for abstractive summarization
+          api_key: ""            # API key for LLM service
+          max_tokens: 150        # Maximum tokens in summary
+          temperature: 0.3       # Temperature for generation
+          
+        keyword:
+          enabled: true
+          max_keywords: 10       # Maximum keywords to extract
+          min_keyword_length: 3  # Minimum keyword length
+          use_stopwords: true    # Remove stopwords
+          language: "en"         # Language for stopwords
+          
+        sentence:
+          enabled: true
+          compression_ratio: 0.4  # Keep 40% of sentences
+          max_sentences: 3        # Maximum sentences
+          min_sentence_length: 15 # Minimum sentence length
+          use_position_weight: true # Weight sentences by position
+          
+      # Language support
+      languages:
+        en:
+          stopwords: true
+          stemming: true
+        pt:
+          stopwords: true
+          stemming: true
+        es:
+          stopwords: true
+          stemming: true
+        fr:
+          stopwords: true
+          stemming: true
+          
+      # Summary metadata
+      metadata:
+        include_original_id: true    # Include reference to original document
+        include_file_path: true      # Include original file path
+        include_timestamp: true      # Include creation timestamp
+        include_method: true         # Include summarization method
+        include_compression_ratio: true # Include compression ratio
+
     # Compression settings
     compression:
       enabled: true
@@ -400,6 +462,80 @@ experimental:
     fast_tokenization: true        # Ultra-fast tokenization with caching
     onnx_inference: true           # ONNX Runtime for inference
     embedding_cache_mmap: true     # Memory-mapped embedding cache
+
+# =============================================================================
+# SUMMARIZATION CONFIGURATION
+# =============================================================================
+summarization:
+  # Enable automatic summarization system
+  enabled: true
+  
+  # Default summarization method
+  default_method: "extractive"  # extractive, keyword, sentence, abstractive
+  
+  # Method-specific configurations
+  methods:
+    extractive:
+      enabled: true
+      max_sentences: 5           # Maximum sentences in summary
+      lambda: 0.7                # MMR lambda parameter (0.0-1.0)
+      min_sentence_length: 10    # Minimum sentence length
+      use_tfidf: true           # Use TF-IDF for sentence scoring
+      
+    keyword:
+      enabled: true
+      max_keywords: 10           # Maximum keywords to extract
+      min_keyword_length: 3      # Minimum keyword length
+      use_stopwords: true        # Remove stopwords
+      language: "en"             # Language for stopwords
+      
+    sentence:
+      enabled: true
+      max_sentences: 3           # Maximum sentences
+      min_sentence_length: 15    # Minimum sentence length
+      use_position_weight: true  # Weight sentences by position
+      
+    abstractive:
+      enabled: false             # Requires external LLM
+      max_length: 200           # Maximum summary length
+      model: "gpt-3.5-turbo"    # LLM model for abstractive summarization
+      api_key: ""               # API key for LLM service
+      temperature: 0.3          # Temperature for generation
+  
+  # Language support
+  languages:
+    en:
+      stopwords: true
+      stemming: true
+    pt:
+      stopwords: true
+      stemming: true
+    es:
+      stopwords: true
+      stemming: true
+    fr:
+      stopwords: true
+      stemming: true
+  
+  # Summary metadata configuration
+  metadata:
+    include_original_id: true      # Include reference to original document
+    include_file_path: true        # Include original file path
+    include_timestamp: true        # Include creation timestamp
+    include_method: true           # Include summarization method
+    include_compression_ratio: true # Include compression ratio
+  
+  # Collection naming patterns
+  collection_patterns:
+    file_summaries: "{collection_name}_summaries"      # File-level summaries
+    chunk_summaries: "{collection_name}_chunk_summaries" # Chunk-level summaries
+  
+  # Performance settings
+  performance:
+    parallel_processing: true     # Enable parallel summarization
+    max_concurrent_tasks: 4       # Maximum concurrent summarization tasks
+    batch_size: 10                # Batch size for processing
+    timeout_seconds: 30           # Summarization timeout
 
 # =============================================================================
 # GRPC CONFIGURATION

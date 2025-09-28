@@ -220,6 +220,72 @@ async function main() {
       duration: `${batchDeleteResult.duration_ms}ms`
     });
 
+    // Summarization example
+    console.log('\n📝 Testing summarization...');
+    const longText = `
+    Artificial Intelligence (AI) has revolutionized numerous industries and continues to shape the future of technology. 
+    From healthcare to finance, AI applications are transforming how we work, live, and interact with the world around us.
+    
+    In healthcare, AI is being used for medical diagnosis, drug discovery, and personalized treatment plans. 
+    Machine learning algorithms can analyze vast amounts of medical data to identify patterns and predict outcomes.
+    
+    In finance, AI powers algorithmic trading, fraud detection, and risk assessment. 
+    These systems can process millions of transactions in real-time to identify suspicious activities.
+    
+    The automotive industry is leveraging AI for autonomous vehicles, traffic optimization, and predictive maintenance.
+    Self-driving cars use computer vision and machine learning to navigate roads safely.
+    
+    As AI technology continues to advance, we can expect even more innovative applications across various sectors.
+    However, it's important to consider the ethical implications and ensure responsible AI development.
+    `;
+
+    // Summarize text using extractive method
+    console.log('📄 Summarizing text using extractive method...');
+    const textSummary = await client.summarizeText({
+      text: longText,
+      method: 'extractive',
+      compression_ratio: 0.3,
+      language: 'en'
+    });
+    console.log('✅ Text summary:', {
+      originalLength: textSummary.original_length,
+      summaryLength: textSummary.summary_length,
+      compressionRatio: textSummary.compression_ratio,
+      summary: textSummary.summary.substring(0, 100) + '...'
+    });
+
+    // Summarize context using keyword method
+    console.log('🔑 Summarizing context using keyword method...');
+    const contextSummary = await client.summarizeContext({
+      context: longText,
+      method: 'keyword',
+      max_length: 100,
+      language: 'en'
+    });
+    console.log('✅ Context summary:', {
+      originalLength: contextSummary.original_length,
+      summaryLength: contextSummary.summary_length,
+      summary: contextSummary.summary
+    });
+
+    // Get summary by ID
+    console.log('🔍 Retrieving summary by ID...');
+    const retrievedSummary = await client.getSummary(textSummary.summary_id);
+    console.log('✅ Retrieved summary:', {
+      method: retrievedSummary.method,
+      summaryLength: retrievedSummary.summary_length,
+      createdAt: retrievedSummary.created_at
+    });
+
+    // List summaries
+    console.log('📋 Listing summaries...');
+    const summaries = await client.listSummaries({ limit: 5 });
+    console.log('✅ Found summaries:', {
+      count: summaries.summaries.length,
+      totalCount: summaries.total_count,
+      methods: summaries.summaries.map(s => s.method)
+    });
+
     // Clean up
     console.log('\n🧹 Cleaning up...');
     await client.deleteCollection('example-documents');

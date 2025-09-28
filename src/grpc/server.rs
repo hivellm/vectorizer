@@ -3,6 +3,7 @@ use crate::embedding::EmbeddingManager;
 use crate::config::GrpcServerConfig;
 use crate::api::handlers::WorkspaceCollection;
 use crate::workspace::WorkspaceManager;
+use crate::summarization::{SummarizationManager, SummarizationConfig, SummarizationMethod};
 use crate::grpc::vectorizer::{
     vectorizer_service_server::VectorizerService,
     SearchRequest, SearchResponse, SearchResult,
@@ -17,6 +18,12 @@ use crate::grpc::vectorizer::{
     DeleteVectorsRequest, DeleteVectorsResponse,
     GetVectorRequest, GetVectorResponse,
     TextData,
+    // Sumarização
+    SummarizeTextRequest, SummarizeTextResponse,
+    SummarizeContextRequest, SummarizeContextResponse,
+    GetSummaryRequest, GetSummaryResponse,
+    ListSummariesRequest, ListSummariesResponse,
+    SummaryInfo,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -27,6 +34,7 @@ pub struct VectorizerGrpcService {
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
+    summarization_manager: Arc<Mutex<SummarizationManager>>,
 }
 
 impl VectorizerGrpcService {
@@ -34,11 +42,19 @@ impl VectorizerGrpcService {
         vector_store: Arc<VectorStore>,
         embedding_manager: Arc<Mutex<EmbeddingManager>>,
         indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
+        summarization_config: Option<SummarizationConfig>,
     ) -> Self {
+        let summarization_manager = Arc::new(Mutex::new(
+            summarization_config
+                .map(|config| SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config()))
+                .unwrap_or_else(|| SummarizationManager::with_default_config())
+        ));
+        
         Self {
             vector_store,
             embedding_manager,
             indexing_progress,
+            summarization_manager,
         }
     }
 
@@ -145,7 +161,7 @@ impl VectorizerService for VectorizerGrpcService {
         let mut collection_infos = Vec::new();
         
         // Add all workspace collections
-        for workspace_collection in workspace_collections {
+        for workspace_collection in &workspace_collections {
             let status = if indexed_collections.contains(&workspace_collection.name) {
                 // Collection is indexed, get real data
                 match self.vector_store.get_collection_metadata(&workspace_collection.name) {
@@ -198,6 +214,34 @@ impl VectorizerService for VectorizerGrpcService {
             };
             
             collection_infos.push(status);
+        }
+
+        // Add dynamic collections (like summary collections) that are not in workspace config
+        for collection_name in indexed_collections {
+            // Skip if already added from workspace collections
+            if workspace_collections.iter().any(|wc| wc.name == collection_name) {
+                continue;
+            }
+            
+            // Add dynamic collection
+            match self.vector_store.get_collection_metadata(&collection_name) {
+                Ok(metadata) => {
+                    collection_infos.push(CollectionInfo {
+                        name: collection_name.clone(),
+                        vector_count: metadata.vector_count as i32,
+                        document_count: metadata.document_count as i32,
+                        dimension: metadata.config.dimension as i32,
+                        similarity_metric: "cosine".to_string(),
+                        status: "ready".to_string(),
+                        last_updated: Utc::now().to_rfc3339(),
+                        error_message: None,
+                    });
+                }
+                Err(_) => {
+                    // Skip collections we can't get metadata for
+                    tracing::warn!("Failed to get metadata for dynamic collection: {}", collection_name);
+                }
+            }
         }
 
         let total_collections = collection_infos.len();
@@ -490,6 +534,145 @@ impl VectorizerService for VectorizerGrpcService {
             status: "found".to_string(),
         }))
     }
+
+    async fn summarize_text(&self, request: Request<SummarizeTextRequest>) -> Result<Response<SummarizeTextResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC SummarizeText request: method={}, text_length={}", 
+                       req.method, req.text.len());
+
+        // Parse method
+        let method = req.method.parse::<SummarizationMethod>()
+            .map_err(|e| Status::invalid_argument(format!("Invalid summarization method: {}", e)))?;
+
+        // Create parameters
+        let params = crate::summarization::types::SummarizationParams {
+            text: req.text.clone(),
+            method,
+            max_length: req.max_length.map(|l| l as usize),
+            compression_ratio: req.compression_ratio,
+            language: req.language,
+            metadata: req.metadata,
+        };
+
+        // Perform summarization
+        let mut summarization_manager = self.summarization_manager.lock().await;
+        let result = summarization_manager.summarize_text(params)
+            .map_err(|e| Status::internal(format!("Summarization failed: {}", e)))?;
+
+        Ok(Response::new(SummarizeTextResponse {
+            summary_id: result.summary_id,
+            original_text: result.original_text,
+            summary: result.summary,
+            method: result.method.to_string(),
+            original_length: result.original_length as i32,
+            summary_length: result.summary_length as i32,
+            compression_ratio: result.compression_ratio,
+            language: result.language,
+            status: "success".to_string(),
+            message: "Text summarized successfully".to_string(),
+            metadata: result.metadata,
+        }))
+    }
+
+    async fn summarize_context(&self, request: Request<SummarizeContextRequest>) -> Result<Response<SummarizeContextResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC SummarizeContext request: method={}, context_length={}", 
+                       req.method, req.context.len());
+
+        // Parse method
+        let method = req.method.parse::<SummarizationMethod>()
+            .map_err(|e| Status::invalid_argument(format!("Invalid summarization method: {}", e)))?;
+
+        // Create parameters
+        let params = crate::summarization::types::ContextSummarizationParams {
+            context: req.context.clone(),
+            method,
+            max_length: req.max_length.map(|l| l as usize),
+            compression_ratio: req.compression_ratio,
+            language: req.language,
+            metadata: req.metadata,
+        };
+
+        // Perform summarization
+        let mut summarization_manager = self.summarization_manager.lock().await;
+        let result = summarization_manager.summarize_context(params)
+            .map_err(|e| Status::internal(format!("Context summarization failed: {}", e)))?;
+
+        Ok(Response::new(SummarizeContextResponse {
+            summary_id: result.summary_id,
+            original_context: result.original_text,
+            summary: result.summary,
+            method: result.method.to_string(),
+            original_length: result.original_length as i32,
+            summary_length: result.summary_length as i32,
+            compression_ratio: result.compression_ratio,
+            language: result.language,
+            status: "success".to_string(),
+            message: "Context summarized successfully".to_string(),
+            metadata: result.metadata,
+        }))
+    }
+
+    async fn get_summary(&self, request: Request<GetSummaryRequest>) -> Result<Response<GetSummaryResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC GetSummary request: summary_id={}", req.summary_id);
+
+        let summarization_manager = self.summarization_manager.lock().await;
+        let summary = summarization_manager.get_summary(&req.summary_id)
+            .ok_or_else(|| Status::not_found(format!("Summary not found: {}", req.summary_id)))?;
+
+        Ok(Response::new(GetSummaryResponse {
+            summary_id: summary.summary_id.clone(),
+            original_text: summary.original_text.clone(),
+            summary: summary.summary.clone(),
+            method: summary.method.to_string(),
+            original_length: summary.original_length as i32,
+            summary_length: summary.summary_length as i32,
+            compression_ratio: summary.compression_ratio,
+            language: summary.language.clone(),
+            created_at: summary.created_at.to_rfc3339(),
+            metadata: summary.metadata.clone(),
+            status: "found".to_string(),
+        }))
+    }
+
+    async fn list_summaries(&self, request: Request<ListSummariesRequest>) -> Result<Response<ListSummariesResponse>, Status> {
+        let req = request.into_inner();
+        
+        tracing::debug!("GRPC ListSummaries request: method={:?}, language={:?}, limit={:?}", 
+                       req.method, req.language, req.limit);
+
+        let summarization_manager = self.summarization_manager.lock().await;
+        let summaries = summarization_manager.list_summaries(
+            req.method.as_deref(),
+            req.language.as_deref(),
+            req.limit.map(|l| l as usize),
+            req.offset.map(|o| o as usize),
+        );
+
+        let summary_infos: Vec<SummaryInfo> = summaries
+            .into_iter()
+            .map(|info| SummaryInfo {
+                summary_id: info.summary_id,
+                method: info.method.to_string(),
+                language: info.language,
+                original_length: info.original_length as i32,
+                summary_length: info.summary_length as i32,
+                compression_ratio: info.compression_ratio,
+                created_at: info.created_at.to_rfc3339(),
+                metadata: info.metadata,
+            })
+            .collect();
+
+        Ok(Response::new(ListSummariesResponse {
+            summaries: summary_infos,
+            total_count: summarization_manager.summaries.len() as i32,
+            status: "success".to_string(),
+        }))
+    }
 }
 
 /// Start GRPC server with configuration
@@ -498,6 +681,7 @@ pub async fn start_grpc_server(
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
+    summarization_config: Option<SummarizationConfig>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !config.enabled {
         tracing::info!("GRPC server is disabled in configuration");
@@ -508,7 +692,7 @@ pub async fn start_grpc_server(
         .parse()
         .map_err(|e| format!("Invalid GRPC server address: {}", e))?;
 
-    let service = VectorizerGrpcService::new(vector_store, embedding_manager, indexing_progress);
+    let service = VectorizerGrpcService::new(vector_store, embedding_manager, indexing_progress, summarization_config);
     
     tracing::info!("🚀 Starting GRPC server on {}:{}", config.host, config.port);
 

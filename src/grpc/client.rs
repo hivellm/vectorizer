@@ -201,4 +201,44 @@ impl VectorizerGrpcClient {
         let response = self.client.get_vector(request).await?;
         Ok(response.into_inner())
     }
+
+    /// Summarize text using GRPC
+    pub async fn summarize_text(
+        &mut self,
+        request: crate::grpc::vectorizer::SummarizeTextRequest,
+    ) -> Result<crate::grpc::vectorizer::SummarizeTextResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.summarize_text(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// Summarize context using GRPC
+    pub async fn summarize_context(
+        &mut self,
+        request: crate::grpc::vectorizer::SummarizeContextRequest,
+    ) -> Result<crate::grpc::vectorizer::SummarizeContextResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.summarize_context(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// Get summary by ID using GRPC
+    pub async fn get_summary(
+        &mut self,
+        request: crate::grpc::vectorizer::GetSummaryRequest,
+    ) -> Result<crate::grpc::vectorizer::GetSummaryResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.get_summary(request).await?;
+        Ok(response.into_inner())
+    }
+
+    /// List summaries using GRPC
+    pub async fn list_summaries(
+        &mut self,
+        request: crate::grpc::vectorizer::ListSummariesRequest,
+    ) -> Result<crate::grpc::vectorizer::ListSummariesResponse, tonic::Status> {
+        let request = tonic::Request::new(request);
+        let response = self.client.list_summaries(request).await?;
+        Ok(response.into_inner())
+    }
 }

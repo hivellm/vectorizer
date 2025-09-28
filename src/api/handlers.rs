@@ -21,6 +21,7 @@ use crate::{
     grpc::client::VectorizerGrpcClient,
     config::GrpcConfig,
     batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder},
+    summarization::{SummarizationManager, SummarizationConfig},
 };
 use std::sync::Mutex;
 
@@ -175,6 +176,8 @@ pub struct AppState {
     pub embedding_manager: Arc<Mutex<EmbeddingManager>>,
     /// GRPC client for communication with vzr
     pub grpc_client: Option<VectorizerGrpcClient>,
+    /// Summarization manager for automatic summarization
+    pub summarization_manager: Option<Arc<Mutex<SummarizationManager>>>,
     /// Server start time for uptime calculation
     pub start_time: Instant,
     /// Indexing progress tracking
@@ -187,7 +190,7 @@ pub struct AppState {
 
 impl AppState {
     /// Create new application state
-    pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager) -> Self {
+    pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager, summarization_config: Option<SummarizationConfig>) -> Self {
         // Register default providers if not already registered
         if !embedding_manager.has_provider("bm25") {
             let bm25 = Box::new(crate::embedding::Bm25Embedding::new(512));
@@ -206,6 +209,13 @@ impl AppState {
 
         // Initialize GRPC client
         let grpc_client = None; // Will be initialized later if needed
+
+        // Initialize summarization manager
+        let summarization_manager = summarization_config.map(|config| {
+            Arc::new(Mutex::new(
+                SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config())
+            ))
+        });
 
         // Initialize indexing progress for existing collections
         let mut indexing_progress = HashMap::new();
@@ -249,6 +259,7 @@ impl AppState {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
             grpc_client,
+            summarization_manager,
             start_time: Instant::now(),
             indexing_progress: IndexingProgressState::from_map(indexing_progress),
             workspace_collections,
@@ -389,6 +400,7 @@ impl AppState {
         store: Arc<VectorStore>,
         embedding_manager: EmbeddingManager,
         indexing_progress: IndexingProgressState,
+        summarization_config: Option<SummarizationConfig>,
     ) -> Self {
         // Load workspace collections
         let workspace_collections = Self::load_workspace_collections();
@@ -406,10 +418,18 @@ impl AppState {
             });
         }
 
+        // Initialize summarization manager
+        let summarization_manager = summarization_config.map(|config| {
+            Arc::new(Mutex::new(
+                SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config())
+            ))
+        });
+
         Self {
             store,
             embedding_manager: Arc::new(Mutex::new(embedding_manager)),
             grpc_client: None, // Will be initialized later if needed
+            summarization_manager,
             start_time: Instant::now(),
             indexing_progress,
             workspace_collections,
@@ -3332,4 +3352,209 @@ pub async fn get_stats(
         cpu_usage_percent,
         timestamp: chrono::Utc::now().to_rfc3339(),
     }))
+}
+
+/// Summarize text using GRPC backend
+pub async fn summarize_text(
+    State(mut state): State<AppState>,
+    Json(req): Json<SummarizeTextRequest>,
+) -> Result<Json<SummarizeTextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Convert API request to GRPC request
+        let grpc_req = crate::grpc::vectorizer::SummarizeTextRequest {
+            text: req.text.clone(),
+            method: req.method.clone(),
+            max_length: req.max_length,
+            compression_ratio: req.compression_ratio,
+            language: req.language.clone(),
+            metadata: req.metadata.unwrap_or_default(),
+        };
+        
+        match grpc_client.summarize_text(grpc_req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let api_response = SummarizeTextResponse {
+                    summary_id: response.summary_id,
+                    original_text: response.original_text,
+                    summary: response.summary,
+                    method: response.method,
+                    original_length: response.original_length,
+                    summary_length: response.summary_length,
+                    compression_ratio: response.compression_ratio,
+                    language: response.language,
+                    status: response.status,
+                    message: response.message,
+                    metadata: response.metadata,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC summarize_text failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    Err((
+        StatusCode::NOT_IMPLEMENTED,
+        Json(ErrorResponse {
+            error: "Summarization not available without GRPC connection".to_string(),
+            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+            details: None,
+        }),
+    ))
+}
+
+/// Summarize context using GRPC backend
+pub async fn summarize_context(
+    State(mut state): State<AppState>,
+    Json(req): Json<SummarizeContextRequest>,
+) -> Result<Json<SummarizeContextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Convert API request to GRPC request
+        let grpc_req = crate::grpc::vectorizer::SummarizeContextRequest {
+            context: req.context.clone(),
+            method: req.method.clone(),
+            max_length: req.max_length,
+            compression_ratio: req.compression_ratio,
+            language: req.language.clone(),
+            metadata: req.metadata.unwrap_or_default(),
+        };
+        
+        match grpc_client.summarize_context(grpc_req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let api_response = SummarizeContextResponse {
+                    summary_id: response.summary_id,
+                    original_context: response.original_context,
+                    summary: response.summary,
+                    method: response.method,
+                    original_length: response.original_length,
+                    summary_length: response.summary_length,
+                    compression_ratio: response.compression_ratio,
+                    language: response.language,
+                    status: response.status,
+                    message: response.message,
+                    metadata: response.metadata,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC summarize_context failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    Err((
+        StatusCode::NOT_IMPLEMENTED,
+        Json(ErrorResponse {
+            error: "Context summarization not available without GRPC connection".to_string(),
+            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+            details: None,
+        }),
+    ))
+}
+
+/// Get summary by ID using GRPC backend
+pub async fn get_summary(
+    State(mut state): State<AppState>,
+    Path(summary_id): Path<String>,
+) -> Result<Json<GetSummaryResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let req = crate::grpc::vectorizer::GetSummaryRequest {
+            summary_id: summary_id.clone(),
+        };
+        
+        match grpc_client.get_summary(req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let api_response = GetSummaryResponse {
+                    summary_id: response.summary_id,
+                    original_text: response.original_text,
+                    summary: response.summary,
+                    method: response.method,
+                    original_length: response.original_length,
+                    summary_length: response.summary_length,
+                    compression_ratio: response.compression_ratio,
+                    language: response.language,
+                    created_at: response.created_at,
+                    metadata: response.metadata,
+                    status: response.status,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC get_summary failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    Err((
+        StatusCode::NOT_IMPLEMENTED,
+        Json(ErrorResponse {
+            error: "Summary retrieval not available without GRPC connection".to_string(),
+            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+            details: None,
+        }),
+    ))
+}
+
+/// List summaries using GRPC backend
+pub async fn list_summaries(
+    State(mut state): State<AppState>,
+    Query(params): Query<ListSummariesQuery>,
+) -> Result<Json<ListSummariesResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let req = crate::grpc::vectorizer::ListSummariesRequest {
+            method: params.method,
+            language: params.language,
+            limit: params.limit,
+            offset: params.offset,
+        };
+        
+        match grpc_client.list_summaries(req).await {
+            Ok(response) => {
+                // Convert GRPC response to API response
+                let summaries: Vec<SummaryInfo> = response.summaries
+                    .into_iter()
+                    .map(|summary| SummaryInfo {
+                        summary_id: summary.summary_id,
+                        method: summary.method,
+                        language: summary.language,
+                        original_length: summary.original_length,
+                        summary_length: summary.summary_length,
+                        compression_ratio: summary.compression_ratio,
+                        created_at: summary.created_at,
+                        metadata: summary.metadata,
+                    })
+                    .collect();
+                
+                let api_response = ListSummariesResponse {
+                    summaries,
+                    total_count: response.total_count,
+                    status: response.status,
+                };
+                return Ok(Json(api_response));
+            },
+            Err(e) => {
+                warn!("GRPC list_summaries failed: {}, falling back to local processing", e);
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    Err((
+        StatusCode::NOT_IMPLEMENTED,
+        Json(ErrorResponse {
+            error: "Summary listing not available without GRPC connection".to_string(),
+            code: "SUMMARIZATION_NOT_AVAILABLE".to_string(),
+            details: None,
+        }),
+    ))
 }

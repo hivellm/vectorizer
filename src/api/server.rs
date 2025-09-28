@@ -4,6 +4,7 @@ use axum::{
     Router,
     response::Json,
     routing::{delete, get, post},
+    extract::DefaultBodyLimit,
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -15,7 +16,7 @@ use tower_http::{
 };
 use tracing::info;
 
-use crate::{VectorStore, embedding::EmbeddingManager};
+use crate::{VectorStore, embedding::EmbeddingManager, summarization::SummarizationConfig};
 use std::sync::Arc;
 
 use super::{handlers::AppState, routes::create_router};
@@ -35,12 +36,13 @@ impl VectorizerServer {
         port: u16,
         store: Arc<VectorStore>,
         embedding_manager: EmbeddingManager,
+        summarization_config: Option<SummarizationConfig>,
     ) -> Self {
         let addr = format!("{}:{}", host, port)
             .parse()
             .expect("Invalid host/port combination");
 
-        let state = AppState::new(store, embedding_manager);
+        let state = AppState::new(store, embedding_manager, summarization_config);
 
         Self { addr, state }
     }
@@ -103,6 +105,7 @@ impl VectorizerServer {
             .nest("/api/v1", api_router)
             .nest_service("/static", ServeDir::new("dashboard/public"))
             .fallback(not_found_handler)
+            .layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
     }
 }
 

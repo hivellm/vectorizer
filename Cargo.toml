@@ -12,7 +12,7 @@ categories = ["database", "science"]
 [dependencies]
 # Core dependencies
 tokio = { version = "1.40", features = ["full"] }
-axum = { version = "0.8", features = ["ws"] }
+axum = { version = "0.8", features = ["ws", "json"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 serde = { version = "1.0", features = ["derive"] }

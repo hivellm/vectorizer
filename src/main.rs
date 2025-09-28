@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             vectorizer::document_loader::LoaderConfig::default()
         };
         
-        let mut loader = vectorizer::document_loader::DocumentLoader::new(config);
+        let mut loader = vectorizer::document_loader::DocumentLoader::new_with_summarization(config, None);
 
         match loader.load_project(project_path, &store) {
             Ok(count) => {
@@ -194,12 +194,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         embedding_manager
     };
 
+    // Load summarization configuration if available
+    let summarization_config = if let Some(config_path) = &args.config {
+        if std::path::Path::new(config_path).exists() {
+            match load_summarization_config_from_yaml(config_path) {
+                Ok(config) => {
+                    println!("✅ Loaded summarization configuration from {}", config_path);
+                    info!("Loaded summarization configuration from {}", config_path);
+                    Some(config)
+                }
+                Err(e) => {
+                    println!("⚠️ Failed to load summarization config from {}: {}. Using defaults.", config_path, e);
+                    Some(vectorizer::summarization::SummarizationConfig::default())
+                }
+            }
+        } else {
+            println!("⚠️ Config file {} not found. Using default summarization config.", config_path);
+            Some(vectorizer::summarization::SummarizationConfig::default())
+        }
+    } else {
+        Some(vectorizer::summarization::SummarizationConfig::default())
+    };
+
     // Create and start the HTTP server
     let server = vectorizer::api::VectorizerServer::new(
         &args.host,
         args.port,
         store.into(),
         embedding_manager,
+        summarization_config,
     );
 
     info!("Starting REST API server...");
@@ -230,6 +253,15 @@ fn load_loader_config_from_yaml(config_path: &str) -> Result<vectorizer::documen
     }
     
     Ok(config)
+}
+
+/// Load SummarizationConfig from YAML file
+fn load_summarization_config_from_yaml(config_path: &str) -> Result<vectorizer::summarization::SummarizationConfig, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(config_path)?;
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(&content)?;
+    
+    vectorizer::summarization::SummarizationConfig::from_yaml(&yaml_value)
+        .map_err(|e| format!("Failed to parse summarization config: {}", e).into())
 }
 
 #[derive(Debug, Deserialize)]

@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.18.0] - 2025-09-28
 
+### 🚀 **Automatic Summarization System - Intelligent Content Processing**
+
+#### 📝 **Summarization System Implementation**
+- **NEW**: Complete automatic summarization system with MMR algorithm
+- **NEW**: Dynamic collection creation for summaries (`{collection_name}_summaries`)
+- **NEW**: Chunk-level summarization (`{collection_name}_chunk_summaries`)
+- **NEW**: Rich metadata with original file references and derived content flags
+- **NEW**: Multiple summarization methods (extractive, keyword, sentence, abstractive)
+- **ENHANCED**: Automatic summarization during document indexing
+- **ENHANCED**: Summarization triggered on cache loading for existing collections
+
+#### 🧠 **Intelligent Summarization Methods**
+- **Extractive Summarization**: MMR (Maximal Marginal Relevance) algorithm for diversity and relevance
+- **Keyword Summarization**: Key term extraction for quick content overview
+- **Sentence Summarization**: Important sentence selection for context preservation
+- **Abstractive Summarization**: Planned for future implementation
+- **Configurable Parameters**: Customizable max sentences, keywords, and quality thresholds
+
+#### 🔧 **Technical Implementation**
+- **NEW**: `src/summarization/` module with complete summarization framework
+- **NEW**: `SummarizationManager` for orchestrating summarization tasks
+- **NEW**: `SummarizationConfig` for external configuration management
+- **NEW**: GRPC RPC methods: `summarize_text`, `summarize_context`, `get_summary`, `list_summaries`
+- **ENHANCED**: `DocumentLoader` integration with automatic summarization triggers
+- **ENHANCED**: Dynamic collection creation and management for summary collections
+
+#### 📊 **Collection Management Enhancement**
+- **FIXED**: GRPC `list_collections` now includes dynamically created summary collections
+- **ENHANCED**: REST API and MCP now correctly list all collections including summaries
+- **IMPROVED**: Collection verification system for summary collection validation
+- **OPTIMIZED**: Workspace status command shows actual collections from vector store
+
+#### 🎯 **Configuration & Usage**
+```yaml
+summarization:
+  enabled: true
+  default_method: "extractive"
+  methods:
+    extractive:
+      enabled: true
+      max_sentences: 5
+      lambda: 0.7
+    keyword:
+      enabled: true
+      max_keywords: 10
+    sentence:
+      enabled: true
+      max_sentences: 3
+    abstractive:
+      enabled: false
+      max_length: 200
+```
+
 ### 🚀 **REST API & MCP Integration - Complete GRPC Architecture**
 
 #### REST API Complete Overhaul

@@ -10,6 +10,9 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🧠 Multiple Embeddings**: Support for TF-IDF, BM25, BERT, MiniLM, and custom models
 - **⚡ High Performance**: Sub-3ms search times with optimized HNSW indexing
 - **🔄 Real-time Monitoring**: Incremental file watcher for automatic document updates
+- **📝 Automatic Summarization**: Intelligent content summarization with MMR algorithm
+- **🧠 Smart Content Processing**: Automatic summarization during document indexing
+- **📋 Dynamic Collections**: Auto-created summary collections with rich metadata
 
 ### **Enterprise Features**
 - **🏗️ GRPC Architecture**: High-performance binary communication between services
@@ -25,14 +28,46 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔄 Incremental Updates**: Only process changed files for optimal performance
 - **📊 Real-time Statistics**: Live monitoring of indexing progress and system health
 
+## 📝 **Automatic Summarization System**
+
+Vectorizer includes an intelligent summarization system that automatically processes documents during indexing:
+
+### **🧠 Summarization Methods**
+- **Extractive Summarization**: MMR (Maximal Marginal Relevance) algorithm for diversity and relevance
+- **Keyword Summarization**: Key term extraction for quick content overview  
+- **Sentence Summarization**: Important sentence selection for context preservation
+- **Abstractive Summarization**: Planned for future implementation
+
+### **📋 Dynamic Collections**
+- **File Summaries**: `{collection_name}_summaries` - Complete document summaries
+- **Chunk Summaries**: `{collection_name}_chunk_summaries` - Individual chunk summaries
+- **Rich Metadata**: References to original files, timestamps, and derived content flags
+- **Automatic Creation**: Summary collections created automatically during indexing
+
+### **⚙️ Configuration**
+```yaml
+summarization:
+  enabled: true
+  default_method: "extractive"
+  methods:
+    extractive:
+      enabled: true
+      max_sentences: 5
+      lambda: 0.7
+    keyword:
+      enabled: true
+      max_keywords: 10
+```
+
 ## 🎯 **Current Status**
 
 **Version**: v0.18.0  
 **Status**: ✅ **Production Ready**  
-**Collections**: 27 active collections across 8 projects  
+**Collections**: 61 active collections (including 34 summary collections) across 8 projects  
 **Performance**: Sub-3ms search with 85% improved semantic relevance  
 **Architecture**: GRPC + REST + MCP unified server system  
-**Integration**: ✅ **REST API & MCP 100% GRPC-integrated**
+**Integration**: ✅ **REST API & MCP 100% GRPC-integrated**  
+**Summarization**: ✅ **Automatic summarization with MMR algorithm**
 
 ## 🏗️ **Architecture**
 

@@ -570,3 +570,167 @@ pub struct CollectionStats {
     /// Last updated timestamp
     pub last_updated: String,
 }
+
+// =============================================================================
+// SUMMARIZATION TYPES
+// =============================================================================
+
+/// Request to summarize text
+#[derive(Debug, Deserialize, Clone)]
+pub struct SummarizeTextRequest {
+    /// Text to summarize
+    pub text: String,
+    /// Summarization method (extractive, keyword, sentence, abstractive)
+    pub method: String,
+    /// Maximum summary length (optional)
+    pub max_length: Option<i32>,
+    /// Compression ratio (optional)
+    pub compression_ratio: Option<f32>,
+    /// Language code (optional)
+    pub language: Option<String>,
+    /// Additional metadata (optional)
+    pub metadata: Option<HashMap<String, String>>,
+}
+
+/// Response for text summarization
+#[derive(Debug, Serialize)]
+pub struct SummarizeTextResponse {
+    /// Summary ID
+    pub summary_id: String,
+    /// Original text
+    pub original_text: String,
+    /// Generated summary
+    pub summary: String,
+    /// Method used
+    pub method: String,
+    /// Original text length
+    pub original_length: i32,
+    /// Summary length
+    pub summary_length: i32,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Language
+    pub language: String,
+    /// Status
+    pub status: String,
+    /// Message
+    pub message: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// Request to summarize context
+#[derive(Debug, Deserialize, Clone)]
+pub struct SummarizeContextRequest {
+    /// Context to summarize
+    pub context: String,
+    /// Summarization method (extractive, keyword, sentence, abstractive)
+    pub method: String,
+    /// Maximum summary length (optional)
+    pub max_length: Option<i32>,
+    /// Compression ratio (optional)
+    pub compression_ratio: Option<f32>,
+    /// Language code (optional)
+    pub language: Option<String>,
+    /// Additional metadata (optional)
+    pub metadata: Option<HashMap<String, String>>,
+}
+
+/// Response for context summarization
+#[derive(Debug, Serialize)]
+pub struct SummarizeContextResponse {
+    /// Summary ID
+    pub summary_id: String,
+    /// Original context
+    pub original_context: String,
+    /// Generated summary
+    pub summary: String,
+    /// Method used
+    pub method: String,
+    /// Original context length
+    pub original_length: i32,
+    /// Summary length
+    pub summary_length: i32,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Language
+    pub language: String,
+    /// Status
+    pub status: String,
+    /// Message
+    pub message: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// Response for getting a summary
+#[derive(Debug, Serialize)]
+pub struct GetSummaryResponse {
+    /// Summary ID
+    pub summary_id: String,
+    /// Original text
+    pub original_text: String,
+    /// Generated summary
+    pub summary: String,
+    /// Method used
+    pub method: String,
+    /// Original text length
+    pub original_length: i32,
+    /// Summary length
+    pub summary_length: i32,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Language
+    pub language: String,
+    /// Creation timestamp
+    pub created_at: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+    /// Status
+    pub status: String,
+}
+
+/// Query parameters for listing summaries
+#[derive(Debug, Deserialize)]
+pub struct ListSummariesQuery {
+    /// Filter by method (optional)
+    pub method: Option<String>,
+    /// Filter by language (optional)
+    pub language: Option<String>,
+    /// Maximum number of summaries to return (optional)
+    pub limit: Option<i32>,
+    /// Offset for pagination (optional)
+    pub offset: Option<i32>,
+}
+
+/// Summary information for listing
+#[derive(Debug, Serialize)]
+pub struct SummaryInfo {
+    /// Summary ID
+    pub summary_id: String,
+    /// Method used
+    pub method: String,
+    /// Language
+    pub language: String,
+    /// Original text length
+    pub original_length: i32,
+    /// Summary length
+    pub summary_length: i32,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Creation timestamp
+    pub created_at: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// Response for listing summaries
+#[derive(Debug, Serialize)]
+pub struct ListSummariesResponse {
+    /// List of summaries
+    pub summaries: Vec<SummaryInfo>,
+    /// Total count
+    pub total_count: i32,
+    /// Status
+    pub status: String,
+}

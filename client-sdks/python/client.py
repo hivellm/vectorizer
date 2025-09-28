@@ -39,7 +39,15 @@ from models import (
     BatchTextRequest,
     BatchSearchQuery,
     BatchVectorUpdate,
-    BatchConfig
+    BatchConfig,
+    # Summarization models
+    SummarizeTextRequest,
+    SummarizeTextResponse,
+    SummarizeContextRequest,
+    SummarizeContextResponse,
+    GetSummaryResponse,
+    SummaryInfo,
+    ListSummariesResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -639,6 +647,168 @@ class VectorizerClient:
                     raise ServerError(f"Failed to batch delete vectors: {response.status}")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to batch delete vectors: {e}")
+
+    # =============================================================================
+    # SUMMARIZATION METHODS
+    # =============================================================================
+
+    async def summarize_text(
+        self, 
+        request: SummarizeTextRequest
+    ) -> SummarizeTextResponse:
+        """
+        Summarize text using various methods.
+        
+        Args:
+            request: Summarization request
+            
+        Returns:
+            Summarization response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        logger.debug(f"Summarizing text using method '{request.method}'")
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/api/v1/summarize/text",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Text summarized successfully: {data['summary_length']} chars from {data['original_length']} chars")
+                    return SummarizeTextResponse(**data)
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to summarize text: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to summarize text: {e}")
+
+    async def summarize_context(
+        self, 
+        request: SummarizeContextRequest
+    ) -> SummarizeContextResponse:
+        """
+        Summarize context using various methods.
+        
+        Args:
+            request: Context summarization request
+            
+        Returns:
+            Context summarization response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        logger.debug(f"Summarizing context using method '{request.method}'")
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/api/v1/summarize/context",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Context summarized successfully: {data['summary_length']} chars from {data['original_length']} chars")
+                    return SummarizeContextResponse(**data)
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to summarize context: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to summarize context: {e}")
+
+    async def get_summary(
+        self, 
+        summary_id: str
+    ) -> GetSummaryResponse:
+        """
+        Get a specific summary by ID.
+        
+        Args:
+            summary_id: Summary ID
+            
+        Returns:
+            Summary response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If summary not found
+        """
+        logger.debug(f"Getting summary '{summary_id}'")
+        
+        try:
+            async with self._session.get(
+                f"{self.base_url}/api/v1/summaries/{summary_id}"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Summary retrieved successfully: {data['summary_length']} chars")
+                    return GetSummaryResponse(**data)
+                elif response.status == 404:
+                    raise ValidationError(f"Summary '{summary_id}' not found")
+                else:
+                    raise ServerError(f"Failed to get summary: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get summary: {e}")
+
+    async def list_summaries(
+        self, 
+        method: Optional[str] = None,
+        language: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None
+    ) -> ListSummariesResponse:
+        """
+        List summaries with optional filtering.
+        
+        Args:
+            method: Filter by summarization method
+            language: Filter by language
+            limit: Maximum number of summaries to return
+            offset: Offset for pagination
+            
+        Returns:
+            List of summaries response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        logger.debug(f"Listing summaries with filters: method={method}, language={language}, limit={limit}, offset={offset}")
+        
+        params = {}
+        if method:
+            params['method'] = method
+        if language:
+            params['language'] = language
+        if limit:
+            params['limit'] = limit
+        if offset:
+            params['offset'] = offset
+        
+        try:
+            async with self._session.get(
+                f"{self.base_url}/api/v1/summaries",
+                params=params
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Retrieved {len(data['summaries'])} summaries (total: {data['total_count']})")
+                    return ListSummariesResponse(**data)
+                else:
+                    raise ServerError(f"Failed to list summaries: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list summaries: {e}")
 
     async def get_indexing_progress(self) -> Dict[str, Any]:
         """

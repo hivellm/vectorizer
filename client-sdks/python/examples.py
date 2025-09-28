@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any
 
 from client import VectorizerClient
-from models import Vector, CollectionInfo, SearchResult, BatchInsertRequest, BatchTextRequest, BatchSearchRequest, BatchSearchQuery, BatchDeleteRequest, BatchConfig
+from models import Vector, CollectionInfo, SearchResult, BatchInsertRequest, BatchTextRequest, BatchSearchRequest, BatchSearchQuery, BatchDeleteRequest, BatchConfig, SummarizeTextRequest, SummarizeContextRequest
 from exceptions import (
     VectorizerError,
     CollectionNotFoundError,
@@ -404,6 +404,89 @@ async def main():
         raise
 
 
-if __name__ == "__main__":
-    # Run examples
-    asyncio.run(main())
+async def summarization_example():
+    """Example demonstrating text and context summarization."""
+    print("=== Summarization Example ===")
+    
+    async with VectorizerClient(
+        base_url="http://localhost:15001",
+        api_key="your-api-key-here"
+    ) as client:
+        
+        # Example text to summarize
+        long_text = """
+        Artificial Intelligence (AI) has revolutionized numerous industries and continues to shape the future of technology. 
+        From healthcare to finance, AI applications are transforming how we work, live, and interact with the world around us.
+        
+        In healthcare, AI is being used for medical diagnosis, drug discovery, and personalized treatment plans. 
+        Machine learning algorithms can analyze vast amounts of medical data to identify patterns and predict outcomes.
+        
+        In finance, AI powers algorithmic trading, fraud detection, and risk assessment. 
+        These systems can process millions of transactions in real-time to identify suspicious activities.
+        
+        The automotive industry is leveraging AI for autonomous vehicles, traffic optimization, and predictive maintenance.
+        Self-driving cars use computer vision and machine learning to navigate roads safely.
+        
+        As AI technology continues to advance, we can expect even more innovative applications across various sectors.
+        However, it's important to consider the ethical implications and ensure responsible AI development.
+        """
+        
+        try:
+            # Summarize text using extractive method
+            print("Summarizing text using extractive method...")
+            text_request = SummarizeTextRequest(
+                text=long_text,
+                method="extractive",
+                compression_ratio=0.3,
+                language="en"
+            )
+            
+            text_response = await client.summarize_text(text_request)
+            print(f"Original length: {text_response.original_length} characters")
+            print(f"Summary length: {text_response.summary_length} characters")
+            print(f"Compression ratio: {text_response.compression_ratio:.2f}")
+            print(f"Summary: {text_response.summary}")
+            
+            # Summarize context using keyword method
+            print("\nSummarizing context using keyword method...")
+            context_request = SummarizeContextRequest(
+                context=long_text,
+                method="keyword",
+                max_length=100,
+                language="en"
+            )
+            
+            context_response = await client.summarize_context(context_request)
+            print(f"Context summary: {context_response.summary}")
+            
+            # Get the summary by ID
+            print(f"\nRetrieving summary by ID: {text_response.summary_id}")
+            summary = await client.get_summary(text_response.summary_id)
+            print(f"Retrieved summary: {summary.summary}")
+            
+            # List all summaries
+            print("\nListing all summaries...")
+            summaries = await client.list_summaries(limit=5)
+            print(f"Found {summaries.total_count} total summaries")
+            for summary_info in summaries.summaries:
+                print(f"- {summary_info.summary_id}: {summary_info.method} ({summary_info.language})")
+            
+            print("\n=== Summarization Example Completed Successfully ===")
+            
+        except Exception as e:
+            logger.error(f"Summarization example failed: {e}")
+            raise
+
+
+async def main():
+    """Run all examples."""
+    try:
+        await basic_example()
+        await batch_operations_example()
+        await summarization_example()
+        
+        print("\n=== All Examples Completed Successfully ===")
+        
+    except Exception as e:
+        logger.error(f"Example failed: {e}")
+        raise

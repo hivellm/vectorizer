@@ -511,6 +511,142 @@ impl ServerHandler for VectorizerService {
                     icons: None,
                     annotations: None,
                 },
+                // Summarization tools
+                Tool {
+                    name: Cow::Borrowed("summarize_text"),
+                    title: Some("Summarize Text".to_string()),
+                    description: Some(Cow::Borrowed("Summarize text using various methods (extractive, keyword, sentence, abstractive)")),
+                    input_schema: json!({
+                        "type": "object",
+                        "properties": {
+                            "text": {
+                                "type": "string",
+                                "description": "Text to summarize"
+                            },
+                            "method": {
+                                "type": "string",
+                                "description": "Summarization method",
+                                "enum": ["extractive", "keyword", "sentence", "abstractive"],
+                                "default": "extractive"
+                            },
+                            "max_length": {
+                                "type": "integer",
+                                "description": "Maximum summary length (optional)"
+                            },
+                            "compression_ratio": {
+                                "type": "number",
+                                "description": "Compression ratio (0.1-0.9, optional)"
+                            },
+                            "language": {
+                                "type": "string",
+                                "description": "Language code (optional)"
+                            }
+                        },
+                        "required": ["text"]
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone()
+                    .into(),
+                    output_schema: None,
+                    icons: None,
+                    annotations: None,
+                },
+                Tool {
+                    name: Cow::Borrowed("summarize_context"),
+                    title: Some("Summarize Context".to_string()),
+                    description: Some(Cow::Borrowed("Summarize context for AI models to understand project content")),
+                    input_schema: json!({
+                        "type": "object",
+                        "properties": {
+                            "context": {
+                                "type": "string",
+                                "description": "Context to summarize"
+                            },
+                            "method": {
+                                "type": "string",
+                                "description": "Summarization method",
+                                "enum": ["extractive", "keyword", "sentence", "abstractive"],
+                                "default": "extractive"
+                            },
+                            "max_length": {
+                                "type": "integer",
+                                "description": "Maximum summary length (optional)"
+                            },
+                            "compression_ratio": {
+                                "type": "number",
+                                "description": "Compression ratio (0.1-0.9, optional)"
+                            },
+                            "language": {
+                                "type": "string",
+                                "description": "Language code (optional)"
+                            }
+                        },
+                        "required": ["context"]
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone()
+                    .into(),
+                    output_schema: None,
+                    icons: None,
+                    annotations: None,
+                },
+                Tool {
+                    name: Cow::Borrowed("get_summary"),
+                    title: Some("Get Summary".to_string()),
+                    description: Some(Cow::Borrowed("Get a specific summary by ID")),
+                    input_schema: json!({
+                        "type": "object",
+                        "properties": {
+                            "summary_id": {
+                                "type": "string",
+                                "description": "Summary ID"
+                            }
+                        },
+                        "required": ["summary_id"]
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone()
+                    .into(),
+                    output_schema: None,
+                    icons: None,
+                    annotations: None,
+                },
+                Tool {
+                    name: Cow::Borrowed("list_summaries"),
+                    title: Some("List Summaries".to_string()),
+                    description: Some(Cow::Borrowed("List all available summaries with optional filtering")),
+                    input_schema: json!({
+                        "type": "object",
+                        "properties": {
+                            "method": {
+                                "type": "string",
+                                "description": "Filter by summarization method (optional)"
+                            },
+                            "language": {
+                                "type": "string",
+                                "description": "Filter by language (optional)"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum number of summaries to return (optional)"
+                            },
+                            "offset": {
+                                "type": "integer",
+                                "description": "Offset for pagination (optional)"
+                            }
+                        }
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone()
+                    .into(),
+                    output_schema: None,
+                    icons: None,
+                    annotations: None,
+                },
             ];
 
             Ok(ListToolsResult {
@@ -1293,6 +1429,201 @@ impl ServerHandler for VectorizerService {
                         "status": response.status,
                         "message": response.message,
                         "operation": "batch_delete_vectors"
+                    }).to_string();
+
+                    Ok(CallToolResult {
+                        content: vec![rmcp::model::Content::text(result_text)],
+                        structured_content: None,
+                        is_error: Some(false),
+                        meta: None,
+                    })
+                }
+
+                // Summarization tools
+                "summarize_text" => {
+                    let args = request
+                        .arguments
+                        .as_ref()
+                        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+                    let text = args.get("text").and_then(|t| t.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("Missing text parameter", None)
+                    })?;
+
+                    let method = args.get("method").and_then(|m| m.as_str()).unwrap_or("extractive");
+                    let max_length = args.get("max_length").and_then(|l| l.as_i64()).map(|l| l as i32);
+                    let compression_ratio = args.get("compression_ratio").and_then(|r| r.as_f64()).map(|r| r as f32);
+                    let language = args.get("language").and_then(|l| l.as_str()).map(|s| s.to_string());
+
+                    // Make GRPC request
+                    let mut grpc_client = self.get_grpc_client().await?;
+                    let response = grpc_client
+                        .summarize_text(crate::grpc::vectorizer::SummarizeTextRequest {
+                            text: text.to_string(),
+                            method: method.to_string(),
+                            max_length,
+                            compression_ratio,
+                            language,
+                            metadata: std::collections::HashMap::new(),
+                        })
+                        .await
+                        .map_err(|e| ErrorData::internal_error(format!("GRPC summarize_text failed: {}", e), None))?;
+
+                    let result_text = json!({
+                        "summary_id": response.summary_id,
+                        "original_text": response.original_text,
+                        "summary": response.summary,
+                        "method": response.method,
+                        "original_length": response.original_length,
+                        "summary_length": response.summary_length,
+                        "compression_ratio": response.compression_ratio,
+                        "language": response.language,
+                        "status": response.status,
+                        "message": response.message,
+                        "metadata": response.metadata
+                    }).to_string();
+
+                    Ok(CallToolResult {
+                        content: vec![rmcp::model::Content::text(result_text)],
+                        structured_content: None,
+                        is_error: Some(false),
+                        meta: None,
+                    })
+                }
+
+                "summarize_context" => {
+                    let args = request
+                        .arguments
+                        .as_ref()
+                        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+                    let context = args.get("context").and_then(|c| c.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("Missing context parameter", None)
+                    })?;
+
+                    let method = args.get("method").and_then(|m| m.as_str()).unwrap_or("extractive");
+                    let max_length = args.get("max_length").and_then(|l| l.as_i64()).map(|l| l as i32);
+                    let compression_ratio = args.get("compression_ratio").and_then(|r| r.as_f64()).map(|r| r as f32);
+                    let language = args.get("language").and_then(|l| l.as_str()).map(|s| s.to_string());
+
+                    // Make GRPC request
+                    let mut grpc_client = self.get_grpc_client().await?;
+                    let response = grpc_client
+                        .summarize_context(crate::grpc::vectorizer::SummarizeContextRequest {
+                            context: context.to_string(),
+                            method: method.to_string(),
+                            max_length,
+                            compression_ratio,
+                            language,
+                            metadata: std::collections::HashMap::new(),
+                        })
+                        .await
+                        .map_err(|e| ErrorData::internal_error(format!("GRPC summarize_context failed: {}", e), None))?;
+
+                    let result_text = json!({
+                        "summary_id": response.summary_id,
+                        "original_context": response.original_context,
+                        "summary": response.summary,
+                        "method": response.method,
+                        "original_length": response.original_length,
+                        "summary_length": response.summary_length,
+                        "compression_ratio": response.compression_ratio,
+                        "language": response.language,
+                        "status": response.status,
+                        "message": response.message,
+                        "metadata": response.metadata
+                    }).to_string();
+
+                    Ok(CallToolResult {
+                        content: vec![rmcp::model::Content::text(result_text)],
+                        structured_content: None,
+                        is_error: Some(false),
+                        meta: None,
+                    })
+                }
+
+                "get_summary" => {
+                    let args = request
+                        .arguments
+                        .as_ref()
+                        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+                    let summary_id = args.get("summary_id").and_then(|s| s.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("Missing summary_id parameter", None)
+                    })?;
+
+                    // Make GRPC request
+                    let mut grpc_client = self.get_grpc_client().await?;
+                    let response = grpc_client
+                        .get_summary(crate::grpc::vectorizer::GetSummaryRequest {
+                            summary_id: summary_id.to_string(),
+                        })
+                        .await
+                        .map_err(|e| ErrorData::internal_error(format!("GRPC get_summary failed: {}", e), None))?;
+
+                    let result_text = json!({
+                        "summary_id": response.summary_id,
+                        "original_text": response.original_text,
+                        "summary": response.summary,
+                        "method": response.method,
+                        "original_length": response.original_length,
+                        "summary_length": response.summary_length,
+                        "compression_ratio": response.compression_ratio,
+                        "language": response.language,
+                        "created_at": response.created_at,
+                        "metadata": response.metadata,
+                        "status": response.status
+                    }).to_string();
+
+                    Ok(CallToolResult {
+                        content: vec![rmcp::model::Content::text(result_text)],
+                        structured_content: None,
+                        is_error: Some(false),
+                        meta: None,
+                    })
+                }
+
+                "list_summaries" => {
+                    let args = request
+                        .arguments
+                        .as_ref()
+                        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+                    let method = args.get("method").and_then(|m| m.as_str()).map(|s| s.to_string());
+                    let language = args.get("language").and_then(|l| l.as_str()).map(|s| s.to_string());
+                    let limit = args.get("limit").and_then(|l| l.as_i64()).map(|l| l as i32);
+                    let offset = args.get("offset").and_then(|o| o.as_i64()).map(|o| o as i32);
+
+                    // Make GRPC request
+                    let mut grpc_client = self.get_grpc_client().await?;
+                    let response = grpc_client
+                        .list_summaries(crate::grpc::vectorizer::ListSummariesRequest {
+                            method,
+                            language,
+                            limit,
+                            offset,
+                        })
+                        .await
+                        .map_err(|e| ErrorData::internal_error(format!("GRPC list_summaries failed: {}", e), None))?;
+
+                    let summaries: Vec<serde_json::Value> = response.summaries
+                        .into_iter()
+                        .map(|summary| json!({
+                            "summary_id": summary.summary_id,
+                            "method": summary.method,
+                            "language": summary.language,
+                            "original_length": summary.original_length,
+                            "summary_length": summary.summary_length,
+                            "compression_ratio": summary.compression_ratio,
+                            "created_at": summary.created_at,
+                            "metadata": summary.metadata
+                        }))
+                        .collect();
+
+                    let result_text = json!({
+                        "summaries": summaries,
+                        "total_count": response.total_count,
+                        "status": response.status
                     }).to_string();
 
                     Ok(CallToolResult {

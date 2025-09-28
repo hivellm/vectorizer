@@ -332,3 +332,123 @@ class BatchDeleteRequest:
         """Validate batch delete request after initialization."""
         if not self.vector_ids:
             raise ValueError("Vector IDs list cannot be empty")
+
+
+# =============================================================================
+# SUMMARIZATION MODELS
+# =============================================================================
+
+@dataclass
+class SummarizeTextRequest:
+    """Request to summarize text."""
+    
+    text: str
+    method: str = "extractive"
+    max_length: Optional[int] = None
+    compression_ratio: Optional[float] = None
+    language: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+    
+    def __post_init__(self):
+        """Validate summarization request after initialization."""
+        if not self.text:
+            raise ValueError("Text cannot be empty")
+        if self.method not in ["extractive", "keyword", "sentence", "abstractive"]:
+            raise ValueError("Invalid summarization method")
+        if self.compression_ratio is not None and not (0.1 <= self.compression_ratio <= 0.9):
+            raise ValueError("Compression ratio must be between 0.1 and 0.9")
+
+
+@dataclass
+class SummarizeTextResponse:
+    """Response for text summarization."""
+    
+    summary_id: str
+    original_text: str
+    summary: str
+    method: str
+    original_length: int
+    summary_length: int
+    compression_ratio: float
+    language: str
+    status: str
+    message: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class SummarizeContextRequest:
+    """Request to summarize context."""
+    
+    context: str
+    method: str = "extractive"
+    max_length: Optional[int] = None
+    compression_ratio: Optional[float] = None
+    language: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+    
+    def __post_init__(self):
+        """Validate context summarization request after initialization."""
+        if not self.context:
+            raise ValueError("Context cannot be empty")
+        if self.method not in ["extractive", "keyword", "sentence", "abstractive"]:
+            raise ValueError("Invalid summarization method")
+        if self.compression_ratio is not None and not (0.1 <= self.compression_ratio <= 0.9):
+            raise ValueError("Compression ratio must be between 0.1 and 0.9")
+
+
+@dataclass
+class SummarizeContextResponse:
+    """Response for context summarization."""
+    
+    summary_id: str
+    original_context: str
+    summary: str
+    method: str
+    original_length: int
+    summary_length: int
+    compression_ratio: float
+    language: str
+    status: str
+    message: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class GetSummaryResponse:
+    """Response for getting a summary."""
+    
+    summary_id: str
+    original_text: str
+    summary: str
+    method: str
+    original_length: int
+    summary_length: int
+    compression_ratio: float
+    language: str
+    created_at: str
+    metadata: Dict[str, str]
+    status: str
+
+
+@dataclass
+class SummaryInfo:
+    """Summary information for listing."""
+    
+    summary_id: str
+    method: str
+    language: str
+    original_length: int
+    summary_length: int
+    compression_ratio: float
+    created_at: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class ListSummariesResponse:
+    """Response for listing summaries."""
+    
+    summaries: List[SummaryInfo]
+    total_count: int
+    status: str

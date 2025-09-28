@@ -210,6 +210,95 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
                     └─────────────────┘
 ```
 
+## Text Summarization
+
+All SDKs support intelligent text and context summarization with multiple algorithms:
+
+### Summarize Text
+```typescript
+// TypeScript/JavaScript
+const summary = await client.summarizeText({
+  text: 'Long document text here...',
+  method: 'extractive', // extractive, keyword, sentence, abstractive
+  compression_ratio: 0.3,
+  language: 'en'
+});
+
+console.log(`Summary: ${summary.summary}`);
+console.log(`Compression: ${summary.compression_ratio}`);
+```
+
+```python
+# Python
+from vectorizer.models import SummarizeTextRequest
+
+summary = await client.summarize_text(SummarizeTextRequest(
+    text='Long document text here...',
+    method='extractive',
+    compression_ratio=0.3,
+    language='en'
+))
+
+print(f"Summary: {summary.summary}")
+print(f"Compression: {summary.compression_ratio}")
+```
+
+### Summarize Context
+```typescript
+// TypeScript/JavaScript
+const contextSummary = await client.summarizeContext({
+  context: 'Context information here...',
+  method: 'keyword',
+  max_length: 100,
+  language: 'en'
+});
+```
+
+```python
+# Python
+from vectorizer.models import SummarizeContextRequest
+
+context_summary = await client.summarize_context(SummarizeContextRequest(
+    context='Context information here...',
+    method='keyword',
+    max_length=100,
+    language='en'
+))
+```
+
+### Summary Management
+```typescript
+// TypeScript/JavaScript
+// Get summary by ID
+const retrieved = await client.getSummary(summary.summary_id);
+
+// List summaries with filtering
+const summaries = await client.listSummaries({
+  method: 'extractive',
+  language: 'en',
+  limit: 10
+});
+```
+
+```python
+# Python
+# Get summary by ID
+retrieved = await client.get_summary(summary.summary_id)
+
+# List summaries with filtering
+summaries = await client.list_summaries(
+    method='extractive',
+    language='en',
+    limit=10
+)
+```
+
+### Available Summarization Methods
+- **extractive**: Uses MMR (Maximal Marginal Relevance) algorithm for extractive summarization
+- **keyword**: Extracts key terms and phrases
+- **sentence**: Selects most important sentences
+- **abstractive**: Generates abstract summaries (experimental)
+
 ## Development
 
 ### Building SDKs

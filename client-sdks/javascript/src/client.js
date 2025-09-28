@@ -48,6 +48,16 @@ import {
 } from './models/batch.js';
 
 import {
+  SummarizeTextRequest,
+  SummarizeTextResponse,
+  SummarizeContextRequest,
+  SummarizeContextResponse,
+  GetSummaryResponse,
+  SummaryInfo,
+  ListSummariesResponse
+} from './models/summarization.js';
+
+import {
   VectorizerError,
   AuthenticationError,
   CollectionNotFoundError,
@@ -565,6 +575,124 @@ export class VectorizerClient {
       return new BatchResponse(response);
     } catch (error) {
       this.logger.error('Batch delete failed', { collection, error });
+      throw error;
+    }
+  }
+
+  // =============================================================================
+  // SUMMARIZATION METHODS
+  // =============================================================================
+
+  /**
+   * Summarize text using various methods
+   * @param {SummarizeTextRequest} request - Summarization request
+   * @returns {Promise<SummarizeTextResponse>} Summarization response
+   */
+  async summarizeText(request) {
+    this.logger.debug('Summarizing text', { method: request.method, textLength: request.text.length });
+
+    try {
+      const response = await this.httpClient.post(
+        '/api/v1/summarize/text',
+        request.toJSON()
+      );
+
+      this.logger.info('Text summarized successfully', {
+        summaryId: response.summary_id,
+        originalLength: response.original_length,
+        summaryLength: response.summary_length,
+        compressionRatio: response.compression_ratio,
+        method: response.method,
+      });
+
+      return new SummarizeTextResponse(response);
+    } catch (error) {
+      this.logger.error('Text summarization failed', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Summarize context using various methods
+   * @param {SummarizeContextRequest} request - Context summarization request
+   * @returns {Promise<SummarizeContextResponse>} Context summarization response
+   */
+  async summarizeContext(request) {
+    this.logger.debug('Summarizing context', { method: request.method, contextLength: request.context.length });
+
+    try {
+      const response = await this.httpClient.post(
+        '/api/v1/summarize/context',
+        request.toJSON()
+      );
+
+      this.logger.info('Context summarized successfully', {
+        summaryId: response.summary_id,
+        originalLength: response.original_length,
+        summaryLength: response.summary_length,
+        compressionRatio: response.compression_ratio,
+        method: response.method,
+      });
+
+      return new SummarizeContextResponse(response);
+    } catch (error) {
+      this.logger.error('Context summarization failed', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get a specific summary by ID
+   * @param {string} summaryId - Summary ID
+   * @returns {Promise<GetSummaryResponse>} Summary response
+   */
+  async getSummary(summaryId) {
+    this.logger.debug('Getting summary', { summaryId });
+
+    try {
+      const response = await this.httpClient.get(
+        `/api/v1/summaries/${summaryId}`
+      );
+
+      this.logger.info('Summary retrieved successfully', {
+        summaryId: response.summary_id,
+        method: response.method,
+        summaryLength: response.summary_length,
+      });
+
+      return new GetSummaryResponse(response);
+    } catch (error) {
+      this.logger.error('Get summary failed', { summaryId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * List summaries with optional filtering
+   * @param {Object} query - Query parameters
+   * @param {string} [query.method] - Filter by summarization method
+   * @param {string} [query.language] - Filter by language
+   * @param {number} [query.limit] - Maximum number of summaries to return
+   * @param {number} [query.offset] - Offset for pagination
+   * @returns {Promise<ListSummariesResponse>} List of summaries response
+   */
+  async listSummaries(query = {}) {
+    this.logger.debug('Listing summaries', { query });
+
+    try {
+      const response = await this.httpClient.get(
+        '/api/v1/summaries',
+        { params: query }
+      );
+
+      this.logger.info('Summaries listed successfully', {
+        count: response.summaries.length,
+        totalCount: response.total_count,
+      });
+
+      return new ListSummariesResponse(response);
+    } catch (error) {
+      this.logger.error('List summaries failed', { error });
       throw error;
     }
   }
