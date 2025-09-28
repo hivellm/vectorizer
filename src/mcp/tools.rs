@@ -153,8 +153,8 @@ impl McpTools {
         }))
     }
 
-    /// Insert vectors into a collection
-    pub async fn insert_vectors(
+    /// Insert texts into a collection (embeddings generated automatically)
+    pub async fn insert_texts(
         collection: &str,
         vectors: Vec<(String, Vec<f32>, Option<serde_json::Value>)>,
         vector_store: &VectorStore,

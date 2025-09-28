@@ -67,7 +67,7 @@ async def basic_example():
             vectors.append(vector)
         
         # Insert vectors
-        result = await client.insert_vectors("example_collection", vectors)
+        result = await client.insert_texts("example_collection", vectors)
         print(f"Inserted {len(vectors)} vectors")
         
         # Search for similar vectors
@@ -127,7 +127,7 @@ async def advanced_example():
                 vectors.append(vector)
             
             # Insert vectors in batch
-            await client.insert_vectors("advanced_collection", vectors)
+            await client.insert_texts("advanced_collection", vectors)
             print(f"Inserted {len(vectors)} vectors in batch")
             
             # Multiple search queries
@@ -262,7 +262,7 @@ async def real_world_example():
             vectors.append(vector)
         
         # Insert all documents
-        await client.insert_vectors("document_search", vectors)
+        await client.insert_texts("document_search", vectors)
         print(f"Indexed {len(documents)} documents")
         
         # Search for similar documents

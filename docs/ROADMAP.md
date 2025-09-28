@@ -311,7 +311,7 @@ Advanced optimizations and experimental integrations.
 
 #### Week 29-32: MCP Enhancements & Summarization ✅ PARTIALLY COMPLETED
 - [x] **Dynamic MCP Operations**
-  - [x] Real-time vector creation via MCP (insert_vectors)
+  - [x] Real-time vector creation via MCP (insert_texts)
   - [x] Real-time vector deletion via MCP (delete_vectors)
   - [x] Vector retrieval via MCP (get_vector)
   - [x] Collection management via MCP (create_collection, delete_collection)
@@ -384,7 +384,7 @@ Advanced optimizations and experimental integrations.
   - [ ] `DELETE /api/v1/collections/{collection}/vectors/batch`
   - [ ] `POST /api/v1/collections/{collection}/search/batch`
 - [ ] **MCP Batch Tools**
-  - [ ] `batch_insert_vectors` MCP tool
+  - [ ] `batch_insert_texts` MCP tool
   - [ ] `batch_update_vectors` MCP tool
   - [ ] `batch_delete_vectors` MCP tool
   - [ ] `batch_search_vectors` MCP tool
@@ -492,7 +492,7 @@ Advanced optimizations and experimental integrations.
 - [x] **GRPC Vector Operations**: Insert/delete/retrieve operations fully implemented
 - [x] **Incremental Indexing**: Background processing queue with optimized resource usage
 - [x] **Cache Management**: Unified server management with optimized startup
-- [x] **MCP Enhancements**: Real-time vector operations via MCP (insert_vectors, delete_vectors, get_vector)
+- [x] **MCP Enhancements**: Real-time vector operations via MCP (insert_texts, delete_vectors, get_vector)
 - [x] **Server Architecture**: Unified server management eliminating duplication issues
 - [x] **Performance**: Sub-3ms search with 85% improvement in semantic relevance
 - [x] **Quality**: 27 collections across 8 projects successfully indexed

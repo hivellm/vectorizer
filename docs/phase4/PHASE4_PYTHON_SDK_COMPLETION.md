@@ -145,7 +145,7 @@ vectors = [{
     "metadata": {"source": "ml_guide.pdf"}
 }]
 
-await client.insert_vectors("documents", vectors)
+await client.insert_texts("documents", vectors)
 
 # Search
 results = await client.search_vectors(

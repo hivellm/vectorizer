@@ -288,7 +288,7 @@ class VectorizerClient:
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to generate embedding: {e}")
             
-    async def insert_vectors(
+    async def insert_texts(
         self,
         collection: str,
         vectors: List[Vector]

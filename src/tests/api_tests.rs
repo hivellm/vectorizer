@@ -98,7 +98,7 @@ async fn test_api_create_collection() {
 
 #[cfg(feature = "onnx-models")]
 #[tokio::test]
-async fn test_api_insert_vectors() {
+async fn test_api_insert_texts() {
     let store = Arc::new(VectorStore::new());
 
     // Create collection first

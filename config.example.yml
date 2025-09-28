@@ -536,7 +536,7 @@ mcp:
             description: "Embedding model to use (optional)"
         required: ["text"]
     
-    - name: "insert_vectors"
+    - name: "insert_texts"
       description: "Insert vectors into a collection"
       input_schema:
         type: "object"

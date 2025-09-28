@@ -49,7 +49,7 @@ The following sequence of MCP operations was performed successfully:
 2.  **`mcp_hive_vectorizer_create_collection(name="gemini-2.5-pro-review-test")`**:
     - **Result**: ✅ Success. The test collection was created instantly.
 
-3.  **`mcp_hive_vectorizer_embed_text(...)` & `mcp_hive_vectorizer_insert_vectors(...)`**:
+3.  **`mcp_hive_vectorizer_embed_text(...)` & `mcp_hive_vectorizer_insert_texts(...)`**:
     - **Result**: ✅ Success. Three vectors were embedded and inserted into the test collection. The operation was confirmed with a success message indicating 3 vectors were inserted.
 
 4.  **`mcp_hive_vectorizer_search_vectors(query="real-time filesystem monitoring")`**:

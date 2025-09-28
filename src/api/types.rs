@@ -110,11 +110,23 @@ pub struct ListVectorsResponse {
     pub message: Option<String>,
 }
 
-/// Request to insert vectors
+/// Request to insert texts (embeddings generated automatically)
 #[derive(Debug, Deserialize)]
-pub struct InsertVectorsRequest {
-    /// Vectors to insert
-    pub vectors: Vec<VectorData>,
+pub struct InsertTextsRequest {
+    /// Texts to insert
+    pub texts: Vec<TextData>,
+}
+
+/// Text data for API
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TextData {
+    /// Text ID
+    pub id: String,
+    /// Text content
+    pub text: String,
+    /// Optional metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Vector data for API
@@ -131,12 +143,12 @@ pub struct VectorData {
     pub metadata: Option<serde_json::Value>,
 }
 
-/// Response for vector insertion
+/// Response for text insertion
 #[derive(Debug, Serialize)]
-pub struct InsertVectorsResponse {
+pub struct InsertTextsResponse {
     /// Success message
     pub message: String,
-    /// Number of vectors inserted
+    /// Number of texts inserted
     pub inserted: usize,
     /// Number of vectors inserted (alternative key for compatibility)
     pub inserted_count: usize,
@@ -427,7 +439,7 @@ pub struct BatchSearchQueryRequest {
 #[derive(Debug, Deserialize)]
 pub struct BatchInsertRequest {
     /// Vectors to insert
-    pub vectors: Vec<BatchVectorRequest>,
+    pub texts: Vec<BatchVectorRequest>,
     /// Batch configuration (optional)
     pub config: Option<BatchConfigRequest>,
     /// Whether operations should be atomic (optional, defaults to true)
@@ -507,4 +519,39 @@ pub struct BatchSearchResponse {
     pub results: Vec<Vec<SearchResult>>,
     /// Error messages (if any)
     pub errors: Vec<String>,
+}
+/// Statistics response
+#[derive(Debug, Serialize)]
+pub struct StatsResponse {
+    /// Total number of collections
+    pub total_collections: usize,
+    /// Total number of vectors across all collections
+    pub total_vectors: usize,
+    /// Total number of documents
+    pub total_documents: usize,
+    /// Server uptime in seconds
+    pub uptime_seconds: u64,
+    /// Memory usage in MB
+    pub memory_usage_mb: f64,
+    /// CPU usage percentage
+    pub cpu_usage_percent: f64,
+    /// Timestamp of the stats
+    pub timestamp: String,
+}
+
+/// Collection statistics
+#[derive(Debug, Serialize)]
+pub struct CollectionStats {
+    /// Collection name
+    pub name: String,
+    /// Number of vectors
+    pub vector_count: usize,
+    /// Number of documents
+    pub document_count: usize,
+    /// Collection dimension
+    pub dimension: usize,
+    /// Similarity metric
+    pub metric: String,
+    /// Last updated timestamp
+    pub last_updated: String,
 }

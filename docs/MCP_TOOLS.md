@@ -31,7 +31,7 @@ Vectorizer's MCP (Model Context Protocol) server provides a comprehensive set of
 - `delete_collection` - Remove collections
 
 ### 📝 Vector Operations
-- `insert_vectors` - Add vectors to collections
+- `insert_texts` - Add vectors to collections
 - `delete_vectors` - Remove vectors from collections
 - `embed_text` - Generate embeddings for text
 
@@ -278,7 +278,7 @@ Generates embeddings for text using the configured embedding model.
 
 ---
 
-### insert_vectors
+### insert_texts
 
 Adds vectors to a collection with optional payload data.
 
@@ -304,7 +304,7 @@ Adds vectors to a collection with optional payload data.
   "jsonrpc": "2.0",
   "method": "tools/call",
   "params": {
-    "name": "insert_vectors",
+    "name": "insert_texts",
     "arguments": {
       "collection": "documents",
       "vectors": [
@@ -653,7 +653,7 @@ Retrieves comprehensive database statistics and performance metrics.
 
 ### Performance Optimization
 
-1. **Batch Operations**: Use `insert_vectors` for multiple vectors
+1. **Batch Operations**: Use `insert_texts` for multiple vectors
 2. **Appropriate Limits**: Set reasonable limits for search operations
 3. **Connection Reuse**: Maintain persistent WebSocket connections
 4. **Caching**: Cache frequently accessed data

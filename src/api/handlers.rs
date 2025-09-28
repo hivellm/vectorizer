@@ -188,8 +188,21 @@ pub struct AppState {
 impl AppState {
     /// Create new application state
     pub fn new(store: Arc<VectorStore>, mut embedding_manager: EmbeddingManager) -> Self {
-        // Check if BM25 vocabulary is empty and needs rebuilding
-        // Note: Vocabulary is built during document loading, so empty here is expected
+        // Register default providers if not already registered
+        if !embedding_manager.has_provider("bm25") {
+            let bm25 = Box::new(crate::embedding::Bm25Embedding::new(512));
+            embedding_manager.register_provider("bm25".to_string(), bm25);
+            println!("🔧 Registered BM25 provider");
+        }
+        if !embedding_manager.has_provider("tfidf") {
+            let tfidf = Box::new(crate::embedding::TfIdfEmbedding::new(512));
+            embedding_manager.register_provider("tfidf".to_string(), tfidf);
+            println!("🔧 Registered TFIDF provider");
+        }
+        if embedding_manager.get_default_provider().is_err() {
+            embedding_manager.set_default_provider("bm25").unwrap();
+            println!("🔧 Set BM25 as default provider");
+        }
 
         // Initialize GRPC client
         let grpc_client = None; // Will be initialized later if needed
@@ -891,24 +904,24 @@ pub async fn delete_collection(
     }
 }
 
-/// Insert vectors into a collection
-pub async fn insert_vectors(
-    State(state): State<AppState>,
+/// Insert texts into a collection (embeddings generated automatically)
+pub async fn insert_texts(
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
-    Json(request): Json<InsertVectorsRequest>,
-) -> Result<(StatusCode, Json<InsertVectorsResponse>), (StatusCode, Json<ErrorResponse>)> {
+    Json(request): Json<InsertTextsRequest>,
+) -> Result<(StatusCode, Json<InsertTextsResponse>), (StatusCode, Json<ErrorResponse>)> {
     info!(
-        "Inserting {} vectors into collection: {}",
-        request.vectors.len(),
+        "Inserting {} texts into collection: {}",
+        request.texts.len(),
         collection_name
     );
 
-    if request.vectors.is_empty() {
+    if request.texts.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
-                error: "No vectors provided".to_string(),
-                code: "NO_VECTORS".to_string(),
+                error: "No texts provided".to_string(),
+                code: "NO_TEXTS".to_string(),
                 details: None,
             }),
         ));
@@ -917,22 +930,66 @@ pub async fn insert_vectors(
     // Convert API vectors to internal format with embedding generation
     let mut vectors = Vec::new();
 
-    for vector_data in request.vectors {
-        // Generate embedding if not provided
-        let embedding_data = if let Some(vector) = vector_data.vector {
-            // Validate embedding - reject zero vectors
-            let non_zero_count = vector.iter().filter(|&&x| x != 0.0).count();
-            if non_zero_count == 0 {
-                warn!("Skipping vector {} with zero embedding", vector_data.id);
-                continue; // Skip zero vectors
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Parse texts for GRPC
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+            _,
+        > = request.texts
+            .iter()
+            .map(|text_data| {
+                let metadata = text_data.metadata.as_ref()
+                    .and_then(|m| m.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k.clone(), s.to_string()))
+                            })
+                            .collect()
+                    });
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((
+                    text_data.id.clone(),
+                    text_data.text.clone(),
+                    metadata,
+                ))
+            })
+            .collect();
+
+        match parsed_texts {
+            Ok(texts_data) => {
+                match grpc_client.insert_texts(collection_name.clone(), texts_data, "bm25".to_string()).await {
+                    Ok(response) => {
+                        return Ok((
+                            StatusCode::OK,
+                            Json(InsertTextsResponse {
+                                message: response.message,
+                                inserted: response.inserted_count as usize,
+                                inserted_count: response.inserted_count as usize,
+                            })
+                        ));
+                    }
+                    Err(e) => {
+                        error!("GRPC insert_texts failed: {}", e);
+                        // Fall through to local processing
+                    }
+                }
             }
-            vector
-        } else {
-            // Generate embedding from content
-            let manager = state.embedding_manager.lock().unwrap();
-            manager.embed(&vector_data.content)
+            Err(e) => {
+                error!("Failed to parse texts for GRPC: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    for text_data in request.texts {
+        // Generate embedding if not provided
+        // Generate embedding from text content
+        let manager = state.embedding_manager.lock().unwrap();
+        let embedding_data = manager.embed(&text_data.text)
                 .map_err(|e| {
-                    error!("Failed to generate embedding for vector {}: {}", vector_data.id, e);
+                    error!("Failed to generate embedding for text {}: {}", text_data.id, e);
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(ErrorResponse {
@@ -940,24 +997,23 @@ pub async fn insert_vectors(
                             code: "EMBEDDING_GENERATION_FAILED".to_string(),
                             details: Some({
                                 let mut map = std::collections::HashMap::new();
-                                map.insert("vector_id".to_string(), serde_json::Value::String(vector_data.id.clone()));
+                                map.insert("text_id".to_string(), serde_json::Value::String(text_data.id.clone()));
                                 map.insert("error_message".to_string(), serde_json::Value::String(e.to_string()));
                                 map
                             }),
                         })
                     )
-                })?
-        };
+                })?;
 
         // Create rich payload with content and metadata
         let mut payload_data = serde_json::Map::new();
         payload_data.insert(
             "content".to_string(),
-            serde_json::Value::String(vector_data.content.clone()),
+            serde_json::Value::String(text_data.text.clone()),
         );
 
         // Add custom metadata if provided
-        if let Some(metadata) = vector_data.metadata {
+        if let Some(metadata) = text_data.metadata {
             if let serde_json::Value::Object(meta_obj) = metadata {
                 for (key, value) in meta_obj {
                     payload_data.insert(key, value);
@@ -980,7 +1036,7 @@ pub async fn insert_vectors(
         };
 
         vectors.push(Vector {
-            id: vector_data.id,
+            id: text_data.id,
             data: embedding_data,
             payload: Some(payload),
         });
@@ -996,7 +1052,7 @@ pub async fn insert_vectors(
             );
             Ok((
                 StatusCode::CREATED,
-                Json(InsertVectorsResponse {
+                Json(InsertTextsResponse {
                     message: "Vectors inserted successfully".to_string(),
                     inserted: vector_count,
                     inserted_count: vector_count,
@@ -1022,12 +1078,49 @@ pub async fn insert_vectors(
 
 /// Search for similar vectors
 pub async fn search_vectors(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<SearchUnifiedRequest>,
 ) -> Result<Json<SearchResponse>, (StatusCode, Json<ErrorResponse>)> {
     let start_time = Instant::now();
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match request {
+            SearchUnifiedRequest::Text(ref req) => {
+                match grpc_client.search(collection_name.clone(), req.query.clone(), req.limit.unwrap_or(10) as i32).await {
+                    Ok(grpc_response) => {
+                        let results = grpc_response.results
+                            .into_iter()
+                            .map(|r| SearchResult {
+                                id: r.id,
+                                score: r.score,
+                                vector: vec![], // GRPC doesn't return vector data
+                                payload: Some(serde_json::json!({
+                                    "content": r.content,
+                                    "metadata": r.metadata
+                                })),
+                            })
+                            .collect();
+
+                        return Ok(Json(SearchResponse {
+                            results,
+                            query_time_ms: grpc_response.search_time_ms as f64,
+                        }));
+                    }
+                    Err(e) => {
+                        error!("GRPC search failed: {}", e);
+                        // Fall through to local processing
+                    }
+                }
+            }
+            SearchUnifiedRequest::Vector(_) => {
+                // Vector search not supported by GRPC, fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Determine input type and prepare vector + optional threshold and limit
     let (query_vector, limit, score_threshold) = match request {
         SearchUnifiedRequest::Vector(req) => {
@@ -1508,7 +1601,7 @@ pub async fn set_embedding_provider(
 
 /// Get a specific vector by ID
 pub async fn get_vector(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<VectorData>, (StatusCode, Json<ErrorResponse>)> {
     debug!(
@@ -1516,6 +1609,45 @@ pub async fn get_vector(
         vector_id, collection_name
     );
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.get_vector(collection_name.clone(), vector_id.clone()).await {
+            Ok(grpc_response) => {
+                // Extract content from metadata if available
+                let content = if let Some(content_val) = grpc_response.metadata.get("content") {
+                    content_val.clone()
+                } else {
+                    "No content available".to_string()
+                };
+
+                // Extract metadata (excluding content)
+                let mut metadata_map = std::collections::HashMap::new();
+                for (key, value) in &grpc_response.metadata {
+                    if key != "content" {
+                        metadata_map.insert(key.clone(), serde_json::Value::String(value.clone()));
+                    }
+                }
+                let metadata = if metadata_map.is_empty() { 
+                    None 
+                } else { 
+                    Some(serde_json::Value::Object(metadata_map.into_iter().collect()))
+                };
+
+                return Ok(Json(VectorData {
+                    id: grpc_response.id,
+                    vector: Some(grpc_response.data),
+                    content,
+                    metadata,
+                }));
+            }
+            Err(e) => {
+                error!("GRPC get_vector failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     match state.store.get_vector(&collection_name, &vector_id) {
         Ok(vector) => {
             // Extract content from payload if available
@@ -2706,14 +2838,69 @@ pub fn update_indexing_progress_internal(
     }
 }
 
-/// Batch insert vectors into a collection
-pub async fn batch_insert_vectors(
-    State(state): State<AppState>,
+/// Batch insert texts into a collection (embeddings generated automatically)
+pub async fn batch_insert_texts(
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<BatchInsertRequest>,
 ) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
     let start_time = Instant::now();
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // Parse texts for GRPC
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+            _,
+        > = request.texts
+            .iter()
+            .map(|text_data| {
+                let metadata = text_data.metadata.as_ref()
+                    .and_then(|m| m.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k.clone(), s.to_string()))
+                            })
+                            .collect()
+                    });
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((
+                    text_data.id.clone(),
+                    text_data.content.clone(),
+                    metadata,
+                ))
+            })
+            .collect();
+
+        match parsed_texts {
+            Ok(texts_data) => {
+                match grpc_client.insert_texts(collection_name.clone(), texts_data, "bm25".to_string()).await {
+                    Ok(response) => {
+                        return Ok(Json(BatchResponse {
+                            success: true,
+                            collection: collection_name,
+                            operation: "insert".to_string(),
+                            total_operations: response.inserted_count as usize,
+                            successful_operations: response.inserted_count as usize,
+                            failed_operations: 0,
+                            duration_ms: start_time.elapsed().as_millis() as u64,
+                            errors: vec![],
+                        }));
+                    }
+                    Err(e) => {
+                        error!("GRPC batch insert_texts failed: {}", e);
+                        // Fall through to local processing
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to parse texts for GRPC batch: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Create batch processor
     let batch_processor = BatchProcessorBuilder::new(
         Arc::clone(&state.store),
@@ -2725,7 +2912,7 @@ pub async fn batch_insert_vectors(
     // Convert request vectors to batch operation with embedding generation
     let mut vectors = Vec::new();
 
-    for v in request.vectors {
+    for v in request.texts {
         // Generate embedding if not provided
         let embedding_data = if let Some(data) = v.data {
             data
@@ -2981,4 +3168,57 @@ pub async fn batch_search_vectors(
             ))
         }
     }
+}
+
+/// Get system statistics
+pub async fn get_stats(
+    State(mut state): State<AppState>,
+) -> Result<Json<StatsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        // GRPC doesn't have get_stats, fall through to local processing
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
+    let collections = state.store.list_collections();
+    let mut total_vectors = 0;
+    let mut total_documents = 0;
+    let mut collection_stats = Vec::new();
+
+    for collection_name in &collections {
+        if let Ok(collection) = state.store.get_collection(collection_name) {
+            let metadata = collection.metadata();
+            let vector_count = metadata.vector_count;
+            let document_count = metadata.document_count;
+            total_vectors += vector_count;
+            total_documents += document_count;
+
+            collection_stats.push(CollectionStats {
+                name: collection_name.clone(),
+                vector_count,
+                document_count,
+                dimension: metadata.config.dimension,
+                metric: metadata.config.metric.to_string(),
+                last_updated: chrono::Utc::now().to_rfc3339(),
+            });
+        }
+    }
+
+    let uptime = state.start_time.elapsed().as_secs();
+    
+    // Get memory usage (simplified)
+    let memory_usage_mb = std::process::id() as f64 * 0.1; // Placeholder
+    
+    // Get CPU usage (simplified)
+    let cpu_usage_percent = 0.0; // Placeholder
+
+    Ok(Json(StatsResponse {
+        total_collections: collections.len(),
+        total_vectors,
+        total_documents,
+        uptime_seconds: uptime,
+        memory_usage_mb,
+        cpu_usage_percent,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    }))
 }

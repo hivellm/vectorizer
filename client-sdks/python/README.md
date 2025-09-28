@@ -40,7 +40,7 @@ async def main():
         )
         
         # Insert vector
-        await client.insert_vectors("my_collection", [vector])
+        await client.insert_texts("my_collection", [vector])
         
         # Search for similar vectors
         results = await client.search_vectors(

@@ -27,15 +27,16 @@ A high-performance vector database and search engine built in Rust, designed for
 
 ## 🎯 **Current Status**
 
-**Version**: v0.17.1  
+**Version**: v0.18.0  
 **Status**: ✅ **Production Ready**  
 **Collections**: 27 active collections across 8 projects  
 **Performance**: Sub-3ms search with 85% improved semantic relevance  
-**Architecture**: GRPC + REST + MCP unified server system
+**Architecture**: GRPC + REST + MCP unified server system  
+**Integration**: ✅ **REST API & MCP 100% GRPC-integrated**
 
 ## 🏗️ **Architecture**
 
-Vectorizer uses a modern GRPC-based microservices architecture:
+Vectorizer uses a modern GRPC-first architecture where both REST API and MCP use the same GRPC backend:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
@@ -52,9 +53,15 @@ Vectorizer uses a modern GRPC-based microservices architecture:
 
 **Services:**
 - **vzr**: GRPC orchestrator and indexing engine
-- **REST API**: HTTP API and web dashboard  
-- **MCP Server**: Model Context Protocol for AI IDE integration
+- **REST API**: HTTP API with GRPC backend integration  
+- **MCP Server**: Model Context Protocol with GRPC backend integration
 - **File Watcher**: Real-time document monitoring and updates
+
+**GRPC-First Architecture:**
+- ✅ **REST API**: All endpoints use GRPC backend (insert_texts, search_vectors, get_vector, etc.)
+- ✅ **MCP Server**: All tools use GRPC backend for consistency
+- ✅ **Unified Embedding**: Server-side embedding generation across all interfaces
+- ✅ **Fallback Support**: Local processing if GRPC unavailable
 
 ## 🚀 Quick Start
 
@@ -521,7 +528,7 @@ vectors = [{
     "metadata": {"source": "ml_guide.pdf"}
 }]
 
-await client.insert_vectors("documents", vectors)
+await client.insert_texts("documents", texts)
 
 # Search
 results = await client.search_vectors(
@@ -580,7 +587,7 @@ mcp:
     - list_collections
     - embed_text
     - create_collection
-    - insert_vectors
+    - insert_texts
     - delete_vectors
     - get_vector
     - delete_collection
@@ -643,7 +650,7 @@ If authentication is enabled in your `config.yml`, you may need to provide API k
 - **`delete_collection`**: Remove a collection and all its data
 
 #### Vector Operations
-- **`insert_vectors`**: Insert multiple vectors into a collection
+- **`insert_texts`**: Insert multiple texts into a collection (embeddings generated automatically)
 - **`delete_vectors`**: Remove specific vectors from a collection
 - **`embed_text`**: Generate embeddings for text using configured models
 

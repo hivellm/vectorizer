@@ -104,7 +104,7 @@ pub struct McpServerState {
 - `search_vectors` - Vector similarity search
 - `list_collections` - Database introspection
 - `embed_text` - Text embedding generation
-- `insert_vectors` - Data insertion
+- `insert_texts` - Data insertion
 - `get_database_stats` - System monitoring
 
 **Test Coverage:**

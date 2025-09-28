@@ -205,9 +205,9 @@ impl ServerHandler for VectorizerService {
                 },
                 // Vector operations
                 Tool {
-                    name: Cow::Borrowed("insert_vectors"),
+                    name: Cow::Borrowed("insert_texts"),
                     title: None,
-                    description: Some(Cow::Borrowed("Insert vectors into a collection")),
+                    description: Some(Cow::Borrowed("Insert texts into a collection (embeddings generated automatically)")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -573,7 +573,7 @@ impl ServerHandler for VectorizerService {
                     })
                 }
 
-                "insert_vectors" => {
+                "insert_texts" => {
                     let args = request
                         .arguments
                         .as_ref()
@@ -584,50 +584,66 @@ impl ServerHandler for VectorizerService {
                         .and_then(|c| c.as_str())
                         .ok_or_else(|| ErrorData::invalid_params("Missing collection parameter", None))?;
 
-                    let vectors = args
+                    // Parse vectors as texts for GRPC embedding
+                    let parsed_texts: std::result::Result<
+                        Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+                        &str,
+                    > = args
                         .get("vectors")
                         .and_then(|v| v.as_array())
-                        .ok_or_else(|| ErrorData::invalid_params("Missing vectors parameter", None))?;
-
-                    // Parse vectors
-                    let parsed_vectors: Result<Vec<(String, Vec<f32>, Option<std::collections::HashMap<String, String>>)>, _> = vectors
-                        .iter()
-                        .map(|v| {
-                            let id = v
-                                .get("id")
-                                .and_then(|x| x.as_str())
-                                .ok_or("Missing id")?
-                                .to_string();
-                            let data = v
-                                .get("data")
-                                .and_then(|x| x.as_array())
-                                .ok_or("Missing data")?
+                        .ok_or("Missing vectors array")
+                        .and_then(|vectors| {
+                            vectors
                                 .iter()
-                                .filter_map(|x| x.as_f64().map(|f| f as f32))
-                                .collect();
-                            let metadata = v
-                                .get("metadata")
-                                .and_then(|x| x.as_object())
-                                .map(|obj| {
-                                    obj.iter()
-                                        .filter_map(|(k, v)| {
-                                            v.as_str().map(|s| (k.clone(), s.to_string()))
-                                        })
-                                        .collect()
-                                });
-                            Ok::<(String, Vec<f32>, Option<std::collections::HashMap<String, String>>), &str>((id, data, metadata))
-                        })
-                        .collect();
+                                .map(|v| {
+                                    let id = v
+                                        .get("id")
+                                        .and_then(|x| x.as_str())
+                                        .ok_or("Missing vector id")
+                                        .map(|s| s.to_string())?;
+                                    
+                                    // Extrair texto do payload ou usar dados como fallback
+                                    // Primeiro tentar extrair texto diretamente
+                                    let text = if let Some(text_str) = v.get("text").and_then(|x| x.as_str()) {
+                                        text_str.to_string()
+                                    } else {
+                                        // Fallback: converter dados de vetor para string se texto não estiver disponível
+                                        v.get("data")
+                                            .and_then(|x| x.as_array())
+                                            .map(|arr| {
+                                                arr.iter()
+                                                    .filter_map(|x| x.as_f64())
+                                                    .map(|f| f.to_string())
+                                                    .collect::<Vec<String>>()
+                                                    .join(",")
+                                            })
+                                            .ok_or("Missing text or data for embedding")?
+                                    };
+                                    
+                                    let metadata = v
+                                        .get("metadata")
+                                        .and_then(|x| x.as_object())
+                                        .map(|obj| {
+                                            obj.iter()
+                                                .filter_map(|(k, v)| {
+                                                    v.as_str().map(|s| (k.clone(), s.to_string()))
+                                                })
+                                                .collect()
+                                        });
+                                    Ok::<(String, String, Option<std::collections::HashMap<String, String>>), &str>((id, text, metadata))
+                                })
+                                .collect()
+                        });
 
-                    let vectors_data = parsed_vectors
-                        .map_err(|e| ErrorData::invalid_params(format!("Failed to parse vectors: {}", e), None))?;
+                    let texts_data = parsed_texts
+                        .map_err(|e| ErrorData::invalid_params(format!("Failed to parse texts: {}", e), None))?;
 
                     // Make GRPC request
                     let mut grpc_client = self.get_grpc_client().await?;
                     let response = grpc_client
-                        .insert_vectors(collection.to_string(), vectors_data)
+                        .insert_texts(collection.to_string(), texts_data, "bm25".to_string())
                         .await
-                        .map_err(|e| ErrorData::internal_error(format!("GRPC insert_vectors failed: {}", e), None))?;
+                        .map_err(|e| ErrorData::internal_error(format!("GRPC insert_texts failed: {}", e), None))?;
 
                     let result_text = json!({
                         "collection": response.collection,

@@ -171,7 +171,7 @@ mod server_tests {
     }
 
     #[tokio::test]
-    async fn test_insert_vectors() {
+    async fn test_insert_texts() {
         let service = create_test_service();
         
         // First create a collection
@@ -203,7 +203,7 @@ mod server_tests {
             vectors,
         };
         
-        let response = service.insert_vectors(Request::new(request)).await;
+        let response = service.insert_texts(Request::new(request)).await;
         assert!(response.is_ok());
         
         let insert_response = response.unwrap().into_inner();
@@ -212,7 +212,7 @@ mod server_tests {
     }
 
     #[tokio::test]
-    async fn test_insert_vectors_invalid_collection() {
+    async fn test_insert_texts_invalid_collection() {
         let service = create_test_service();
         
         let vectors = vec![VectorData {
@@ -226,7 +226,7 @@ mod server_tests {
             vectors,
         };
         
-        let response = service.insert_vectors(Request::new(request)).await;
+        let response = service.insert_texts(Request::new(request)).await;
         assert!(response.is_err());
     }
 
@@ -261,7 +261,7 @@ mod server_tests {
             collection: "test_collection".to_string(),
             vectors,
         };
-        service.insert_vectors(Request::new(insert_request)).await.unwrap();
+        service.insert_texts(Request::new(insert_request)).await.unwrap();
         
         // Search for similar vectors
         let search_request = SearchRequest {
@@ -303,7 +303,7 @@ mod server_tests {
             collection: "test_collection".to_string(),
             vectors,
         };
-        service.insert_vectors(Request::new(insert_request)).await.unwrap();
+        service.insert_texts(Request::new(insert_request)).await.unwrap();
         
         // Get the vector
         let get_request = GetVectorRequest {
@@ -365,7 +365,7 @@ mod server_tests {
             collection: "test_collection".to_string(),
             vectors,
         };
-        service.insert_vectors(Request::new(insert_request)).await.unwrap();
+        service.insert_texts(Request::new(insert_request)).await.unwrap();
         
         // Delete one vector
         let delete_request = DeleteVectorsRequest {
@@ -586,7 +586,7 @@ mod integration_tests {
             collection: "integration_test".to_string(),
             vectors,
         };
-        let insert_response = service.insert_vectors(Request::new(insert_request)).await;
+        let insert_response = service.insert_texts(Request::new(insert_request)).await;
         assert!(insert_response.is_ok());
         
         // 5. Search vectors
@@ -653,7 +653,7 @@ mod integration_tests {
             collection: "nonexistent".to_string(),
             vectors,
         };
-        let insert_response = service.insert_vectors(Request::new(insert_request)).await;
+        let insert_response = service.insert_texts(Request::new(insert_request)).await;
         assert!(insert_response.is_err());
         
         // 3. Get vector from non-existent collection
@@ -703,7 +703,7 @@ mod integration_tests {
                 vectors,
             };
             
-            let result = service.insert_vectors(Request::new(request)).await;
+            let result = service.insert_texts(Request::new(request)).await;
             assert!(result.is_ok());
         }
         
@@ -752,7 +752,7 @@ mod performance_tests {
             collection: "bulk_test".to_string(),
             vectors,
         };
-        let insert_response = service.insert_vectors(Request::new(insert_request)).await;
+        let insert_response = service.insert_texts(Request::new(insert_request)).await;
         assert!(insert_response.is_ok());
         
         let elapsed = start.elapsed();
@@ -797,7 +797,7 @@ mod performance_tests {
             collection: "search_perf_test".to_string(),
             vectors,
         };
-        service.insert_vectors(Request::new(insert_request)).await.unwrap();
+        service.insert_texts(Request::new(insert_request)).await.unwrap();
         
         // Test search performance
         let start = std::time::Instant::now();

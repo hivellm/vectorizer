@@ -454,7 +454,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         
         self.assertIn("Text must be a non-empty string", str(context.exception))
     
-    async def test_insert_vectors_success(self):
+    async def test_insert_texts_success(self):
         """Teste inserção de vetores bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 201
@@ -472,15 +472,15 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         with patch.object(self.client, '_session') as mock_session:
             mock_session.post.return_value.__aenter__.return_value = mock_response
             
-            result = await self.client.insert_vectors("test_collection", [vector])
+            result = await self.client.insert_texts("test_collection", [vector])
             
             self.assertEqual(result["inserted"], 1)
             self.assertEqual(result["collection"], "test_collection")
     
-    async def test_insert_vectors_validation_error(self):
+    async def test_insert_texts_validation_error(self):
         """Teste inserção de vetores com lista vazia."""
         with self.assertRaises(ValidationError) as context:
-            await self.client.insert_vectors("test_collection", [])
+            await self.client.insert_texts("test_collection", [])
         
         self.assertIn("Vectors list cannot be empty", str(context.exception))
     
@@ -780,7 +780,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
             )
             
             # 5. Insert vector
-            result = await self.client.insert_vectors(collection_name, [vector])
+            result = await self.client.insert_texts(collection_name, [vector])
             self.assertEqual(result["inserted"], 1)
             
             # 6. Search vectors

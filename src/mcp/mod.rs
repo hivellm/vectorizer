@@ -168,8 +168,8 @@ impl Default for McpConfig {
                 },
                 // Vector operations
                 McpTool {
-                    name: "insert_vectors".to_string(),
-                    description: "Insert vectors into a collection".to_string(),
+                    name: "insert_texts".to_string(),
+                    description: "Insert texts into a collection (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -249,8 +249,8 @@ impl Default for McpConfig {
                     }),
                 },
                 McpTool {
-                    name: "insert_vectors_grpc".to_string(),
-                    description: "Insert vectors into a collection via GRPC".to_string(),
+                    name: "insert_texts_grpc".to_string(),
+                    description: "Insert texts into a collection via GRPC (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -556,8 +556,8 @@ impl McpServerState {
                 },
                 // Vector operations
                 McpTool {
-                    name: "insert_vectors".to_string(),
-                    description: "Insert vectors into a collection".to_string(),
+                    name: "insert_texts".to_string(),
+                    description: "Insert texts into a collection (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -637,8 +637,8 @@ impl McpServerState {
                     }),
                 },
                 McpTool {
-                    name: "insert_vectors_grpc".to_string(),
-                    description: "Insert vectors into a collection via GRPC".to_string(),
+                    name: "insert_texts_grpc".to_string(),
+                    description: "Insert texts into a collection via GRPC (embeddings generated automatically)".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -713,8 +713,8 @@ impl McpServerState {
                 },
                 // Batch operations
                 McpTool {
-                    name: "batch_insert_vectors".to_string(),
-                    description: "Batch insert vectors with automatic embedding generation".to_string(),
+                    name: "batch_insert_texts".to_string(),
+                    description: "Batch insert texts with automatic embedding generation".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {

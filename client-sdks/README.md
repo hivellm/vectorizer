@@ -76,7 +76,7 @@ vectors = [{
     "data": [0.1, 0.2, 0.3, ...],  # 768-dimensional vector
     "metadata": {"source": "document.pdf"}
 }]
-await client.insert_vectors("documents", vectors)
+await client.insert_texts("documents", vectors)
 
 # Search
 results = await client.search_vectors(

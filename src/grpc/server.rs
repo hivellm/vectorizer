@@ -13,10 +13,10 @@ use crate::grpc::vectorizer::{
     HealthResponse,
     CreateCollectionRequest, CreateCollectionResponse,
     DeleteCollectionRequest, DeleteCollectionResponse,
-    InsertVectorsRequest, InsertVectorsResponse,
+    InsertTextsRequest, InsertTextsResponse,
     DeleteVectorsRequest, DeleteVectorsResponse,
     GetVectorRequest, GetVectorResponse,
-    VectorData,
+    TextData,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -342,39 +342,86 @@ impl VectorizerService for VectorizerGrpcService {
         }))
     }
 
-    async fn insert_vectors(&self, request: Request<InsertVectorsRequest>) -> Result<Response<InsertVectorsResponse>, Status> {
+    async fn insert_texts(&self, request: Request<InsertTextsRequest>) -> Result<Response<InsertTextsResponse>, Status> {
         let req = request.into_inner();
         
-        tracing::debug!("GRPC InsertVectors request: collection={}, vectors_count={}", 
-                       req.collection, req.vectors.len());
+        tracing::debug!("GRPC InsertVectors request: collection={}, texts_count={}, provider={}", 
+                       req.collection, req.texts.len(), req.provider);
 
         use crate::models::Vector;
 
-        let vector_objects: Vec<Vector> = req.vectors
-            .into_iter()
-            .map(|vector_data| {
-                // Convert metadata to JSON object
-                let mut metadata_obj = serde_json::Map::new();
-                for (key, value) in vector_data.metadata {
-                    metadata_obj.insert(key, serde_json::Value::String(value));
+        let mut vector_objects = Vec::new();
+        let mut errors = Vec::new();
+        
+        for text_data in req.texts {
+            // Gerar embedding do texto
+            let embedding = match self
+                .embedding_manager
+                .lock()
+                .await
+                .embed_with_provider(&req.provider, &text_data.text)
+            {
+                Ok(embedding) => embedding,
+                Err(e) => {
+                    errors.push(format!("Failed to generate embedding for {}: {}", text_data.id, e));
+                    continue;
                 }
-                
-                let payload = crate::models::Payload::from_value(serde_json::Value::Object(metadata_obj))
-                    .unwrap_or_default();
-                
-                Vector::with_payload(vector_data.id, vector_data.data, payload)
-            })
-            .collect();
+            };
+
+            // Create payload with metadata and content (like document_loader.rs)
+            let mut payload_data = std::collections::HashMap::new();
+            
+            // Add user-provided metadata
+            for (key, value) in text_data.metadata {
+                payload_data.insert(key, serde_json::Value::String(value));
+            }
+            
+            // Add content to payload (like document_loader does)
+            payload_data.insert(
+                "content".to_string(),
+                serde_json::Value::String(text_data.text.clone()),
+            );
+            
+            // Add system metadata
+            payload_data.insert(
+                "source".to_string(),
+                serde_json::Value::String("grpc_insert".to_string()),
+            );
+            payload_data.insert(
+                "provider".to_string(),
+                serde_json::Value::String(req.provider.clone()),
+            );
+            payload_data.insert(
+                "created_at".to_string(),
+                serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+            );
+            
+            let payload = crate::models::Payload::new(serde_json::Value::Object(
+                payload_data.into_iter().collect(),
+            ));
+            
+            vector_objects.push(Vector::with_payload(text_data.id, embedding, payload));
+        }
 
         let inserted_count = vector_objects.len();
-        self.vector_store.insert(&req.collection, vector_objects)
-            .map_err(|e| Status::internal(format!("Failed to insert vectors: {}", e)))?;
+        
+        if !vector_objects.is_empty() {
+            self.vector_store.insert(&req.collection, vector_objects)
+                .map_err(|e| Status::internal(format!("Failed to insert vectors: {}", e)))?;
+        }
 
-        Ok(Response::new(InsertVectorsResponse {
+        let status = if errors.is_empty() { "success" } else if inserted_count > 0 { "partial_success" } else { "error" };
+        let message = if errors.is_empty() {
+            format!("Successfully inserted {} vectors", inserted_count)
+        } else {
+            format!("Inserted {} vectors, {} errors: {}", inserted_count, errors.len(), errors.join(", "))
+        };
+
+        Ok(Response::new(InsertTextsResponse {
             collection: req.collection,
             inserted_count: inserted_count as i32,
-            status: "success".to_string(),
-            message: format!("Successfully inserted {} vectors", inserted_count),
+            status: status.to_string(),
+            message,
         }))
     }
 

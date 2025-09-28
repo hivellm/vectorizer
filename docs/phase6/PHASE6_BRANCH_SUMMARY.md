@@ -52,7 +52,7 @@
 ### **Multi-Layer Implementation**
 - **GRPC**: `BatchInsertVectors`, `BatchUpdateVectors`, etc.
 - **REST API**: `/api/v1/collections/{collection}/vectors/batch`
-- **MCP Tools**: `batch_insert_vectors`, `batch_update_vectors`, etc.
+- **MCP Tools**: `batch_insert_texts`, `batch_update_vectors`, etc.
 
 ## Next Steps
 

@@ -65,7 +65,7 @@ async fn test_mcp_tools_list() {
         "list_collections",
         "get_collection_info",
         "embed_text",
-        "insert_vectors",
+        "insert_texts",
         "delete_vectors",
         "get_vector",
         "create_collection",

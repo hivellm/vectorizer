@@ -269,7 +269,7 @@ async fn test_delete_collection() {
 }
 
 #[tokio::test]
-async fn test_insert_vectors() {
+async fn test_insert_texts() {
     let app = create_test_app().await;
 
     // First create a collection
@@ -324,7 +324,7 @@ async fn test_insert_vectors() {
 }
 
 #[tokio::test]
-async fn test_insert_vectors_invalid_dimension() {
+async fn test_insert_texts_invalid_dimension() {
     let app = create_test_app().await;
 
     // Create collection with dimension 3

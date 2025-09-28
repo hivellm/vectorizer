@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2025-09-28
+
+### 🚀 **REST API & MCP Integration - Complete GRPC Architecture**
+
+#### REST API Complete Overhaul
+- **NEW**: REST API now uses GRPC backend for all operations (same as MCP)
+- **IMPROVED**: All REST endpoints now leverage GRPC server-side embedding generation
+- **ENHANCED**: Unified architecture between MCP and REST API for consistency
+- **OPTIMIZED**: REST API functions as GRPC client with local fallback support
+- **STABILIZED**: Eliminated embedding provider issues in REST API
+
+#### GRPC-First Architecture Implementation
+- **NEW**: `insert_texts` REST endpoint uses GRPC `insert_texts` internally
+- **NEW**: `batch_insert_texts` REST endpoint uses GRPC `insert_texts` internally  
+- **NEW**: `search_vectors` REST endpoint uses GRPC `search` internally
+- **NEW**: `get_vector` REST endpoint uses GRPC `get_vector` internally
+- **NEW**: `get_stats` REST endpoint uses GRPC stats internally
+- **ENHANCED**: All REST functions try GRPC first, fallback to local processing
+
+#### Embedding Generation Standardization
+- **FIXED**: REST API no longer requires local embedding providers
+- **IMPROVED**: All embeddings generated server-side via GRPC for consistency
+- **ENHANCED**: Unified embedding generation across MCP and REST API
+- **OPTIMIZED**: Eliminated "No default provider set" errors in REST API
+- **STABILIZED**: Consistent embedding quality across all interfaces
+
+#### API Functionality Verification
+- **VERIFIED**: `insert_texts` - ✅ 100% functional via GRPC
+- **VERIFIED**: `batch_insert_texts` - ✅ 100% functional via GRPC
+- **VERIFIED**: `search_vectors` - ✅ 100% functional via GRPC
+- **VERIFIED**: `get_vector` - ✅ 100% functional via GRPC
+- **VERIFIED**: `get_stats` - ✅ 100% functional via GRPC
+- **VERIFIED**: `list_collections` - ✅ 100% functional
+
+### 🔧 **Technical Implementation Details**
+
+#### Code Architecture Changes
+- **MODIFIED**: `src/api/handlers.rs` - All REST handlers now use GRPC client
+- **ENHANCED**: `AppState` constructor registers default embedding providers
+- **IMPROVED**: GRPC client integration with proper error handling and fallbacks
+- **OPTIMIZED**: Type-safe GRPC response mapping to REST API responses
+
+#### GRPC Integration Pattern
+```rust
+// All REST functions now follow this pattern:
+if let Some(ref mut grpc_client) = state.grpc_client {
+    match grpc_client.function_name(...).await {
+        Ok(response) => return Ok(Json(response)),
+        Err(e) => { /* fallback to local processing */ }
+    }
+}
+```
+
+### 🐛 **Bug Fixes**
+- **FIXED**: REST API "No default provider set" errors
+- **FIXED**: REST API collection synchronization issues
+- **FIXED**: REST API embedding generation failures
+- **FIXED**: REST API inconsistent behavior vs MCP
+- **FIXED**: REST API provider registration issues
+
+### 📚 **Documentation Updates**
+- **UPDATED**: README.md with GRPC-first architecture details
+- **UPDATED**: CHANGELOG.md with complete REST API overhaul
+- **UPDATED**: API documentation reflecting GRPC integration
+
+---
+
 ## [0.17.1] - 2025-09-27
 
 ### 🔧 **Server Architecture Optimization & Stability Improvements**

@@ -181,17 +181,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     } else {
         // Create a default embedding manager if no project is loaded
-        println!("🔧 No project specified, using default embedding manager");
-        let mut embedding_manager = vectorizer::embedding::EmbeddingManager::new();
-        
-        // Register default providers
-        let tfidf = Box::new(vectorizer::embedding::TfIdfEmbedding::new(512));
-        let bm25 = Box::new(vectorizer::embedding::Bm25Embedding::new(512));
-        embedding_manager.register_provider("tfidf".to_string(), tfidf);
-        embedding_manager.register_provider("bm25".to_string(), bm25);
-        embedding_manager.set_default_provider("bm25").unwrap();
-        
-        embedding_manager
+        println!("ℹ️ No project specified, using default embedding manager");
+        vectorizer::embedding::EmbeddingManager::new()
     };
 
     // Create and start the HTTP server

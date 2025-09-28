@@ -14,7 +14,7 @@ service VectorizerService {
   rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
   
   // Operações de vetores
-  rpc InsertVectors(InsertVectorsRequest) returns (InsertVectorsResponse);
+  rpc InsertTexts(InsertTextsRequest) returns (InsertTextsResponse);
   rpc DeleteVectors(DeleteVectorsRequest) returns (DeleteVectorsResponse);
   rpc GetVector(GetVectorRequest) returns (GetVectorResponse);
   
@@ -101,18 +101,19 @@ message DeleteCollectionResponse {
 }
 
 // Mensagens para operações de vetores
-message VectorData {
+message TextData {
   string id = 1;
-  repeated float data = 2;
+  string text = 2;
   map<string, string> metadata = 3;
 }
 
-message InsertVectorsRequest {
+message InsertTextsRequest {
   string collection = 1;
-  repeated VectorData vectors = 2;
+  repeated TextData texts = 2;
+  string provider = 3;
 }
 
-message InsertVectorsResponse {
+message InsertTextsResponse {
   string collection = 1;
   int32 inserted_count = 2;
   string status = 3;

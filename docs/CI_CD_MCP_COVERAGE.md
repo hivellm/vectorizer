@@ -59,7 +59,7 @@ Este documento descreve a cobertura completa implementada para CI/CD e MCP (Mode
 2. **list_collections**: Lista todas as coleções
 3. **get_collection_info**: Informações detalhadas de coleções
 4. **embed_text**: Geração de embeddings
-5. **insert_vectors**: Inserção de vetores
+5. **insert_texts**: Inserção de vetores
 6. **delete_vectors**: Remoção de vetores
 7. **get_vector**: Recuperação de vetores específicos
 8. **create_collection**: Criação de coleções

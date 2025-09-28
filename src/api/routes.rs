@@ -9,7 +9,7 @@ use super::handlers::{
     AppState,
     // Batch handlers
     batch_delete_vectors,
-    batch_insert_vectors,
+    batch_insert_texts,
     batch_search_vectors,
     batch_update_vectors,
     create_collection,
@@ -19,7 +19,8 @@ use super::handlers::{
     get_indexing_progress,
     get_vector,
     health_check,
-    insert_vectors,
+      get_stats,
+    insert_texts,
     list_collections,
     list_embedding_providers,
     list_files,
@@ -44,6 +45,7 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         // Health check
         .route("/health", get(health_check))
+          .route("/stats", get(get_stats))
         // Indexing progress
         .route("/indexing/progress", get(get_indexing_progress))
         .route("/indexing/progress", post(update_indexing_progress))
@@ -56,7 +58,7 @@ pub fn create_router(state: AppState) -> Router {
         // Vector operations
         .route(
             "/collections/{collection_name}/vectors",
-            post(insert_vectors),
+            post(insert_texts),
         )
         .route("/collections/{collection_name}/vectors", get(list_vectors))
         .route(
@@ -86,7 +88,7 @@ pub fn create_router(state: AppState) -> Router {
         // Batch operations
         .route(
             "/collections/{collection_name}/batch/insert",
-            post(batch_insert_vectors),
+            post(batch_insert_texts),
         )
         .route(
             "/collections/{collection_name}/batch/update",
