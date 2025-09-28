@@ -23,6 +23,12 @@ import {
   TextSearchRequest,
   CollectionInfo,
   DatabaseStats,
+  BatchInsertRequest,
+  BatchSearchRequest,
+  BatchUpdateRequest,
+  BatchDeleteRequest,
+  BatchResponse,
+  BatchSearchResponse,
 } from './models';
 
 import {
@@ -450,6 +456,124 @@ export class VectorizerClient {
     }
 
     this.logger.info('API key updated');
+  }
+
+  // ==================== BATCH OPERATIONS ====================
+
+  /**
+   * Batch insert texts into a collection (embeddings generated automatically)
+   */
+  public async batchInsertTexts(
+    collection: string,
+    request: BatchInsertRequest
+  ): Promise<BatchResponse> {
+    this.logger.debug('Batch inserting texts', { collection, count: request.texts.length });
+
+    try {
+      const response = await this.httpClient.post<BatchResponse>(
+        `/api/v1/collections/${collection}/batch/insert`,
+        request
+      );
+
+      this.logger.info('Batch insert completed', {
+        collection,
+        successful: response.successful_operations,
+        failed: response.failed_operations,
+        duration: response.duration_ms,
+      });
+
+      return response;
+    } catch (error) {
+      this.logger.error('Batch insert failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Batch search vectors in a collection
+   */
+  public async batchSearchVectors(
+    collection: string,
+    request: BatchSearchRequest
+  ): Promise<BatchSearchResponse> {
+    this.logger.debug('Batch searching vectors', { collection, queries: request.queries.length });
+
+    try {
+      const response = await this.httpClient.post<BatchSearchResponse>(
+        `/api/v1/collections/${collection}/batch/search`,
+        request
+      );
+
+      this.logger.info('Batch search completed', {
+        collection,
+        successful: response.successful_queries,
+        failed: response.failed_queries,
+        duration: response.duration_ms,
+      });
+
+      return response;
+    } catch (error) {
+      this.logger.error('Batch search failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Batch update vectors in a collection
+   */
+  public async batchUpdateVectors(
+    collection: string,
+    request: BatchUpdateRequest
+  ): Promise<BatchResponse> {
+    this.logger.debug('Batch updating vectors', { collection, count: request.updates.length });
+
+    try {
+      const response = await this.httpClient.post<BatchResponse>(
+        `/api/v1/collections/${collection}/batch/update`,
+        request
+      );
+
+      this.logger.info('Batch update completed', {
+        collection,
+        successful: response.successful_operations,
+        failed: response.failed_operations,
+        duration: response.duration_ms,
+      });
+
+      return response;
+    } catch (error) {
+      this.logger.error('Batch update failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Batch delete vectors from a collection
+   */
+  public async batchDeleteVectors(
+    collection: string,
+    request: BatchDeleteRequest
+  ): Promise<BatchResponse> {
+    this.logger.debug('Batch deleting vectors', { collection, count: request.vector_ids.length });
+
+    try {
+      const response = await this.httpClient.post<BatchResponse>(
+        `/api/v1/collections/${collection}/batch/delete`,
+        request
+      );
+
+      this.logger.info('Batch delete completed', {
+        collection,
+        successful: response.successful_operations,
+        failed: response.failed_operations,
+        duration: response.duration_ms,
+      });
+
+      return response;
+    } catch (error) {
+      this.logger.error('Batch delete failed', { collection, error });
+      throw error;
+    }
   }
 
   /**

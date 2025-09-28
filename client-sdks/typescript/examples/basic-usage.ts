@@ -152,6 +152,74 @@ async function main() {
       }
     }
 
+    // Batch operations example
+    console.log('\n🔄 Batch operations example...');
+    
+    // Batch insert texts
+    console.log('📥 Batch inserting texts...');
+    const batchInsertResult = await client.batchInsertTexts('example-documents', {
+      texts: [
+        {
+          id: 'batch-text-1',
+          text: 'This is the first batch text for testing',
+          metadata: { source: 'batch_test', type: 'example' }
+        },
+        {
+          id: 'batch-text-2', 
+          text: 'This is the second batch text for testing',
+          metadata: { source: 'batch_test', type: 'example' }
+        },
+        {
+          id: 'batch-text-3',
+          text: 'This is the third batch text for testing',
+          metadata: { source: 'batch_test', type: 'example' }
+        }
+      ],
+      config: {
+        max_batch_size: 100,
+        parallel_workers: 4,
+        atomic: true
+      }
+    });
+    console.log('✅ Batch insert result:', {
+      successful: batchInsertResult.successful_operations,
+      failed: batchInsertResult.failed_operations,
+      duration: `${batchInsertResult.duration_ms}ms`
+    });
+
+    // Batch search
+    console.log('🔍 Batch searching...');
+    const batchSearchResult = await client.batchSearchVectors('example-documents', {
+      queries: [
+        { query: 'batch text', limit: 5 },
+        { query: 'testing', limit: 3 },
+        { query: 'example', limit: 2 }
+      ],
+      config: {
+        parallel_workers: 2
+      }
+    });
+    console.log('✅ Batch search result:', {
+      successful: batchSearchResult.successful_queries,
+      failed: batchSearchResult.failed_queries,
+      duration: `${batchSearchResult.duration_ms}ms`,
+      totalResults: batchSearchResult.results.reduce((sum, r) => sum + r.length, 0)
+    });
+
+    // Batch delete
+    console.log('🗑️ Batch deleting...');
+    const batchDeleteResult = await client.batchDeleteVectors('example-documents', {
+      vector_ids: ['batch-text-1', 'batch-text-2', 'batch-text-3'],
+      config: {
+        atomic: true
+      }
+    });
+    console.log('✅ Batch delete result:', {
+      successful: batchDeleteResult.successful_operations,
+      failed: batchDeleteResult.failed_operations,
+      duration: `${batchDeleteResult.duration_ms}ms`
+    });
+
     // Clean up
     console.log('\n🧹 Cleaning up...');
     await client.deleteCollection('example-documents');

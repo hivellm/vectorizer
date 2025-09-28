@@ -3,6 +3,14 @@
  */
 
 import { VectorizerClient } from '../src/index.js';
+import { 
+  BatchInsertRequest, 
+  BatchTextRequest, 
+  BatchSearchRequest, 
+  BatchSearchQuery, 
+  BatchDeleteRequest, 
+  BatchConfig 
+} from '../src/models/batch.js';
 
 async function main() {
   // Create client
@@ -151,6 +159,70 @@ async function main() {
         console.log('⚠️ WebSocket not available:', error.message);
       }
     }
+
+    // Batch operations example
+    console.log('\n🔄 Batch operations example...');
+    
+    // Batch insert texts
+    console.log('📥 Batch inserting texts...');
+    const batchInsertRequest = new BatchInsertRequest([
+      new BatchTextRequest(
+        'batch-text-1',
+        'This is the first batch text for testing',
+        { source: 'batch_test', type: 'example' }
+      ),
+      new BatchTextRequest(
+        'batch-text-2',
+        'This is the second batch text for testing',
+        { source: 'batch_test', type: 'example' }
+      ),
+      new BatchTextRequest(
+        'batch-text-3',
+        'This is the third batch text for testing',
+        { source: 'batch_test', type: 'example' }
+      )
+    ], new BatchConfig({
+      max_batch_size: 100,
+      parallel_workers: 4,
+      atomic: true
+    }));
+    
+    const batchInsertResult = await client.batchInsertTexts('example-documents', batchInsertRequest);
+    console.log('✅ Batch insert result:', {
+      successful: batchInsertResult.successful_operations,
+      failed: batchInsertResult.failed_operations,
+      duration: `${batchInsertResult.duration_ms}ms`
+    });
+
+    // Batch search
+    console.log('🔍 Batch searching...');
+    const batchSearchRequest = new BatchSearchRequest([
+      new BatchSearchQuery('batch text', 5),
+      new BatchSearchQuery('testing', 3),
+      new BatchSearchQuery('example', 2)
+    ], new BatchConfig({ parallel_workers: 2 }));
+    
+    const batchSearchResult = await client.batchSearchVectors('example-documents', batchSearchRequest);
+    console.log('✅ Batch search result:', {
+      successful: batchSearchResult.successful_queries,
+      failed: batchSearchResult.failed_queries,
+      duration: `${batchSearchResult.duration_ms}ms`,
+      totalResults: batchSearchResult.results.reduce((sum, r) => sum + r.length, 0)
+    });
+
+    // Batch delete
+    console.log('🗑️ Batch deleting...');
+    const batchDeleteRequest = new BatchDeleteRequest(
+      ['batch-text-1', 'batch-text-2', 'batch-text-3'],
+      new BatchConfig({ atomic: true })
+    );
+    
+    const batchDeleteResult = await client.batchDeleteVectors('example-documents', batchDeleteRequest);
+    console.log('✅ Batch delete result:', {
+      successful: batchDeleteResult.successful_operations,
+      failed: batchDeleteResult.failed_operations,
+      duration: `${batchDeleteResult.duration_ms}ms`
+    });
 
     // Clean up
     console.log('\n🧹 Cleaning up...');

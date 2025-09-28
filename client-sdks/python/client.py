@@ -29,7 +29,17 @@ from models import (
     SearchResult,
     EmbeddingRequest,
     SearchRequest,
-    CollectionInfo
+    CollectionInfo,
+    BatchInsertRequest,
+    BatchSearchRequest,
+    BatchUpdateRequest,
+    BatchDeleteRequest,
+    BatchResponse,
+    BatchSearchResponse,
+    BatchTextRequest,
+    BatchSearchQuery,
+    BatchVectorUpdate,
+    BatchConfig
 )
 
 logger = logging.getLogger(__name__)
@@ -464,6 +474,172 @@ class VectorizerClient:
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to delete vectors: {e}")
             
+    # ==================== BATCH OPERATIONS ====================
+
+    async def batch_insert_texts(
+        self, 
+        collection: str, 
+        request: BatchInsertRequest
+    ) -> BatchResponse:
+        """
+        Batch insert texts into a collection (embeddings generated automatically).
+        
+        Args:
+            collection: Collection name
+            request: Batch insert request
+            
+        Returns:
+            Batch operation response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        logger.debug(f"Batch inserting {len(request.texts)} texts into collection '{collection}'")
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/api/v1/collections/{collection}/batch/insert",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Batch insert completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
+                    return BatchResponse(**data)
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to batch insert texts: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to batch insert texts: {e}")
+
+    async def batch_search_vectors(
+        self, 
+        collection: str, 
+        request: BatchSearchRequest
+    ) -> BatchSearchResponse:
+        """
+        Batch search vectors in a collection.
+        
+        Args:
+            collection: Collection name
+            request: Batch search request
+            
+        Returns:
+            Batch search response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        logger.debug(f"Batch searching with {len(request.queries)} queries in collection '{collection}'")
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/api/v1/collections/{collection}/batch/search",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Batch search completed: {data['successful_queries']} successful, {data['failed_queries']} failed")
+                    return BatchSearchResponse(**data)
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to batch search vectors: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to batch search vectors: {e}")
+
+    async def batch_update_vectors(
+        self, 
+        collection: str, 
+        request: BatchUpdateRequest
+    ) -> BatchResponse:
+        """
+        Batch update vectors in a collection.
+        
+        Args:
+            collection: Collection name
+            request: Batch update request
+            
+        Returns:
+            Batch operation response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        logger.debug(f"Batch updating {len(request.updates)} vectors in collection '{collection}'")
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/api/v1/collections/{collection}/batch/update",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Batch update completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
+                    return BatchResponse(**data)
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to batch update vectors: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to batch update vectors: {e}")
+
+    async def batch_delete_vectors(
+        self, 
+        collection: str, 
+        request: BatchDeleteRequest
+    ) -> BatchResponse:
+        """
+        Batch delete vectors from a collection.
+        
+        Args:
+            collection: Collection name
+            request: Batch delete request
+            
+        Returns:
+            Batch operation response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        logger.debug(f"Batch deleting {len(request.vector_ids)} vectors from collection '{collection}'")
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/api/v1/collections/{collection}/batch/delete",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"Batch delete completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
+                    return BatchResponse(**data)
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to batch delete vectors: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to batch delete vectors: {e}")
+
     async def get_indexing_progress(self) -> Dict[str, Any]:
         """
         Get indexing progress information.

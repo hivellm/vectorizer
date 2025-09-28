@@ -35,9 +35,17 @@ import {
 } from './models/search-request.js';
 
 import {
-  validateCollectionInfo,
-  validateDatabaseStats,
-} from './models/collection-info.js';
+  BatchInsertRequest,
+  BatchSearchRequest,
+  BatchUpdateRequest,
+  BatchDeleteRequest,
+  BatchResponse,
+  BatchSearchResponse,
+  BatchTextRequest,
+  BatchSearchQuery,
+  BatchVectorUpdate,
+  BatchConfig
+} from './models/batch.js';
 
 import {
   VectorizerError,
@@ -441,6 +449,124 @@ export class VectorizerClient {
     }
 
     this.logger.info('API key updated');
+  }
+
+  // ==================== BATCH OPERATIONS ====================
+
+  /**
+   * Batch insert texts into a collection (embeddings generated automatically)
+   * @param {string} collection - Collection name
+   * @param {BatchInsertRequest} request - Batch insert request
+   * @returns {Promise<BatchResponse>} Batch operation response
+   */
+  async batchInsertTexts(collection, request) {
+    this.logger.debug('Batch inserting texts', { collection, count: request.texts.length });
+
+    try {
+      const response = await this.httpClient.post(
+        `/api/v1/collections/${collection}/batch/insert`,
+        request.toJSON()
+      );
+
+      this.logger.info('Batch insert completed', {
+        collection,
+        successful: response.successful_operations,
+        failed: response.failed_operations,
+        duration: response.duration_ms,
+      });
+
+      return new BatchResponse(response);
+    } catch (error) {
+      this.logger.error('Batch insert failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Batch search vectors in a collection
+   * @param {string} collection - Collection name
+   * @param {BatchSearchRequest} request - Batch search request
+   * @returns {Promise<BatchSearchResponse>} Batch search response
+   */
+  async batchSearchVectors(collection, request) {
+    this.logger.debug('Batch searching vectors', { collection, queries: request.queries.length });
+
+    try {
+      const response = await this.httpClient.post(
+        `/api/v1/collections/${collection}/batch/search`,
+        request.toJSON()
+      );
+
+      this.logger.info('Batch search completed', {
+        collection,
+        successful: response.successful_queries,
+        failed: response.failed_queries,
+        duration: response.duration_ms,
+      });
+
+      return new BatchSearchResponse(response);
+    } catch (error) {
+      this.logger.error('Batch search failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Batch update vectors in a collection
+   * @param {string} collection - Collection name
+   * @param {BatchUpdateRequest} request - Batch update request
+   * @returns {Promise<BatchResponse>} Batch operation response
+   */
+  async batchUpdateVectors(collection, request) {
+    this.logger.debug('Batch updating vectors', { collection, count: request.updates.length });
+
+    try {
+      const response = await this.httpClient.post(
+        `/api/v1/collections/${collection}/batch/update`,
+        request.toJSON()
+      );
+
+      this.logger.info('Batch update completed', {
+        collection,
+        successful: response.successful_operations,
+        failed: response.failed_operations,
+        duration: response.duration_ms,
+      });
+
+      return new BatchResponse(response);
+    } catch (error) {
+      this.logger.error('Batch update failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Batch delete vectors from a collection
+   * @param {string} collection - Collection name
+   * @param {BatchDeleteRequest} request - Batch delete request
+   * @returns {Promise<BatchResponse>} Batch operation response
+   */
+  async batchDeleteVectors(collection, request) {
+    this.logger.debug('Batch deleting vectors', { collection, count: request.vector_ids.length });
+
+    try {
+      const response = await this.httpClient.post(
+        `/api/v1/collections/${collection}/batch/delete`,
+        request.toJSON()
+      );
+
+      this.logger.info('Batch delete completed', {
+        collection,
+        successful: response.successful_operations,
+        failed: response.failed_operations,
+        duration: response.duration_ms,
+      });
+
+      return new BatchResponse(response);
+    } catch (error) {
+      this.logger.error('Batch delete failed', { collection, error });
+      throw error;
+    }
   }
 
   /**

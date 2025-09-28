@@ -31,9 +31,15 @@ Vectorizer's MCP (Model Context Protocol) server provides a comprehensive set of
 - `delete_collection` - Remove collections
 
 ### 📝 Vector Operations
-- `insert_texts` - Add vectors to collections
+- `insert_texts` - Add texts to collections with automatic embedding generation
 - `delete_vectors` - Remove vectors from collections
 - `embed_text` - Generate embeddings for text
+
+### 🚀 Batch Operations
+- `batch_insert_texts` - High-performance batch insertion of texts
+- `batch_search_vectors` - Batch search with multiple queries
+- `batch_update_vectors` - Batch update existing vectors
+- `batch_delete_vectors` - Batch delete vectors by ID
 
 ### 📊 System Information
 - `get_database_stats` - Database performance metrics
@@ -280,19 +286,19 @@ Generates embeddings for text using the configured embedding model.
 
 ### insert_texts
 
-Adds vectors to a collection with optional payload data.
+Adds texts to a collection with automatic embedding generation.
 
-**Purpose:** Insert new vectors into a collection for future search operations.
+**Purpose:** Insert new texts into a collection with automatic embedding generation for future search operations.
 
 **Parameters:**
 ```json
 {
   "collection": "string",    // Required: Collection name
-  "vectors": [               // Required: Array of vectors
+  "vectors": [               // Required: Array of texts (legacy parameter name)
     {
-      "id": "string",        // Required: Unique vector ID
-      "data": [number],      // Required: Vector data array
-      "payload": {}          // Optional: Metadata payload
+      "id": "string",        // Required: Unique text ID
+      "text": "string",      // Required: Text content for embedding
+      "metadata": {}         // Optional: Metadata payload
     }
   ]
 }
@@ -310,8 +316,8 @@ Adds vectors to a collection with optional payload data.
       "vectors": [
         {
           "id": "doc_1",
-          "data": [0.1, 0.2, 0.3, 0.4],
-          "payload": {
+          "text": "Introduction to Rust programming language",
+          "metadata": {
             "title": "Introduction to Rust",
             "author": "Rust Team",
             "category": "programming"
@@ -319,8 +325,8 @@ Adds vectors to a collection with optional payload data.
         },
         {
           "id": "doc_2",
-          "data": [0.5, 0.6, 0.7, 0.8],
-          "payload": {
+          "text": "Advanced Rust patterns and best practices",
+          "metadata": {
             "title": "Advanced Rust Patterns",
             "author": "Rust Community",
             "category": "advanced"
@@ -649,14 +655,230 @@ Retrieves comprehensive database statistics and performance metrics.
 }
 ```
 
+---
+
+## Batch Operations
+
+### batch_insert_texts
+
+High-performance batch insertion of texts with automatic embedding generation.
+
+**Purpose:** Insert multiple texts into a collection efficiently with automatic embedding generation.
+
+**Parameters:**
+```json
+{
+  "collection": "string",    // Required: Collection name
+  "texts": [                 // Required: Array of texts
+    {
+      "id": "string",        // Required: Unique text ID
+      "text": "string",      // Required: Text content for embedding
+      "metadata": {}         // Optional: Metadata payload
+    }
+  ],
+  "provider": "string"       // Optional: Embedding provider (default: "bm25")
+}
+```
+
+**Example Request:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "batch_insert_texts",
+    "arguments": {
+      "collection": "documents",
+      "texts": [
+        {
+          "id": "doc_1",
+          "text": "Machine learning algorithms and techniques",
+          "metadata": {"category": "AI", "source": "ml_guide.pdf"}
+        },
+        {
+          "id": "doc_2",
+          "text": "Deep learning neural networks",
+          "metadata": {"category": "AI", "source": "dl_guide.pdf"}
+        },
+        {
+          "id": "doc_3",
+          "text": "Natural language processing",
+          "metadata": {"category": "NLP", "source": "nlp_guide.pdf"}
+        }
+      ],
+      "provider": "bm25"
+    }
+  }
+}
+```
+
+**Example Response:**
+```json
+{
+  "result": {
+    "success": true,
+    "collection": "documents",
+    "inserted_count": 3,
+    "status": "success",
+    "message": "Successfully inserted 3 texts",
+    "operation": "batch_insert_texts"
+  }
+}
+```
+
+### batch_search_vectors
+
+Batch search with multiple queries for efficient processing.
+
+**Purpose:** Perform multiple search queries in a single request for improved performance.
+
+**Parameters:**
+```json
+{
+  "collection": "string",    // Required: Collection name
+  "queries": [               // Required: Array of search queries
+    {
+      "query": "string",     // Required: Search query text
+      "limit": "integer",     // Optional: Max results (default: 10)
+      "score_threshold": "number"  // Optional: Minimum score threshold
+    }
+  ],
+  "provider": "string"       // Optional: Embedding provider (default: "bm25")
+}
+```
+
+**Example Request:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "batch_search_vectors",
+    "arguments": {
+      "collection": "documents",
+      "queries": [
+        {
+          "query": "machine learning",
+          "limit": 5
+        },
+        {
+          "query": "neural networks",
+          "limit": 3
+        },
+        {
+          "query": "NLP techniques",
+          "limit": 4
+        }
+      ],
+      "provider": "bm25"
+    }
+  }
+}
+```
+
+**Example Response:**
+```json
+{
+  "result": {
+    "success": true,
+    "collection": "documents",
+    "total_queries": 3,
+    "batch_results": [
+      {
+        "query": "machine learning",
+        "query_index": 0,
+        "results": [
+          {
+            "id": "doc_1",
+            "content": "Machine learning algorithms and techniques",
+            "score": 0.95,
+            "metadata": {"category": "AI"}
+          }
+        ],
+        "total_found": 1,
+        "search_time_ms": 1.2
+      }
+    ],
+    "operation": "batch_search_vectors"
+  }
+}
+```
+
+### batch_update_vectors
+
+Batch update existing vectors with new content or metadata.
+
+**Purpose:** Update multiple vectors efficiently with new text content or metadata.
+
+**Parameters:**
+```json
+{
+  "collection": "string",    // Required: Collection name
+  "updates": [               // Required: Array of vector updates
+    {
+      "id": "string",        // Required: Vector ID to update
+      "text": "string",      // Optional: New text content
+      "metadata": {}         // Optional: New metadata
+    }
+  ],
+  "provider": "string"       // Optional: Embedding provider (default: "bm25")
+}
+```
+
+### batch_delete_vectors
+
+Batch delete vectors by ID for efficient cleanup.
+
+**Purpose:** Remove multiple vectors from a collection efficiently.
+
+**Parameters:**
+```json
+{
+  "collection": "string",    // Required: Collection name
+  "vector_ids": ["string"]   // Required: Array of vector IDs to delete
+}
+```
+
+**Example Request:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "batch_delete_vectors",
+    "arguments": {
+      "collection": "documents",
+      "vector_ids": ["doc_1", "doc_2", "doc_3"]
+    }
+  }
+}
+```
+
+**Example Response:**
+```json
+{
+  "result": {
+    "success": true,
+    "collection": "documents",
+    "deleted_count": 3,
+    "status": "success",
+    "message": "Successfully deleted 3 vectors",
+    "operation": "batch_delete_vectors"
+  }
+}
+```
+
+---
+
 ## Best Practices
 
 ### Performance Optimization
 
-1. **Batch Operations**: Use `insert_texts` for multiple vectors
-2. **Appropriate Limits**: Set reasonable limits for search operations
-3. **Connection Reuse**: Maintain persistent WebSocket connections
-4. **Caching**: Cache frequently accessed data
+1. **Batch Operations**: Use `batch_insert_texts`, `batch_search_vectors`, `batch_update_vectors`, and `batch_delete_vectors` for high-performance processing
+2. **Text-based Insertion**: Use `insert_texts` with text content for automatic embedding generation
+3. **Appropriate Limits**: Set reasonable limits for search operations
+4. **Connection Reuse**: Maintain persistent WebSocket connections
+5. **Caching**: Cache frequently accessed data
 
 ### Error Handling
 

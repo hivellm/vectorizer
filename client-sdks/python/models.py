@@ -197,3 +197,138 @@ class ClientConfig:
             raise ValueError("Max retries cannot be negative")
         if self.retry_delay < 0:
             raise ValueError("Retry delay cannot be negative")
+
+
+# ==================== BATCH OPERATION MODELS ====================
+
+@dataclass
+class BatchTextRequest:
+    """Text request for batch operations."""
+    
+    id: str
+    text: str
+    metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Validate batch text request after initialization."""
+        if not self.id:
+            raise ValueError("Text ID cannot be empty")
+        if not self.text:
+            raise ValueError("Text content cannot be empty")
+
+
+@dataclass
+class BatchConfig:
+    """Configuration for batch operations."""
+    
+    max_batch_size: Optional[int] = None
+    parallel_workers: Optional[int] = None
+    atomic: Optional[bool] = None
+
+
+@dataclass
+class BatchInsertRequest:
+    """Request for batch text insertion."""
+    
+    texts: List[BatchTextRequest]
+    config: Optional[BatchConfig] = None
+    
+    def __post_init__(self):
+        """Validate batch insert request after initialization."""
+        if not self.texts:
+            raise ValueError("Texts list cannot be empty")
+
+
+@dataclass
+class BatchResponse:
+    """Response for batch operations."""
+    
+    success: bool
+    collection: str
+    operation: str
+    total_operations: int
+    successful_operations: int
+    failed_operations: int
+    duration_ms: int
+    errors: List[str] = field(default_factory=list)
+
+
+@dataclass
+class BatchSearchQuery:
+    """Search query for batch operations."""
+    
+    query: str
+    limit: Optional[int] = None
+    score_threshold: Optional[float] = None
+    
+    def __post_init__(self):
+        """Validate batch search query after initialization."""
+        if not self.query:
+            raise ValueError("Query cannot be empty")
+
+
+@dataclass
+class BatchSearchRequest:
+    """Request for batch search operations."""
+    
+    queries: List[BatchSearchQuery]
+    config: Optional[BatchConfig] = None
+    
+    def __post_init__(self):
+        """Validate batch search request after initialization."""
+        if not self.queries:
+            raise ValueError("Queries list cannot be empty")
+
+
+@dataclass
+class BatchSearchResponse:
+    """Response for batch search operations."""
+    
+    success: bool
+    collection: str
+    total_queries: int
+    successful_queries: int
+    failed_queries: int
+    duration_ms: int
+    results: List[List[SearchResult]] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+
+
+@dataclass
+class BatchVectorUpdate:
+    """Vector update for batch operations."""
+    
+    id: str
+    data: Optional[List[float]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Validate batch vector update after initialization."""
+        if not self.id:
+            raise ValueError("Vector ID cannot be empty")
+
+
+@dataclass
+class BatchUpdateRequest:
+    """Request for batch vector updates."""
+    
+    updates: List[BatchVectorUpdate]
+    config: Optional[BatchConfig] = None
+    
+    def __post_init__(self):
+        """Validate batch update request after initialization."""
+        if not self.updates:
+            raise ValueError("Updates list cannot be empty")
+
+
+@dataclass
+class BatchDeleteRequest:
+    """Request for batch vector deletion."""
+    
+    vector_ids: List[str]
+    config: Optional[BatchConfig] = None
+    
+    def __post_init__(self):
+        """Validate batch delete request after initialization."""
+        if not self.vector_ids:
+            raise ValueError("Vector IDs list cannot be empty")

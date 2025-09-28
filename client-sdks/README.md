@@ -43,8 +43,9 @@ await client.createCollection({
 
 // Insert texts
 await client.insertTexts('documents', [{
-  text: 'This is a sample document',
-  metadata: { source: 'document.pdf' }
+  id: 'doc_1',
+  text: 'This is a sample document about machine learning',
+  metadata: { source: 'document.pdf', category: 'AI' }
 }]);
 
 // Search
@@ -73,8 +74,9 @@ await client.create_collection(
 
 # Insert texts
 texts = [{
-    "text": "This is a sample document",
-    "metadata": {"source": "document.pdf"}
+    "id": "doc_1",
+    "text": "This is a sample document about machine learning",
+    "metadata": {"source": "document.pdf", "category": "AI"}
 }]
 await client.insert_texts("documents", texts)
 
@@ -94,11 +96,94 @@ All SDKs provide:
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
 - ✅ **Embedding Generation**: Text embedding support
+- ✅ **Batch Operations**: High-performance batch processing
 - ✅ **WebSocket Support**: Real-time communication
 - ✅ **Authentication**: API key-based authentication
 - ✅ **Error Handling**: Comprehensive exception handling
 - ✅ **Logging**: Configurable logging system
 - ✅ **Validation**: Input validation and type checking
+
+## Batch Operations
+
+All SDKs support high-performance batch operations for efficient processing of large datasets:
+
+### Batch Insert Texts
+```typescript
+// TypeScript/JavaScript
+const batchResult = await client.batchInsertTexts('documents', {
+  texts: [
+    { id: 'doc1', text: 'Machine learning algorithms', metadata: { category: 'AI' } },
+    { id: 'doc2', text: 'Deep learning neural networks', metadata: { category: 'AI' } },
+    { id: 'doc3', text: 'Natural language processing', metadata: { category: 'NLP' } }
+  ],
+  config: {
+    provider: 'bm25',
+    max_batch_size: 100,
+    parallel_workers: 4,
+    atomic: true
+  }
+});
+```
+
+```python
+# Python
+from vectorizer.models import BatchInsertRequest, BatchTextRequest, BatchConfig
+
+batch_result = await client.batch_insert_texts('documents', BatchInsertRequest(
+    texts=[
+        BatchTextRequest(id='doc1', text='Machine learning algorithms', metadata={'category': 'AI'}),
+        BatchTextRequest(id='doc2', text='Deep learning neural networks', metadata={'category': 'AI'}),
+        BatchTextRequest(id='doc3', text='Natural language processing', metadata={'category': 'NLP'})
+    ],
+    config=BatchConfig(provider='bm25', max_batch_size=100, parallel_workers=4, atomic=True)
+))
+```
+
+### Batch Search
+```typescript
+// TypeScript/JavaScript
+const searchResult = await client.batchSearchVectors('documents', {
+  queries: [
+    { query: 'machine learning', limit: 5 },
+    { query: 'neural networks', limit: 3 },
+    { query: 'NLP techniques', limit: 4 }
+  ],
+  config: { provider: 'bm25', parallel_workers: 2 }
+});
+```
+
+```python
+# Python
+from vectorizer.models import BatchSearchRequest, BatchSearchQuery
+
+search_result = await client.batch_search_vectors('documents', BatchSearchRequest(
+    queries=[
+        BatchSearchQuery(query='machine learning', limit=5),
+        BatchSearchQuery(query='neural networks', limit=3),
+        BatchSearchQuery(query='NLP techniques', limit=4)
+    ],
+    config=BatchConfig(provider='bm25', parallel_workers=2)
+))
+```
+
+### Batch Delete
+```typescript
+// TypeScript/JavaScript
+const deleteResult = await client.batchDeleteVectors('documents', {
+  vector_ids: ['doc1', 'doc2', 'doc3'],
+  config: { atomic: true }
+});
+```
+
+```python
+# Python
+from vectorizer.models import BatchDeleteRequest
+
+delete_result = await client.batch_delete_vectors('documents', BatchDeleteRequest(
+    vector_ids=['doc1', 'doc2', 'doc3'],
+    config=BatchConfig(atomic=True)
+))
+```
 
 ## Architecture
 

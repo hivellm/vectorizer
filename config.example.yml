@@ -628,6 +628,113 @@ mcp:
         type: "object"
         properties: {}
     
+    # Batch Operations
+    - name: "batch_insert_texts"
+      description: "Batch insert texts with automatic embedding generation"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          texts:
+            type: "array"
+            description: "Array of texts to insert"
+            items:
+              type: "object"
+              properties:
+                id:
+                  type: "string"
+                  description: "Text ID"
+                text:
+                  type: "string"
+                  description: "Text content"
+                metadata:
+                  type: "object"
+                  description: "Optional metadata"
+              required: ["id", "text"]
+          provider:
+            type: "string"
+            description: "Embedding provider"
+            default: "bm25"
+        required: ["collection", "texts"]
+    
+    - name: "batch_search_vectors"
+      description: "Batch search with multiple queries"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          queries:
+            type: "array"
+            description: "Array of search queries"
+            items:
+              type: "object"
+              properties:
+                query:
+                  type: "string"
+                  description: "Search query text"
+                limit:
+                  type: "integer"
+                  description: "Maximum number of results"
+                  default: 10
+                score_threshold:
+                  type: "number"
+                  description: "Minimum score threshold"
+              required: ["query"]
+          provider:
+            type: "string"
+            description: "Embedding provider"
+            default: "bm25"
+        required: ["collection", "queries"]
+    
+    - name: "batch_update_vectors"
+      description: "Batch update existing vectors"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          updates:
+            type: "array"
+            description: "Array of vector updates"
+            items:
+              type: "object"
+              properties:
+                id:
+                  type: "string"
+                  description: "Vector ID"
+                text:
+                  type: "string"
+                  description: "New text content (optional)"
+                metadata:
+                  type: "object"
+                  description: "New metadata (optional)"
+              required: ["id"]
+          provider:
+            type: "string"
+            description: "Embedding provider"
+            default: "bm25"
+        required: ["collection", "updates"]
+    
+    - name: "batch_delete_vectors"
+      description: "Batch delete vectors by ID"
+      input_schema:
+        type: "object"
+        properties:
+          collection:
+            type: "string"
+            description: "Collection name"
+          vector_ids:
+            type: "array"
+            description: "Array of vector IDs to delete"
+            items:
+              type: "string"
+        required: ["collection", "vector_ids"]
+    
     - name: "get_indexing_progress"
       description: "Get indexing progress for collections"
       input_schema:

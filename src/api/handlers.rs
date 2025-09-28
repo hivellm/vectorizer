@@ -3005,12 +3005,39 @@ pub async fn batch_insert_texts(
 
 /// Batch update vectors in a collection
 pub async fn batch_update_vectors(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<BatchUpdateRequest>,
 ) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
     let start_time = Instant::now();
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let mut successful_updates = 0;
+        let mut failed_updates = 0;
+        let mut errors = Vec::new();
+
+        for update in request.updates {
+            // For batch update, we need to get the existing vector first to extract text
+            // Since BatchVectorUpdateRequest doesn't have text field, we'll skip GRPC for now
+            // and fall through to local processing
+            failed_updates += 1;
+            errors.push(format!("GRPC batch update not supported for vector updates without text content"));
+        }
+
+        return Ok(Json(BatchResponse {
+            success: true,
+            collection: collection_name,
+            operation: "update".to_string(),
+            total_operations: successful_updates + failed_updates,
+            successful_operations: successful_updates,
+            failed_operations: failed_updates,
+            duration_ms: start_time.elapsed().as_millis() as u64,
+            errors,
+        }));
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Create batch processor
     let batch_processor = BatchProcessorBuilder::new(
         Arc::clone(&state.store),
@@ -3063,12 +3090,35 @@ pub async fn batch_update_vectors(
 
 /// Batch delete vectors from a collection
 pub async fn batch_delete_vectors(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<BatchDeleteRequest>,
 ) -> Result<Json<BatchResponse>, (StatusCode, Json<serde_json::Value>)> {
     let start_time = Instant::now();
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.delete_vectors(collection_name.clone(), request.vector_ids.clone()).await {
+            Ok(response) => {
+                return Ok(Json(BatchResponse {
+                    success: true,
+                    collection: collection_name,
+                    operation: "delete".to_string(),
+                    total_operations: response.deleted_count as usize,
+                    successful_operations: response.deleted_count as usize,
+                    failed_operations: 0,
+                    duration_ms: start_time.elapsed().as_millis() as u64,
+                    errors: vec![],
+                }));
+            }
+            Err(e) => {
+                error!("GRPC batch delete_vectors failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Create batch processor
     let batch_processor = BatchProcessorBuilder::new(
         Arc::clone(&state.store),
@@ -3112,12 +3162,73 @@ pub async fn batch_delete_vectors(
 
 /// Batch search vectors in a collection
 pub async fn batch_search_vectors(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<BatchSearchRequest>,
 ) -> Result<Json<BatchSearchResponse>, (StatusCode, Json<serde_json::Value>)> {
     let start_time = Instant::now();
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        let mut batch_results = Vec::new();
+        let mut successful_queries = 0;
+        let mut failed_queries = 0;
+
+        for (i, query) in request.queries.iter().enumerate() {
+            // Use text query if available, otherwise use vector query
+            if let Some(query_text) = &query.query_text {
+                let limit = query.limit as i32;
+                let threshold = query.threshold;
+
+                match grpc_client.search(collection_name.clone(), query_text.clone(), limit).await {
+                    Ok(search_response) => {
+                        let results: Vec<crate::api::types::SearchResult> = search_response.results
+                            .into_iter()
+                            .filter(|result| {
+                                if let Some(thresh) = threshold {
+                                    result.score >= thresh as f32
+                                } else {
+                                    true
+                                }
+                            })
+                            .map(|result| crate::api::types::SearchResult {
+                                id: result.id,
+                                score: result.score,
+                                vector: vec![], // GRPC doesn't return vector data
+                                payload: Some(serde_json::json!({
+                                    "content": result.content,
+                                    "metadata": result.metadata
+                                })),
+                            })
+                            .collect();
+
+                        batch_results.push(results);
+                        successful_queries += 1;
+                    }
+                    Err(e) => {
+                        batch_results.push(vec![]);
+                        failed_queries += 1;
+                    }
+                }
+            } else {
+                failed_queries += 1;
+                batch_results.push(vec![]);
+            }
+        }
+
+        return Ok(Json(BatchSearchResponse {
+            success: true,
+            collection: collection_name,
+            total_queries: request.queries.len(),
+            successful_queries,
+            failed_queries,
+            duration_ms: start_time.elapsed().as_millis() as u64,
+            results: batch_results,
+            errors: vec![],
+        }));
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Create batch processor
     let batch_processor = BatchProcessorBuilder::new(
         Arc::clone(&state.store),

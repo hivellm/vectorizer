@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any
 
 from client import VectorizerClient
-from models import Vector, CollectionInfo, SearchResult
+from models import Vector, CollectionInfo, SearchResult, BatchInsertRequest, BatchTextRequest, BatchSearchRequest, BatchSearchQuery, BatchDeleteRequest, BatchConfig
 from exceptions import (
     VectorizerError,
     CollectionNotFoundError,
@@ -290,6 +290,104 @@ async def real_world_example():
         print("\nCleaned up document search collection")
 
 
+async def batch_operations_example():
+    """Example demonstrating batch operations."""
+    print("=== Batch Operations Example ===")
+    
+    async with VectorizerClient(
+        base_url="http://localhost:15001",
+        api_key="your-api-key-here"
+    ) as client:
+        
+        collection_name = "batch_example_collection"
+        
+        try:
+            # Create collection for batch operations
+            await client.create_collection(
+                name=collection_name,
+                dimension=512,
+                description="Collection for batch operations testing"
+            )
+            print(f"Created collection: {collection_name}")
+            
+            # Batch insert texts
+            print("\n--- Batch Insert Texts ---")
+            batch_insert_request = BatchInsertRequest(
+                texts=[
+                    BatchTextRequest(
+                        id="batch-text-1",
+                        text="This is the first batch text for testing",
+                        metadata={"source": "batch_test", "type": "example"}
+                    ),
+                    BatchTextRequest(
+                        id="batch-text-2",
+                        text="This is the second batch text for testing",
+                        metadata={"source": "batch_test", "type": "example"}
+                    ),
+                    BatchTextRequest(
+                        id="batch-text-3",
+                        text="This is the third batch text for testing",
+                        metadata={"source": "batch_test", "type": "example"}
+                    )
+                ],
+                config=BatchConfig(
+                    max_batch_size=100,
+                    parallel_workers=4,
+                    atomic=True
+                )
+            )
+            
+            batch_insert_result = await client.batch_insert_texts(collection_name, batch_insert_request)
+            print(f"Batch insert completed:")
+            print(f"  - Successful: {batch_insert_result.successful_operations}")
+            print(f"  - Failed: {batch_insert_result.failed_operations}")
+            print(f"  - Duration: {batch_insert_result.duration_ms}ms")
+            
+            # Batch search
+            print("\n--- Batch Search ---")
+            batch_search_request = BatchSearchRequest(
+                queries=[
+                    BatchSearchQuery(query="batch text", limit=5),
+                    BatchSearchQuery(query="testing", limit=3),
+                    BatchSearchQuery(query="example", limit=2)
+                ],
+                config=BatchConfig(parallel_workers=2)
+            )
+            
+            batch_search_result = await client.batch_search_vectors(collection_name, batch_search_request)
+            print(f"Batch search completed:")
+            print(f"  - Successful queries: {batch_search_result.successful_queries}")
+            print(f"  - Failed queries: {batch_search_result.failed_queries}")
+            print(f"  - Duration: {batch_search_result.duration_ms}ms")
+            print(f"  - Total results: {sum(len(r) for r in batch_search_result.results)}")
+            
+            # Batch delete
+            print("\n--- Batch Delete ---")
+            batch_delete_request = BatchDeleteRequest(
+                vector_ids=["batch-text-1", "batch-text-2", "batch-text-3"],
+                config=BatchConfig(atomic=True)
+            )
+            
+            batch_delete_result = await client.batch_delete_vectors(collection_name, batch_delete_request)
+            print(f"Batch delete completed:")
+            print(f"  - Successful: {batch_delete_result.successful_operations}")
+            print(f"  - Failed: {batch_delete_result.failed_operations}")
+            print(f"  - Duration: {batch_delete_result.duration_ms}ms")
+            
+            # Clean up
+            await client.delete_collection(collection_name)
+            print(f"\nCleaned up collection: {collection_name}")
+            
+        except Exception as e:
+            logger.error(f"Batch operations example failed: {e}")
+            # Try to clean up on error
+            try:
+                await client.delete_collection(collection_name)
+            except:
+                pass
+            raise
+
+
 async def main():
     """Run all examples."""
     try:
@@ -297,6 +395,7 @@ async def main():
         await advanced_example()
         await error_handling_example()
         await real_world_example()
+        await batch_operations_example()
         
         print("\n=== All Examples Completed Successfully ===")
         

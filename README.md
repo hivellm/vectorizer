@@ -521,16 +521,36 @@ await client.create_collection(
     metric="cosine"
 )
 
-# Insert vectors
-vectors = [{
+# Insert texts (embeddings generated automatically)
+texts = [{
     "id": "doc_001",
-    "data": [0.1, 0.2, 0.3, ...],  # 768-dimensional vector
-    "metadata": {"source": "ml_guide.pdf"}
+    "text": "Machine learning algorithms and techniques",
+    "metadata": {"source": "ml_guide.pdf", "category": "AI"}
 }]
 
 await client.insert_texts("documents", texts)
 
-# Search
+# Batch operations for high-performance processing
+batch_texts = [
+    {"id": "doc_001", "text": "Machine learning algorithms", "metadata": {"category": "AI"}},
+    {"id": "doc_002", "text": "Deep learning neural networks", "metadata": {"category": "AI"}},
+    {"id": "doc_003", "text": "Natural language processing", "metadata": {"category": "NLP"}}
+]
+
+# Batch insert texts
+batch_result = await client.batch_insert_texts("documents", batch_texts)
+
+# Batch search with multiple queries
+batch_queries = [
+    {"query": "machine learning", "limit": 5},
+    {"query": "neural networks", "limit": 3},
+    {"query": "NLP techniques", "limit": 4}
+]
+batch_search_results = await client.batch_search_vectors("documents", batch_queries)
+
+# Batch delete vectors
+vector_ids_to_delete = ["doc_001", "doc_002"]
+delete_result = await client.batch_delete_vectors("documents", vector_ids_to_delete)
 results = await client.search_vectors(
     collection="documents",
     query_vector=[0.1, 0.2, 0.3, ...],
@@ -592,6 +612,10 @@ mcp:
     - get_vector
     - delete_collection
     - get_database_stats
+    - batch_insert_texts
+    - batch_search_vectors
+    - batch_update_vectors
+    - batch_delete_vectors
 ```
 
 ### MCP Client Configuration
@@ -653,6 +677,12 @@ If authentication is enabled in your `config.yml`, you may need to provide API k
 - **`insert_texts`**: Insert multiple texts into a collection (embeddings generated automatically)
 - **`delete_vectors`**: Remove specific vectors from a collection
 - **`embed_text`**: Generate embeddings for text using configured models
+
+#### Batch Operations
+- **`batch_insert_texts`**: High-performance batch insertion of texts with automatic embedding generation
+- **`batch_search_vectors`**: Batch search with multiple queries for efficient processing
+- **`batch_update_vectors`**: Batch update existing vectors with new content or metadata
+- **`batch_delete_vectors`**: Batch delete vectors by ID for efficient cleanup
 
 #### System Information
 - **`get_database_stats`**: Get comprehensive database statistics
