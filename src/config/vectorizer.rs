@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::config::FileWatcherYamlConfig;
+use crate::bend::BendConfig;
 
 /// Main Vectorizer configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,6 +14,8 @@ pub struct VectorizerConfig {
     pub file_watcher: FileWatcherYamlConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
+    /// Bend integration configuration
+    pub bend: BendConfig,
     /// Projects configuration
     pub projects: Vec<ProjectConfig>,
 }
@@ -101,6 +104,7 @@ impl Default for VectorizerConfig {
             server: ServerConfig::default(),
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
+            bend: BendConfig::default(),
             projects: Vec::new(),
         }
     }

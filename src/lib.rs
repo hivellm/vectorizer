@@ -8,9 +8,11 @@
 pub mod api;
 pub mod auth;
 pub mod batch;
+pub mod bend;
 pub mod cache;
 pub mod cli;
 pub mod config;
+pub mod cuda;
 pub mod db;
 pub mod document_loader;
 pub mod embedding;

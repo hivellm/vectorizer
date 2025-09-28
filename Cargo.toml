@@ -31,6 +31,9 @@ hnsw_rs = "0.3"
 # Linear algebra for basic matrix operations
 ndarray = "0.16"
 
+# CUDA dependencies (real GPU processing)
+cudarc = { version = "0.17", features = ["cuda-12080"] }
+
 # Parallel processing
 rayon = "1.10"
 crossbeam = "0.8"
@@ -135,13 +138,7 @@ path = "src/bin/vectorizer-server.rs"
 name = "vectorizer-mcp-server"
 path = "src/bin/vectorizer-mcp-server.rs"
 
-[[bench]]
-name = "vector_store"
-harness = false
 
-[[bench]]
-name = "throughput_benchmark"
-harness = false
 
 [features]
 default = []

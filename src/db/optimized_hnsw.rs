@@ -286,6 +286,11 @@ impl OptimizedHnswIndex {
         Ok(())
     }
 
+    /// Get all vectors in the index
+    pub fn get_all_vectors(&self) -> Result<HashMap<String, Vec<f32>>> {
+        Ok(self.vectors.read().clone())
+    }
+
     /// Get memory usage statistics
     pub fn memory_stats(&self) -> MemoryStats {
         let vectors = self.vectors.read();
