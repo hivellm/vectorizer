@@ -719,18 +719,17 @@ impl McpServerState {
                         "type": "object",
                         "properties": {
                             "collection": {"type": "string", "description": "Collection name"},
-                            "vectors": {
+                            "texts": {
                                 "type": "array",
-                                "description": "Array of vectors to insert",
+                                "description": "Array of texts to insert",
                                 "items": {
                                     "type": "object",
                                     "properties": {
-                                        "id": {"type": "string", "description": "Vector ID"},
-                                        "data": {"type": "array", "description": "Vector data (optional, auto-generated if not provided)", "items": {"type": "number"}},
-                                        "content": {"type": "string", "description": "Content text (required for context and embedding generation)"},
+                                        "id": {"type": "string", "description": "Text ID"},
+                                        "text": {"type": "string", "description": "Text content"},
                                         "metadata": {"type": "object", "description": "Optional metadata"}
                                     },
-                                    "required": ["id", "content"]
+                                    "required": ["id", "text"]
                                 }
                             },
                             "config": {
@@ -741,7 +740,7 @@ impl McpServerState {
                                 }
                             }
                         },
-                        "required": ["collection", "vectors"]
+                        "required": ["collection", "texts"]
                     }),
                 },
                 McpTool {

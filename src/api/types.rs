@@ -396,6 +396,21 @@ impl Default for BatchConfigRequest {
     }
 }
 
+/// Text data for batch operations
+#[derive(Debug, Deserialize)]
+pub struct BatchTextRequest {
+    /// Text ID
+    pub id: String,
+    /// Text content
+    pub content: String,
+    /// Optional metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+    /// Optional pre-generated vector data (if not provided, will be generated)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Vec<f32>>,
+}
+
 /// Vector data for batch operations
 #[derive(Debug, Deserialize)]
 pub struct BatchVectorRequest {
@@ -438,8 +453,8 @@ pub struct BatchSearchQueryRequest {
 /// Batch insert request
 #[derive(Debug, Deserialize)]
 pub struct BatchInsertRequest {
-    /// Vectors to insert
-    pub texts: Vec<BatchVectorRequest>,
+    /// Texts to insert
+    pub texts: Vec<BatchTextRequest>,
     /// Batch configuration (optional)
     pub config: Option<BatchConfigRequest>,
     /// Whether operations should be atomic (optional, defaults to true)

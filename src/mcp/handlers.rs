@@ -172,7 +172,7 @@ impl McpHandler {
             }
             // Batch operations - placeholder implementations
             "batch_insert_texts" => {
-                serde_json::json!({"error": "Batch insert not yet implemented in MCP"})
+                Self::handle_batch_insert_texts_tool(arguments, grpc_client).await
             }
             "batch_update_vectors" => {
                 serde_json::json!({"error": "Batch update not yet implemented in MCP"})
@@ -758,6 +758,93 @@ impl McpHandler {
                         Err(e) => {
                             serde_json::json!({
                                 "error": format!("GRPC insert_texts failed: {}", e)
+                            })
+                        }
+                    }
+                } else {
+                    serde_json::json!({
+                        "error": "GRPC client not available"
+                    })
+                }
+            }
+            Err(e) => serde_json::json!({
+                "error": format!("Failed to parse texts: {}", e)
+            }),
+        }
+    }
+
+    async fn handle_batch_insert_texts_tool(
+        arguments: serde_json::Value,
+        mut grpc_client: Option<&mut VectorizerGrpcClient>,
+    ) -> serde_json::Value {
+        let collection = arguments
+            .get("collection")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let empty_vec = vec![];
+        let texts = arguments
+            .get("texts")
+            .and_then(|v| v.as_array())
+            .unwrap_or(&empty_vec);
+        let provider = arguments
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("bm25");
+
+        if collection.is_empty() || texts.is_empty() {
+            return serde_json::json!({
+                "error": "Missing required parameters: collection and texts"
+            });
+        }
+
+        // Parse texts for GRPC
+        let parsed_texts: std::result::Result<
+            Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
+            _,
+        > = texts
+            .iter()
+            .map(|v| {
+                let id = v
+                    .get("id")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let text = v
+                    .get("text")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let metadata = v
+                    .get("metadata")
+                    .and_then(|x| x.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k.clone(), s.to_string()))
+                            })
+                            .collect()
+                    });
+                Ok::<(String, String, Option<std::collections::HashMap<String, String>>), String>((id, text, metadata))
+            })
+            .collect();
+
+        match parsed_texts {
+            Ok(texts_data) => {
+                if let Some(ref mut client) = grpc_client {
+                    match client.insert_texts(collection.to_string(), texts_data, provider.to_string()).await {
+                        Ok(response) => {
+                            serde_json::json!({
+                                "success": true,
+                                "collection": response.collection,
+                                "inserted_count": response.inserted_count,
+                                "status": response.status,
+                                "message": response.message,
+                                "operation": "batch_insert_texts"
+                            })
+                        }
+                        Err(e) => {
+                            serde_json::json!({
+                                "error": format!("GRPC batch insert_texts failed: {}", e)
                             })
                         }
                     }
