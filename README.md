@@ -22,6 +22,8 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🐍 Python SDK**: Full-featured client library with async/await support
 - **📱 TypeScript SDK**: Complete TypeScript client for web applications
 - **🦀 Rust SDK**: High-performance native client with memory safety and MCP support
+- **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
+- **🧠 ML Framework Support**: PyTorch and TensorFlow custom embedding models
 - **🔐 Authentication**: JWT-based security with API key management
 
 ### **Workspace Management**
@@ -49,6 +51,148 @@ Vectorizer includes an intelligent summarization system that automatically proce
 ### **⚙️ Configuration**
 ```yaml
 summarization:
+  enabled: true
+  default_method: "extractive"
+  methods:
+    extractive:
+      enabled: true
+      max_sentences: 5
+      lambda: 0.7
+    keyword:
+      enabled: true
+      max_keywords: 10
+    sentence:
+      enabled: true
+      max_sentences: 3
+    abstractive:
+      enabled: false
+      max_length: 200
+```
+
+## 🔗 **Framework Integrations**
+
+Vectorizer provides comprehensive integrations with popular AI and ML frameworks, enabling seamless integration into existing workflows.
+
+### **LangChain Integration**
+Complete VectorStore implementations for both Python and JavaScript/TypeScript ecosystems.
+
+#### **LangChain Python**
+```python
+from integrations.langchain.vectorizer_store import VectorizerStore
+
+# Initialize VectorStore
+store = VectorizerStore(
+    host="localhost",
+    port=15001,
+    collection_name="langchain_docs"
+)
+
+# Add documents
+documents = [
+    {"page_content": "LangChain is a framework for developing applications powered by language models", "metadata": {"source": "intro.txt"}},
+    {"page_content": "Vector stores provide efficient similarity search for embeddings", "metadata": {"source": "vectors.txt"}}
+]
+store.add_documents(documents)
+
+# Search for similar content
+results = store.similarity_search("language model applications", k=3)
+print(f"Found {len(results)} relevant documents")
+```
+
+#### **LangChain.js**
+```typescript
+import { VectorizerStore } from './integrations/langchain-js/vectorizer-store';
+
+// Initialize VectorStore
+const store = new VectorizerStore({
+  host: 'localhost',
+  port: 15001,
+  collectionName: 'langchain_docs',
+  autoCreateCollection: true
+});
+
+// Add documents
+const texts = ['LangChain enables LLM-powered applications', 'Vector stores provide efficient retrieval'];
+const metadatas = [{ source: 'intro.txt' }, { source: 'vectors.txt' }];
+await store.addTexts(texts, metadatas);
+
+// Search for similar content
+const results = await store.similaritySearch('LLM applications', 3);
+console.log(`Found ${results.length} relevant documents`);
+```
+
+### **ML Framework Support**
+Custom embedding support for PyTorch and TensorFlow models.
+
+#### **PyTorch Integration**
+```python
+from integrations.pytorch.pytorch_embedder import create_transformer_embedder, PyTorchVectorizerClient
+
+# Create custom PyTorch embedder
+embedder = create_transformer_embedder(
+    model_path="sentence-transformers/all-MiniLM-L6-v2",
+    device="auto",  # CPU, CUDA, or MPS
+    batch_size=16
+)
+
+# Initialize client with custom embedder
+client = PyTorchVectorizerClient()
+client.set_embedder(embedder)
+client.create_collection("pytorch_docs")
+
+# Add documents and search
+texts = ["PyTorch is excellent for deep learning research"]
+vector_ids = client.add_texts(texts)
+results = client.search_similar("deep learning", k=5)
+```
+
+#### **TensorFlow Integration**
+```python
+from integrations.tensorflow.tensorflow_embedder import create_transformer_embedder, TensorFlowVectorizerClient
+
+# Create custom TensorFlow embedder
+embedder = create_transformer_embedder(
+    model_path="sentence-transformers/all-MiniLM-L6-v2",
+    device="auto",  # CPU or GPU
+    batch_size=16
+)
+
+# Initialize client with custom embedder
+client = TensorFlowVectorizerClient()
+client.set_embedder(embedder)
+client.create_collection("tensorflow_docs")
+
+# Add documents and search
+texts = ["TensorFlow provides production-ready ML solutions"]
+vector_ids = client.add_texts(texts)
+results = client.search_similar("machine learning", k=5)
+```
+
+### **⚙️ Integration Configuration**
+```yaml
+integrations:
+  langchain:
+    enabled: true
+    default_collection: "langchain_docs"
+    batch_size: 100
+
+  pytorch:
+    enabled: true
+    default_device: "auto"  # cpu, cuda, mps
+    batch_size: 16
+    max_sequence_length: 512
+
+  tensorflow:
+    enabled: true
+    default_device: "auto"  # cpu, gpu
+    batch_size: 16
+    max_sequence_length: 512
+```
+
+## 📚 **Configuration**
+```yaml
+# Complete configuration example
+vectorizer:
   enabled: true
   default_method: "extractive"
   methods:
