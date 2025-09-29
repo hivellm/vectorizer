@@ -1,0 +1,12 @@
+LICENSE
+README.md
+setup.py
+hive_vectorizer.egg-info/PKG-INFO
+hive_vectorizer.egg-info/SOURCES.txt
+hive_vectorizer.egg-info/dependency_links.txt
+hive_vectorizer.egg-info/entry_points.txt
+hive_vectorizer.egg-info/not-zip-safe
+hive_vectorizer.egg-info/requires.txt
+hive_vectorizer.egg-info/top_level.txt
+utils/__init__.py
+utils/validation.py

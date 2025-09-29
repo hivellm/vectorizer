@@ -11,9 +11,10 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🏗️ GRPC Architecture**: High-performance binary communication between services
 - **🔧 MCP Integration**: Model Context Protocol for AI IDE integration (Cursor, VS Code)
 - **🌐 REST API**: Complete HTTP API with authentication and security
-- **🐍 Python SDK**: Full-featured client library with async/await support
-- **📱 TypeScript SDK**: Complete TypeScript client for web applications
-- **🦀 Rust SDK**: High-performance native client with memory safety and MCP support
+- **📱 TypeScript SDK**: ✅ Published on npm - Complete TypeScript client for web applications
+- **🟨 JavaScript SDK**: ✅ Published on npm - Modern JavaScript client with multiple build formats
+- **🦀 Rust SDK**: ✅ Published on crates.io - High-performance native client with memory safety and MCP support
+- **🐍 Python SDK**: 🚧 In development - PyPI publishing in progress
 - **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
 
@@ -91,7 +92,7 @@ vectorizer:
 **Collections**: 99 active collections with 47,000+ vectors indexed  
 **Performance**: Sub-3ms search with GPU acceleration  
 **Architecture**: GRPC + REST + MCP unified server system  
-**SDKs**: ✅ **Python, TypeScript, JavaScript, Rust**  
+**SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
 **Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
 
 
@@ -158,12 +159,17 @@ docker-compose up --build
 
 ### SDKs
 ```bash
-# Python SDK
-cd client-sdks/python
-pip install -r requirements.txt
+# TypeScript SDK (Published)
+npm install @hivellm/vectorizer-client-ts
 
-# Rust SDK
-cargo add vectorizer-sdk
+# JavaScript SDK (Published)
+npm install @hivellm/vectorizer-client-js
+
+# Rust SDK (Published)
+cargo add vectorizer-rust-sdk
+
+# Python SDK (Coming Soon)
+# pip install hivellm-vectorizer-client
 ```
 
 ## 🔧 MCP Integration

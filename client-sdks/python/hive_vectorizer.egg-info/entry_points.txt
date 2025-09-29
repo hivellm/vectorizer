@@ -1,0 +1,2 @@
+[console_scripts]
+vectorizer-cli = vectorizer.cli:main

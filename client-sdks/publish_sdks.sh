@@ -116,26 +116,66 @@ run_tests() {
     print_success "All tests passed! Proceeding with publishing..."
 }
 
+# Function to handle npm authentication with OTP
+setup_npm_auth() {
+    print_status "Setting up npm authentication..."
+    
+    # Check if already logged in to npm
+    if npm whoami >/dev/null 2>&1; then
+        print_success "Already logged in to npm as $(npm whoami)"
+        return 0
+    fi
+    
+    print_warning "Not logged in to npm. Setting up authentication..."
+    
+    # Check if NPM_TOKEN is available
+    if [ -n "$NPM_TOKEN" ]; then
+        print_status "Using NPM_TOKEN for authentication..."
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        if npm whoami >/dev/null 2>&1; then
+            print_success "Authenticated with NPM_TOKEN as $(npm whoami)"
+            return 0
+        else
+            print_error "NPM_TOKEN authentication failed"
+            return 1
+        fi
+    fi
+    
+    # Interactive login with OTP only
+    print_status "Please enter your npm credentials..."
+    echo "Note: You will only need to provide your OTP (One-Time Password)"
+    
+    # Set browser for WSL environment
+    export BROWSER=wslview
+    
+    # Attempt npm login
+    if npm login; then
+        print_success "Successfully logged in to npm as $(npm whoami)"
+        return 0
+    else
+        print_error "npm login failed"
+        return 1
+    fi
+}
+
 # Function to publish TypeScript SDK
 publish_typescript() {
     print_status "Publishing TypeScript SDK..."
     
     cd typescript
     
-    # Check if already logged in to npm
-    if ! npm whoami >/dev/null 2>&1; then
-        print_warning "Not logged in to npm. Please run 'npm login' first."
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "Publishing cancelled"
-            cd ..
-            return 1
-        fi
+    # Setup npm authentication
+    if ! setup_npm_auth; then
+        print_error "Authentication failed. Publishing cancelled."
+        cd ..
+        return 1
     fi
     
     # Build the package
     print_status "Building TypeScript package..."
+
+    export BROWSER=wslview
+    
     npm run build
     
     # Check if package exists
@@ -167,13 +207,11 @@ publish_javascript() {
     
     cd javascript
     
-    # Check if already logged in to npm
+    # Setup npm authentication (reuse existing auth from TypeScript)
     if ! npm whoami >/dev/null 2>&1; then
-        print_warning "Not logged in to npm. Please run 'npm login' first."
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "Publishing cancelled"
+        print_status "Reusing npm authentication..."
+        if ! setup_npm_auth; then
+            print_error "Authentication failed. Publishing cancelled."
             cd ..
             return 1
         fi
@@ -181,6 +219,9 @@ publish_javascript() {
     
     # Build the package
     print_status "Building JavaScript package..."
+
+    export BROWSER=wslview
+    
     npm run build
     
     # Check if package exists
@@ -212,15 +253,32 @@ publish_python() {
     
     cd python
     
-    # Check if twine is installed
+    # Check if twine is installed, install with system packages override if needed
     if ! command_exists twine; then
         print_status "Installing twine for Python package publishing..."
-        pip install twine
+        if pip install twine --break-system-packages; then
+            print_success "Twine installed successfully"
+        else
+            print_warning "Failed to install twine with --break-system-packages, trying pipx..."
+            if command_exists pipx; then
+                pipx install twine
+            else
+                print_error "Neither pip nor pipx could install twine. Please install manually."
+                cd ..
+                return 1
+            fi
+        fi
     fi
     
     # Build the package
     print_status "Building Python package..."
-    python setup.py sdist bdist_wheel
+    if python3 setup.py sdist bdist_wheel; then
+        print_success "Python package built successfully"
+    else
+        print_error "Failed to build Python package"
+        cd ..
+        return 1
+    fi
     
     # Check if package was built
     if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
@@ -266,6 +324,10 @@ publish_rust() {
     # Check if cargo login has been run
     if [ ! -f "$HOME/.cargo/credentials" ]; then
         print_warning "Cargo credentials not configured. Please run 'cargo login' first."
+        print_status "You need to:"
+        echo "  1. Visit https://crates.io/settings/profile"
+        echo "  2. Set and verify your email address"
+        echo "  3. Run 'cargo login' with your API token"
         read -p "Continue anyway? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -276,8 +338,9 @@ publish_rust() {
     fi
     
     # Check if package is ready for publishing
+    print_status "Validating package..."
     if cargo package --dry-run; then
-        print_status "Package validation successful"
+        print_success "Package validation successful"
     else
         print_error "Package validation failed"
         cd ..
@@ -293,6 +356,10 @@ publish_rust() {
         print_success "Rust SDK v$VERSION published to crates.io!"
     else
         print_error "Failed to publish Rust SDK"
+        print_warning "Common issues:"
+        echo "  - Verified email address required: https://crates.io/settings/profile"
+        echo "  - API token not configured: run 'cargo login'"
+        echo "  - Package name already exists or version conflict"
         cd ..
         return 1
     fi

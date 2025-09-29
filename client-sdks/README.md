@@ -4,29 +4,33 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 
 ## Available SDKs
 
-### 🟦 TypeScript SDK
-- **Package**: `@hivellm/vectorizer-client`
+### 🟦 TypeScript SDK ✅
+- **Package**: `@hivellm/vectorizer-client-ts`
+- **Status**: Published on npm (v0.1.0)
 - **Features**: Full TypeScript support, async/await, comprehensive type safety
-- **Installation**: `npm install @hivellm/vectorizer-client`
+- **Installation**: `npm install @hivellm/vectorizer-client-ts`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
 
-### 🟨 JavaScript SDK
+### 🟨 JavaScript SDK ✅
 - **Package**: `@hivellm/vectorizer-client-js`
+- **Status**: Published on npm (v0.1.0)
 - **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD)
 - **Installation**: `npm install @hivellm/vectorizer-client-js`
 - **Documentation**: [JavaScript SDK README](./javascript/README.md)
 
-### 🐍 Python SDK
-- **Package**: `hivellm-vectorizer-client`
-- **Features**: Async/await support, comprehensive testing, CLI interface
-- **Installation**: `pip install hivellm-vectorizer-client`
-- **Documentation**: [Python SDK README](./python/README.md)
-
-### 🦀 Rust SDK
-- **Package**: `vectorizer-sdk`
+### 🦀 Rust SDK ✅
+- **Package**: `vectorizer-rust-sdk`
+- **Status**: Published on crates.io (v0.1.0)
 - **Features**: High performance, async/await, MCP support, type safety
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "0.1.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-rust-sdk = "0.1.0"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
+
+### 🐍 Python SDK 🚧
+- **Package**: `hivellm-vectorizer-client`
+- **Status**: In development - PyPI publishing in progress
+- **Features**: Async/await support, comprehensive testing, CLI interface
+- **Installation**: Coming soon - `pip install hivellm-vectorizer-client`
+- **Documentation**: [Python SDK README](./python/README.md)
 
 ## Quick Start
 
@@ -233,6 +237,7 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   TypeScript    │    │   JavaScript    │    │     Python      │    │      Rust        │
 │      SDK        │    │      SDK        │    │      SDK        │    │      SDK         │
+│     ✅ v0.1.0   │    │     ✅ v0.1.0   │    │   🚧 In Dev     │    │     ✅ v0.1.0    │
 │                 │    │                 │    │                 │    │                  │
 │ • Type Safety   │    │ • REST-Only     │    │ • Async/Await   │    │ • High Performance│
 │ • IntelliSense  │    │ • 100% Tests    │    │ • CLI Interface │    │ • Memory Safety  │

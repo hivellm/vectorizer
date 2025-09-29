@@ -156,24 +156,65 @@ function Test-AllSDKs {
     Write-Success "All tests passed! Proceeding with publishing..."
 }
 
+# Function to handle npm authentication with OTP
+function Setup-NpmAuth {
+    Write-Status "Setting up npm authentication..."
+    
+    # Check if already logged in to npm
+    $npmUser = npm whoami 2>$null
+    if ($npmUser) {
+        Write-Success "Already logged in to npm as $npmUser"
+        return $true
+    }
+    
+    Write-Warning "Not logged in to npm. Setting up authentication..."
+    
+    # Check if NPM_TOKEN is available
+    if ($env:NPM_TOKEN) {
+        Write-Status "Using NPM_TOKEN for authentication..."
+        $npmrcContent = "//registry.npmjs.org/:_authToken=$($env:NPM_TOKEN)"
+        $npmrcContent | Out-File -FilePath "$env:USERPROFILE\.npmrc" -Encoding utf8
+        
+        $npmUser = npm whoami 2>$null
+        if ($npmUser) {
+            Write-Success "Authenticated with NPM_TOKEN as $npmUser"
+            return $true
+        } else {
+            Write-Error "NPM_TOKEN authentication failed"
+            return $false
+        }
+    }
+    
+    # Interactive login with OTP only
+    Write-Status "Please enter your npm credentials..."
+    Write-Host "Note: You will only need to provide your OTP (One-Time Password)" -ForegroundColor Yellow
+    
+    # Set browser for WSL environment
+    $env:BROWSER = "wslview"
+    
+    # Attempt npm login
+    npm login
+    if ($LASTEXITCODE -eq 0) {
+        $npmUser = npm whoami 2>$null
+        Write-Success "Successfully logged in to npm as $npmUser"
+        return $true
+    } else {
+        Write-Error "npm login failed"
+        return $false
+    }
+}
+
 # Function to publish TypeScript SDK
 function Publish-TypeScript {
     Write-Status "Publishing TypeScript SDK..."
     
     Push-Location typescript
     try {
-        # Check if already logged in to npm
-        $npmUser = npm whoami 2>$null
-        if (-not $npmUser) {
-            Write-Warning "Not logged in to npm. Please run 'npm login' first."
-            if (-not $Force) {
-                $response = Read-Host "Continue anyway? (y/N)"
-                if ($response -notmatch "^[Yy]$") {
-                    Write-Error "Publishing cancelled"
-                    Pop-Location
-                    return $false
-                }
-            }
+        # Setup npm authentication
+        if (-not (Setup-NpmAuth)) {
+            Write-Error "Authentication failed. Publishing cancelled."
+            Pop-Location
+            return $false
         }
         
         # Build the package
@@ -213,17 +254,14 @@ function Publish-JavaScript {
     
     Push-Location javascript
     try {
-        # Check if already logged in to npm
+        # Setup npm authentication (reuse existing auth from TypeScript)
         $npmUser = npm whoami 2>$null
         if (-not $npmUser) {
-            Write-Warning "Not logged in to npm. Please run 'npm login' first."
-            if (-not $Force) {
-                $response = Read-Host "Continue anyway? (y/N)"
-                if ($response -notmatch "^[Yy]$") {
-                    Write-Error "Publishing cancelled"
-                    Pop-Location
-                    return $false
-                }
+            Write-Status "Reusing npm authentication..."
+            if (-not (Setup-NpmAuth)) {
+                Write-Error "Authentication failed. Publishing cancelled."
+                Pop-Location
+                return $false
             }
         }
         
@@ -264,15 +302,34 @@ function Publish-Python {
     
     Push-Location python
     try {
-        # Check if twine is installed
+        # Check if twine is installed, install with system packages override if needed
         if (-not (Test-Command "twine")) {
             Write-Status "Installing twine for Python package publishing..."
-            pip install twine
+            pip install twine --break-system-packages
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "Twine installed successfully"
+            } else {
+                Write-Warning "Failed to install twine with --break-system-packages, trying pipx..."
+                if (Test-Command "pipx") {
+                    pipx install twine
+                } else {
+                    Write-Error "Neither pip nor pipx could install twine. Please install manually."
+                    Pop-Location
+                    return $false
+                }
+            }
         }
         
         # Build the package
         Write-Status "Building Python package..."
         python3 setup.py sdist bdist_wheel
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "Python package built successfully"
+        } else {
+            Write-Error "Failed to build Python package"
+            Pop-Location
+            return $false
+        }
         
         # Check if package was built
         if ((Test-Path "dist") -and ((Get-ChildItem dist).Count -gt 0)) {
@@ -323,6 +380,10 @@ function Publish-Rust {
         # Check if cargo login has been run
         if (-not (Test-Path "$env:USERPROFILE\.cargo\credentials")) {
             Write-Warning "Cargo credentials not configured. Please run 'cargo login' first."
+            Write-Status "You need to:"
+            Write-Host "  1. Visit https://crates.io/settings/profile"
+            Write-Host "  2. Set and verify your email address"
+            Write-Host "  3. Run 'cargo login' with your API token"
             if (-not $Force) {
                 $response = Read-Host "Continue anyway? (y/N)"
                 if ($response -notmatch "^[Yy]$") {
@@ -354,6 +415,10 @@ function Publish-Rust {
             return $true
         } else {
             Write-Error "Failed to publish Rust SDK"
+            Write-Warning "Common issues:"
+            Write-Host "  - Verified email address required: https://crates.io/settings/profile"
+            Write-Host "  - API token not configured: run 'cargo login'"
+            Write-Host "  - Package name already exists or version conflict"
             Pop-Location
             return $false
         }
