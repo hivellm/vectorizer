@@ -190,25 +190,110 @@ integrations:
 ```
 
 ## 📚 **Configuration**
+
+### **Complete Configuration Example**
 ```yaml
-# Complete configuration example
+# Vectorizer Configuration
 vectorizer:
-  enabled: true
-  default_method: "extractive"
-  methods:
-    extractive:
+  # Server Configuration
+  host: "localhost"
+  port: 15001
+  grpc_port: 15002
+  
+  # Collection Settings
+  default_dimension: 512
+  default_metric: "cosine"
+  auto_create_collections: true
+  
+  # Performance Settings
+  batch_size: 100
+  max_concurrent_requests: 50
+  cache_size: 1000
+  
+  # GPU Acceleration
+  cuda:
+    enabled: true
+    device_id: 0
+    memory_fraction: 0.8
+  
+  # Summarization Settings
+  summarization:
+    enabled: true
+    default_method: "extractive"
+    methods:
+      extractive:
+        enabled: true
+        max_sentences: 5
+        lambda: 0.7
+      keyword:
+        enabled: true
+        max_keywords: 10
+      sentence:
+        enabled: true
+        max_sentences: 3
+      abstractive:
+        enabled: false
+        max_length: 200
+  
+  # Integration Settings
+  integrations:
+    langchain:
       enabled: true
-      max_sentences: 5
-      lambda: 0.7
-    keyword:
+      default_collection: "langchain_docs"
+      batch_size: 100
+    
+    pytorch:
       enabled: true
-      max_keywords: 10
+      default_device: "auto"  # cpu, cuda, mps
+      batch_size: 16
+      max_sequence_length: 512
+    
+    tensorflow:
+      enabled: true
+      default_device: "auto"  # cpu, gpu
+      batch_size: 16
+      max_sequence_length: 512
+  
+  # Authentication
+  auth:
+    enabled: true
+    jwt_secret: "your-secret-key"
+    token_expiry: "24h"
+  
+  # Logging
+  logging:
+    level: "info"
+    format: "json"
+    file: "vectorizer.log"
+```
+
+### **Environment Variables**
+```bash
+# Server Configuration
+VECTORIZER_HOST=localhost
+VECTORIZER_PORT=15001
+VECTORIZER_GRPC_PORT=15002
+
+# Database
+VECTORIZER_DB_PATH=./vectorizer.db
+
+# Authentication
+VECTORIZER_JWT_SECRET=your-secret-key
+VECTORIZER_TOKEN_EXPIRY=24h
+
+# GPU Settings
+VECTORIZER_CUDA_ENABLED=true
+VECTORIZER_CUDA_DEVICE_ID=0
+
+# Logging
+VECTORIZER_LOG_LEVEL=info
+VECTORIZER_LOG_FORMAT=json
 ```
 
 ## 🎯 **Current Status**
 
-**Version**: v0.20.0  
-**Status**: ✅ **Production Ready**  
+**Version**: v0.22.0  
+**Status**: ✅ **Production Ready with Complete AI Ecosystem**  
 **Collections**: 77 active collections (including 34 summary collections) across 8 projects  
 **Performance**: Sub-3ms search with 85% improved semantic relevance + GPU acceleration  
 **Architecture**: GRPC + REST + MCP unified server system  
@@ -217,7 +302,8 @@ vectorizer:
 **Dynamic Operations**: ✅ **Real-time vector creation/update/delete**  
 **Test Suite**: ✅ **236 tests standardized and stabilized**  
 **Code Quality**: ✅ **All compilation errors resolved, production-ready**  
-**CUDA Acceleration**: ✅ **GPU-accelerated vector operations with 3-5x performance improvement**
+**CUDA Acceleration**: ✅ **GPU-accelerated vector operations with 3-5x performance improvement**  
+**Framework Integrations**: ✅ **LangChain, PyTorch, TensorFlow complete implementations**
 
 
 ## 🚀 Quick Start
