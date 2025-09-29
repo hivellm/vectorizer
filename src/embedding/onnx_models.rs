@@ -6,7 +6,8 @@
 //! deterministic placeholder embeddings. This allows the benchmark to run
 //! end-to-end when the `onnx-models` feature is enabled.
 
-use anyhow::Result;
+use anyhow::Result as AnyhowResult;
+use crate::error::{Result, VectorizerError};
 // use ndarray::Array1;
 use parking_lot::RwLock;
 // use rayon::prelude::*;
@@ -267,6 +268,30 @@ pub mod benchmark {
         );
 
         Ok(docs_per_sec)
+    }
+}
+
+impl crate::embedding::EmbeddingProvider for OnnxEmbedder {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        OnnxEmbedder::embed_batch(self, texts)
+            .map_err(|e| VectorizerError::Other(e.to_string()))
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        OnnxEmbedder::embed(self, text)
+            .map_err(|e| VectorizerError::Other(e.to_string()))
+    }
+
+    fn dimension(&self) -> usize {
+        self.config.model_type.dimension()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

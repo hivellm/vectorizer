@@ -58,6 +58,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: validate-tag
     strategy:
+      fail-fast: true
       matrix:
         include:
           - os: ubuntu-latest
@@ -243,6 +244,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [validate-tag, build]
+    if: success() && needs.validate-tag.result == 'success' && needs.build.result == 'success'
     
     steps:
       - name: Checkout code
@@ -392,8 +394,15 @@ jobs:
           echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
 
       - name: Notify failure
-        if: ${{ needs.release.result == 'failure' }}
+        if: ${{ needs.release.result != 'success' }}
         run: |
-          echo "❌ Release creation failed"
+          echo "❌ Release ${{ github.ref_name }} failed!"
+          echo "🔍 Check the build logs for details"
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "💥 Build failed: ${{ needs.build.result }}"
+          fi
+          if [ "${{ needs.validate-tag.result }}" != "success" ]; then
+            echo "🏷️ Tag validation failed: ${{ needs.validate-tag.result }}"
+          fi
           echo "Please check the logs for details"
           exit 1
