@@ -1,1 +1,0 @@
-F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\libvectorizer_rust_sdk.rlib: F:\Node\hivellm\vectorizer\client-sdks\rust\src\client.rs F:\Node\hivellm\vectorizer\client-sdks\rust\src\error.rs F:\Node\hivellm\vectorizer\client-sdks\rust\src\lib.rs F:\Node\hivellm\vectorizer\client-sdks\rust\src\models.rs F:\Node\hivellm\vectorizer\client-sdks\rust\src\utils.rs

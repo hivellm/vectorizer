@@ -31,6 +31,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Client SDKs node_modules
+client-sdks/*/node_modules/
+client-sdks/*/dist/
+client-sdks/*/build/
+client-sdks/*/target/
+
+# All node_modules directories
+**/node_modules/
+**/dist/
+**/build/
+**/target/
+
 # Test coverage
 coverage/
 *.lcov
