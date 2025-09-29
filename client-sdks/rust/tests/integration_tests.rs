@@ -24,7 +24,7 @@ async fn test_health_check() {
     
     match client.health_check().await {
         Ok(health) => {
-            assert_eq!(health.service, "vectorizer-grpc");
+            assert_eq!(health.status, "healthy");
             assert_eq!(health.status, "healthy");
             assert!(!health.version.is_empty());
             assert!(!health.timestamp.is_empty());
@@ -47,8 +47,8 @@ async fn test_list_collections() {
             for collection in collections {
                 assert!(!collection.name.is_empty());
                 assert!(collection.dimension > 0);
-                assert!(!collection.similarity_metric.is_empty());
-                assert!(!collection.status.is_empty());
+                assert_eq!(collection.metric, "cosine");
+                assert_eq!(collection.indexing_status.status, "ready");
             }
         }
         Err(e) => {
@@ -69,8 +69,8 @@ async fn test_create_collection() {
         Ok(info) => {
             assert_eq!(info.name, collection_name);
             assert_eq!(info.dimension, 384);
-            assert_eq!(info.similarity_metric, "cosine");
-            assert_eq!(info.status, "ready");
+            assert_eq!(info.metric, "cosine");
+            assert_eq!(info.indexing_status.status, "ready");
         }
         Err(e) => {
             panic!("Create collection failed: {}", e);
@@ -160,7 +160,7 @@ async fn test_search_vectors() {
     match client.search_vectors(&collection_name, "artificial intelligence", Some(5), Some(0.1)).await {
         Ok(response) => {
             assert!(!response.results.is_empty());
-            assert!(response.total_found > 0);
+            assert!(response.results.len() > 0);
             
             // Verify result structure
             for result in response.results {
@@ -226,8 +226,8 @@ async fn test_get_collection_info() {
         Ok(info) => {
             assert_eq!(info.name, collection_name);
             assert_eq!(info.dimension, 384);
-            assert!(!info.similarity_metric.is_empty());
-            assert!(!info.status.is_empty());
+            assert_eq!(info.metric, "cosine");
+            assert!(!info.indexing_status.status.is_empty());
         }
         Err(e) => {
             panic!("Get collection info failed: {}", e);
@@ -292,7 +292,7 @@ async fn test_error_handling() {
         }
         Err(e) => {
             // Should be a server error
-            assert!(matches!(e, VectorizerError::Server(_)));
+            assert!(matches!(e, VectorizerError::Server { message: _ }));
         }
     }
     
@@ -303,7 +303,7 @@ async fn test_error_handling() {
         }
         Err(e) => {
             // Should be a validation error
-            assert!(matches!(e, VectorizerError::Validation(_)));
+            assert!(matches!(e, VectorizerError::Validation { message: _ }));
         }
     }
 }
@@ -316,7 +316,7 @@ async fn test_serialization() {
     let health = client.health_check().await.unwrap();
     let health_json = serde_json::to_string(&health).unwrap();
     let health_deserialized: HealthStatus = serde_json::from_str(&health_json).unwrap();
-    assert_eq!(health.service, health_deserialized.service);
+    assert_eq!(health.status, health_deserialized.status);
     
     let collections = client.list_collections().await.unwrap();
     let collections_json = serde_json::to_string(&collections).unwrap();

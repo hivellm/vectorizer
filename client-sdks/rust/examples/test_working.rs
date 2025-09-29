@@ -4,7 +4,7 @@ use vectorizer_rust_sdk::*;
 use std::collections::HashMap;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> vectorizer_rust_sdk::Result<()> {
     println!("🦀 Testing Rust SDK for Vectorizer");
     println!("===================================");
 
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📊 Health Check:");
     match client.health_check().await {
         Ok(health) => {
-            println!("✅ Service: {}", health.service);
+            println!("✅ Service: {}", health.status);
             println!("   Status: {}", health.status);
             println!("   Version: {}", health.version);
         }
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(info) => {
             println!("✅ Collection '{}' created:", info.name);
             println!("   Dimension: {}", info.dimension);
-            println!("   Status: {}", info.status);
+            println!("   Status: {}", info.indexing_status.status);
         }
         Err(e) => {
             println!("❌ Error creating collection: {}", e);
