@@ -364,31 +364,7 @@ projects:
             - "docs/**/*.md"
           exclude_patterns: []
       
-      - name: "ts-analytics"
-        description: "Analytics and monitoring code"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 256
-          chunk_overlap: 25
-          include_patterns:
-            - "Analytics/**/*.ts"
-            - "Analytics/**/*.js"
-            - "Monitoring/**/*.ts"
-            - "Monitoring/**/*.js"
-          exclude_patterns: []
+      # ts-analytics collection removed - Analytics and Monitoring directories are empty
 
   # Cursor Extension Project (BIP-00)
   - name: "cursor-extension"
@@ -546,29 +522,7 @@ projects:
             - "**/*.md"
           exclude_patterns: []
       
-      - name: "py-scripts"
-        description: "Security scripts and utilities"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 128
-          chunk_overlap: 10
-          include_patterns:
-            - "scripts/**/*.py"
-            - "scripts/**/*.sh"
-          exclude_patterns: []
+      # py-scripts collection removed - scripts directory only contains logs subdirectory
 
   # UMICP Project (BIP-05)
   - name: "umicp"
@@ -657,9 +611,9 @@ projects:
           chunk_size: 256
           chunk_overlap: 25
           include_patterns:
-            - "cpp/src/**/*.cpp"
-            - "cpp/include/**/*.h"
-            - "cpp/examples/**/*.cpp"
+            - "cpp/src/*.cpp"
+            - "cpp/include/*.h"
+            - "cpp/examples/*.cpp"
           exclude_patterns:
             - "cpp/build/**"
             - "cpp/tests/**"
@@ -978,34 +932,7 @@ projects:
         b: 0.75
     
     collections:
-      - name: "dev-tools-typescript_source"
-        description: "TypeScript source code implementation"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 256
-          chunk_overlap: 25
-          include_patterns:
-            - "src/**/*.ts"
-            - "src/**/*.js"
-            - "tests/**/*.ts"
-            - "tests/**/*.js"
-          exclude_patterns:
-            - "**/node_modules/**"
-            - "**/dist/**"
-            - "**/*.d.ts"
+      # dev-tools-typescript_source collection removed - src directory does not exist
       
       - name: "dev-tools-documentation"
         description: "Project documentation and guides"
@@ -1160,7 +1087,7 @@ processing:
   # Global processing settings
   parallel_processing: true
   max_concurrent_projects: 9
-  max_concurrent_collections: 18
+  max_concurrent_collections: 14
   
   # File processing
   file_processing:
