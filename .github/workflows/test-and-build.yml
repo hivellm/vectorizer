@@ -6,6 +6,18 @@ on:
   pull_request:
     branches: [ 'main', 'develop' ]
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Test type to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - api
+          - mcp
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,20 +25,37 @@ env:
   CI: true
 
 jobs:
+  # =============================================================================
+  # TESTS AND BUILD FOR ALL PLATFORMS
+  # =============================================================================
   test-and-build:
-    name: Test and Build
+    name: Test and Build ${{ matrix.os }} (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: vectorizer-linux-x86_64
+            executable_extension: ''
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: vectorizer-windows-x86_64
+            executable_extension: '.exe'
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: vectorizer-macos-x86_64
+            executable_extension: ''
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
 
       - name: Install system dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -51,46 +80,173 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run tests
+      - name: Run unit tests (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            # Windows doesn't support bash scripts, run cargo directly
-            cargo test --lib --verbose
-            cargo test --test api_comprehensive_tests --verbose
-            cargo test --test mcp_tests --verbose
-            cargo test --test integration_tests --verbose
-          else
-            cargo test --lib --verbose
-            cargo test --test api_comprehensive_tests --verbose
-            cargo test --test mcp_tests --verbose
-            cargo test --test integration_tests --verbose
-          fi
+          cargo test --lib --verbose --target ${{ matrix.target }}
 
-      - name: Build project
+      - name: Run unit tests (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: cmd
         run: |
-          cargo build --release --verbose
+          cargo test --lib --verbose --target %TARGET%
+        env:
+          TARGET: ${{ matrix.target }}
 
-      - name: Verify binaries
+      - name: Run integration tests (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ls -la target/release/vectorizer-server.exe
-            ls -la target/release/vectorizer-cli.exe
-            ls -la target/release/vzr.exe
-            ls -la target/release/vectorizer-mcp-server.exe
-          else
-            ls -la target/release/vectorizer-server
-            ls -la target/release/vectorizer-cli
-            ls -la target/release/vzr
-            ls -la target/release/vectorizer-mcp-server
-          fi
+          cargo test --test api_comprehensive_tests --verbose --target ${{ matrix.target }}
+          cargo test --test mcp_tests --verbose --target ${{ matrix.target }}
+          cargo test --test integration_tests --verbose --target ${{ matrix.target }}
+
+      - name: Run integration tests (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          cargo test --test api_comprehensive_tests --verbose --target %TARGET%
+          cargo test --test mcp_tests --verbose --target %TARGET%
+          cargo test --test integration_tests --verbose --target %TARGET%
+        env:
+          TARGET: ${{ matrix.target }}
+
+      - name: Build all binaries
+        run: |
+          cargo build --release --bin vectorizer-cli --target ${{ matrix.target }} --features full
+          cargo build --release --bin vectorizer-server --target ${{ matrix.target }} --features full
+          cargo build --release --bin vzr --target ${{ matrix.target }} --features full
+          cargo build --release --bin vectorizer-mcp-server --target ${{ matrix.target }} --features full
+
+      - name: Verify binaries (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          ls -la target/${{ matrix.target }}/release/vectorizer-cli
+          ls -la target/${{ matrix.target }}/release/vectorizer-server
+          ls -la target/${{ matrix.target }}/release/vzr
+          ls -la target/${{ matrix.target }}/release/vectorizer-mcp-server
+
+      - name: Verify binaries (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          dir target\%TARGET%\release\vectorizer-cli.exe
+          dir target\%TARGET%\release\vectorizer-server.exe
+          dir target\%TARGET%\release\vzr.exe
+          dir target\%TARGET%\release\vectorizer-mcp-server.exe
+        env:
+          TARGET: ${{ matrix.target }}
+
+      - name: Create release directory
+        run: mkdir -p release/${{ matrix.artifact_name }}
+
+      - name: Copy binaries
+        run: |
+          cp target/${{ matrix.target }}/release/vectorizer-cli${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-server${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vzr${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-mcp-server${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
+
+      - name: Copy configuration files
+        run: |
+          cp config.example.yml release/${{ matrix.artifact_name }}/config.yml
+          cp vectorize-workspace.yml release/${{ matrix.artifact_name }}/
+          cp README.md release/${{ matrix.artifact_name }}/
+          cp LICENSE release/${{ matrix.artifact_name }}/
+
+      - name: Create installation script (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: |
+          cat > release/${{ matrix.artifact_name }}/install.sh << 'EOF'
+          #!/bin/bash
+          echo "🚀 Installing Vectorizer..."
+          
+          # Create directories
+          sudo mkdir -p /usr/local/bin
+          sudo mkdir -p /etc/vectorizer
+          
+          # Copy binaries
+          sudo cp vectorizer-cli /usr/local/bin/
+          sudo cp vectorizer-server /usr/local/bin/
+          sudo cp vzr /usr/local/bin/
+          sudo cp vectorizer-mcp-server /usr/local/bin/
+          
+          # Copy config
+          sudo cp config.yml /etc/vectorizer/
+          
+          # Set permissions
+          sudo chmod +x /usr/local/bin/vectorizer-*
+          
+          echo "✅ Vectorizer installed successfully!"
+          echo "📁 Binary location: /usr/local/bin/"
+          echo "📁 Config location: /etc/vectorizer/"
+          echo ""
+          echo "🚀 Start Vectorizer:"
+          echo "  ./scripts/start.sh --workspace vectorize-workspace.yml"
+          echo ""
+          echo "🔧 Use the CLI:"
+          echo "  vectorizer-cli --help"
+          EOF
+          chmod +x release/${{ matrix.artifact_name }}/install.sh
+
+      - name: Create installation script (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cat > release/${{ matrix.artifact_name }}/install.bat << 'EOF'
+          @echo off
+          echo 🚀 Installing Vectorizer...
+          
+          REM Create directories
+          if not exist "C:\Program Files\Vectorizer" mkdir "C:\Program Files\Vectorizer"
+          if not exist "C:\ProgramData\Vectorizer" mkdir "C:\ProgramData\Vectorizer"
+          
+          REM Copy binaries
+          copy "vectorizer-cli.exe" "C:\Program Files\Vectorizer\"
+          copy "vectorizer-server.exe" "C:\Program Files\Vectorizer\"
+          copy "vzr.exe" "C:\Program Files\Vectorizer\"
+          copy "vectorizer-mcp-server.exe" "C:\Program Files\Vectorizer\"
+          
+          REM Copy config
+          copy "config.yml" "C:\ProgramData\Vectorizer\"
+          
+          REM Add to PATH
+          setx PATH "%PATH%;C:\Program Files\Vectorizer" /M
+          
+          echo ✅ Vectorizer installed successfully!
+          echo 📁 Binary location: C:\Program Files\Vectorizer\
+          echo 📁 Config location: C:\ProgramData\Vectorizer\
+          echo.
+          echo 🚀 Start Vectorizer:
+          echo   .\scripts\start.sh --workspace vectorize-workspace.yml
+          echo.
+          echo 🔧 Use the CLI:
+          echo   vectorizer-cli --help
+          pause
+          EOF
+
+      - name: Create archive (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: |
+          cd release/${{ matrix.artifact_name }}
+          tar -czf ../${{ matrix.artifact_name }}.tar.gz .
+          cd ../..
+          ls -la release/
+
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd release/${{ matrix.artifact_name }}
+          powershell Compress-Archive -Path * -DestinationPath ../${{ matrix.artifact_name }}.zip
+          cd ../..
+          dir release\
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ matrix.os }}
-          path: target/release/
+          name: build-artifacts-${{ matrix.artifact_name }}
+          path: release/${{ matrix.artifact_name }}.*
+          retention-days: 7
 
   # =============================================================================
   # RELEASE CREATION (only on tag push)
