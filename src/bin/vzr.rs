@@ -22,9 +22,62 @@ use vectorizer::{
     embedding::EmbeddingManager,
     grpc::server::start_grpc_server,
     grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient,
-    config::{GrpcConfig, FileWatcherYamlConfig},
+    config::{GrpcConfig, FileWatcherYamlConfig, VectorizerConfig},
     file_watcher::FileWatcherSystem,
+    config::VectorizerConfig as FullVectorizerConfig,
 };
+
+/// Load CUDA configuration from config.yml
+fn load_cuda_config() -> vectorizer::cuda::CudaConfig {
+    use serde_yaml;
+
+    // Try to load full config and extract CUDA section
+    match std::fs::read_to_string("config.yml") {
+        Ok(content) => {
+            match serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                Ok(yaml) => {
+                    if let Some(cuda_section) = yaml.get("cuda") {
+                        match serde_yaml::from_value::<vectorizer::cuda::CudaConfig>(cuda_section.clone()) {
+                            Ok(mut config) => {
+                                println!("✅ Loaded CUDA config from config.yml:");
+                                println!("   - enabled: {}", config.enabled);
+                                println!("   - device_id: {}", config.device_id);
+                                println!("   - memory_limit_mb: {}", config.memory_limit_mb);
+                                println!("   - max_threads_per_block: {}", config.max_threads_per_block);
+
+                                // Override with defaults if not specified
+                                if config.memory_limit_mb == 0 {
+                                    config.memory_limit_mb = 4096; // 4GB default
+                                }
+
+                                config
+                            }
+                            Err(e) => {
+                                println!("⚠️ Failed to parse CUDA config section: {}. Using CPU-only mode.", e);
+                                let mut config = vectorizer::cuda::CudaConfig::default();
+                                config.enabled = false;
+                                config
+                            }
+                        }
+                    } else {
+                        println!("ℹ️ No CUDA section in config.yml, using CPU-only mode");
+                        let mut config = vectorizer::cuda::CudaConfig::default();
+                        config.enabled = false;
+                        config
+                    }
+                }
+                Err(e) => {
+                    println!("⚠️ Failed to parse config.yml as YAML: {}. Using default CUDA config", e);
+                    vectorizer::cuda::CudaConfig::default()
+                }
+            }
+        }
+        Err(_) => {
+            println!("ℹ️ No config.yml found, using default CUDA config");
+            vectorizer::cuda::CudaConfig::default()
+        }
+    }
+}
 
 /// Structured logging for workspace operations
 struct WorkspaceLogger {
@@ -513,25 +566,11 @@ enum WorkspaceCommands {
     },
 }
 
-/// Load summarization configuration from YAML file
-fn load_summarization_config_from_yaml(config_path: &str) -> Result<vectorizer::summarization::SummarizationConfig, Box<dyn std::error::Error>> {
-    use std::fs;
-    use serde_yaml;
-    
-    let content = fs::read_to_string(config_path)?;
-    let config: serde_yaml::Value = serde_yaml::from_str(&content)?;
-    
-    if let Some(summarization_section) = config.get("summarization") {
-        let summarization_config: vectorizer::summarization::SummarizationConfig = serde_yaml::from_value(summarization_section.clone())?;
-        Ok(summarization_config)
-    } else {
-        // Return default config if no summarization section found
-        Ok(vectorizer::summarization::SummarizationConfig::default())
-    }
-}
 
 #[tokio::main]
 async fn main() {
+    eprintln!("🚀 VZR MAIN: Started");
+
     // Initialize centralized logging
     if let Err(e) = logging::init_logging("vzr") {
         eprintln!("Failed to initialize logging: {}", e);
@@ -1154,7 +1193,8 @@ async fn run_interactive(
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
     // Initialize File Watcher System for legacy mode with GRPC connection
-    let file_watcher_vector_store = Arc::new(VectorStore::new());
+    let cuda_config = load_cuda_config();
+    let file_watcher_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
     let file_watcher_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -1234,6 +1274,7 @@ async fn run_interactive_workspace(
     port: u16,
     _mcp_port: u16,
 ) {
+    println!("🏁 DEBUG: Entered run_interactive_workspace function");
     use tokio::signal;
 
     // Check if we have enabled projects
@@ -1439,7 +1480,8 @@ async fn run_interactive_workspace(
     println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
 
     // Initialize GRPC server components
-    let grpc_vector_store = Arc::new(VectorStore::new());
+    let cuda_config = load_cuda_config();
+    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -1469,8 +1511,14 @@ async fn run_interactive_workspace(
     }));
     let grpc_indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
     
-    // Load summarization configuration
-    let summarization_config = load_summarization_config_from_yaml("config.yml").ok();
+    // Load full configuration including summarization
+    let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
+        .unwrap_or_else(|e| {
+            println!("⚠️ Failed to load config.yml: {}. Using defaults.", e);
+            FullVectorizerConfig::default()
+        });
+
+    let summarization_config = Some(full_config.summarization);
     
     // Start GRPC server
     let grpc_config = GrpcConfig::from_env();
@@ -1500,7 +1548,7 @@ async fn run_interactive_workspace(
     let indexing_embedding_manager = Arc::clone(&grpc_embedding_manager);
     let indexing_progress = Arc::clone(&grpc_indexing_progress);
     let indexing_file_watcher = Arc::clone(&file_watcher_system);
-    
+
     tokio::spawn(async move {
         start_background_indexing_with_config(
             indexing_vector_store,
@@ -1544,7 +1592,7 @@ async fn start_background_indexing_with_config(
     file_watcher_system: Arc<Mutex<Option<vectorizer::file_watcher::FileWatcherSystem>>>,
 ) {
     println!("🔄 Starting background indexing...");
-    
+
     // Wait for servers to be ready with health check
     wait_for_server_ready().await;
     
@@ -1558,53 +1606,106 @@ async fn start_background_indexing_with_config(
     };
     
     let enabled_projects = workspace_manager.enabled_projects();
-    
-    // Process each project's collections from configuration
-    for project in &enabled_projects {
-        println!("📁 Processing project: {}", project.name);
-        
-        for collection in &project.collections {
-            println!("🗂️ Processing collection: {} from {}", collection.name, project.path.display());
-            
-            // Update status to processing
-            update_collection_status(&collection.name, "processing", 0.0, None).await;
-            
-            // Try real indexing
-            match do_real_indexing(
-                &collection.name, 
-                &project.path.to_string_lossy(),
-                Arc::clone(&vector_store),
-                Arc::clone(&embedding_manager),
-            ).await {
-                Ok(count) => {
-                    update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
-                    println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
+    let total_projects = enabled_projects.len();
 
-                    // Create summary collections for this collection
-                    create_summary_collections_for_project(
-                        &collection.name,
-                        &project.path.to_string_lossy(),
-                        Arc::clone(&vector_store),
-                        Arc::clone(&embedding_manager),
-                    ).await;
+    // Process projects in parallel (up to 4 concurrent)
+    let max_concurrent_projects = std::cmp::min(4, total_projects);
+    println!("🚀 Starting parallel processing of {} projects (max {} concurrent)", total_projects, max_concurrent_projects);
+    println!("🔄 Debug: About to create semaphore and spawn tasks");
 
-                    // Update file watcher with newly indexed collection
-                    let mut system = file_watcher_system.lock().await;
-                    if let Some(ref mut watcher) = *system {
-                        if let Err(e) = watcher.update_with_collection(&collection.name).await {
-                            eprintln!("⚠️ Failed to update file watcher with collection '{}': {}", collection.name, e);
-                        } else {
-                            println!("👁️ File watcher updated with collection: {}", collection.name);
+    use tokio::sync::Semaphore;
+    let semaphore = Arc::new(Semaphore::new(max_concurrent_projects));
+    let mut project_tasks = Vec::new();
+
+    println!("🔄 Debug: Starting to iterate over {} projects", enabled_projects.len());
+
+    for (i, project_ref) in enabled_projects.iter().enumerate() {
+        println!("🔄 Debug: Processing project {} of {}: {}", i + 1, enabled_projects.len(), project_ref.name);
+
+        let semaphore_clone = Arc::clone(&semaphore);
+        let vector_store_clone = Arc::clone(&vector_store);
+        let embedding_manager_clone = Arc::clone(&embedding_manager);
+        let file_watcher_system_clone = Arc::clone(&file_watcher_system);
+
+        // Clone project data to avoid lifetime issues
+        let project_name = project_ref.name.clone();
+        let project_path = project_ref.path.clone();
+        let collections = project_ref.collections.clone();
+
+        let task = tokio::spawn(async move {
+            println!("📁 Debug: Acquiring semaphore for project: {}", project_name);
+            let _permit = semaphore_clone.acquire().await.unwrap();
+            println!("📁 Processing project: {} (parallel)", project_name);
+
+            // Process all collections for this project sequentially
+            for collection in &collections {
+                println!("🗂️ Processing collection: {} from {}", collection.name, project_path.display());
+
+                // Update status to processing
+                update_collection_status(&collection.name, "processing", 0.0, None).await;
+
+                // Try real indexing
+                match do_real_indexing(
+                    &collection.name,
+                    &project_path.to_string_lossy(),
+                    Arc::clone(&vector_store_clone),
+                    Arc::clone(&embedding_manager_clone),
+                ).await {
+                    Ok(count) => {
+                        update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
+                        println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
+
+                        // Create summary collections for this collection
+                        create_summary_collections_for_project(
+                            &collection.name,
+                            &project_path.to_string_lossy(),
+                            Arc::clone(&vector_store_clone),
+                            Arc::clone(&embedding_manager_clone),
+                        ).await;
+
+                        // Update file watcher with newly indexed collection
+                        let mut system = file_watcher_system_clone.lock().await;
+                        if let Some(ref mut watcher) = *system {
+                            if let Err(e) = watcher.update_with_collection(&collection.name).await {
+                                eprintln!("⚠️ Failed to update file watcher with collection '{}': {}", collection.name, e);
+                            } else {
+                                println!("👁️ File watcher updated with collection: {}", collection.name);
+                            }
                         }
                     }
+                    Err(e) => {
+                        update_collection_status(&collection.name, "failed", 0.0, None).await;
+                        println!("❌ Collection '{}' indexing failed: {}", collection.name, e);
+                    }
                 }
-                Err(e) => {
-                    update_collection_status(&collection.name, "failed", 0.0, None).await;
-                    println!("❌ Collection '{}' indexing failed: {}", collection.name, e);
+            }
+
+            // Return project info
+            (project_name, true)
+        });
+
+        project_tasks.push(task);
+    }
+
+    // Wait for all project tasks to complete
+    let mut completed_projects = 0;
+    for task in project_tasks {
+        match task.await {
+            Ok((project_name, success)) => {
+                if success {
+                    completed_projects += 1;
+                    println!("✅ Project '{}' completed successfully", project_name);
+                } else {
+                    println!("⚠️ Project '{}' completed with issues", project_name);
                 }
+            }
+            Err(e) => {
+                println!("❌ Project task failed: {}", e);
             }
         }
     }
+
+    println!("✅ Parallel processing completed: {}/{} projects processed successfully", completed_projects, total_projects);
     
     println!("✅ Background indexing completed");
 }
@@ -1888,8 +1989,14 @@ async fn do_real_indexing(
         max_file_size: 10 * 1024 * 1024, // 10MB
     };
     
-    // Create document loader with summarization
-    let summarization_config = load_summarization_config_from_yaml("config.yml").ok();
+    // Load full configuration including summarization for document loader
+    let full_config_loader = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
+        .unwrap_or_else(|e| {
+            println!("⚠️ Failed to load config.yml for document loader: {}. Using defaults.", e);
+            FullVectorizerConfig::default()
+        });
+
+    let summarization_config = Some(full_config_loader.summarization);
     let mut loader = vectorizer::document_loader::DocumentLoader::new_with_summarization(loader_config, summarization_config);
     
     // Load project with real indexing (async version) using shared vector store

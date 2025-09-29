@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vectorizer
+  namespace: vectorizer
+  labels:
+    app: vectorizer
+    version: v0.20.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vectorizer
+  template:
+    metadata:
+      labels:
+        app: vectorizer
+        version: v0.20.0
+    spec:
+      containers:
+      - name: vectorizer
+        image: vectorizer:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 15001
+          name: rest-api
+          protocol: TCP
+        - containerPort: 15002
+          name: mcp-server
+          protocol: TCP
+        - containerPort: 15003
+          name: grpc-server
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: RUST_BACKTRACE
+          value: "1"
+        - name: VECTORIZER_ENV
+          value: "production"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config.yml
+          subPath: config.yml
+        - name: workspace-volume
+          mountPath: /app/vectorize-workspace.yml
+          subPath: vectorize-workspace.yml
+        - name: data-volume
+          mountPath: /app/data
+        - name: cache-volume
+          mountPath: /app/cache
+        - name: logs-volume
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 15001
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 15001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 15001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: config-volume
+        configMap:
+          name: vectorizer-config
+      - name: workspace-volume
+        configMap:
+          name: vectorizer-workspace
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: vectorizer-data-pvc
+      - name: cache-volume
+        persistentVolumeClaim:
+          claimName: vectorizer-cache-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: vectorizer-logs-pvc
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

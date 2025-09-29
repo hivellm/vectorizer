@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  # CPU-Only Production Service
+  vectorizer-cpu:
+    build:
+      context: ..
+      dockerfile: devops/docker/Dockerfile
+    image: vectorizer:cpu-latest
+    container_name: vectorizer-cpu-prod
+    ports:
+      - "15001:15001"  # REST API (GRPC client)
+      - "15002:15002"  # MCP Server (GRPC client)
+      - "15003:15003"  # vzr Orchestrator (GRPC server)
+    volumes:
+      - vectorizer-data:/app/data
+      - vectorizer-cache:/app/cache
+      - vectorizer-logs:/app/logs
+      - ../config/vectorize-workspace.yml:/app/vectorize-workspace.yml
+      - ../config/config.docker.yml:/app/config.yml
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - VECTORIZER_ENV=production
+      - CUDA_ENABLED=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15001/api/v1/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+    networks:
+      - vectorizer-network
+    profiles:
+      - cpu-only
+
+  # CUDA Production Service
+  vectorizer-cuda:
+    build:
+      context: ..
+      dockerfile: devops/docker/Dockerfile.cuda
+    image: vectorizer:cuda-latest
+    container_name: vectorizer-cuda-prod
+    ports:
+      - "15001:15001"  # REST API (GRPC client)
+      - "15002:15002"  # MCP Server (GRPC client)
+      - "15003:15003"  # vzr Orchestrator (GRPC server)
+    volumes:
+      - vectorizer-data:/app/data
+      - vectorizer-cache:/app/cache
+      - vectorizer-logs:/app/logs
+      - ../config/vectorize-workspace.yml:/app/vectorize-workspace.yml
+      - ../config/config.docker.yml:/app/config.yml
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - VECTORIZER_ENV=production
+      - CUDA_ENABLED=true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15001/api/v1/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+    networks:
+      - vectorizer-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - cuda
+
+  # CPU-Only Development Service
+  vectorizer-dev-cpu:
+    build:
+      context: ..
+      dockerfile: devops/docker/Dockerfile.dev
+    image: vectorizer:cpu-dev
+    container_name: vectorizer-dev-cpu
+    ports:
+      - "15001:15001"  # REST API (GRPC client)
+      - "15002:15002"  # MCP Server (GRPC client)
+      - "15003:15003"  # vzr Orchestrator (GRPC server)
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - vectorizer-dev-data:/app/data
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      - VECTORIZER_ENV=development
+      - CUDA_ENABLED=false
+    stdin_open: true
+    tty: true
+    command: bash
+    networks:
+      - vectorizer-network
+    profiles:
+      - dev-cpu
+
+  # CUDA Development Service
+  vectorizer-dev-cuda:
+    build:
+      context: ..
+      dockerfile: devops/docker/Dockerfile.dev.cuda
+    image: vectorizer:cuda-dev
+    container_name: vectorizer-dev-cuda
+    ports:
+      - "15001:15001"  # REST API (GRPC client)
+      - "15002:15002"  # MCP Server (GRPC client)
+      - "15003:15003"  # vzr Orchestrator (GRPC server)
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - vectorizer-dev-data:/app/data
+    environment:
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      - VECTORIZER_ENV=development
+      - CUDA_ENABLED=true
+    stdin_open: true
+    tty: true
+    command: bash
+    networks:
+      - vectorizer-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - dev-cuda
+
+volumes:
+  vectorizer-data:
+    driver: local
+  vectorizer-cache:
+    driver: local
+  vectorizer-logs:
+    driver: local
+  vectorizer-dev-data:
+    driver: local
+  cargo-cache:
+    driver: local
+
+networks:
+  vectorizer-network:
+    driver: bridge

@@ -29,6 +29,12 @@ Tested with 3931 real documents from the gov/ directory:
 cargo run --bin benchmark_embeddings --release
 ```
 
+### CUDA Performance Benchmark
+```bash
+cargo run --bin cuda_benchmark --features cuda --release
+```
+Compares CPU vs CUDA performance for vector indexing and search operations.
+
 ### With Real Transformer Models
 ```bash
 cargo run --bin benchmark_embeddings --features "real-models candle-models" --release
@@ -47,6 +53,7 @@ cargo run --bin benchmark_embeddings --features full --release
 ## Benchmark Scripts
 
 - `scripts/benchmark_embeddings.rs`: Main benchmark comparing all embedding methods
+- `scripts/cuda_benchmark.rs`: CUDA vs CPU performance comparison
 - Reports are saved to `reports/` with timestamps
 
 ## Interpreting Results

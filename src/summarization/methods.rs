@@ -208,7 +208,9 @@ impl SummarizationMethodTrait for ExtractiveSummarizer {
             if !summary_sentences.is_empty() {
                 let first_sentence = &summary_sentences[0];
                 if first_sentence.len() > target_length {
-                    return Ok(first_sentence[..target_length.min(first_sentence.len())].to_string() + "...");
+                    // Usar chars().take() para respeitar boundaries UTF-8
+                    let truncated: String = first_sentence.chars().take(target_length.min(first_sentence.chars().count())).collect();
+                    return Ok(truncated + "...");
                 }
             }
         }
@@ -216,11 +218,14 @@ impl SummarizationMethodTrait for ExtractiveSummarizer {
         // Aplicar max_length se especificado
         if let Some(max_length) = params.max_length {
             if summary.len() > max_length {
-                // Truncar para o max_length especificado
+                // Truncar para o max_length especificado (respeitando boundaries UTF-8)
                 let truncated = if max_length > 3 {
-                    summary[..max_length - 3].to_string() + "..."
+                    // Usar chars().take() para respeitar boundaries UTF-8
+                    let chars_taken: String = summary.chars().take(max_length - 3).collect();
+                    chars_taken + "..."
                 } else {
-                    summary[..max_length].to_string()
+                    // Usar chars().take() para respeitar boundaries UTF-8
+                    summary.chars().take(max_length).collect()
                 };
                 return Ok(truncated);
             }

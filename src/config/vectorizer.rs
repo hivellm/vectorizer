@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::config::FileWatcherYamlConfig;
+use crate::cuda::CudaConfig;
+use crate::summarization::SummarizationConfig;
 
 /// Main Vectorizer configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,6 +15,10 @@ pub struct VectorizerConfig {
     pub file_watcher: FileWatcherYamlConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
+    /// CUDA GPU acceleration configuration
+    pub cuda: CudaConfig,
+    /// Summarization configuration
+    pub summarization: SummarizationConfig,
     /// Projects configuration
     pub projects: Vec<ProjectConfig>,
 }
@@ -101,6 +107,8 @@ impl Default for VectorizerConfig {
             server: ServerConfig::default(),
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
+            cuda: CudaConfig::default(),
+            summarization: SummarizationConfig::default(),
             projects: Vec::new(),
         }
     }

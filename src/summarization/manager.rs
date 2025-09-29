@@ -36,6 +36,11 @@ impl SummarizationManager {
     pub fn with_default_config() -> Self {
         Self::new(SummarizationConfig::default()).unwrap()
     }
+
+    /// Obter referência para a configuração atual
+    pub fn get_config(&self) -> &SummarizationConfig {
+        &self.config
+    }
     
     /// Sumarizar texto
     pub fn summarize_text(&mut self, params: SummarizationParams) -> Result<SummarizationResult, SummarizationError> {

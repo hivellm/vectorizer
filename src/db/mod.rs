@@ -1,7 +1,7 @@
 //! Database module for Vectorizer
 
 mod collection;
-mod optimized_hnsw;
+pub mod optimized_hnsw;
 mod vector_store;
 
 pub use collection::Collection;

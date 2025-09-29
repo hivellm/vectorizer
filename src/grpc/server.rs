@@ -61,6 +61,7 @@ impl VectorizerGrpcService {
     pub fn get_indexing_progress(&self) -> Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>> {
         self.indexing_progress.clone()
     }
+
 }
 
 #[tonic::async_trait]
@@ -81,8 +82,7 @@ impl VectorizerService for VectorizerGrpcService {
 
         // Search in vector store
         let start_time = std::time::Instant::now();
-        let results = self
-            .vector_store
+        let results = self.vector_store
             .search(&req.collection, &embedding, req.limit as usize)
             .map_err(|e| Status::internal(format!("Search failed: {}", e)))?;
         

@@ -3,26 +3,202 @@
 use crate::{
     error::{Result, VectorizerError},
     models::{CollectionConfig, CollectionMetadata, SearchResult, Vector},
+    cuda::CudaConfig,
 };
 use dashmap::DashMap;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use super::collection::Collection;
+#[cfg(feature = "cuda")]
+use crate::cuda::collection::CudaCollection;
+
+/// Enum to represent different collection types (CPU or CUDA)
+pub enum CollectionType {
+    /// CPU-based collection
+    Cpu(Collection),
+    /// CUDA-accelerated collection
+    #[cfg(feature = "cuda")]
+    Cuda(CudaCollection),
+}
+
+impl std::fmt::Debug for CollectionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CollectionType::Cpu(c) => write!(f, "CollectionType::Cpu({})", c.name()),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => write!(f, "CollectionType::Cuda({})", c.name()),
+        }
+    }
+}
+
+impl CollectionType {
+    /// Get collection name
+    pub fn name(&self) -> &str {
+        match self {
+            CollectionType::Cpu(c) => c.name(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.name(),
+        }
+    }
+
+    /// Get collection config
+    pub fn config(&self) -> &CollectionConfig {
+        match self {
+            CollectionType::Cpu(c) => c.config(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.config(),
+        }
+    }
+
+    /// Add a vector to the collection
+    pub fn add_vector(&self, _id: String, vector: Vector) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.insert(vector),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.add_vector(vector),
+        }
+    }
+
+    /// Search for similar vectors
+    pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
+        match self {
+            CollectionType::Cpu(c) => c.search(query, limit),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.search(query, limit),
+        }
+    }
+
+    /// Get collection metadata
+    pub fn metadata(&self) -> CollectionMetadata {
+        match self {
+            CollectionType::Cpu(c) => c.metadata(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.metadata(),
+        }
+    }
+
+    /// Delete a vector from the collection
+    pub fn delete_vector(&self, id: &str) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.delete(id),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.remove_vector(id),
+        }
+    }
+
+    /// Get a vector by ID
+    pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+        match self {
+            CollectionType::Cpu(c) => c.get_vector(vector_id),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.get_vector(vector_id),
+        }
+    }
+
+    /// Get the number of vectors in the collection
+    pub fn vector_count(&self) -> usize {
+        match self {
+            CollectionType::Cpu(c) => c.vector_count(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.vector_count(),
+        }
+    }
+
+    /// Get estimated memory usage
+    pub fn estimated_memory_usage(&self) -> usize {
+        match self {
+            CollectionType::Cpu(c) => c.estimated_memory_usage(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.estimated_memory_usage(),
+        }
+    }
+
+    /// Get all vectors in the collection
+    pub fn get_all_vectors(&self) -> Vec<Vector> {
+        match self {
+            CollectionType::Cpu(c) => c.get_all_vectors(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.get_all_vectors(),
+        }
+    }
+
+    /// Get embedding type
+    pub fn get_embedding_type(&self) -> String {
+        match self {
+            CollectionType::Cpu(c) => c.get_embedding_type(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.get_embedding_type(),
+        }
+    }
+
+    /// Set embedding type
+    pub fn set_embedding_type(&self, embedding_type: String) {
+        match self {
+            CollectionType::Cpu(c) => c.set_embedding_type(embedding_type),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => c.set_embedding_type(embedding_type),
+        }
+    }
+
+    /// Load HNSW index from dump
+    pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.load_hnsw_index_from_dump(path, basename),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(_) => {
+                warn!("CUDA collections don't support HNSW dump loading yet");
+                Ok(()) // No-op for now
+            }
+        }
+    }
+
+    /// Load vectors into memory
+    pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.load_vectors_into_memory(vectors),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(_) => {
+                warn!("CUDA collections don't support vector loading into memory yet");
+                Ok(()) // No-op for now
+            }
+        }
+    }
+
+    /// Fast load vectors
+    pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.fast_load_vectors(vectors),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(_) => {
+                warn!("CUDA collections don't support fast vector loading yet");
+                Ok(()) // No-op for now
+            }
+        }
+    }
+}
 
 /// Thread-safe in-memory vector store
 #[derive(Clone, Debug)]
 pub struct VectorStore {
     /// Collections stored in a concurrent hash map
-    collections: Arc<DashMap<String, Collection>>,
+    collections: Arc<DashMap<String, CollectionType>>,
+    /// CUDA configuration
+    cuda_config: CudaConfig,
 }
 
 impl VectorStore {
     /// Create a new empty vector store
     pub fn new() -> Self {
-        info!("Creating new VectorStore");
+        Self::new_with_cuda_config(CudaConfig::default())
+    }
+
+    /// Create a new vector store with CUDA configuration
+    pub fn new_with_cuda_config(cuda_config: CudaConfig) -> Self {
+        info!("Creating new VectorStore with CUDA config: enabled={}", cuda_config.enabled);
         Self {
             collections: Arc::new(DashMap::new()),
+            cuda_config,
         }
     }
 
@@ -34,7 +210,22 @@ impl VectorStore {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        let collection = Collection::new(name.to_string(), config);
+        let collection = if self.cuda_config.enabled {
+            #[cfg(feature = "cuda")]
+            {
+                info!("Creating CUDA-accelerated collection '{}'", name);
+                CollectionType::Cuda(CudaCollection::new(name.to_string(), config, self.cuda_config.clone()))
+            }
+            #[cfg(not(feature = "cuda"))]
+            {
+                warn!("CUDA requested but not compiled in - falling back to CPU collection");
+                CollectionType::Cpu(Collection::new(name.to_string(), config))
+            }
+        } else {
+            debug!("Creating CPU-based collection '{}'", name);
+            CollectionType::Cpu(Collection::new(name.to_string(), config))
+        };
+
         self.collections.insert(name.to_string(), collection);
 
         info!("Collection '{}' created successfully", name);
@@ -53,13 +244,13 @@ impl VectorStore {
         Ok(())
     }
 
-    /// Get a collection by name
-    pub fn get_collection(&self, name: &str) -> Result<Collection> {
+    /// Get a reference to a collection by name
+    pub fn get_collection(&self, name: &str) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
         self.collections
             .get(name)
-            .map(|entry| entry.value().clone())
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
     }
+
 
     /// List all collections
     pub fn list_collections(&self) -> Vec<String> {
@@ -71,24 +262,25 @@ impl VectorStore {
 
     /// Get collection metadata
     pub fn get_collection_metadata(&self, name: &str) -> Result<CollectionMetadata> {
-        let collection = self.get_collection(name)?;
-        Ok(collection.metadata())
+        let collection_ref = self.get_collection(name)?;
+        Ok(collection_ref.metadata())
     }
 
     /// Insert vectors into a collection
     pub fn insert(&self, collection_name: &str, vectors: Vec<Vector>) -> Result<()> {
         debug!(
-            "Inserting {} vectors into collection '{}'",
+            "Inserting {} vectors into collection '{}' (parallel)",
             vectors.len(),
             collection_name
         );
 
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
+        let collection_ref = self.get_collection(collection_name)?;
 
-        collection.insert_batch(vectors)?;
+        // Use parallel iteration for better performance
+        use rayon::prelude::*;
+        vectors.into_par_iter().try_for_each(|vector| {
+            collection_ref.add_vector(vector.id.clone(), vector)
+        })?;
 
         Ok(())
     }
@@ -100,12 +292,10 @@ impl VectorStore {
             vector.id, collection_name
         );
 
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
-
-        collection.update(vector)?;
+        let collection_ref = self.get_collection(collection_name)?;
+        // For update, we delete and re-add (TODO: Add direct update method to CollectionType)
+        collection_ref.delete_vector(&vector.id)?;
+        collection_ref.add_vector(vector.id.clone(), vector)?;
 
         Ok(())
     }
@@ -117,24 +307,16 @@ impl VectorStore {
             vector_id, collection_name
         );
 
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
-
-        collection.delete(vector_id)?;
+        let collection_ref = self.get_collection(collection_name)?;
+        collection_ref.delete_vector(vector_id)?;
 
         Ok(())
     }
 
     /// Get a vector by ID
     pub fn get_vector(&self, collection_name: &str, vector_id: &str) -> Result<Vector> {
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
-
-        collection.get_vector(vector_id)
+        let collection_ref = self.get_collection(collection_name)?;
+        collection_ref.get_vector(vector_id)
     }
 
     /// Search for similar vectors
@@ -149,12 +331,8 @@ impl VectorStore {
             k, collection_name
         );
 
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
-
-        collection.search(query_vector, k)
+        let collection_ref = self.get_collection(collection_name)?;
+        collection_ref.search(query_vector, k)
     }
 
     /// Load a collection from cache without reconstructing the HNSW index
@@ -163,13 +341,22 @@ impl VectorStore {
 
         debug!("Fast loading collection '{}' from cache with {} vectors", collection_name, persisted_vectors.len());
 
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
+        let collection_ref = self.get_collection(collection_name)?;
 
-        // Fast load: restore vectors and index directly without reconstruction
-        collection.load_from_cache(persisted_vectors)?;
+        // TODO: Implement load_from_cache for CudaCollection
+        match &*collection_ref {
+            CollectionType::Cpu(c) => c.load_from_cache(persisted_vectors)?,
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(_) => {
+                warn!("CUDA collections don't support cache loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for CUDA collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+        }
 
         Ok(())
     }
@@ -180,13 +367,22 @@ impl VectorStore {
 
         debug!("Loading collection '{}' from cache with {} vectors (HNSW dump: {})", collection_name, persisted_vectors.len(), hnsw_basename.is_some());
 
-        let collection = self
-            .collections
-            .get(collection_name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(collection_name.to_string()))?;
+        let collection_ref = self.get_collection(collection_name)?;
 
-        // Load with optional HNSW dump for instant index loading
-        collection.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?;
+        // TODO: Implement load_from_cache_with_hnsw_dump for CudaCollection
+        match &*collection_ref {
+            CollectionType::Cpu(c) => c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?,
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(_) => {
+                warn!("CUDA collections don't support HNSW dump loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for CUDA collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+        }
 
         Ok(())
     }

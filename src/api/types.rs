@@ -53,6 +53,8 @@ pub struct CollectionInfo {
     pub dimension: usize,
     /// Distance metric
     pub metric: DistanceMetric,
+    /// Embedding provider used by this collection
+    pub embedding_provider: String,
     /// Number of vectors
     pub vector_count: usize,
     /// Number of documents indexed

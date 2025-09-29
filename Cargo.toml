@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.1.0"
+version = "0.21.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -31,6 +31,10 @@ hnsw_rs = "0.3"
 # Linear algebra for basic matrix operations
 ndarray = "0.16"
 
+# CUDA dependencies (real GPU processing)
+cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
+cc = { version = "1.0", features = ["parallel"] }
+
 # Parallel processing
 rayon = "1.10"
 crossbeam = "0.8"
@@ -53,7 +57,7 @@ scopeguard = "1.2"
 clap = { version = "4.5", features = ["derive"] }
 
 # HTTP client for status checks
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.11", features = ["json"] }
 
 # System utilities
 whoami = "1.5"
@@ -70,7 +74,7 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 # Authentication and security
 jsonwebtoken = "9.3"
-uuid = { version = "1.8", features = ["v4", "serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
 rand = "0.9"
 
 # CLI utilities
@@ -101,23 +105,28 @@ tokio-util = "0.7"
 async-trait = "0.1"
 
 # gRPC dependencies
-tonic = { version = "0.12", features = ["tls"] }
-tonic-reflection = "0.12"
-prost = "0.13"
-prost-types = "0.13"
+tonic = { version = "0.11", features = ["tls"] }
+tonic-reflection = "0.11"
+prost = "0.12"
+prost-types = "0.12"
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-build = "0.11"
+cc = { version = "1.0", features = ["parallel"] }
 
 [dev-dependencies]
-criterion = { version = "0.7", features = ["html_reports"] }
-proptest = "1.5"
-tempfile = "3.13"
-reqwest = { version = "0.12", features = ["json"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+tempfile = "3.8"
+reqwest = { version = "0.11", features = ["json"] }
 
 [[bin]]
 name = "benchmark_embeddings"
 path = "benchmark/scripts/benchmark_embeddings.rs"
+
+[[bin]]
+name = "cuda_benchmark"
+path = "benchmark/scripts/cuda_benchmark.rs"
 
 [[bin]]
 name = "download_models"
@@ -135,16 +144,12 @@ path = "src/bin/vectorizer-server.rs"
 name = "vectorizer-mcp-server"
 path = "src/bin/vectorizer-mcp-server.rs"
 
-[[bench]]
-name = "vector_store"
-harness = false
 
-[[bench]]
-name = "throughput_benchmark"
-harness = false
 
 [features]
-default = []
+default = ["cuda_real"]
+cuda = []
+cuda_real = ["cuda"]
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
 candle-transformers = ["dep:candle-transformers"]
@@ -170,6 +175,7 @@ candle-models = [
     "hf-hub"
 ]
 full = ["real-models", "onnx-models", "arrow", "parquet"]
+
 
 [[bin]]
 name = "vzr"
