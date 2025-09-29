@@ -7,10 +7,10 @@
 # =============================================================================
 workspace:
   name: "HiveLLM Complete Workspace"
-  version: "1.0.0"
-  description: "Complete multi-project workspace for HiveLLM ecosystem development"
+  version: "1.1.0"
+  description: "Complete multi-project workspace for HiveLLM ecosystem development with Task Queue, Dev Tools, and Rust SDK"
   created_at: "2025-09-26T00:00:00Z"
-  last_updated: "2025-09-26T00:00:00Z"
+  last_updated: "2025-09-29T00:00:00Z"
 
 # =============================================================================
 # GLOBAL SETTINGS
@@ -872,14 +872,295 @@ projects:
             - "**/*.bat"
           exclude_patterns: []
 
+  # Task Queue Project
+  - name: "task-queue"
+    path: "../task-queue"
+    description: "📋 Task Queue - High-performance task queue system"
+    enabled: true
+    
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters:
+        k1: 1.5
+        b: 0.75
+    
+    collections:
+      - name: "task-queue-rust_source"
+        description: "Rust source code implementation"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 256
+          chunk_overlap: 25
+          include_patterns:
+            - "src/**/*.rs"
+            - "examples/**/*.rs"
+            - "tests/**/*.rs"
+          exclude_patterns:
+            - "target/**"
+            - "**/Cargo.lock"
+      
+      - name: "task-queue-documentation"
+        description: "Project documentation and API guides"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 512
+          chunk_overlap: 50
+          include_patterns:
+            - "docs/**/*.md"
+            - "**/*.md"
+            - "README.md"
+          exclude_patterns: []
+      
+      - name: "task-queue-configurations"
+        description: "Configuration files and schemas"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 128
+          chunk_overlap: 10
+          include_patterns:
+            - "**/*.yml"
+            - "**/*.yaml"
+            - "**/*.toml"
+            - "**/*.json"
+          exclude_patterns: []
+
+  # Dev Tools Project
+  - name: "dev-tools"
+    path: "../dev-tools"
+    description: "🛠️ Dev Tools - Development utilities and tools"
+    enabled: true
+    
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters:
+        k1: 1.5
+        b: 0.75
+    
+    collections:
+      - name: "dev-tools-typescript_source"
+        description: "TypeScript source code implementation"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 256
+          chunk_overlap: 25
+          include_patterns:
+            - "src/**/*.ts"
+            - "src/**/*.js"
+            - "tests/**/*.ts"
+            - "tests/**/*.js"
+          exclude_patterns:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/*.d.ts"
+      
+      - name: "dev-tools-documentation"
+        description: "Project documentation and guides"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 512
+          chunk_overlap: 50
+          include_patterns:
+            - "docs/**/*.md"
+            - "**/*.md"
+            - "README.md"
+            - "CONTRIBUTING.md"
+          exclude_patterns: []
+      
+      - name: "dev-tools-configurations"
+        description: "Configuration files and schemas"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 128
+          chunk_overlap: 10
+          include_patterns:
+            - "**/*.json"
+            - "**/*.yml"
+            - "**/*.yaml"
+            - "**/*.toml"
+            - "**/*.env*"
+          exclude_patterns: []
+
+  # Vectorizer Rust SDK Project
+  - name: "vectorizer-rust-sdk"
+    path: "./client-sdks/rust"
+    description: "🦀 Vectorizer Rust SDK - High-performance native client"
+    enabled: true
+    
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters:
+        k1: 1.5
+        b: 0.75
+    
+    collections:
+      - name: "rust-sdk-source_code"
+        description: "Rust SDK source code implementation"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 256
+          chunk_overlap: 25
+          include_patterns:
+            - "src/**/*.rs"
+            - "examples/**/*.rs"
+            - "tests/**/*.rs"
+            - "benches/**/*.rs"
+          exclude_patterns:
+            - "target/**"
+            - "**/Cargo.lock"
+      
+      - name: "rust-sdk-documentation"
+        description: "SDK documentation and examples"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 512
+          chunk_overlap: 50
+          include_patterns:
+            - "**/*.md"
+            - "README.md"
+            - "docs/**/*.md"
+          exclude_patterns: []
+      
+      - name: "rust-sdk-configurations"
+        description: "SDK configuration files"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 128
+          chunk_overlap: 10
+          include_patterns:
+            - "**/*.toml"
+            - "**/*.json"
+            - "**/*.yml"
+            - "**/*.yaml"
+          exclude_patterns: []
+
 # =============================================================================
 # WORKSPACE PROCESSING SETTINGS
 # =============================================================================
 processing:
   # Global processing settings
   parallel_processing: true
-  max_concurrent_projects: 6
-  max_concurrent_collections: 12
+  max_concurrent_projects: 9
+  max_concurrent_collections: 18
   
   # File processing
   file_processing:
