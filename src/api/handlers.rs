@@ -205,6 +205,58 @@ impl AppState {
             embedding_manager.register_provider("tfidf".to_string(), tfidf);
             println!("🔧 Registered TFIDF provider");
         }
+        
+        // Register advanced embedding models if features are enabled
+        #[cfg(feature = "onnx-models")]
+        {
+            if !embedding_manager.has_provider("onnx-minilm") {
+                if let Ok(onnx_embedder) = crate::embedding::OnnxEmbedder::new(
+                    crate::embedding::OnnxConfig {
+                        model_type: crate::embedding::OnnxModelType::MiniLMMultilingual384,
+                        batch_size: 32,
+                        ..Default::default()
+                    }
+                ) {
+                    embedding_manager.register_provider("onnx-minilm".to_string(), Box::new(onnx_embedder));
+                    println!("🔧 Registered ONNX MiniLM provider");
+                }
+            }
+            
+            if !embedding_manager.has_provider("onnx-e5-small") {
+                if let Ok(onnx_embedder) = crate::embedding::OnnxEmbedder::new(
+                    crate::embedding::OnnxConfig {
+                        model_type: crate::embedding::OnnxModelType::E5SmallMultilingual384,
+                        batch_size: 32,
+                        ..Default::default()
+                    }
+                ) {
+                    embedding_manager.register_provider("onnx-e5-small".to_string(), Box::new(onnx_embedder));
+                    println!("🔧 Registered ONNX E5-Small provider");
+                }
+            }
+        }
+        
+        #[cfg(feature = "candle-models")]
+        {
+            if !embedding_manager.has_provider("real-minilm") {
+                if let Ok(real_embedder) = crate::embedding::RealModelEmbedder::new(
+                    crate::embedding::RealModelType::MiniLMMultilingual
+                ) {
+                    embedding_manager.register_provider("real-minilm".to_string(), Box::new(real_embedder));
+                    println!("🔧 Registered Real MiniLM provider");
+                }
+            }
+            
+            if !embedding_manager.has_provider("real-e5-small") {
+                if let Ok(real_embedder) = crate::embedding::RealModelEmbedder::new(
+                    crate::embedding::RealModelType::E5SmallMultilingual
+                ) {
+                    embedding_manager.register_provider("real-e5-small".to_string(), Box::new(real_embedder));
+                    println!("🔧 Registered Real E5-Small provider");
+                }
+            }
+        }
+        
         if embedding_manager.get_default_provider().is_err() {
             embedding_manager.set_default_provider("bm25").unwrap();
             println!("🔧 Set BM25 as default provider");
