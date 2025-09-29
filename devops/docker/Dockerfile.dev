@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     gdb \
     valgrind \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Install additional Rust tools for development

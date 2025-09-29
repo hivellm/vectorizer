@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     cmake \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
