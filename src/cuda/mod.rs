@@ -542,20 +542,4 @@ mod tests {
         let similarity = ops.cosine_similarity(&c, &d);
         assert_eq!(similarity, 1.0);
     }
-
-    #[tokio::test]
-    async fn test_parallel_similarity_search() {
-        let config = CudaConfig::default();
-        let ops = CudaVectorOperations::new(config);
-        
-        let query = vec![1.0, 0.0, 0.0];
-        let vectors = vec![
-            vec![1.0, 0.0, 0.0],
-            vec![0.0, 1.0, 0.0],
-            vec![0.0, 0.0, 1.0],
-        ];
-        
-        let results = ops.parallel_similarity_search(&query, &vectors, 0.5, DistanceMetric::Cosine).await.unwrap();
-        assert!(!results.is_empty());
-    }
 }

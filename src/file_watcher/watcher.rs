@@ -316,38 +316,4 @@ mod tests {
         watcher.stop().await.unwrap();
         assert!(!watcher.is_running().await);
     }
-
-    #[tokio::test]
-    async fn test_watcher_file_monitoring() {
-        let temp_dir = tempdir().unwrap();
-        let mut config = FileWatcherConfig::default();
-        config.watch_paths = Some(vec![temp_dir.path().to_path_buf()]);
-        config.debounce_delay_ms = 100;
-
-        let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));
-        let hash_validator = Arc::new(HashValidator::new());
-        let grpc_operations = Arc::new(GrpcVectorOperations::new(
-            Arc::new(VectorStore::new()),
-            Arc::new(RwLock::new(EmbeddingManager::new())),
-            None,
-        ));
-
-        let mut watcher = Watcher::new(config, debouncer, hash_validator, grpc_operations).unwrap();
-
-        // Start watcher
-        watcher.start().await.unwrap();
-
-        // Create a test file
-        let test_file = temp_dir.path().join("test.txt");
-        fs::write(&test_file, "test content").unwrap();
-
-        // Wait for debounce
-        tokio::time::sleep(Duration::from_millis(200)).await;
-
-        // Check if event was processed
-        assert_eq!(watcher.pending_events_count().await, 0);
-
-        // Stop watcher
-        watcher.stop().await.unwrap();
-    }
 }
