@@ -21,6 +21,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🌐 REST API**: Complete HTTP API with authentication and security
 - **🐍 Python SDK**: Full-featured client library with async/await support
 - **📱 TypeScript SDK**: Complete TypeScript client for web applications
+- **🦀 Rust SDK**: High-performance native client with memory safety and MCP support
 - **🔐 Authentication**: JWT-based security with API key management
 
 ### **Workspace Management**
@@ -356,6 +357,8 @@ vectorizer ingest --file document.txt --collection my_docs --api-key <key>
 ```
 
 #### Python SDK Example (Available Now!)
+
+#### Rust SDK Example (Available Now!)
 ```python
 from vectorizer import VectorizerClient
 
@@ -411,6 +414,58 @@ results = await client.search_vectors(
 
 # Generate embeddings
 embedding = await client.embed_text("machine learning algorithms")
+```
+
+#### Rust SDK Example (Available Now!)
+```rust
+use vectorizer_sdk::*;
+use std::collections::HashMap;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to server
+    let client = VectorizerClient::new_default()?;
+
+    // Create collection
+    client.create_collection("documents", 768, Some(SimilarityMetric::Cosine)).await?;
+
+    // Insert documents
+    let mut metadata = HashMap::new();
+    metadata.insert("source".to_string(), "document.pdf".to_string());
+    metadata.insert("category".to_string(), "AI".to_string());
+
+    let texts = vec![BatchTextRequest {
+        id: "doc_1".to_string(),
+        text: "This is a sample document about machine learning".to_string(),
+        metadata: Some(metadata),
+    }];
+
+    client.insert_texts("documents", texts).await?;
+
+    // Search documents
+    let results = client.search_vectors("documents", "machine learning", Some(5), None).await?;
+    println!("Found {} results", results.results.len());
+
+    // Generate embeddings
+    let embedding = client.embed_text("machine learning algorithms", None).await?;
+    println!("Generated embedding with {} dimensions", embedding.embedding.len());
+
+    Ok(())
+}
+```
+
+**Rust SDK Features:**
+- ✅ **High Performance**: Native Rust implementation with zero garbage collection overhead
+- ✅ **Memory Safety**: Compile-time guarantees prevent memory errors and data races
+- ✅ **MCP Support**: Built-in Model Context Protocol integration for AI workflows
+- ✅ **Async/Await**: Full async support using Tokio runtime
+- ✅ **Type Safety**: Strong typing with comprehensive error handling
+- ✅ **Comprehensive Testing**: Full test suite with integration tests
+- ✅ **Documentation**: Complete API documentation with examples
+
+**Installation:**
+```bash
+cargo add vectorizer-sdk
 ```
 
 **Python SDK Features:**

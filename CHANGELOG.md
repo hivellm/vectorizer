@@ -5,6 +5,90 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2025-09-29
+
+### 🐛 **Critical API Fixes & System Stability**
+
+#### **Vector Count Consistency Fix** ✅ **RESOLVED**
+- **FIXED**: Inconsistent `vector_count` field in collection API responses
+- **ISSUE**: `vector_count` showed 0 while `indexing_status.vector_count` showed correct count
+- **ROOT CAUSE**: `metadata.vector_count` returned in-memory count, but vectors were unloaded after indexing
+- **SOLUTION**: Use `indexing_status.vector_count` for primary `vector_count` field when available
+- **IMPACT**: Collection APIs now return accurate vector counts consistently
+
+#### **Embedding Provider Information** ✅ **IMPLEMENTED**
+- **NEW**: `embedding_provider` field added to all collection API responses
+- **ENHANCEMENT**: Collections now show which embedding provider they use (BM25, TFIDF, etc.)
+- **API CHANGE**: `CollectionInfo` struct now includes `embedding_provider: String`
+- **COMPATIBILITY**: Backward compatible - existing clients receive additional information
+- **USER EXPERIENCE**: Users can now identify which provider each collection uses
+
+#### **Embedding Provider Registration** ✅ **FIXED**
+- **FIXED**: Default provider now correctly set to BM25 instead of TFIDF
+- **ISSUE**: Registration order caused TFIDF to become default provider
+- **SOLUTION**: Modified registration order to ensure BM25 is registered first
+- **VERIFICATION**: `/api/v1/embedding/providers` now shows `bm25` as default provider
+
+#### **Bend Integration Removal** ✅ **COMPLETED**
+- **REMOVED**: Complete removal of Bend integration from codebase
+- **CLEANUP**: Removed `bend/` module and all Bend-related code
+- **SIMPLIFICATION**: Streamlined collection operations to use CPU implementation only
+- **MAINTENANCE**: Eliminated experimental Bend code that was not in use
+- **BUILD**: Faster compilation and smaller binary size
+
+#### **Collection Metadata Persistence** ✅ **ENHANCED**
+- **NEW**: Persistent `vector_count` tracking in collection metadata
+- **IMPLEMENTATION**: Added `vector_count: Arc<RwLock<usize>>` to CPU collection struct
+- **INTEGRATION**: Automatic vector count updates on insert/delete operations
+- **ACCURACY**: Vector counts remain accurate even after server restarts
+- **PERFORMANCE**: Minimal overhead for metadata persistence
+
+### 🔧 **Technical Implementation Details**
+
+#### **API Response Consistency**
+```json
+{
+  "name": "gov-bips",
+  "dimension": 512,
+  "metric": "cosine",
+  "embedding_provider": "bm25",
+  "vector_count": 338,
+  "document_count": 56,
+  "indexing_status": {
+    "vector_count": 338,
+    "status": "completed"
+  }
+}
+```
+
+#### **Collection Metadata Structure**
+- **CPU Collections**: Now include persistent `vector_count` field
+- **Metadata Persistence**: Vector counts survive collection unloading/loading
+- **Thread Safety**: `Arc<RwLock<usize>>` for concurrent access
+- **Automatic Updates**: Insert/delete operations update counts atomically
+
+#### **Embedding Provider API**
+- **Endpoint**: `GET /api/v1/embedding/providers`
+- **Response**: Includes default provider and all available providers
+- **Consistency**: BM25 now correctly shown as default provider
+- **Registration**: Proper order ensures BM25 has priority
+
+### 📊 **Quality Improvements**
+- **API Consistency**: All collection endpoints now return consistent data
+- **User Information**: Clear embedding provider identification
+- **Provider Defaults**: Correct BM25 default instead of TFIDF
+- **Code Cleanliness**: Removed unused Bend integration code
+- **Data Accuracy**: Persistent vector counts across sessions
+
+### 🧪 **Testing Verification**
+- **Vector Count Accuracy**: Verified across multiple collections
+- **API Response Format**: All collection endpoints tested
+- **Embedding Provider Display**: All providers correctly shown
+- **Default Provider**: BM25 confirmed as default
+- **Build Stability**: Successful compilation without Bend dependencies
+
+---
+
 ## [0.20.0] - 2025-09-28
 
 ### 🚀 **CUDA GPU Acceleration & Advanced Features**

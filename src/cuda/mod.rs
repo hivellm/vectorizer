@@ -6,22 +6,30 @@
 pub mod collection;
 pub mod kernels;
 pub mod real_kernels;
+pub mod gpu_kernels;
 pub mod cuhnsw_bindings;
+pub mod cuhnsw_real_bindings;
+pub mod gemm;
+pub mod topk;
 
 use std::sync::Arc;
 use crate::error::{Result, VectorizerError};
 use crate::models::{DistanceMetric, SearchResult};
 use tracing::{debug, info, warn};
-use crate::cuda::real_kernels::CudaKernels;
+use crate::cuda::gpu_kernels::GpuKernels;
 use crate::cuda::cuhnsw_bindings::{CuhnswWrapper, CuhnswConfig};
+use crate::cuda::gemm::GemmDistanceComputer;
+use crate::cuda::topk::DeviceTopKSelector;
 
 /// CUDA configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CudaConfig {
     /// Enable CUDA acceleration
     pub enabled: bool,
     /// CUDA device ID
     pub device_id: i32,
+    /// GPU memory limit in MB (0 = no limit)
+    pub memory_limit_mb: usize,
     /// Maximum number of threads per block
     pub max_threads_per_block: u32,
     /// Maximum number of blocks per grid
@@ -35,6 +43,7 @@ impl Default for CudaConfig {
         Self {
             enabled: true,
             device_id: 0,
+            memory_limit_mb: 4096, // 4GB default limit
             max_threads_per_block: 1024,
             max_blocks_per_grid: 65535,
             memory_pool_size_mb: 1024,
@@ -46,8 +55,10 @@ impl Default for CudaConfig {
 pub struct CudaVectorOperations {
     config: CudaConfig,
     device_available: bool,
-    kernels: Option<CudaKernels>,
+    kernels: Option<GpuKernels>,
     cuhnsw: Option<CuhnswWrapper>,
+    gemm_computer: Option<GemmDistanceComputer>,
+    topk_selector: Option<DeviceTopKSelector>,
 }
 
 impl CudaVectorOperations {
@@ -84,15 +95,47 @@ impl CudaVectorOperations {
             None
         };
         
-        // Fallback to Rust kernels if cuhnsw is not available
+        // Fallback to GPU kernels if cuhnsw is not available
         let kernels = if cuhnsw.is_none() && device_available && config.enabled {
-            match CudaKernels::new(config.device_id as usize) {
+            match GpuKernels::new(config.device_id as usize) {
                 Ok(kernels) => {
-                    info!("Rust CUDA kernels initialized successfully on device {}", config.device_id);
+                    info!("GPU kernels initialized successfully with cuhnsw on device {}", config.device_id);
                     Some(kernels)
                 }
                 Err(e) => {
-                    warn!("Failed to initialize Rust CUDA kernels: {}, falling back to CPU", e);
+                    warn!("Failed to initialize GPU kernels: {}, falling back to CPU", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        
+        // Initialize GEMM distance computer (try real CUDA first)
+        let gemm_computer = if config.enabled {
+            match GemmDistanceComputer::new(config.device_id as usize) {
+                Ok(g) => {
+                    info!("GEMM distance computer initialized successfully");
+                    Some(g)
+                }
+                Err(e) => {
+                    warn!("Failed to initialize GEMM distance computer: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        
+        // Initialize Top-K selector (try real CUDA first)
+        let topk_selector = if config.enabled {
+            match DeviceTopKSelector::new(config.device_id as usize) {
+                Ok(t) => {
+                    info!("Device Top-K selector initialized successfully");
+                    Some(t)
+                }
+                Err(e) => {
+                    warn!("Failed to initialize device Top-K selector: {}", e);
                     None
                 }
             }
@@ -105,6 +148,8 @@ impl CudaVectorOperations {
             device_available: cuhnsw.is_some() || kernels.is_some(),
             kernels,
             cuhnsw,
+            gemm_computer,
+            topk_selector,
         }
     }
 
@@ -114,16 +159,16 @@ impl CudaVectorOperations {
             return false;
         }
 
-        // Try to initialize CUDA context to check availability
-        match cudarc::driver::CudaContext::new(config.device_id as usize) {
-            Ok(_) => {
-                debug!("CUDA device {} is available", config.device_id);
-                true
-            }
-            Err(e) => {
-                warn!("CUDA device {} not available: {}", config.device_id, e);
-                false
-            }
+        // Check if CUDA runtime libraries are available
+        let cuda_available = std::path::Path::new("lib/cuhnsw.lib").exists() ||
+                            std::path::Path::new("lib/libcuhnsw.a").exists();
+
+        if cuda_available {
+            debug!("CUDA libraries found, CUDA acceleration enabled for device {}", config.device_id);
+            true
+        } else {
+            debug!("CUDA libraries not found, using CPU fallback for device {}", config.device_id);
+            false
         }
     }
 

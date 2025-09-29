@@ -4,7 +4,6 @@ use crate::config::GrpcServerConfig;
 use crate::api::handlers::WorkspaceCollection;
 use crate::workspace::WorkspaceManager;
 use crate::summarization::{SummarizationManager, SummarizationConfig, SummarizationMethod};
-use crate::bend::{BendConfig, collection::BendCollection};
 use crate::grpc::vectorizer::{
     vectorizer_service_server::VectorizerService,
     SearchRequest, SearchResponse, SearchResult,
@@ -36,7 +35,6 @@ pub struct VectorizerGrpcService {
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
     summarization_manager: Arc<Mutex<SummarizationManager>>,
-    bend_config: BendConfig,
 }
 
 impl VectorizerGrpcService {
@@ -45,7 +43,6 @@ impl VectorizerGrpcService {
         embedding_manager: Arc<Mutex<EmbeddingManager>>,
         indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
         summarization_config: Option<SummarizationConfig>,
-        bend_config: BendConfig,
     ) -> Self {
         let summarization_manager = Arc::new(Mutex::new(
             summarization_config
@@ -58,7 +55,6 @@ impl VectorizerGrpcService {
             embedding_manager,
             indexing_progress,
             summarization_manager,
-            bend_config,
         }
     }
 
@@ -66,25 +62,6 @@ impl VectorizerGrpcService {
         self.indexing_progress.clone()
     }
 
-    /// Search with Bend acceleration
-    async fn search_with_bend(
-        &self,
-        collection_name: &str,
-        query_vector: &[f32],
-        limit: usize,
-    ) -> Result<Vec<crate::models::SearchResult>, Status> {
-        // Get the collection from vector store
-        let collection = self.vector_store
-            .get_collection(collection_name)
-            .map_err(|e| Status::internal(format!("Collection not found: {}", e)))?;
-
-        // For now, we'll use the regular search method
-        // In a full implementation, we would check if the collection supports Bend
-        // and use BendCollection::search_with_bend if available
-        collection
-            .search(query_vector, limit)
-            .map_err(|e| Status::internal(format!("Bend search failed: {}", e)))
-    }
 }
 
 #[tonic::async_trait]
@@ -103,28 +80,11 @@ impl VectorizerService for VectorizerGrpcService {
             .embed_with_provider("bm25", &req.query)
             .map_err(|e| Status::internal(format!("Failed to generate embedding: {}", e)))?;
 
-        // Search in vector store with Bend acceleration if available
+        // Search in vector store
         let start_time = std::time::Instant::now();
-        let results = if self.bend_config.enabled {
-            // Try to use Bend-enhanced search
-            match self.search_with_bend(&req.collection, &embedding, req.limit as usize).await {
-                Ok(results) => {
-                    tracing::debug!("Used Bend acceleration for search");
-                    results
-                }
-                Err(e) => {
-                    tracing::warn!("Bend search failed, falling back to HNSW: {}", e);
-                    self.vector_store
-                        .search(&req.collection, &embedding, req.limit as usize)
-                        .map_err(|e| Status::internal(format!("Search failed: {}", e)))?
-                }
-            }
-        } else {
-            // Use regular HNSW search
-            self.vector_store
-                .search(&req.collection, &embedding, req.limit as usize)
-                .map_err(|e| Status::internal(format!("Search failed: {}", e)))?
-        };
+        let results = self.vector_store
+            .search(&req.collection, &embedding, req.limit as usize)
+            .map_err(|e| Status::internal(format!("Search failed: {}", e)))?;
         
         let search_time = start_time.elapsed().as_secs_f64() * 1000.0; // Convert to ms
 
@@ -732,7 +692,7 @@ pub async fn start_grpc_server(
         .parse()
         .map_err(|e| format!("Invalid GRPC server address: {}", e))?;
 
-    let service = VectorizerGrpcService::new(vector_store, embedding_manager, indexing_progress, summarization_config, BendConfig::default());
+    let service = VectorizerGrpcService::new(vector_store, embedding_manager, indexing_progress, summarization_config);
     
     tracing::info!("🚀 Starting GRPC server on {}:{}", config.host, config.port);
 

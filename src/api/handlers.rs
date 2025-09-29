@@ -16,7 +16,10 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     VectorStore,
-    embedding::{Bm25Embedding, EmbeddingManager},
+    embedding::{
+        BagOfWordsEmbedding, BertEmbedding, Bm25Embedding, CharNGramEmbedding,
+        EmbeddingManager, MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding
+    },
     models::{CollectionConfig, Payload, Vector},
     grpc::client::VectorizerGrpcClient,
     config::GrpcConfig,
@@ -206,6 +209,10 @@ impl AppState {
             embedding_manager.set_default_provider("bm25").unwrap();
             println!("🔧 Set BM25 as default provider");
         }
+
+        // Debug: Log current providers
+        let providers = embedding_manager.list_providers();
+        println!("🔧 AppState initialized with providers: {:?}, has_default: {}", providers, embedding_manager.get_default_provider().is_ok());
 
         // Initialize GRPC client
         let grpc_client = None; // Will be initialized later if needed
@@ -530,6 +537,7 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                         document_count: collection.document_count as usize,
                         dimension: collection.dimension as usize,
                         metric: DistanceMetric::Cosine, // Default metric
+                        embedding_provider: "bm25".to_string(), // Default for GRPC collections
                         created_at: collection.last_updated.clone(),
                         updated_at: collection.last_updated,
                         indexing_status: IndexingStatus {
@@ -622,10 +630,16 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
 
         if let Some(metadata) = metadata {
             // Collection exists
+            let embedding_provider = match state.store.get_collection(&name) {
+                Ok(collection) => collection.get_embedding_type(),
+                Err(_) => "unknown".to_string(),
+            };
+
             collection_infos.push(CollectionInfo {
                 name: metadata.name,
                 dimension: metadata.config.dimension,
                 metric: metadata.config.metric.into(),
+                embedding_provider,
                 vector_count: metadata.vector_count,
                 document_count: metadata.document_count,
                 created_at: metadata.created_at.to_rfc3339(),
@@ -643,6 +657,7 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                     "dot_product" => crate::api::types::DistanceMetric::DotProduct,
                     _ => crate::api::types::DistanceMetric::Cosine,
                 },
+                embedding_provider: workspace_collection.model.clone(),
                 vector_count: 0,
                 document_count: 0,
                 created_at: Utc::now().to_rfc3339(), // Placeholder
@@ -670,10 +685,16 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                             last_updated: Utc::now().to_rfc3339(),
                         });
 
+                let embedding_provider = match state.store.get_collection(&name) {
+                    Ok(collection) => collection.get_embedding_type(),
+                    Err(_) => "unknown".to_string(),
+                };
+
                 collection_infos.push(CollectionInfo {
                     name: metadata.name,
                     dimension: metadata.config.dimension,
                     metric: metadata.config.metric.into(),
+                    embedding_provider,
                     vector_count: metadata.vector_count,
                     document_count: metadata.document_count,
                     created_at: metadata.created_at.to_rfc3339(),
@@ -863,38 +884,83 @@ pub async fn get_collection(
     match state.store.get_collection_metadata(&collection_name) {
         Ok(metadata) => {
             let indexing_snapshot = state.indexing_progress.snapshot();
+
+            // Get vector count from indexing status if available, otherwise use metadata
+            let vector_count = indexing_snapshot
+                .get(&collection_name)
+                .map(|status| status.vector_count)
+                .unwrap_or(metadata.vector_count);
+
             let indexing_status = indexing_snapshot
                 .get(&collection_name)
                 .cloned()
                 .unwrap_or_else(|| IndexingStatus {
                     status: "completed".to_string(),
                     progress: 100.0,
-                    total_documents: metadata.vector_count,
-                    processed_documents: metadata.vector_count,
-                    vector_count: metadata.vector_count,
+                    total_documents: vector_count,
+                    processed_documents: vector_count,
+                    vector_count,
                     estimated_time_remaining: None,
                     last_updated: Utc::now().to_rfc3339(),
                 });
+
+            // Get embedding provider from collection
+            let embedding_provider = match state.store.get_collection(&collection_name) {
+                Ok(collection) => collection.get_embedding_type(),
+                Err(_) => "unknown".to_string(),
+            };
 
             Ok(Json(CollectionInfo {
                 name: metadata.name,
                 dimension: metadata.config.dimension,
                 metric: metadata.config.metric.into(),
-                vector_count: metadata.vector_count,
+                embedding_provider,
+                vector_count,
                 document_count: metadata.document_count,
                 created_at: metadata.created_at.to_rfc3339(),
                 updated_at: metadata.updated_at.to_rfc3339(),
                 indexing_status,
             }))
         }
-        Err(_) => Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                error: format!("Collection '{}' not found", collection_name),
-                code: "COLLECTION_NOT_FOUND".to_string(),
-                details: None,
-            }),
-        )),
+        Err(_) => {
+            // Check if collection exists in workspace collections (not yet indexed)
+            if let Some(workspace_collection) = state.workspace_collections.iter().find(|wc| wc.name == collection_name) {
+                let indexing_snapshot = state.indexing_progress.snapshot();
+                let indexing_status = indexing_snapshot
+                    .get(&collection_name)
+                    .cloned()
+                    .unwrap_or_else(|| IndexingStatus {
+                        status: "not_indexed".to_string(),
+                        progress: 0.0,
+                        total_documents: 0,
+                        processed_documents: 0,
+                        vector_count: 0,
+                        estimated_time_remaining: None,
+                        last_updated: Utc::now().to_rfc3339(),
+                    });
+
+                Ok(Json(CollectionInfo {
+                    name: workspace_collection.name.clone(),
+                    dimension: workspace_collection.dimension as usize,
+                    metric: DistanceMetric::Cosine, // Default metric for workspace collections
+                    embedding_provider: workspace_collection.model.clone(),
+                    vector_count: 0,
+                    document_count: 0,
+                    created_at: Utc::now().to_rfc3339(), // Workspace collections don't have creation time
+                    updated_at: Utc::now().to_rfc3339(),
+                    indexing_status,
+                }))
+            } else {
+                Err((
+                    StatusCode::NOT_FOUND,
+                    Json(ErrorResponse {
+                        error: format!("Collection '{}' not found", collection_name),
+                        code: "COLLECTION_NOT_FOUND".to_string(),
+                        details: None,
+                    }),
+                ))
+            }
+        }
     }
 }
 
@@ -1554,12 +1620,53 @@ fn create_text_embedding(query: &str, dimension: usize) -> anyhow::Result<Vec<f3
 pub async fn list_embedding_providers(
     State(state): State<AppState>,
 ) -> Json<ListEmbeddingProvidersResponse> {
-    let manager = state.embedding_manager.lock().unwrap();
+    let mut manager = state.embedding_manager.lock().unwrap();
+
+    // Ensure providers are registered if not present
+    if manager.list_providers().is_empty() {
+        info!("📊 API: No providers found, registering all available providers...");
+
+        // Register all available embedding providers
+        // Register bm25 first so it becomes the default
+        if !manager.has_provider("bm25") {
+            let bm25 = Box::new(crate::embedding::Bm25Embedding::new(512));
+            manager.register_provider("bm25".to_string(), bm25);
+        }
+        if !manager.has_provider("tfidf") {
+            let tfidf = Box::new(crate::embedding::TfIdfEmbedding::new(512));
+            manager.register_provider("tfidf".to_string(), tfidf);
+        }
+        if !manager.has_provider("svd") {
+            let svd = Box::new(crate::embedding::SvdEmbedding::new(512, 512));
+            manager.register_provider("svd".to_string(), svd);
+        }
+        if !manager.has_provider("bert") {
+            let bert = Box::new(crate::embedding::BertEmbedding::new(512));
+            manager.register_provider("bert".to_string(), bert);
+        }
+        if !manager.has_provider("minilm") {
+            let minilm = Box::new(crate::embedding::MiniLmEmbedding::new(512));
+            manager.register_provider("minilm".to_string(), minilm);
+        }
+        if !manager.has_provider("bagofwords") {
+            let bow = Box::new(crate::embedding::BagOfWordsEmbedding::new(512));
+            manager.register_provider("bagofwords".to_string(), bow);
+        }
+        if !manager.has_provider("charngram") {
+            let char_ngram = Box::new(crate::embedding::CharNGramEmbedding::new(512, 3));
+            manager.register_provider("charngram".to_string(), char_ngram);
+        }
+
+        // Set default if not set
+        if manager.get_default_provider_name().is_none() {
+            let _ = manager.set_default_provider("bm25");
+        }
+    }
+
     let providers = manager.list_providers();
-    let default_provider = manager
-        .get_default_provider()
-        .ok()
-        .map(|_| "default".to_string());
+    let default_provider = manager.get_default_provider_name().map(|s| s.to_string());
+
+    info!("📊 API: Listing embedding providers: {:?}, default: {:?}", providers, default_provider);
 
     Json(ListEmbeddingProvidersResponse {
         providers,

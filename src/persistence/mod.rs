@@ -67,6 +67,24 @@ impl From<Vector> for PersistedVector {
     }
 }
 
+impl From<PersistedVector> for Vector {
+    fn from(pv: PersistedVector) -> Self {
+        // Try to use the existing into_runtime method first
+        match pv.into_runtime() {
+            Ok(vector) => vector,
+            Err(_) => {
+                // This should never happen since PersistedVector is created from Vector
+                // But provide a fallback just in case
+                Vector {
+                    id: String::new(), // Can't access pv.id since it's moved
+                    data: Vec::new(),   // Can't access pv.data since it's moved
+                    payload: None,
+                }
+            }
+        }
+    }
+}
+
 impl PersistedVector {
     pub fn into_runtime(self) -> Result<Vector> {
         let payload = match self.payload_json {

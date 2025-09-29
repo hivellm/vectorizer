@@ -1,0 +1,14 @@
+F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\deps\serde-f2a48d2a23f1f564.d: C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\build\serde-9cb3136f1263eec1\out/private.rs
+
+F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\deps\libserde-f2a48d2a23f1f564.rlib: C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\build\serde-9cb3136f1263eec1\out/private.rs
+
+F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\deps\libserde-f2a48d2a23f1f564.rmeta: C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\build\serde-9cb3136f1263eec1\out/private.rs
+
+C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\Bolado\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+F:\Node\hivellm\vectorizer\client-sdks\rust\target\release\build\serde-9cb3136f1263eec1\out/private.rs:
+
+# env-dep:OUT_DIR=F:\\Node\\hivellm\\vectorizer\\client-sdks\\rust\\target\\release\\build\\serde-9cb3136f1263eec1\\out

@@ -30,6 +30,8 @@ pub struct Collection {
     embedding_type: Arc<RwLock<String>>,
     /// Set of unique document IDs (for counting documents)
     document_ids: Arc<DashMap<String, ()>>,
+    /// Persistent vector count (maintains count even when vectors are unloaded)
+    vector_count: Arc<RwLock<usize>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -37,6 +39,16 @@ pub struct Collection {
 }
 
 impl Collection {
+    /// Get collection name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get collection config
+    pub fn config(&self) -> &CollectionConfig {
+        &self.config
+    }
+
     /// Create a new collection
     pub fn new(name: String, config: CollectionConfig) -> Self {
         Self::new_with_embedding_type(name, config, "bm25".to_string())
@@ -72,6 +84,7 @@ impl Collection {
             index: Arc::new(RwLock::new(index)),
             embedding_type: Arc::new(RwLock::new(embedding_type)),
             document_ids: Arc::new(DashMap::new()),
+            vector_count: Arc::new(RwLock::new(0)),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
         }
@@ -83,7 +96,7 @@ impl Collection {
             name: self.name.clone(),
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
-            vector_count: self.vectors.len(),
+            vector_count: *self.vector_count.read(),
             document_count: self.document_ids.len(),
             config: self.config.clone(),
         }
@@ -112,6 +125,7 @@ impl Collection {
         }
 
         // Insert vectors and update index
+        let vectors_len = vectors.len();
         let index = self.index.write();
         let mut vector_order = self.vector_order.write();
         for mut vector in vectors {
@@ -142,6 +156,9 @@ impl Collection {
             // Add to index
             index.add(id.clone(), data.clone())?;
         }
+
+        // Update vector count
+        *self.vector_count.write() += vectors_len;
 
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
@@ -205,6 +222,9 @@ impl Collection {
         // Remove from index
         let index = self.index.write();
         index.remove(vector_id)?;
+
+        // Update vector count
+        *self.vector_count.write() -= 1;
 
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();

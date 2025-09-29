@@ -123,13 +123,17 @@ echo "🔧 Binary Mode: $([ "$USE_COMPILED" = true ] && echo "Compiled" || echo 
 
 # Start vzr orchestrator (handles all servers internally in workspace mode)
 echo "Starting vzr orchestrator (GRPC server)..."
+echo "🔍 Debug: About to start vzr..."
 if [ "$USE_COMPILED" = true ]; then
+    echo "🔍 Debug: Running compiled binary..."
     "$BIN_DIR/vzr$BIN_EXT" start --workspace "$WORKSPACE_FILE" &
 else
+    echo "🔍 Debug: Running cargo run..."
     rustup run nightly cargo run --bin vzr -- start --workspace "$WORKSPACE_FILE" &
 fi
 VZR_PID=$!
 echo "✅ vzr orchestrator started (PID: $VZR_PID) - Port 15003 (GRPC)"
+echo "🔍 Debug: vzr started in background, waiting for background indexing logs..."
 
 # In workspace mode, vzr handles all servers internally
 # No need to start MCP and REST servers separately

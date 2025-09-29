@@ -1360,6 +1360,11 @@ impl EmbeddingManager {
         self.get_provider(provider_name)
     }
 
+    /// Get the default provider name
+    pub fn get_default_provider_name(&self) -> Option<&str> {
+        self.default_provider.as_deref()
+    }
+
     /// Embed text using the default provider
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
         self.get_default_provider()?.embed(text)

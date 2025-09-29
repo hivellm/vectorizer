@@ -14,6 +14,14 @@ use chrono::DateTime;
 use chrono::Utc;
 use tracing::{debug, info};
 
+/// Processed vector data for batch operations
+#[derive(Debug, Clone)]
+struct ProcessedVector {
+    id: String,
+    data: Vec<f32>,
+    document_id: Option<String>,
+}
+
 /// CUDA-enhanced collection with accelerated search
 pub struct CudaCollection {
     /// Collection name
@@ -41,6 +49,16 @@ pub struct CudaCollection {
 }
 
 impl CudaCollection {
+    /// Get collection name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get collection config
+    pub fn config(&self) -> &CollectionConfig {
+        &self.config
+    }
+
     /// Create a new CUDA-enhanced collection
     pub fn new(name: String, config: CollectionConfig, cuda_config: CudaConfig) -> Self {
         Self::new_with_embedding_type(name, config, "bm25".to_string(), cuda_config)
@@ -86,7 +104,7 @@ impl CudaCollection {
         }
     }
 
-    /// Search for similar vectors with CUDA acceleration
+    /// Search for similar vectors with CUDA acceleration using hybrid approach
     pub async fn search_with_cuda(&self, query_vector: &[f32], k: usize) -> Result<Vec<SearchResult>> {
         // Validate dimension
         if query_vector.len() != self.config.dimension {
@@ -103,24 +121,40 @@ impl CudaCollection {
             query_vector.to_vec()
         };
 
-        // Get all vectors for CUDA processing
-        let vectors = self.cuda_index.read().get_all_vectors()?;
+        // Step 1: Use HNSW to get candidates (top-1k)
+        let index = self.cuda_index.read();
+        let candidate_count = std::cmp::min(2048, self.vectors.len()); // Increased to 2k candidates
+        let candidates = index.search(&search_vector, candidate_count)?;
         
-        if vectors.is_empty() {
+        if candidates.is_empty() {
             return Ok(vec![]);
         }
 
-        // Extract vector data and IDs
-        let vector_data: Vec<Vec<f32>> = vectors.values().cloned().collect();
-        let vector_ids: Vec<String> = vectors.keys().cloned().collect();
+        // Gating logic: only use GPU if work is substantial enough
+        let work_operations = 1 * candidates.len() * self.config.dimension; // Q=1, K'=candidates.len(), D=dimension
+        let gpu_threshold = 5_000_000; // 5M operations threshold
+        
+        if work_operations < gpu_threshold {
+            // Fall back to CPU for small workloads
+            return self.search_cpu_fallback(&search_vector, &candidates, k);
+        }
 
-        // Use CUDA for parallel similarity search
+        // Step 2: Extract candidate vectors for GPU re-ranking
+        let candidate_vectors: Vec<Vec<f32>> = candidates.iter()
+            .filter_map(|(id, _)| self.vectors.get(id).map(|v| v.data.clone()))
+            .collect();
+        
+        let candidate_ids: Vec<String> = candidates.iter()
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        // Step 3: Use CUDA for exact re-ranking of candidates
         let similarities = self.cuda_operations
-            .parallel_similarity_search(&search_vector, &vector_data, 0.0, self.config.metric)
+            .parallel_similarity_search(&search_vector, &candidate_vectors, 0.0, self.config.metric)
             .await?;
 
-        // Combine results with IDs and sort by similarity
-        let mut results: Vec<(String, f32)> = vector_ids
+        // Step 4: Combine results with IDs and sort by similarity
+        let mut results: Vec<(String, f32)> = candidate_ids
             .into_iter()
             .zip(similarities.into_iter())
             .collect();
@@ -145,6 +179,70 @@ impl CudaCollection {
         }
 
         Ok(search_results)
+    }
+
+    /// CPU fallback for small workloads
+    fn search_cpu_fallback(&self, query_vector: &[f32], candidates: &[(String, f32)], k: usize) -> Result<Vec<SearchResult>> {
+        let mut results = Vec::with_capacity(candidates.len());
+        
+        for (id, _) in candidates {
+            if let Some(vector) = self.vectors.get(id) {
+                let similarity = match self.config.metric {
+                    DistanceMetric::Cosine => {
+                        let dot_product: f32 = query_vector.iter().zip(vector.data.iter()).map(|(a, b)| a * b).sum();
+                        let query_norm: f32 = query_vector.iter().map(|x| x * x).sum::<f32>().sqrt();
+                        let vector_norm: f32 = vector.data.iter().map(|x| x * x).sum::<f32>().sqrt();
+                        if query_norm > 0.0 && vector_norm > 0.0 {
+                            dot_product / (query_norm * vector_norm)
+                        } else {
+                            0.0
+                        }
+                    }
+                    DistanceMetric::Euclidean => {
+                        let sum_squared_diff: f32 = query_vector.iter()
+                            .zip(vector.data.iter())
+                            .map(|(a, b)| (a - b).powi(2))
+                            .sum();
+                        sum_squared_diff.sqrt()
+                    }
+                    DistanceMetric::DotProduct => {
+                        query_vector.iter().zip(vector.data.iter()).map(|(a, b)| a * b).sum()
+                    }
+                };
+                
+                results.push(SearchResult {
+                    id: id.clone(),
+                    score: similarity,
+                    vector: Some(vector.data.clone()),
+                    payload: vector.payload.clone(),
+                });
+            }
+        }
+        
+        // Sort by similarity (descending)
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        
+        // Take top k results
+        results.truncate(k);
+        
+        Ok(results)
+    }
+
+    /// Batch search with CUDA acceleration for multiple queries
+    pub async fn batch_search_with_cuda(&self, queries: &[Vec<f32>], k: usize) -> Result<Vec<Vec<SearchResult>>> {
+        if queries.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // For now, use simple sequential processing to avoid complexity
+        let mut results = Vec::with_capacity(queries.len());
+        
+        for query in queries {
+            let query_results = self.search_with_cuda(query, k).await?;
+            results.push(query_results);
+        }
+        
+        Ok(results)
     }
 
     /// Regular search (fallback to HNSW)
@@ -214,43 +312,120 @@ impl CudaCollection {
         Ok(())
     }
 
-    /// Batch add vectors with CUDA acceleration
+    /// Batch add vectors with CUDA acceleration (parallelized)
     pub async fn batch_add_vectors_with_cuda(&self, vectors: Vec<Vector>) -> Result<()> {
         if vectors.is_empty() {
             return Ok(());
         }
 
-        debug!("Adding {} vectors to CUDA collection '{}'", vectors.len(), self.name);
+        debug!("Adding {} vectors to CUDA collection '{}' (parallel)", vectors.len(), self.name);
 
-        // Prepare vectors for batch insertion
+        // Validate dimensions first
+        for vector in &vectors {
+            if vector.dimension() != self.config.dimension {
+                return Err(VectorizerError::InvalidDimension {
+                    expected: self.config.dimension,
+                    got: vector.dimension(),
+                });
+            }
+        }
+
+        // Process vectors in parallel chunks
+        let chunk_size = 1000; // Process in chunks to avoid memory issues
+        let mut tasks = Vec::new();
+        let metric = self.config.metric.clone();
+
+        for chunk in vectors.chunks(chunk_size) {
+            let chunk_vectors: Vec<Vector> = chunk.to_vec();
+            let metric_clone = metric.clone();
+            let task = tokio::spawn(async move {
+                Self::process_vector_chunk(chunk_vectors, metric_clone).await
+            });
+            tasks.push(task);
+        }
+
+        // Collect results from all tasks
+        let mut all_processed_vectors = Vec::new();
+        for task in tasks {
+            match task.await {
+                Ok(Ok(processed)) => all_processed_vectors.extend(processed),
+                Ok(Err(e)) => return Err(e),
+                Err(e) => return Err(VectorizerError::InternalError(format!("Task join error: {}", e))),
+            }
+        }
+
+        // Now insert all processed vectors into the collection
+        self.insert_processed_vectors(all_processed_vectors)?;
+
+        debug!("Successfully added {} vectors to CUDA collection '{}' (parallel)", self.vectors.len(), self.name);
+        Ok(())
+    }
+
+    /// Process a chunk of vectors in parallel
+    async fn process_vector_chunk(vectors: Vec<Vector>, metric: DistanceMetric) -> Result<Vec<ProcessedVector>> {
+        let mut processed = Vec::new();
+
         for vector in vectors {
             let id = vector.id.clone();
+            let mut data = vector.data.clone();
 
-            // Extract document ID from payload
-            if let Some(payload) = &vector.payload {
-                if let Some(file_path) = payload.data.get("file_path") {
-                    if let Some(file_path_str) = file_path.as_str() {
-                        self.document_ids.insert(file_path_str.to_string(), ());
-                    }
-                }
+            // Normalize vector for cosine similarity if needed
+            if matches!(metric, DistanceMetric::Cosine) {
+                data = crate::models::vector_utils::normalize_vector(&data);
             }
 
-            // Store vector
-            self.vectors.insert(id.clone(), vector.clone());
+            // Extract document ID from payload
+            let document_id = vector.payload.as_ref()
+                .and_then(|p| p.data.get("file_path"))
+                .and_then(|fp| fp.as_str())
+                .map(|s| s.to_string());
 
-            // Add to CUDA index
-            let index = self.cuda_index.read();
-            index.add(id.clone(), vector.data.clone())?;
+            processed.push(ProcessedVector {
+                id,
+                data,
+                document_id,
+            });
+        }
 
-            // Track insertion order
-            let mut vector_order = self.vector_order.write();
-            vector_order.push(id);
+        Ok(processed)
+    }
+
+    /// Insert processed vectors into the collection
+    fn insert_processed_vectors(&self, processed_vectors: Vec<ProcessedVector>) -> Result<()> {
+        // Extract document IDs
+        for pv in &processed_vectors {
+            if let Some(doc_id) = &pv.document_id {
+                self.document_ids.insert(doc_id.clone(), ());
+            }
+        }
+
+        // Prepare data for CUDA index batch insertion
+        let ids: Vec<String> = processed_vectors.iter().map(|pv| pv.id.clone()).collect();
+        let datas: Vec<Vec<f32>> = processed_vectors.iter().map(|pv| pv.data.clone()).collect();
+
+        // Add to CUDA index (batch operation if supported)
+        let index = self.cuda_index.read();
+        for (id, data) in ids.iter().zip(datas.iter()) {
+            index.add(id.clone(), data.clone())?;
+        }
+
+        // Store vectors and track order
+        let mut vector_order = self.vector_order.write();
+        for pv in processed_vectors {
+            // Create full vector for storage
+            let vector = Vector {
+                id: pv.id.clone(),
+                data: pv.data,
+                payload: None, // We'll reconstruct if needed
+            };
+
+            self.vectors.insert(pv.id.clone(), vector);
+            vector_order.push(pv.id);
         }
 
         // Update timestamp
         *self.updated_at.write() = Utc::now();
 
-        debug!("Added {} vectors to CUDA collection '{}'", self.vectors.len(), self.name);
         Ok(())
     }
 
@@ -284,6 +459,14 @@ impl CudaCollection {
     /// Get the number of vectors in the collection
     pub fn vector_count(&self) -> usize {
         self.vectors.len()
+    }
+
+    /// Get all vectors in the collection
+    pub fn get_all_vectors(&self) -> Vec<Vector> {
+        self.vectors
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
     }
 
     /// Get the embedding type

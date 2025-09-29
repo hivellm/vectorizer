@@ -1,0 +1,11 @@
+/mnt/f/Node/hivellm/vectorizer/client-sdks/rust/target/debug/deps/tokio_test-93aa86922f418fed.d: /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs
+
+/mnt/f/Node/hivellm/vectorizer/client-sdks/rust/target/debug/deps/libtokio_test-93aa86922f418fed.rlib: /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs
+
+/mnt/f/Node/hivellm/vectorizer/client-sdks/rust/target/debug/deps/libtokio_test-93aa86922f418fed.rmeta: /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs /home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs
+
+/home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs:
+/home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs:
+/home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs:
+/home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs:
+/home/andre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs:

@@ -81,7 +81,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Vectorizer Server with dashboard");
 
     // Create a global vector store for AppState (will be populated by background indexing)
-    let app_vector_store = Arc::new(VectorStore::new());
+    // Try to load CUDA config from config.yml
+    let cuda_config = {
+        use serde_yaml;
+
+        match std::fs::read_to_string("config.yml") {
+            Ok(content) => {
+                match serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                    Ok(yaml) => {
+                        if let Some(cuda_section) = yaml.get("cuda") {
+                            match serde_yaml::from_value::<vectorizer::cuda::CudaConfig>(cuda_section.clone()) {
+                                Ok(mut config) => {
+                                    println!("✅ Loaded CUDA config for vectorizer-server:");
+                                    println!("   - enabled: {}", config.enabled);
+                                    println!("   - device_id: {}", config.device_id);
+                                    println!("   - memory_limit_mb: {}", config.memory_limit_mb);
+
+                                    // Override with defaults if not specified
+                                    if config.memory_limit_mb == 0 {
+                                        config.memory_limit_mb = 4096; // 4GB default
+                                    }
+
+                                    config
+                                }
+                            Err(e) => {
+                                println!("⚠️ Failed to parse CUDA config section: {}. Using CPU-only mode.", e);
+                                let mut config = vectorizer::cuda::CudaConfig::default();
+                                config.enabled = false;
+                                config
+                            }
+                            }
+                        } else {
+                            println!("ℹ️ No CUDA section in config.yml for vectorizer-server, using CPU-only mode");
+                            let mut config = vectorizer::cuda::CudaConfig::default();
+                            config.enabled = false;
+                            config
+                        }
+                    }
+                    Err(e) => {
+                        println!("⚠️ Failed to parse config.yml as YAML: {}. Using default CUDA config", e);
+                        vectorizer::cuda::CudaConfig::default()
+                    }
+                }
+            }
+            Err(_) => {
+                println!("ℹ️ No config.yml found for vectorizer-server, using default CUDA config");
+                vectorizer::cuda::CudaConfig::default()
+            }
+        }
+    };
+
+    let app_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
 
     // Create shared indexing progress tracker
     let indexing_progress = IndexingProgressState::new();

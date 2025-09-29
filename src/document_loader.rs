@@ -15,6 +15,7 @@ use crate::{
     utils::file_hash::{calculate_file_hash, get_file_modified_time},
     summarization::{SummarizationManager, SummarizationConfig},
 };
+use std::sync::Arc;
 use anyhow::{Context, Result};
 use glob::Pattern;
 use rayon::prelude::*;
@@ -421,6 +422,105 @@ impl DocumentLoader {
         }
 
         self.full_project_indexing(project_path, store, progress_callback).await
+    }
+
+    /// Process multiple workspaces in parallel using separate threads
+    pub async fn load_multiple_workspaces_parallel(
+        &self,
+        workspaces: Vec<(String, String)>, // Vec<(workspace_path, collection_name)>
+        store: &Arc<VectorStore>,
+        max_concurrent: usize,
+    ) -> Result<Vec<(String, CacheResult<(usize, bool)>)>> {
+        use tokio::sync::Semaphore;
+        use std::sync::Arc;
+
+        info!("🚀 Starting parallel processing of {} workspaces with max_concurrent={}", workspaces.len(), max_concurrent);
+
+        let semaphore = Arc::new(Semaphore::new(max_concurrent));
+        let mut tasks = Vec::new();
+
+        // Extract config values to avoid lifetime issues in async closure
+        let max_chunk_size = self.config.max_chunk_size;
+        let chunk_overlap = self.config.chunk_overlap;
+        let allowed_extensions = self.config.allowed_extensions.clone();
+        let include_patterns = self.config.include_patterns.clone();
+        let exclude_patterns = self.config.exclude_patterns.clone();
+        let embedding_dimension = self.config.embedding_dimension;
+        let embedding_type = self.config.embedding_type.clone();
+        let max_file_size = self.config.max_file_size;
+        let summarization_config = self.summarization_manager.as_ref().map(|sm| sm.get_config().clone());
+
+        for (workspace_path, collection_name) in workspaces {
+            let semaphore_clone = Arc::clone(&semaphore);
+            let store_clone = Arc::clone(store);
+
+            // Clone the extracted values for the closure
+            let allowed_extensions_clone = allowed_extensions.clone();
+            let include_patterns_clone = include_patterns.clone();
+            let exclude_patterns_clone = exclude_patterns.clone();
+            let embedding_type_clone = embedding_type.clone();
+            let summarization_config_clone = summarization_config.clone();
+
+            let task = tokio::spawn(async move {
+                let _permit = semaphore_clone.acquire().await.unwrap();
+
+                // Create a new document loader for this workspace
+                let mut workspace_loader = Self::new_with_summarization(
+                    LoaderConfig {
+                        max_chunk_size,
+                        chunk_overlap,
+                        allowed_extensions: allowed_extensions_clone,
+                        include_patterns: include_patterns_clone,
+                        exclude_patterns: exclude_patterns_clone,
+                        embedding_dimension,
+                        embedding_type: embedding_type_clone,
+                        collection_name: collection_name.clone(),
+                        max_file_size,
+                    },
+                    summarization_config_clone
+                );
+
+                info!("🔄 Processing workspace '{}' with collection '{}'", workspace_path, collection_name);
+
+                let result = workspace_loader.load_project_with_cache_and_progress(
+                    &workspace_path,
+                    &store_clone,
+                    None, // No progress callback for parallel processing
+                ).await;
+
+                match &result {
+                    Ok((count, from_cache)) => {
+                        if *from_cache {
+                            info!("✅ Loaded {} vectors from cache for workspace '{}' (collection: '{}')", count, workspace_path, collection_name);
+                        } else {
+                            info!("✅ Indexed {} vectors for workspace '{}' (collection: '{}')", count, workspace_path, collection_name);
+                        }
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to process workspace '{}' (collection: '{}'): {}", workspace_path, collection_name, e);
+                    }
+                }
+
+                (workspace_path, result)
+            });
+
+            tasks.push(task);
+        }
+
+        // Collect all results
+        let mut results = Vec::new();
+        for task in tasks {
+            match task.await {
+                Ok(result) => results.push(result),
+                Err(e) => {
+                    error!("Task join error: {}", e);
+                    // Continue processing other tasks
+                }
+            }
+        }
+
+        info!("✅ Completed parallel processing of {} workspaces", results.len());
+        Ok(results)
     }
 
     /// Performs a full indexing of the project.

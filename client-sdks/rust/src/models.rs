@@ -1,0 +1,522 @@
+//! Data models for the Vectorizer SDK
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Vector similarity metrics
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SimilarityMetric {
+    /// Cosine similarity
+    Cosine,
+    /// Euclidean distance
+    Euclidean,
+    /// Dot product
+    DotProduct,
+}
+
+impl Default for SimilarityMetric {
+    fn default() -> Self {
+        Self::Cosine
+    }
+}
+
+/// Vector representation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Vector {
+    /// Unique identifier for the vector
+    pub id: String,
+    /// Vector data as an array of numbers
+    pub data: Vec<f32>,
+    /// Optional metadata associated with the vector
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Collection representation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Collection {
+    /// Collection name
+    pub name: String,
+    /// Vector dimension
+    pub dimension: usize,
+    /// Similarity metric used for search
+    pub similarity_metric: SimilarityMetric,
+    /// Optional description
+    pub description: Option<String>,
+    /// Creation timestamp
+    pub created_at: Option<DateTime<Utc>>,
+    /// Last update timestamp
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+/// Collection information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionInfo {
+    /// Collection name
+    pub name: String,
+    /// Vector dimension
+    pub dimension: usize,
+    /// Similarity metric used for search
+    pub metric: String,
+    /// Number of vectors in the collection
+    pub vector_count: usize,
+    /// Number of documents in the collection
+    pub document_count: usize,
+    /// Creation timestamp
+    pub created_at: String,
+    /// Last update timestamp
+    pub updated_at: String,
+    /// Indexing status
+    pub indexing_status: IndexingStatus,
+}
+
+/// Indexing status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexingStatus {
+    /// Status
+    pub status: String,
+    /// Progress percentage
+    pub progress: f32,
+    /// Total documents
+    pub total_documents: usize,
+    /// Processed documents
+    pub processed_documents: usize,
+    /// Vector count
+    pub vector_count: usize,
+    /// Estimated time remaining
+    pub estimated_time_remaining: Option<String>,
+    /// Last updated timestamp
+    pub last_updated: String,
+}
+
+/// Search result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResult {
+    /// Vector ID
+    pub id: String,
+    /// Similarity score
+    pub score: f32,
+    /// Vector content (if available)
+    pub content: Option<String>,
+    /// Optional metadata
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResponse {
+    /// Search results
+    pub results: Vec<SearchResult>,
+    /// Query time in milliseconds
+    pub query_time_ms: f64,
+}
+
+/// Embedding request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingRequest {
+    /// Text to embed
+    pub text: String,
+    /// Optional model to use for embedding
+    pub model: Option<String>,
+    /// Optional parameters for embedding generation
+    pub parameters: Option<EmbeddingParameters>,
+}
+
+/// Embedding parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingParameters {
+    /// Maximum sequence length
+    pub max_length: Option<usize>,
+    /// Whether to normalize the embedding
+    pub normalize: Option<bool>,
+    /// Optional prefix for the text
+    pub prefix: Option<String>,
+}
+
+/// Embedding response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingResponse {
+    /// Generated embedding vector
+    pub embedding: Vec<f32>,
+    /// Model used for embedding
+    pub model: String,
+    /// Text that was embedded
+    pub text: String,
+    /// Embedding dimension
+    pub dimension: usize,
+    /// Provider used
+    pub provider: String,
+}
+
+/// Health status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthStatus {
+    /// Service status
+    pub status: String,
+    /// Service version
+    pub version: String,
+    /// Timestamp
+    pub timestamp: String,
+    /// Uptime in seconds
+    pub uptime: Option<u64>,
+    /// Number of collections
+    pub collections: Option<usize>,
+    /// Total number of vectors
+    pub total_vectors: Option<usize>,
+}
+
+/// Collections list response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionsResponse {
+    /// List of collections
+    pub collections: Vec<CollectionInfo>,
+}
+
+/// Create collection response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateCollectionResponse {
+    /// Success message
+    pub message: String,
+    /// Collection name
+    pub collection: String,
+}
+
+/// Database statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseStats {
+    /// Total number of collections
+    pub total_collections: usize,
+    /// Total number of vectors
+    pub total_vectors: usize,
+    /// Total memory estimate in bytes
+    pub total_memory_estimate_bytes: usize,
+    /// Collections information
+    pub collections: Vec<CollectionStats>,
+}
+
+/// Collection statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionStats {
+    /// Collection name
+    pub name: String,
+    /// Number of vectors
+    pub vector_count: usize,
+    /// Vector dimension
+    pub dimension: usize,
+    /// Memory estimate in bytes
+    pub memory_estimate_bytes: usize,
+}
+
+/// Batch text request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchTextRequest {
+    /// Text ID
+    pub id: String,
+    /// Text content
+    pub text: String,
+    /// Optional metadata
+    pub metadata: Option<HashMap<String, String>>,
+}
+
+/// Batch configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchConfig {
+    /// Maximum batch size
+    pub max_batch_size: Option<usize>,
+    /// Number of parallel workers
+    pub parallel_workers: Option<usize>,
+    /// Whether operations should be atomic
+    pub atomic: Option<bool>,
+}
+
+/// Batch insert request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchInsertRequest {
+    /// Texts to insert
+    pub texts: Vec<BatchTextRequest>,
+    /// Batch configuration
+    pub config: Option<BatchConfig>,
+}
+
+/// Batch response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchResponse {
+    /// Whether the operation was successful
+    pub success: bool,
+    /// Collection name
+    pub collection: String,
+    /// Operation type
+    pub operation: String,
+    /// Total number of operations
+    pub total_operations: usize,
+    /// Number of successful operations
+    pub successful_operations: usize,
+    /// Number of failed operations
+    pub failed_operations: usize,
+    /// Duration in milliseconds
+    pub duration_ms: u64,
+    /// Error messages
+    pub errors: Vec<String>,
+}
+
+/// Batch search query
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSearchQuery {
+    /// Query text
+    pub query: String,
+    /// Maximum number of results
+    pub limit: Option<usize>,
+    /// Minimum score threshold
+    pub score_threshold: Option<f32>,
+}
+
+/// Batch search request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSearchRequest {
+    /// Search queries
+    pub queries: Vec<BatchSearchQuery>,
+    /// Batch configuration
+    pub config: Option<BatchConfig>,
+}
+
+/// Batch search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSearchResponse {
+    /// Whether the operation was successful
+    pub success: bool,
+    /// Collection name
+    pub collection: String,
+    /// Total number of queries
+    pub total_queries: usize,
+    /// Number of successful queries
+    pub successful_queries: usize,
+    /// Number of failed queries
+    pub failed_queries: usize,
+    /// Duration in milliseconds
+    pub duration_ms: u64,
+    /// Search results
+    pub results: Vec<Vec<SearchResult>>,
+    /// Error messages
+    pub errors: Vec<String>,
+}
+
+/// Batch vector update
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchVectorUpdate {
+    /// Vector ID
+    pub id: String,
+    /// New vector data (optional)
+    pub data: Option<Vec<f32>>,
+    /// New metadata (optional)
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Batch update request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchUpdateRequest {
+    /// Vector updates
+    pub updates: Vec<BatchVectorUpdate>,
+    /// Batch configuration
+    pub config: Option<BatchConfig>,
+}
+
+/// Batch delete request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchDeleteRequest {
+    /// Vector IDs to delete
+    pub vector_ids: Vec<String>,
+    /// Batch configuration
+    pub config: Option<BatchConfig>,
+}
+
+/// Summarization methods
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SummarizationMethod {
+    /// Extractive summarization
+    Extractive,
+    /// Keyword summarization
+    Keyword,
+    /// Sentence summarization
+    Sentence,
+    /// Abstractive summarization
+    Abstractive,
+}
+
+impl Default for SummarizationMethod {
+    fn default() -> Self {
+        Self::Extractive
+    }
+}
+
+/// Summarize text request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SummarizeTextRequest {
+    /// Text to summarize
+    pub text: String,
+    /// Summarization method
+    pub method: Option<SummarizationMethod>,
+    /// Maximum summary length
+    pub max_length: Option<usize>,
+    /// Compression ratio
+    pub compression_ratio: Option<f32>,
+    /// Language code
+    pub language: Option<String>,
+}
+
+/// Summarize text response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SummarizeTextResponse {
+    /// Summary ID
+    pub summary_id: String,
+    /// Original text
+    pub original_text: String,
+    /// Generated summary
+    pub summary: String,
+    /// Method used
+    pub method: String,
+    /// Original text length
+    pub original_length: usize,
+    /// Summary length
+    pub summary_length: usize,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Language
+    pub language: String,
+    /// Status
+    pub status: String,
+    /// Message
+    pub message: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// Summarize context request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SummarizeContextRequest {
+    /// Context to summarize
+    pub context: String,
+    /// Summarization method
+    pub method: Option<SummarizationMethod>,
+    /// Maximum summary length
+    pub max_length: Option<usize>,
+    /// Compression ratio
+    pub compression_ratio: Option<f32>,
+    /// Language code
+    pub language: Option<String>,
+}
+
+/// Summarize context response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SummarizeContextResponse {
+    /// Summary ID
+    pub summary_id: String,
+    /// Original context
+    pub original_context: String,
+    /// Generated summary
+    pub summary: String,
+    /// Method used
+    pub method: String,
+    /// Original context length
+    pub original_length: usize,
+    /// Summary length
+    pub summary_length: usize,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Language
+    pub language: String,
+    /// Status
+    pub status: String,
+    /// Message
+    pub message: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// Get summary response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetSummaryResponse {
+    /// Summary ID
+    pub summary_id: String,
+    /// Original text
+    pub original_text: String,
+    /// Generated summary
+    pub summary: String,
+    /// Method used
+    pub method: String,
+    /// Original text length
+    pub original_length: usize,
+    /// Summary length
+    pub summary_length: usize,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Language
+    pub language: String,
+    /// Creation timestamp
+    pub created_at: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+    /// Status
+    pub status: String,
+}
+
+/// Summary info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SummaryInfo {
+    /// Summary ID
+    pub summary_id: String,
+    /// Method used
+    pub method: String,
+    /// Language
+    pub language: String,
+    /// Original text length
+    pub original_length: usize,
+    /// Summary length
+    pub summary_length: usize,
+    /// Compression ratio
+    pub compression_ratio: f32,
+    /// Creation timestamp
+    pub created_at: String,
+    /// Metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// List summaries response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListSummariesResponse {
+    /// List of summaries
+    pub summaries: Vec<SummaryInfo>,
+    /// Total count
+    pub total_count: usize,
+    /// Status
+    pub status: String,
+}
+
+/// Indexing progress
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexingProgress {
+    /// Whether indexing is in progress
+    pub is_indexing: bool,
+    /// Overall status
+    pub overall_status: String,
+    /// Collections being indexed
+    pub collections: Vec<CollectionProgress>,
+}
+
+/// Collection progress
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionProgress {
+    /// Collection name
+    pub collection_name: String,
+    /// Status
+    pub status: String,
+    /// Progress percentage
+    pub progress: f32,
+    /// Vector count
+    pub vector_count: usize,
+    /// Error message if any
+    pub error_message: Option<String>,
+    /// Last updated timestamp
+    pub last_updated: String,
+}

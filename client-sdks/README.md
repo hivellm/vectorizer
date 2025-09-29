@@ -22,6 +22,12 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 - **Installation**: `pip install hivellm-vectorizer-client`
 - **Documentation**: [Python SDK README](./python/README.md)
 
+### 🦀 Rust SDK
+- **Package**: `vectorizer-sdk`
+- **Features**: High performance, async/await, MCP support, type safety
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "0.1.0"`
+- **Documentation**: [Rust SDK README](./rust/README.md)
+
 ## Quick Start
 
 ### TypeScript/JavaScript
@@ -86,6 +92,41 @@ results = await client.search_vectors(
     query_vector=[0.1, 0.2, 0.3, ...],
     limit=5
 )
+```
+
+### Rust
+
+```rust
+use vectorizer_sdk::*;
+use std::collections::HashMap;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = VectorizerClient::new_default()?;
+    
+    // Create collection
+    client.create_collection("documents", 768, Some(SimilarityMetric::Cosine)).await?;
+    
+    // Insert texts
+    let texts = vec![BatchTextRequest {
+        id: "doc_1".to_string(),
+        text: "This is a sample document about machine learning".to_string(),
+        metadata: Some({
+            let mut meta = HashMap::new();
+            meta.insert("source".to_string(), "document.pdf".to_string());
+            meta.insert("category".to_string(), "AI".to_string());
+            meta
+        }),
+    }];
+    
+    client.insert_texts("documents", texts).await?;
+    
+    // Search
+    let results = client.search_vectors("documents", "machine learning", Some(5), None).await?;
+    println!("Found {} results", results.results.len());
+    
+    Ok(())
+}
 ```
 
 ## Features
@@ -188,25 +229,25 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   TypeScript    │    │   JavaScript    │    │     Python      │
-│      SDK        │    │      SDK        │    │      SDK        │
-│                 │    │                 │    │                 │
-│ • Type Safety   │    │ • Multi-format  │    │ • Async/Await   │
-│ • IntelliSense  │    │ • Browser Ready │    │ • CLI Interface │
-│ • ES2020+       │    │ • Node.js       │    │ • 73+ Tests     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │  Vectorizer     │
-                    │     Server      │
-                    │                 │
-                    │ • REST API      │
-                    │ • WebSocket     │
-                    │ • GRPC          │
-                    │ • MCP Protocol  │
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   TypeScript    │    │   JavaScript    │    │     Python      │    │      Rust        │
+│      SDK        │    │      SDK        │    │      SDK        │    │      SDK         │
+│                 │    │                 │    │                 │    │                  │
+│ • Type Safety   │    │ • Multi-format  │    │ • Async/Await   │    │ • High Performance│
+│ • IntelliSense  │    │ • Browser Ready │    │ • CLI Interface │    │ • Memory Safety  │
+│ • ES2020+       │    │ • Node.js       │    │ • 73+ Tests     │    │ • MCP Support    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │                       │
+         └───────────────────────┼───────────────────────┼───────────────────────┘
+                                 │                       │
+                    ┌─────────────────┐    ┌─────────────────┐
+                    │  Vectorizer     │    │   MCP Server    │
+                    │     Server      │    │                 │
+                    │                 │    │ • Model Context │
+                    │ • REST API      │    │ • AI Integration │
+                    │ • WebSocket     │    │ • Tool Calling  │
+                    │ • GRPC          │    │ • SSE Transport │
+                    │ • MCP Protocol  │    └─────────────────┘
                     └─────────────────┘
 ```
 
@@ -318,6 +359,10 @@ npm run build
 cd client-sdks/python
 pip install -r requirements.txt
 python setup.py build
+
+# Rust SDK
+cd client-sdks/rust
+cargo build
 ```
 
 ### Testing
@@ -334,6 +379,10 @@ npm test
 # Python SDK
 cd client-sdks/python
 python run_tests.py
+
+# Rust SDK
+cd client-sdks/rust
+cargo test
 ```
 
 ### Linting
@@ -350,6 +399,10 @@ npm run lint
 # Python SDK
 cd client-sdks/python
 flake8 src/
+
+# Rust SDK
+cd client-sdks/rust
+cargo clippy
 ```
 
 ## Contributing
