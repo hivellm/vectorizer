@@ -17,7 +17,21 @@ Este documento descreve a cobertura completa implementada para CI/CD e MCP (Mode
 - **Performance Benchmarks**: Benchmarks automatizados com relatórios
 - **Deployment**: Deploy automático para releases
 
-#### 2. Testes MCP Específicos (`mcp-test.yml`)
+#### 2. Release Automation (`tag-release.yml`)
+- **Trigger**: Executado automaticamente quando tags de versão são criadas (`v*.*.*`)
+- **Multi-Platform Builds**: Linux (x86_64, ARM64), Windows (x86_64), macOS (x86_64, ARM64)
+- **Binary Generation**: Todos os 4 binários (`vectorizer-server`, `vectorizer-cli`, `vzr`, `vectorizer-mcp-server`)
+- **Installation Scripts**: Scripts de instalação para Linux/macOS e Windows
+- **GitHub Release**: Criação automática de releases com downloads
+- **Configuration Files**: Inclui `config.yml`, `vectorize-workspace.yml`, documentação
+
+#### 3. Continuous Build (`build.yml`)
+- **Trigger**: Executado em pushes para branch `main`
+- **Build Verification**: Compilação em múltiplas plataformas
+- **Artifact Upload**: Upload de binários como artifacts do GitHub Actions
+- **No Release**: Não cria releases, apenas valida builds
+
+#### 4. Testes MCP Específicos (`mcp-test.yml`)
 - **MCP Server Tests**: Testes do servidor MCP
 - **WebSocket Tests**: Testes de conexão WebSocket
 - **Authentication Tests**: Testes de autenticação
@@ -25,7 +39,7 @@ Este documento descreve a cobertura completa implementada para CI/CD e MCP (Mode
 - **IDE Integration Tests**: Testes de integração com IDEs
 - **Documentation Tests**: Validação da documentação
 
-#### 3. Análise de Segurança (`codeql.yml`)
+#### 5. Análise de Segurança (`codeql.yml`)
 - **CodeQL Analysis**: Análise estática de código
 - **Security Audit**: Auditoria de segurança
 - **Dependency Scan**: Escaneamento de dependências

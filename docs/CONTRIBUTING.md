@@ -4,6 +4,47 @@
 
 Thank you for your interest in contributing to Vectorizer! This document outlines the development practices, testing guidelines, and contribution workflow for the project.
 
+## 🏷️ Release Process
+
+### Creating Releases
+
+Vectorizer uses automated GitHub Actions for releases. The process is triggered by version tags:
+
+#### **Automatic Release (Recommended)**
+```bash
+# 1. Update version in Cargo.toml
+# 2. Commit changes
+git add .
+git commit -m "chore: bump version to 0.23.0"
+
+# 3. Create and push version tag
+git tag -a "v0.23.0" -m "Release v0.23.0"
+git push origin main
+git push origin "v0.23.0"
+
+# GitHub Actions will automatically:
+# - Build binaries for 6 platforms (Linux x86_64/ARM64, Windows x86_64, macOS x86_64/ARM64)
+# - Create installation scripts
+# - Generate GitHub release with downloads
+# - Include all configuration files
+```
+
+#### **Release Contents**
+Each release includes:
+- **Binaries**: `vectorizer-cli`, `vectorizer-server`, `vectorizer-mcp-server`, `vzr`
+- **Configuration**: `config.yml`, `vectorize-workspace.yml`
+- **Documentation**: `README.md`, `LICENSE`
+- **Installation Scripts**: `install.sh` (Linux/macOS), `install.bat` (Windows)
+
+#### **Version Tagging**
+- Use semantic versioning: `vX.Y.Z` (e.g., `v1.0.0`, `v0.22.1`)
+- Tags must include patch version: `v1.0.0` ✅, `v1.0` ❌
+- Prerelease tags supported: `v1.0.0-beta`
+
+#### **Monitoring Releases**
+- **GitHub Actions**: [Tag Release Workflow](https://github.com/hivellm/vectorizer/actions/workflows/tag-release.yml)
+- **Release Page**: `https://github.com/hivellm/vectorizer/releases/tag/v{VERSION}`
+
 ## 📋 Development Guidelines
 
 ### Code Quality Standards

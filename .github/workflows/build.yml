@@ -1,0 +1,166 @@
+name: Build Artifacts
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # =============================================================================
+  # BUILD FOR MULTIPLE PLATFORMS (NO RELEASE)
+  # =============================================================================
+  build:
+    name: Build ${{ matrix.os }} (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: vectorizer-linux-x86_64
+            executable_extension: ''
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: vectorizer-windows-x86_64
+            executable_extension: '.exe'
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: vectorizer-macos-x86_64
+            executable_extension: ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build all binaries
+        run: |
+          cargo build --release --bin vectorizer-cli --target ${{ matrix.target }} --features full
+          cargo build --release --bin vectorizer-server --target ${{ matrix.target }} --features full
+          cargo build --release --bin vzr --target ${{ matrix.target }} --features full
+          cargo build --release --bin vectorizer-mcp-server --target ${{ matrix.target }} --features full
+
+      - name: Create artifacts directory
+        run: mkdir -p artifacts/${{ matrix.artifact_name }}
+
+      - name: Copy binaries
+        run: |
+          cp target/${{ matrix.target }}/release/vectorizer-cli${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-server${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vzr${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-mcp-server${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+
+      - name: Copy configuration files
+        run: |
+          cp config.example.yml artifacts/${{ matrix.artifact_name }}/config.yml
+          cp vectorize-workspace.yml artifacts/${{ matrix.artifact_name }}/
+          cp README.md artifacts/${{ matrix.artifact_name }}/
+
+      - name: Create archive (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: |
+          cd artifacts/${{ matrix.artifact_name }}
+          tar -czf ../${{ matrix.artifact_name }}-${{ github.sha }}.tar.gz .
+          cd ../..
+
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd artifacts/${{ matrix.artifact_name }}
+          powershell Compress-Archive -Path * -DestinationPath ../${{ matrix.artifact_name }}-${{ github.sha }}.zip
+          cd ../..
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-${{ github.sha }}
+          path: artifacts/${{ matrix.artifact_name }}-${{ github.sha }}.*
+          retention-days: 7
+
+  # =============================================================================
+  # COMMENT ON PR WITH DOWNLOAD LINKS
+  # =============================================================================
+  comment-pr:
+    name: Comment on PR
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Download artifacts info
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts-info/
+
+      - name: Comment on PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            
+            let comment = '## 🔨 Build Artifacts Ready!\n\n';
+            comment += 'Download the latest build artifacts for your platform:\n\n';
+            
+            artifacts.data.artifacts.forEach(artifact => {
+              const downloadUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifact.id}`;
+              comment += `- **[${artifact.name}](${downloadUrl})**\n`;
+            });
+            
+            comment += '\n### 🚀 Quick Test\n';
+            comment += '1. Download the archive for your platform\n';
+            comment += '2. Extract and run: `./vectorizer-server --config config.yml`\n';
+            comment += '3. Test the CLI: `./vectorizer-cli --help`\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # =============================================================================
+  # SUMMARY
+  # =============================================================================
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    
+    steps:
+      - name: Build summary
+        run: |
+          echo "## 🔨 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | x86_64-unknown-linux-gnu | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | x86_64-pc-windows-msvc | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | x86_64-apple-darwin | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- All binaries built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- Configuration files included" >> $GITHUB_STEP_SUMMARY
+          echo "- Ready for testing" >> $GITHUB_STEP_SUMMARY

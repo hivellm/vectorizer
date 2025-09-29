@@ -47,6 +47,30 @@ client = PyTorchVectorizerClient()
 client.set_embedder(embedder)
 ```
 
+## 🏷️ **Releases & Downloads**
+
+### **Latest Release**
+[![Latest Release](https://img.shields.io/github/v/release/hivellm/vectorizer)](https://github.com/hivellm/vectorizer/releases/latest)
+[![Build Status](https://github.com/hivellm/vectorizer/actions/workflows/tag-release.yml/badge.svg)](https://github.com/hivellm/vectorizer/actions/workflows/tag-release.yml)
+
+**Pre-built Binaries Available:**
+- 🐧 **Linux** (x86_64, ARM64)
+- 🪟 **Windows** (x86_64) 
+- 🍎 **macOS** (x86_64, ARM64)
+
+### **Automatic Releases**
+Releases are automatically created when version tags are pushed:
+```bash
+git tag v0.22.0
+git push origin v0.22.0
+```
+
+GitHub Actions will automatically:
+- ✅ Build all binaries for 6 platforms
+- ✅ Create installation scripts
+- ✅ Generate GitHub release with downloads
+- ✅ Include all configuration files
+
 ## 🚀 **Advanced Embedding Models**
 
 Production-ready models with GPU acceleration:
@@ -110,9 +134,10 @@ cargo run --bin vzr -- start --workspace config/vectorize-workspace.yml
 ```
 
 **Services:**
-- **REST API** (port 15001) - HTTP API and dashboard
-- **MCP Server** (port 15002) - Model Context Protocol integration
+- **vectorizer-server** (port 15001) - HTTP API and dashboard
+- **vectorizer-mcp-server** (port 15002) - Model Context Protocol integration  
 - **vzr** (port 15003) - GRPC orchestrator and indexing engine
+- **vectorizer-cli** - Command-line interface for management
 
 ### MCP Integration
 ```bash
@@ -139,6 +164,28 @@ cargo run --bin vzr -- start --workspace config/vectorize-workspace.yml
 
 ## 🛠️ Installation
 
+### **Pre-built Binaries (Recommended)**
+
+Download the latest release for your platform:
+
+| Platform | Architecture | Download |
+|----------|-------------|----------|
+| **Linux** | x86_64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-linux-x86_64.tar.gz) |
+| **Linux** | ARM64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-linux-aarch64.tar.gz) |
+| **Windows** | x86_64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-windows-x86_64.zip) |
+| **Windows** | ARM64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-windows-aarch64.zip) |
+| **macOS** | x86_64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-macos-x86_64.tar.gz) |
+| **macOS** | ARM64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-macos-aarch64.tar.gz) |
+
+```bash
+# Example: Linux x86_64
+wget https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-linux-x86_64.tar.gz
+tar -xzf vectorizer-linux-x86_64.tar.gz
+./vectorizer-server --config config.yml
+```
+
+### **Build from Source**
+
 ```bash
 # Clone repository
 git clone https://github.com/hivellm/vectorizer
@@ -147,9 +194,14 @@ cd vectorizer
 # Use Rust nightly
 rustup override set nightly
 
-# Build and run
-cargo build --release
-cargo run -- --host 127.0.0.1 --port 15001 --project ../your-documents/
+# Build the project
+./scripts/build.sh
+
+# Start all services
+./scripts/start.sh --workspace vectorize-workspace.yml
+
+# Check status
+./scripts/status.sh
 ```
 
 ### Docker
