@@ -354,6 +354,7 @@ impl Collection {
 
     /// Load vectors into memory without building HNSW index (assumes index is already loaded)
     pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
+        let vectors_len = vectors.len();
         let mut vector_order = self.vector_order.write();
 
         for vector in vectors {
@@ -375,6 +376,9 @@ impl Collection {
             vector_order.push(id.clone());
         }
 
+        // Update vector count
+        *self.vector_count.write() += vectors_len;
+
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
 
@@ -384,13 +388,14 @@ impl Collection {
 
     /// Fast load vectors with HNSW index building
     pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
-        debug!("Fast loading {} vectors into collection '{}' with HNSW index", vectors.len(), self.name);
+        let vectors_len = vectors.len();
+        debug!("Fast loading {} vectors into collection '{}' with HNSW index", vectors_len, self.name);
 
         let mut vector_order = self.vector_order.write();
         let index = self.index.write();
 
         // Prepare vectors for batch insertion
-        let mut batch_vectors = Vec::with_capacity(vectors.len());
+        let mut batch_vectors = Vec::with_capacity(vectors_len);
 
         for mut vector in vectors {
             let id = vector.id.clone();
@@ -418,6 +423,9 @@ impl Collection {
 
         // Batch insert into HNSW index
         index.batch_add(batch_vectors)?;
+
+        // Update vector count
+        *self.vector_count.write() += vectors_len;
 
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
