@@ -2,9 +2,9 @@ name: CodeQL Analysis
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ 'main', 'develop' ]
   pull_request:
-    branches: [ develop ]
+    branches: [ 'main', 'develop' ]
   schedule:
     - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM
 
@@ -34,6 +34,11 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
 
     - name: Cache cargo
       uses: actions/cache@v3

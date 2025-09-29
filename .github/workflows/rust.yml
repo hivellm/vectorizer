@@ -2,7 +2,7 @@ name: Rust CI
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ 'main', 'develop' ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,6 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
@@ -28,6 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
       - uses: dtolnay/rust-toolchain@nightly
       - name: Run tests
         run: cargo test --verbose
@@ -37,6 +45,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
       - uses: dtolnay/rust-toolchain@nightly
       - name: Run benchmarks
         run: cargo bench --no-run
