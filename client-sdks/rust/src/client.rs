@@ -13,6 +13,11 @@ pub struct VectorizerClient {
 }
 
 impl VectorizerClient {
+    /// Get the base URL
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
     /// Create a new client
     pub fn new_default() -> Result<Self> {
         let mut headers = HeaderMap::new();

@@ -19,8 +19,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Default API base URL
 pub const DEFAULT_BASE_URL: &str = "http://localhost:15001";
 
-/// Default WebSocket URL
-pub const DEFAULT_WS_URL: &str = "ws://localhost:15001/ws";
 
 /// Default MCP server URL
 pub const DEFAULT_MCP_URL: &str = "http://localhost:15002/sse";

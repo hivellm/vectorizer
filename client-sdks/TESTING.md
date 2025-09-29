@@ -1,6 +1,6 @@
 # Testing Guide for Hive Vectorizer Client SDKs
 
-This document provides comprehensive information about testing the TypeScript, JavaScript, and Python client SDKs for Hive Vectorizer.
+This document provides comprehensive information about testing the TypeScript, JavaScript, Python, and Rust client SDKs for Hive Vectorizer.
 
 ## Test Structure
 
@@ -52,12 +52,35 @@ client-sdks/javascript/tests/
 ```
 client-sdks/python/
 ├── test_exceptions.py          # Exception class tests (44 tests)
-├── test_models.py              # Data model validation tests
-├── test_validation.py          # Validation utility tests (framework)
-├── test_http_client.py         # HTTP client tests (framework)
-├── test_client_integration.py  # Integration tests (framework)
+├── test_models.py              # Data model validation tests (29 tests)
+├── test_validation.py          # Validation utility tests (20 tests)
+├── test_http_client.py         # HTTP client tests (16 tests)
+├── test_client_integration.py  # Integration tests (20 tests)
+├── test_sdk_comprehensive.py   # Comprehensive SDK tests (55 tests)
 ├── run_tests.py               # Test runner with reporting
 └── TESTES_RESUMO.md           # Test documentation
+```
+
+### Rust SDK Tests
+
+```
+client-sdks/rust/tests/
+├── models_tests.rs            # Model validation tests (20 tests)
+├── error_tests.rs             # Exception class tests (25 tests)
+├── validation_tests.rs        # Validation utility tests (13 tests)
+├── http_client_tests.rs       # HTTP client tests (17 tests)
+├── client_integration_tests.rs # Integration tests (13 tests)
+└── integration_tests.rs       # Original integration tests (legacy)
+```
+
+```
+client-sdks/rust/
+├── run_tests.rs              # Test runner script
+├── examples/                 # Example implementations
+│   ├── basic_example.rs
+│   ├── comprehensive_test.rs
+│   └── test_working.rs
+└── Cargo.toml               # Dependencies and test configuration
 ```
 
 ## Test Categories
@@ -176,6 +199,34 @@ python -m pytest --cov=src --cov-report=html
 
 # Run performance tests
 python -c "from test_models import *; run_performance_tests()"
+```
+
+### Rust SDK
+
+```bash
+cd client-sdks/rust
+
+# Install dependencies
+cargo build
+
+# Run all tests
+cargo test
+
+# Run specific test file
+cargo test --test models_tests
+cargo test --test error_tests
+cargo test --test validation_tests
+cargo test --test http_client_tests
+cargo test --test client_integration_tests
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run tests with coverage (if tarpaulin installed)
+cargo tarpaulin --out Html
+
+# Run test runner script
+cargo run --bin run_tests
 ```
 
 ## Test Configuration
@@ -318,6 +369,16 @@ jobs:
           python-version: '3.9'
       - run: cd client-sdks/python && pip install -r requirements.txt
       - run: cd client-sdks/python && python run_tests.py
+
+  test-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cd client-sdks/rust && cargo test
+      - run: cd client-sdks/rust && cargo run --bin run_tests
 ```
 
 ## Debugging Tests

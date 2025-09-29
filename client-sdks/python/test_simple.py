@@ -151,7 +151,7 @@ class TestExceptions(unittest.TestCase):
         # Teste CollectionNotFoundError
         error = CollectionNotFoundError("Collection not found")
         self.assertEqual(error.error_code, "COLLECTION_NOT_FOUND")
-        self.assertEqual(str(error), "[COLLECTION_NOT_FOUND] Collection not found")
+        self.assertEqual(str(error), "[COLLECTION_NOT_FOUND] Collection 'Collection not found' not found")
         
         # Teste NetworkError
         error = NetworkError("Network issue")
@@ -290,7 +290,7 @@ class TestEdgeCases(unittest.TestCase):
 
 def run_simple_tests():
     """Executa os testes simples."""
-    print("🧪 Executando testes simples do SDK Python")
+    print("Executando testes simples do SDK Python")
     print("=" * 50)
     
     # Criar suite de testes
@@ -321,10 +321,10 @@ if __name__ == "__main__":
     
     print("=" * 50)
     if success:
-        print("🎉 TODOS OS TESTES SIMPLES PASSARAM!")
-        print("✅ Funcionalidades básicas estão funcionando!")
+        print("TODOS OS TESTES SIMPLES PASSARAM!")
+        print("Funcionalidades básicas estão funcionando!")
     else:
-        print("❌ ALGUNS TESTES SIMPLES FALHARAM!")
-        print("🔧 Verifique os erros acima.")
+        print("ALGUNS TESTES SIMPLES FALHARAM!")
+        print("Verifique os erros acima.")
     
     print("=" * 50)

@@ -19,6 +19,18 @@ pub mod validation {
 
     /// Validate that a number is positive
     pub fn validate_positive_number(value: f32, field_name: &str) -> Result<()> {
+        if value.is_nan() {
+            return Err(VectorizerError::validation(format!(
+                "{} must be a valid number, got NaN",
+                field_name
+            )));
+        }
+        if value.is_infinite() {
+            return Err(VectorizerError::validation(format!(
+                "{} must be a valid number, got infinity",
+                field_name
+            )));
+        }
         if value <= 0.0 {
             return Err(VectorizerError::validation(format!(
                 "{} must be positive, got {}",
@@ -43,9 +55,32 @@ pub mod validation {
     pub fn validate_collection_name(name: &str) -> Result<()> {
         validate_non_empty_string(name, "collection name")?;
         
-        if name.contains('/') || name.contains('\\') || name.contains(' ') {
+        // Check for specific invalid characters first (for specific error messages)
+        if name.contains(' ') {
             return Err(VectorizerError::validation(
-                "Collection name cannot contain spaces, slashes, or backslashes"
+                "Collection name cannot contain spaces"
+            ));
+        }
+        if name.contains('/') {
+            return Err(VectorizerError::validation(
+                "Collection name cannot contain slashes"
+            ));
+        }
+        if name.contains('\\') {
+            return Err(VectorizerError::validation(
+                "Collection name cannot contain backslashes"
+            ));
+        }
+        if name.contains('@') {
+            return Err(VectorizerError::validation(
+                "Collection name cannot contain @ symbols"
+            ));
+        }
+        
+        // Only allow alphanumeric characters, hyphens, and underscores
+        if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(VectorizerError::validation(
+                "Collection name can only contain alphanumeric characters, hyphens, and underscores"
             ));
         }
         

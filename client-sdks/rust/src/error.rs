@@ -48,8 +48,6 @@ pub enum VectorizerError {
     /// MCP (Model Context Protocol) error
     Mcp { message: String },
 
-    /// WebSocket error
-    WebSocket { message: String },
 
     /// Serialization error
     Serialization(String),
@@ -159,12 +157,6 @@ impl VectorizerError {
         }
     }
 
-    /// Create a new WebSocket error
-    pub fn websocket(message: impl Into<String>) -> Self {
-        Self::WebSocket {
-            message: message.into(),
-        }
-    }
 }
 
 impl std::fmt::Display for VectorizerError {
@@ -184,7 +176,6 @@ impl std::fmt::Display for VectorizerError {
             VectorizerError::Storage { message } => write!(f, "Storage error: {}", message),
             VectorizerError::BatchOperation { message } => write!(f, "Batch operation failed: {}", message),
             VectorizerError::Mcp { message } => write!(f, "MCP error: {}", message),
-            VectorizerError::WebSocket { message } => write!(f, "WebSocket error: {}", message),
             VectorizerError::Serialization(message) => write!(f, "Serialization error: {}", message),
             VectorizerError::Http(err) => write!(f, "HTTP error: {}", err),
             VectorizerError::Io(err) => write!(f, "IO error: {}", err),
