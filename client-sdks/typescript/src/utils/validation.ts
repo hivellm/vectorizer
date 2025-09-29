@@ -39,7 +39,7 @@ export function validateNonNegativeNumber(value: unknown, fieldName: string): nu
  */
 export function validateNumberRange(value: unknown, fieldName: string, min: number, max: number): number {
   if (typeof value !== 'number' || isNaN(value)) {
-    throw new ValidationError(`${fieldName} must be a valid number`);
+    throw new ValidationError(`${fieldName} must be a non-negative number`);
   }
   if (value < min || value > max) {
     throw new ValidationError(`${fieldName} must be between ${min} and ${max}`);

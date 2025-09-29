@@ -4,16 +4,13 @@
 
 import { VectorizerClient } from '../../src/client';
 import { HttpClient } from '../../src/utils/http-client';
-import { WebSocketClient } from '../../src/utils/websocket-client';
 
-// Mock the HTTP and WebSocket clients
+// Mock the HTTP client
 jest.mock('../../src/utils/http-client');
-jest.mock('../../src/utils/websocket-client');
 
 describe('VectorizerClient Performance Tests', () => {
   let client: VectorizerClient;
   let mockHttpClient: jest.Mocked<HttpClient>;
-  let mockWsClient: jest.Mocked<WebSocketClient>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -26,18 +23,8 @@ describe('VectorizerClient Performance Tests', () => {
       delete: jest.fn(),
     } as any;
 
-    mockWsClient = {
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      send: jest.fn(),
-      on: jest.fn(),
-      off: jest.fn(),
-      connected: false,
-    } as any;
-
     // Mock constructors
     (HttpClient as jest.Mock).mockImplementation(() => mockHttpClient);
-    (WebSocketClient as unknown as jest.Mock).mockImplementation(() => mockWsClient);
 
     client = new VectorizerClient({
       baseURL: 'http://localhost:15001',
@@ -238,32 +225,6 @@ describe('VectorizerClient Performance Tests', () => {
       });
       expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
       expect(mockHttpClient.get).toHaveBeenCalledTimes(requestCount);
-    });
-
-    it('should handle WebSocket message throughput', async () => {
-      const messageCount = 1000;
-      const messages = Array.from({ length: messageCount }, (_, i) => ({
-        type: 'test',
-        id: i,
-        timestamp: Date.now(),
-        data: Array.from({ length: 100 }, () => Math.random())
-      }));
-
-      (mockWsClient as any).connected = true;
-      (client as any)['ws'] = mockWsClient as any;
-
-      const startTime = Date.now();
-
-      // Send all messages
-      messages.forEach(message => {
-        client.sendWebSocketMessage(message);
-      });
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      expect(mockWsClient.send).toHaveBeenCalledTimes(messageCount);
-      expect(duration).toBeLessThan(1000); // Should complete within 1 second
     });
   });
 

@@ -16,25 +16,6 @@ afterAll(() => {
 // Mock fetch for tests
 global.fetch = jest.fn();
 
-// Mock WebSocket for tests
-const MockWebSocket = jest.fn().mockImplementation(() => ({
-  close: jest.fn(),
-  send: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
-  readyState: 1,
-}));
-
-// Add static properties to the mock
-Object.assign(MockWebSocket, {
-  CONNECTING: 0,
-  OPEN: 1,
-  CLOSING: 2,
-  CLOSED: 3,
-});
-
-global.WebSocket = MockWebSocket as any;
-
 // Mock AbortController
 global.AbortController = jest.fn().mockImplementation(() => ({
   abort: jest.fn(),

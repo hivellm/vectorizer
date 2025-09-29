@@ -40,9 +40,7 @@
     "url": "https://github.com/hivellm/vectorizer/issues"
   },
   "homepage": "https://github.com/hivellm/vectorizer#readme",
-  "dependencies": {
-    "ws": "^8.18.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@babel/core": "^7.24.7",
     "@babel/preset-env": "^7.24.7",

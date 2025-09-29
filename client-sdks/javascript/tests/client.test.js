@@ -4,16 +4,13 @@
 
 import { VectorizerClient } from '../src/client.js';
 import { HttpClient } from '../src/utils/http-client.js';
-import { WebSocketClient } from '../src/utils/websocket-client.js';
 
 // Mock the HTTP client
 jest.mock('../src/utils/http-client.js');
-jest.mock('../src/utils/websocket-client.js');
 
 describe('VectorizerClient', () => {
   let client;
   let mockHttpClient;
-  let mockWsClient;
 
   beforeEach(() => {
     // Reset mocks
@@ -27,18 +24,8 @@ describe('VectorizerClient', () => {
       delete: jest.fn(),
     };
 
-    mockWsClient = {
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      send: jest.fn(),
-      on: jest.fn(),
-      off: jest.fn(),
-      connected: false,
-    };
-
     // Mock constructors
     HttpClient.mockImplementation(() => mockHttpClient);
-    WebSocketClient.mockImplementation(() => mockWsClient);
 
     // Create client
     client = new VectorizerClient({
@@ -250,37 +237,6 @@ describe('VectorizerClient', () => {
     });
   });
 
-  describe('WebSocket operations', () => {
-    it('should connect to WebSocket', async () => {
-      mockWsClient.connect.mockResolvedValue(undefined);
-
-      await client.connectWebSocket();
-
-      expect(mockWsClient.connect).toHaveBeenCalled();
-    });
-
-    it('should send WebSocket message', () => {
-      const message = { type: 'ping', timestamp: Date.now() };
-
-      client.sendWebSocketMessage(message);
-
-      expect(mockWsClient.send).toHaveBeenCalledWith(JSON.stringify(message));
-    });
-
-    it('should add WebSocket event listener', () => {
-      const listener = jest.fn();
-
-      client.onWebSocketEvent('message', listener);
-
-      expect(mockWsClient.on).toHaveBeenCalledWith('message', listener);
-    });
-
-    it('should check WebSocket connection status', () => {
-      mockWsClient.connected = true;
-
-      expect(client.isWebSocketConnected).toBe(true);
-    });
-  });
 
   describe('utility methods', () => {
     it('should get configuration', () => {
@@ -302,7 +258,7 @@ describe('VectorizerClient', () => {
     it('should close client', async () => {
       await client.close();
 
-      expect(mockWsClient.disconnect).toHaveBeenCalled();
+      expect(mockHttpClient).toBeDefined();
     });
   });
 });

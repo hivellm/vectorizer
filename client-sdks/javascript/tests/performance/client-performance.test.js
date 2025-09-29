@@ -4,16 +4,13 @@
 
 import { VectorizerClient } from '../../src/client.js';
 import { HttpClient } from '../../src/utils/http-client.js';
-import { WebSocketClient } from '../../src/utils/websocket-client.js';
 
-// Mock the HTTP and WebSocket clients
+// Mock the HTTP client
 jest.mock('../../src/utils/http-client.js');
-jest.mock('../../src/utils/websocket-client.js');
 
 describe('VectorizerClient Performance Tests', () => {
   let client;
   let mockHttpClient;
-  let mockWsClient;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -26,18 +23,8 @@ describe('VectorizerClient Performance Tests', () => {
       delete: jest.fn(),
     };
 
-    mockWsClient = {
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      send: jest.fn(),
-      on: jest.fn(),
-      off: jest.fn(),
-      connected: false,
-    };
-
     // Mock constructors
     HttpClient.mockImplementation(() => mockHttpClient);
-    WebSocketClient.mockImplementation(() => mockWsClient);
 
     client = new VectorizerClient({
       baseURL: 'http://localhost:15001',
@@ -238,32 +225,6 @@ describe('VectorizerClient Performance Tests', () => {
       });
       expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
       expect(mockHttpClient.get).toHaveBeenCalledTimes(requestCount);
-    });
-
-    it('should handle WebSocket message throughput', async () => {
-      const messageCount = 1000;
-      const messages = Array.from({ length: messageCount }, (_, i) => ({
-        type: 'test',
-        id: i,
-        timestamp: Date.now(),
-        data: Array.from({ length: 100 }, () => Math.random())
-      }));
-
-      mockWsClient.connected = true;
-      client.ws = mockWsClient;
-
-      const startTime = Date.now();
-
-      // Send all messages
-      messages.forEach(message => {
-        client.sendWebSocketMessage(message);
-      });
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      expect(mockWsClient.send).toHaveBeenCalledTimes(messageCount);
-      expect(duration).toBeLessThan(1000); // Should complete within 1 second
     });
   });
 

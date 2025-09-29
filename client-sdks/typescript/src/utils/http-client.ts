@@ -14,6 +14,7 @@ export interface HttpClientConfig {
 export interface RequestConfig {
   headers?: Record<string, string>;
   timeout?: number;
+  params?: Record<string, any>;
 }
 
 export class HttpClient {

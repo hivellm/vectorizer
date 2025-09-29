@@ -38,11 +38,13 @@ export function validateNonNegativeNumber(value, fieldName) {
  * Validates that a value is a valid number between min and max.
  */
 export function validateNumberRange(value, fieldName, min, max) {
-  const num = validateNonNegativeNumber(value, fieldName);
-  if (num < min || num > max) {
+  if (typeof value !== 'number' || isNaN(value)) {
+    throw new ValidationError(`${fieldName} must be a valid number`);
+  }
+  if (value < min || value > max) {
     throw new ValidationError(`${fieldName} must be between ${min} and ${max}`);
   }
-  return num;
+  return value;
 }
 
 /**
@@ -53,8 +55,8 @@ export function validateNumberArray(value, fieldName) {
     throw new ValidationError(`${fieldName} must be a non-empty array`);
   }
   
-  if (!value.every(x => typeof x === 'number' && !isNaN(x))) {
-    throw new ValidationError(`${fieldName} must contain only valid numbers`);
+  if (!value.every(x => typeof x === 'number' && isFinite(x))) {
+    throw new ValidationError(`${fieldName} must contain only valid finite numbers`);
   }
   
   return value;

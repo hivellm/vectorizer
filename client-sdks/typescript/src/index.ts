@@ -56,10 +56,6 @@ export type {
 } from './utils/http-client';
 
 export type {
-  WebSocketClientConfig,
-} from './utils/websocket-client';
-
-export type {
   Logger,
   LogLevel,
   LoggerConfig,

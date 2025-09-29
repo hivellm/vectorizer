@@ -3,7 +3,7 @@
  */
 
 export class VectorizerError extends Error {
-  constructor(message, errorCode = 'VECTORIZER_ERROR', details = {}) {
+  constructor(message, errorCode, details = {}) {
     super(message);
     this.name = 'VectorizerError';
     this.errorCode = errorCode;
@@ -19,7 +19,7 @@ export class VectorizerError extends Error {
    * Returns a string representation of the error.
    */
   toString() {
-    if (this.errorCode) {
+    if (this.errorCode !== undefined && this.errorCode !== null) {
       return `[${this.errorCode}] ${this.message}`;
     }
     return this.message;

@@ -6,8 +6,8 @@ High-performance TypeScript client for the Hive Vectorizer vector database.
 
 - ✅ **Complete TypeScript Support**: Full type safety and IntelliSense
 - ✅ **Async/Await**: Modern async programming patterns
-- ✅ **HTTP Client**: Native fetch-based HTTP client
-- ✅ **WebSocket Support**: Real-time communication
+- ✅ **REST-Only Architecture**: Pure HTTP REST API communication
+- ✅ **HTTP Client**: Native fetch-based HTTP client with robust error handling
 - ✅ **Comprehensive Validation**: Input validation and error handling
 - ✅ **12 Custom Exceptions**: Robust error management
 - ✅ **Logging**: Configurable logging system
@@ -75,7 +75,6 @@ const embedding = await client.embedText({
 ```typescript
 const client = new VectorizerClient({
   baseURL: 'http://localhost:15001',     // API base URL
-  wsURL: 'ws://localhost:15001/ws',      // WebSocket URL (optional)
   apiKey: 'your-api-key',                // API key for authentication
   timeout: 30000,                        // Request timeout in ms
   headers: {                             // Custom headers
@@ -174,32 +173,6 @@ const embedding = await client.embedText({
     normalize: true
   }
 });
-```
-
-### WebSocket Operations
-
-```typescript
-// Connect to WebSocket
-await client.connectWebSocket();
-
-// Listen for events
-client.onWebSocketEvent('message', (data) => {
-  console.log('Received:', data);
-});
-
-// Send message
-client.sendWebSocketMessage({
-  type: 'ping',
-  timestamp: Date.now()
-});
-
-// Check connection status
-if (client.isWebSocketConnected) {
-  console.log('WebSocket connected');
-}
-
-// Disconnect
-client.disconnectWebSocket();
 ```
 
 ## Error Handling

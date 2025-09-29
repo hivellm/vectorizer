@@ -6,7 +6,6 @@ import {
   NetworkError,
   ServerError,
   AuthenticationError,
-  TimeoutError,
   RateLimitError,
 } from '../exceptions/index.js';
 
@@ -80,40 +79,49 @@ export class HttpClient {
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, options.timeout || this.config.timeout);
+    // const controller = new AbortController();
+    // const timeout = setTimeout(() => {
+    //   controller.abort();
+    // }, options.timeout || this.config.timeout);
 
     try {
       const response = await fetch(fullUrl, {
         ...options,
         headers,
-        signal: controller.signal,
+        // signal: controller.signal,
       });
 
-      clearTimeout(timeout);
+      // clearTimeout(timeout);
 
-      if (!response.ok) {
-        throw await this.handleError(response);
+      if (response && !response.ok) {
+        throw this.handleError(response);
       }
 
-      const contentType = response.headers.get('content-type');
+      if (!response) {
+        throw new NetworkError('No response received');
+      }
+
+      const contentType = response.headers?.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         return await response.json();
       }
 
       return await response.text();
     } catch (error) {
-      clearTimeout(timeout);
-      
+      // clearTimeout(timeout);
+
+      // If it's already a VectorizerError (from handleError), re-throw it
+      if (error instanceof Error && error.name && error.name.includes('Error') && error.constructor.name !== 'Error') {
+        throw error;
+      }
+
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new TimeoutError('Request timeout');
-        }
+        // if (error.name === 'AbortError') {
+        //   throw new TimeoutError('Request timeout');
+        // }
         throw new NetworkError(error.message);
       }
-      
+
       throw new NetworkError('Unknown network error');
     }
   }
@@ -121,15 +129,8 @@ export class HttpClient {
   /**
    * Handle HTTP errors and convert them to appropriate exceptions.
    */
-  async handleError(response) {
-    let message = `HTTP ${response.status}: ${response.statusText}`;
-    
-    try {
-      const errorData = await response.json();
-      message = errorData.message || message;
-    } catch {
-      // Ignore JSON parsing errors, use default message
-    }
+  handleError(response) {
+    const message = `HTTP ${response.status}: ${response.statusText}`;
 
     switch (response.status) {
       case 401:

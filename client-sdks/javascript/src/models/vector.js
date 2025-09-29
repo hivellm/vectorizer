@@ -19,8 +19,8 @@ export function validateVector(vector) {
     throw new ValidationError('Vector data must be a non-empty array');
   }
   
-  if (!vector.data.every(x => typeof x === 'number' && !isNaN(x))) {
-    throw new ValidationError('Vector data must contain only valid numbers');
+  if (!vector.data.every(x => typeof x === 'number' && isFinite(x))) {
+    throw new ValidationError('Vector data must contain only valid finite numbers');
   }
 }
 
@@ -35,7 +35,7 @@ export function validateCreateVectorRequest(request) {
     throw new ValidationError('Vector data must be a non-empty array');
   }
   
-  if (!request.data.every(x => typeof x === 'number' && !isNaN(x))) {
-    throw new ValidationError('Vector data must contain only valid numbers');
+  if (!request.data.every(x => typeof x === 'number' && isFinite(x))) {
+    throw new ValidationError('Vector data must contain only valid finite numbers');
   }
 }

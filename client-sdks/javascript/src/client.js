@@ -6,7 +6,6 @@
  */
 
 import { HttpClient } from './utils/http-client.js';
-import { WebSocketClient } from './utils/websocket-client.js';
 import { createLogger } from './utils/logger.js';
 
 import {
@@ -20,7 +19,11 @@ import {
 } from './models/collection.js';
 
 import {
-  validateSearchResult,
+  validateCollectionInfo,
+  validateDatabaseStats,
+} from './models/collection-info.js';
+
+import {
   validateSearchResponse,
 } from './models/search-result.js';
 
@@ -35,48 +38,23 @@ import {
 } from './models/search-request.js';
 
 import {
-  BatchInsertRequest,
-  BatchSearchRequest,
-  BatchUpdateRequest,
-  BatchDeleteRequest,
   BatchResponse,
   BatchSearchResponse,
-  BatchTextRequest,
-  BatchSearchQuery,
-  BatchVectorUpdate,
-  BatchConfig
 } from './models/batch.js';
 
 import {
-  SummarizeTextRequest,
   SummarizeTextResponse,
-  SummarizeContextRequest,
   SummarizeContextResponse,
   GetSummaryResponse,
-  SummaryInfo,
-  ListSummariesResponse
+  ListSummariesResponse,
 } from './models/summarization.js';
 
-import {
-  VectorizerError,
-  AuthenticationError,
-  CollectionNotFoundError,
-  ValidationError,
-  NetworkError,
-  ServerError,
-  TimeoutError,
-  RateLimitError,
-  ConfigurationError,
-  EmbeddingError,
-  SearchError,
-  StorageError,
-} from './exceptions/index.js';
+// Removed unused exception imports - exceptions are handled in http-client
 
 export class VectorizerClient {
   constructor(config = {}) {
     this.config = {
       baseURL: 'http://localhost:15001',
-      wsURL: 'ws://localhost:15001/ws',
       timeout: 30000,
       headers: {},
       logger: { level: 'info', enabled: true },
@@ -94,19 +72,8 @@ export class VectorizerClient {
     };
     this.httpClient = new HttpClient(httpConfig);
 
-    // Initialize WebSocket client if URL is provided
-    if (this.config.wsURL) {
-      const wsConfig = {
-        url: this.config.wsURL,
-        apiKey: this.config.apiKey,
-        timeout: this.config.timeout,
-      };
-      this.wsClient = new WebSocketClient(wsConfig);
-    }
-
     this.logger.info('VectorizerClient initialized', {
       baseURL: this.config.baseURL,
-      wsURL: this.config.wsURL,
       hasApiKey: !!this.config.apiKey,
     });
   }
@@ -358,72 +325,6 @@ export class VectorizerClient {
     }
   }
 
-  // ===== WEBSOCKET OPERATIONS =====
-
-  /**
-   * Connect to WebSocket for real-time updates.
-   */
-  async connectWebSocket() {
-    if (!this.wsClient) {
-      throw new ConfigurationError('WebSocket URL not configured');
-    }
-
-    try {
-      await this.wsClient.connect();
-      this.logger.info('WebSocket connected');
-    } catch (error) {
-      this.logger.error('Failed to connect WebSocket', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Disconnect from WebSocket.
-   */
-  disconnectWebSocket() {
-    if (this.wsClient) {
-      this.wsClient.disconnect();
-      this.logger.info('WebSocket disconnected');
-    }
-  }
-
-  /**
-   * Check if WebSocket is connected.
-   */
-  get isWebSocketConnected() {
-    return this.wsClient?.connected || false;
-  }
-
-  /**
-   * Send a message through WebSocket.
-   */
-  sendWebSocketMessage(message) {
-    if (!this.wsClient) {
-      throw new ConfigurationError('WebSocket not configured');
-    }
-    this.wsClient.send(message);
-  }
-
-  /**
-   * Add WebSocket event listener.
-   */
-  onWebSocketEvent(event, listener) {
-    if (!this.wsClient) {
-      throw new ConfigurationError('WebSocket not configured');
-    }
-    this.wsClient.on(event, listener);
-  }
-
-  /**
-   * Remove WebSocket event listener.
-   */
-  offWebSocketEvent(event, listener) {
-    if (!this.wsClient) {
-      throw new ConfigurationError('WebSocket not configured');
-    }
-    this.wsClient.off(event, listener);
-  }
-
   // ===== UTILITY METHODS =====
 
   /**
@@ -446,17 +347,6 @@ export class VectorizerClient {
       headers: this.config.headers,
     };
     this.httpClient = new HttpClient(httpConfig);
-
-    // Update WebSocket client if it exists
-    if (this.wsClient) {
-      this.wsClient.disconnect();
-      const wsConfig = {
-        url: this.config.wsURL,
-        apiKey: this.config.apiKey,
-        timeout: this.config.timeout,
-      };
-      this.wsClient = new WebSocketClient(wsConfig);
-    }
 
     this.logger.info('API key updated');
   }
@@ -701,9 +591,6 @@ export class VectorizerClient {
    * Close the client and clean up resources.
    */
   async close() {
-    if (this.wsClient) {
-      this.wsClient.disconnect();
-    }
     this.logger.info('VectorizerClient closed');
   }
 }

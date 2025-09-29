@@ -1,6 +1,6 @@
 # Testing Guide for Hive Vectorizer Client SDKs
 
-This document provides comprehensive information about testing the TypeScript and JavaScript client SDKs for Hive Vectorizer.
+This document provides comprehensive information about testing the TypeScript, JavaScript, and Python client SDKs for Hive Vectorizer.
 
 ## Test Structure
 
@@ -40,12 +40,24 @@ client-sdks/javascript/tests/
 │   └── vectorizer-error.test.js
 ├── utils/                      # Utility function tests
 │   ├── http-client.test.js
-│   ├── websocket-client.test.js
 │   └── validation.test.js
 ├── integration/                # Integration tests
 │   └── client-integration.test.js
 └── performance/                # Performance tests
     └── client-performance.test.js
+```
+
+### Python SDK Tests
+
+```
+client-sdks/python/
+├── test_exceptions.py          # Exception class tests (44 tests)
+├── test_models.py              # Data model validation tests
+├── test_validation.py          # Validation utility tests (framework)
+├── test_http_client.py         # HTTP client tests (framework)
+├── test_client_integration.py  # Integration tests (framework)
+├── run_tests.py               # Test runner with reporting
+└── TESTES_RESUMO.md           # Test documentation
 ```
 
 ## Test Categories
@@ -64,14 +76,12 @@ client-sdks/javascript/tests/
 
 #### Utility Tests
 - **HTTP Client**: Request/response handling, error mapping, timeout handling
-- **WebSocket Client**: Connection management, message handling, reconnection logic
 - **Validation Utilities**: Input validation, type checking, range validation
 
 ### 2. Integration Tests
 
 #### Complete Workflow Tests
 - **Vector Lifecycle**: Create collection → Insert vectors → Search → Delete
-- **WebSocket Workflow**: Connect → Send messages → Handle events → Disconnect
 - **Error Recovery**: Handle failures and recover gracefully
 - **Configuration Updates**: Dynamic configuration changes
 
@@ -147,6 +157,27 @@ npm run test:watch
 npm test -- --testPathPattern=performance
 ```
 
+### Python SDK
+
+```bash
+cd client-sdks/python
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run all tests
+python run_tests.py
+
+# Run specific test file
+python -m pytest test_exceptions.py -v
+
+# Run tests with coverage (if pytest-cov installed)
+python -m pytest --cov=src --cov-report=html
+
+# Run performance tests
+python -c "from test_models import *; run_performance_tests()"
+```
+
 ## Test Configuration
 
 ### Jest Configuration
@@ -189,10 +220,6 @@ module.exports = {
 - Simulate various response scenarios (success, error, timeout)
 - Test error handling and response parsing
 
-### WebSocket Mocking
-- Mock WebSocket constructor and instances
-- Simulate connection events (open, close, error, message)
-- Test reconnection logic and message queuing
 
 ### AbortController Mocking
 - Mock AbortController for timeout handling
@@ -245,7 +272,6 @@ const sampleSearchResult = {
 
 #### Network Performance
 - **High-Frequency Requests**: 500 requests in < 5 seconds
-- **WebSocket Throughput**: 1000 messages in < 1 second
 - **Error Handling**: 100 errors in < 2 seconds
 
 #### Memory Usage
@@ -282,6 +308,16 @@ jobs:
       - run: cd client-sdks/javascript && npm ci
       - run: cd client-sdks/javascript && npm test
       - run: cd client-sdks/javascript && npm run test:coverage
+
+  test-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - run: cd client-sdks/python && pip install -r requirements.txt
+      - run: cd client-sdks/python && python run_tests.py
 ```
 
 ## Debugging Tests

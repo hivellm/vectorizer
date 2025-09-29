@@ -91,7 +91,7 @@ describe('Vector Model Validation', () => {
       };
 
       expect(() => validateVector(vector)).toThrow(ValidationError);
-      expect(() => validateVector(vector)).toThrow('Vector data must contain only valid numbers');
+      expect(() => validateVector(vector)).toThrow('Vector data must contain only valid finite numbers');
     });
 
     it('should throw error for NaN in data', () => {
@@ -101,7 +101,7 @@ describe('Vector Model Validation', () => {
       };
 
       expect(() => validateVector(vector)).toThrow(ValidationError);
-      expect(() => validateVector(vector)).toThrow('Vector data must contain only valid numbers');
+      expect(() => validateVector(vector)).toThrow('Vector data must contain only valid finite numbers');
     });
 
     it('should throw error for Infinity in data', () => {
@@ -111,7 +111,7 @@ describe('Vector Model Validation', () => {
       };
 
       expect(() => validateVector(vector)).toThrow(ValidationError);
-      expect(() => validateVector(vector)).toThrow('Vector data must contain only valid numbers');
+      expect(() => validateVector(vector)).toThrow('Vector data must contain only valid finite numbers');
     });
 
     it('should validate large vector', () => {
@@ -173,7 +173,7 @@ describe('Vector Model Validation', () => {
       };
 
       expect(() => validateCreateVectorRequest(request)).toThrow(ValidationError);
-      expect(() => validateCreateVectorRequest(request)).toThrow('Vector data must contain only valid numbers');
+      expect(() => validateCreateVectorRequest(request)).toThrow('Vector data must contain only valid finite numbers');
     });
 
     it('should validate large vector request', () => {

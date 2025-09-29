@@ -138,32 +138,8 @@ async function main() {
       size: `${(collectionInfo.size_bytes || 0) / 1024} KB`
     });
 
-    // WebSocket example (if configured)
-    if (client.getConfig().wsURL) {
-      console.log('\n🔌 Testing WebSocket connection...');
-      try {
-        await client.connectWebSocket();
-        console.log('✅ WebSocket connected');
-
-        // Listen for messages
-        client.onWebSocketEvent('message', (data) => {
-          console.log('📨 WebSocket message received:', data);
-        });
-
-        // Send a test message
-        client.sendWebSocketMessage({
-          type: 'ping',
-          timestamp: Date.now()
-        });
-
-        // Wait a bit then disconnect
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        client.disconnectWebSocket();
-        console.log('🔌 WebSocket disconnected');
-      } catch (error) {
-        console.log('⚠️ WebSocket not available:', error.message);
-      }
-    }
+    // REST API example
+    console.log('\n🌐 REST API operations completed successfully!');
 
     // Batch operations example
     console.log('\n🔄 Batch operations example...');

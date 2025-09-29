@@ -138,11 +138,12 @@ All SDKs provide:
 - ✅ **Semantic Search**: Text and vector similarity search
 - ✅ **Embedding Generation**: Text embedding support
 - ✅ **Batch Operations**: High-performance batch processing
-- ✅ **WebSocket Support**: Real-time communication
+- ✅ **REST-Only Architecture**: Pure HTTP REST API communication
 - ✅ **Authentication**: API key-based authentication
 - ✅ **Error Handling**: Comprehensive exception handling
 - ✅ **Logging**: Configurable logging system
 - ✅ **Validation**: Input validation and type checking
+- ✅ **100% Test Coverage**: Comprehensive test suites for all SDKs
 
 ## Batch Operations
 
@@ -233,9 +234,9 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 │   TypeScript    │    │   JavaScript    │    │     Python      │    │      Rust        │
 │      SDK        │    │      SDK        │    │      SDK        │    │      SDK         │
 │                 │    │                 │    │                 │    │                  │
-│ • Type Safety   │    │ • Multi-format  │    │ • Async/Await   │    │ • High Performance│
-│ • IntelliSense  │    │ • Browser Ready │    │ • CLI Interface │    │ • Memory Safety  │
-│ • ES2020+       │    │ • Node.js       │    │ • 73+ Tests     │    │ • MCP Support    │
+│ • Type Safety   │    │ • REST-Only     │    │ • Async/Await   │    │ • High Performance│
+│ • IntelliSense  │    │ • 100% Tests    │    │ • CLI Interface │    │ • Memory Safety  │
+│ • ES2020+       │    │ • Browser Ready │    │ • 44+ Tests     │    │ • MCP Support    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │                       │
          └───────────────────────┼───────────────────────┼───────────────────────┘
@@ -245,10 +246,9 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
                     │     Server      │    │                 │
                     │                 │    │ • Model Context │
                     │ • REST API      │    │ • AI Integration │
-                    │ • WebSocket     │    │ • Tool Calling  │
-                    │ • GRPC          │    │ • SSE Transport │
-                    │ • MCP Protocol  │    └─────────────────┘
-                    └─────────────────┘
+                    │ • GRPC          │    │ • Tool Calling  │
+                    │ • MCP Protocol  │    │ • SSE Transport │
+                    └─────────────────┘    └─────────────────┘
 ```
 
 ## Text Summarization

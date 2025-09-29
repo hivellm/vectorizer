@@ -86,8 +86,8 @@ async function main() {
     console.log('🎯 Search results:');
     searchResults.results.forEach((result, index) => {
       console.log(`  ${index + 1}. Score: ${result.score.toFixed(4)}`);
-      console.log(`     Title: ${result.metadata?.title}`);
-      console.log(`     Category: ${result.metadata?.category}`);
+      console.log(`     Title: ${result.metadata?.['title']}`);
+      console.log(`     Category: ${result.metadata?.['category']}`);
     });
 
     // Text search
@@ -101,7 +101,7 @@ async function main() {
     console.log('🔤 Text search results:');
     textResults.results.forEach((result, index) => {
       console.log(`  ${index + 1}. Score: ${result.score.toFixed(4)}`);
-      console.log(`     Title: ${result.metadata?.title}`);
+      console.log(`     Title: ${result.metadata?.['title']}`);
     });
 
     // Generate embeddings
@@ -125,32 +125,8 @@ async function main() {
       size: `${(collectionInfo.size_bytes || 0) / 1024} KB`
     });
 
-    // WebSocket example (if configured)
-    if (client.getConfig().wsURL) {
-      console.log('\n🔌 Testing WebSocket connection...');
-      try {
-        await client.connectWebSocket();
-        console.log('✅ WebSocket connected');
-
-        // Listen for messages
-        client.onWebSocketEvent('message', (data) => {
-          console.log('📨 WebSocket message received:', data);
-        });
-
-        // Send a test message
-        client.sendWebSocketMessage({
-          type: 'ping',
-          timestamp: Date.now()
-        });
-
-        // Wait a bit then disconnect
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        client.disconnectWebSocket();
-        console.log('🔌 WebSocket disconnected');
-      } catch (error) {
-        console.log('⚠️ WebSocket not available:', error.message);
-      }
-    }
+    // API operations completed successfully
+    console.log('\n🌐 All operations completed successfully!');
 
     // Batch operations example
     console.log('\n🔄 Batch operations example...');
@@ -292,9 +268,9 @@ async function main() {
     console.log('✅ Collection deleted');
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    if (error.details) {
-      console.error('📋 Details:', error.details);
+    console.error('❌ Error:', (error as Error).message);
+    if ((error as any).details) {
+      console.error('📋 Details:', (error as any).details);
     }
   } finally {
     // Close client

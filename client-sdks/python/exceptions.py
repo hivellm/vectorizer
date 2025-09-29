@@ -16,7 +16,7 @@ class VectorizerError(Exception):
     def __init__(self, message: str, error_code: str = None, details: dict = None):
         """
         Initialize the exception.
-        
+
         Args:
             message: Error message
             error_code: Optional error code
@@ -26,7 +26,8 @@ class VectorizerError(Exception):
         self.message = message
         self.error_code = error_code
         self.details = details or {}
-        
+        self.name = self.__class__.__name__
+
     def __str__(self):
         """String representation of the exception."""
         if self.error_code:
@@ -44,8 +45,8 @@ class AuthenticationError(VectorizerError):
     - Authentication credentials are incorrect
     """
     
-    def __init__(self, message: str = "Authentication failed", **kwargs):
-        super().__init__(message, error_code="AUTH_ERROR", **kwargs)
+    def __init__(self, message: str = "Authentication failed", details: dict = None):
+        super().__init__(message, error_code="AUTH_ERROR", details=details)
 
 
 class CollectionNotFoundError(VectorizerError):
@@ -58,8 +59,15 @@ class CollectionNotFoundError(VectorizerError):
     - Collection name is misspelled
     """
     
-    def __init__(self, message: str = "Collection not found", **kwargs):
-        super().__init__(message, error_code="COLLECTION_NOT_FOUND", **kwargs)
+    def __init__(self, collection_name=None, details: dict = None):
+        if collection_name and isinstance(collection_name, str):
+            message = f"Collection '{collection_name}' not found"
+            if details is None:
+                details = {}
+            details = {"collectionName": collection_name, **details}
+        else:
+            message = "Collection not found"
+        super().__init__(message, error_code="COLLECTION_NOT_FOUND", details=details)
 
 
 class ValidationError(VectorizerError):
@@ -72,8 +80,8 @@ class ValidationError(VectorizerError):
     - Data format is incorrect
     """
     
-    def __init__(self, message: str = "Validation failed", **kwargs):
-        super().__init__(message, error_code="VALIDATION_ERROR", **kwargs)
+    def __init__(self, message: str = "Validation failed", details: dict = None):
+        super().__init__(message, error_code="VALIDATION_ERROR", details=details)
 
 
 class NetworkError(VectorizerError):
@@ -87,8 +95,8 @@ class NetworkError(VectorizerError):
     - SSL/TLS errors
     """
     
-    def __init__(self, message: str = "Network error occurred", **kwargs):
-        super().__init__(message, error_code="NETWORK_ERROR", **kwargs)
+    def __init__(self, message: str = "Network error occurred", details: dict = None):
+        super().__init__(message, error_code="NETWORK_ERROR", details=details)
 
 
 class ServerError(VectorizerError):
@@ -101,8 +109,8 @@ class ServerError(VectorizerError):
     - Internal server errors
     """
     
-    def __init__(self, message: str = "Server error occurred", **kwargs):
-        super().__init__(message, error_code="SERVER_ERROR", **kwargs)
+    def __init__(self, message: str = "Server error occurred", details: dict = None):
+        super().__init__(message, error_code="SERVER_ERROR", details=details)
 
 
 class RateLimitError(VectorizerError):
@@ -115,8 +123,8 @@ class RateLimitError(VectorizerError):
     - Rate limit headers indicate throttling
     """
     
-    def __init__(self, message: str = "Rate limit exceeded", **kwargs):
-        super().__init__(message, error_code="RATE_LIMIT_ERROR", **kwargs)
+    def __init__(self, message: str = "Rate limit exceeded", details: dict = None):
+        super().__init__(message, error_code="RATE_LIMIT_ERROR", details=details)
 
 
 class TimeoutError(VectorizerError):
@@ -129,8 +137,8 @@ class TimeoutError(VectorizerError):
     - Connection timeout
     """
     
-    def __init__(self, message: str = "Operation timed out", **kwargs):
-        super().__init__(message, error_code="TIMEOUT_ERROR", **kwargs)
+    def __init__(self, message: str = "Request timeout", details: dict = None):
+        super().__init__(message, error_code="TIMEOUT_ERROR", details=details)
 
 
 class VectorNotFoundError(VectorizerError):
@@ -143,8 +151,8 @@ class VectorNotFoundError(VectorizerError):
     - Vector ID is invalid
     """
     
-    def __init__(self, message: str = "Vector not found", **kwargs):
-        super().__init__(message, error_code="VECTOR_NOT_FOUND", **kwargs)
+    def __init__(self, message: str = "Vector not found", details: dict = None):
+        super().__init__(message, error_code="VECTOR_NOT_FOUND", details=details)
 
 
 class EmbeddingError(VectorizerError):
@@ -157,8 +165,8 @@ class EmbeddingError(VectorizerError):
     - Invalid text format
     """
     
-    def __init__(self, message: str = "Embedding generation failed", **kwargs):
-        super().__init__(message, error_code="EMBEDDING_ERROR", **kwargs)
+    def __init__(self, message: str = "Embedding generation failed", details: dict = None):
+        super().__init__(message, error_code="EMBEDDING_ERROR", details=details)
 
 
 class IndexingError(VectorizerError):
@@ -171,8 +179,8 @@ class IndexingError(VectorizerError):
     - Indexing process errors
     """
     
-    def __init__(self, message: str = "Indexing operation failed", **kwargs):
-        super().__init__(message, error_code="INDEXING_ERROR", **kwargs)
+    def __init__(self, message: str = "Indexing operation failed", details: dict = None):
+        super().__init__(message, error_code="INDEXING_ERROR", details=details)
 
 
 class ConfigurationError(VectorizerError):
@@ -185,8 +193,8 @@ class ConfigurationError(VectorizerError):
     - Configuration file errors
     """
     
-    def __init__(self, message: str = "Configuration error", **kwargs):
-        super().__init__(message, error_code="CONFIGURATION_ERROR", **kwargs)
+    def __init__(self, message: str = "Configuration error", details: dict = None):
+        super().__init__(message, error_code="CONFIGURATION_ERROR", details=details)
 
 
 class BatchOperationError(VectorizerError):
@@ -199,8 +207,8 @@ class BatchOperationError(VectorizerError):
     - Batch validation errors
     """
     
-    def __init__(self, message: str = "Batch operation failed", **kwargs):
-        super().__init__(message, error_code="BATCH_OPERATION_ERROR", **kwargs)
+    def __init__(self, message: str = "Batch operation failed", details: dict = None):
+        super().__init__(message, error_code="BATCH_OPERATION_ERROR", details=details)
 
 
 # Error mapping for HTTP status codes

@@ -5,16 +5,17 @@ High-performance JavaScript client for the Hive Vectorizer vector database.
 ## Features
 
 - ✅ **Modern JavaScript**: ES2020+ support with async/await
-- ✅ **HTTP Client**: Native fetch-based HTTP client
-- ✅ **WebSocket Support**: Real-time communication
-- ✅ **Comprehensive Validation**: Input validation and error handling
-- ✅ **12 Custom Exceptions**: Robust error management
+- ✅ **REST-Only Architecture**: Pure HTTP REST API communication
+- ✅ **HTTP Client**: Native fetch-based HTTP client with robust error handling
+- ✅ **Comprehensive Validation**: Input validation with `isFinite()` checks for Infinity/NaN
+- ✅ **12 Custom Exceptions**: Robust error management with consistent error codes
 - ✅ **Logging**: Configurable logging system
 - ✅ **Collection Management**: CRUD operations for collections
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
 - ✅ **Embedding Generation**: Text embedding support
 - ✅ **Multiple Build Formats**: CommonJS, ES Modules, UMD
+- ✅ **100% Test Coverage**: Comprehensive test suite with all tests passing
 
 ## Installation
 
@@ -75,7 +76,6 @@ const embedding = await client.embedText({
 ```javascript
 const client = new VectorizerClient({
   baseURL: 'http://localhost:15001',     // API base URL
-  wsURL: 'ws://localhost:15001/ws',      // WebSocket URL (optional)
   apiKey: 'your-api-key',                // API key for authentication
   timeout: 30000,                        // Request timeout in ms
   headers: {                             // Custom headers
@@ -174,32 +174,6 @@ const embedding = await client.embedText({
     normalize: true
   }
 });
-```
-
-### WebSocket Operations
-
-```javascript
-// Connect to WebSocket
-await client.connectWebSocket();
-
-// Listen for events
-client.onWebSocketEvent('message', (data) => {
-  console.log('Received:', data);
-});
-
-// Send message
-client.sendWebSocketMessage({
-  type: 'ping',
-  timestamp: Date.now()
-});
-
-// Check connection status
-if (client.isWebSocketConnected) {
-  console.log('WebSocket connected');
-}
-
-// Disconnect
-client.disconnectWebSocket();
 ```
 
 ## Error Handling

@@ -5,6 +5,7 @@ This module contains all the data models used for representing
 vectors, collections, search results, and other entities.
 """
 
+import math
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
@@ -13,19 +14,26 @@ from datetime import datetime
 @dataclass
 class Vector:
     """Represents a vector with metadata."""
-    
+
     id: str
     data: List[float]
     metadata: Optional[Dict[str, Any]] = None
-    
+
     def __post_init__(self):
         """Validate vector data after initialization."""
         if not self.id:
             raise ValueError("Vector ID cannot be empty")
         if not self.data:
             raise ValueError("Vector data cannot be empty")
-        if not all(isinstance(x, (int, float)) for x in self.data):
-            raise ValueError("Vector data must contain only numbers")
+
+        # Check for valid numbers and reject NaN/Infinity
+        for x in self.data:
+            if not isinstance(x, (int, float)):
+                raise ValueError("Vector data must contain only numbers")
+            if math.isnan(x):
+                raise ValueError("Vector data must not contain NaN values")
+            if math.isinf(x):
+                raise ValueError("Vector data must not contain Infinity values")
 
 
 @dataclass
@@ -84,7 +92,7 @@ class SearchResult:
     def __post_init__(self):
         """Validate search result data after initialization."""
         if not self.id:
-            raise ValueError("Search result ID cannot be empty")
+            raise ValueError("SearchResult ID cannot be empty")
         if not isinstance(self.score, (int, float)):
             raise ValueError("Score must be a number")
 

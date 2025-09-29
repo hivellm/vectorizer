@@ -17,5 +17,8 @@ module.exports = {
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 10000,
-  verbose: true
+  verbose: true,
+  transform: {
+    '^.+\\.js$': 'babel-jest'
+  }
 };

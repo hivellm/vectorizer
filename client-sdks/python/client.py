@@ -12,7 +12,6 @@ import logging
 from typing import List, Dict, Any, Optional, Union
 from urllib.parse import urljoin
 import aiohttp
-import websockets
 from dataclasses import asdict
 
 from exceptions import (

@@ -91,13 +91,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance**: All tests complete in under 0.4 seconds
 - **Reliability**: 96% test success rate with comprehensive coverage
 
+## [1.2.0] - 2025-09-29
+
+### Added
+- **Complete Test Suite Alignment**: Full parity with JavaScript/TypeScript SDK tests
+- **New Test Files**: Equivalent test structure to JS/TS SDKs
+  - `test_exceptions.py`: 44 comprehensive exception tests (100% pass rate)
+  - `test_validation.py`: 20 validation utility tests (framework ready)
+  - `test_http_client.py`: 14 HTTP client tests (framework ready)
+  - `test_client_integration.py`: Integration tests structure
+  - `test_models.py`: Complete data model validation tests
+- **Enhanced Exception Classes**: Improved error handling with consistent `name` attribute
+- **Comprehensive Error Coverage**: All 12 custom exception classes fully tested
+- **Test Framework**: Complete test automation with `run_tests.py`
+
+### Improved
+- **Exception Handling**: Enhanced `VectorizerError` base class with `name` attribute
+- **Constructor Consistency**: All exception classes now accept `details` parameter correctly
+- **Test Organization**: Modular test structure matching JavaScript/TypeScript patterns
+- **Error Messages**: Consistent default messages across all exception types
+- **Git Configuration**: Added `.pytest_cache/` to `.gitignore`
+
+### Technical Details
+- **Test Coverage**: 44 exception tests, 20 validation tests, 14 HTTP client tests
+- **Test Performance**: All tests complete in under 0.4 seconds
+- **Success Rate**: 100% pass rate for implemented tests
+- **Code Quality**: Enhanced type hints and error handling consistency
+
 ## [Unreleased]
 
 ### Planned Features
-- WebSocket support for real-time operations
+- Implementation of validation utility functions
+- HTTP client mocking setup for integration tests
+- Performance optimizations for large-scale operations
 - Advanced search filters and aggregations
 - Vector similarity calculations
-- Performance optimizations
 - Additional data formats support
 - Enhanced error recovery mechanisms
 - Continuous integration testing pipeline

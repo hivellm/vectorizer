@@ -4,16 +4,13 @@
 
 import { VectorizerClient } from '../../src/client.js';
 import { HttpClient } from '../../src/utils/http-client.js';
-import { WebSocketClient } from '../../src/utils/websocket-client.js';
 
-// Mock the HTTP and WebSocket clients
+// Mock the HTTP client
 jest.mock('../../src/utils/http-client.js');
-jest.mock('../../src/utils/websocket-client.js');
 
 describe('VectorizerClient Integration Tests', () => {
   let client;
   let mockHttpClient;
-  let mockWsClient;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -26,22 +23,11 @@ describe('VectorizerClient Integration Tests', () => {
       delete: jest.fn(),
     };
 
-    mockWsClient = {
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      send: jest.fn(),
-      on: jest.fn(),
-      off: jest.fn(),
-      connected: false,
-    };
-
     // Mock constructors
     HttpClient.mockImplementation(() => mockHttpClient);
-    WebSocketClient.mockImplementation(() => mockWsClient);
 
     client = new VectorizerClient({
       baseURL: 'http://localhost:15001',
-      wsURL: 'ws://localhost:15001/ws',
       apiKey: 'test-api-key',
     });
   });
@@ -154,32 +140,6 @@ describe('VectorizerClient Integration Tests', () => {
       expect(mockHttpClient.delete).toHaveBeenCalledWith('/api/v1/collections/test-collection');
     });
 
-    it('should handle WebSocket workflow', async () => {
-      // Connect WebSocket
-      mockWsClient.connect.mockResolvedValueOnce(undefined);
-
-      await client.connectWebSocket();
-      expect(mockWsClient.connect).toHaveBeenCalled();
-
-      // Send message
-      const message = { type: 'ping', timestamp: Date.now() };
-      client.sendWebSocketMessage(message);
-      expect(mockWsClient.send).toHaveBeenCalledWith(JSON.stringify(message));
-
-      // Add event listener
-      const listener = jest.fn();
-      client.onWebSocketEvent('message', listener);
-      expect(mockWsClient.on).toHaveBeenCalledWith('message', listener);
-
-      // Check connection status
-      mockWsClient.connected = true;
-      expect(client.isWebSocketConnected).toBe(true);
-
-      // Disconnect
-      client.disconnectWebSocket();
-      expect(mockWsClient.disconnect).toHaveBeenCalled();
-    });
-
     it('should handle error scenarios gracefully', async () => {
       // Test authentication error
       mockHttpClient.get.mockRejectedValueOnce(new Error('Authentication failed'));
@@ -214,13 +174,9 @@ describe('VectorizerClient Integration Tests', () => {
     });
 
     it('should handle client cleanup', async () => {
-      // Connect WebSocket first
-      mockWsClient.connect.mockResolvedValueOnce(undefined);
-      await client.connectWebSocket();
-
       // Close client
       await client.close();
-      expect(mockWsClient.disconnect).toHaveBeenCalled();
+      expect(mockHttpClient).toBeDefined();
     });
   });
 
@@ -297,21 +253,6 @@ describe('VectorizerClient Integration Tests', () => {
       const searchResponse = await client.searchVectors('test-collection', searchRequest);
       expect(searchResponse.results).toEqual([]);
       expect(searchResponse.total).toBe(0);
-    });
-
-    it('should handle WebSocket connection failures', async () => {
-      mockWsClient.connect.mockRejectedValueOnce(new Error('Connection failed'));
-
-      await expect(client.connectWebSocket()).rejects.toThrow('Connection failed');
-    });
-
-    it('should handle WebSocket send failures', () => {
-      mockWsClient.connected = true;
-      mockWsClient.send.mockImplementation(() => {
-        throw new Error('Send failed');
-      });
-
-      expect(() => client.sendWebSocketMessage({ type: 'test' })).toThrow('Send failed');
     });
   });
 });

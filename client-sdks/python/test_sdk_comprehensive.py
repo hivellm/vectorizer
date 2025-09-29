@@ -137,7 +137,7 @@ class TestDataModels(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             SearchResult(id="", score=0.95)
         
-        self.assertIn("Search result ID cannot be empty", str(context.exception))
+        self.assertIn("SearchResult ID cannot be empty", str(context.exception))
     
     def test_search_result_validation_invalid_score(self):
         """Teste validação de SearchResult com score inválido."""
@@ -177,11 +177,11 @@ class TestExceptions(unittest.TestCase):
     
     def test_collection_not_found_error(self):
         """Teste CollectionNotFoundError."""
-        error = CollectionNotFoundError("Collection not found")
-        
-        self.assertEqual(error.message, "Collection not found")
+        error = CollectionNotFoundError("test-collection")
+
+        self.assertEqual(error.message, "Collection 'test-collection' not found")
         self.assertEqual(error.error_code, "COLLECTION_NOT_FOUND")
-        self.assertEqual(str(error), "[COLLECTION_NOT_FOUND] Collection not found")
+        self.assertEqual(str(error), "[COLLECTION_NOT_FOUND] Collection 'test-collection' not found")
     
     def test_validation_error(self):
         """Teste ValidationError."""
@@ -819,7 +819,11 @@ class TestUtilityFunctions(unittest.TestCase):
             with self.subTest(status_code=status_code):
                 error = map_http_error(status_code, f"HTTP {status_code} error")
                 self.assertIsInstance(error, expected_error_class)
-                self.assertEqual(error.message, f"HTTP {status_code} error")
+                # Para CollectionNotFoundError, a mensagem é formatada
+                if expected_error_class == CollectionNotFoundError:
+                    self.assertEqual(error.message, f"Collection 'HTTP {status_code} error' not found")
+                else:
+                    self.assertEqual(error.message, f"HTTP {status_code} error")
 
 
 def run_tests():

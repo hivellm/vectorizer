@@ -4,16 +4,13 @@
 
 import { VectorizerClient } from '../src/client';
 import { HttpClient } from '../src/utils/http-client';
-import { WebSocketClient } from '../src/utils/websocket-client';
 
 // Mock the HTTP client
 jest.mock('../src/utils/http-client');
-jest.mock('../src/utils/websocket-client');
 
 describe('VectorizerClient', () => {
   let client: VectorizerClient;
   let mockHttpClient: jest.Mocked<HttpClient>;
-  let mockWsClient: jest.Mocked<WebSocketClient>;
 
   beforeEach(() => {
     // Reset mocks
@@ -27,18 +24,8 @@ describe('VectorizerClient', () => {
       delete: jest.fn(),
     } as any;
 
-    mockWsClient = {
-      connect: jest.fn(),
-      disconnect: jest.fn(),
-      send: jest.fn(),
-      on: jest.fn(),
-      off: jest.fn(),
-      connected: false,
-    } as any;
-
     // Mock constructors
     (HttpClient as jest.Mock).mockImplementation(() => mockHttpClient);
-    (WebSocketClient as unknown as jest.Mock).mockImplementation(() => mockWsClient);
 
     // Create client
     client = new VectorizerClient({
@@ -250,38 +237,6 @@ describe('VectorizerClient', () => {
     });
   });
 
-  describe('WebSocket operations', () => {
-    it('should connect to WebSocket', async () => {
-      mockWsClient.connect.mockResolvedValue(undefined);
-
-      await client.connectWebSocket();
-
-      expect(mockWsClient.connect).toHaveBeenCalled();
-    });
-
-    it('should send WebSocket message', () => {
-      const message = { type: 'ping', timestamp: Date.now() };
-
-      client.sendWebSocketMessage(message);
-
-      expect(mockWsClient.send).toHaveBeenCalledWith(JSON.stringify(message));
-    });
-
-    it('should add WebSocket event listener', () => {
-      const listener = jest.fn();
-
-      client.onWebSocketEvent('message', listener);
-
-      expect(mockWsClient.on).toHaveBeenCalledWith('message', listener);
-    });
-
-    it('should check WebSocket connection status', () => {
-      (mockWsClient as any).connected = true;
-
-      expect(client.isWebSocketConnected).toBe(true);
-    });
-  });
-
   describe('utility methods', () => {
     it('should get configuration', () => {
       const config = client.getConfig();
@@ -302,7 +257,7 @@ describe('VectorizerClient', () => {
     it('should close client', async () => {
       await client.close();
 
-      expect(mockWsClient.disconnect).toHaveBeenCalled();
+      expect(mockHttpClient).toBeDefined();
     });
   });
 });

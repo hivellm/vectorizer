@@ -117,7 +117,7 @@ describe('Validation Utilities', () => {
 
     it('should throw error for invalid number', () => {
       expect(() => validateNumberRange(NaN, 'field', 0, 10)).toThrow(ValidationError);
-      expect(() => validateNumberRange(NaN, 'field', 0, 10)).toThrow('field must be a non-negative number');
+      expect(() => validateNumberRange(NaN, 'field', 0, 10)).toThrow('field must be a valid number');
     });
   });
 
@@ -139,12 +139,12 @@ describe('Validation Utilities', () => {
 
     it('should throw error for array with invalid numbers', () => {
       expect(() => validateNumberArray([1, 'invalid', 3], 'field')).toThrow(ValidationError);
-      expect(() => validateNumberArray([1, 'invalid', 3], 'field')).toThrow('field must contain only valid numbers');
+      expect(() => validateNumberArray([1, 'invalid', 3], 'field')).toThrow('field must contain only valid finite numbers');
     });
 
     it('should throw error for array with NaN', () => {
       expect(() => validateNumberArray([1, NaN, 3], 'field')).toThrow(ValidationError);
-      expect(() => validateNumberArray([1, NaN, 3], 'field')).toThrow('field must contain only valid numbers');
+      expect(() => validateNumberArray([1, NaN, 3], 'field')).toThrow('field must contain only valid finite numbers');
     });
 
     it('should validate large array', () => {

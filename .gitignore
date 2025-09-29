@@ -22,6 +22,7 @@ bindings/python/*.so
 bindings/python/*.pyd
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # TypeScript/Node.js artifacts
 bindings/typescript/node_modules/
