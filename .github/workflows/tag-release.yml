@@ -65,25 +65,13 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: vectorizer-linux-x86_64
             executable_extension: ''
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            artifact_name: vectorizer-linux-aarch64
-            executable_extension: ''
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: vectorizer-windows-x86_64
             executable_extension: '.exe'
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            artifact_name: vectorizer-windows-aarch64
-            executable_extension: '.exe'
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: vectorizer-macos-x86_64
-            executable_extension: ''
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: vectorizer-macos-aarch64
             executable_extension: ''
 
     steps:
@@ -127,27 +115,27 @@ jobs:
           cargo build --release --bin vzr --target ${{ matrix.target }} --features full
           cargo build --release --bin vectorizer-mcp-server --target ${{ matrix.target }} --features full
 
-      - name: Create release directory
-        run: mkdir -p release/${{ matrix.artifact_name }}
+      - name: Create artifacts directory
+        run: mkdir -p artifacts/${{ matrix.artifact_name }}
 
       - name: Copy binaries
         run: |
-          cp target/${{ matrix.target }}/release/vectorizer-cli${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vectorizer-server${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vzr${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vectorizer-mcp-server${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-cli${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-server${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vzr${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer-mcp-server${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
 
       - name: Copy configuration files
         run: |
-          cp config.example.yml release/${{ matrix.artifact_name }}/config.yml
-          cp vectorize-workspace.yml release/${{ matrix.artifact_name }}/
-          cp README.md release/${{ matrix.artifact_name }}/
-          cp LICENSE release/${{ matrix.artifact_name }}/
+          cp config.example.yml artifacts/${{ matrix.artifact_name }}/config.yml
+          cp vectorize-workspace.yml artifacts/${{ matrix.artifact_name }}/
+          cp README.md artifacts/${{ matrix.artifact_name }}/
+          cp LICENSE artifacts/${{ matrix.artifact_name }}/
 
       - name: Create installation script (Linux/macOS)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: |
-          cat > release/${{ matrix.artifact_name }}/install.sh << 'EOF'
+          cat > artifacts/${{ matrix.artifact_name }}/install.sh << 'EOF'
           #!/bin/bash
           echo "🚀 Installing Vectorizer ${{ github.ref_name }}..."
           
@@ -177,12 +165,12 @@ jobs:
           echo "🔧 Use the CLI:"
           echo "  vectorizer-cli --help"
           EOF
-          chmod +x release/${{ matrix.artifact_name }}/install.sh
+          chmod +x artifacts/${{ matrix.artifact_name }}/install.sh
 
       - name: Create installation script (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cat > release/${{ matrix.artifact_name }}/install.bat << 'EOF'
+          cat > artifacts/${{ matrix.artifact_name }}/install.bat << 'EOF'
           @echo off
           echo 🚀 Installing Vectorizer ${{ github.ref_name }}...
           
@@ -217,24 +205,24 @@ jobs:
       - name: Create archive (Linux/macOS)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: |
-          cd release/${{ matrix.artifact_name }}
+          cd artifacts/${{ matrix.artifact_name }}
           tar -czf ../${{ matrix.artifact_name }}.tar.gz .
           cd ../..
-          ls -la release/
+          ls -la artifacts/
 
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd release/${{ matrix.artifact_name }}
+          cd artifacts/${{ matrix.artifact_name }}
           powershell Compress-Archive -Path * -DestinationPath ../${{ matrix.artifact_name }}.zip
           cd ../..
-          dir release\
+          dir artifacts\
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: release/${{ matrix.artifact_name }}.*
+          path: artifacts/${{ matrix.artifact_name }}.*
           retention-days: 30
 
   # =============================================================================
@@ -272,15 +260,12 @@ jobs:
           
           ### Linux
           - **x86_64**: [vectorizer-linux-x86_64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/vectorizer-linux-x86_64.tar.gz)
-          - **aarch64**: [vectorizer-linux-aarch64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/vectorizer-linux-aarch64.tar.gz)
           
           ### Windows
           - **x86_64**: [vectorizer-windows-x86_64.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/vectorizer-windows-x86_64.zip)
-          - **aarch64**: [vectorizer-windows-aarch64.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/vectorizer-windows-aarch64.zip)
           
           ### macOS
           - **x86_64**: [vectorizer-macos-x86_64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/vectorizer-macos-x86_64.tar.gz)
-          - **aarch64**: [vectorizer-macos-aarch64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/vectorizer-macos-aarch64.tar.gz)
           
           ## 🛠️ Installation
           
@@ -365,12 +350,9 @@ jobs:
           name: Vectorizer ${{ steps.version.outputs.version }}
           body_path: release_notes.md
           files: |
-            artifacts/vectorizer-linux-x86_64/vectorizer-linux-x86_64.tar.gz
-            artifacts/vectorizer-linux-aarch64/vectorizer-linux-aarch64.tar.gz
-            artifacts/vectorizer-windows-x86_64/vectorizer-windows-x86_64.zip
-            artifacts/vectorizer-windows-aarch64/vectorizer-windows-aarch64.zip
-            artifacts/vectorizer-macos-x86_64/vectorizer-macos-x86_64.tar.gz
-            artifacts/vectorizer-macos-aarch64/vectorizer-macos-aarch64.tar.gz
+            artifacts/vectorizer-linux-x86_64.tar.gz
+            artifacts/vectorizer-windows-x86_64.zip
+            artifacts/vectorizer-macos-x86_64.tar.gz
           draft: false
           prerelease: false
         env:
