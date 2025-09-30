@@ -27,6 +27,42 @@ use vectorizer::{
     config::VectorizerConfig as FullVectorizerConfig,
 };
 
+/// Find executable path for a given binary name
+fn find_executable(binary_name: &str) -> Option<PathBuf> {
+    // Check current directory first
+    let current_dir = std::env::current_dir().ok()?;
+    let current_path = current_dir.join(binary_name);
+    if current_path.exists() {
+        return Some(current_path);
+    }
+
+    // Check with .exe extension on Windows
+    #[cfg(target_os = "windows")]
+    {
+        let current_path_exe = current_dir.join(format!("{}.exe", binary_name));
+        if current_path_exe.exists() {
+            return Some(current_path_exe);
+        }
+    }
+
+    // Check target/release directory
+    let target_release = current_dir.join("target").join("release").join(binary_name);
+    if target_release.exists() {
+        return Some(target_release);
+    }
+
+    // Check with .exe extension in target/release on Windows
+    #[cfg(target_os = "windows")]
+    {
+        let target_release_exe = current_dir.join("target").join("release").join(format!("{}.exe", binary_name));
+        if target_release_exe.exists() {
+            return Some(target_release_exe);
+        }
+    }
+
+    None
+}
+
 /// Load CUDA configuration from config.yml
 fn load_cuda_config() -> vectorizer::cuda::CudaConfig {
     use serde_yaml;
@@ -1140,13 +1176,12 @@ async fn run_interactive(
 ) {
     use tokio::signal;
 
+    // Find MCP server executable
+    let mcp_executable = find_executable("vectorizer-mcp-server")
+        .expect("vectorizer-mcp-server executable not found. Please build the project first.");
+
     println!("Starting MCP server...");
-    let mut mcp_child = TokioCommand::new("cargo")
-        .args(&[
-            "run",
-            "--bin",
-            "vectorizer-mcp-server",
-        ])
+    let mut mcp_child = TokioCommand::new(&mcp_executable)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
@@ -1160,13 +1195,13 @@ async fn run_interactive(
     // Wait a moment for MCP server to initialize
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
+    // Find REST API server executable
+    let rest_executable = find_executable("vectorizer-server")
+        .expect("vectorizer-server executable not found. Please build the project first.");
+
     println!("Starting REST API server...");
-    let mut rest_child = TokioCommand::new("cargo")
+    let mut rest_child = TokioCommand::new(&rest_executable)
         .args(&[
-            "run",
-            "--bin",
-            "vectorizer-server",
-            "--",
             "--host",
             &host,
             "--port",
@@ -1395,9 +1430,12 @@ async fn run_interactive_workspace(
         workspace_info_path.display()
     ));
 
+    // Find MCP server executable
+    let mcp_executable = find_executable("vectorizer-mcp-server")
+        .expect("vectorizer-mcp-server executable not found. Please build the project first.");
+
     // Start SINGLE MCP server for all projects
-    let mut mcp_child = match TokioCommand::new("cargo")
-        .args(&["run", "--quiet", "--bin", "vectorizer-mcp-server"])
+    let mut mcp_child = match TokioCommand::new(&mcp_executable)
         .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
         .env("VECTORIZER_SERVER_PORT", "15002")
         .stdout(Stdio::inherit())
@@ -1417,14 +1455,13 @@ async fn run_interactive_workspace(
         }
     };
 
+    // Find REST API server executable
+    let rest_executable = find_executable("vectorizer-server")
+        .expect("vectorizer-server executable not found. Please build the project first.");
+
     // Start SINGLE REST API server for all projects
-    let api_child = match TokioCommand::new("cargo")
+    let api_child = match TokioCommand::new(&rest_executable)
         .args(&[
-            "run",
-            "--quiet",
-            "--bin",
-            "vectorizer-server",
-            "--",
             "--host",
             &host,
             "--port",
@@ -2097,9 +2134,12 @@ async fn run_as_daemon_workspace(
         workspace_info_path.display()
     ));
 
+    // Find MCP server executable
+    let mcp_executable = find_executable("vectorizer-mcp-server")
+        .expect("vectorizer-mcp-server executable not found. Please build the project first.");
+
     // Start SINGLE MCP server for all projects
-    let mut mcp_child = match TokioCommand::new("cargo")
-        .args(&["run", "--quiet", "--bin", "vectorizer-mcp-server"])
+    let mut mcp_child = match TokioCommand::new(&mcp_executable)
         .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
         .env("VECTORIZER_SERVER_PORT", "15002")
         .stdout(Stdio::null())
@@ -2119,14 +2159,13 @@ async fn run_as_daemon_workspace(
         }
     };
 
+    // Find REST API server executable
+    let rest_executable = find_executable("vectorizer-server")
+        .expect("vectorizer-server executable not found. Please build the project first.");
+
     // Start SINGLE REST API server for all projects
-    let api_child = match TokioCommand::new("cargo")
+    let api_child = match TokioCommand::new(&rest_executable)
         .args(&[
-            "run",
-            "--quiet",
-            "--bin",
-            "vectorizer-server",
-            "--",
             "--host",
             &host,
             "--port",
@@ -2282,14 +2321,12 @@ async fn run_as_daemon(
     let logger = WorkspaceLogger::new();
     logger.info("Starting daemon mode with project");
 
+    // Find MCP server executable
+    let mcp_executable = find_executable("vectorizer-mcp-server")
+        .expect("vectorizer-mcp-server executable not found. Please build the project first.");
+
     // Start MCP server as background process
-    let mut mcp_child = match TokioCommand::new("cargo")
-        .args(&[
-            "run",
-            "--quiet",
-            "--bin",
-            "vectorizer-mcp-server",
-        ])
+    let mut mcp_child = match TokioCommand::new(&mcp_executable)
         .env("VECTORIZER_SERVER_PORT", &mcp_port.to_string())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -2306,14 +2343,13 @@ async fn run_as_daemon(
         }
     };
 
+    // Find REST API server executable
+    let rest_executable = find_executable("vectorizer-server")
+        .expect("vectorizer-server executable not found. Please build the project first.");
+
     // Start REST API server as background process
-    let api_child = match TokioCommand::new("cargo")
+    let api_child = match TokioCommand::new(&rest_executable)
         .args(&[
-            "run",
-            "--quiet",
-            "--bin",
-            "vectorizer-server",
-            "--",
             "--host",
             &host,
             "--port",

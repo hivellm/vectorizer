@@ -123,11 +123,14 @@ vectorizer:
 ## 🚀 Quick Start
 
 ```bash
-# Start all services
-./scripts/start.sh
+# Build the project first (required for vzr to find executables)
+cargo build --release
 
-# Or manually
-cargo run --bin vzr -- start --workspace config/vectorize-workspace.yml
+# Start all services using vzr CLI
+./target/release/vzr start --workspace vectorize-workspace.yml
+
+# Or use the start script (builds and starts)
+./scripts/start.sh
 
 # Check status
 ./scripts/status.sh
@@ -138,6 +141,8 @@ cargo run --bin vzr -- start --workspace config/vectorize-workspace.yml
 - **vectorizer-mcp-server** (port 15002) - Model Context Protocol integration  
 - **vzr** (port 15003) - GRPC orchestrator and indexing engine
 - **vectorizer-cli** - Command-line interface for management
+
+**Note**: The `vzr` CLI now executes pre-built binaries directly instead of compiling on each run, providing faster startup and better reliability.
 
 ### MCP Integration
 ```bash
@@ -195,7 +200,10 @@ cd vectorizer
 rustup override set nightly
 
 # Build the project
-./scripts/build.sh
+cargo build --release
+
+# The vzr CLI will automatically find executables in ./target/release/
+./target/release/vzr start --workspace vectorize-workspace.yml
 
 # Start all services
 ./scripts/start.sh --workspace vectorize-workspace.yml

@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2024-12-19
+## [0.23.0] - 2024-12-19
+
+### 🔧 **Critical CLI Architecture Fix**
+- **FIXED**: Resolved conceptual error in `vzr.rs` where it was using `cargo run` instead of executing binaries directly
+- **NEW**: Added `find_executable()` function that searches for binaries in multiple locations:
+  - Current directory (with/without `.exe` extension on Windows)
+  - `./target/release/` directory (with/without `.exe` extension on Windows)
+- **IMPROVED**: All server startup functions now execute binaries directly instead of compiling:
+  - `run_interactive()` - Interactive mode with direct binary execution
+  - `run_interactive_workspace()` - Workspace mode with direct binary execution
+  - `run_as_daemon_workspace()` - Daemon workspace mode with direct binary execution
+  - `run_as_daemon()` - Daemon mode with direct binary execution
+- **ENHANCED**: Better error handling with clear messages when executables are not found
+- **PERFORMANCE**: Eliminated unnecessary compilation overhead on every server start
+- **RELIABILITY**: More reliable server startup using pre-built binaries
 
 ### 🎉 **SDK Publishing Success**
 - **TypeScript SDK**: ✅ Successfully published to npm as `@hivellm/vectorizer-client-ts` v0.1.0
