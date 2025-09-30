@@ -409,7 +409,6 @@ impl DocumentLoader {
                     return Ok((count, true));
                 }
                 Err(e) => {
-                    warn!("Cache file exists but failed to load '{}': {}. Re-indexing...", vector_store_path.display(), e);
                 }
             }
         }
@@ -479,8 +478,6 @@ impl DocumentLoader {
                     },
                     summarization_config_clone
                 );
-
-                info!("🔄 Processing workspace '{}' with collection '{}'", workspace_path, collection_name);
 
                 let result = workspace_loader.load_project_with_cache_and_progress(
                     &workspace_path,
@@ -595,7 +592,6 @@ impl DocumentLoader {
             sub_store.create_collection(&self.config.collection_name, meta.config.clone()).unwrap();
             sub_store.insert(&self.config.collection_name, collection.get_all_vectors()).unwrap();
 
-            info!("🔄 Starting save of collection '{}' to '{}'", self.config.collection_name, vector_store_path.display());
             if let Err(e) = sub_store.save(&vector_store_path) {
                  error!("❌ Failed to save collection vector store to '{}': {}", vector_store_path.display(), e);
             } else {
@@ -623,23 +619,14 @@ impl DocumentLoader {
 
     /// Loads a persisted vector store into the main application store.
     fn load_persisted_store(&mut self, path: &Path, app_store: &VectorStore, collection_name: &str) -> Result<usize> {
-        println!("🔄 Loading persisted store from: {}", path.display());
-        println!("📖 Calling VectorStore::load...");
         let persisted_store = VectorStore::load(path)?;
-        println!("📖 VectorStore loaded successfully");
-        
-        println!("🔍 Getting collection: {}", collection_name);
         let src_collection = persisted_store.get_collection(collection_name)?;
-        println!("🔍 Collection retrieved successfully");
         
         let meta = src_collection.metadata();
         if app_store.get_collection(collection_name).is_err() {
-            println!("🏗️ Creating collection in app store...");
             app_store.create_collection(collection_name, meta.config.clone())?;
-            println!("🏗️ Collection created successfully");
         }
 
-        println!("📊 Getting all vectors...");
         let vectors = src_collection.get_all_vectors();
         let vector_count = vectors.len();
 
@@ -656,10 +643,8 @@ impl DocumentLoader {
             let data_file = cache_dir.join(format!("{}.hnsw.data", basename));
 
             if graph_file.exists() && data_file.exists() {
-                println!("🎯 Found HNSW dump files, attempting to load...");
                 match app_collection.load_hnsw_index_from_dump(&cache_dir, &basename) {
                     Ok(_) => {
-                        println!("✅ Successfully loaded HNSW index from dump");
                         // Load vectors into memory without rebuilding index
                         app_collection.load_vectors_into_memory(vectors.clone())?;
                         println!("✅ Successfully loaded {} vectors into memory (dump mode)", vector_count);
@@ -671,7 +656,6 @@ impl DocumentLoader {
                     }
                 }
             } else {
-                println!("📝 No HNSW dump files found, rebuilding index...");
                 false
             }
         } else {
@@ -681,12 +665,8 @@ impl DocumentLoader {
 
         // If HNSW dump loading failed, rebuild the index
         if !hnsw_loaded {
-            println!("🔄 Rebuilding HNSW index from {} vectors...", vector_count);
             app_collection.fast_load_vectors(vectors.clone())?;
             println!("✅ Successfully loaded {} vectors from cache (rebuild mode)", vector_count);
-
-            // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
-            info!("⚠️ HNSW dump temporarily disabled for collection '{}' due to library issues", collection_name);
         }
 
 
@@ -1103,14 +1083,6 @@ impl DocumentLoader {
 
         // Process chunks in smaller batches to avoid memory issues
         for (batch_num, batch) in chunks.chunks(PROCESSING_BATCH_SIZE).enumerate() {
-            info!(
-                "🔄 Processing batch {}/{} ({} chunks) for collection '{}'...",
-                batch_num + 1,
-                total_batches,
-                batch.len(),
-                self.config.collection_name
-            );
-
             // Update progress during batch processing
             if let Some(callback) = progress_callback {
                 let progress = 80.0 + (batch_num as f32 / total_batches as f32) * 20.0; // 80-100%
@@ -1209,14 +1181,6 @@ impl DocumentLoader {
 
         // Process chunks in smaller batches to avoid memory issues
         for (batch_num, batch) in chunks.chunks(PROCESSING_BATCH_SIZE).enumerate() {
-            info!(
-                "🔄 Processing batch {}/{} ({} chunks) for collection '{}'...",
-                batch_num + 1,
-                (chunks.len() + PROCESSING_BATCH_SIZE - 1) / PROCESSING_BATCH_SIZE,
-                batch.len(),
-                self.config.collection_name
-            );
-
             let batch_vectors: Vec<Vector> = batch
                 .par_iter()
                 .filter_map(|chunk| {
@@ -1676,8 +1640,6 @@ impl DocumentLoader {
         chunks: &[DocumentChunk],
         mut summarization_manager: SummarizationManager,
     ) -> (Result<()>, SummarizationManager) {
-        println!("📝 Generating summaries for collection '{}'", self.config.collection_name);
-        
         // Group chunks by file path to create one summary per file
         let mut file_chunks: HashMap<String, Vec<&DocumentChunk>> = HashMap::new();
         for chunk in chunks {
@@ -1704,7 +1666,6 @@ impl DocumentLoader {
             
             match store.create_collection(&summary_collection_name, config) {
                 Ok(_) => {
-                    println!("✅ Created file summary collection: {}", summary_collection_name);
                     if let Ok(c) = store.get_collection(&summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
                     }
@@ -1869,7 +1830,6 @@ impl DocumentLoader {
                             chunk_summary_vectors.push(vector);
                         }
                         Err(e) => {
-                            eprintln!("⚠️  Failed to embed chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
                         }
                     }
                 } else if let Err(e) = chunk_summary_result {

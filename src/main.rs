@@ -118,7 +118,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         config
                     }
                     Err(e) => {
-                        println!("⚠️ Failed to load config from {}: {}. Using defaults.", config_path, e);
                         vectorizer::document_loader::LoaderConfig::default()
                     }
                 }
@@ -254,7 +253,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Some(config)
                 }
                 Err(e) => {
-                    println!("⚠️ Failed to load summarization config from {}: {}. Using defaults.", config_path, e);
                     Some(vectorizer::summarization::SummarizationConfig::default())
                 }
             }

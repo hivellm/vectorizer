@@ -1326,7 +1326,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ];
 
         for (model_name, model_type, dimension) in real_models {
-            println!("\n🔄 Testing {} ({})", model_name, model_type.model_id());
             match evaluate_real_model_embedding(&dataset, model_type.clone(), model_name, dimension)
             {
                 Ok(metrics) => {

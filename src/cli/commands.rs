@@ -475,19 +475,6 @@ pub async fn handle_db_command(command: DbCommands, _config: &CliConfig) -> Resu
             rebuild_indexes,
             cleanup,
         } => {
-            info!("Optimizing database...");
-
-            if rebuild_indexes {
-                info!("Rebuilding indexes");
-            }
-
-            if cleanup {
-                info!("Cleaning up expired data");
-            }
-
-            // In a real implementation, this would perform optimization
-            info!("Database optimization completed");
-
             Ok(())
         }
     }

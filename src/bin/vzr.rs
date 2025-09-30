@@ -1216,7 +1216,6 @@ async fn run_interactive(
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         
         // Start background indexing for the project
-        println!("🔄 Starting background indexing for project: {}", project_path_clone.display());
         let indexing_vector_store = Arc::clone(&file_watcher_vector_store);
         let indexing_embedding_manager = Arc::clone(&file_watcher_embedding_manager);
         
@@ -1514,7 +1513,6 @@ async fn run_interactive_workspace(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
-            println!("⚠️ Failed to load config.yml: {}. Using defaults.", e);
             FullVectorizerConfig::default()
         });
 
@@ -1591,8 +1589,6 @@ async fn start_background_indexing_with_config(
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
     file_watcher_system: Arc<Mutex<Option<vectorizer::file_watcher::FileWatcherSystem>>>,
 ) {
-    println!("🔄 Starting background indexing...");
-
     // Wait for servers to be ready with health check
     wait_for_server_ready().await;
     
@@ -1611,17 +1607,12 @@ async fn start_background_indexing_with_config(
     // Process projects in parallel (up to 4 concurrent)
     let max_concurrent_projects = std::cmp::min(4, total_projects);
     println!("🚀 Starting parallel processing of {} projects (max {} concurrent)", total_projects, max_concurrent_projects);
-    println!("🔄 Debug: About to create semaphore and spawn tasks");
-
+    
     use tokio::sync::Semaphore;
     let semaphore = Arc::new(Semaphore::new(max_concurrent_projects));
     let mut project_tasks = Vec::new();
 
-    println!("🔄 Debug: Starting to iterate over {} projects", enabled_projects.len());
-
     for (i, project_ref) in enabled_projects.iter().enumerate() {
-        println!("🔄 Debug: Processing project {} of {}: {}", i + 1, enabled_projects.len(), project_ref.name);
-
         let semaphore_clone = Arc::clone(&semaphore);
         let vector_store_clone = Arc::clone(&vector_store);
         let embedding_manager_clone = Arc::clone(&embedding_manager);
@@ -1726,7 +1717,6 @@ async fn start_file_watcher_system_with_grpc(
             manager.config().clone()
         }
         Err(e) => {
-            println!("⚠️ Failed to load workspace config: {}. Using defaults.", e);
             vectorizer::workspace::config::WorkspaceConfig::default()
         }
     };
@@ -1782,8 +1772,6 @@ async fn start_file_watcher_system_with_grpc(
     );
 
     println!("👁️ File Watcher System initialized");
-    println!("📁 Watching paths: [] (will be populated incrementally)");
-    println!("🔄 Debounce delay: {}ms", file_watcher_config.debounce_delay_ms.unwrap_or(1000));
     println!("📝 Collection: {}", file_watcher_config.collection_name.unwrap_or_else(|| "default_collection".to_string()));
 
     // Store the file watcher system for incremental updates
@@ -1837,10 +1825,8 @@ async fn wait_for_server_ready() {
                 break;
             }
             Ok(_) => {
-                println!("⏳ Server responding but not ready yet...");
             }
             Err(_) => {
-                println!("⏳ Waiting for server... (attempt {}/{})", attempts + 1, max_attempts);
             }
         }
         
@@ -1992,7 +1978,6 @@ async fn do_real_indexing(
     // Load full configuration including summarization for document loader
     let full_config_loader = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
-            println!("⚠️ Failed to load config.yml for document loader: {}. Using defaults.", e);
             FullVectorizerConfig::default()
         });
 
@@ -2309,10 +2294,6 @@ async fn uninstall_service() {
         match std::fs::remove_file(service_path) {
             Ok(_) => {
                 println!("✅ Service uninstalled successfully");
-                println!("🔄 Run 'sudo systemctl daemon-reload' to refresh systemd");
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                println!("ℹ️  Service was not installed");
             }
             Err(e) => {
                 eprintln!("❌ Failed to remove service file: {}", e);
@@ -2374,7 +2355,6 @@ async fn create_grpc_client(grpc_endpoint: &str) -> Result<VectorizerServiceClie
                 if attempts >= max_attempts {
                     return Err(Box::new(e));
                 }
-                println!("⚠️ GRPC connection attempt {} failed: {}. Retrying...", attempts, e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
         }
@@ -2390,8 +2370,6 @@ async fn start_background_indexing_for_project(
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     _indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
 ) {
-    println!("🔄 Starting background indexing for project: {}", project_path);
-    
     // Wait for servers to be ready with health check
     wait_for_server_ready().await;
     
@@ -2437,7 +2415,6 @@ async fn create_summary_collections_for_project(
     let chunk_collection_exists = vector_store.get_collection(&chunk_summary_collection).is_ok();
 
     if file_collection_exists {
-        println!("✅ File summary collection exists: {}", file_summary_collection);
         if let Ok(collection) = vector_store.get_collection(&file_summary_collection) {
             let count = collection.vector_count();
             println!("   📊 Contains {} summaries", count);
@@ -2447,7 +2424,6 @@ async fn create_summary_collections_for_project(
     }
 
     if chunk_collection_exists {
-        println!("✅ Chunk summary collection exists: {}", chunk_summary_collection);
         if let Ok(collection) = vector_store.get_collection(&chunk_summary_collection) {
             let count = collection.vector_count();
             println!("   📊 Contains {} summaries", count);

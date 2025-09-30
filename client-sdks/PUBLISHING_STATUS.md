@@ -85,3 +85,4 @@
 - **Cross-platform support** with Bash, PowerShell, and Batch scripts
 - **Comprehensive documentation** with troubleshooting guides
 - **Enhanced authentication** with OTP-only flow for better UX
+

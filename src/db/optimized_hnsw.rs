@@ -239,8 +239,6 @@ impl OptimizedHnswIndex {
         let mut vectors = self.vectors.write();
 
         if vectors.remove(id).is_some() {
-            // Note: HNSW doesn't support removal, would need to rebuild
-            debug!("Vector {} marked for removal", id);
             Ok(true)
         } else {
             Ok(false)
@@ -312,36 +310,23 @@ impl OptimizedHnswIndex {
         
         let vector_count = self.len();
         let dimension = self.dimension;
-        
-        info!("🔍 HNSW DUMP DEBUG: Starting dump for basename '{}'", basename);
-        info!("🔍 HNSW DUMP DEBUG: Index has {} vectors, dimension {}", vector_count, dimension);
-        info!("🔍 HNSW DUMP DEBUG: Dump path: {}", path.as_ref().display());
-        
+                
         if vector_count == 0 {
-            warn!("⚠️ HNSW DUMP WARNING: Index is empty (0 vectors)!");
             return Err(VectorizerError::IndexError("Cannot dump empty HNSW index".to_string()));
         }
         
         // Check if directory exists
         if !path.as_ref().exists() {
-            warn!("⚠️ HNSW DUMP WARNING: Directory does not exist: {}", path.as_ref().display());
             return Err(VectorizerError::IndexError(format!("Directory does not exist: {}", path.as_ref().display())));
         }
-        
-        debug!("🔍 HNSW DUMP DEBUG: Calling hnsw.file_dump with path='{}', basename='{}'", 
-               path.as_ref().display(), basename);
-        
+                
         // Try to get more info about the HNSW state before dumping
         let hnsw = self.hnsw.read();
-        debug!("🔍 HNSW DUMP DEBUG: About to call file_dump on HNSW instance");
         
         // Check if the HNSW index is properly initialized
         if vector_count == 0 {
-            warn!("⚠️ HNSW DUMP WARNING: Cannot dump empty index!");
             return Err(VectorizerError::IndexError("Cannot dump empty HNSW index".to_string()));
         }
-        
-        debug!("🔍 HNSW DUMP DEBUG: HNSW index has {} vectors, proceeding with dump", vector_count);
         
         // Try using the library's file_dump method first
         match (*hnsw).file_dump(path.as_ref(), basename) {
@@ -370,10 +355,7 @@ impl OptimizedHnswIndex {
             },
             Err(e) => {
                 error!("❌ HNSW DUMP ERROR: Library file_dump failed: {}", e);
-                
-                // Try alternative approach - create files manually
-                warn!("🔄 HNSW DUMP FALLBACK: Attempting manual file creation");
-                
+                               
                 let data_file = path.as_ref().join(format!("{}.hnsw.data", basename));
                 let graph_file = path.as_ref().join(format!("{}.hnsw.graph", basename));
                 

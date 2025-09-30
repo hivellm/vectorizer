@@ -160,3 +160,4 @@ def validate_boolean(value: Any) -> bool:
         raise ValueError("Value must be a boolean")
 
     return value
+

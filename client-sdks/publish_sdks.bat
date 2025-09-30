@@ -130,3 +130,4 @@ echo.
 echo [SUCCESS] Publishing completed successfully!
 pause
 exit /b 0
+

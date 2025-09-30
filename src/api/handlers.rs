@@ -609,7 +609,6 @@ pub async fn list_collections(State(mut state): State<AppState>) -> Json<ListCol
                 });
             }
             Err(e) => {
-                warn!("⚠️ GRPC call failed, falling back to local store: {}", e);
             }
         }
     }
@@ -1426,7 +1425,6 @@ pub async fn search_vectors_by_text(
                 }));
             }
             Err(e) => {
-                warn!("⚠️ GRPC search failed, falling back to local store: {}", e);
             }
         }
     }

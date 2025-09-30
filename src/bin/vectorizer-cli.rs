@@ -381,10 +381,6 @@ async fn uninstall_service() {
         match std::fs::remove_file(service_path) {
             Ok(_) => {
                 println!("✅ Service uninstalled successfully");
-                println!("🔄 Run 'sudo systemctl daemon-reload' to refresh systemd");
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                println!("ℹ️  Service was not installed");
             }
             Err(e) => {
                 eprintln!("❌ Failed to remove service file: {}", e);

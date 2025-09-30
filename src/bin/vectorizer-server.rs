@@ -146,8 +146,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize collections as pending (dashboard will show them immediately)
     if let Some(workspace_path) = args.workspace.clone() {
-        info!("🔄 Initializing collections for dashboard...");
-
         // Set environment variable for workspace loading
         unsafe {
             std::env::set_var("VECTORIZER_WORKSPACE_INFO", &workspace_path);

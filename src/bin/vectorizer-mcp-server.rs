@@ -38,8 +38,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Load configuration from file
     let config = VectorizerConfig::from_yaml_file(&std::path::PathBuf::from(&args.config)).unwrap_or_else(|e| {
-        eprintln!("Warning: Failed to load config from {}: {}", args.config, e);
-        eprintln!("Using default configuration...");
         VectorizerConfig::default()
     });
 
@@ -70,7 +68,6 @@ async fn main() -> anyhow::Result<()> {
                     tracing::info!("✅ Successfully connected to GRPC server: {}", health.status);
                 }
                 Err(e) => {
-                    tracing::warn!("⚠️ GRPC server health check failed: {}", e);
                 }
             }
         }

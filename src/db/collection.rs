@@ -323,7 +323,6 @@ impl Collection {
                     true
                 }
                 Err(e) => {
-                    warn!("Failed to load HNSW index from dump for collection '{}': {}, will rebuild", self.name, e);
                     false
                 }
             }
