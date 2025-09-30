@@ -2002,158 +2002,446 @@ async fn do_real_indexing(
 /// Run servers as daemon with workspace
 async fn run_as_daemon_workspace(
     workspace_manager: WorkspaceManager,
-    _config: PathBuf,
-    _host: String,
-    _port: u16,
-    _mcp_port: u16,
+    config: PathBuf,
+    host: String,
+    port: u16,
+    mcp_port: u16,
 ) {
-    #[cfg(target_os = "linux")]
-    {
-        use std::fs;
-        use std::os::unix::process::CommandExt;
+    let logger = WorkspaceLogger::new();
+    logger.info("Starting daemon mode with workspace");
 
-        println!("🐧 Setting up Linux daemon with workspace...");
+    // Load all enabled projects from workspace
+    let enabled_projects = workspace_manager.enabled_projects();
+    if enabled_projects.is_empty() {
+        eprintln!("Error: No enabled projects found in workspace");
+        std::process::exit(1);
+    }
 
-        // Load all enabled projects from workspace
-        let enabled_projects = workspace_manager.enabled_projects();
-        if enabled_projects.is_empty() {
-            eprintln!("Error: No enabled projects found in workspace");
+    // Check for existing processes and kill them if found
+    if check_existing_processes(&logger) {
+        logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
+        if let Err(e) = kill_existing_processes(&logger) {
+            logger.error(&format!("Failed to kill existing processes: {}", e));
+            eprintln!("❌ Failed to kill existing vectorizer processes: {}", e);
             std::process::exit(1);
         }
+    }
 
-        println!(
-            "📂 Loading {} projects from workspace:",
-            enabled_projects.len()
-        );
-        for project in &enabled_projects {
-            println!("   📁 {} - {}", project.name, project.description);
-            println!(
-                "      Path: {}",
-                workspace_manager
-                    .get_project_path(&project.name)
-                    .unwrap()
-                    .display()
-            );
-            println!("      Collections: {}", project.collections.len());
-        }
+    logger.info(&format!(
+        "Starting unified server for workspace with {} projects",
+        enabled_projects.len()
+    ));
 
-        // For now, we'll use the first enabled project as the default
-        // TODO: Implement multi-project daemon architecture
-        let first_project = &enabled_projects[0];
-        let project_path = workspace_manager
-            .get_project_path(&first_project.name)
-            .expect("Failed to get project path");
+    // Create unified workspace info file with ALL projects
+    let workspace_info_path = std::env::temp_dir().join("vectorizer-workspace-full.json");
 
-        println!(
-            "\n🚀 Starting daemon with primary project: {} ({})",
-            first_project.name, first_project.description
-        );
-
-        // Daemonize the process
-        let result = unsafe {
-            Command::new("cargo")
-                .args(&[
-                    "run",
-                    "--bin",
-                    "vectorizer-mcp-server",
-                ])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .pre_exec(|| {
-                    // Detach from controlling terminal
-                    match setsid() {
-                        -1 => Err(std::io::Error::last_os_error()),
-                        _ => Ok(()),
+    // Create unified workspace info containing ALL projects directly
+    let projects_array: Vec<serde_json::Value> = enabled_projects.iter().map(|project| {
+        let project_path = workspace_manager.get_project_path(&project.name).unwrap();
+        json!({
+            "name": project.name,
+            "description": project.description,
+            "path": project_path.to_string_lossy(),
+            "enabled": project.enabled,
+            "collections": project.collections.iter().map(|collection| {
+                json!({
+                    "name": collection.name,
+                    "description": collection.description,
+                    "dimension": collection.dimension,
+                    "metric": match collection.metric {
+                        vectorizer::workspace::config::DistanceMetric::Cosine => "cosine",
+                        vectorizer::workspace::config::DistanceMetric::Euclidean => "euclidean",
+                        vectorizer::workspace::config::DistanceMetric::DotProduct => "dot_product",
+                    },
+                    "embedding": {
+                        "model": match collection.embedding.model {
+                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "native_bow",
+                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "native_hash",
+                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "native_ngram",
+                            vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
+                            vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
+                        },
+                        "dimension": collection.embedding.dimension,
+                        "parameters": collection.embedding.parameters
+                    },
+                    "indexing": {
+                        "index_type": collection.indexing.index_type,
+                        "parameters": collection.indexing.parameters
+                    },
+                    "processing": {
+                        "chunk_size": collection.processing.chunk_size,
+                        "chunk_overlap": collection.processing.chunk_overlap,
+                        "include_patterns": collection.processing.include_patterns,
+                        "exclude_patterns": collection.processing.exclude_patterns
                     }
                 })
-                .spawn()
-        };
+            }).collect::<Vec<_>>()
+        })
+    }).collect();
 
-        match result {
-            Ok(mut child) => {
-                println!("✅ MCP daemon started (PID: {})", child.id());
-                let _ = child.wait();
-            }
-            Err(e) => {
-                eprintln!("❌ Failed to start daemon: {}", e);
-                std::process::exit(1);
-            }
+    let workspace_info = json!({
+        "workspace_name": workspace_manager.config().workspace.name,
+        "workspace_version": workspace_manager.config().workspace.version,
+        "projects": projects_array
+    });
+
+    let workspace_info_json = serde_json::to_string(&workspace_info).unwrap();
+    if let Err(e) = std::fs::write(&workspace_info_path, workspace_info_json) {
+        logger.error(&format!("Failed to create unified workspace config: {}", e));
+        std::process::exit(1);
+    }
+
+    logger.info(&format!(
+        "Created unified workspace config at: {}",
+        workspace_info_path.display()
+    ));
+
+    // Start SINGLE MCP server for all projects
+    let mut mcp_child = match TokioCommand::new("cargo")
+        .args(&["run", "--quiet", "--bin", "vectorizer-mcp-server"])
+        .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
+        .env("VECTORIZER_SERVER_PORT", "15002")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(child) => {
+            logger.info(&format!(
+                "Started unified MCP server (PID:{}, Port:15002)",
+                child.id().unwrap_or(0)
+            ));
+            child
         }
-    }
+        Err(e) => {
+            logger.error(&format!("Failed to start unified MCP server: {}", e));
+            std::process::exit(1);
+        }
+    };
 
-    #[cfg(target_os = "windows")]
+    // Start SINGLE REST API server for all projects
+    let api_child = match TokioCommand::new("cargo")
+        .args(&[
+            "run",
+            "--quiet",
+            "--bin",
+            "vectorizer-server",
+            "--",
+            "--host",
+            &host,
+            "--port",
+            "15001",
+            "--workspace",
+            &workspace_info_path.to_string_lossy(),
+            "--config",
+            &config.to_string_lossy(),
+        ])
+        .env("VECTORIZER_WORKSPACE_INFO", &workspace_info_path)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
     {
-        println!("🪟 Setting up Windows service with workspace...");
-        // Windows service implementation would go here
-        eprintln!("❌ Windows daemon mode not yet implemented");
-        std::process::exit(1);
-    }
+        Ok(child) => {
+            logger.info(&format!(
+                "Started unified REST API server (PID:{}, Port:15001)",
+                child.id().unwrap_or(0)
+            ));
+            child
+        }
+        Err(e) => {
+            logger.error(&format!("Failed to start unified REST API server: {}", e));
+            let _ = mcp_child.kill().await;
+            std::process::exit(1);
+        }
+    };
 
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-    {
-        eprintln!("❌ Daemon mode not supported on this platform");
-        std::process::exit(1);
+    // In unified mode, we either start both servers or fail completely
+    logger.info("Unified servers started successfully");
+
+    // Print minimal success message
+    println!("✅ Daemon services started successfully!");
+    println!("📡 REST API: http://{}:15001", host);
+    println!("🔧 MCP Server: http://127.0.0.1:15002/sse");
+    println!("🔧 GRPC Server: http://127.0.0.1:15003");
+    println!(
+        "  Collections: {} from {} projects",
+        enabled_projects
+            .iter()
+            .map(|p| p.collections.len())
+            .sum::<usize>(),
+        enabled_projects.len()
+    );
+    println!("📄 Logs: vectorizer-workspace.log");
+    println!("🛑 Use 'vectorizer stop' to stop all services");
+
+    // Initialize GRPC server components (same as interactive mode)
+    let cuda_config = load_cuda_config();
+    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    let grpc_embedding_manager = Arc::new(Mutex::new({
+        let mut manager = EmbeddingManager::new();
+        
+        // Register all embedding providers
+        use vectorizer::embedding::{
+            TfIdfEmbedding, Bm25Embedding, SvdEmbedding, 
+            BertEmbedding, MiniLmEmbedding, BagOfWordsEmbedding, CharNGramEmbedding
+        };
+        
+        let tfidf = TfIdfEmbedding::new(512);
+        let bm25 = Bm25Embedding::new(512);
+        let svd = SvdEmbedding::new(512, 512);
+        let bert = BertEmbedding::new(512);
+        let minilm = MiniLmEmbedding::new(512);
+        let bow = BagOfWordsEmbedding::new(512);
+        let char_ngram = CharNGramEmbedding::new(512, 3);
+        
+        manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager.register_provider("svd".to_string(), Box::new(svd));
+        manager.register_provider("bert".to_string(), Box::new(bert));
+        manager.register_provider("minilm".to_string(), Box::new(minilm));
+        manager.register_provider("bagofwords".to_string(), Box::new(bow));
+        manager.register_provider("charngram".to_string(), Box::new(char_ngram));
+        
+        manager
+    }));
+    let grpc_indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
+    
+    // Load full configuration including summarization
+    let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
+        .unwrap_or_else(|e| {
+            FullVectorizerConfig::default()
+        });
+
+    let summarization_config = Some(full_config.summarization);
+    
+    // Start GRPC server (same as interactive mode)
+    let grpc_config = GrpcConfig::from_env();
+    let grpc_vector_store_clone = Arc::clone(&grpc_vector_store);
+    let grpc_embedding_manager_clone = Arc::clone(&grpc_embedding_manager);
+    let grpc_indexing_progress_clone = Arc::clone(&grpc_indexing_progress);
+    
+    tokio::spawn(async move {
+        if let Err(e) = start_grpc_server(
+            grpc_config.server,
+            grpc_vector_store_clone,
+            grpc_embedding_manager_clone,
+            grpc_indexing_progress_clone,
+            summarization_config,
+        ).await {
+            eprintln!("❌ Failed to start GRPC server: {}", e);
+        }
+    });
+
+    // Initialize and start File Watcher System with shared reference
+    let file_watcher_vector_store = Arc::clone(&grpc_vector_store);
+    let file_watcher_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    let file_watcher_system = Arc::new(Mutex::new(None::<vectorizer::file_watcher::FileWatcherSystem>));
+
+    // Start background indexing and status replication
+    let indexing_vector_store = Arc::clone(&grpc_vector_store);
+    let indexing_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    let indexing_progress = Arc::clone(&grpc_indexing_progress);
+    let indexing_file_watcher = Arc::clone(&file_watcher_system);
+
+    tokio::spawn(async move {
+        start_background_indexing_with_config(
+            indexing_vector_store,
+            indexing_embedding_manager,
+            indexing_progress,
+            indexing_file_watcher,
+        ).await;
+    });
+    
+    // Start file watcher system
+    let file_watcher_system_clone = Arc::clone(&file_watcher_system);
+    tokio::spawn(async move {
+        if let Err(e) = start_file_watcher_system_with_grpc(
+            file_watcher_vector_store,
+            file_watcher_embedding_manager,
+            format!("http://{}:{}", host, port),
+            file_watcher_system_clone,
+        ).await {
+            eprintln!("❌ Failed to start File Watcher System: {}", e);
+        }
+    });
+
+    // In daemon mode, the vzr process continues running to manage GRPC server
+    // but we don't wait for shutdown signals - it runs indefinitely
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
 }
 
 async fn run_as_daemon(
     project: PathBuf,
-    _config: PathBuf,
-    _host: String,
-    _port: u16,
-    _mcp_port: u16,
+    config: PathBuf,
+    host: String,
+    port: u16,
+    mcp_port: u16,
 ) {
-    #[cfg(target_os = "linux")]
+    let logger = WorkspaceLogger::new();
+    logger.info("Starting daemon mode with project");
+
+    // Start MCP server as background process
+    let mut mcp_child = match TokioCommand::new("cargo")
+        .args(&[
+            "run",
+            "--quiet",
+            "--bin",
+            "vectorizer-mcp-server",
+        ])
+        .env("VECTORIZER_SERVER_PORT", &mcp_port.to_string())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
     {
-        use std::fs;
-        use std::os::unix::process::CommandExt;
-
-        println!("🐧 Setting up Linux daemon...");
-
-        // Daemonize the process
-        let result = unsafe {
-            Command::new("cargo")
-                .args(&[
-                    "run",
-                    "--bin",
-                    "vectorizer-mcp-server",
-                ])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .pre_exec(|| {
-                    // Detach from controlling terminal
-                    match setsid() {
-                        -1 => Err(std::io::Error::last_os_error()),
-                        _ => Ok(()),
-                    }
-                })
-                .spawn()
-        };
-
-        match result {
-            Ok(mut child) => {
-                println!("✅ MCP daemon started (PID: {})", child.id());
-                let _ = child.wait();
-            }
-            Err(e) => {
-                eprintln!("❌ Failed to start daemon: {}", e);
-                std::process::exit(1);
-            }
+        Ok(child) => {
+            logger.info(&format!("MCP daemon started with PID: {}", child.id().unwrap_or(0)));
+            child
         }
-    }
+        Err(e) => {
+            eprintln!("❌ Failed to start MCP daemon: {}", e);
+            logger.error(&format!("Failed to start MCP daemon: {}", e));
+            std::process::exit(1);
+        }
+    };
 
-    #[cfg(target_os = "windows")]
+    // Start REST API server as background process
+    let api_child = match TokioCommand::new("cargo")
+        .args(&[
+            "run",
+            "--quiet",
+            "--bin",
+            "vectorizer-server",
+            "--",
+            "--host",
+            &host,
+            "--port",
+            &port.to_string(),
+            "--project",
+            &project.to_string_lossy(),
+            "--config",
+            &config.to_string_lossy(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
     {
-        println!("🪟 Setting up Windows service...");
-        // Windows service implementation would go here
-        eprintln!("❌ Windows daemon mode not yet implemented");
-        std::process::exit(1);
-    }
+        Ok(child) => {
+            logger.info(&format!("REST API daemon started with PID: {}", child.id().unwrap_or(0)));
+            child
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to start REST API daemon: {}", e);
+            logger.error(&format!("Failed to start REST API daemon: {}", e));
+            let _ = mcp_child.kill().await;
+            std::process::exit(1);
+        }
+    };
 
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-    {
-        eprintln!("❌ Daemon mode not supported on this platform");
-        std::process::exit(1);
+    // Print minimal success message
+    println!("✅ Daemon services started successfully!");
+    println!("📡 REST API: http://{}:{}", host, port);
+    println!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
+    println!("🔧 GRPC Server: http://127.0.0.1:15003");
+    println!("📄 Logs: vectorizer-workspace.log");
+    println!("🛑 Use 'vectorizer stop' to stop all services");
+
+    // Initialize GRPC server components (same as interactive mode)
+    let cuda_config = load_cuda_config();
+    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    let grpc_embedding_manager = Arc::new(Mutex::new({
+        let mut manager = EmbeddingManager::new();
+        
+        // Register all embedding providers
+        use vectorizer::embedding::{
+            TfIdfEmbedding, Bm25Embedding, SvdEmbedding, 
+            BertEmbedding, MiniLmEmbedding, BagOfWordsEmbedding, CharNGramEmbedding
+        };
+        
+        let tfidf = TfIdfEmbedding::new(512);
+        let bm25 = Bm25Embedding::new(512);
+        let svd = SvdEmbedding::new(512, 512);
+        let bert = BertEmbedding::new(512);
+        let minilm = MiniLmEmbedding::new(512);
+        let bow = BagOfWordsEmbedding::new(512);
+        let char_ngram = CharNGramEmbedding::new(512, 3);
+        
+        manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager.register_provider("svd".to_string(), Box::new(svd));
+        manager.register_provider("bert".to_string(), Box::new(bert));
+        manager.register_provider("minilm".to_string(), Box::new(minilm));
+        manager.register_provider("bagofwords".to_string(), Box::new(bow));
+        manager.register_provider("charngram".to_string(), Box::new(char_ngram));
+        
+        manager
+    }));
+    let grpc_indexing_progress = Arc::new(Mutex::new(std::collections::HashMap::new()));
+    
+    // Load full configuration including summarization
+    let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
+        .unwrap_or_else(|e| {
+            FullVectorizerConfig::default()
+        });
+
+    let summarization_config = Some(full_config.summarization);
+    
+    // Start GRPC server (same as interactive mode)
+    let grpc_config = GrpcConfig::from_env();
+    let grpc_vector_store_clone = Arc::clone(&grpc_vector_store);
+    let grpc_embedding_manager_clone = Arc::clone(&grpc_embedding_manager);
+    let grpc_indexing_progress_clone = Arc::clone(&grpc_indexing_progress);
+    
+    tokio::spawn(async move {
+        if let Err(e) = start_grpc_server(
+            grpc_config.server,
+            grpc_vector_store_clone,
+            grpc_embedding_manager_clone,
+            grpc_indexing_progress_clone,
+            summarization_config,
+        ).await {
+            eprintln!("❌ Failed to start GRPC server: {}", e);
+        }
+    });
+
+    // Initialize and start File Watcher System with shared reference
+    let file_watcher_vector_store = Arc::clone(&grpc_vector_store);
+    let file_watcher_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    let file_watcher_system = Arc::new(Mutex::new(None::<vectorizer::file_watcher::FileWatcherSystem>));
+
+    // Start background indexing and status replication
+    let indexing_vector_store = Arc::clone(&grpc_vector_store);
+    let indexing_embedding_manager = Arc::clone(&grpc_embedding_manager);
+    let indexing_progress = Arc::clone(&grpc_indexing_progress);
+    let indexing_file_watcher = Arc::clone(&file_watcher_system);
+
+    tokio::spawn(async move {
+        start_background_indexing_with_config(
+            indexing_vector_store,
+            indexing_embedding_manager,
+            indexing_progress,
+            indexing_file_watcher,
+        ).await;
+    });
+    
+    // Start file watcher system
+    let file_watcher_system_clone = Arc::clone(&file_watcher_system);
+    tokio::spawn(async move {
+        if let Err(e) = start_file_watcher_system_with_grpc(
+            file_watcher_vector_store,
+            file_watcher_embedding_manager,
+            format!("http://{}:{}", host, port),
+            file_watcher_system_clone,
+        ).await {
+            eprintln!("❌ Failed to start File Watcher System: {}", e);
+        }
+    });
+
+    // In daemon mode, the vzr process continues running to manage GRPC server
+    // but we don't wait for shutdown signals - it runs indefinitely
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
 }
 

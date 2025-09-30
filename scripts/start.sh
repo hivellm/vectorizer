@@ -60,22 +60,26 @@ cleanup() {
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [--workspace WORKSPACE_FILE]"
-    echo "       $0 WORKSPACE_FILE"
+    echo "Usage: $0 [OPTIONS] [WORKSPACE_FILE]"
     echo ""
     echo "Options:"
     echo "  --workspace WORKSPACE_FILE    Path to vectorize-workspace.yml file"
+    echo "  --daemon                      Run as daemon/service (background)"
+    echo "  --help, -h                    Show this help message"
     echo "  WORKSPACE_FILE                Path to vectorize-workspace.yml file (positional)"
     echo ""
     echo "Examples:"
     echo "  $0 --workspace vectorize-workspace.yml"
+    echo "  $0 --workspace vectorize-workspace.yml --daemon"
     echo "  $0 ../my-project/vectorize-workspace.yml"
-    echo "  $0                             # Uses default: vectorize-workspace.yml"
+    echo "  $0 --daemon                   # Uses default: vectorize-workspace.yml"
+    echo "  $0                            # Uses default: vectorize-workspace.yml"
     exit 1
 }
 
 # Parse arguments
 WORKSPACE_FILE="config/vectorize-workspace.yml"
+DAEMON_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -86,6 +90,10 @@ while [[ $# -gt 0 ]]; do
             fi
             WORKSPACE_FILE="$2"
             shift 2
+            ;;
+        --daemon)
+            DAEMON_MODE=true
+            shift
             ;;
         --help|-h)
             usage
@@ -112,26 +120,57 @@ fi
 detect_os
 check_binaries
 
-# Set trap to cleanup on exit
-trap cleanup EXIT INT TERM
+# Set trap to cleanup on exit (only if not in daemon mode)
+if [ "$DAEMON_MODE" = false ]; then
+    trap cleanup EXIT INT TERM
+fi
 
 echo "🚀 Starting Vectorizer Servers (GRPC Architecture)..."
 echo "====================================================="
 echo "📁 Workspace File: $WORKSPACE_FILE"
 echo "🖥️  Operating System: $OS"
 echo "🔧 Binary Mode: $([ "$USE_COMPILED" = true ] && echo "Compiled" || echo "Development")"
+echo "👻 Daemon Mode: $([ "$DAEMON_MODE" = true ] && echo "Enabled" || echo "Disabled")"
+
+# Build vzr command with daemon option if requested
+VZR_CMD_ARGS="start --workspace \"$WORKSPACE_FILE\""
+if [ "$DAEMON_MODE" = true ]; then
+    VZR_CMD_ARGS="$VZR_CMD_ARGS --daemon"
+fi
 
 # Start vzr orchestrator (handles all servers internally in workspace mode)
 echo "Starting vzr orchestrator (GRPC server)..."
 echo "🔍 Debug: About to start vzr..."
 if [ "$USE_COMPILED" = true ]; then
     echo "🔍 Debug: Running compiled binary..."
-    "$BIN_DIR/vzr$BIN_EXT" start --workspace "$WORKSPACE_FILE" &
+    if [ "$DAEMON_MODE" = true ]; then
+        # In daemon mode, run in background and don't wait
+        eval "\"$BIN_DIR/vzr$BIN_EXT\" $VZR_CMD_ARGS" &
+        VZR_PID=$!
+        echo "✅ vzr orchestrator started in daemon mode (PID: $VZR_PID) - Port 15003 (GRPC)"
+        echo "📄 Logs: vectorizer-workspace.log"
+        echo "🛑 Use 'vectorizer stop' to stop all services"
+        exit 0
+    else
+        eval "\"$BIN_DIR/vzr$BIN_EXT\" $VZR_CMD_ARGS" &
+        VZR_PID=$!
+    fi
 else
     echo "🔍 Debug: Running cargo run..."
-    rustup run nightly cargo run --bin vzr -- start --workspace "$WORKSPACE_FILE" &
+    if [ "$DAEMON_MODE" = true ]; then
+        # In daemon mode, run in background and don't wait
+        eval "rustup run nightly cargo run --bin vzr -- $VZR_CMD_ARGS" &
+        VZR_PID=$!
+        echo "✅ vzr orchestrator started in daemon mode (PID: $VZR_PID) - Port 15003 (GRPC)"
+        echo "📄 Logs: vectorizer-workspace.log"
+        echo "🛑 Use 'vectorizer stop' to stop all services"
+        exit 0
+    else
+        eval "rustup run nightly cargo run --bin vzr -- $VZR_CMD_ARGS" &
+        VZR_PID=$!
+    fi
 fi
-VZR_PID=$!
+
 echo "✅ vzr orchestrator started (PID: $VZR_PID) - Port 15003 (GRPC)"
 echo "🔍 Debug: vzr started in background, waiting for background indexing logs..."
 
