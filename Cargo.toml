@@ -73,7 +73,7 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 # Date and time
 
 # Authentication and security
-jsonwebtoken = "9.3"
+jsonwebtoken = "10.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 rand = "0.9"
 
