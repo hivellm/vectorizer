@@ -7,10 +7,10 @@
 # =============================================================================
 workspace:
   name: "HiveLLM Complete Workspace"
-  version: "1.1.0"
-  description: "Complete multi-project workspace for HiveLLM ecosystem development with Task Queue, Dev Tools, and Rust SDK"
+  version: "1.2.0"
+  description: "Complete multi-project workspace for HiveLLM ecosystem development with Gateway, Task Queue, Dev Tools, and Rust SDK"
   created_at: "2025-09-26T00:00:00Z"
-  last_updated: "2025-09-29T00:00:00Z"
+  last_updated: "2025-10-01T00:00:00Z"
 
 # =============================================================================
 # GLOBAL SETTINGS
@@ -987,6 +987,128 @@ projects:
             - "**/*.env*"
           exclude_patterns: []
 
+  # Gateway Project
+  - name: "gateway"
+    path: "../gateway"
+    description: "🚪 Gateway - Multi-user MCP integration and management gateway"
+    enabled: true
+    
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters:
+        k1: 1.5
+        b: 0.75
+    
+    collections:
+      - name: "gateway-typescript_source"
+        description: "Gateway TypeScript source code"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 256
+          chunk_overlap: 25
+          include_patterns:
+            - "src/**/*.ts"
+            - "src/**/*.js"
+          exclude_patterns:
+            - "**/node_modules/**"
+            - "**/dist/**"
+            - "**/*.d.ts"
+      
+      - name: "gateway-documentation"
+        description: "Gateway documentation and guides"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 1024
+          chunk_overlap: 128
+          include_patterns:
+            - "docs/**/*.md"
+            - "README.md"
+            - "CHANGELOG.md"
+          exclude_patterns: []
+      
+      - name: "gateway-api_specs"
+        description: "API specifications and database schemas"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 512
+          chunk_overlap: 64
+          include_patterns:
+            - "docs/API_SPEC.md"
+            - "docs/DATABASE_SCHEMA.md"
+            - "docs/ARCHITECTURE.md"
+          exclude_patterns: []
+      
+      - name: "gateway-configurations"
+        description: "Configuration files and environment settings"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 128
+          chunk_overlap: 10
+          include_patterns:
+            - "**/*.json"
+            - "**/*.yml"
+            - "**/*.yaml"
+            - "**/*.toml"
+            - "env.example"
+            - "tsconfig.json"
+            - "vitest.config.ts"
+          exclude_patterns:
+            - "**/node_modules/**"
+            - "package-lock.json"
+
   # Vectorizer Rust SDK Project
   - name: "vectorizer-rust-sdk"
     path: "./client-sdks/rust"
@@ -1086,8 +1208,8 @@ projects:
 processing:
   # Global processing settings
   parallel_processing: true
-  max_concurrent_projects: 9
-  max_concurrent_collections: 14
+  max_concurrent_projects: 10
+  max_concurrent_collections: 18
   
   # File processing
   file_processing:

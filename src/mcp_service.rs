@@ -40,12 +40,12 @@ impl ServerHandler for VectorizerService {
                 .build(),
             server_info: Implementation {
                 name: "vectorizer-mcp-server".to_string(),
-                title: Some("Vectorizer MCP Server".to_string()),
+                title: Some("HiveLLM Vectorizer MCP Server".to_string()),
                 version: env!("CARGO_PKG_VERSION").to_string(),
-                website_url: None,
+                website_url: Some("https://github.com/hivellm/hivellm".to_string()),
                 icons: None,
             },
-            instructions: Some("This server provides vector search capabilities. You can search vectors, list collections, and generate embeddings.".to_string()),
+            instructions: Some("This is the HiveLLM Vectorizer MCP Server - a high-performance semantic search and vector database system. It provides comprehensive capabilities for:\n\n🔍 SEMANTIC SEARCH: Search for content by meaning using natural language queries, finding relevant information even when exact keywords don't match.\n\n📚 COLLECTION MANAGEMENT: Create, manage, and organize multiple isolated vector collections, each optimized for different domains or use cases.\n\n💾 VECTOR OPERATIONS: Insert, update, retrieve, and delete vectors with automatic embedding generation using BM25 or custom embedding models.\n\n⚡ BATCH PROCESSING: Efficiently process large volumes of data with batch operations for inserting, searching, updating, and deleting multiple items at once.\n\n📊 SUMMARIZATION: Generate intelligent summaries of text content and project context using multiple methods (extractive, keyword, sentence, abstractive), perfect for condensing documentation or helping AI models understand codebases.\n\n📈 MONITORING: Track indexing progress, check service health, and monitor system performance.\n\nAll operations use GRPC for high performance and reliability. The default embedding model is BM25, which provides fast, accurate semantic matching without requiring external API calls.".to_string()),
         }
     }
 
@@ -59,8 +59,8 @@ impl ServerHandler for VectorizerService {
                 // Core vector operations
                 Tool {
                     name: Cow::Borrowed("search_vectors"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Search for similar vectors in a collection")),
+                    title: Some("Search Vectors".to_string()),
+                    description: Some(Cow::Borrowed("Search for semantically similar content in a vector collection using text queries. This tool performs semantic search by converting your query text into an embedding and finding the most similar vectors in the specified collection. Returns ranked results with similarity scores, content, and metadata. Useful for finding relevant code snippets, documentation, or any indexed content based on meaning rather than exact text matches.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -90,8 +90,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("list_collections"),
-                    title: None,
-                    description: Some(Cow::Borrowed("List all available collections")),
+                    title: Some("List Collections".to_string()),
+                    description: Some(Cow::Borrowed("List all available vector collections in the database. Returns comprehensive information about each collection including name, vector count, dimension size, similarity metric used, current status, and last update timestamp. Use this to discover what collections are available for searching or to check the status of indexed collections. Essential for understanding what data is available in the vectorizer system.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {}
@@ -106,8 +106,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("get_collection_info"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Get information about a specific collection")),
+                    title: Some("Get Collection Info".to_string()),
+                    description: Some(Cow::Borrowed("Get detailed information about a specific vector collection. Returns comprehensive metadata including collection name, total vector count, document count, vector dimension, similarity metric (cosine, euclidean, etc.), current indexing status, last update timestamp, and any error messages. Use this to verify collection properties before searching or inserting data, or to monitor the health and status of a specific collection.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -128,8 +128,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("embed_text"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Generate embeddings for text")),
+                    title: Some("Embed Text".to_string()),
+                    description: Some(Cow::Borrowed("Generate vector embeddings for input text using the configured embedding model (default: BM25). Converts text into a numerical vector representation that captures semantic meaning. Returns the embedding vector, dimension size, and provider used. This is useful for understanding how text is represented in vector space, testing embedding quality, or manually creating embeddings for custom operations. The embeddings can be used for similarity comparisons or direct vector operations.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -151,8 +151,8 @@ impl ServerHandler for VectorizerService {
                 // Collection management
                 Tool {
                     name: Cow::Borrowed("create_collection"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Create a new collection")),
+                    title: Some("Create Collection".to_string()),
+                    description: Some(Cow::Borrowed("Create a new vector collection with specified configuration. Requires a unique collection name and allows customization of vector dimension (default: 384) and distance metric (cosine, euclidean, or dot_product). The collection will be initialized and ready to receive vectors. Use this when you need to create a new semantic search index for a specific domain, project, or type of content. Each collection is isolated and can have different configurations optimized for different use cases.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -183,8 +183,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("delete_collection"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Delete a collection")),
+                    title: Some("Delete Collection".to_string()),
+                    description: Some(Cow::Borrowed("Permanently delete a vector collection and all its contents. This operation removes all vectors, metadata, and index structures associated with the collection. Use with caution as this action is irreversible and will permanently delete all data in the collection. Returns status confirmation and message. Useful for cleanup, removing outdated collections, or freeing up storage space when a collection is no longer needed.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -206,8 +206,8 @@ impl ServerHandler for VectorizerService {
                 // Vector operations
                 Tool {
                     name: Cow::Borrowed("insert_texts"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Insert texts into a collection (embeddings generated automatically)")),
+                    title: Some("Insert Texts".to_string()),
+                    description: Some(Cow::Borrowed("Insert text content into a collection with automatic embedding generation. Accepts an array of text items, each with a unique ID, text content, and optional metadata. The system automatically generates vector embeddings for each text using the configured embedding model (BM25 by default). This is the primary method for indexing new content for semantic search. Supports custom metadata for filtering and context. Returns insertion status and count of successfully inserted items.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -251,8 +251,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("delete_vectors"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Delete vectors from a collection")),
+                    title: Some("Delete Vectors".to_string()),
+                    description: Some(Cow::Borrowed("Delete specific vectors from a collection by their IDs. Accepts an array of vector IDs to remove. This operation permanently removes the specified vectors and their associated metadata from the collection without affecting other vectors. Useful for removing outdated content, cleaning up test data, or maintaining data freshness by removing obsolete entries. Returns deletion status and count of successfully deleted vectors.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -278,8 +278,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("get_vector"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Get a specific vector by ID")),
+                    title: Some("Get Vector".to_string()),
+                    description: Some(Cow::Borrowed("Retrieve a specific vector and its metadata from a collection using its unique ID. Returns the complete vector data including ID, embedding values, metadata, collection name, and status. Useful for verifying that specific content was indexed correctly, retrieving stored metadata, or debugging indexing issues. This allows direct access to individual vectors without performing a search query.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -305,8 +305,8 @@ impl ServerHandler for VectorizerService {
                 // Monitoring
                 Tool {
                     name: Cow::Borrowed("get_indexing_progress"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Get indexing progress")),
+                    title: Some("Get Indexing Progress".to_string()),
+                    description: Some(Cow::Borrowed("Monitor the progress of ongoing indexing operations across all collections. Returns detailed status for each collection including indexing state, progress percentage, current vector count, error messages if any, and last update timestamp. Also provides overall system status indicating if any indexing is currently in progress. Essential for monitoring large indexing jobs, troubleshooting indexing issues, and understanding system load.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {}
@@ -321,8 +321,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("health_check"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Check service health")),
+                    title: Some("Health Check".to_string()),
+                    description: Some(Cow::Borrowed("Check the health and status of the vectorizer service. Returns current service status, service name, version information, current timestamp, and any error messages if the service is experiencing issues. Use this to verify the service is running correctly, check version compatibility, diagnose connectivity problems, or monitor service availability in production environments. Essential for system monitoring and troubleshooting.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {}
@@ -338,8 +338,8 @@ impl ServerHandler for VectorizerService {
                 // Batch operations
                 Tool {
                     name: Cow::Borrowed("batch_insert_texts"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Batch insert texts with automatic embedding generation")),
+                    title: Some("Batch Insert Texts".to_string()),
+                    description: Some(Cow::Borrowed("Efficiently insert multiple text documents into a collection in a single operation with automatic embedding generation. Optimized for bulk indexing operations, this tool processes large batches of texts more efficiently than individual inserts. Each text entry requires a unique ID, text content, and can include optional metadata. Specify the embedding provider (default: BM25) for consistent embedding generation. Returns insertion statistics including total inserted count and status. Ideal for initial data loading, bulk imports, or batch updates of large document sets.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -387,8 +387,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("batch_search_vectors"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Batch search with multiple queries")),
+                    title: Some("Batch Search Vectors".to_string()),
+                    description: Some(Cow::Borrowed("Execute multiple semantic search queries in a single batch operation for improved efficiency. Accepts an array of query objects, each with query text, optional result limit, and optional score threshold for filtering results. Returns comprehensive results for each query including matched vectors, similarity scores, metadata, and search timing. Specify the embedding provider (default: BM25) for consistent query processing. Ideal for multi-faceted searches, comparative analysis, or when you need to find results for multiple related queries simultaneously. More efficient than multiple individual search calls.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -437,8 +437,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("batch_update_vectors"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Batch update existing vectors")),
+                    title: Some("Batch Update Vectors".to_string()),
+                    description: Some(Cow::Borrowed("Update multiple existing vectors in a collection efficiently in a single batch operation. For each update, provide the vector ID and optionally new text content (which triggers re-embedding) and/or updated metadata. When new text is provided, the system automatically regenerates embeddings using the specified provider (default: BM25). Returns detailed results for each update attempt including success/failure status and messages. Use this to keep indexed content up-to-date, correct errors in bulk, or refresh embeddings after content modifications. More efficient than individual update operations.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -486,8 +486,8 @@ impl ServerHandler for VectorizerService {
                 },
                 Tool {
                     name: Cow::Borrowed("batch_delete_vectors"),
-                    title: None,
-                    description: Some(Cow::Borrowed("Batch delete vectors by ID")),
+                    title: Some("Batch Delete Vectors".to_string()),
+                    description: Some(Cow::Borrowed("Delete multiple vectors from a collection efficiently in a single batch operation. Accepts an array of vector IDs to remove permanently. This operation is more efficient than individual delete calls when removing multiple vectors. Useful for bulk cleanup operations, removing batches of outdated content, clearing test data, or maintaining collection hygiene by removing obsolete entries in bulk. Returns deletion statistics including total deleted count and operation status. All specified vectors are removed atomically.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -515,7 +515,7 @@ impl ServerHandler for VectorizerService {
                 Tool {
                     name: Cow::Borrowed("summarize_text"),
                     title: Some("Summarize Text".to_string()),
-                    description: Some(Cow::Borrowed("Summarize text using various methods (extractive, keyword, sentence, abstractive)")),
+                    description: Some(Cow::Borrowed("Generate intelligent summaries of text content using multiple summarization methods. Supports four methods: 'extractive' (extracts key sentences), 'keyword' (identifies main keywords), 'sentence' (selects representative sentences), and 'abstractive' (generates new summary text). Configure summary length with max_length or compression_ratio (0.1-0.9). Optionally specify language for better processing. Returns the generated summary, original text, length statistics, compression ratio achieved, and a unique summary ID for later retrieval. Ideal for condensing documentation, creating TL;DR versions, extracting key points from long content, or generating concise overviews. Stored summaries can be retrieved later using the summary ID.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -555,7 +555,7 @@ impl ServerHandler for VectorizerService {
                 Tool {
                     name: Cow::Borrowed("summarize_context"),
                     title: Some("Summarize Context".to_string()),
-                    description: Some(Cow::Borrowed("Summarize context for AI models to understand project content")),
+                    description: Some(Cow::Borrowed("Generate concise summaries of project context specifically optimized for AI model consumption and understanding. This specialized summarization tool helps AI assistants quickly grasp project structure, codebase organization, documentation, and key concepts without processing entire files. Supports multiple methods (extractive, keyword, sentence, abstractive) and allows customization via max_length or compression_ratio. Returns a focused summary that captures essential project information, patterns, and architecture. Particularly useful for helping AI models understand large codebases, providing context for code generation, or creating high-level project overviews. The generated summaries are optimized for AI comprehension and can be stored for reuse.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -595,7 +595,7 @@ impl ServerHandler for VectorizerService {
                 Tool {
                     name: Cow::Borrowed("get_summary"),
                     title: Some("Get Summary".to_string()),
-                    description: Some(Cow::Borrowed("Get a specific summary by ID")),
+                    description: Some(Cow::Borrowed("Retrieve a previously generated summary by its unique ID. Returns complete summary information including the original text, generated summary, summarization method used, length statistics, compression ratio, language, creation timestamp, and any associated metadata. Use this to retrieve summaries created earlier, share summaries across sessions, or access historical summarization results. Enables reuse of computational effort by retrieving cached summaries instead of re-generating them. Particularly useful for frequently accessed summaries or when working with the same content across multiple sessions.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
@@ -617,7 +617,7 @@ impl ServerHandler for VectorizerService {
                 Tool {
                     name: Cow::Borrowed("list_summaries"),
                     title: Some("List Summaries".to_string()),
-                    description: Some(Cow::Borrowed("List all available summaries with optional filtering")),
+                    description: Some(Cow::Borrowed("List all available summaries with powerful filtering and pagination capabilities. Filter summaries by summarization method (extractive, keyword, sentence, abstractive) or language. Use limit and offset parameters for pagination when dealing with large numbers of summaries. Returns summary metadata including ID, method, language, length statistics, compression ratios, and creation timestamps for each summary. Useful for discovering available summaries, auditing summarization history, finding summaries by specific criteria, or managing summary storage. The total count helps with pagination planning.")),
                     input_schema: json!({
                         "type": "object",
                         "properties": {
