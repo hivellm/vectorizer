@@ -1,6 +1,7 @@
 use rmcp::model::{
     CallToolRequestParam, CallToolResult, ErrorData, Implementation, ListToolsResult,
     PaginatedRequestParam, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
+    ToolAnnotations,
 };
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, ServerHandler};
@@ -84,9 +85,30 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "results": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "content": {"type": "string"},
+                                        "score": {"type": "number"},
+                                        "metadata": {"type": "object"}
+                                    }
+                                }
+                            },
+                            "total_found": {"type": "integer"},
+                            "search_time_ms": {"type": "number"}
+                        }
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("list_collections"),
@@ -100,9 +122,32 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "collections": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "vector_count": {"type": "integer"},
+                                        "dimension": {"type": "integer"},
+                                        "similarity_metric": {"type": "string"},
+                                        "status": {"type": "string"},
+                                        "last_updated": {"type": "string"},
+                                        "error_message": {"type": "string"}
+                                    }
+                                }
+                            },
+                            "total_collections": {"type": "integer"}
+                        }
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("get_collection_info"),
@@ -122,9 +167,25 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "vector_count": {"type": "integer"},
+                            "document_count": {"type": "integer"},
+                            "dimension": {"type": "integer"},
+                            "similarity_metric": {"type": "string"},
+                            "status": {"type": "string"},
+                            "last_updated": {"type": "string"},
+                            "error_message": {"type": "string"}
+                        },
+                        "required": ["name", "vector_count", "dimension", "similarity_metric", "status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("embed_text"),
@@ -144,9 +205,24 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "embedding": {
+                                "type": "array",
+                                "items": {"type": "number"},
+                                "description": "Vector embedding"
+                            },
+                            "dimension": {"type": "integer"},
+                            "provider": {"type": "string"}
+                        },
+                        "required": ["embedding", "dimension", "provider"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 // Collection management
                 Tool {
@@ -168,7 +244,8 @@ impl ServerHandler for VectorizerService {
                             "metric": {
                                 "type": "string",
                                 "description": "Distance metric",
-                                "default": "cosine"
+                                "default": "cosine",
+                                "enum": ["cosine", "euclidean", "dot_product"]
                             }
                         },
                         "required": ["name"]
@@ -177,9 +254,22 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "dimension": {"type": "integer"},
+                            "similarity_metric": {"type": "string"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"}
+                        }
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(false)
+                        .idempotent(false)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("delete_collection"),
@@ -199,9 +289,20 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "collection_name": {"type": "string"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"}
+                        }
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 // Vector operations
                 Tool {
@@ -245,9 +346,22 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string"},
+                            "inserted_count": {"type": "integer"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"}
+                        },
+                        "required": ["collection", "inserted_count", "status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(false)
+                        .idempotent(false)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("delete_vectors"),
@@ -263,7 +377,8 @@ impl ServerHandler for VectorizerService {
                             "vector_ids": {
                                 "type": "array",
                                 "description": "Array of vector IDs to delete",
-                                "items": {"type": "string"}
+                                "items": {"type": "string"},
+                                "minItems": 1
                             }
                         },
                         "required": ["collection", "vector_ids"]
@@ -272,9 +387,22 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "collection": {"type": "string"},
+                            "deleted_count": {"type": "integer"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"}
+                        },
+                        "required": ["collection", "deleted_count", "status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("get_vector"),
@@ -298,9 +426,25 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "data": {
+                                "type": "array",
+                                "items": {"type": "number"}
+                            },
+                            "metadata": {"type": "object"},
+                            "collection": {"type": "string"},
+                            "status": {"type": "string"}
+                        },
+                        "required": ["id", "data", "collection", "status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 // Monitoring
                 Tool {
@@ -315,9 +459,33 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "collections": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "collection_name": {"type": "string"},
+                                        "status": {"type": "string"},
+                                        "progress": {"type": "number", "minimum": 0, "maximum": 1},
+                                        "vector_count": {"type": "integer"},
+                                        "error_message": {"type": "string"},
+                                        "last_updated": {"type": "string"}
+                                    }
+                                }
+                            },
+                            "is_indexing": {"type": "boolean"},
+                            "overall_status": {"type": "string"}
+                        },
+                        "required": ["collections", "is_indexing", "overall_status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("health_check"),
@@ -331,9 +499,22 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "status": {"type": "string", "enum": ["healthy", "degraded", "unhealthy"]},
+                            "service": {"type": "string"},
+                            "version": {"type": "string"},
+                            "timestamp": {"type": "string"},
+                            "error_message": {"type": "string"}
+                        },
+                        "required": ["status", "service", "version", "timestamp"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 // Batch operations
                 Tool {
@@ -372,7 +553,8 @@ impl ServerHandler for VectorizerService {
                             "provider": {
                                 "type": "string",
                                 "description": "Embedding provider",
-                                "default": "bm25"
+                                "default": "bm25",
+                                "enum": ["bm25", "native_bow", "native_hash", "native_ngram"]
                             }
                         },
                         "required": ["collection", "texts"]
@@ -381,9 +563,23 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "success": {"type": "boolean"},
+                            "collection": {"type": "string"},
+                            "inserted_count": {"type": "integer"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"},
+                            "operation": {"type": "string"}
+                        }
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(false)
+                        .idempotent(false)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("batch_search_vectors"),
@@ -399,6 +595,7 @@ impl ServerHandler for VectorizerService {
                             "queries": {
                                 "type": "array",
                                 "description": "Array of search queries",
+                                "minItems": 1,
                                 "items": {
                                     "type": "object",
                                     "properties": {
@@ -409,11 +606,15 @@ impl ServerHandler for VectorizerService {
                                         "limit": {
                                             "type": "integer",
                                             "description": "Maximum number of results",
-                                            "default": 10
+                                            "default": 10,
+                                            "minimum": 1,
+                                            "maximum": 100
                                         },
                                         "score_threshold": {
                                             "type": "number",
-                                            "description": "Minimum score threshold"
+                                            "description": "Minimum score threshold",
+                                            "minimum": 0,
+                                            "maximum": 1
                                         }
                                     },
                                     "required": ["query"]
@@ -422,7 +623,8 @@ impl ServerHandler for VectorizerService {
                             "provider": {
                                 "type": "string",
                                 "description": "Embedding provider",
-                                "default": "bm25"
+                                "default": "bm25",
+                                "enum": ["bm25", "native_bow", "native_hash", "native_ngram"]
                             }
                         },
                         "required": ["collection", "queries"]
@@ -431,9 +633,46 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "success": {"type": "boolean"},
+                            "collection": {"type": "string"},
+                            "total_queries": {"type": "integer"},
+                            "batch_results": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {"type": "string"},
+                                        "query_index": {"type": "integer"},
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {"type": "string"},
+                                                    "content": {"type": "string"},
+                                                    "score": {"type": "number"},
+                                                    "metadata": {"type": "object"}
+                                                }
+                                            }
+                                        },
+                                        "total_found": {"type": "integer"},
+                                        "search_time_ms": {"type": "number"},
+                                        "error": {"type": "string"}
+                                    }
+                                }
+                            },
+                            "operation": {"type": "string"}
+                        },
+                        "required": ["success", "collection", "total_queries", "batch_results"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("batch_update_vectors"),
@@ -449,6 +688,7 @@ impl ServerHandler for VectorizerService {
                             "updates": {
                                 "type": "array",
                                 "description": "Array of vector updates",
+                                "minItems": 1,
                                 "items": {
                                     "type": "object",
                                     "properties": {
@@ -471,7 +711,8 @@ impl ServerHandler for VectorizerService {
                             "provider": {
                                 "type": "string",
                                 "description": "Embedding provider",
-                                "default": "bm25"
+                                "default": "bm25",
+                                "enum": ["bm25", "native_bow", "native_hash", "native_ngram"]
                             }
                         },
                         "required": ["collection", "updates"]
@@ -480,9 +721,37 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "success": {"type": "boolean"},
+                            "collection": {"type": "string"},
+                            "total_updates": {"type": "integer"},
+                            "successful_updates": {"type": "integer"},
+                            "failed_updates": {"type": "integer"},
+                            "batch_results": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {"type": "string"},
+                                        "update_index": {"type": "integer"},
+                                        "status": {"type": "string", "enum": ["success", "error", "skipped"]},
+                                        "message": {"type": "string"},
+                                        "error": {"type": "string"}
+                                    }
+                                }
+                            },
+                            "operation": {"type": "string"}
+                        },
+                        "required": ["success", "collection", "total_updates", "batch_results"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(false)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("batch_delete_vectors"),
@@ -498,7 +767,8 @@ impl ServerHandler for VectorizerService {
                             "vector_ids": {
                                 "type": "array",
                                 "description": "Array of vector IDs to delete",
-                                "items": {"type": "string"}
+                                "items": {"type": "string"},
+                                "minItems": 1
                             }
                         },
                         "required": ["collection", "vector_ids"]
@@ -507,9 +777,24 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "success": {"type": "boolean"},
+                            "collection": {"type": "string"},
+                            "deleted_count": {"type": "integer"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"},
+                            "operation": {"type": "string"}
+                        },
+                        "required": ["success", "collection", "deleted_count", "status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(false)
+                        .destructive(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 // Summarization tools
                 Tool {
@@ -521,7 +806,8 @@ impl ServerHandler for VectorizerService {
                         "properties": {
                             "text": {
                                 "type": "string",
-                                "description": "Text to summarize"
+                                "description": "Text to summarize",
+                                "minLength": 1
                             },
                             "method": {
                                 "type": "string",
@@ -531,15 +817,19 @@ impl ServerHandler for VectorizerService {
                             },
                             "max_length": {
                                 "type": "integer",
-                                "description": "Maximum summary length (optional)"
+                                "description": "Maximum summary length (optional)",
+                                "minimum": 10
                             },
                             "compression_ratio": {
                                 "type": "number",
-                                "description": "Compression ratio (0.1-0.9, optional)"
+                                "description": "Compression ratio (0.1-0.9, optional)",
+                                "minimum": 0.1,
+                                "maximum": 0.9
                             },
                             "language": {
                                 "type": "string",
-                                "description": "Language code (optional)"
+                                "description": "Language code (optional)",
+                                "examples": ["en", "pt", "es", "fr"]
                             }
                         },
                         "required": ["text"]
@@ -548,9 +838,28 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "summary_id": {"type": "string"},
+                            "original_text": {"type": "string"},
+                            "summary": {"type": "string"},
+                            "method": {"type": "string"},
+                            "original_length": {"type": "integer"},
+                            "summary_length": {"type": "integer"},
+                            "compression_ratio": {"type": "number"},
+                            "language": {"type": "string"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"},
+                            "metadata": {"type": "object"}
+                        },
+                        "required": ["summary_id", "summary", "method", "original_length", "summary_length"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("summarize_context"),
@@ -561,7 +870,8 @@ impl ServerHandler for VectorizerService {
                         "properties": {
                             "context": {
                                 "type": "string",
-                                "description": "Context to summarize"
+                                "description": "Context to summarize",
+                                "minLength": 1
                             },
                             "method": {
                                 "type": "string",
@@ -571,15 +881,19 @@ impl ServerHandler for VectorizerService {
                             },
                             "max_length": {
                                 "type": "integer",
-                                "description": "Maximum summary length (optional)"
+                                "description": "Maximum summary length (optional)",
+                                "minimum": 10
                             },
                             "compression_ratio": {
                                 "type": "number",
-                                "description": "Compression ratio (0.1-0.9, optional)"
+                                "description": "Compression ratio (0.1-0.9, optional)",
+                                "minimum": 0.1,
+                                "maximum": 0.9
                             },
                             "language": {
                                 "type": "string",
-                                "description": "Language code (optional)"
+                                "description": "Language code (optional)",
+                                "examples": ["en", "pt", "es", "fr"]
                             }
                         },
                         "required": ["context"]
@@ -588,9 +902,28 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "summary_id": {"type": "string"},
+                            "original_context": {"type": "string"},
+                            "summary": {"type": "string"},
+                            "method": {"type": "string"},
+                            "original_length": {"type": "integer"},
+                            "summary_length": {"type": "integer"},
+                            "compression_ratio": {"type": "number"},
+                            "language": {"type": "string"},
+                            "status": {"type": "string"},
+                            "message": {"type": "string"},
+                            "metadata": {"type": "object"}
+                        },
+                        "required": ["summary_id", "summary", "method", "original_length", "summary_length"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("get_summary"),
@@ -610,9 +943,28 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "summary_id": {"type": "string"},
+                            "original_text": {"type": "string"},
+                            "summary": {"type": "string"},
+                            "method": {"type": "string"},
+                            "original_length": {"type": "integer"},
+                            "summary_length": {"type": "integer"},
+                            "compression_ratio": {"type": "number"},
+                            "language": {"type": "string"},
+                            "created_at": {"type": "string"},
+                            "metadata": {"type": "object"},
+                            "status": {"type": "string"}
+                        },
+                        "required": ["summary_id", "original_text", "summary", "method"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
                 Tool {
                     name: Cow::Borrowed("list_summaries"),
@@ -623,7 +975,8 @@ impl ServerHandler for VectorizerService {
                         "properties": {
                             "method": {
                                 "type": "string",
-                                "description": "Filter by summarization method (optional)"
+                                "description": "Filter by summarization method (optional)",
+                                "enum": ["extractive", "keyword", "sentence", "abstractive"]
                             },
                             "language": {
                                 "type": "string",
@@ -631,11 +984,16 @@ impl ServerHandler for VectorizerService {
                             },
                             "limit": {
                                 "type": "integer",
-                                "description": "Maximum number of summaries to return (optional)"
+                                "description": "Maximum number of summaries to return (optional)",
+                                "minimum": 1,
+                                "maximum": 1000,
+                                "default": 100
                             },
                             "offset": {
                                 "type": "integer",
-                                "description": "Offset for pagination (optional)"
+                                "description": "Offset for pagination (optional)",
+                                "minimum": 0,
+                                "default": 0
                             }
                         }
                     })
@@ -643,9 +1001,35 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: None,
+                    output_schema: Some(json!({
+                        "type": "object",
+                        "properties": {
+                            "summaries": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "summary_id": {"type": "string"},
+                                        "method": {"type": "string"},
+                                        "language": {"type": "string"},
+                                        "original_length": {"type": "integer"},
+                                        "summary_length": {"type": "integer"},
+                                        "compression_ratio": {"type": "number"},
+                                        "created_at": {"type": "string"},
+                                        "metadata": {"type": "object"}
+                                    }
+                                }
+                            },
+                            "total_count": {"type": "integer"},
+                            "status": {"type": "string"}
+                        },
+                        "required": ["summaries", "total_count", "status"]
+                    }).as_object().unwrap().clone().into()),
                     icons: None,
-                    annotations: None,
+                    annotations: Some(ToolAnnotations::new()
+                        .read_only(true)
+                        .idempotent(true)
+                        .open_world(false)),
                 },
             ];
 
