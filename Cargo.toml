@@ -129,6 +129,10 @@ name = "cuda_benchmark"
 path = "benchmark/scripts/cuda_benchmark.rs"
 
 [[bin]]
+name = "quantization_benchmark"
+path = "benchmark/scripts/quantization_benchmark.rs"
+
+[[bin]]
 name = "download_models"
 path = "scripts/download_models.rs"
 

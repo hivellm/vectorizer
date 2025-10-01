@@ -85,25 +85,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "results": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "id": {"type": "string"},
-                                        "content": {"type": "string"},
-                                        "score": {"type": "number"},
-                                        "metadata": {"type": "object"}
-                                    }
-                                }
-                            },
-                            "total_found": {"type": "integer"},
-                            "search_time_ms": {"type": "number"}
-                        }
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -122,27 +104,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "collections": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "name": {"type": "string"},
-                                        "vector_count": {"type": "integer"},
-                                        "dimension": {"type": "integer"},
-                                        "similarity_metric": {"type": "string"},
-                                        "status": {"type": "string"},
-                                        "last_updated": {"type": "string"},
-                                        "error_message": {"type": "string"}
-                                    }
-                                }
-                            },
-                            "total_collections": {"type": "integer"}
-                        }
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -167,20 +129,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "vector_count": {"type": "integer"},
-                            "document_count": {"type": "integer"},
-                            "dimension": {"type": "integer"},
-                            "similarity_metric": {"type": "string"},
-                            "status": {"type": "string"},
-                            "last_updated": {"type": "string"},
-                            "error_message": {"type": "string"}
-                        },
-                        "required": ["name", "vector_count", "dimension", "similarity_metric", "status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -205,19 +154,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "embedding": {
-                                "type": "array",
-                                "items": {"type": "number"},
-                                "description": "Vector embedding"
-                            },
-                            "dimension": {"type": "integer"},
-                            "provider": {"type": "string"}
-                        },
-                        "required": ["embedding", "dimension", "provider"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -254,16 +191,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "dimension": {"type": "integer"},
-                            "similarity_metric": {"type": "string"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"}
-                        }
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -289,14 +217,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "collection_name": {"type": "string"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"}
-                        }
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -346,16 +267,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "collection": {"type": "string"},
-                            "inserted_count": {"type": "integer"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"}
-                        },
-                        "required": ["collection", "inserted_count", "status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -387,16 +299,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "collection": {"type": "string"},
-                            "deleted_count": {"type": "integer"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"}
-                        },
-                        "required": ["collection", "deleted_count", "status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -426,20 +329,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            "data": {
-                                "type": "array",
-                                "items": {"type": "number"}
-                            },
-                            "metadata": {"type": "object"},
-                            "collection": {"type": "string"},
-                            "status": {"type": "string"}
-                        },
-                        "required": ["id", "data", "collection", "status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -459,28 +349,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "collections": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "collection_name": {"type": "string"},
-                                        "status": {"type": "string"},
-                                        "progress": {"type": "number", "minimum": 0, "maximum": 1},
-                                        "vector_count": {"type": "integer"},
-                                        "error_message": {"type": "string"},
-                                        "last_updated": {"type": "string"}
-                                    }
-                                }
-                            },
-                            "is_indexing": {"type": "boolean"},
-                            "overall_status": {"type": "string"}
-                        },
-                        "required": ["collections", "is_indexing", "overall_status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -499,17 +368,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "status": {"type": "string", "enum": ["healthy", "degraded", "unhealthy"]},
-                            "service": {"type": "string"},
-                            "version": {"type": "string"},
-                            "timestamp": {"type": "string"},
-                            "error_message": {"type": "string"}
-                        },
-                        "required": ["status", "service", "version", "timestamp"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -563,17 +422,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "success": {"type": "boolean"},
-                            "collection": {"type": "string"},
-                            "inserted_count": {"type": "integer"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"},
-                            "operation": {"type": "string"}
-                        }
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -633,41 +482,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "success": {"type": "boolean"},
-                            "collection": {"type": "string"},
-                            "total_queries": {"type": "integer"},
-                            "batch_results": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {"type": "string"},
-                                        "query_index": {"type": "integer"},
-                                        "results": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "id": {"type": "string"},
-                                                    "content": {"type": "string"},
-                                                    "score": {"type": "number"},
-                                                    "metadata": {"type": "object"}
-                                                }
-                                            }
-                                        },
-                                        "total_found": {"type": "integer"},
-                                        "search_time_ms": {"type": "number"},
-                                        "error": {"type": "string"}
-                                    }
-                                }
-                            },
-                            "operation": {"type": "string"}
-                        },
-                        "required": ["success", "collection", "total_queries", "batch_results"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -721,31 +536,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "success": {"type": "boolean"},
-                            "collection": {"type": "string"},
-                            "total_updates": {"type": "integer"},
-                            "successful_updates": {"type": "integer"},
-                            "failed_updates": {"type": "integer"},
-                            "batch_results": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "id": {"type": "string"},
-                                        "update_index": {"type": "integer"},
-                                        "status": {"type": "string", "enum": ["success", "error", "skipped"]},
-                                        "message": {"type": "string"},
-                                        "error": {"type": "string"}
-                                    }
-                                }
-                            },
-                            "operation": {"type": "string"}
-                        },
-                        "required": ["success", "collection", "total_updates", "batch_results"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -777,18 +568,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "success": {"type": "boolean"},
-                            "collection": {"type": "string"},
-                            "deleted_count": {"type": "integer"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"},
-                            "operation": {"type": "string"}
-                        },
-                        "required": ["success", "collection", "deleted_count", "status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(false)
@@ -838,23 +618,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "summary_id": {"type": "string"},
-                            "original_text": {"type": "string"},
-                            "summary": {"type": "string"},
-                            "method": {"type": "string"},
-                            "original_length": {"type": "integer"},
-                            "summary_length": {"type": "integer"},
-                            "compression_ratio": {"type": "number"},
-                            "language": {"type": "string"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"},
-                            "metadata": {"type": "object"}
-                        },
-                        "required": ["summary_id", "summary", "method", "original_length", "summary_length"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -902,23 +666,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "summary_id": {"type": "string"},
-                            "original_context": {"type": "string"},
-                            "summary": {"type": "string"},
-                            "method": {"type": "string"},
-                            "original_length": {"type": "integer"},
-                            "summary_length": {"type": "integer"},
-                            "compression_ratio": {"type": "number"},
-                            "language": {"type": "string"},
-                            "status": {"type": "string"},
-                            "message": {"type": "string"},
-                            "metadata": {"type": "object"}
-                        },
-                        "required": ["summary_id", "summary", "method", "original_length", "summary_length"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -943,23 +691,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "summary_id": {"type": "string"},
-                            "original_text": {"type": "string"},
-                            "summary": {"type": "string"},
-                            "method": {"type": "string"},
-                            "original_length": {"type": "integer"},
-                            "summary_length": {"type": "integer"},
-                            "compression_ratio": {"type": "number"},
-                            "language": {"type": "string"},
-                            "created_at": {"type": "string"},
-                            "metadata": {"type": "object"},
-                            "status": {"type": "string"}
-                        },
-                        "required": ["summary_id", "original_text", "summary", "method"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -1001,30 +733,7 @@ impl ServerHandler for VectorizerService {
                     .unwrap()
                     .clone()
                     .into(),
-                    output_schema: Some(json!({
-                        "type": "object",
-                        "properties": {
-                            "summaries": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "summary_id": {"type": "string"},
-                                        "method": {"type": "string"},
-                                        "language": {"type": "string"},
-                                        "original_length": {"type": "integer"},
-                                        "summary_length": {"type": "integer"},
-                                        "compression_ratio": {"type": "number"},
-                                        "created_at": {"type": "string"},
-                                        "metadata": {"type": "object"}
-                                    }
-                                }
-                            },
-                            "total_count": {"type": "integer"},
-                            "status": {"type": "string"}
-                        },
-                        "required": ["summaries", "total_count", "status"]
-                    }).as_object().unwrap().clone().into()),
+                    output_schema: None,
                     icons: None,
                     annotations: Some(ToolAnnotations::new()
                         .read_only(true)
@@ -2023,3 +1732,4 @@ impl ServerHandler for VectorizerService {
         }
     }
 }
+
