@@ -825,6 +825,36 @@ projects:
             - "**/*.sh"
             - "**/*.bat"
           exclude_patterns: []
+      
+      - name: "vectorizer-benchmarks"
+        description: "Performance benchmarks and test results"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 512
+          chunk_overlap: 50
+          include_patterns:
+            - "benchmark/**/*.rs"
+            - "benchmark/**/*.md"
+            - "benchmark/**/*.json"
+            - "benchmark/reports/**/*.md"
+            - "benchmark/reports/**/*.json"
+            - "benchmark/tests/**/*.rs"
+          exclude_patterns:
+            - "benchmark/**/target/**"
+            - "benchmark/**/Cargo.lock"
 
   # Task Queue Project
   - name: "task-queue"

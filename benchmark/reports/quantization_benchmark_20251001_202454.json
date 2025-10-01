@@ -1,0 +1,163 @@
+[
+  {
+    "method": "Baseline",
+    "config_details": "No quantization (full f32)",
+    "memory_bytes": 40869708,
+    "memory_mb": 38.97639083862305,
+    "compression_ratio": 1.0,
+    "index_build_time_ms": 16940.0,
+    "avg_search_time_us": 2514.45,
+    "p50_search_time_us": 2546.0,
+    "p95_search_time_us": 2816.0,
+    "p99_search_time_us": 2816.0,
+    "quality_metrics": {
+      "map": 0.8399999737739563,
+      "mrr": 1.0,
+      "precision_at_1": 1.0,
+      "precision_at_5": 1.0,
+      "precision_at_10": 1.0,
+      "recall_at_1": 0.10000000894069672,
+      "recall_at_5": 0.49000000953674316,
+      "recall_at_10": 0.8399999737739563,
+      "ndcg_at_10": 0.677248681576651
+    }
+  },
+  {
+    "method": "Scalar Quantization (SQ)",
+    "config_details": "bits=8",
+    "memory_bytes": 10175496,
+    "memory_mb": 9.704109191894531,
+    "compression_ratio": 3.999996855190155,
+    "index_build_time_ms": 16998.0,
+    "avg_search_time_us": 2709.3,
+    "p50_search_time_us": 2721.0,
+    "p95_search_time_us": 2918.0,
+    "p99_search_time_us": 2918.0,
+    "quality_metrics": {
+      "map": 0.9147102236747742,
+      "mrr": 1.0,
+      "precision_at_1": 1.0,
+      "precision_at_5": 1.0,
+      "precision_at_10": 0.98499995470047,
+      "recall_at_1": 0.10000000894069672,
+      "recall_at_5": 0.4949999749660492,
+      "recall_at_10": 0.919999897480011,
+      "ndcg_at_10": 0.6932367980884369
+    }
+  },
+  {
+    "method": "Scalar Quantization (SQ)",
+    "config_details": "bits=4",
+    "memory_bytes": 10175496,
+    "memory_mb": 9.704109191894531,
+    "compression_ratio": 3.999996855190155,
+    "index_build_time_ms": 17044.0,
+    "avg_search_time_us": 2550.9,
+    "p50_search_time_us": 2562.0,
+    "p95_search_time_us": 2817.0,
+    "p99_search_time_us": 2817.0,
+    "quality_metrics": {
+      "map": 0.7003909349441528,
+      "mrr": 1.0,
+      "precision_at_1": 1.0,
+      "precision_at_5": 0.9600000381469727,
+      "precision_at_10": 0.8700000643730164,
+      "recall_at_1": 0.10000000894069672,
+      "recall_at_5": 0.4399999976158142,
+      "recall_at_10": 0.7450000047683716,
+      "ndcg_at_10": 0.6114132670727204
+    }
+  },
+  {
+    "method": "Product Quantization (PQ)",
+    "config_details": "subquantizers=8, centroids=256",
+    "memory_bytes": 683280,
+    "memory_mb": 0.6516265869140625,
+    "compression_ratio": 59.56848144245404,
+    "index_build_time_ms": 21850.0,
+    "avg_search_time_us": 2529.15,
+    "p50_search_time_us": 2501.0,
+    "p95_search_time_us": 2776.0,
+    "p99_search_time_us": 2776.0,
+    "quality_metrics": {
+      "map": 0.2572738230228424,
+      "mrr": 0.7250000238418579,
+      "precision_at_1": 0.6499999761581421,
+      "precision_at_5": 0.7024999856948853,
+      "precision_at_10": 0.6559523344039917,
+      "recall_at_1": 0.0650000125169754,
+      "recall_at_5": 0.23499998450279236,
+      "recall_at_10": 0.3349999785423279,
+      "ndcg_at_10": 0.3451206324120238
+    }
+  },
+  {
+    "method": "Product Quantization (PQ)",
+    "config_details": "subquantizers=16, centroids=256",
+    "memory_bytes": 842272,
+    "memory_mb": 0.803253173828125,
+    "compression_ratio": 48.32399984803009,
+    "index_build_time_ms": 22400.0,
+    "avg_search_time_us": 2726.3,
+    "p50_search_time_us": 2730.0,
+    "p95_search_time_us": 3025.0,
+    "p99_search_time_us": 3025.0,
+    "quality_metrics": {
+      "map": 0.34815478324890137,
+      "mrr": 0.8366667032241821,
+      "precision_at_1": 0.800000011920929,
+      "precision_at_5": 0.7849999666213989,
+      "precision_at_10": 0.6878174543380737,
+      "recall_at_1": 0.08000001311302185,
+      "recall_at_5": 0.2849999964237213,
+      "recall_at_10": 0.4300000071525574,
+      "ndcg_at_10": 0.4131907869780583
+    }
+  },
+  {
+    "method": "Product Quantization (PQ)",
+    "config_details": "subquantizers=8, centroids=512",
+    "memory_bytes": 1207568,
+    "memory_mb": 1.1516265869140625,
+    "compression_ratio": 33.70572257628556,
+    "index_build_time_ms": 33079.0,
+    "avg_search_time_us": 2804.75,
+    "p50_search_time_us": 2789.0,
+    "p95_search_time_us": 3017.0,
+    "p99_search_time_us": 3017.0,
+    "quality_metrics": {
+      "map": 0.05744444206357002,
+      "mrr": 0.20000000298023224,
+      "precision_at_1": 0.15000000596046448,
+      "precision_at_5": 0.22166666388511658,
+      "precision_at_10": 0.19801588356494904,
+      "recall_at_1": 0.015000000596046448,
+      "recall_at_5": 0.06000000238418579,
+      "recall_at_10": 0.09000000357627869,
+      "ndcg_at_10": 0.0939445259946546
+    }
+  },
+  {
+    "method": "Binary Quantization",
+    "config_details": "1-bit per dimension",
+    "memory_bytes": 1271940,
+    "memory_mb": 1.2130165100097656,
+    "compression_ratio": 31.99989936632231,
+    "index_build_time_ms": 11718.0,
+    "avg_search_time_us": 2443.85,
+    "p50_search_time_us": 2456.0,
+    "p95_search_time_us": 2817.0,
+    "p99_search_time_us": 2817.0,
+    "quality_metrics": {
+      "map": 0.014607143588364124,
+      "mrr": 0.04583333805203438,
+      "precision_at_1": 0.0,
+      "precision_at_5": 0.059166669845581055,
+      "precision_at_10": 0.06190476566553116,
+      "recall_at_1": 0.0,
+      "recall_at_5": 0.02500000037252903,
+      "recall_at_10": 0.03500000387430191,
+      "ndcg_at_10": 0.030167424455191865
+    }
+  }
+]

@@ -24,6 +24,7 @@ chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
 walkdir = "2.4"
 notify = "8.2"
+fastrand = "2.0"
 
 # Index and vector operations
 hnsw_rs = "0.3"
@@ -131,6 +132,34 @@ path = "benchmark/scripts/cuda_benchmark.rs"
 [[bin]]
 name = "quantization_benchmark"
 path = "benchmark/scripts/quantization_benchmark.rs"
+
+[[bin]]
+name = "core_operations_benchmark"
+path = "benchmark/scripts/core_operations_benchmark.rs"
+
+[[bin]]
+name = "dimension_comparison_benchmark"
+path = "benchmark/scripts/dimension_comparison_benchmark.rs"
+
+[[bin]]
+name = "combined_optimization_benchmark"
+path = "benchmark/scripts/combined_optimization_benchmark.rs"
+
+[[bin]]
+name = "scale_benchmark"
+path = "benchmark/scripts/scale_benchmark.rs"
+
+[[bin]]
+name = "patched_benchmark"
+path = "benchmark/scripts/patched_benchmark.rs"
+
+[[bin]]
+name = "large_scale_benchmark"
+path = "benchmark/scripts/large_scale_benchmark.rs"
+
+[[bin]]
+name = "diagnostic_benchmark"
+path = "benchmark/scripts/diagnostic_benchmark.rs"
 
 [[bin]]
 name = "download_models"

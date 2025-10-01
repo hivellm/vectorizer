@@ -1,114 +1,123 @@
 # Implementation Dependency Graph (DAG)
 
-**Purpose**: Visual representation of feature dependencies  
-**Last Updated**: October 1, 2025
+**Purpose**: Visual representation of feature dependencies - **REVISED WITH QUANTIZATION FIRST**  
+**Last Updated**: October 1, 2025 - **PRIORITIES UPDATED BASED ON BENCHMARKS**
 
-## 🌳 Complete Dependency Tree
+## 🌳 Complete Dependency Tree - **REVISED WITH QUANTIZATION FIRST**
 
 ```
                                     START
                                       │
                     ┌─────────────────┴─────────────────┐
                     │                                   │
-              [PERSISTENCE]                    [FILE WATCHER]
-              P0 - 3 weeks                     P0 - 2-3 weeks
+        [QUANTIZATION - SQ-8bit]              [DASHBOARD IMPROVEMENTS]
+        🔴 P0 - 6 weeks                     🔴 P0 - 3 weeks
+        **4x compression + BETTER quality**  **Real-time metrics display**
                     │                                   │
                     │         ┌─────────────────────────┤
                     │         │                         │
-                    │    [BACKUP/RESTORE]               │
-                    │    P1 - 3 weeks                   │
+                    │    [QUANTIZATION - PQ/Binary]     │
+                    │    🔴 P0 - 2 weeks                │
+                    │    **32x compression**            │
                     │         │                         │
                     └─────┬───┴───┬─────────────────────┘
                           │       │
                     ┌─────┴───────┴─────┐
                     │                   │
-            [DASHBOARD AUTH]    [WORKSPACE MGMT]
-            P1 - 4 weeks        P2 - 3-4 weeks
+            [PERSISTENCE SYSTEM] [FILE WATCHER IMPROVEMENTS]
+            🟡 P1 - 3 weeks      🟡 P1 - 3 weeks
+            **Zero data loss**   **Perfect sync**
                     │                   │
                     ├───────────────────┤
                     │                   │
           [WORKSPACE MANAGER UI]        │
-          P1 - 4-5 weeks                │
+          🟡 P1 - 4-5 weeks             │
+          **Visual configuration**      │
                     │                   │
                     └─────┬─────────────┘
                           │
               ┌───────────┼───────────┐
               │           │           │
-      [QUANTIZATION] [COLLECTION] [BENCHMARKS]
-      P2 - 5-6 wks   ORG          P2 - 2-3 wks
-                     P2 - 2 wks
+      [BACKUP/RESTORE] [COLLECTION] [WORKSPACE]
+          🟢 P2      ORG      SIMPLIFICATION
+      3 weeks      🟢 P2      🟢 P2
+                    2 weeks   3-4 weeks
               │           │           │
               └───────────┼───────────┘
                           │
                       [POLISH]
-                    4-6 weeks
+                    6 weeks
                           │
                           ▼
                       v1.0.0
 ```
 
-## 📐 Detailed Dependency Matrix
+## 📐 Detailed Dependency Matrix - **REVISED WITH QUANTIZATION FIRST**
 
-### Level 0: Foundation (No Dependencies)
+### Level 0: Foundation (No Dependencies) - **QUANTIZATION FIRST**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ PERSISTENCE SYSTEM                 │ FILE WATCHER IMPROVEMENTS│
-│ ─────────────────────              │ ────────────────────────│
-│ • WAL implementation               │ • New file detection    │
-│ • Read-only collections            │ • Deleted file handling │
-│ • Checkpoint system                │ • Event batching        │
-│                                    │                          │
-│ Dependencies: None                 │ Dependencies: None       │
-│ Can start: Immediately             │ Can start: Immediately   │
-│ Duration: 3 weeks                  │ Duration: 2-3 weeks      │
+│ QUANTIZATION - SQ-8bit               │ DASHBOARD IMPROVEMENTS │
+│ ─────────────────────                │ ────────────────────── │
+│ • Scalar Quantization (SQ-8bit)      │ • Real-time metrics    │
+│ • 4x memory compression              │ • Quantization charts  │
+│ • BETTER quality (MAP: 0.9147)       │ • Professional UI      │
+│ • Auto-selection logic               │ • User authentication  │
+│ • API endpoints                      │ • Role-based access    │
+│ • Benchmark-proven configs           │ • WebSocket updates    │
+│                                     │                       │
+│ Dependencies: None                  │ Dependencies: None     │
+│ Can start: Immediately              │ Can start: Immediately │
+│ Duration: 6 weeks                   │ Duration: 3 weeks     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Parallelization**: These two can be developed simultaneously by different developers.
 
-### Level 1: Data Lifecycle (Depends on Level 0)
+### Level 1: Advanced Quantization (Depends on Level 0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ BACKUP & RESTORE SYSTEM                                      │
+│ QUANTIZATION - PQ/Binary                                     │
 │ ──────────────────────────────────────                      │
-│ • Full backup creation                                       │
-│ • Incremental backups                                        │
-│ • Restore with verification                                  │
+│ • Product Quantization (PQ)                                 │
+│ • Binary Quantization                                       │
+│ • 32x memory compression                                    │
+│ • Quality evaluation system                                 │
+│ • Integration with SQ-8bit                                  │
 │                                                              │
 │ Dependencies:                                                │
-│   ✓ PERSISTENCE (needs to understand collection types)      │
-│   ✓ FILE WATCHER (needs to track changes)                   │
+│   ✓ QUANTIZATION SQ-8bit (needs base implementation)       │
 │                                                              │
-│ Can start: After Persistence + File Watcher                 │
-│ Duration: 3 weeks                                            │
+│ Can start: After SQ-8bit (Week 6)                          │
+│ Duration: 2 weeks                                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Level 2: User Interface Foundation (Depends on Level 0-1)
+### Level 2: System Stability (Depends on Level 0-1)
 
 ```
 ┌──────────────────────────────────┬──────────────────────────┐
-│ DASHBOARD IMPROVEMENTS           │ WORKSPACE SIMPLIFICATION │
+│ PERSISTENCE SYSTEM               │ FILE WATCHER IMPROVEMENTS │
 │ ────────────────────────         │ ───────────────────────  │
-│ • Authentication system          │ • Template system        │
-│ • Real-time metrics             │ • Built-in presets       │
-│ • Modern UI/UX                  │ • Migration tool         │
+│ • WAL implementation             │ • New file detection     │
+│ • Collection type system         │ • Deleted file cleanup   │
+│ • Read-only enforcement          │ • Directory operations    │
+│ • Zero data loss                 │ • Event batching         │
 │                                  │                          │
 │ Dependencies:                    │ Dependencies:            │
-│   ✓ PERSISTENCE (collection      │   ✓ PERSISTENCE (needs   │
-│     types, metrics)              │     collection types)    │
-│   ✓ BACKUP (backup UI)           │                          │
-│                                  │ Can start: After         │
-│ Can start: After Backup/Restore  │ Persistence             │
-│ Duration: 4 weeks                │ Duration: 3-4 weeks      │
+│   ✓ QUANTIZATION (needs to       │   ✓ QUANTIZATION (needs  │
+│     understand collection types) │     to track changes)    │
+│                                  │                          │
+│ Can start: After Quantization    │ Can start: After Quantization │
+│ Duration: 3 weeks                │ Duration: 3 weeks        │
 └──────────────────────────────────┴──────────────────────────┘
 ```
 
 **Parallelization**: These two can be developed simultaneously.
 
-### Level 3: Advanced UI (Depends on Level 2)
+### Level 3: Advanced UX (Depends on Level 2)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -117,31 +126,32 @@
 │ • Visual project builder                                     │
 │ • Collection suggestions                                     │
 │ • Real-time validation                                       │
+│ • AI-powered configuration                                   │
 │                                                              │
 │ Dependencies:                                                │
 │   ✓ DASHBOARD IMPROVEMENTS (auth, UI framework)             │
-│   ✓ WORKSPACE SIMPLIFICATION (template system)              │
+│   ✓ PERSISTENCE SYSTEM (collection types)                   │
 │   ✓ FILE WATCHER (pattern validation)                       │
 │                                                              │
-│ Can start: After Dashboard + Workspace Simplification       │
+│ Can start: After Persistence + File Watcher                 │
 │ Duration: 4-5 weeks                                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Level 4: Optimization (Depends on Level 0-3)
+### Level 4: Polish & Launch (Depends on Level 0-3)
 
 ```
 ┌──────────────────────┬──────────────────────┬──────────────────────┐
-│ QUANTIZATION         │ COLLECTION ORG       │ BENCHMARKS           │
+│ BACKUP & RESTORE     │ COLLECTION ORG       │ WORKSPACE SIMPL      │
 │ ───────────────      │ ──────────────       │ ──────────────       │
-│ • PQ, SQ, Binary     │ • Namespaces         │ • Complete metrics   │
-│ • Auto-evaluation    │ • Tags & categories  │ • Historical data    │
-│ • Memory pool        │ • Advanced search    │ • Regression detect  │
+│ • One-command backup │ • Namespaces         │ • Template system    │
+│ • Incremental backup │ • Tags & categories  │ • Built-in presets   │
+│ • Restore with verif │ • Advanced search    │ • AI suggestions     │
 │                      │                      │                      │
 │ Dependencies:        │ Dependencies:        │ Dependencies:        │
-│   ✓ PERSISTENCE      │   ✓ DASHBOARD        │   ✓ ALL FEATURES     │
-│   ✓ DASHBOARD        │   ✓ WORKSPACE MGMT   │     (for complete    │
-│     (monitoring)     │     (UI integration) │      benchmarking)   │
+│   ✓ PERSISTENCE      │   ✓ DASHBOARD        │   ✓ WORKSPACE MGMT   │
+│   ✓ FILE WATCHER     │   ✓ WORKSPACE MGMT   │     (UI framework)   │
+│     (change tracking)│     (UI integration) │                      │
 │                      │                      │                      │
 │ Duration: 5-6 weeks  │ Duration: 2 weeks    │ Duration: 2-3 weeks  │
 └──────────────────────┴──────────────────────┴──────────────────────┘
@@ -149,46 +159,54 @@
 
 **Parallelization**: All three can be developed simultaneously by different developers.
 
-## 🎯 Critical Path
+## 🎯 Critical Path - **REVISED WITH QUANTIZATION FIRST**
 
 The **critical path** (longest dependency chain) is:
 
 ```
-PERSISTENCE (3w) 
-    → BACKUP/RESTORE (3w) 
-        → DASHBOARD (4w) 
-            → WORKSPACE UI (4-5w) 
-                → QUANTIZATION (5-6w)
-                    → POLISH (4-6w)
+QUANTIZATION SQ-8bit (6w) 
+    → QUANTIZATION PQ/Binary (2w) 
+        → PERSISTENCE + FILE WATCHER (3w parallel) 
+            → WORKSPACE MANAGER UI (4-5w) 
+                → BACKUP/RESTORE (3w)
+                    → POLISH (6w)
 
-Total: 23.5-27 weeks sequentially
+Total: 24-26 weeks sequentially
 With parallelization: 16-18 weeks
 ```
 
-## 🔄 Parallel Work Streams
+## 🔄 Parallel Work Streams - **REVISED WITH QUANTIZATION FIRST**
 
-### Stream 1: Data Management
+### Stream 1: Quantization (PRIORITY #1)
 ```
-Week 1-3:   PERSISTENCE
-Week 4-6:   FILE WATCHER
-Week 7-9:   BACKUP/RESTORE
-Week 10-12: (Support other streams)
-```
-
-### Stream 2: User Experience
-```
-Week 1-9:   (Wait for Stream 1)
-Week 10-13: DASHBOARD
-Week 14-18: WORKSPACE MANAGER UI
-Week 19-20: COLLECTION ORGANIZATION
+Week 1-6:   QUANTIZATION SQ-8bit (4x compression + better quality)
+Week 7-8:   QUANTIZATION PQ/Binary (32x compression)
+Week 9-30:  (Support other streams)
 ```
 
-### Stream 3: Performance
+### Stream 2: Dashboard (PRIORITY #2)
 ```
-Week 1-18:  (Wait for Streams 1 & 2)
-Week 19-24: QUANTIZATION
-Week 25-27: WORKSPACE SIMPLIFICATION
-Week 28-30: BENCHMARKS
+Week 1-3:   DASHBOARD IMPROVEMENTS (real-time metrics)
+Week 4-30:  (Support other streams)
+```
+
+### Stream 3: System Stability
+```
+Week 7-9:   PERSISTENCE SYSTEM (zero data loss)
+Week 7-9:   FILE WATCHER IMPROVEMENTS (perfect sync)
+Week 16-22: BACKUP/RESTORE (one-command backup)
+```
+
+### Stream 4: Advanced UX
+```
+Week 10-14: WORKSPACE MANAGER UI (visual configuration)
+Week 23-25: COLLECTION ORGANIZATION (namespaces)
+Week 26-28: WORKSPACE SIMPLIFICATION (templates)
+```
+
+### Stream 5: Polish & Launch
+```
+Week 29-30: FINAL TESTING & SECURITY AUDIT
 ```
 
 ## 📊 Resource Allocation

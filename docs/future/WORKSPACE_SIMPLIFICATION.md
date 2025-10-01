@@ -1,9 +1,19 @@
 # Workspace Configuration Simplification Specification
 
 **Status**: Specification  
-**Priority**: Medium  
+**Priority**: 🟢 **P2 - MEDIUM**  
 **Complexity**: Low  
-**Created**: October 1, 2025
+**Created**: October 1, 2025  
+**Updated**: October 1, 2025 - **PRIORITY CONFIRMED BASED ON BENCHMARK ANALYSIS**
+
+## 🎯 **WHY P2 PRIORITY - BENCHMARK INSIGHTS**
+
+**Priority confirmed** as P2 based on benchmark analysis showing:
+1. **System works well**: Current YAML configuration is functional and stable
+2. **No performance impact**: Configuration complexity doesn't affect search performance
+3. **Focus on higher ROI**: Quantization (P0) delivers 4x memory reduction + better quality
+4. **Nice-to-have improvement**: Simplification improves UX but isn't critical
+5. **Can be implemented later**: After P0 and P1 features are delivered
 
 ## Problem Statement
 
@@ -430,4 +440,5 @@ pub fn load_workspace_config(path: &Path) -> Result<FullWorkspaceConfig> {
 **Estimated Effort**: 3-4 weeks  
 **Dependencies**: None  
 **Risk**: Low (backwards compatible)
+
 

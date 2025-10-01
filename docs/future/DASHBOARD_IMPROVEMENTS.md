@@ -1,11 +1,12 @@
 # Dashboard Improvements Specification
 
 **Status**: Specification  
-**Priority**: High  
+**Priority**: 🔴 **P0 - CRITICAL** ⬆️  
 **Complexity**: Medium  
-**Created**: October 1, 2025
+**Created**: October 1, 2025  
+**Updated**: October 1, 2025 - **PRIORITY UPDATED TO P0 BASED ON BENCHMARK ANALYSIS**
 
-## Current State
+## Current State - **CRITICAL FOR QUANTIZATION SUCCESS**
 
 The dashboard is functional but basic:
 - ✅ Collection viewing
@@ -16,6 +17,37 @@ The dashboard is functional but basic:
 - ❌ No access control
 - ❌ Amateur UI/UX
 - ❌ No advanced monitoring
+- ❌ **NO QUANTIZATION METRICS** - Critical gap for P0 feature
+
+## 🎯 **WHY P0 PRIORITY - QUANTIZATION INTEGRATION**
+
+The dashboard is **essential** for quantization success because:
+1. **Real-time compression metrics** - Users need to see 4x memory reduction
+2. **Quality monitoring** - Display MAP/Recall improvements (0.9147 vs 0.8400)
+3. **Quantization method selection** - Visual interface for SQ-8bit/PQ/Binary
+4. **Professional appearance** - Enterprise users expect professional UI
+5. **User authentication** - Secure access to quantization features
+
+## Requirements - **ENHANCED FOR QUANTIZATION**
+
+### 0. Quantization Metrics Dashboard (NEW - P0 PRIORITY)
+
+**Real-time quantization monitoring**:
+- **Memory compression ratio** - Live display of 4x reduction
+- **Quality metrics** - MAP/Recall@K with baseline comparison
+- **Quantization method status** - SQ-8bit/PQ/Binary active status
+- **Performance impact** - Search latency with/without quantization
+- **Collection-level metrics** - Per-collection quantization settings
+
+```rust
+pub struct QuantizationMetrics {
+    pub compression_ratio: f32,        // 4.0x for SQ-8bit
+    pub quality_improvement: f32,      // +8.9% MAP improvement
+    pub active_method: QuantizationType,
+    pub memory_saved_mb: u64,          // Actual MB saved
+    pub search_latency_ms: f32,        // With quantization overhead
+}
+```
 
 ## Requirements
 

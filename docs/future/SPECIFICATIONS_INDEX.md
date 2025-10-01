@@ -1,32 +1,37 @@
 # Future Features - Specifications Index
 
-**Last Updated**: October 1, 2025  
+**Last Updated**: October 1, 2025 - **PRIORITIES REVISED BASED ON BENCHMARK ANALYSIS**  
 **Status**: All specifications ready for implementation
 
 ## 📋 Overview
 
 This directory contains detailed technical specifications for upcoming Vectorizer features. Each document is implementation-ready with complete API designs, code examples, and success criteria.
 
-## 🎯 Priority Roadmap
+## 🎯 Priority Roadmap - **REVISED WITH BENCHMARK INSIGHTS**
 
-### 🔴 High Priority (Next 2-3 months)
+### 🔴 Critical Priority (P0) - **IMMEDIATE VALUE**
 
-| Spec | Priority | Effort | Risk | Status |
-|------|----------|--------|------|--------|
-| [Persistence System](./PERSISTENCE_SPEC.md) | P0 | 3 weeks | Low | 📝 Spec Ready |
-| [File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md) | P0 | 2-3 weeks | Low | 📝 Spec Ready |
-| [Dashboard Improvements](./DASHBOARD_IMPROVEMENTS.md) | P1 | 4 weeks | Low | 📝 Spec Ready |
-| [Workspace Manager UI](./WORKSPACE_MANAGER_UI.md) | P1 | 4-5 weeks | Low | 📝 Spec Ready |
+| Spec | **NEW Priority** | Effort | Risk | **Benchmark Insight** |
+|------|------------------|--------|------|----------------------|
+| [Memory & Quantization](./MEMORY_OPTIMIZATION_QUANTIZATION.md) | **🔴 P0** ⬆️⬆️ | 5-6 weeks | Medium | **4x compression + BETTER quality** |
+| [Dashboard Improvements](./DASHBOARD_IMPROVEMENTS.md) | **🔴 P0** ⬆️ | 4 weeks | Low | **Essential for quantization metrics** |
 
-### 🟡 Medium Priority (3-6 months)
+### 🟡 High Priority (P1) - **SYSTEM STABILITY**
 
-| Spec | Priority | Effort | Risk | Status |
-|------|----------|--------|------|--------|
-| [Memory Optimization & Quantization](./MEMORY_OPTIMIZATION_QUANTIZATION.md) | P2 | 5-6 weeks | Medium | 📝 Spec Ready |
-| [Workspace Simplification](./WORKSPACE_SIMPLIFICATION.md) | P2 | 3-4 weeks | Low | 📝 Spec Ready |
-| [Collection Organization](./COLLECTION_ORGANIZATION.md) | P2 | 2 weeks | Low | 📝 Spec Ready |
-| [Comprehensive Benchmarks](./COMPREHENSIVE_BENCHMARKS.md) | P2 | 2-3 weeks | Low | 📝 Spec Ready |
-| [Backup/Restore System](./BACKUP_RESTORE_SYSTEM.md) | P2 | 3 weeks | Low | 📝 Spec Ready |
+| Spec | **NEW Priority** | Effort | Risk | **Benchmark Insight** |
+|------|------------------|--------|------|----------------------|
+| [Persistence System](./PERSISTENCE_SPEC.md) | **🟡 P1** ⬇️ | 3 weeks | Low | **Performance already excellent** |
+| [File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md) | **🟡 P1** ⬇️ | 2-3 weeks | Low | **System works, optimizations can wait** |
+| [Workspace Manager UI](./WORKSPACE_MANAGER_UI.md) | **🟡 P1** | 4-5 weeks | Low | **Important but not critical** |
+
+### 🟢 Medium Priority (P2) - **NICE TO HAVE**
+
+| Spec | **NEW Priority** | Effort | Risk | **Benchmark Insight** |
+|------|------------------|--------|------|----------------------|
+| [Backup/Restore System](./BACKUP_RESTORE_SYSTEM.md) | **🟢 P2** ⬇️ | 3 weeks | Low | **Manual backup sufficient for now** |
+| [Collection Organization](./COLLECTION_ORGANIZATION.md) | **🟢 P2** | 2 weeks | Low | **Nice to have** |
+| [Workspace Simplification](./WORKSPACE_SIMPLIFICATION.md) | **🟢 P2** | 3-4 weeks | Low | **Nice to have** |
+| [Comprehensive Benchmarks](./COMPREHENSIVE_BENCHMARKS.md) | **🟢 P2** | 2-3 weeks | Low | **Already have good benchmarks** |
 
 ### 🔵 Experimental (Post v1.0)
 

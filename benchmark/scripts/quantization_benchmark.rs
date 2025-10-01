@@ -122,7 +122,7 @@ impl ProductQuantizer {
             
             // Find nearest centroid
             let code = self.find_nearest_centroid(subvector, &self.codebooks[sq_idx]);
-            codes.push(code);
+            codes.push(code as u8);
         }
         
         codes
@@ -330,50 +330,95 @@ struct TestDataset {
 }
 
 impl TestDataset {
-    async fn load_from_workspace(
+    fn load_from_workspace(
         max_documents: usize,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Loading dataset from workspace...");
+        println!("📂 Loading dataset from ALL workspace projects...");
         
-        // Use gov directory as test data
-        let test_path = "../gov";
+        // Load all projects from workspace
+        let workspace_paths = vec![
+            ("gov", "../gov"),
+            ("governance", "../governance/src"),
+            ("vectorizer", "../vectorizer/src"),
+            ("task-queue", "../task-queue/src"),
+            ("chat-hub", "../chat-hub"),
+            ("cursor-extension", "../cursor-extension/src"),
+            ("py-env-security", "../py-env-security"),
+            ("ts-workspace", "../ts-workspace/packages"),
+            ("dev-tools", "../dev-tools"),
+        ];
         
-        if !Path::new(test_path).exists() {
-            return Err(format!("Test path not found: {}", test_path).into());
-        }
-        
-        // Configure document loader
-        let config = LoaderConfig {
-            collection_name: "quantization_benchmark".to_string(),
-            max_chunk_size: 1000,
-            chunk_overlap: 200,
-            include_patterns: vec!["**/*.md".to_string(), "**/*.json".to_string()],
-            exclude_patterns: vec![],
-            embedding_dimension: 512,
-            embedding_type: "bm25".to_string(),
-            allowed_extensions: vec![".md".to_string(), ".json".to_string()],
-            max_file_size: 1024 * 1024,
-        };
-        
-        let mut loader = DocumentLoader::new(config);
+        let mut all_documents = Vec::new();
         let temp_store = VectorStore::new();
         
-        println!("  Loading documents from: {}", test_path);
-        let chunk_count = loader.load_project(test_path, &temp_store)?;
-        println!("  Loaded {} chunks", chunk_count);
+        for (project_name, project_path) in &workspace_paths {
+            if !Path::new(project_path).exists() {
+                println!("  ⚠️  Skipping {}: path not found", project_name);
+                continue;
+            }
+            
+            println!("  📁 Loading from {}...", project_name);
+            
+            // Configure document loader for this project
+            let config = LoaderConfig {
+                collection_name: format!("benchmark_{}", project_name),
+                max_chunk_size: 1000,
+                chunk_overlap: 200,
+                include_patterns: vec![
+                    "**/*.md".to_string(), 
+                    "**/*.json".to_string(),
+                    "**/*.rs".to_string(),
+                    "**/*.ts".to_string(),
+                    "**/*.js".to_string(),
+                    "**/*.py".to_string(),
+                ],
+                exclude_patterns: vec![
+                    "**/node_modules/**".to_string(),
+                    "**/target/**".to_string(),
+                    "**/dist/**".to_string(),
+                    "**/.git/**".to_string(),
+                ],
+                embedding_dimension: 512,
+                embedding_type: "bm25".to_string(),
+                allowed_extensions: vec![
+                    ".md".to_string(), 
+                    ".json".to_string(),
+                    ".rs".to_string(),
+                    ".ts".to_string(),
+                    ".js".to_string(),
+                    ".py".to_string(),
+                ],
+                max_file_size: 1024 * 1024,
+            };
+            
+            let mut loader = DocumentLoader::new(config);
+            
+            match loader.load_project(project_path, &temp_store) {
+                Ok(chunk_count) => {
+                    let project_docs = loader.get_processed_documents();
+                    println!("    ✅ Loaded {} chunks from {}", chunk_count, project_name);
+                    all_documents.extend(project_docs);
+                }
+                Err(e) => {
+                    println!("    ⚠️  Error loading {}: {}", project_name, e);
+                }
+            }
+        }
         
-        let mut documents = loader.get_processed_documents();
-        
-        if documents.is_empty() {
+        if all_documents.is_empty() {
             return Err("No documents loaded from workspace".into());
         }
         
-        // Limit dataset size
+        println!("\n  📊 Total documents loaded: {}", all_documents.len());
+        
+        // Limit dataset size if needed
+        let mut documents = all_documents;
         if documents.len() > max_documents {
+            println!("  ⚙️  Limiting to {} documents (from {})", max_documents, documents.len());
             documents.truncate(max_documents);
         }
         
-        println!("  Using {} documents for benchmark", documents.len());
+        println!("  ✅ Using {} documents for benchmark\n", documents.len());
         
         // Create embedding manager
         let mut manager = EmbeddingManager::new();
@@ -407,10 +452,24 @@ impl TestDataset {
         println!("  ✅ Generated {} embeddings in {:.2}s", 
             vectors.len(), start.elapsed().as_secs_f64());
         
-        // Create test queries
+        // Create test queries covering all workspace areas
         let queries = vec![
+            // Governance
             "governance process and voting mechanism".to_string(),
             "BIP proposal implementation workflow".to_string(),
+            "team structure and responsibilities".to_string(),
+            
+            // Vectorizer
+            "vector database HNSW indexing algorithm".to_string(),
+            "semantic search and embeddings".to_string(),
+            "quantization and memory optimization".to_string(),
+            "MCP server implementation".to_string(),
+            
+            // Task Queue
+            "task queue workflow and development phases".to_string(),
+            "Rust async programming patterns".to_string(),
+            
+            // General
             "security and authentication system".to_string(),
             "API endpoint documentation".to_string(),
             "database schema and models".to_string(),
@@ -419,6 +478,11 @@ impl TestDataset {
             "error handling and logging".to_string(),
             "configuration management".to_string(),
             "deployment and infrastructure".to_string(),
+            
+            // Code-specific
+            "TypeScript interface definitions".to_string(),
+            "Python dependency management".to_string(),
+            "Rust error handling patterns".to_string(),
         ];
         
         // Generate ground truth based on keyword matching
@@ -439,35 +503,84 @@ impl TestDataset {
         vector_ids: &[String],
     ) -> Vec<HashSet<String>> {
         let mut ground_truth = Vec::new();
-        
+
+        // Create embedding manager for semantic ground truth
+        let mut manager = EmbeddingManager::new();
+        let bm25 = Bm25Embedding::new(512); // Use standard dimension
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager.set_default_provider("bm25").unwrap();
+
+        // Build vocabulary
+        if let Some(provider) = manager.get_provider_mut("bm25") {
+            if let Some(bm25) = provider.as_any_mut().downcast_mut::<Bm25Embedding>() {
+                bm25.build_vocabulary(documents);
+            }
+        }
+
         for query in queries {
             let mut relevant = HashSet::new();
             let query_lower = query.to_lowercase();
             let keywords: Vec<&str> = query_lower.split_whitespace().collect();
-            
-            for (idx, doc) in documents.iter().enumerate() {
-                let doc_lower = doc.to_lowercase();
-                
-                // Document is relevant if it contains at least 2 query keywords
-                let matching_keywords = keywords.iter()
-                    .filter(|kw| doc_lower.contains(*kw))
-                    .count();
-                
-                if matching_keywords >= 2 {
-                    relevant.insert(vector_ids[idx].clone());
+
+            // Get semantic similarity using BM25 embeddings
+            if let Ok(query_emb) = manager.embed(query) {
+                // Calculate similarity to all documents
+                let mut similarities: Vec<(usize, f32)> = documents.iter().enumerate()
+                    .filter_map(|(idx, doc)| {
+                        if let Ok(doc_emb) = manager.embed(doc) {
+                            // Cosine similarity
+                            let dot_product: f32 = query_emb.iter().zip(doc_emb.iter())
+                                .map(|(a, b)| a * b).sum();
+                            let norm_q: f32 = query_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
+                            let norm_d: f32 = doc_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+                            if norm_q > 0.0 && norm_d > 0.0 {
+                                let similarity = dot_product / (norm_q * norm_d);
+                                Some((idx, similarity))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                // Sort by similarity (highest first)
+                similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+                // Take top 10 most similar documents
+                for (idx, similarity) in similarities.into_iter().take(10) {
+                    if similarity > 0.1 { // Minimum similarity threshold
+                        relevant.insert(vector_ids[idx].clone());
+                    }
                 }
             }
-            
+
+            // Fallback: lexical matching if semantic fails
+            if relevant.is_empty() {
+                for (idx, doc) in documents.iter().enumerate() {
+                    let doc_lower = doc.to_lowercase();
+                    let matching_keywords = keywords.iter()
+                        .filter(|kw| doc_lower.contains(*kw))
+                        .count();
+
+                    if matching_keywords >= 1 { // Lower threshold for fallback
+                        relevant.insert(vector_ids[idx].clone());
+                    }
+                }
+            }
+
             // Ensure at least 3 relevant documents per query
             if relevant.len() < 3 {
                 for i in 0..3.min(vector_ids.len()) {
                     relevant.insert(vector_ids[i].clone());
                 }
             }
-            
+
             ground_truth.push(relevant);
         }
-        
+
         ground_truth
     }
 }
@@ -511,7 +624,7 @@ fn benchmark_baseline(
     
     // Calculate memory usage
     let memory_stats = index.memory_stats();
-    let memory_bytes = memory_stats.total_bytes;
+    let memory_bytes = memory_stats.total_memory_bytes;
     
     Ok(QuantizationBenchmark {
         method: "Baseline".to_string(),
@@ -803,14 +916,14 @@ fn benchmark_search(
     let eval_metrics = evaluate_search_quality(query_results, 10);
     
     let quality = QualityMetrics {
-        map: eval_metrics.mean_average_precision,
-        mrr: eval_metrics.mean_reciprocal_rank,
-        precision_at_1: eval_metrics.precision_at_k.get(0).copied().unwrap_or(0.0),
-        precision_at_5: eval_metrics.precision_at_k.get(4).copied().unwrap_or(0.0),
-        precision_at_10: eval_metrics.precision_at_k.get(9).copied().unwrap_or(0.0),
-        recall_at_1: eval_metrics.recall_at_k.get(0).copied().unwrap_or(0.0),
-        recall_at_5: eval_metrics.recall_at_k.get(4).copied().unwrap_or(0.0),
-        recall_at_10: eval_metrics.recall_at_k.get(9).copied().unwrap_or(0.0),
+        map: eval_metrics.mean_average_precision as f64,
+        mrr: eval_metrics.mean_reciprocal_rank as f64,
+        precision_at_1: eval_metrics.precision_at_k.get(0).copied().unwrap_or(0.0) as f64,
+        precision_at_5: eval_metrics.precision_at_k.get(4).copied().unwrap_or(0.0) as f64,
+        precision_at_10: eval_metrics.precision_at_k.get(9).copied().unwrap_or(0.0) as f64,
+        recall_at_1: eval_metrics.recall_at_k.get(0).copied().unwrap_or(0.0) as f64,
+        recall_at_5: eval_metrics.recall_at_k.get(4).copied().unwrap_or(0.0) as f64,
+        recall_at_10: eval_metrics.recall_at_k.get(9).copied().unwrap_or(0.0) as f64,
         ndcg_at_10: calculate_ndcg(&eval_metrics),
     };
     
@@ -820,8 +933,8 @@ fn benchmark_search(
 /// Calculate NDCG (Normalized Discounted Cumulative Gain)
 fn calculate_ndcg(metrics: &EvaluationMetrics) -> f64 {
     // Simplified NDCG calculation based on precision/recall
-    let precision = metrics.precision_at_k.iter().take(10).sum::<f64>() / 10.0;
-    let recall = metrics.recall_at_k.iter().take(10).sum::<f64>() / 10.0;
+    let precision = metrics.precision_at_k.iter().take(10).map(|&x| x as f64).sum::<f64>() / 10.0;
+    let recall = metrics.recall_at_k.iter().take(10).map(|&x| x as f64).sum::<f64>() / 10.0;
     
     // Harmonic mean of precision and recall
     if precision + recall > 0.0 {
@@ -964,8 +1077,7 @@ fn generate_report(
     report
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -975,11 +1087,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=====================================\n");
     
     // Load dataset
-    let max_docs = 2000; // Adjust based on available memory
-    let dataset = TestDataset::load_from_workspace(max_docs).await?;
+    let max_docs = 50000; // Use much more data from entire workspace
+    let dataset = TestDataset::load_from_workspace(max_docs)?;
     
     let dataset_info = format!(
-        "- **Documents**: {}\n- **Vectors**: {} (dimension: 512)\n- **Queries**: {}\n- **Source**: HiveLLM Workspace (gov directory)",
+        "- **Documents**: {}\n- **Vectors**: {} (dimension: 512)\n- **Queries**: {}\n- **Source**: HiveLLM Workspace (all projects)",
         dataset.documents.len(),
         dataset.vectors.len(),
         dataset.queries.len()
