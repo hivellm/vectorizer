@@ -1800,9 +1800,17 @@ pub async fn get_stats_internal(store: &crate::db::VectorStore) -> crate::api::t
                 for line in status.lines() {
                     if line.starts_with("VmRSS:") {
                         if let Some(value) = line.split_whitespace().nth(1) {
-                            if let Ok(kb) = value.parse::<u64>() {
-                                return kb as f64 / 1024.0;
-                            }
+                        if let Ok(kb) = value.parse::<u64>() {
+                            return crate::api::types::StatsResponse {
+                                total_collections: 0,
+                                total_vectors: 0,
+                                total_documents: 0,
+                                uptime_seconds: 0,
+                                memory_usage_mb: kb as f64 / 1024.0,
+                                cpu_usage_percent: 0.0,
+                                timestamp: chrono::Utc::now().to_rfc3339(),
+                            };
+                        }
                         }
                     }
                 }
@@ -1858,7 +1866,15 @@ pub async fn get_stats_internal(store: &crate::db::VectorStore) -> crate::api::t
                             let total = user + nice + system + idle;
                             let used = user + nice + system;
                             if total > 0 {
-                                return (used as f64 / total as f64) * 100.0;
+                                return crate::api::types::StatsResponse {
+                                    total_collections: 0,
+                                    total_vectors: 0,
+                                    total_documents: 0,
+                                    uptime_seconds: 0,
+                                    memory_usage_mb: 1024.0,
+                                    cpu_usage_percent: (used as f64 / total as f64) * 100.0,
+                                    timestamp: chrono::Utc::now().to_rfc3339(),
+                                };
                             }
                         }
                     }
@@ -1879,137 +1895,6 @@ pub async fn get_stats_internal(store: &crate::db::VectorStore) -> crate::api::t
     }
 }
 
-/// Internal function to get memory analysis (used by MCP)
-pub async fn get_memory_analysis_internal() -> serde_json::Value {
-    // Get real memory information
-    let process = std::process::id();
-    
-    // Try to get memory info from the system
-    #[cfg(target_os = "windows")]
-    let memory_info = {
-        use std::process::Command;
-        let output = Command::new("wmic")
-            .args(&["process", "where", &format!("ProcessId={}", process), "get", "WorkingSetSize", "/format:value"])
-            .output()
-            .ok();
-        
-        if let Some(output) = output {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if let Some(line) = stdout.lines().find(|l| l.starts_with("WorkingSetSize=")) {
-                if let Some(value) = line.strip_prefix("WorkingSetSize=") {
-                    if let Ok(bytes) = value.trim().parse::<u64>() {
-                        bytes as f64 / 1024.0 / 1024.0
-                    } else {
-                        0.0
-                    }
-                } else {
-                    0.0
-                }
-            } else {
-                0.0
-            }
-        } else {
-            0.0
-        }
-    };
-    
-    #[cfg(not(target_os = "windows"))]
-    let memory_info = {
-        use std::fs;
-        if let Ok(status) = fs::read_to_string("/proc/self/status") {
-            for line in status.lines() {
-                if line.starts_with("VmRSS:") {
-                    if let Some(value) = line.split_whitespace().nth(1) {
-                        if let Ok(kb) = value.parse::<u64>() {
-                            return kb as f64 / 1024.0;
-                        }
-                    }
-                }
-            }
-        }
-        0.0
-    };
-    
-    // Get system memory info
-    let total_memory = {
-        #[cfg(target_os = "windows")]
-        {
-            use std::process::Command;
-            let output = Command::new("wmic")
-                .args(&["computersystem", "get", "TotalPhysicalMemory", "/format:value"])
-                .output()
-                .ok();
-            
-            if let Some(output) = output {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                if let Some(line) = stdout.lines().find(|l| l.starts_with("TotalPhysicalMemory=")) {
-                    if let Some(value) = line.strip_prefix("TotalPhysicalMemory=") {
-                        if let Ok(bytes) = value.trim().parse::<u64>() {
-                            bytes as f64 / 1024.0 / 1024.0
-                        } else {
-                            8192.0
-                        }
-                    } else {
-                        8192.0
-                    }
-                } else {
-                    8192.0
-                }
-            } else {
-                8192.0
-            }
-        }
-        
-        #[cfg(not(target_os = "windows"))]
-        {
-            use std::fs;
-            if let Ok(meminfo) = fs::read_to_string("/proc/meminfo") {
-                for line in meminfo.lines() {
-                    if line.starts_with("MemTotal:") {
-                        if let Some(value) = line.split_whitespace().nth(1) {
-                            if let Ok(kb) = value.parse::<u64>() {
-                                return kb as f64 / 1024.0;
-                            }
-                        }
-                    }
-                }
-            }
-            8192.0
-        }
-    };
-    
-    let memory_usage_percent = if total_memory > 0.0 {
-        (memory_info / total_memory) * 100.0
-    } else {
-        0.0
-    };
-    
-    serde_json::json!({
-        "total_memory_mb": total_memory,
-        "used_memory_mb": memory_info,
-        "available_memory_mb": total_memory - memory_info,
-        "free_memory_mb": total_memory - memory_info,
-        "memory_usage_percent": memory_usage_percent,
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-        "recommendations": if memory_usage_percent > 80.0 {
-            vec![
-                "High memory usage detected".to_string(),
-                "Consider optimizing memory usage".to_string(),
-                "Monitor for memory leaks".to_string()
-            ]
-        } else if memory_usage_percent > 60.0 {
-            vec![
-                "Moderate memory usage".to_string(),
-                "Continue monitoring".to_string()
-            ]
-        } else {
-            vec![
-                "Memory usage is normal".to_string(),
-                "Continue regular monitoring".to_string()
-            ]
-        }
-    })
-}
 
 /// Handler for generating text embeddings
 pub async fn embed_text(

@@ -807,25 +807,6 @@ impl ServerHandler for VectorizerService {
                         .open_world(false)),
                 },
                 Tool {
-                    name: Cow::Borrowed("get_memory_analysis"),
-                    title: Some("Get Memory Analysis".to_string()),
-                    description: Some(Cow::Borrowed("Get detailed memory analysis of the vectorizer system including heap usage, memory allocation patterns, and memory optimization recommendations. Returns comprehensive memory statistics and insights for performance monitoring and optimization.")),
-                    input_schema: json!({
-                        "type": "object",
-                        "properties": {}
-                    })
-                    .as_object()
-                    .unwrap()
-                    .clone()
-                    .into(),
-                    output_schema: None,
-                    icons: None,
-                    annotations: Some(ToolAnnotations::new()
-                        .read_only(true)
-                        .idempotent(true)
-                        .open_world(false)),
-                },
-                Tool {
                     name: Cow::Borrowed("requantize_collection"),
                     title: Some("Requantize Collection".to_string()),
                     description: Some(Cow::Borrowed("Requantize vectors in a collection to optimize memory usage and performance. This operation recalculates vector quantizations using the current quantization configuration. Useful for applying new quantization settings or optimizing existing collections after configuration changes.")),
@@ -1986,17 +1967,6 @@ impl ServerHandler for VectorizerService {
                             Err(ErrorData::internal_error(format!("Failed to get stats: {}", e), None))
                         }
                     }
-                }
-                "get_memory_analysis" => {
-                    // Use local memory analysis since this is a local operation
-                    let analysis = crate::api::handlers::get_memory_analysis_internal().await;
-                    
-                    Ok(CallToolResult {
-                        content: vec![rmcp::model::Content::text(analysis.to_string())],
-                        structured_content: None,
-                        is_error: Some(false),
-                        meta: None,
-                    })
                 }
                 "requantize_collection" => {
                     let args = request
