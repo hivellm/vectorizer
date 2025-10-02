@@ -31,6 +31,7 @@ pub mod utils;
 pub mod file_watcher;
 pub mod process_manager;
 pub mod logging;
+pub mod quantization;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};
@@ -40,6 +41,7 @@ pub use evaluation::{EvaluationMetrics, QueryMetrics, QueryResult, evaluate_sear
 pub use models::{CollectionConfig, Payload, SearchResult, Vector};
 pub use batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder};
 pub use summarization::{SummarizationManager, SummarizationConfig, SummarizationMethod, SummarizationResult, SummarizationError};
+pub use quantization::{QuantizationManager, QuantizationConfig, QuantizationType, QuantizationStats};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
