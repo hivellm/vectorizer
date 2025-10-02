@@ -15,6 +15,7 @@ use super::handlers::{
     create_collection,
     delete_collection,
     delete_vector,
+    embed_text,
     get_collection,
     get_indexing_progress,
     get_memory_analysis,
@@ -49,6 +50,8 @@ use super::handlers::{
     list_summaries,
 };
 
+use super::metrics_handlers::metrics_handler;
+
 use super::memory_handlers::{
     generate_memory_snapshot,
 };
@@ -56,9 +59,10 @@ use super::memory_handlers::{
 /// Create the main API router
 pub fn create_router(state: AppState) -> Router {
     Router::new()
-        // Health check
+        // Health check and metrics
         .route("/health", get(health_check))
-          .route("/stats", get(get_stats))
+        .route("/stats", get(get_stats))
+        .route("/metrics", get(metrics_handler))
         .route("/memory-analysis", get(get_memory_analysis))
         // Indexing progress
         .route("/indexing/progress", get(get_indexing_progress))
@@ -101,6 +105,8 @@ pub fn create_router(state: AppState) -> Router {
             "/collections/{collection_name}/vectors/{vector_id}",
             delete(delete_vector),
         )
+        // Embedding operations
+        .route("/embed", post(embed_text))
         // Embedding provider management
         .route("/embedding/providers", get(list_embedding_providers))
         .route("/embedding/providers/set", post(set_embedding_provider))

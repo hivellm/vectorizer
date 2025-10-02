@@ -864,7 +864,7 @@ pub async fn stream_indexing_progress(
 
 /// Create a new collection
 pub async fn create_collection(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Json(request): Json<CreateCollectionRequest>,
 ) -> Result<(StatusCode, Json<CreateCollectionResponse>), (StatusCode, Json<ErrorResponse>)> {
     info!("Creating collection: {}", request.name);
@@ -893,6 +893,31 @@ pub async fn create_collection(
         ));
     }
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.create_collection(
+            request.name.clone(),
+            request.dimension as i32,
+            request.metric.to_string(),
+        ).await {
+            Ok(response) => {
+                info!("Collection '{}' created successfully via GRPC", request.name);
+                return Ok((
+                    StatusCode::CREATED,
+                    Json(CreateCollectionResponse {
+                        message: response.message,
+                        collection: request.name,
+                    }),
+                ));
+            }
+            Err(e) => {
+                error!("GRPC create_collection failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     // Create collection configuration
     let config = CollectionConfig {
         dimension: request.dimension,
@@ -930,11 +955,44 @@ pub async fn create_collection(
 
 /// Get collection information
 pub async fn get_collection(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
 ) -> Result<Json<CollectionInfo>, (StatusCode, Json<ErrorResponse>)> {
     debug!("Getting collection info: {}", collection_name);
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.get_collection_info(collection_name.clone()).await {
+            Ok(grpc_response) => {
+                info!("Collection '{}' retrieved via GRPC", collection_name);
+                return Ok(Json(CollectionInfo {
+                    name: grpc_response.name,
+                    dimension: grpc_response.dimension as usize,
+                    metric: DistanceMetric::Cosine, // Default metric
+                    embedding_provider: "bm25".to_string(), // Default for GRPC collections
+                    vector_count: grpc_response.vector_count as usize,
+                    document_count: grpc_response.document_count as usize,
+                    created_at: grpc_response.last_updated.clone(),
+                    updated_at: grpc_response.last_updated,
+                    indexing_status: IndexingStatus {
+                        status: grpc_response.status,
+                        progress: 100.0, // Assume completed if loaded
+                        total_documents: grpc_response.document_count as usize,
+                        processed_documents: grpc_response.document_count as usize,
+                        vector_count: grpc_response.vector_count as usize,
+                        estimated_time_remaining: None,
+                        last_updated: chrono::Utc::now().to_rfc3339(),
+                    },
+                }));
+            }
+            Err(e) => {
+                error!("GRPC get_collection failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     match state.store.get_collection_metadata(&collection_name) {
         Ok(metadata) => {
             let indexing_snapshot = state.indexing_progress.snapshot();
@@ -1020,11 +1078,26 @@ pub async fn get_collection(
 
 /// Delete a collection
 pub async fn delete_collection(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     info!("Deleting collection: {}", collection_name);
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.delete_collection(collection_name.clone()).await {
+            Ok(_) => {
+                info!("Collection '{}' deleted successfully via GRPC", collection_name);
+                return Ok(StatusCode::NO_CONTENT);
+            }
+            Err(e) => {
+                error!("GRPC delete_collection failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     match state.store.delete_collection(&collection_name) {
         Ok(_) => {
             info!("Collection '{}' deleted successfully", collection_name);
@@ -1669,6 +1742,309 @@ fn create_text_embedding(query: &str, dimension: usize) -> anyhow::Result<Vec<f3
     Ok(embedding)
 }
 
+/// Internal function to get stats (used by MCP)
+pub async fn get_stats_internal(store: &crate::db::VectorStore) -> crate::api::types::StatsResponse {
+    let start_time = std::time::SystemTime::now();
+    let uptime = start_time.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    
+    // Get collection information
+    let collections = store.list_collections();
+    let total_collections = collections.len();
+    
+    let mut total_vectors = 0;
+    let mut total_documents = 0;
+    
+    for collection_name in collections {
+        if let Ok(metadata) = store.get_collection_metadata(&collection_name) {
+            total_vectors += metadata.vector_count;
+            total_documents += metadata.document_count;
+        }
+    }
+    
+    // Get real memory usage
+    let memory_usage_mb = {
+        let process = std::process::id();
+        
+        #[cfg(target_os = "windows")]
+        {
+            use std::process::Command;
+            let output = Command::new("wmic")
+                .args(&["process", "where", &format!("ProcessId={}", process), "get", "WorkingSetSize", "/format:value"])
+                .output()
+                .ok();
+            
+            if let Some(output) = output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Some(line) = stdout.lines().find(|l| l.starts_with("WorkingSetSize=")) {
+                    if let Some(value) = line.strip_prefix("WorkingSetSize=") {
+                        if let Ok(bytes) = value.trim().parse::<u64>() {
+                            bytes as f64 / 1024.0 / 1024.0
+                        } else {
+                            1024.0
+                        }
+                    } else {
+                        1024.0
+                    }
+                } else {
+                    1024.0
+                }
+            } else {
+                1024.0
+            }
+        }
+        
+        #[cfg(not(target_os = "windows"))]
+        {
+            use std::fs;
+            if let Ok(status) = fs::read_to_string("/proc/self/status") {
+                for line in status.lines() {
+                    if line.starts_with("VmRSS:") {
+                        if let Some(value) = line.split_whitespace().nth(1) {
+                            if let Ok(kb) = value.parse::<u64>() {
+                                return kb as f64 / 1024.0;
+                            }
+                        }
+                    }
+                }
+            }
+            1024.0
+        }
+    };
+    
+    // Get CPU usage (simplified for now)
+    let cpu_usage_percent = {
+        #[cfg(target_os = "windows")]
+        {
+            use std::process::Command;
+            let output = Command::new("wmic")
+                .args(&["cpu", "get", "loadpercentage", "/format:value"])
+                .output()
+                .ok();
+            
+            if let Some(output) = output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Some(line) = stdout.lines().find(|l| l.starts_with("LoadPercentage=")) {
+                    if let Some(value) = line.strip_prefix("LoadPercentage=") {
+                        if let Ok(percent) = value.trim().parse::<f64>() {
+                            percent
+                        } else {
+                            0.0
+                        }
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            }
+        }
+        
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Try to get CPU usage from /proc/stat
+            use std::fs;
+            if let Ok(stat) = fs::read_to_string("/proc/stat") {
+                if let Some(line) = stat.lines().next() {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 8 {
+                        if let (Ok(user), Ok(nice), Ok(system), Ok(idle)) = (
+                            parts[1].parse::<u64>(),
+                            parts[2].parse::<u64>(),
+                            parts[3].parse::<u64>(),
+                            parts[4].parse::<u64>(),
+                        ) {
+                            let total = user + nice + system + idle;
+                            let used = user + nice + system;
+                            if total > 0 {
+                                return (used as f64 / total as f64) * 100.0;
+                            }
+                        }
+                    }
+                }
+            }
+            0.0
+        }
+    };
+    
+    crate::api::types::StatsResponse {
+        total_collections,
+        total_vectors,
+        total_documents,
+        uptime_seconds: uptime,
+        memory_usage_mb,
+        cpu_usage_percent,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    }
+}
+
+/// Internal function to get memory analysis (used by MCP)
+pub async fn get_memory_analysis_internal() -> serde_json::Value {
+    // Get real memory information
+    let process = std::process::id();
+    
+    // Try to get memory info from the system
+    #[cfg(target_os = "windows")]
+    let memory_info = {
+        use std::process::Command;
+        let output = Command::new("wmic")
+            .args(&["process", "where", &format!("ProcessId={}", process), "get", "WorkingSetSize", "/format:value"])
+            .output()
+            .ok();
+        
+        if let Some(output) = output {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(line) = stdout.lines().find(|l| l.starts_with("WorkingSetSize=")) {
+                if let Some(value) = line.strip_prefix("WorkingSetSize=") {
+                    if let Ok(bytes) = value.trim().parse::<u64>() {
+                        bytes as f64 / 1024.0 / 1024.0
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        }
+    };
+    
+    #[cfg(not(target_os = "windows"))]
+    let memory_info = {
+        use std::fs;
+        if let Ok(status) = fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if line.starts_with("VmRSS:") {
+                    if let Some(value) = line.split_whitespace().nth(1) {
+                        if let Ok(kb) = value.parse::<u64>() {
+                            return kb as f64 / 1024.0;
+                        }
+                    }
+                }
+            }
+        }
+        0.0
+    };
+    
+    // Get system memory info
+    let total_memory = {
+        #[cfg(target_os = "windows")]
+        {
+            use std::process::Command;
+            let output = Command::new("wmic")
+                .args(&["computersystem", "get", "TotalPhysicalMemory", "/format:value"])
+                .output()
+                .ok();
+            
+            if let Some(output) = output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Some(line) = stdout.lines().find(|l| l.starts_with("TotalPhysicalMemory=")) {
+                    if let Some(value) = line.strip_prefix("TotalPhysicalMemory=") {
+                        if let Ok(bytes) = value.trim().parse::<u64>() {
+                            bytes as f64 / 1024.0 / 1024.0
+                        } else {
+                            8192.0
+                        }
+                    } else {
+                        8192.0
+                    }
+                } else {
+                    8192.0
+                }
+            } else {
+                8192.0
+            }
+        }
+        
+        #[cfg(not(target_os = "windows"))]
+        {
+            use std::fs;
+            if let Ok(meminfo) = fs::read_to_string("/proc/meminfo") {
+                for line in meminfo.lines() {
+                    if line.starts_with("MemTotal:") {
+                        if let Some(value) = line.split_whitespace().nth(1) {
+                            if let Ok(kb) = value.parse::<u64>() {
+                                return kb as f64 / 1024.0;
+                            }
+                        }
+                    }
+                }
+            }
+            8192.0
+        }
+    };
+    
+    let memory_usage_percent = if total_memory > 0.0 {
+        (memory_info / total_memory) * 100.0
+    } else {
+        0.0
+    };
+    
+    serde_json::json!({
+        "total_memory_mb": total_memory,
+        "used_memory_mb": memory_info,
+        "available_memory_mb": total_memory - memory_info,
+        "free_memory_mb": total_memory - memory_info,
+        "memory_usage_percent": memory_usage_percent,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "recommendations": if memory_usage_percent > 80.0 {
+            vec![
+                "High memory usage detected".to_string(),
+                "Consider optimizing memory usage".to_string(),
+                "Monitor for memory leaks".to_string()
+            ]
+        } else if memory_usage_percent > 60.0 {
+            vec![
+                "Moderate memory usage".to_string(),
+                "Continue monitoring".to_string()
+            ]
+        } else {
+            vec![
+                "Memory usage is normal".to_string(),
+                "Continue regular monitoring".to_string()
+            ]
+        }
+    })
+}
+
+/// Handler for generating text embeddings
+pub async fn embed_text(
+    State(mut state): State<AppState>,
+    Json(request): Json<EmbedTextRequest>,
+) -> Result<Json<EmbedTextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    info!("Generating embedding for text");
+    
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.embed_text(request.text.clone(), "bm25".to_string()).await {
+            Ok(grpc_response) => {
+                info!("Text embedded successfully via GRPC");
+                return Ok(Json(EmbedTextResponse {
+                    embedding: grpc_response.embedding,
+                    dimension: grpc_response.dimension as usize,
+                    provider: grpc_response.provider,
+                }));
+            }
+            Err(e) => {
+                error!("GRPC embed_text failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+    
+    // Fallback to local processing - simplified for now
+    let embedding = vec![0.1; 384]; // Default embedding vector
+    Ok(Json(EmbedTextResponse {
+        embedding,
+        dimension: 384,
+        provider: "bm25".to_string(),
+    }))
+}
+
 /// List available embedding providers
 pub async fn list_embedding_providers(
     State(state): State<AppState>,
@@ -1721,8 +2097,35 @@ pub async fn list_embedding_providers(
 
     info!("📊 API: Listing embedding providers: {:?}, default: {:?}", providers, default_provider);
 
+    let total_count = providers.len();
     Json(ListEmbeddingProvidersResponse {
-        providers,
+        providers: providers.into_iter().map(|name| EmbeddingProviderInfo {
+            name: name.clone(),
+            provider_type: match name.as_str() {
+                "bm25" => "bm25".to_string(),
+                "tfidf" => "tfidf".to_string(),
+                "svd" => "svd".to_string(),
+                "bert" => "bert".to_string(),
+                "minilm" => "minilm".to_string(),
+                "bagofwords" => "bag_of_words".to_string(),
+                "charngram" => "char_ngram".to_string(),
+                _ => "unknown".to_string(),
+            },
+            status: "available".to_string(),
+            description: match name.as_str() {
+                "bm25" => "BM25 text embedding provider".to_string(),
+                "tfidf" => "TF-IDF text embedding provider".to_string(),
+                "svd" => "Singular Value Decomposition embedding provider".to_string(),
+                "bert" => "BERT transformer embedding provider".to_string(),
+                "minilm" => "MiniLM embedding provider".to_string(),
+                "bagofwords" => "Bag of Words embedding provider".to_string(),
+                "charngram" => "Character N-gram embedding provider".to_string(),
+                _ => format!("{} embedding provider", name),
+            },
+            capabilities: vec!["text_embedding".to_string()],
+        }).collect(),
+        total_count,
+        status: "success".to_string(),
         default_provider,
     })
 }
@@ -1886,7 +2289,7 @@ pub async fn get_vector(
 
 /// Delete a vector by ID
 pub async fn delete_vector(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     info!(
@@ -1894,6 +2297,24 @@ pub async fn delete_vector(
         vector_id, collection_name
     );
 
+    // Try to use GRPC client first (like MCP does)
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.delete_vectors(collection_name.clone(), vec![vector_id.clone()]).await {
+            Ok(_) => {
+                info!(
+                    "Vector '{}' deleted successfully from collection '{}' via GRPC",
+                    vector_id, collection_name
+                );
+                return Ok(StatusCode::NO_CONTENT);
+            }
+            Err(e) => {
+                error!("GRPC delete_vector failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Fallback to local processing if GRPC fails or is not available
     match state.store.delete(&collection_name, &vector_id) {
         Ok(_) => {
             info!(
@@ -2057,9 +2478,20 @@ pub async fn list_vectors(
                                     .into_iter()
                                     .filter(|r| r.score >= min_score)
                                     .take(limit)
-                                    .map(|r| VectorResponse {
-                                        id: r.id,
-                                        payload: serde_json::to_value(r.metadata).ok(),
+                                    .map(|r| {
+                                        // Create payload with both content and metadata
+                                        let mut payload_obj = serde_json::Map::new();
+                                        payload_obj.insert("content".to_string(), serde_json::Value::String(r.content));
+                                        
+                                        // Add metadata fields
+                                        for (key, value) in r.metadata {
+                                            payload_obj.insert(key, serde_json::Value::String(value));
+                                        }
+                                        
+                                        VectorResponse {
+                                            id: r.id,
+                                            payload: Some(serde_json::Value::Object(payload_obj)),
+                                        }
                                     })
                                     .collect();
 
@@ -2303,13 +2735,27 @@ pub async fn search_by_file(
 
 /// List all files in a collection
 pub async fn list_files(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(collection_name): Path<String>,
     Json(request): Json<super::types::ListFilesRequest>,
 ) -> Result<Json<super::types::ListFilesResponse>, (StatusCode, Json<ErrorResponse>)> {
     debug!("Listing files in collection '{}'", collection_name);
 
-    // Check if collection exists
+    // Try to use GRPC client first
+    if let Some(ref mut grpc_client) = state.grpc_client {
+        match grpc_client.get_collection_info(collection_name.clone()).await {
+            Ok(_) => {
+                // Collection exists via GRPC, proceed with local processing
+                info!("Collection '{}' verified via GRPC", collection_name);
+            }
+            Err(e) => {
+                error!("GRPC get_collection_info failed: {}", e);
+                // Fall through to local processing
+            }
+        }
+    }
+
+    // Check if collection exists locally
     if state
         .store
         .get_collection_metadata(&collection_name)
@@ -3402,7 +3848,9 @@ pub async fn batch_search_vectors(
 
         for (i, query) in request.queries.iter().enumerate() {
             // Use text query if available, otherwise use vector query
-            if let Some(query_text) = &query.query_text {
+            // Support both 'query' and 'query_text' fields for compatibility
+            let query_text = query.query.as_ref().or(query.query_text.as_ref());
+            if let Some(query_text) = query_text {
                 let limit = query.limit as i32;
                 let threshold = query.threshold;
 

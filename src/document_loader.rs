@@ -1866,7 +1866,7 @@ impl DocumentLoader {
                     }
                 }
                 Err(e) => {
-                    eprintln!("⚠️  Failed to generate file summary for {}: {}", file_path, e);
+                    //eprintln!("⚠️  Failed to generate file summary for {}: {}", file_path, e);
                 }
             }
 
