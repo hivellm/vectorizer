@@ -6,12 +6,12 @@
 
 pub mod scalar;
 pub mod traits;
+pub mod storage;
 
 // TODO: Implement these modules in future phases
 // pub mod product;
 // pub mod binary;
 // pub mod metrics;
-// pub mod storage;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -36,6 +36,16 @@ impl fmt::Display for QuantizationType {
             QuantizationType::Product => write!(f, "Product"),
             QuantizationType::Binary => write!(f, "Binary"),
             QuantizationType::None => write!(f, "None"),
+        }
+    }
+}
+
+impl From<traits::QuantizationParams> for QuantizationType {
+    fn from(params: traits::QuantizationParams) -> Self {
+        match params {
+            traits::QuantizationParams::Scalar { bits, .. } => QuantizationType::Scalar(bits),
+            traits::QuantizationParams::Product { .. } => QuantizationType::Product,
+            traits::QuantizationParams::Binary { .. } => QuantizationType::Binary,
         }
     }
 }
@@ -218,3 +228,11 @@ mod tests {
         assert!(manager.meets_quality_requirements()); // Default stats have quality_score = 1.0
     }
 }
+
+// Re-export main types
+pub use scalar::ScalarQuantization;
+pub use storage::{QuantizedVectorStorage, StorageConfig, StorageStats};
+pub use traits::{
+    QuantizationMethod, QuantizedVectors, QuantizationParams, 
+    QualityMetrics, OptimizationConfig, QuantizedSearch
+};
