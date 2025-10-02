@@ -585,12 +585,35 @@ impl DocumentLoader {
         if let Some(collection) = store.get_collection(&self.config.collection_name).ok() {
             // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
             info!("⚠️ HNSW dump temporarily disabled for collection '{}' due to library issues", self.config.collection_name);
-            
+
             // SEGUNDO: Criar sub_store e salvar vetores
             let sub_store = VectorStore::new();
             let meta = collection.metadata();
             sub_store.create_collection(&self.config.collection_name, meta.config.clone()).unwrap();
-            sub_store.insert(&self.config.collection_name, collection.get_all_vectors()).unwrap();
+
+            // Filter out vectors with incorrect dimensions before inserting
+            let mut valid_vectors = collection.get_all_vectors();
+            let original_count = valid_vectors.len();
+            valid_vectors.retain(|v| {
+                if v.data.len() != self.config.embedding_dimension {
+                    warn!("Filtering out vector {} with incorrect dimension: expected {}, got {}",
+                          v.id, self.config.embedding_dimension, v.data.len());
+                    false
+                } else {
+                    true
+                }
+            });
+
+            if valid_vectors.len() != original_count {
+                warn!("Filtered {} vectors with incorrect dimensions, {} remaining",
+                      original_count - valid_vectors.len(), valid_vectors.len());
+            }
+
+            if !valid_vectors.is_empty() {
+                sub_store.insert(&self.config.collection_name, valid_vectors).unwrap();
+            } else {
+                warn!("No valid vectors found for collection '{}', skipping save", self.config.collection_name);
+            }
 
             if let Err(e) = sub_store.save(&vector_store_path) {
                  error!("❌ Failed to save collection vector store to '{}': {}", vector_store_path.display(), e);
@@ -1140,12 +1163,25 @@ impl DocumentLoader {
 
         // Insert remaining vectors
         if !all_vectors.is_empty() {
-            let remaining_count = all_vectors.len();
-            if let Err(e) = store.insert(&self.config.collection_name, all_vectors) {
-                error!("Failed to insert final batch: {}", e);
-                return Err(e.into());
+            // Filter out vectors with incorrect dimensions
+            let mut valid_vectors: Vec<Vector> = all_vectors.into_iter().filter(|v| {
+                if v.data.len() != self.config.embedding_dimension {
+                    warn!("Filtering out vector {} with incorrect dimension: expected {}, got {}",
+                          v.id, self.config.embedding_dimension, v.data.len());
+                    false
+                } else {
+                    true
+                }
+            }).collect();
+
+            if !valid_vectors.is_empty() {
+                let remaining_count = valid_vectors.len();
+                if let Err(e) = store.insert(&self.config.collection_name, valid_vectors) {
+                    error!("Failed to insert final batch: {}", e);
+                    return Err(e.into());
+                }
+                total_vectors += remaining_count;
             }
-            total_vectors += remaining_count;
         }
 
         // Generate summaries if summarization is enabled
