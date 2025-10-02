@@ -1918,7 +1918,7 @@ impl DocumentLoader {
                         }
                     }
                 } else if let Err(e) = chunk_summary_result {
-                    eprintln!("⚠️  Failed to generate chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
+                    //eprintln!("⚠️  Failed to generate chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
                 }
             }
         }

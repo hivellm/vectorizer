@@ -78,9 +78,8 @@ pub fn create_router(state: AppState) -> Router {
         // Vector operations
         .route(
             "/collections/{collection_name}/vectors",
-            post(insert_texts),
+            post(insert_texts).get(list_vectors),
         )
-        .route("/collections/{collection_name}/vectors", get(list_vectors))
         .route(
             "/collections/{collection_name}/search",
             post(search_vectors),

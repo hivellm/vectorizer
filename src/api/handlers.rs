@@ -2047,110 +2047,156 @@ pub async fn list_vectors(
         }
         Err(_) => {
             if let Some(ref mut grpc_client) = state.grpc_client {
-                match grpc_client.search(collection_name.clone(), "document".to_string(), limit.min(10) as i32).await {
-                    Ok(grpc_response) => {
-                        let sample_vectors: Vec<VectorResponse> = grpc_response.results
+                // Get collection info first to validate existence and get total count
+                match grpc_client.get_collection_info(collection_name.clone()).await {
+                    Ok(collection_info) => {
+                        // Use semantic search to get sample vectors
+                        match grpc_client.search(collection_name.clone(), "document".to_string(), limit as i32).await {
+                            Ok(grpc_response) => {
+                                let sample_vectors: Vec<VectorResponse> = grpc_response.results
+                                    .into_iter()
+                                    .filter(|r| r.score >= min_score)
+                                    .take(limit)
+                                    .map(|r| VectorResponse {
+                                        id: r.id,
+                                        payload: serde_json::to_value(r.metadata).ok(),
+                                    })
+                                    .collect();
+
+                                let total_count = collection_info.vector_count as usize;
+                                let duration = start_time.elapsed();
+
+                                let response = ListVectorsResponse {
+                                    vectors: sample_vectors,
+                                    total: total_count,
+                                    limit,
+                                    offset,
+                                    message: Some("Results are a representative sample from semantic search, not a direct listing.".to_string()),
+                                };
+
+                                info!(
+                                    "Listed {} sample vectors from GRPC collection '{}' (total: {}) in {:?}",
+                                    response.vectors.len(),
+                                    collection_name,
+                                    total_count,
+                                    duration
+                                );
+
+                                Ok(Json(response))
+                            }
+                            Err(e) => {
+                                warn!("Failed to get sample vectors via GRPC search: {}", e);
+                                return Err((
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    Json(ErrorResponse {
+                                        error: "Failed to list vectors via GRPC".to_string(),
+                                        code: "GRPC_SEARCH_FAILED".to_string(),
+                                        details: Some(
+                                            vec![("error".to_string(), serde_json::json!(e.to_string()))]
+                                                .into_iter()
+                                                .collect(),
+                                        ),
+                                    }),
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("GRPC get_collection_info failed for list_vectors: {}", e);
+                        Err((
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(ErrorResponse {
+                                error: format!("Collection '{}' not found: {}", collection_name, e),
+                                code: "COLLECTION_NOT_FOUND".to_string(),
+                                details: None,
+                            }),
+                        ))
+                    }
+                }
+            } else {
+                // Fallback to local processing if GRPC is not available
+                match state.store.get_collection(&collection_name) {
+                    Ok(collection) => {
+                        // Get actual vectors from the local collection
+                        let all_vectors = collection.get_all_vectors();
+                        let total_count = all_vectors.len();
+
+                        // Filter vectors by minimum score (placeholder: filter by payload size)
+                        let filtered_vectors: Vec<_> = all_vectors
                             .into_iter()
-                            .filter(|r| r.score >= min_score)
-                            .take(limit)
-                            .map(|r| VectorResponse {
-                                id: r.id,
-                                payload: Some(serde_json::json!({
-                                    "content": r.content,
-                                    "metadata": r.metadata,
-                                    "score": r.score,
-                                    "note": "Sample vector from semantic search"
-                                })),
+                            .filter(|v| {
+                                // Calculate a score based on payload content length
+                                let score = if let Some(ref payload) = v.payload {
+                                    // Simple scoring based on content richness
+                                    let content_length = payload.data.get("content")
+                                        .and_then(|c| c.as_str())
+                                        .map(|s| s.len())
+                                        .unwrap_or(0);
+                                    (content_length as f32 / 1000.0).min(1.0) // Normalize to 0-1 range
+                                } else {
+                                    0.0
+                                };
+                                score >= min_score
                             })
                             .collect();
 
-                        let total_count = collection_info
-                            .map(|info| info.vector_count as usize)
-                            .unwrap_or(grpc_response.total_found as usize);
+                        let filtered_total = filtered_vectors.len();
 
-                        let message = if sample_vectors.is_empty() {
-                            if min_score > 0.0 {
-                                Some(format!("No sample vectors found with score >= {:.2}. Try lowering min_score or use semantic search (/search/text) for specific queries.", min_score))
-                            } else {
-                                Some("No sample vectors found. Use semantic search (/search/text) for specific queries.".to_string())
-                            }
-                        } else {
-                            if min_score > 0.0 {
-                                Some(format!(
-                                    "Showing {} sample vectors (filtered by score >= {:.2}) from semantic search. Total collection: {} vectors. Use semantic search (/search/text) for specific queries.",
-                                    sample_vectors.len(),
-                                    min_score,
-                                    total_count
-                                ))
-                            } else {
-                                Some(format!(
-                                    "Showing {} sample vectors from semantic search. Total collection: {} vectors. Use semantic search (/search/text) for specific queries.",
-                                    sample_vectors.len(),
-                                    total_count
-                                ))
-                            }
-                        };
+                        // Apply pagination to filtered results
+                        let paginated_vectors: Vec<VectorResponse> = filtered_vectors
+                            .into_iter()
+                            .skip(offset)
+                            .take(limit)
+                            .map(|v| VectorResponse {
+                                id: v.id,
+                                payload: v.payload.map(|p| p.data),
+                            })
+                            .collect();
+
+                        let paginated_count = paginated_vectors.len();
 
                         let response = ListVectorsResponse {
-                            vectors: sample_vectors,
-                            total: total_count,
+                            vectors: paginated_vectors,
+                            total: if min_score > 0.0 { filtered_total } else { total_count },
                             limit,
                             offset,
-                            message,
+                            message: if min_score > 0.0 && filtered_total != total_count {
+                                Some(format!("Filtered {} of {} vectors by min_score >= {:.2}. Showing {} of {} filtered vectors.",
+                                    filtered_total, total_count, min_score, paginated_count, filtered_total))
+                            } else if total_count > limit {
+                                Some(format!("Showing {} of {} vectors. Use pagination for more.", limit.min(total_count), total_count))
+                            } else {
+                                None
+                            },
                         };
 
                         let duration = start_time.elapsed();
                         info!(
-                            "Collection '{}' returned {} sample vectors via GRPC search in {:?}",
-                            collection_name,
+                            "Listed {} vectors from local collection '{}' (total: {}) in {:?}",
                             response.vectors.len(),
+                            collection_name,
+                            total_count,
                             duration
                         );
 
-                        return Ok(Json(response));
+                        Ok(Json(response))
                     }
                     Err(e) => {
-                        warn!("Failed to get sample vectors via GRPC search: {}", e);
+                        error!(
+                            "Failed to get vectors from local collection '{}': {}",
+                            collection_name, e
+                        );
+                        Err((
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(ErrorResponse {
+                                error: format!("Failed to list vectors: {}", e),
+                                code: "LOCAL_LIST_ERROR".to_string(),
+                                details: None,
+                            }),
+                        ))
                     }
                 }
             }
-
-            // Fallback: return info about available vectors
-            let total_count = collection_info
-                .map(|info| info.vector_count as usize)
-                .unwrap_or(0);
-
-            let message = if min_score > 0.0 {
-                Some(format!(
-                    "Collection has {} vectors available via semantic search (/search/text). Score filtering (min_score={:.2}) is not available when vectors are not cached locally.",
-                    total_count, min_score
-                ))
-            } else if total_count > 0 {
-                Some(format!(
-                    "Collection has {} vectors available via semantic search (/search/text). Vectors are not cached locally for direct browsing.",
-                    total_count
-                ))
-            } else {
-                Some("Vectors are not cached locally. Use semantic search (/search/text) to access vector content.".to_string())
-            };
-
-            let response = ListVectorsResponse {
-                vectors: vec![],
-                total: total_count,
-                limit,
-                offset,
-                message,
-            };
-
-            let duration = start_time.elapsed();
-            info!(
-                "Collection '{}' has {} vectors via GRPC. No sample vectors available. Request completed in {:?}",
-                collection_name,
-                total_count,
-                duration
-            );
-
-            Ok(Json(response))
         }
     }
 }

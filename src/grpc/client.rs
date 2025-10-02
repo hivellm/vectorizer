@@ -1,21 +1,27 @@
-use crate::grpc::vectorizer::{
-    vectorizer_service_client::VectorizerServiceClient,
-    SearchRequest, SearchResponse,
-    Empty, ListCollectionsResponse,
-    EmbedRequest, EmbedResponse,
-    IndexingProgressResponse,
-    UpdateIndexingProgressRequest,
-    HealthResponse,
-    CreateCollectionRequest, CreateCollectionResponse,
-    DeleteCollectionRequest, DeleteCollectionResponse,
-    InsertTextsRequest, InsertTextsResponse,
-    DeleteVectorsRequest, DeleteVectorsResponse,
-    GetVectorRequest, GetVectorResponse,
-    GetCollectionInfoRequest, CollectionInfo,
-};
 use crate::config::GrpcClientConfig;
-use tonic::transport::Channel;
+use crate::grpc::vectorizer::{
+    vectorizer_service_client::VectorizerServiceClient, CollectionInfo, CreateCollectionRequest,
+    CreateCollectionResponse, DeleteCollectionRequest, DeleteCollectionResponse,
+    DeleteVectorsRequest, DeleteVectorsResponse, EmbedRequest, EmbedResponse, Empty,
+    GetCollectionInfoRequest, GetVectorRequest, GetVectorResponse, HealthResponse,
+    IndexingProgressResponse, InsertTextsRequest, InsertTextsResponse, ListCollectionsResponse,
+    SearchRequest, SearchResponse, UpdateIndexingProgressRequest,
+};
 use std::time::Duration;
+use thiserror::Error;
+use tonic::transport::Channel;
+
+#[derive(Debug, Error)]
+pub enum GrpcClientError {
+    #[error("gRPC transport error: {0}")]
+    Transport(#[from] tonic::transport::Error),
+    #[error("gRPC request error: {0}")]
+    Status(#[from] tonic::Status),
+    #[error("Configuration error: {0}")]
+    Config(String),
+}
+
+pub type GrpcClient = VectorizerServiceClient<Channel>;
 
 #[derive(Clone)]
 pub struct VectorizerGrpcClient {
@@ -23,8 +29,9 @@ pub struct VectorizerGrpcClient {
 }
 
 impl VectorizerGrpcClient {
-    pub async fn new(config: GrpcClientConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let channel = Channel::from_shared(config.server_url)?
+    pub async fn new(config: GrpcClientConfig) -> Result<Self, GrpcClientError> {
+        let channel = Channel::from_shared(config.server_url)
+            .map_err(|e| GrpcClientError::Config(e.to_string()))?
             .timeout(Duration::from_secs(config.timeout_seconds))
             .connect_timeout(Duration::from_secs(5))
             .keep_alive_timeout(Duration::from_secs(config.keep_alive_interval))
@@ -38,7 +45,7 @@ impl VectorizerGrpcClient {
         Ok(Self { client })
     }
 
-    pub async fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn from_env() -> Result<Self, GrpcClientError> {
         let config = crate::config::GrpcConfig::from_env();
         Self::new(config.client).await
     }
@@ -48,7 +55,7 @@ impl VectorizerGrpcClient {
         collection: String,
         query: String,
         limit: i32,
-    ) -> Result<SearchResponse, Box<dyn std::error::Error>> {
+    ) -> Result<SearchResponse, GrpcClientError> {
         let request = tonic::Request::new(SearchRequest {
             collection,
             query,
@@ -60,7 +67,7 @@ impl VectorizerGrpcClient {
         Ok(response.into_inner())
     }
 
-    pub async fn list_collections(&mut self) -> Result<ListCollectionsResponse, Box<dyn std::error::Error>> {
+    pub async fn list_collections(&mut self) -> Result<ListCollectionsResponse, GrpcClientError> {
         let request = tonic::Request::new(Empty {});
         let response = self.client.list_collections(request).await?;
         Ok(response.into_inner())
@@ -70,13 +77,13 @@ impl VectorizerGrpcClient {
         &mut self,
         text: String,
         provider: String,
-    ) -> Result<EmbedResponse, Box<dyn std::error::Error>> {
+    ) -> Result<EmbedResponse, GrpcClientError> {
         let request = tonic::Request::new(EmbedRequest { text, provider });
         let response = self.client.embed_text(request).await?;
         Ok(response.into_inner())
     }
 
-    pub async fn get_indexing_progress(&mut self) -> Result<IndexingProgressResponse, Box<dyn std::error::Error>> {
+    pub async fn get_indexing_progress(&mut self) -> Result<IndexingProgressResponse, GrpcClientError> {
         let request = tonic::Request::new(Empty {});
         let response = self.client.get_indexing_progress(request).await?;
         Ok(response.into_inner())
@@ -89,7 +96,7 @@ impl VectorizerGrpcClient {
         progress: f32,
         vector_count: i32,
         error_message: Option<String>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), GrpcClientError> {
         let request = tonic::Request::new(UpdateIndexingProgressRequest {
             collection_name,
             status,
@@ -102,7 +109,7 @@ impl VectorizerGrpcClient {
         Ok(())
     }
 
-    pub async fn health_check(&mut self) -> Result<HealthResponse, Box<dyn std::error::Error>> {
+    pub async fn health_check(&mut self) -> Result<HealthResponse, GrpcClientError> {
         let request = tonic::Request::new(Empty {});
         let response = self.client.health_check(request).await?;
         Ok(response.into_inner())
@@ -114,7 +121,7 @@ impl VectorizerGrpcClient {
         name: String,
         dimension: i32,
         similarity_metric: String,
-    ) -> Result<CreateCollectionResponse, Box<dyn std::error::Error>> {
+    ) -> Result<CreateCollectionResponse, GrpcClientError> {
         let request = tonic::Request::new(CreateCollectionRequest {
             name,
             dimension,
@@ -130,7 +137,7 @@ impl VectorizerGrpcClient {
     pub async fn delete_collection(
         &mut self,
         collection_name: String,
-    ) -> Result<DeleteCollectionResponse, Box<dyn std::error::Error>> {
+    ) -> Result<DeleteCollectionResponse, GrpcClientError> {
         let request = tonic::Request::new(DeleteCollectionRequest { collection_name });
         let response = self.client.delete_collection(request).await?;
         Ok(response.into_inner())
@@ -139,7 +146,7 @@ impl VectorizerGrpcClient {
     pub async fn get_collection_info(
         &mut self,
         collection_name: String,
-    ) -> Result<CollectionInfo, Box<dyn std::error::Error>> {
+    ) -> Result<CollectionInfo, GrpcClientError> {
         let request = tonic::Request::new(GetCollectionInfoRequest { collection_name });
         let response = self.client.get_collection_info(request).await?;
         Ok(response.into_inner())
@@ -151,7 +158,7 @@ impl VectorizerGrpcClient {
         collection: String,
         texts: Vec<(String, String, Option<std::collections::HashMap<String, String>>)>,
         provider: String,
-    ) -> Result<InsertTextsResponse, Box<dyn std::error::Error>> {
+    ) -> Result<InsertTextsResponse, GrpcClientError> {
         let text_data: Vec<crate::grpc::vectorizer::TextData> = texts
             .into_iter()
             .map(|(id, text, metadata)| {
@@ -178,7 +185,7 @@ impl VectorizerGrpcClient {
         &mut self,
         collection: String,
         vector_ids: Vec<String>,
-    ) -> Result<DeleteVectorsResponse, Box<dyn std::error::Error>> {
+    ) -> Result<DeleteVectorsResponse, GrpcClientError> {
         let request = tonic::Request::new(DeleteVectorsRequest {
             collection,
             vector_ids,
@@ -192,7 +199,7 @@ impl VectorizerGrpcClient {
         &mut self,
         collection: String,
         vector_id: String,
-    ) -> Result<GetVectorResponse, Box<dyn std::error::Error>> {
+    ) -> Result<GetVectorResponse, GrpcClientError> {
         let request = tonic::Request::new(GetVectorRequest {
             collection,
             vector_id,
