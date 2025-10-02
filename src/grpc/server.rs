@@ -38,7 +38,7 @@ pub struct VectorizerGrpcService {
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<Mutex<EmbeddingManager>>,
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
-    summarization_manager: Arc<Mutex<SummarizationManager>>,
+    summarization_manager: Option<Arc<Mutex<SummarizationManager>>>,
 }
 
 impl VectorizerGrpcService {
@@ -48,11 +48,11 @@ impl VectorizerGrpcService {
         indexing_progress: Arc<Mutex<std::collections::HashMap<String, IndexingStatus>>>,
         summarization_config: Option<SummarizationConfig>,
     ) -> Self {
-        let summarization_manager = Arc::new(Mutex::new(
-            summarization_config
-                .map(|config| SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config()))
-                .unwrap_or_else(|| SummarizationManager::with_default_config())
-        ));
+        let summarization_manager = summarization_config.map(|config| {
+            Arc::new(Mutex::new(
+                SummarizationManager::new(config).unwrap_or_else(|_| SummarizationManager::with_default_config())
+            ))
+        });
         
         Self {
             vector_store,
@@ -545,6 +545,14 @@ impl VectorizerService for VectorizerGrpcService {
         tracing::debug!("GRPC SummarizeText request: method={}, text_length={}", 
                        req.method, req.text.len());
 
+        // Check if summarization is enabled
+        let summarization_manager = match &self.summarization_manager {
+            Some(manager) => manager,
+            None => {
+                return Err(Status::unavailable("Summarization service is disabled"));
+            }
+        };
+
         // Parse method
         let method = req.method.parse::<SummarizationMethod>()
             .map_err(|e| Status::invalid_argument(format!("Invalid summarization method: {}", e)))?;
@@ -560,7 +568,7 @@ impl VectorizerService for VectorizerGrpcService {
         };
 
         // Perform summarization
-        let mut summarization_manager = self.summarization_manager.lock().await;
+        let mut summarization_manager = summarization_manager.lock().await;
         let result = summarization_manager.summarize_text(params)
             .map_err(|e| Status::internal(format!("Summarization failed: {}", e)))?;
 
@@ -585,6 +593,14 @@ impl VectorizerService for VectorizerGrpcService {
         tracing::debug!("GRPC SummarizeContext request: method={}, context_length={}", 
                        req.method, req.context.len());
 
+        // Check if summarization is enabled
+        let summarization_manager = match &self.summarization_manager {
+            Some(manager) => manager,
+            None => {
+                return Err(Status::unavailable("Summarization service is disabled"));
+            }
+        };
+
         // Parse method
         let method = req.method.parse::<SummarizationMethod>()
             .map_err(|e| Status::invalid_argument(format!("Invalid summarization method: {}", e)))?;
@@ -600,7 +616,7 @@ impl VectorizerService for VectorizerGrpcService {
         };
 
         // Perform summarization
-        let mut summarization_manager = self.summarization_manager.lock().await;
+        let mut summarization_manager = summarization_manager.lock().await;
         let result = summarization_manager.summarize_context(params)
             .map_err(|e| Status::internal(format!("Context summarization failed: {}", e)))?;
 
@@ -624,7 +640,15 @@ impl VectorizerService for VectorizerGrpcService {
         
         tracing::debug!("GRPC GetSummary request: summary_id={}", req.summary_id);
 
-        let summarization_manager = self.summarization_manager.lock().await;
+        // Check if summarization is enabled
+        let summarization_manager = match &self.summarization_manager {
+            Some(manager) => manager,
+            None => {
+                return Err(Status::unavailable("Summarization service is disabled"));
+            }
+        };
+
+        let summarization_manager = summarization_manager.lock().await;
         let summary = summarization_manager.get_summary(&req.summary_id)
             .ok_or_else(|| Status::not_found(format!("Summary not found: {}", req.summary_id)))?;
 
@@ -649,7 +673,15 @@ impl VectorizerService for VectorizerGrpcService {
         tracing::debug!("GRPC ListSummaries request: method={:?}, language={:?}, limit={:?}", 
                        req.method, req.language, req.limit);
 
-        let summarization_manager = self.summarization_manager.lock().await;
+        // Check if summarization is enabled
+        let summarization_manager = match &self.summarization_manager {
+            Some(manager) => manager,
+            None => {
+                return Err(Status::unavailable("Summarization service is disabled"));
+            }
+        };
+
+        let summarization_manager = summarization_manager.lock().await;
         let summaries = summarization_manager.list_summaries(
             req.method.as_deref(),
             req.language.as_deref(),

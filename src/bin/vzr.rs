@@ -1554,10 +1554,19 @@ async fn run_interactive_workspace(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
+            eprintln!("⚠️ Failed to load config.yml: {}, using defaults", e);
             FullVectorizerConfig::default()
         });
 
-    let summarization_config = Some(full_config.summarization);
+    println!("🔧 Summarization config loaded: enabled={}", full_config.summarization.enabled);
+
+    let summarization_config = if full_config.summarization.enabled {
+        println!("✅ Summarization ENABLED - creating SummarizationManager");
+        Some(full_config.summarization)
+    } else {
+        println!("❌ Summarization DISABLED - skipping SummarizationManager creation");
+        None
+    };
     
     // Start GRPC server
     let grpc_config = GrpcConfig::from_env();
@@ -2281,10 +2290,19 @@ async fn run_as_daemon_workspace(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
+            eprintln!("⚠️ Failed to load config.yml: {}, using defaults", e);
             FullVectorizerConfig::default()
         });
 
-    let summarization_config = Some(full_config.summarization);
+    println!("🔧 Summarization config loaded: enabled={}", full_config.summarization.enabled);
+
+    let summarization_config = if full_config.summarization.enabled {
+        println!("✅ Summarization ENABLED - creating SummarizationManager");
+        Some(full_config.summarization)
+    } else {
+        println!("❌ Summarization DISABLED - skipping SummarizationManager creation");
+        None
+    };
     
     // Start GRPC server (same as interactive mode)
     let grpc_config = GrpcConfig::from_env();
@@ -2451,10 +2469,19 @@ async fn run_as_daemon(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
+            eprintln!("⚠️ Failed to load config.yml: {}, using defaults", e);
             FullVectorizerConfig::default()
         });
 
-    let summarization_config = Some(full_config.summarization);
+    println!("🔧 Summarization config loaded: enabled={}", full_config.summarization.enabled);
+
+    let summarization_config = if full_config.summarization.enabled {
+        println!("✅ Summarization ENABLED - creating SummarizationManager");
+        Some(full_config.summarization)
+    } else {
+        println!("❌ Summarization DISABLED - skipping SummarizationManager creation");
+        None
+    };
     
     // Start GRPC server (same as interactive mode)
     let grpc_config = GrpcConfig::from_env();

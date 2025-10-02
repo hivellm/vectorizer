@@ -49,6 +49,10 @@ use super::handlers::{
     list_summaries,
 };
 
+use super::memory_handlers::{
+    generate_memory_snapshot,
+};
+
 /// Create the main API router
 pub fn create_router(state: AppState) -> Router {
     Router::new()
@@ -69,6 +73,8 @@ pub fn create_router(state: AppState) -> Router {
         // Memory profiling
         .route("/memory-profile", get(generate_memory_profile))
         .route("/heap-analysis", get(analyze_heap_memory))
+        // Memory snapshot endpoints
+        // .route("/memory-snapshot", get(generate_memory_snapshot))
         // Vector operations
         .route(
             "/collections/{collection_name}/vectors",

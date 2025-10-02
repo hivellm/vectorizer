@@ -32,6 +32,7 @@ pub mod file_watcher;
 pub mod process_manager;
 pub mod logging;
 pub mod quantization;
+pub mod memory_snapshot;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};

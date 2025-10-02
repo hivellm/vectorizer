@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vectorizer Dashboard - Vue 3</title>
+    <title>Vectorizer Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="styles.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="api-client.js"></script>
+    <script src="api-client.js?v=20251002-2"></script>
 </head>
 <body>
     <div id="app" class="dashboard">
@@ -43,9 +43,6 @@
                     <span>{{ pageTitle }}</span>
                 </div>
                 <div class="top-bar-actions">
-                    <button class="btn btn-icon" @click="refreshData" :disabled="loading">
-                        <i :class="['fas', loading ? 'fa-spinner fa-spin' : 'fa-sync-alt']"></i>
-                    </button>
                     <div class="connection-status">
                         <span :class="['status-dot', { online: connected }]"></span>
                         <span>{{ connected ? 'Connected' : 'Disconnected' }}</span>
@@ -83,18 +80,6 @@
                                 <div class="action-content">
                                     <h3>Browse Vectors</h3>
                                     <p>Explore and analyze your vector data</p>
-                                </div>
-                                <div class="action-arrow">
-                                    <i class="fas fa-arrow-right"></i>
-                                </div>
-                            </button>
-                            <button class="action-card" @click="showCreateCollectionModal">
-                                <div class="action-icon">
-                                    <i class="fas fa-plus"></i>
-                                </div>
-                                <div class="action-content">
-                                    <h3>Create Collection</h3>
-                                    <p>Add a new vector collection to your database</p>
                                 </div>
                                 <div class="action-arrow">
                                     <i class="fas fa-arrow-right"></i>
@@ -145,16 +130,40 @@
                                     <div class="stat-label">Avg Dimension</div>
                                 </div>
                             </div>
-
-                            <div class="enhanced-stat-card success">
+                            
+                            <div class="enhanced-stat-card warning">
                                 <div class="stat-card-header">
                                     <div class="stat-icon-large">
-                                        <i class="fas fa-server"></i>
+                                        <i class="fas fa-memory"></i>
                                     </div>
                                 </div>
                                 <div class="stat-content">
-                                    <div class="stat-value" style="color: var(--success)">Online</div>
-                                    <div class="stat-label">Server Status</div>
+                                    <div class="stat-value">{{ formatSize(totalMemoryUsed) }}</div>
+                                    <div class="stat-label">Memory Used</div>
+                                </div>
+                            </div>
+
+                            <div class="enhanced-stat-card info">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-database"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value">{{ formatSize(totalMemory) }}</div>
+                                    <div class="stat-label">Total Memory</div>
+                                </div>
+                            </div>
+
+                            <div class="enhanced-stat-card primary">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-file-alt"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value">{{ formatNumber(totalDocuments) }}</div>
+                                    <div class="stat-label">Total Documents</div>
                                 </div>
                             </div>
                         </div>
@@ -292,10 +301,6 @@
                                 Collections Overview
                             </h2>
                             <div class="section-actions">
-                                <div class="collections-count">
-                                    <span class="count-number">{{ collections.length }}</span>
-                                    <span class="count-label">Total Collections</span>
-                                </div>
                                 <button class="btn btn-primary" @click="setPage('collections')">
                                     <i class="fas fa-eye"></i>
                                     <span>View All</span>
@@ -343,18 +348,6 @@
                                             <div class="metric-data">
                                                 <div class="metric-value">{{ collection.dimension }}</div>
                                                 <div class="metric-label">Dimension</div>
-                                            </div>
-                                        </div>
-
-                                        <div class="metric-item">
-                                            <div class="metric-icon" :class="{ 'success': collection.indexing_status.status === 'cached' }">
-                                                <i class="fas fa-server"></i>
-                                            </div>
-                                            <div class="metric-data">
-                                                <div class="metric-value" :class="{ 'success': collection.indexing_status.status === 'cached' }">
-                                                    {{ collection.indexing_status.status === 'cached' ? 'Cache' : 'Indexed' }}
-                                                </div>
-                                                <div class="metric-label">Source</div>
                                             </div>
                                         </div>
                                     </div>
@@ -423,20 +416,45 @@
 
                         <div v-else class="enhanced-collections-grid">
                             <div v-for="collection in collections" :key="collection.name" class="enhanced-stat-card primary">
-                                <div class="stat-card-header">
-                                    <div class="stat-icon-large">
-                                        <i class="fas fa-database"></i>
+                                <div class="collection-card-layout">
+                                    <div class="collection-main-info">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-database"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(collection.vector_count) }}</div>
+                                            <div class="stat-label">{{ collection.name }}</div>
+                                        </div>
+                                        <div v-if="collection.indexing_status.status === 'processing' || collection.indexing_status.status === 'indexing'" class="collection-progress">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill" :style="{ width: collection.indexing_status.progress + '%' }"></div>
+                                            </div>
+                                            <div class="progress-text">{{ Math.round(collection.indexing_status.progress) }}%</div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value">{{ formatNumber(collection.vector_count) }}</div>
-                                    <div class="stat-label">{{ collection.name }}</div>
-                                </div>
-                                <div v-if="collection.indexing_status.status === 'processing' || collection.indexing_status.status === 'indexing'" class="collection-progress">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" :style="{ width: collection.indexing_status.progress + '%' }"></div>
+                                    <div class="collection-tech-info">
+                                        <div class="tech-info-item">
+                                            <div class="tech-label">Quantized</div>
+                                            <div class="tech-value" :class="collection.quantization?.enabled ? 'quantized-yes' : 'quantized-no'">
+                                                <i :class="collection.quantization?.enabled ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+                                                {{ collection.quantization?.enabled ? 'Yes' : 'No' }}
+                                            </div>
+                                        </div>
+                                        <div class="tech-info-item">
+                                            <div class="tech-label">Size</div>
+                                            <div class="tech-value">{{ formatSize(collection.memory_analysis?.actual_memory_mb || 0) }}</div>
+                                        </div>
+                                        <div class="tech-info-item">
+                                            <div class="tech-label">Embedding</div>
+                                            <div class="tech-value">{{ collection.embedding_provider || 'Unknown' }}</div>
+                                        </div>
+                                        <div class="tech-info-item">
+                                            <div class="tech-label">Dimension</div>
+                                            <div class="tech-value">{{ collection.dimension || 512 }}</div>
+                                        </div>
                                     </div>
-                                    <div class="progress-text">{{ Math.round(collection.indexing_status.progress) }}%</div>
                                 </div>
                                 <div class="collection-card-footer">
                                     <div class="collection-status-badge" :class="getStatusClass(collection.indexing_status.status)">
@@ -780,6 +798,24 @@
                     return Math.round(collections.value.reduce((sum, col) => sum + col.dimension, 0) / collections.value.length);
                 });
 
+                const totalMemoryUsed = computed(() => {
+                    return collections.value.reduce((sum, col) => sum + (col.memory_analysis?.actual_memory_mb || 0), 0);
+                });
+
+                const totalMemory = computed(() => {
+                    return collections.value.reduce((sum, col) => sum + (col.memory_analysis?.theoretical_memory_mb || 0), 0);
+                });
+
+                const totalDocuments = computed(() => {
+                    return collections.value.reduce((sum, col) => sum + (col.document_count || 0), 0);
+                });
+
+                const systemMemory = computed(() => {
+                    // This would be the total process memory, not just vector memory
+                    // For now, return a placeholder - this should come from system API
+                    return 1024; // 1GB placeholder
+                });
+
                 const vectorsTotalPages = computed(() => {
                     return Math.ceil(vectorsTotal.value / vectorsPageSize.value);
                 });
@@ -807,8 +843,44 @@
 
                 const loadCollections = async () => {
                     try {
+                        // Load basic collections data
                         const data = await window.apiClient.listCollections();
-                        collections.value = data.collections || [];
+                        const basicCollections = data.collections || [];
+
+                        // Load memory analysis data
+                        const memoryData = await window.apiClient.getMemoryAnalysis();
+
+                        // Debug: log the structure
+                        console.log('Memory data structure:', memoryData);
+                        console.log('Memory data type:', typeof memoryData);
+                        console.log('Is array:', Array.isArray(memoryData));
+
+                        // Handle different response structures
+                        let memoryArray = [];
+
+                        if (Array.isArray(memoryData)) {
+                            // Direct array response
+                            memoryArray = memoryData;
+                        } else if (memoryData && typeof memoryData === 'object') {
+                            // Check for common property names
+                            memoryArray = memoryData.collections || memoryData.data || memoryData.results || [];
+                        }
+
+                        console.log('Memory array found:', memoryArray.length, 'items');
+
+                        // Merge memory analysis data with collections
+                        const enhancedCollections = basicCollections.map(collection => {
+                            const memoryInfo = memoryArray.find(mem => mem && mem.name === collection.name);
+                            if (memoryInfo) {
+                                return {
+                                    ...collection,
+                                    ...memoryInfo
+                                };
+                            }
+                            return collection;
+                        });
+
+                        collections.value = enhancedCollections;
                     } catch (error) {
                         console.error('Error loading collections:', error);
                         collections.value = [];
@@ -1747,6 +1819,13 @@
                     return new Intl.NumberFormat().format(num);
                 };
 
+                const formatSize = (sizeInMB) => {
+                    if (sizeInMB >= 1024) {
+                        return (sizeInMB / 1024).toFixed(1) + ' GB';
+                    }
+                    return sizeInMB.toFixed(1) + ' MB';
+                };
+
                 const formatStatus = (status) => {
                     switch (status) {
                         case 'completed': return 'Concluído';
@@ -1860,9 +1939,14 @@
                     pageTitle,
                     totalVectors,
                     avgDimension,
+                    totalMemoryUsed,
+                    totalMemory,
+                    totalDocuments,
+                    systemMemory,
                     setPage,
                     refreshData,
                     formatNumber,
+                    formatSize,
                     formatStatus,
                     getStatusClass,
                     getStatusIcon,

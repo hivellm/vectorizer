@@ -13,6 +13,7 @@ use std::time::Instant;
 use tokio::sync::watch;
 use tokio_stream::wrappers::WatchStream;
 use tracing::{debug, error, info, warn};
+#[cfg(feature = "pprof")]
 use pprof::ProfilerGuard;
 use memory_stats::memory_stats;
 
@@ -3724,6 +3725,7 @@ pub async fn get_stats(
 }
 
 /// Generate memory profiling report using pprof
+#[cfg(feature = "pprof")]
 pub async fn generate_memory_profile(
     State(_state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
@@ -3919,11 +3921,53 @@ pub async fn analyze_heap_memory(
     Ok(Json(analysis))
 }
 
+/// Generate memory profiling report (fallback when pprof not available)
+#[cfg(not(feature = "pprof"))]
+pub async fn generate_memory_profile(
+    State(_state): State<AppState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ErrorResponse>)> {
+    info!("Generating memory profiling report (basic mode - pprof not available)");
+
+    let profile_data = serde_json::json!({
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "profile_duration_seconds": 10,
+        "samples_collected": 0,
+        "flamegraph_size_bytes": 0,
+        "total_memory_usage_mb": if let Ok(stats) = sys_info::mem_info() {
+            Some((stats.total - stats.free) as f64 / 1024.0 / 1024.0)
+        } else {
+            None
+        },
+        "available_memory_mb": if let Ok(stats) = sys_info::mem_info() {
+            Some(stats.free as f64 / 1024.0 / 1024.0)
+        } else {
+            None
+        },
+        "flamegraph_b64": None::<String>,
+        "samples_count": 0,
+        "note": "pprof profiling not available - using basic memory stats only"
+    });
+
+    info!("Memory profiling report generated (basic mode)");
+    Ok(Json(profile_data))
+}
+
 /// Summarize text using GRPC backend
 pub async fn summarize_text(
     State(mut state): State<AppState>,
     Json(req): Json<SummarizeTextRequest>,
 ) -> Result<Json<SummarizeTextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Check if summarization is enabled
+    if state.summarization_manager.is_none() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ErrorResponse {
+                error: "Summarization service is disabled".to_string(),
+                code: "SUMMARIZATION_DISABLED".to_string(),
+                details: None,
+            }),
+        ));
+    }
     // Try to use GRPC client first
     if let Some(ref mut grpc_client) = state.grpc_client {
         // Convert API request to GRPC request
@@ -4039,6 +4083,17 @@ pub async fn summarize_context(
     State(mut state): State<AppState>,
     Json(req): Json<SummarizeContextRequest>,
 ) -> Result<Json<SummarizeContextResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Check if summarization is enabled
+    if state.summarization_manager.is_none() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ErrorResponse {
+                error: "Summarization service is disabled".to_string(),
+                code: "SUMMARIZATION_DISABLED".to_string(),
+                details: None,
+            }),
+        ));
+    }
     // Try to use GRPC client first
     if let Some(ref mut grpc_client) = state.grpc_client {
         // Convert API request to GRPC request

@@ -47,7 +47,7 @@ parking_lot = "0.12"
 once_cell = "1.19"
 arc-swap = "1.7"
 lru = "0.12"
-pprof = { version = "0.13", features = ["flamegraph", "protobuf"] }
+pprof = { version = "0.13", features = ["flamegraph", "protobuf"], optional = true }
 base64 = "0.22"
 memory-stats = "1.2"
 
