@@ -7,6 +7,7 @@
 pub mod scalar;
 pub mod traits;
 pub mod storage;
+pub mod hnsw_integration;
 
 // TODO: Implement these modules in future phases
 // pub mod product;
@@ -232,6 +233,7 @@ mod tests {
 // Re-export main types
 pub use scalar::ScalarQuantization;
 pub use storage::{QuantizedVectorStorage, StorageConfig, StorageStats};
+pub use hnsw_integration::{QuantizedHnswIndex, HnswQuantizationConfig};
 pub use traits::{
     QuantizationMethod, QuantizedVectors, QuantizationParams, 
     QualityMetrics, OptimizationConfig, QuantizedSearch
