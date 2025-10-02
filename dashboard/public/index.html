@@ -33,14 +33,6 @@
                     <i class="fas fa-vector-square"></i>
                     <span>Vectors</span>
                 </li>
-                <li :class="['nav-item', { active: currentPage === 'cluster' }]" @click="setPage('cluster')">
-                    <i class="fas fa-project-diagram"></i>
-                    <span>Cluster Info</span>
-                </li>
-                <li :class="['nav-item', { active: currentPage === 'console' }]" @click="setPage('console')">
-                    <i class="fas fa-terminal"></i>
-                    <span>Console</span>
-                </li>
             </ul>
         </nav>
 
@@ -64,42 +56,106 @@
             <div class="content-area">
                 <!-- Overview Page -->
                 <div v-if="currentPage === 'overview'">
-                    <!-- Stats Cards -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-layer-group"></i>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-value">{{ collections.length }}</div>
-                                <div class="stat-label">Collections</div>
-                            </div>
+
+                    <!-- Quick Actions -->
+                    <div class="quick-actions">
+                        <h2 class="section-title">
+                            <i class="fas fa-bolt"></i>
+                            Quick Actions
+                        </h2>
+                        <div class="actions-grid">
+                            <button class="action-card" @click="setPage('collections')">
+                                <div class="action-icon">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h3>Manage Collections</h3>
+                                    <p>Create, view and manage your vector collections</p>
+                                </div>
+                                <div class="action-arrow">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                            </button>
+                            <button class="action-card" @click="setPage('vectors')">
+                                <div class="action-icon">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h3>Browse Vectors</h3>
+                                    <p>Explore and analyze your vector data</p>
+                                </div>
+                                <div class="action-arrow">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                            </button>
+                            <button class="action-card" @click="showCreateCollectionModal">
+                                <div class="action-icon">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h3>Create Collection</h3>
+                                    <p>Add a new vector collection to your database</p>
+                                </div>
+                                <div class="action-arrow">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                            </button>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-vector-square"></i>
+                    </div>
+
+                    <!-- Enhanced Stats Cards -->
+                    <div class="enhanced-stats-section">
+                        <h2 class="section-title">
+                            <i class="fas fa-chart-bar"></i>
+                            System Overview
+                        </h2>
+                        <div class="enhanced-stats-grid">
+                            <div class="enhanced-stat-card primary">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value">{{ collections.length }}</div>
+                                    <div class="stat-label">Collections</div>
+                                </div>
                             </div>
-                            <div class="stat-content">
-                                <div class="stat-value">{{ formatNumber(totalVectors) }}</div>
-                                <div class="stat-label">Total Vectors</div>
+
+                            <div class="enhanced-stat-card secondary">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-vector-square"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value">{{ formatNumber(totalVectors) }}</div>
+                                    <div class="stat-label">Total Vectors</div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-cube"></i>
+
+                            <div class="enhanced-stat-card tertiary">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-cube"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value">{{ avgDimension }}</div>
+                                    <div class="stat-label">Avg Dimension</div>
+                                </div>
                             </div>
-                            <div class="stat-content">
-                                <div class="stat-value">{{ avgDimension }}</div>
-                                <div class="stat-label">Avg Dimension</div>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-server"></i>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-value" style="color: var(--success)">Online</div>
-                                <div class="stat-label">Server Status</div>
+
+                            <div class="enhanced-stat-card success">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-server"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" style="color: var(--success)">Online</div>
+                                    <div class="stat-label">Server Status</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -228,42 +284,100 @@
                         </div>
                     </div>
 
-                    <!-- Collections Overview -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3><i class="fas fa-layer-group"></i> Collections Overview</h3>
-                            <button class="btn btn-primary" @click="setPage('collections')">
-                                <i class="fas fa-eye"></i> View All
-                            </button>
-                        </div>
-                        <div class="collections-grid">
-                            <div v-for="collection in collections.slice(0, 6)" :key="collection.name" class="collection-card">
-                                <div class="collection-header">
-                                    <div class="collection-name">
-                                        <i class="fas fa-database"></i>
-                                        <span>{{ collection.name }}</span>
-                                    </div>
-                                    <span :class="['collection-status', getStatusClass(collection.indexing_status.status)]">
-                                        {{ formatStatus(collection.indexing_status.status) }}
-                                    </span>
+                    <!-- Enhanced Collections Overview -->
+                    <div class="enhanced-collections-section">
+                        <div class="section-header-flex">
+                            <h2 class="section-title">
+                                <i class="fas fa-layer-group"></i>
+                                Collections Overview
+                            </h2>
+                            <div class="section-actions">
+                                <div class="collections-count">
+                                    <span class="count-number">{{ collections.length }}</span>
+                                    <span class="count-label">Total Collections</span>
                                 </div>
-                                <div class="collection-stats">
-                                    <div class="stat-row">
-                                        <span class="stat-label">Vectors:</span>
-                                        <span class="stat-value">{{ formatNumber(collection.vector_count) }}</span>
+                                <button class="btn btn-primary" @click="setPage('collections')">
+                                    <i class="fas fa-eye"></i>
+                                    <span>View All</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="enhanced-collections-grid">
+                            <div v-for="collection in collections.slice(0, 8)" :key="collection.name" class="enhanced-collection-card" :class="getStatusClass(collection.indexing_status.status)">
+                                <div class="collection-card-header">
+                                    <div class="collection-icon-wrapper">
+                                        <div class="collection-icon-large">
+                                            <i class="fas fa-database"></i>
+                                        </div>
+                                        <div class="collection-status-indicator" :class="getStatusClass(collection.indexing_status.status)">
+                                            <i :class="getStatusIcon(collection.indexing_status.status)"></i>
+                                        </div>
                                     </div>
-                                    <div class="stat-row">
-                                        <span class="stat-label">Source:</span>
-                                        <span class="stat-value" :style="{ color: collection.indexing_status.status === 'cached' ? 'var(--success)' : 'var(--text-primary)' }">
-                                            {{ collection.indexing_status.status === 'cached' ? 'Cache' : 'Indexed' }}
-                                        </span>
+                                    <div class="collection-actions">
+                                        <button class="btn-icon btn-xs" @click="viewCollection(collection)" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
                                     </div>
-                                    <div class="stat-row">
-                                        <span class="stat-label">Dimension:</span>
-                                        <span class="stat-value">{{ collection.dimension }}</span>
+                                </div>
+
+                                <div class="collection-card-content">
+                                    <h3 class="collection-card-title">{{ collection.name }}</h3>
+                                    <div class="collection-card-subtitle">{{ getCollectionType(collection) }}</div>
+
+                                    <div class="collection-metrics">
+                                        <div class="metric-item">
+                                            <div class="metric-icon">
+                                                <i class="fas fa-vector-square"></i>
+                                            </div>
+                                            <div class="metric-data">
+                                                <div class="metric-value">{{ formatNumber(collection.vector_count) }}</div>
+                                                <div class="metric-label">Vectors</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="metric-item">
+                                            <div class="metric-icon">
+                                                <i class="fas fa-cube"></i>
+                                            </div>
+                                            <div class="metric-data">
+                                                <div class="metric-value">{{ collection.dimension }}</div>
+                                                <div class="metric-label">Dimension</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="metric-item">
+                                            <div class="metric-icon" :class="{ 'success': collection.indexing_status.status === 'cached' }">
+                                                <i class="fas fa-server"></i>
+                                            </div>
+                                            <div class="metric-data">
+                                                <div class="metric-value" :class="{ 'success': collection.indexing_status.status === 'cached' }">
+                                                    {{ collection.indexing_status.status === 'cached' ? 'Cache' : 'Indexed' }}
+                                                </div>
+                                                <div class="metric-label">Source</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="collection-card-footer">
+                                    <div class="collection-last-updated">
+                                        <i class="fas fa-clock"></i>
+                                        <span>{{ formatLastUpdated(collection) }}</span>
+                                    </div>
+                                    <div class="collection-status-badge" :class="getStatusClass(collection.indexing_status.status)">
+                                        {{ formatStatus(collection.indexing_status.status) }}
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div v-if="collections.length > 8" class="show-more-collections">
+                            <button class="btn btn-secondary" @click="setPage('collections')">
+                                <i class="fas fa-plus"></i>
+                                <span>Show {{ collections.length - 8 }} More Collections</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -307,26 +421,16 @@
                             </button>
                         </div>
 
-                        <div v-else class="collections-grid">
-                            <div v-for="collection in collections" :key="collection.name" class="collection-card">
-                                <div class="collection-header">
-                                    <div class="collection-info">
-                                        <div class="collection-icon">
-                                            <i class="fas fa-database"></i>
-                                        </div>
-                                        <div class="collection-details">
-                                            <div class="collection-name">{{ collection.name }}</div>
-                                            <div class="collection-vector-count">{{ formatNumber(collection.vector_count) }} vectors</div>
-                                        </div>
+                        <div v-else class="enhanced-collections-grid">
+                            <div v-for="collection in collections" :key="collection.name" class="enhanced-stat-card primary">
+                                <div class="stat-card-header">
+                                    <div class="stat-icon-large">
+                                        <i class="fas fa-database"></i>
                                     </div>
-                                    <div class="collection-header-actions">
-                                        <span :class="['collection-status', getStatusClass(collection.indexing_status.status)]">
-                                            {{ formatStatus(collection.indexing_status.status) }}
-                                        </span>
-                                        <button class="btn btn-icon" @click="showCollectionMenu(collection.name, $event)">
-                                            <i class="fas fa-ellipsis-v"></i>
-                                        </button>
-                                    </div>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value">{{ formatNumber(collection.vector_count) }}</div>
+                                    <div class="stat-label">{{ collection.name }}</div>
                                 </div>
                                 <div v-if="collection.indexing_status.status === 'processing' || collection.indexing_status.status === 'indexing'" class="collection-progress">
                                     <div class="progress-bar">
@@ -334,15 +438,18 @@
                                     </div>
                                     <div class="progress-text">{{ Math.round(collection.indexing_status.progress) }}%</div>
                                 </div>
-                                <div class="collection-actions">
-                                    <button class="btn btn-secondary btn-sm" @click="viewCollectionDetails(collection.name)">
-                                        <i class="fas fa-info-circle"></i>
-                                        <span>Details</span>
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" @click="browseCollectionVectors(collection.name)">
-                                        <i class="fas fa-th"></i>
-                                        <span>Browse</span>
-                                    </button>
+                                <div class="collection-card-footer">
+                                    <div class="collection-status-badge" :class="getStatusClass(collection.indexing_status.status)">
+                                        {{ formatStatus(collection.indexing_status.status) }}
+                                    </div>
+                                    <div class="collection-actions">
+                                        <button class="btn-icon btn-xs" @click="viewCollectionDetails(collection.name)" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn-icon btn-xs" @click="browseCollectionVectors(collection.name)" title="Browse Vectors">
+                                            <i class="fas fa-th"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -489,28 +596,6 @@
                                 </div>
                             </div>
 
-                            <!-- Vectors Stats Panel -->
-                            <div v-if="selectedVectorCollection && vectorsTotal > 0" class="vectors-stats-panel">
-                                <div class="stats-panel-header">
-                                    <div class="stats-panel-icon">
-                                        <i class="fas fa-chart-bar"></i>
-                                    </div>
-                                    <div class="stats-panel-info">
-                                        <h4>{{ selectedVectorCollection }}</h4>
-                                        <p>{{ formatNumber(vectorsTotal) }} total vectors</p>
-                                    </div>
-                                </div>
-                                <div class="stats-panel-metrics">
-                                    <div class="metric-item">
-                                        <span class="metric-value">{{ vectors.length }}</span>
-                                        <span class="metric-label">Current Page</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-value">{{ vectorsCurrentPage }}/{{ vectorsTotalPages }}</span>
-                                        <span class="metric-label">Page</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="vectors-list-container">
@@ -528,53 +613,45 @@
                                 <h3>No Vectors Found</h3>
                                 <p>This collection doesn't have any vectors yet</p>
                             </div>
-                            <div v-else class="vectors-grid">
-                                <div v-for="vector in vectors" :key="vector.id || vector.vector_id" class="vector-card">
-                                    <div class="vector-card-header">
-                                        <div class="vector-id-section">
-                                            <div class="vector-id-badge">
-                                                <i class="fas fa-hashtag"></i>
-                                                <span class="vector-id">{{ vector.id || vector.vector_id }}</span>
-                                            </div>
-                                            <div class="vector-type-badge">
-                                                <i class="fas fa-cube"></i>
-                                                <span>{{ getVectorFileType(vector) }}</span>
-                                            </div>
+                            <div v-else class="enhanced-vectors-grid">
+                                <div v-for="vector in vectors" :key="vector.id || vector.vector_id" class="enhanced-stat-card secondary">
+                                    <div class="stat-card-header">
+                                        <div class="stat-icon-large">
+                                            <i class="fas fa-cube"></i>
                                         </div>
-                                        <button class="btn btn-icon" @click="viewVectorDetails(vector)" title="View Details">
-                                            <i class="fas fa-expand"></i>
-                                        </button>
                                     </div>
-
-                                    <div class="vector-content-preview">
-                                        <div v-if="vector.payload" class="content-preview">
-                                            <div class="content-text">{{ truncateText(vector.payload.content || JSON.stringify(vector.payload), 150) }}</div>
+                                    <div class="stat-content">
+                                        <div class="stat-value">{{ vector.id || vector.vector_id }}</div>
+                                        <div class="stat-label">{{ getVectorFileType(vector) }}</div>
+                                    </div>
+                                    <div class="vector-preview">
+                                        <div v-if="vector.payload" class="preview-text">
+                                            {{ truncateText(vector.payload.content || JSON.stringify(vector.payload), 100) }}
                                         </div>
-                                        <div v-else class="no-content">
+                                        <div v-else class="no-preview">
                                             <i class="fas fa-file-alt"></i>
-                                            <span>No content available</span>
+                                            <span>No content</span>
                                         </div>
                                     </div>
-
-                                    <div class="vector-metadata-grid">
-                                        <div class="metadata-item">
-                                            <i class="fas fa-folder"></i>
-                                            <span>{{ getVectorSource(vector) }}</span>
+                                    <div class="vector-card-footer">
+                                        <div class="vector-meta-info">
+                                            <span class="meta-item">
+                                                <i class="fas fa-folder"></i>
+                                                {{ getVectorSource(vector) }}
+                                            </span>
+                                            <span class="meta-item">
+                                                <i class="fas fa-list-ol"></i>
+                                                Chunk {{ getVectorChunkIndex(vector) }}
+                                            </span>
                                         </div>
-                                        <div class="metadata-item">
-                                            <i class="fas fa-list-ol"></i>
-                                            <span>Chunk {{ getVectorChunkIndex(vector) }}</span>
+                                        <div class="vector-actions">
+                                            <button class="btn-icon btn-xs" @click="navigator.clipboard.writeText(vector.id || vector.vector_id); showToast('Vector ID copied', 'success')" title="Copy ID">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            <button class="btn-icon btn-xs" @click="viewVectorDetails(vector)" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
                                         </div>
-                                    </div>
-
-                                    <div class="vector-card-actions">
-                                        <button class="btn btn-secondary btn-xs" @click="navigator.clipboard.writeText(vector.id || vector.vector_id); showToast('Vector ID copied', 'success')" title="Copy ID">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                        <button class="btn btn-primary btn-xs" @click="viewVectorDetails(vector)" title="View Details">
-                                            <i class="fas fa-eye"></i>
-                                            <span>View</span>
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -605,115 +682,7 @@
                     </div>
                 </div>
 
-                <!-- Cluster Info Page -->
-                <div v-else-if="currentPage === 'cluster'">
-                    <div class="cluster-page">
-                        <div class="page-header">
-                            <h1><i class="fas fa-project-diagram"></i> Cluster Information</h1>
-                            <p>Overview of your Vectorizer cluster</p>
-                        </div>
 
-                        <div class="cluster-grid">
-                            <div class="cluster-status-card">
-                                <div class="status-header">
-                                    <h3>Cluster Status</h3>
-                                    <span class="status-badge status-green">ONLINE</span>
-                                </div>
-                                <div class="status-details">
-                                    <div class="detail-item">
-                                        <span class="label">Nodes:</span>
-                                        <span class="value">1</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <span class="label">Version:</span>
-                                        <span class="value">1.0.0</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <span class="label">Collections:</span>
-                                        <span class="value">{{ collections.length }}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <span class="label">Total Vectors:</span>
-                                        <span class="value">{{ formatNumber(totalVectors) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="node-info-card">
-                                <h3>Node Information</h3>
-                                <div class="node-details">
-                                    <div class="detail-item">
-                                        <span class="label">Node ID:</span>
-                                        <span class="value">vectorizer-node-1</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <span class="label">Host:</span>
-                                        <span class="value">127.0.0.1:15001</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <span class="label">Role:</span>
-                                        <span class="value">Master</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <span class="label">Uptime:</span>
-                                        <span class="value">{{ getUptime() }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Console Page -->
-                <div v-else-if="currentPage === 'console'">
-                    <div class="console-page">
-                        <div class="page-header">
-                            <h1><i class="fas fa-terminal"></i> API Console</h1>
-                            <p>Test API endpoints directly from the dashboard</p>
-                        </div>
-
-                        <div class="console-container">
-                            <div class="console-form">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="console-method">Method</label>
-                                        <select id="console-method" class="form-control">
-                                            <option value="GET">GET</option>
-                                            <option value="POST">POST</option>
-                                            <option value="DELETE">DELETE</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group flex-1">
-                                        <label for="console-endpoint">Endpoint</label>
-                                        <input type="text" id="console-endpoint" class="form-control" placeholder="/collections" value="/collections">
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="console-body">Request Body (JSON)</label>
-                                    <textarea id="console-body" class="form-control code-editor" rows="8" placeholder='{\n  "key": "value"\n}'></textarea>
-                                </div>
-
-                                <div class="console-actions">
-                                    <button class="btn btn-primary" @click="executeConsoleRequest">
-                                        <i class="fas fa-play"></i> Execute
-                                    </button>
-                                    <button class="btn btn-secondary" @click="clearConsole">
-                                        <i class="fas fa-trash"></i> Clear
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="console-output">
-                                <div class="output-header">
-                                    <h3>Response</h3>
-                                    <span id="response-status" class="response-status"></span>
-                                </div>
-                                <pre id="console-response" class="response-content">Execute a request to see the response...</pre>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Other Pages Placeholder -->
                 <div v-else class="card">
@@ -797,9 +766,7 @@
                         overview: 'Overview',
                         collections: 'Collections',
                         search: 'Search',
-                        vectors: 'Vectors',
-                        cluster: 'Cluster Info',
-                        console: 'Console'
+                        vectors: 'Vectors'
                     };
                     return titles[currentPage.value] || currentPage.value;
                 });
@@ -1161,24 +1128,6 @@
                                             <div class="overview-value">${dimension}</div>
                                         </div>
                                     </div>
-                                    <div class="overview-card">
-                                        <div class="overview-icon">
-                                            <i class="fas fa-star"></i>
-                                        </div>
-                                        <div class="overview-content">
-                                            <div class="overview-label">Similarity Score</div>
-                                            <div class="overview-value">${score}</div>
-                                        </div>
-                                    </div>
-                                    <div class="overview-card">
-                                        <div class="overview-icon">
-                                            <i class="fas fa-clock"></i>
-                                        </div>
-                                        <div class="overview-content">
-                                            <div class="overview-label">Created</div>
-                                            <div class="overview-value">${vector.metadata?.created_at || vector.payload?.created_at || 'Unknown'}</div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <!-- Source Information Section -->
@@ -1252,22 +1201,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Vector Visualization (if applicable) -->
-                                ${dimension <= 3 ? `
-                                <div class="vector-section">
-                                    <div class="section-header">
-                                        <i class="fas fa-chart-scatter"></i>
-                                        <h3>Vector Visualization</h3>
-                                    </div>
-                                    <div class="vector-visualization">
-                                        <div class="viz-placeholder">
-                                            <i class="fas fa-chart-area"></i>
-                                            <p>Visualization coming soon</p>
-                                            <small>3D visualization for low-dimensional vectors</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                ` : ''}
                             </div>
                             <div class="modal-footer vector-modal-footer">
                                 <div class="footer-actions">
@@ -1837,6 +1770,56 @@
                     }
                 };
 
+                const getStatusIcon = (status) => {
+                    switch (status) {
+                        case 'cached': return 'fas fa-database';
+                        case 'processing':
+                        case 'indexing': return 'fas fa-sync fa-spin';
+                        case 'pending': return 'fas fa-clock';
+                        case 'failed': return 'fas fa-exclamation-triangle';
+                        default: return 'fas fa-check-circle';
+                    }
+                };
+
+                const getCollectionType = (collection) => {
+                    // Simple logic to determine collection type based on name or properties
+                    if (collection.name.toLowerCase().includes('gov') || collection.name.toLowerCase().includes('government')) {
+                        return 'Government Data';
+                    } else if (collection.name.toLowerCase().includes('code') || collection.name.toLowerCase().includes('source')) {
+                        return 'Source Code';
+                    } else if (collection.name.toLowerCase().includes('docs') || collection.name.toLowerCase().includes('documentation')) {
+                        return 'Documentation';
+                    } else if (collection.name.toLowerCase().includes('test') || collection.name.toLowerCase().includes('testing')) {
+                        return 'Testing Data';
+                    } else {
+                        return 'General Data';
+                    }
+                };
+
+                const getCollectionProgress = (collection) => {
+                    // Return a mock progress value or calculate from collection data
+                    if (collection.indexing_status && collection.indexing_status.progress !== undefined) {
+                        return Math.round(collection.indexing_status.progress);
+                    }
+                    return 100; // Default to 100% if no progress info
+                };
+
+                const formatLastUpdated = (collection) => {
+                    // Return formatted last updated time
+                    if (collection.last_updated) {
+                        return new Date(collection.last_updated).toLocaleDateString();
+                    } else if (collection.indexing_status && collection.indexing_status.last_updated) {
+                        return new Date(collection.indexing_status.last_updated).toLocaleDateString();
+                    }
+                    return 'Never';
+                };
+
+                const viewCollection = (collection) => {
+                    // Navigate to collections page and select this collection
+                    selectedCollection.value = collection.name;
+                    setPage('collections');
+                };
+
                 // Watch for indexing progress changes and update collections accordingly
                 watch(indexingProgress, (newProgress) => {
                     if (newProgress && newProgress.collections) {
@@ -1882,6 +1865,11 @@
                     formatNumber,
                     formatStatus,
                     getStatusClass,
+                    getStatusIcon,
+                    getCollectionType,
+                    getCollectionProgress,
+                    formatLastUpdated,
+                    viewCollection,
                     searchQuery,
                     selectedCollection,
                     searchResults,
