@@ -17,6 +17,7 @@ use super::handlers::{
     delete_vector,
     get_collection,
     get_indexing_progress,
+    get_memory_analysis,
     get_vector,
     health_check,
       get_stats,
@@ -32,6 +33,9 @@ use super::handlers::{
     mcp_sse,
     mcp_tools_call,
     mcp_tools_list,
+    requantize_collection,
+    generate_memory_profile,
+    analyze_heap_memory,
     search_by_file,
     search_vectors,
     search_vectors_by_text,
@@ -51,6 +55,7 @@ pub fn create_router(state: AppState) -> Router {
         // Health check
         .route("/health", get(health_check))
           .route("/stats", get(get_stats))
+        .route("/memory-analysis", get(get_memory_analysis))
         // Indexing progress
         .route("/indexing/progress", get(get_indexing_progress))
         .route("/indexing/progress", post(update_indexing_progress))
@@ -60,6 +65,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/collections", post(create_collection))
         .route("/collections/{collection_name}", get(get_collection))
         .route("/collections/{collection_name}", delete(delete_collection))
+        .route("/collections/{collection_name}/requantize", post(requantize_collection))
+        // Memory profiling
+        .route("/memory-profile", get(generate_memory_profile))
+        .route("/heap-analysis", get(analyze_heap_memory))
         // Vector operations
         .route(
             "/collections/{collection_name}/vectors",

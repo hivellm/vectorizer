@@ -4,7 +4,7 @@
 //! against CPU-only HNSW search in the Vectorizer.
 
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, CompressionConfig,
+    CollectionConfig, DistanceMetric, HnswConfig, CompressionConfig, QuantizationConfig,
     SearchResult, Vector, Payload
 };
 use vectorizer::error::Result;
@@ -70,7 +70,7 @@ async fn run_single_benchmark(test_name: &str, vector_count: usize, query_count:
             seed: Some(42),
         },
         compression: CompressionConfig::default(),
-        quantization: None,
+        quantization: QuantizationConfig::SQ { bits: 8 },
     };
 
     // Create CUDA configuration

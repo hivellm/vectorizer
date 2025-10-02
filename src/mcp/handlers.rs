@@ -145,6 +145,8 @@ impl McpHandler {
                 Self::handle_delete_collection_tool(arguments, vector_store).await
             }
             "get_database_stats" => Self::handle_get_database_stats_tool(vector_store).await,
+            "get_memory_analysis" => Self::handle_get_memory_analysis_tool(vector_store).await,
+            "requantize_collection" => Self::handle_requantize_collection_tool(arguments, vector_store).await,
             // GRPC-specific tools
             "create_collection_grpc" => {
                 Self::handle_create_collection_grpc_tool(arguments, grpc_client).await
@@ -237,6 +239,7 @@ impl McpHandler {
         let result = match uri.as_str() {
             "vectorizer://collections" => Self::handle_list_collections_tool(vector_store, grpc_client).await,
             "vectorizer://stats" => Self::handle_get_database_stats_tool(vector_store).await,
+            "vectorizer://memory-analysis" => Self::handle_get_memory_analysis_tool(vector_store).await,
             _ => {
                 serde_json::json!({
                     "error": "Resource not found",
@@ -1057,14 +1060,44 @@ impl McpHandler {
             })
         }
     }
+    
+    async fn handle_get_memory_analysis_tool(vector_store: &VectorStore) -> serde_json::Value {
+        match crate::mcp::tools::McpTools::get_memory_analysis(vector_store).await {
+            Ok(result) => result,
+            Err(e) => {
+                serde_json::json!({
+                    "error": format!("Failed to get memory analysis: {}", e)
+                })
+            }
+        }
     }
 
+    async fn handle_requantize_collection_tool(arguments: serde_json::Value, vector_store: &VectorStore) -> serde_json::Value {
+        let collection_name = match arguments.get("collection_name") {
+            Some(name) => match name.as_str() {
+                Some(s) => s,
+                None => return serde_json::json!({
+                    "error": "collection_name must be a string"
+                }),
+            },
+            None => return serde_json::json!({
+                "error": "collection_name is required"
+            }),
+        };
 
+        match crate::mcp::tools::McpTools::requantize_collection(collection_name, vector_store).await {
+            Ok(result) => result,
+            Err(e) => {
+                serde_json::json!({
+                    "error": format!("Failed to requantize collection: {}", e)
+                })
+            }
+        }
+    }
+}
 
-
-
-    #[cfg(test)]
-    mod tests {
+#[cfg(test)]
+mod tests {
         use super::*;
         
         #[tokio::test]

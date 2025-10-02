@@ -16,6 +16,8 @@ use std::collections::HashMap;
 use tokio::sync::Mutex;
 use std::fs;
 use vectorizer::logging;
+
+// Memory analysis available via /heap-analysis endpoint
 use vectorizer::workspace::WorkspaceManager;
 use vectorizer::{
     db::VectorStore,
@@ -25,6 +27,7 @@ use vectorizer::{
     config::{GrpcConfig, FileWatcherYamlConfig, VectorizerConfig},
     file_watcher::FileWatcherSystem,
     config::VectorizerConfig as FullVectorizerConfig,
+    models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig},
 };
 
 /// Find executable path for a given binary name
@@ -606,6 +609,7 @@ enum WorkspaceCommands {
 #[tokio::main]
 async fn main() {
     eprintln!("🚀 VZR MAIN: Started");
+
 
     // Initialize centralized logging
     if let Err(e) = logging::init_logging("vzr") {
@@ -1626,24 +1630,33 @@ async fn start_background_indexing_with_config(
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
     file_watcher_system: Arc<Mutex<Option<vectorizer::file_watcher::FileWatcherSystem>>>,
 ) {
+    println!("🔄 [BACKGROUND INDEXING] Starting background indexing process...");
+
     // Wait for servers to be ready with health check
+    println!("⏳ [BACKGROUND INDEXING] Waiting for servers to be ready...");
     wait_for_server_ready().await;
-    
+    println!("✅ [BACKGROUND INDEXING] Servers are ready");
+
     // Load workspace configuration
+    println!("📂 [BACKGROUND INDEXING] Loading workspace configuration...");
     let workspace_manager = match vectorizer::workspace::manager::WorkspaceManager::load_from_file("vectorize-workspace.yml") {
-        Ok(manager) => manager,
+        Ok(manager) => {
+            println!("✅ [BACKGROUND INDEXING] Workspace configuration loaded successfully");
+            manager
+        },
         Err(e) => {
-            println!("❌ Failed to load workspace configuration: {}", e);
+            println!("❌ [BACKGROUND INDEXING] Failed to load workspace configuration: {}", e);
             return;
         }
     };
-    
+
     let enabled_projects = workspace_manager.enabled_projects();
     let total_projects = enabled_projects.len();
+    println!("📊 [BACKGROUND INDEXING] Found {} enabled projects", total_projects);
 
     // Process projects in parallel (up to 4 concurrent)
     let max_concurrent_projects = std::cmp::min(4, total_projects);
-    println!("🚀 Starting parallel processing of {} projects (max {} concurrent)", total_projects, max_concurrent_projects);
+    println!("🚀 [BACKGROUND INDEXING] Starting parallel processing of {} projects (max {} concurrent)", total_projects, max_concurrent_projects);
     
     use tokio::sync::Semaphore;
     let semaphore = Arc::new(Semaphore::new(max_concurrent_projects));
@@ -1682,6 +1695,26 @@ async fn start_background_indexing_with_config(
                     Ok(count) => {
                         update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
                         println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
+
+                        // Apply quantization to all vectors if enabled
+                        println!("🔍 DEBUG: Checking quantization for collection '{}'", collection.name);
+                        if let Ok(coll) = vector_store_clone.get_collection(&collection.name) {
+                            println!("🔍 DEBUG: Got collection, checking config...");
+                            let config = coll.config();
+                            println!("🔍 DEBUG: Config quantization: {:?}", config.quantization);
+                            if matches!(config.quantization, QuantizationConfig::SQ { bits: 8 }) {
+                                println!("🔧 Applying quantization to {} vectors in collection '{}'", count, collection.name);
+                                if let Err(e) = coll.requantize_existing_vectors() {
+                                    eprintln!("⚠️ Failed to quantize vectors in collection '{}': {}", collection.name, e);
+                                } else {
+                                    println!("✅ Successfully quantized {} vectors in collection '{}'", count, collection.name);
+                                }
+                            } else {
+                                println!("🔍 DEBUG: Quantization not enabled for collection '{}'", collection.name);
+                            }
+                        } else {
+                            println!("🔍 DEBUG: Could not get collection '{}'", collection.name);
+                        }
 
                         // Create summary collections for this collection
                         create_summary_collections_for_project(
@@ -2776,11 +2809,11 @@ async fn create_summary_collection(
             ef_search: 64,
             seed: Some(42),
         },
-        quantization: None,
+        quantization: QuantizationConfig::SQ { bits: 8 },
         compression: Default::default(),
     };
 
-    vector_store.create_collection(collection_name, config)
+    vector_store.create_collection_with_quantization(collection_name, config)
         .map_err(|e| format!("Failed to create collection '{}': {}", collection_name, e))
 }
 

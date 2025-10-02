@@ -132,6 +132,19 @@ impl CollectionType {
         }
     }
 
+    /// Requantize existing vectors if quantization is enabled
+    pub fn requantize_existing_vectors(&self) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.requantize_existing_vectors(),
+            #[cfg(feature = "cuda")]
+            CollectionType::Cuda(c) => {
+                // For CUDA collections, we don't implement requantization yet
+                warn!("Requantization not implemented for CUDA collections yet");
+                Ok(())
+            }
+        }
+    }
+
     /// Set embedding type
     pub fn set_embedding_type(&self, embedding_type: String) {
         match self {
@@ -229,6 +242,63 @@ impl VectorStore {
         self.collections.insert(name.to_string(), collection);
 
         info!("Collection '{}' created successfully", name);
+        Ok(())
+    }
+
+    /// Create or update collection with automatic quantization
+    pub fn create_collection_with_quantization(&self, name: &str, config: CollectionConfig) -> Result<()> {
+        debug!("Creating/updating collection '{}' with automatic quantization", name);
+
+        // Check if collection already exists
+        if let Some(existing_collection) = self.collections.get(name) {
+            // Check if quantization is enabled in the new config
+            let quantization_enabled = matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
+            
+            // Check if existing collection has quantization
+            let existing_quantization_enabled = matches!(existing_collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
+            
+            if quantization_enabled && !existing_quantization_enabled {
+                info!("🔄 Collection '{}' needs quantization upgrade - applying automatically", name);
+                
+                // Store existing vectors
+                let existing_vectors = existing_collection.get_all_vectors();
+                let vector_count = existing_vectors.len();
+                
+                if vector_count > 0 {
+                    info!("📦 Storing {} existing vectors for quantization upgrade", vector_count);
+                    
+                    // Remove old collection
+                    self.collections.remove(name);
+                    
+                    // Create new collection with quantization
+                    self.create_collection(name, config)?;
+                    
+                    // Get the new collection and apply quantization to existing vectors
+                    let new_collection = self.get_collection(name)?;
+                    
+                    // Apply quantization to existing vectors
+                    for vector in existing_vectors {
+                        let vector_id = vector.id.clone();
+                        if let Err(e) = new_collection.add_vector(vector_id.clone(), vector) {
+                            warn!("Failed to add vector {} to quantized collection: {}", vector_id, e);
+                        }
+                    }
+                    
+                    info!("✅ Successfully upgraded collection '{}' with quantization for {} vectors", name, vector_count);
+                } else {
+                    // Collection is empty, just recreate with new config
+                    self.collections.remove(name);
+                    self.create_collection(name, config)?;
+                    info!("✅ Recreated empty collection '{}' with quantization", name);
+                }
+            } else {
+                debug!("Collection '{}' already has correct quantization configuration", name);
+            }
+        } else {
+            // Collection doesn't exist, create it normally with quantization
+            self.create_collection(name, config)?;
+        }
+
         Ok(())
     }
 
@@ -345,7 +415,11 @@ impl VectorStore {
 
         // TODO: Implement load_from_cache for CudaCollection
         match &*collection_ref {
-            CollectionType::Cpu(c) => c.load_from_cache(persisted_vectors)?,
+            CollectionType::Cpu(c) => {
+                c.load_from_cache(persisted_vectors)?;
+                // Requantize existing vectors if quantization is enabled
+                c.requantize_existing_vectors()?;
+            },
             #[cfg(feature = "cuda")]
             CollectionType::Cuda(_) => {
                 warn!("CUDA collections don't support cache loading yet - falling back to manual insertion");
@@ -436,7 +510,7 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 
@@ -459,7 +533,7 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 
@@ -482,7 +556,7 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 
@@ -514,7 +588,7 @@ mod tests {
                 ef_search: 50,
                 seed: Some(42),
             },
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 
@@ -576,7 +650,7 @@ mod tests {
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 
@@ -610,7 +684,7 @@ mod tests {
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 
@@ -656,7 +730,7 @@ mod tests {
                 ef_search: 64,
                 seed: Some(123),
             },
-            quantization: None,
+            quantization: Default::default(),
             compression: CompressionConfig {
                 enabled: true,
                 threshold_bytes: 2048,
@@ -691,7 +765,7 @@ mod tests {
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
 

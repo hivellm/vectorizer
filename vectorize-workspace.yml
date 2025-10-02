@@ -28,6 +28,9 @@ global:
   default_collection:
     dimension: 512                 # Default dimension for BM25
     metric: "cosine"               # cosine, euclidean, dot_product
+    quantization:
+      type: "sq"
+      bits: 8                      # 4x memory compression with improved quality
     compression:
       enabled: true
       threshold_bytes: 1024

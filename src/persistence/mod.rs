@@ -205,9 +205,13 @@ impl VectorStore {
         // Create new vector store
         let store = VectorStore::new();
 
-        // Restore collections with fast loading (no HNSW reconstruction)
+        // Restore collections with fast loading and automatic quantization
         for collection in persisted.collections {
-            store.create_collection(&collection.name, collection.config.clone())?;
+            // Create collection config with quantization enabled
+            let mut config = collection.config.clone();
+            config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
+            
+            store.create_collection_with_quantization(&collection.name, config)?;
 
             if !collection.vectors.is_empty() {
                 // Load vectors from cache (HNSW dump not implemented yet)

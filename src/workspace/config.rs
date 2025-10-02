@@ -176,8 +176,22 @@ pub struct CollectionDefaults {
     /// Default distance metric
     pub metric: DistanceMetric,
 
+    /// Quantization settings
+    pub quantization: Option<QuantizationDefaults>,
+
     /// Compression settings
     pub compression: CompressionConfig,
+}
+
+/// Quantization defaults
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuantizationDefaults {
+    /// Quantization type
+    #[serde(rename = "type")]
+    pub quantization_type: String,
+
+    /// Number of bits for scalar quantization
+    pub bits: usize,
 }
 
 /// Compression configuration
@@ -440,6 +454,10 @@ impl Default for WorkspaceConfig {
                 },
                 default_collection: CollectionDefaults {
                     metric: DistanceMetric::Cosine,
+                    quantization: Some(QuantizationDefaults {
+                        quantization_type: "sq".to_string(),
+                        bits: 8,
+                    }),
                     compression: CompressionConfig {
                         enabled: true,
                         threshold_bytes: 1024,

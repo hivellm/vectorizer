@@ -10,7 +10,7 @@ use crate::{
         BagOfWordsEmbedding, BertEmbedding, Bm25Embedding, CharNGramEmbedding, EmbeddingManager,
         MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding,
     },
-    models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+    models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector},
     models::collection_metadata::{CollectionMetadataFile, FileMetadata, CollectionIndexingConfig, EmbeddingModelInfo},
     utils::file_hash::{calculate_file_hash, get_file_modified_time},
     summarization::{SummarizationManager, SummarizationConfig},
@@ -1163,6 +1163,19 @@ impl DocumentLoader {
             self.config.collection_name,
             total_vectors
         );
+        
+        // Apply quantization to all vectors if enabled
+        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
+            if matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                info!("🔧 Applying quantization to {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                if let Err(e) = collection.requantize_existing_vectors() {
+                    warn!("Failed to quantize vectors in collection '{}': {}", self.config.collection_name, e);
+                } else {
+                    info!("✅ Successfully quantized {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                }
+            }
+        }
+        
         Ok(total_vectors)
     }
 
@@ -1338,12 +1351,15 @@ impl DocumentLoader {
                 ef_search: 64,
                 seed: Some(42), // For reproducible results
             },
-            quantization: None,
+            quantization: QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
         };
 
+        // Check if quantization is enabled before creating collection
+        let quantization_enabled = matches!(config.quantization, QuantizationConfig::SQ { bits: 8 });
+
         store
-            .create_collection(&self.config.collection_name, config)
+            .create_collection_with_quantization(&self.config.collection_name, config)
             .with_context(|| {
                 format!(
                     "Failed to create collection '{}'",
@@ -1358,6 +1374,16 @@ impl DocumentLoader {
                 "Set embedding type '{}' for collection '{}'",
                 self.config.embedding_type, self.config.collection_name
             );
+            
+            // Force apply quantization if enabled
+            if quantization_enabled {
+                info!("🔧 Applying quantization to collection '{}'", self.config.collection_name);
+                if let Err(e) = collection.requantize_existing_vectors() {
+                    warn!("Failed to apply quantization to collection '{}': {}", self.config.collection_name, e);
+                } else {
+                    info!("✅ Successfully applied quantization to collection '{}'", self.config.collection_name);
+                }
+            }
         }
 
         info!("Created collection: {}", self.config.collection_name);
@@ -1660,14 +1686,25 @@ impl DocumentLoader {
                     ef_search: 64,
                     seed: Some(42),
                 },
-                quantization: None,
+                quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
             };
             
-            match store.create_collection(&summary_collection_name, config) {
+            // Check if quantization is enabled before creating collection
+            let quantization_enabled = matches!(config.quantization, QuantizationConfig::SQ { bits: 8 });
+            
+            match store.create_collection_with_quantization(&summary_collection_name, config) {
                 Ok(_) => {
                     if let Ok(c) = store.get_collection(&summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
+                        // Force apply quantization to summary collection
+                        if quantization_enabled {
+                            if let Err(e) = c.requantize_existing_vectors() {
+                                warn!("Failed to apply quantization to summary collection '{}': {}", summary_collection_name, e);
+                            } else {
+                                info!("✅ Applied quantization to summary collection '{}'", summary_collection_name);
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -1687,14 +1724,26 @@ impl DocumentLoader {
                     ef_search: 64,
                     seed: Some(42),
                 },
-                quantization: None,
+                quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
             };
-            match store.create_collection(&chunk_summary_collection_name, config) {
+            
+            // Check if quantization is enabled before creating collection
+            let quantization_enabled = matches!(config.quantization, QuantizationConfig::SQ { bits: 8 });
+            
+            match store.create_collection_with_quantization(&chunk_summary_collection_name, config) {
                 Ok(_) => {
                     println!("✅ Created chunk summary collection: {}", chunk_summary_collection_name);
                     if let Ok(c) = store.get_collection(&chunk_summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
+                        // Force apply quantization to chunk summary collection
+                        if quantization_enabled {
+                            if let Err(e) = c.requantize_existing_vectors() {
+                                warn!("Failed to apply quantization to chunk summary collection '{}': {}", chunk_summary_collection_name, e);
+                            } else {
+                                info!("✅ Applied quantization to chunk summary collection '{}'", chunk_summary_collection_name);
+                            }
+                        }
                     }
                 }
                 Err(e) => {

@@ -46,6 +46,10 @@ dashmap = "6.1"
 parking_lot = "0.12"
 once_cell = "1.19"
 arc-swap = "1.7"
+lru = "0.12"
+pprof = { version = "0.13", features = ["flamegraph", "protobuf"] }
+base64 = "0.22"
+memory-stats = "1.2"
 
 # Error handling and logging
 anyhow = { version = "1.0", features = ["backtrace"] }
