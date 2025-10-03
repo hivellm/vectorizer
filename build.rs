@@ -8,7 +8,7 @@ fn main() {
     println!("cargo:rerun-if-changed=config.yml");
 
     // Build protobuf files
-    tonic_prost_build::compile_protos("proto/vectorizer.proto").expect("Failed to compile proto files");
+    tonic_build::compile_protos("proto/vectorizer.proto").expect("Failed to compile proto files");
 
     // Check for CUDA libraries if cuda_real feature is enabled AND cuda is enabled in config
     if env::var("CARGO_FEATURE_CUDA_REAL").is_ok() && cuda_enabled_in_config() {

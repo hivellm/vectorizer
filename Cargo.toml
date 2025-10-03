@@ -48,6 +48,9 @@ rayon = "1.10"
 crossbeam = "0.8"
 num_cpus = "1.16"
 
+# Memory analysis
+memory-stats = "1.0"
+
 # Data structures
 dashmap = "6.1"
 parking_lot = "0.12"

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 //! Vectorizer - High-performance, in-memory vector database written in Rust
 //!
 //! This crate provides a fast and efficient vector database for semantic search
@@ -24,6 +23,7 @@ pub mod grpc;
 pub mod hybrid_search;
 pub mod mcp;
 pub mod mcp_service;
+pub mod memory_snapshot;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
