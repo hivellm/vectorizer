@@ -17,6 +17,8 @@ pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
+#[cfg(feature = "wgpu-gpu")]
+pub mod gpu;
 pub mod grpc;
 pub mod hybrid_search;
 pub mod mcp;

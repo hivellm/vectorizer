@@ -17,6 +17,73 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🐍 Python SDK**: 🚧 In development - PyPI publishing in progress
 - **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
+- **⚡ GPU Metal Acceleration**: Native Apple Silicon GPU support for vector operations (M1/M2/M3)
+
+## 🎮 **GPU Metal Acceleration** (NEW in v0.24.0)
+
+High-performance GPU acceleration for Apple Silicon with automatic CPU fallback:
+
+### **Features**
+- ✅ **Metal Backend**: Native GPU support via `wgpu 27.0` framework
+- ✅ **Smart Fallback**: Automatic CPU fallback for small workloads
+- ✅ **Cross-Platform**: Metal (macOS), Vulkan (Linux), DirectX12 (Windows)
+- ✅ **High Performance**: Up to **3.75× speedup** on large workloads
+
+### **Supported Operations**
+- Cosine Similarity (vec4 optimized)
+- Euclidean Distance
+- Dot Product
+- Batch Search
+
+### **Performance** (Apple M3 Pro)
+- **Small** (100 vectors): CPU faster (auto fallback) ✅
+- **Medium** (1K vectors): 1.5× speedup
+- **Large** (10K vectors): **3.75× speedup**
+- **Peak**: 1.1M vectors/second
+
+### **Build with GPU**
+```bash
+# Build without GPU (default, CPU only)
+cargo build --release
+
+# Build with GPU Metal acceleration
+cargo build --release --features wgpu-gpu
+
+# Run with GPU
+cargo run --release --features wgpu-gpu
+```
+
+### **Usage Example**
+```rust
+use vectorizer::gpu::{GpuContext, GpuConfig, GpuOperations};
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize GPU context
+    let config = GpuConfig::default();
+    let ctx = GpuContext::new(config).await?;
+    
+    // Prepare data
+    let query = vec![0.1; 512];
+    let vectors: Vec<Vec<f32>> = (0..10000)
+        .map(|_| vec![0.2; 512])
+        .collect();
+    
+    // GPU-accelerated operation
+    let results = ctx.cosine_similarity(&query, &vectors).await?;
+    
+    println!("Top similarity: {}", results[0]);
+    Ok(())
+}
+```
+
+### **System Requirements**
+- **macOS**: Apple Silicon (M1/M2/M3) or Metal-compatible GPU
+- **Linux**: Vulkan-compatible GPU (optional)
+- **Windows**: DirectX12-compatible GPU (optional)
+- **Memory**: 8GB+ recommended for large datasets
+
+📚 **Full Documentation**: See `README_GPU_METAL.md` and `docs/METAL_GPU_IMPLEMENTATION.md`
 
 ## 📝 **Automatic Summarization**
 

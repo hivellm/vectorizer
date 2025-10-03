@@ -10,6 +10,7 @@ keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similar
 categories = ["database", "science"]
 
 [dependencies]
+ctrlc = { version = "3.4", optional = true }
 # Core dependencies
 tokio = { version = "1.40", features = ["full"] }
 axum = { version = "0.8", features = ["ws", "json"] }
@@ -35,6 +36,12 @@ ndarray = "0.16"
 # CUDA dependencies (real GPU processing)
 cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
 cc = { version = "1.0", features = ["parallel"] }
+
+# WebGPU/Metal dependencies (cross-platform GPU acceleration)
+wgpu = { version = "27.0", features = ["wgsl"], optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1.22", features = ["derive"], optional = true }
+futures = { version = "0.3", optional = true }
 
 # Parallel processing
 rayon = "1.10"
@@ -183,6 +190,9 @@ path = "src/bin/vectorizer-mcp-server.rs"
 default = ["cuda_real"]
 cuda = []
 cuda_real = ["cuda"]
+metal = ["wgpu", "pollster", "bytemuck", "futures"]
+wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
+gpu-accel = ["wgpu-gpu"]
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
 candle-transformers = ["dep:candle-transformers"]

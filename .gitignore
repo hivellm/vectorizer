@@ -9,6 +9,7 @@ Cargo.lock
 *.swp
 *.swo
 *~
+vectorize-workspace.yml
 
 # OS files
 .DS_Store
