@@ -99,6 +99,8 @@ impl Default for CollectionConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum QuantizationConfig {
+    /// No quantization (store full precision vectors)
+    None,
     /// Product Quantization
     PQ {
         n_centroids: usize,

@@ -1,6 +1,8 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "vectorizer"
-version = "0.25.0"
+version = "0.26.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"

@@ -405,23 +405,31 @@ impl DocumentLoader {
 
         // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
         if vector_store_path.exists() {
-            info!("🚀 Loading cached vector store for '{}'", collection_name);
+            info!("🚀 Loading cached vector store for '{}' from {}", collection_name, vector_store_path.display());
+            debug!("🔍 Checking if cache file exists: {}", vector_store_path.display());
             match self.load_persisted_store(&vector_store_path, store, &collection_name) {
                 Ok(count) => {
-                    info!("✅ Loaded {} vectors from cache for '{}'", count, collection_name);
-                    // Record cache hit if cache manager is available
-                    if let Some(cache_manager) = &self.cache_manager {
-                        let _ = cache_manager.record_hit().await;
+                    if count > 0 {
+                        info!("✅ Loaded {} vectors from cache for '{}'", count, collection_name);
+                        // Record cache hit if cache manager is available
+                        if let Some(cache_manager) = &self.cache_manager {
+                            let _ = cache_manager.record_hit().await;
+                        }
+                        return Ok((count, true));
+                    } else {
+                        warn!("⚠️ Cache file exists but has 0 vectors for '{}', performing full indexing", collection_name);
+                        // Continue to full indexing
                     }
-                    return Ok((count, true));
                 }
                 Err(e) => {
+                    warn!("❌ Failed to load cached vector store for '{}': {}, falling back to full indexing", collection_name, e);
+                    // Continue to full indexing
                 }
             }
         }
 
         // SLOW PATH: Full indexing when no cache exists
-        info!("📊 No cache found for '{}', performing full indexing", collection_name);
+        info!("📊 No cache found for '{}', performing full indexing from path: {}", collection_name, project_path);
 
         if let Some(cache_manager) = &self.cache_manager {
             let _ = cache_manager.record_miss().await;
@@ -534,9 +542,13 @@ impl DocumentLoader {
             callback.update(&self.config.collection_name, "processing", 20.0, 0, 0);
         }
 
+        info!("📂 Starting document collection for '{}' from path: {}", self.config.collection_name, project_path);
         let documents = self.collect_documents(project_path).map_err(|e| CacheError::Other(e.to_string()))?;
+        info!("📊 Found {} documents for collection '{}'", documents.len(), self.config.collection_name);
+
         if documents.is_empty() {
-            warn!("No documents found in project directory for collection '{}'.", self.config.collection_name);
+            warn!("❌ No documents found in project directory '{}' for collection '{}'. Path: {}, Include patterns: {:?}",
+                  project_path, self.config.collection_name, project_path, self.config.include_patterns);
             return Ok((0, false));
         }
 
@@ -649,8 +661,29 @@ impl DocumentLoader {
 
     /// Loads a persisted vector store into the main application store.
     fn load_persisted_store(&mut self, path: &Path, app_store: &VectorStore, collection_name: &str) -> Result<usize> {
-        let persisted_store = VectorStore::load(path)?;
+        info!("🔍 Loading persisted store from {} for collection '{}'", path.display(), collection_name);
+        
+        // Check if file exists and is readable
+        if !path.exists() {
+            return Err(crate::error::VectorizerError::Other(format!("Cache file does not exist: {}", path.display())).into());
+        }
+        
+        // Load the persisted store
+        info!("🔍 Attempting to load VectorStore from {}", path.display());
+        let persisted_store = match VectorStore::load(path) {
+            Ok(store) => {
+                info!("✅ Successfully loaded VectorStore from {}", path.display());
+                store
+            },
+            Err(e) => {
+                error!("❌ Failed to load VectorStore from {}: {}", path.display(), e);
+                return Err(e.into());
+            }
+        };
+        info!("✅ Successfully loaded persisted store, getting collection '{}'", collection_name);
+        
         let src_collection = persisted_store.get_collection(collection_name)?;
+        info!("✅ Successfully got collection '{}' from persisted store", collection_name);
         
         let meta = src_collection.metadata();
         if app_store.get_collection(collection_name).is_err() {
@@ -660,119 +693,22 @@ impl DocumentLoader {
         let vectors = src_collection.get_all_vectors();
         let vector_count = vectors.len();
 
-        // Fast load: try to load HNSW dump first, fallback to rebuilding index
+        // Get the app collection and load vectors
         let app_collection = app_store.get_collection(collection_name)?;
-
-        // Try to load HNSW dump first
-        let hnsw_loaded = if let Some(project_path) = path.parent().and_then(|p| p.parent()) {
-            let cache_dir = project_path.join(".vectorizer");
-            let basename = format!("{}_hnsw", collection_name);
-
-            // Check if dump files exist
-            let graph_file = cache_dir.join(format!("{}.hnsw.graph", basename));
-            let data_file = cache_dir.join(format!("{}.hnsw.data", basename));
-
-            if graph_file.exists() && data_file.exists() {
-                match app_collection.load_hnsw_index_from_dump(&cache_dir, &basename) {
-                    Ok(_) => {
-                        // Load vectors into memory without rebuilding index
-                        app_collection.load_vectors_into_memory(vectors.clone())?;
-                        println!("✅ Successfully loaded {} vectors into memory (dump mode)", vector_count);
-                        true
-                    }
-                    Err(e) => {
-                        println!("❌ Failed to load HNSW dump: {}, falling back to rebuild", e);
-                        false
-                    }
-                }
-            } else {
-                false
-            }
-        } else {
-            println!("📝 No project path available, rebuilding index...");
-            false
-        };
-
-        // If HNSW dump loading failed, rebuild the index
-        if !hnsw_loaded {
-            app_collection.fast_load_vectors(vectors.clone())?;
-            println!("✅ Successfully loaded {} vectors from cache (rebuild mode)", vector_count);
-        }
-
-
-        // Try to load metadata if it exists
-        if let Some(project_path) = path.parent().and_then(|p| p.parent()) {
-            if let Ok(Some(metadata)) = self.load_metadata(project_path.to_str().unwrap()) {
-                debug!("Loaded metadata for collection '{}' with {} indexed files", collection_name, metadata.files.len());
-            }
-        }
         
-        // Generate summaries if summarization is enabled and summary collection doesn't exist
-        if let Some(summarization_manager) = self.summarization_manager.take() {
-            let summary_collection_name = format!("{}_summaries", collection_name);
-            
-            // Check if summary collection already exists
-            if app_store.get_collection(&summary_collection_name).is_err() {
-                info!("📝 Generating summaries for cached collection '{}'", collection_name);
-                
-                // Convert vectors to DocumentChunk format for summarization
-                let mut file_chunks: HashMap<String, Vec<DocumentChunk>> = HashMap::new();
-                
-                for vector in &vectors {
-                    if let Some(payload) = &vector.payload {
-                        if let Some(content) = payload.data.get("content").and_then(|v| v.as_str()) {
-                            if let Some(file_path) = payload.data.get("file_path").and_then(|v| v.as_str()) {
-                                if let Some(chunk_index) = payload.data.get("chunk_index").and_then(|v| v.as_u64()) {
-                                    let mut metadata = HashMap::new();
-                                    if let Some(meta) = payload.data.get("metadata") {
-                                        if let Some(meta_obj) = meta.as_object() {
-                                            for (k, v) in meta_obj {
-                                                metadata.insert(k.clone(), v.clone());
-                                            }
-                                        }
-                                    }
-                                    
-                                    let chunk = DocumentChunk {
-                                        id: vector.id.clone(),
-                                        content: content.to_string(),
-                                        file_path: file_path.to_string(),
-                                        chunk_index: chunk_index as usize,
-                                        metadata,
-                                    };
-                                    
-                                    file_chunks.entry(file_path.to_string()).or_insert_with(Vec::new).push(chunk);
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Convert to flat vector for generate_document_summaries
-                let all_chunks: Vec<DocumentChunk> = file_chunks.values().flatten().cloned().collect();
-                
-                if !all_chunks.is_empty() {
-                    let (result, summarization_manager) = self.generate_document_summaries(app_store, &all_chunks, summarization_manager);
-                    if let Err(e) = result {
-                        warn!("Failed to generate summaries for cached collection '{}': {}", collection_name, e);
-                    } else {
-                        info!("✅ Generated summaries for cached collection '{}'", collection_name);
-                    }
-                    // Put the summarization manager back
-                    self.summarization_manager = Some(summarization_manager);
-                } else {
-                    info!("ℹ️ No chunks found for summarization in cached collection '{}'", collection_name);
-                    self.summarization_manager = Some(summarization_manager);
-                }
-            } else {
-                info!("ℹ️ Summary collection '{}' already exists, skipping summarization", summary_collection_name);
-                self.summarization_manager = Some(summarization_manager);
-            }
-        }
+        // Convert vectors to runtime format for loading
+        let runtime_vectors: Vec<crate::models::Vector> = vectors
+            .into_iter()
+            .map(|v| v.into())
+            .collect();
         
+        // Load vectors into the app collection
+        app_collection.fast_load_vectors(runtime_vectors)?;
+        info!("✅ Successfully loaded {} vectors into app collection '{}'", vector_count, collection_name);
+
+
         Ok(vector_count)
     }
-
-    /// Save tokenizer to centralized data directory
     fn save_tokenizer(&self, _project_path: &str) -> Result<()> {
         let data_dir = Self::get_data_dir();
         fs::create_dir_all(&data_dir)?;
