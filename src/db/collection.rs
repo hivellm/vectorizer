@@ -608,23 +608,15 @@ impl Collection {
         }
 
         let basename = format!("{}_hnsw", self.name);
-        
-        info!("🔍 COLLECTION DUMP DEBUG: Starting HNSW dump for collection '{}'", self.name);
-        info!("🔍 COLLECTION DUMP DEBUG: Cache directory: {}", cache_dir.display());
-        info!("🔍 COLLECTION DUMP DEBUG: Basename: {}", basename);
-        info!("🔍 COLLECTION DUMP DEBUG: Collection has {} vectors, {} documents", 
-              self.vector_count(), self.document_ids.len());
-        
+                
         // Check if index has vectors
         let index_len = (*self.index.read()).len();
-        info!("🔍 COLLECTION DUMP DEBUG: Index length: {}", index_len);
         
         if index_len == 0 {
             warn!("⚠️ COLLECTION DUMP WARNING: Index is empty for collection '{}'", self.name);
             return Err(VectorizerError::IndexError(format!("Index is empty for collection '{}'", self.name)));
         }
         
-        debug!("🔍 COLLECTION DUMP DEBUG: Calling index.file_dump...");
         (*self.index.write()).file_dump(&cache_dir, &basename)?;
         info!("✅ Successfully dumped HNSW index for collection '{}' to cache", self.name);
         Ok(())

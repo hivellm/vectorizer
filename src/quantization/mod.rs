@@ -8,6 +8,7 @@ pub mod scalar;
 pub mod traits;
 pub mod storage;
 pub mod hnsw_integration;
+pub mod simple_tests;
 
 // TODO: Implement these modules in future phases
 // pub mod product;

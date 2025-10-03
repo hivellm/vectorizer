@@ -1312,7 +1312,6 @@ async fn run_interactive_workspace(
     port: u16,
     _mcp_port: u16,
 ) {
-    println!("🏁 DEBUG: Entered run_interactive_workspace function");
     use tokio::signal;
 
     // Check if we have enabled projects
@@ -1683,13 +1682,11 @@ async fn start_background_indexing_with_config(
         let collections = project_ref.collections.clone();
 
         let task = tokio::spawn(async move {
-            println!("📁 Debug: Acquiring semaphore for project: {}", project_name);
             let _permit = semaphore_clone.acquire().await.unwrap();
-            println!("📁 Processing project: {} (parallel)", project_name);
-
+            
             // Process all collections for this project sequentially
             for collection in &collections {
-                println!("🗂️ Processing collection: {} from {}", collection.name, project_path.display());
+                //println!("🗂️ Processing collection: {} from {}", collection.name, project_path.display());
 
                 // Update status to processing
                 update_collection_status(&collection.name, "processing", 0.0, None).await;
@@ -1703,24 +1700,17 @@ async fn start_background_indexing_with_config(
                 ).await {
                     Ok(count) => {
                         update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
-                        println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
-
+                        
                         // Apply quantization to all vectors if enabled
-                        println!("🔍 DEBUG: Checking quantization for collection '{}'", collection.name);
                         if let Ok(coll) = vector_store_clone.get_collection(&collection.name) {
-                            println!("🔍 DEBUG: Got collection, checking config...");
                             let config = coll.config();
-                            println!("🔍 DEBUG: Config quantization: {:?}", config.quantization);
                             if matches!(config.quantization, QuantizationConfig::SQ { bits: 8 }) {
-                                println!("🔧 Applying quantization to {} vectors in collection '{}'", count, collection.name);
                                 if let Err(e) = coll.requantize_existing_vectors() {
                                     eprintln!("⚠️ Failed to quantize vectors in collection '{}': {}", collection.name, e);
                                 } else {
                                     println!("✅ Successfully quantized {} vectors in collection '{}'", count, collection.name);
                                 }
-                            } else {
-                                println!("🔍 DEBUG: Quantization not enabled for collection '{}'", collection.name);
-                            }
+                            } 
                         } else {
                             println!("🔍 DEBUG: Could not get collection '{}'", collection.name);
                         }
@@ -1738,8 +1728,6 @@ async fn start_background_indexing_with_config(
                         if let Some(ref mut watcher) = *system {
                             if let Err(e) = watcher.update_with_collection(&collection.name).await {
                                 eprintln!("⚠️ Failed to update file watcher with collection '{}': {}", collection.name, e);
-                            } else {
-                                println!("👁️ File watcher updated with collection: {}", collection.name);
                             }
                         }
                     }
@@ -2788,7 +2776,7 @@ async fn create_summary_collections_for_project(
     vector_store: Arc<VectorStore>,
     _embedding_manager: Arc<Mutex<EmbeddingManager>>,
 ) {
-    println!("📄 Verifying summary collections for '{}'", collection_name);
+    //println!("📄 Verifying summary collections for '{}'", collection_name);
 
     // Summary collection names
     let file_summary_collection = format!("{}_summaries", collection_name);
@@ -2801,7 +2789,7 @@ async fn create_summary_collections_for_project(
     if file_collection_exists {
         if let Ok(collection) = vector_store.get_collection(&file_summary_collection) {
             let count = collection.vector_count();
-            println!("   📊 Contains {} summaries", count);
+            //println!("   📊 Contains {} summaries", count);
         }
     } else {
         println!("⚠️ File summary collection not found: {}", file_summary_collection);
@@ -2810,7 +2798,6 @@ async fn create_summary_collections_for_project(
     if chunk_collection_exists {
         if let Ok(collection) = vector_store.get_collection(&chunk_summary_collection) {
             let count = collection.vector_count();
-            println!("   📊 Contains {} summaries", count);
         }
     } else {
         println!("⚠️ Chunk summary collection not found: {}", chunk_summary_collection);

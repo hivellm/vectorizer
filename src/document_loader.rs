@@ -239,20 +239,10 @@ impl DocumentLoader {
 
         let path_str = relative_path.to_string_lossy();
 
-        // Debug logging for gov collections
-        if self.config.collection_name.starts_with("gov-") {
-            debug!("Checking file: {} against patterns for collection: {}", path_str, self.config.collection_name);
-            debug!("Include patterns: {:?}", self.config.include_patterns);
-            debug!("Exclude patterns: {:?}", self.config.exclude_patterns);
-        }
-
         // Check exclude patterns first - if any match, exclude the file
         for exclude_pattern in &self.config.exclude_patterns {
             if let Ok(pattern) = Pattern::new(exclude_pattern) {
                 if pattern.matches(&path_str) {
-                    if self.config.collection_name.starts_with("gov-") {
-                        debug!("File {} excluded by pattern: {}", path_str, exclude_pattern);
-                    }
                     return false;
                 }
             }
@@ -262,9 +252,6 @@ impl DocumentLoader {
         for include_pattern in &self.config.include_patterns {
             if let Ok(pattern) = Pattern::new(include_pattern) {
                 if pattern.matches(&path_str) {
-                    if self.config.collection_name.starts_with("gov-") {
-                        debug!("File {} included by pattern: {}", path_str, include_pattern);
-                    }
                     return true;
                 }
             }
@@ -273,9 +260,6 @@ impl DocumentLoader {
         // If include patterns are specified, don't fall back to extension-based matching
         // This ensures we only process files that match the specific patterns
         if !self.config.include_patterns.is_empty() {
-            if self.config.collection_name.starts_with("gov-") {
-                debug!("File {} not included (no pattern match, include patterns specified)", path_str);
-            }
             return false;
         }
 
@@ -283,15 +267,9 @@ impl DocumentLoader {
         if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
             let ext_lower = extension.to_lowercase();
             let result = self.config.allowed_extensions.contains(&ext_lower);
-            if self.config.collection_name.starts_with("gov-") {
-                debug!("File {} extension-based check: {} (extension: {})", path_str, result, ext_lower);
-            }
             return result;
         }
 
-        if self.config.collection_name.starts_with("gov-") {
-            debug!("File {} rejected (no extension)", path_str);
-        }
         false
     }
 
@@ -706,7 +684,7 @@ impl DocumentLoader {
             
             // Check if summary collection already exists
             if app_store.get_collection(&summary_collection_name).is_err() {
-                info!("📝 Generating summaries for cached collection '{}'", collection_name);
+                //info!("📝 Generating summaries for cached collection '{}'", collection_name);
                 
                 // Convert vectors to DocumentChunk format for summarization
                 let mut file_chunks: HashMap<String, Vec<DocumentChunk>> = HashMap::new();
@@ -889,7 +867,6 @@ impl DocumentLoader {
         project_root: &Path,
         documents: &mut Vec<(PathBuf, String)>,
     ) -> Result<()> {
-        debug!("Scanning directory: {}", dir.display());
         let entries = fs::read_dir(dir)
             .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
 
@@ -1608,7 +1585,6 @@ impl DocumentLoader {
         let metadata_json = serde_json::to_string_pretty(metadata)?;
         fs::write(&metadata_path, metadata_json)?;
         
-        debug!("Saved metadata for collection '{}' to {}", self.config.collection_name, metadata_path.display());
         Ok(())
     }
 
@@ -1624,7 +1600,6 @@ impl DocumentLoader {
         let metadata_json = fs::read_to_string(&metadata_path)?;
         let metadata: CollectionMetadataFile = serde_json::from_str(&metadata_json)?;
         
-        debug!("Loaded metadata for collection '{}' from {}", self.config.collection_name, metadata_path.display());
         Ok(Some(metadata))
     }
 
@@ -1932,9 +1907,7 @@ impl DocumentLoader {
                 }
             }
             println!("✅ Inserted {} file summaries into '{}'", file_summary_vectors.len(), summary_collection_name);
-        } else {
-            println!("ℹ️ No file summaries generated for '{}' (no suitable documents)", self.config.collection_name);
-        }
+        } 
 
         // Insert chunk summary vectors in batches
         if !chunk_summary_vectors.is_empty() {
@@ -1946,9 +1919,7 @@ impl DocumentLoader {
                 }
             }
             println!("✅ Inserted {} chunk summaries into '{}'", chunk_summary_vectors.len(), chunk_summary_collection_name);
-        } else {
-            println!("ℹ️ No chunk summaries generated for '{}' (no suitable documents)", self.config.collection_name);
-        }
+        } 
         
         (Ok(()), summarization_manager)
     }

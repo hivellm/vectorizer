@@ -10,6 +10,18 @@ use std::fs;
 use std::path::Path;
 use tracing::{debug, error, info, warn};
 
+// New persistence system modules
+pub mod types;
+pub mod wal;
+pub mod dynamic;
+pub mod enhanced_store;
+
+// Demo tests
+#[cfg(test)]
+mod demo_test;
+#[cfg(test)]
+mod debug_test;
+
 /// Persisted representation of a vector store
 #[derive(Serialize, Deserialize)]
 pub struct PersistedVectorStore {
@@ -32,13 +44,13 @@ pub struct PersistedCollection {
     hnsw_dump_basename: Option<String>,
 }
 
-/// Persisted representation of a vector with payload serialized as JSON bytes
+/// Persisted representation of a vector with payload serialized as JSON string
 #[derive(Serialize, Deserialize)]
 pub struct PersistedVector {
     id: String,
     data: Vec<f32>,
-    /// Payload serialized as compact JSON bytes to satisfy bincode length requirements
-    payload_json: Option<Vec<u8>>,
+    /// Payload serialized as JSON string to satisfy bincode requirements
+    payload_json: Option<String>,
     /// Whether the vector data is already normalized for cosine similarity
     normalized: bool,
 }
@@ -48,10 +60,7 @@ impl From<Vector> for PersistedVector {
         let payload_json = v
             .payload
             .as_ref()
-            .map(|p| serde_json::to_vec(&p.data))
-            .transpose()
-            .ok()
-            .flatten();
+            .and_then(|p| serde_json::to_string(&p.data).ok());
 
         // Check if vector is already normalized (for cosine similarity)
         let norm_squared: f32 = v.data.iter().map(|x| x * x).sum();
@@ -88,8 +97,8 @@ impl From<PersistedVector> for Vector {
 impl PersistedVector {
     pub fn into_runtime(self) -> Result<Vector> {
         let payload = match self.payload_json {
-            Some(bytes) => {
-                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+            Some(json_str) => {
+                let value: serde_json::Value = serde_json::from_str(&json_str)?;
                 Some(Payload::new(value))
             }
             None => None,
@@ -105,8 +114,8 @@ impl PersistedVector {
     /// Convert to runtime vector with payload, skipping normalization if already normalized
     pub fn into_runtime_with_payload(self) -> Result<Vector> {
         let payload = match self.payload_json {
-            Some(bytes) => {
-                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+            Some(json_str) => {
+                let value: serde_json::Value = serde_json::from_str(&json_str)?;
                 Some(Payload::new(value))
             }
             None => None,
@@ -173,11 +182,11 @@ impl VectorStore {
             collections,
         };
 
-        // Serialize with bincode
-        let data = bincode::serialize(&persisted)?;
+        // Serialize with JSON (for better compatibility with serde_json::Value)
+        let json_data = serde_json::to_string_pretty(&persisted)?;
 
         // Write to file
-        fs::write(path, data)?;
+        fs::write(path, json_data)?;
 
         info!("Vector store saved successfully");
         Ok(())
@@ -189,10 +198,10 @@ impl VectorStore {
         info!("Loading vector store from {:?}", path);
 
         // Read file
-        let data = fs::read(path)?;
+        let json_data = fs::read_to_string(path)?;
 
-        // Deserialize with bincode
-        let persisted: PersistedVectorStore = bincode::deserialize(&data)?;
+        // Deserialize with JSON (for better compatibility with serde_json::Value)
+        let persisted: PersistedVectorStore = serde_json::from_str(&json_data)?;
 
         // Check version
         if persisted.version != 1 {
@@ -308,7 +317,7 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: crate::models::QuantizationConfig::default(),
             compression: Default::default(),
         };
 
