@@ -40,10 +40,12 @@ pub mod operations;
 pub mod shaders;
 pub mod buffers;
 pub mod utils;
+pub mod metal_collection;
 
 pub use config::{GpuConfig, GpuBackend};
 pub use context::GpuContext;
 pub use operations::GpuOperations;
+pub use metal_collection::MetalCollection;
 
 use crate::error::{Result, VectorizerError};
 use crate::models::DistanceMetric;

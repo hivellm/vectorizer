@@ -73,3 +73,5 @@ config.yml
 #cuhnsw
 cuhnsw
 data
+
+# vectorize-workspace.yml
