@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Vectorizer
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
