@@ -140,13 +140,10 @@ impl Collection {
                 vector.data = data.clone(); // Update stored vector to normalized version
             }
 
-            // Apply quantization if enabled - clear data to save memory
-            if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-                // For memory optimization, we just clear the data
-                // The quantization concept here is purely about memory reduction
-                vector.data.clear();
-                vector.data.shrink_to_fit();
-            }
+            // IMPORTANT: Do NOT clear vector data here - it prevents proper persistence!
+            // Quantization should only be applied in-memory during runtime operations,
+            // not when storing vectors for cache/persistence.
+            // The original code was clearing vector.data which caused all .bin files to be empty.
 
             // Extract document ID from payload for tracking unique documents
             if let Some(payload) = &vector.payload {
@@ -294,30 +291,14 @@ impl Collection {
     }
 
     /// Requantize existing vectors if quantization is enabled
+    /// DEPRECATED: This function is disabled to prevent data loss during persistence.
+    /// Quantization by clearing data is incompatible with the save/load cycle.
     pub fn requantize_existing_vectors(&self) -> Result<()> {
-        if !matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-            return Ok(()); // No quantization enabled
-        }
-
-        let mut updated_count = 0;
-        for (_, vector) in self.vectors.lock().unwrap().iter_mut() {
-
-            // Skip if vector is already quantized (data already cleared)
-            if vector.data.is_empty() {
-                continue;
-            }
-
-            // Apply quantization by clearing original data to save memory
-            // The quantization is just a memory optimization - we don't store quantized data
-            vector.data.clear();
-            vector.data.shrink_to_fit();
-            updated_count += 1;
-        }
-
-        if updated_count > 0 {
-            info!("Requantized {} vectors in collection '{}' for memory optimization", updated_count, self.name);
-        }
-
+        // DO NOT clear vector data - it prevents proper persistence!
+        // Quantization should be implemented differently (e.g., separate quantized storage)
+        // or applied only during search operations, not in the main vector storage.
+        
+        debug!("Requantization skipped - preserving full vector data for persistence");
         Ok(())
     }
 
@@ -406,21 +387,13 @@ impl Collection {
             runtime_vectors.push(pv.into_runtime_with_payload()?);
         }
 
-        // Apply quantization to loaded vectors if enabled
-        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-            debug!("Applying quantization to {} loaded vectors in collection '{}'", runtime_vectors.len(), self.name);
-            for vector in &mut runtime_vectors {
-                // Skip if vector is already quantized (data already cleared)
-                if vector.data.is_empty() {
-                    continue;
-                }
-
-                // Clear original data to save memory
-                vector.data.clear();
-                vector.data.shrink_to_fit();
-            }
-            info!("Applied quantization to {} vectors during cache load", runtime_vectors.len());
-        }
+        // IMPORTANT: Do NOT apply quantization here - it will clear vector data
+        // and prevent proper re-persistence. Quantization should only be applied
+        // in search operations, not in storage.
+        // The original code was clearing vector.data after loading from cache,
+        // which caused re-saved .bin files to be empty.
+        
+        debug!("Loaded {} vectors without applying quantization (preserving data for persistence)", runtime_vectors.len());
 
         // Use fast load for runtime vectors
         self.fast_load_vectors(runtime_vectors)?;
@@ -455,28 +428,13 @@ impl Collection {
             runtime_vectors.push(pv.into_runtime_with_payload()?);
         }
 
-        // Apply quantization to loaded vectors if enabled
-        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-            debug!("🔧 [QUANTIZATION] Applying quantization to {} loaded vectors in collection '{}'", runtime_vectors.len(), self.name);
-            let mut quantized_count = 0;
-            let mut skipped_count = 0;
-
-            for vector in &mut runtime_vectors {
-                // Skip if vector is already quantized (data already cleared)
-                if vector.data.is_empty() {
-                    skipped_count += 1;
-                    continue;
-                }
-
-                // Clear original data to save memory
-                vector.data.clear();
-                vector.data.shrink_to_fit();
-                quantized_count += 1;
-            }
-            info!("✅ [QUANTIZATION] Applied quantization to {}/{} vectors during cache load with HNSW dump (skipped {} already quantized)", quantized_count, runtime_vectors.len(), skipped_count);
-        } else {
-            debug!("⚠️ [QUANTIZATION] Quantization not enabled for collection '{}'", self.name);
-        }
+        // IMPORTANT: Do NOT apply quantization here - it will clear vector data
+        // and prevent proper re-persistence. Quantization should only be applied
+        // in search operations, not in storage.
+        // The original code was clearing vector.data after loading from cache,
+        // which caused re-saved .bin files to be empty.
+        
+        debug!("Loaded {} vectors without applying quantization (preserving data for persistence)", runtime_vectors.len());
 
         if hnsw_loaded {
             // HNSW index already loaded, just load vectors into memory
