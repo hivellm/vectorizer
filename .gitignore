@@ -9,6 +9,7 @@ Cargo.lock
 *.swp
 *.swo
 *~
+vectorize-workspace.yml
 
 # OS files
 .DS_Store
@@ -72,3 +73,5 @@ config.yml
 #cuhnsw
 cuhnsw
 data
+
+# vectorize-workspace.yml

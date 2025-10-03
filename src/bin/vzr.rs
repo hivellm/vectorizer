@@ -1231,9 +1231,8 @@ async fn run_interactive(
     println!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
-    // Initialize File Watcher System for legacy mode with GRPC connection
-    let cuda_config = load_cuda_config();
-    let file_watcher_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize File Watcher System for legacy mode with GRPC connection (auto GPU detection)
+    let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
     let file_watcher_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -1518,9 +1517,8 @@ async fn run_interactive_workspace(
     );
     println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
 
-    // Initialize GRPC server components
-    let cuda_config = load_cuda_config();
-    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize GRPC server components (auto GPU detection)
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -2243,9 +2241,8 @@ async fn run_as_daemon_workspace(
     println!("📄 Logs: vectorizer-workspace.log");
     println!("🛑 Use 'vectorizer stop' to stop all services");
 
-    // Initialize GRPC server components (same as interactive mode)
-    let cuda_config = load_cuda_config();
-    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize GRPC server components with auto GPU detection
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -2422,9 +2419,8 @@ async fn run_as_daemon(
     println!("📄 Logs: vectorizer-workspace.log");
     println!("🛑 Use 'vectorizer stop' to stop all services");
 
-    // Initialize GRPC server components (same as interactive mode)
-    let cuda_config = load_cuda_config();
-    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize GRPC server components with auto GPU detection
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         

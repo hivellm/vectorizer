@@ -8,7 +8,6 @@ A high-performance vector database and search engine built in Rust, designed for
 - **📚 Document Indexing**: Intelligent chunking and processing of various file types
 - **🧠 Multiple Embeddings**: Support for TF-IDF, BM25, BERT, MiniLM, and custom models
 - **⚡ High Performance**: Sub-3ms search times with optimized HNSW indexing
-- **🔥 Quantization Breakthrough**: 4x memory compression with improved quality (77% memory reduction)
 - **🏗️ GRPC Architecture**: High-performance binary communication between services
 - **🔧 MCP Integration**: Model Context Protocol for AI IDE integration (Cursor, VS Code)
 - **🌐 REST API**: Complete HTTP API with authentication and security
@@ -18,39 +17,73 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🐍 Python SDK**: 🚧 In development - PyPI publishing in progress
 - **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
+- **⚡ GPU Metal Acceleration**: Native Apple Silicon GPU support for vector operations (M1/M2/M3)
 
-## ⚡ **Quick Start**
+## 🎮 **GPU Metal Acceleration** (NEW in v0.24.0)
 
-### **🚀 Starting the Vectorizer Server**
+High-performance GPU acceleration for Apple Silicon with automatic CPU fallback:
 
-**IMPORTANT**: Vectorizer uses a GRPC-first architecture. REST and MCP servers are managed internally by the GRPC orchestrator.
+### **Features**
+- ✅ **Metal Backend**: Native GPU support via `wgpu 27.0` framework
+- ✅ **Smart Fallback**: Automatic CPU fallback for small workloads
+- ✅ **Cross-Platform**: Metal (macOS), Vulkan (Linux), DirectX12 (Windows)
+- ✅ **High Performance**: Up to **3.75× speedup** on large workloads
 
+### **Supported Operations**
+- Cosine Similarity (vec4 optimized)
+- Euclidean Distance
+- Dot Product
+- Batch Search
+
+### **Performance** (Apple M3 Pro)
+- **Small** (100 vectors): CPU faster (auto fallback) ✅
+- **Medium** (1K vectors): 1.5× speedup
+- **Large** (10K vectors): **3.75× speedup**
+- **Peak**: 1.1M vectors/second
+
+### **Build with GPU**
 ```bash
-# Start all services (GRPC + REST + MCP)
-./scripts/start.sh --workspace vectorize-workspace.yml
+# Build without GPU (default, CPU only)
+cargo build --release
 
-# This starts:
-# - GRPC Orchestrator (vzr) on port 15003
-# - REST API on http://127.0.0.1:15001
-# - MCP Server on ws://127.0.0.1:15002/mcp
+# Build with GPU Metal acceleration
+cargo build --release --features wgpu-gpu
+
+# Run with GPU
+cargo run --release --features wgpu-gpu
 ```
 
-### **🛑 Stopping the Server**
+### **Usage Example**
+```rust
+use vectorizer::gpu::{GpuContext, GpuConfig, GpuOperations};
 
-```bash
-# Kill the vzr process (this stops all services)
-pkill vzr
-
-# Alternative: Kill by process name
-pkill -f vectorizer
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize GPU context
+    let config = GpuConfig::default();
+    let ctx = GpuContext::new(config).await?;
+    
+    // Prepare data
+    let query = vec![0.1; 512];
+    let vectors: Vec<Vec<f32>> = (0..10000)
+        .map(|_| vec![0.2; 512])
+        .collect();
+    
+    // GPU-accelerated operation
+    let results = ctx.cosine_similarity(&query, &vectors).await?;
+    
+    println!("Top similarity: {}", results[0]);
+    Ok(())
+}
 ```
 
-### **⚠️ Important Architecture Notes**
+### **System Requirements**
+- **macOS**: Apple Silicon (M1/M2/M3) or Metal-compatible GPU
+- **Linux**: Vulkan-compatible GPU (optional)
+- **Windows**: DirectX12-compatible GPU (optional)
+- **Memory**: 8GB+ recommended for large datasets
 
-- **NEVER** start REST or MCP servers separately - they depend on GRPC
-- **ALWAYS** use the workspace orchestrator (`./scripts/start.sh`)
-- **Architecture**: `Client → REST/MCP → GRPC → vzr → Vector Store`
-- **Single Entry Point**: Only `vzr` manages all services internally
+📚 **Full Documentation**: See `README_GPU_METAL.md` and `docs/METAL_GPU_IMPLEMENTATION.md`
 
 ## 📝 **Automatic Summarization**
 
@@ -148,11 +181,9 @@ vectorizer:
 **Version**: v0.22.0  
 **Status**: ✅ **Production Ready**  
 **Collections**: 99 active collections with 47,000+ vectors indexed  
-**Performance**: Sub-3ms search with GPU acceleration
-**Memory**: 4x compression via SQ-8bit quantization (77% reduction)
-**Quality**: MAP score improvement (+8.9% with quantization)
-**Architecture**: GRPC + REST + MCP unified server system
-**SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**
+**Performance**: Sub-3ms search with GPU acceleration  
+**Architecture**: GRPC + REST + MCP unified server system  
+**SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
 **Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
 
 
@@ -384,4 +415,3 @@ For questions or collaboration, open an issue at [hivellm/gov](https://github.co
 
 ---
 
-**Note**: This project is part of the HiveLLM ecosystem.
