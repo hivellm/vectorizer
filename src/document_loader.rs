@@ -229,6 +229,13 @@ pub struct DocumentLoader {
 }
 
 impl DocumentLoader {
+    /// Get the centralized data directory path
+    fn get_data_dir() -> PathBuf {
+        // Get the vectorizer root directory (where config.yml is located)
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        current_dir.join("data")
+    }
+
     /// Check if a file path matches the include/exclude patterns
     fn matches_patterns(&self, file_path: &Path, project_root: &Path) -> bool {
         // Convert to relative path from project root for pattern matching
@@ -239,10 +246,20 @@ impl DocumentLoader {
 
         let path_str = relative_path.to_string_lossy();
 
+        // Debug logging for all collections (especially voxa)
+        if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
+            debug!("Checking file: {} against patterns for collection: {}", path_str, self.config.collection_name);
+            debug!("Include patterns: {:?}", self.config.include_patterns);
+            debug!("Exclude patterns: {:?}", self.config.exclude_patterns);
+        }
+
         // Check exclude patterns first - if any match, exclude the file
         for exclude_pattern in &self.config.exclude_patterns {
             if let Ok(pattern) = Pattern::new(exclude_pattern) {
                 if pattern.matches(&path_str) {
+                    if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
+                        debug!("File {} excluded by pattern: {}", path_str, exclude_pattern);
+                    }
                     return false;
                 }
             }
@@ -252,6 +269,9 @@ impl DocumentLoader {
         for include_pattern in &self.config.include_patterns {
             if let Ok(pattern) = Pattern::new(include_pattern) {
                 if pattern.matches(&path_str) {
+                    if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
+                        debug!("File {} included by pattern: {}", path_str, include_pattern);
+                    }
                     return true;
                 }
             }
@@ -260,6 +280,9 @@ impl DocumentLoader {
         // If include patterns are specified, don't fall back to extension-based matching
         // This ensures we only process files that match the specific patterns
         if !self.config.include_patterns.is_empty() {
+            if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
+                debug!("File {} not included (no pattern match, include patterns specified)", path_str);
+            }
             return false;
         }
 
@@ -267,9 +290,15 @@ impl DocumentLoader {
         if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
             let ext_lower = extension.to_lowercase();
             let result = self.config.allowed_extensions.contains(&ext_lower);
+            if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
+                debug!("File {} extension-based check: {} (extension: {})", path_str, result, ext_lower);
+            }
             return result;
         }
 
+        if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
+            debug!("File {} rejected (no extension)", path_str);
+        }
         false
     }
 
@@ -372,7 +401,7 @@ impl DocumentLoader {
         progress_callback: Option<&IndexingProgressState>,
     ) -> CacheResult<(usize, bool)> {
         let collection_name = self.config.collection_name.clone();
-        let vector_store_path = PathBuf::from(project_path).join(".vectorizer").join(format!("{}_vector_store.bin", collection_name));
+        let vector_store_path = Self::get_data_dir().join(format!("{}_vector_store.bin", collection_name));
 
         // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
         if vector_store_path.exists() {
@@ -550,15 +579,15 @@ impl DocumentLoader {
         );
 
         // Save the newly indexed store.
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+        let data_dir = Self::get_data_dir();
+        if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
-                "Failed to create .vectorizer directory {}: {}",
-                vectorizer_dir.display(),
+                "Failed to create data directory {}: {}",
+                data_dir.display(),
                 e
             );
         }
-        let vector_store_path = vectorizer_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
+        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
         
         if let Some(collection) = store.get_collection(&self.config.collection_name).ok() {
             // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
@@ -684,7 +713,7 @@ impl DocumentLoader {
             
             // Check if summary collection already exists
             if app_store.get_collection(&summary_collection_name).is_err() {
-                //info!("📝 Generating summaries for cached collection '{}'", collection_name);
+                info!("📝 Generating summaries for cached collection '{}'", collection_name);
                 
                 // Convert vectors to DocumentChunk format for summarization
                 let mut file_chunks: HashMap<String, Vec<DocumentChunk>> = HashMap::new();
@@ -743,15 +772,15 @@ impl DocumentLoader {
         Ok(vector_count)
     }
 
-    /// Save tokenizer to .vectorizer directory
-    fn save_tokenizer(&self, project_path: &str) -> Result<()> {
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        fs::create_dir_all(&vectorizer_dir)?;
+    /// Save tokenizer to centralized data directory
+    fn save_tokenizer(&self, _project_path: &str) -> Result<()> {
+        let data_dir = Self::get_data_dir();
+        fs::create_dir_all(&data_dir)?;
         
         // Try to save tokenizer for sparse embedding types
         let embedding_type = self.config.embedding_type.as_str();
         if matches!(embedding_type, "bm25" | "tfidf" | "char_ngram" | "cng" | "bag_of_words" | "bow") {
-            let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
+            let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
             
             // Use the EmbeddingManager's save_vocabulary_json method
             match self.embedding_manager.save_vocabulary_json(embedding_type, &tokenizer_path) {
@@ -867,6 +896,7 @@ impl DocumentLoader {
         project_root: &Path,
         documents: &mut Vec<(PathBuf, String)>,
     ) -> Result<()> {
+        debug!("Scanning directory: {}", dir.display());
         let entries = fs::read_dir(dir)
             .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
 
@@ -897,11 +927,14 @@ impl DocumentLoader {
                         || dir_name == "static"
                         || dir_name == "assets"
                     {
+                        debug!("Skipping directory: {}", path.display());
                         continue;
                     }
                 }
+                debug!("Recursively scanning subdirectory: {}", path.display());
                 self.collect_documents_recursive(&path, project_root, documents)?;
             } else if path.is_file() {
+                debug!("Found file: {}", path.display());
                 // Skip specific file names that should never be indexed
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                     let skip_file = file_name == "cache.bin"
@@ -949,6 +982,7 @@ impl DocumentLoader {
                 }
 
                 if self.matches_patterns(&path, project_root) {
+                    debug!("File {} matches patterns, processing...", path.display());
                     // Check file size
                     match fs::metadata(&path) {
                         Ok(metadata) => {
@@ -972,6 +1006,7 @@ impl DocumentLoader {
                     // Read file content
                     match fs::read_to_string(&path) {
                         Ok(content) => {
+                            debug!("Successfully read file: {} ({} bytes)", path.display(), content.len());
                             documents.push((path, content));
                         }
                         Err(e) => {
@@ -983,6 +1018,8 @@ impl DocumentLoader {
                             ));
                         }
                     }
+                } else {
+                    debug!("File {} does not match patterns, skipping", path.display());
                 }
             }
         }
@@ -1570,28 +1607,29 @@ impl DocumentLoader {
         }))
     }
 
-    /// Save collection metadata to disk
-    fn save_metadata(&self, project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+    /// Save collection metadata to centralized data directory
+    fn save_metadata(&self, _project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
+        let data_dir = Self::get_data_dir();
+        if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
-                "Failed to create .vectorizer directory {}: {}",
-                vectorizer_dir.display(),
+                "Failed to create data directory {}: {}",
+                data_dir.display(),
                 e
             );
         }
         
-        let metadata_path = vectorizer_dir.join(format!("{}_metadata.json", self.config.collection_name));
+        let metadata_path = data_dir.join(format!("{}_metadata.json", self.config.collection_name));
         let metadata_json = serde_json::to_string_pretty(metadata)?;
         fs::write(&metadata_path, metadata_json)?;
         
+        debug!("Saved metadata for collection '{}' to {}", self.config.collection_name, metadata_path.display());
         Ok(())
     }
 
-    /// Load collection metadata from disk
-    fn load_metadata(&self, project_path: &str) -> Result<Option<CollectionMetadataFile>> {
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        let metadata_path = vectorizer_dir.join(format!("{}_metadata.json", self.config.collection_name));
+    /// Load collection metadata from centralized data directory
+    fn load_metadata(&self, _project_path: &str) -> Result<Option<CollectionMetadataFile>> {
+        let data_dir = Self::get_data_dir();
+        let metadata_path = data_dir.join(format!("{}_metadata.json", self.config.collection_name));
         
         if !metadata_path.exists() {
             return Ok(None);
@@ -1600,6 +1638,7 @@ impl DocumentLoader {
         let metadata_json = fs::read_to_string(&metadata_path)?;
         let metadata: CollectionMetadataFile = serde_json::from_str(&metadata_json)?;
         
+        debug!("Loaded metadata for collection '{}' from {}", self.config.collection_name, metadata_path.display());
         Ok(Some(metadata))
     }
 
@@ -1907,7 +1946,9 @@ impl DocumentLoader {
                 }
             }
             println!("✅ Inserted {} file summaries into '{}'", file_summary_vectors.len(), summary_collection_name);
-        } 
+        } else {
+            println!("ℹ️ No file summaries generated for '{}' (no suitable documents)", self.config.collection_name);
+        }
 
         // Insert chunk summary vectors in batches
         if !chunk_summary_vectors.is_empty() {
@@ -1919,7 +1960,9 @@ impl DocumentLoader {
                 }
             }
             println!("✅ Inserted {} chunk summaries into '{}'", chunk_summary_vectors.len(), chunk_summary_collection_name);
-        } 
+        } else {
+            println!("ℹ️ No chunk summaries generated for '{}' (no suitable documents)", self.config.collection_name);
+        }
         
         (Ok(()), summarization_manager)
     }

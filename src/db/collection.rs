@@ -598,11 +598,14 @@ impl Collection {
     }
 
 
-    /// Dump HNSW index to cache directory for faster future loading
-    pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(&self, project_path: P) -> Result<()> {
+    /// Dump HNSW index to centralized cache directory for faster future loading
+    pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(&self, _project_path: P) -> Result<()> {
         use tracing::{debug, info, warn};
         
-        let cache_dir = project_path.as_ref().join(".vectorizer");
+        // Get the vectorizer root directory (where config.yml is located)
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let cache_dir = current_dir.join("data");
+        
         if !cache_dir.exists() {
             std::fs::create_dir_all(&cache_dir)?;
         }
@@ -618,7 +621,7 @@ impl Collection {
         }
         
         (*self.index.write()).file_dump(&cache_dir, &basename)?;
-        info!("✅ Successfully dumped HNSW index for collection '{}' to cache", self.name);
+        info!("✅ Successfully dumped HNSW index for collection '{}' to centralized cache", self.name);
         Ok(())
     }
 }
