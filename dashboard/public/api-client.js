@@ -199,12 +199,20 @@ class VectorizerAPIClient {
     async getCollectionStats(collectionName) {
         const collection = await this.getCollection(collectionName);
         const vectors = await this.listVectors(collectionName, 1, 0); // Just get count
-        
+
         return {
             ...collection,
             vector_count: vectors.total || 0,
             document_count: vectors.documents || 0
         };
+    }
+
+    // Memory Analysis - get detailed memory usage and quantization info
+    // Updated: 2025-10-02 - Force cache reload
+    async getMemoryAnalysis() {
+        const result = await this.request('/memory-analysis');
+        console.log('Raw memory analysis response:', result);
+        return result;
     }
 
     // Batch operations

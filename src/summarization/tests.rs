@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_summary_persistence() {
-        let mut manager = SummarizationManager::with_default_config();
+        let mut manager = SummarizationManager::with_enabled_config();
         
         let params = SummarizationParams {
             text: "This is a comprehensive test document for persistence testing purposes. It contains multiple sentences with detailed information that allows proper testing of summary persistence functionality. The document covers various topics to ensure thorough validation of the persistence mechanism.".to_string(),

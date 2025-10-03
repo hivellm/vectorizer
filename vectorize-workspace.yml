@@ -28,6 +28,9 @@ global:
   default_collection:
     dimension: 512                 # Default dimension for BM25
     metric: "cosine"               # cosine, euclidean, dot_product
+    quantization:
+      type: "sq"
+      bits: 8                      # 4x memory compression with improved quality
     compression:
       enabled: true
       threshold_bytes: 1024
@@ -1138,6 +1141,123 @@ projects:
           exclude_patterns:
             - "**/node_modules/**"
             - "package-lock.json"
+
+  # Voxa Voice Assistant Project
+  - name: "voxa"
+    path: "../voxa"
+    description: "🎤 Voxa - Local voice assistant with real-time interaction capabilities"
+    enabled: true
+    
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters:
+        k1: 1.5
+        b: 0.75
+    
+    collections:
+      - name: "voxa-documentation"
+        description: "Voxa project documentation and guides"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 1024
+          chunk_overlap: 128
+          include_patterns:
+            - "docs/**/*.md"
+            - "README.md"
+          exclude_patterns: []
+      
+      - name: "voxa-technical_specs"
+        description: "Technical specifications and architecture documents"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 2048
+          chunk_overlap: 256
+          include_patterns:
+            - "docs/TECHNICAL_SPECIFICATION.md"
+            - "docs/SYSTEM_ARCHITECTURE.md"
+            - "docs/API_SPECIFICATION.md"
+            - "docs/IMPLEMENTATION_GUIDE.md"
+          exclude_patterns: []
+      
+      - name: "voxa-project_planning"
+        description: "Project planning and roadmap documents"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 1024
+          chunk_overlap: 128
+          include_patterns:
+            - "docs/ROADMAP.md"
+            - "docs/INITIAL_TASKS.md"
+            - "docs/DAG.md"
+            - "docs/MESSAGE_BUS_SPECIFICATION.md"
+          exclude_patterns: []
+      
+      - name: "voxa-configurations"
+        description: "Configuration files and environment settings"
+        dimension: 512
+        metric: "cosine"
+        embedding:
+          model: "bm25"
+          dimension: 512
+          parameters:
+            k1: 1.5
+            b: 0.75
+        indexing:
+          index_type: "hnsw"
+          parameters:
+            m: 16
+            ef_construction: 200
+            ef_search: 64
+        processing:
+          chunk_size: 128
+          chunk_overlap: 10
+          include_patterns:
+            - "**/*.json"
+            - "**/*.yml"
+            - "**/*.yaml"
+            - "**/*.toml"
+            - "**/*.gitignore"
+          exclude_patterns: []
 
   # Vectorizer Rust SDK Project
   - name: "vectorizer-rust-sdk"

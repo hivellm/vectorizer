@@ -21,7 +21,7 @@ use tempfile::tempdir;
                 ef_search: 100,
                 seed: Some(123),
             },
-            quantization: None,
+            quantization: crate::models::QuantizationConfig::default(),
             compression: Default::default(),
         };
         store.create_collection("large_collection", config).unwrap();
@@ -117,7 +117,7 @@ use tempfile::tempdir;
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: crate::models::QuantizationConfig::default(),
             compression: Default::default(),
         };
         store.create_collection("compressed", config).unwrap();

@@ -31,8 +31,8 @@ pub struct CollectionConfig {
     pub metric: DistanceMetric,
     /// HNSW index configuration
     pub hnsw_config: HnswConfig,
-    /// Optional quantization configuration
-    pub quantization: Option<QuantizationConfig>,
+    /// Quantization configuration (enabled by default for memory optimization)
+    pub quantization: QuantizationConfig,
     /// Compression configuration
     pub compression: CompressionConfig,
 }
@@ -83,6 +83,18 @@ impl Default for HnswConfig {
     }
 }
 
+impl Default for CollectionConfig {
+    fn default() -> Self {
+        Self {
+            dimension: 512,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig::default(),
+            quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
+            compression: CompressionConfig::default(),
+        }
+    }
+}
+
 /// Vector quantization configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -96,6 +108,12 @@ pub enum QuantizationConfig {
     SQ { bits: usize },
     /// Binary Quantization
     Binary,
+}
+
+impl Default for QuantizationConfig {
+    fn default() -> Self {
+        Self::SQ { bits: 8 } // Default to 8-bit scalar quantization
+    }
 }
 
 /// Compression configuration

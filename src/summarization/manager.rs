@@ -37,6 +37,14 @@ impl SummarizationManager {
         Self::new(SummarizationConfig::default()).unwrap()
     }
 
+    /// Create with enabled summarization config for testing
+    pub fn with_enabled_config() -> Self {
+        let mut config = SummarizationConfig::default();
+        config.enabled = true;
+        config.auto_summarize = true;
+        Self::new(config).unwrap()
+    }
+
     /// Obter referência para a configuração atual
     pub fn get_config(&self) -> &SummarizationConfig {
         &self.config

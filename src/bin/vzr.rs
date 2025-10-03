@@ -16,6 +16,8 @@ use std::collections::HashMap;
 use tokio::sync::Mutex;
 use std::fs;
 use vectorizer::logging;
+
+// Memory analysis available via /heap-analysis endpoint
 use vectorizer::workspace::WorkspaceManager;
 use vectorizer::{
     db::VectorStore,
@@ -25,6 +27,7 @@ use vectorizer::{
     config::{GrpcConfig, FileWatcherYamlConfig, VectorizerConfig},
     file_watcher::FileWatcherSystem,
     config::VectorizerConfig as FullVectorizerConfig,
+    models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig},
 };
 
 /// Find executable path for a given binary name
@@ -606,6 +609,7 @@ enum WorkspaceCommands {
 #[tokio::main]
 async fn main() {
     eprintln!("🚀 VZR MAIN: Started");
+
 
     // Initialize centralized logging
     if let Err(e) = logging::init_logging("vzr") {
@@ -1308,7 +1312,6 @@ async fn run_interactive_workspace(
     port: u16,
     _mcp_port: u16,
 ) {
-    println!("🏁 DEBUG: Entered run_interactive_workspace function");
     use tokio::signal;
 
     // Check if we have enabled projects
@@ -1550,10 +1553,19 @@ async fn run_interactive_workspace(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
+            eprintln!("⚠️ Failed to load config.yml: {}, using defaults", e);
             FullVectorizerConfig::default()
         });
 
-    let summarization_config = Some(full_config.summarization);
+    println!("🔧 Summarization config loaded: enabled={}", full_config.summarization.enabled);
+
+    let summarization_config = if full_config.summarization.enabled {
+        println!("✅ Summarization ENABLED - creating SummarizationManager");
+        Some(full_config.summarization)
+    } else {
+        println!("❌ Summarization DISABLED - skipping SummarizationManager creation");
+        None
+    };
     
     // Start GRPC server
     let grpc_config = GrpcConfig::from_env();
@@ -1626,24 +1638,33 @@ async fn start_background_indexing_with_config(
     indexing_progress: Arc<Mutex<std::collections::HashMap<String, vectorizer::grpc::vectorizer::IndexingStatus>>>,
     file_watcher_system: Arc<Mutex<Option<vectorizer::file_watcher::FileWatcherSystem>>>,
 ) {
+    println!("🔄 [BACKGROUND INDEXING] Starting background indexing process...");
+
     // Wait for servers to be ready with health check
+    println!("⏳ [BACKGROUND INDEXING] Waiting for servers to be ready...");
     wait_for_server_ready().await;
-    
+    println!("✅ [BACKGROUND INDEXING] Servers are ready");
+
     // Load workspace configuration
+    println!("📂 [BACKGROUND INDEXING] Loading workspace configuration...");
     let workspace_manager = match vectorizer::workspace::manager::WorkspaceManager::load_from_file("vectorize-workspace.yml") {
-        Ok(manager) => manager,
+        Ok(manager) => {
+            println!("✅ [BACKGROUND INDEXING] Workspace configuration loaded successfully");
+            manager
+        },
         Err(e) => {
-            println!("❌ Failed to load workspace configuration: {}", e);
+            println!("❌ [BACKGROUND INDEXING] Failed to load workspace configuration: {}", e);
             return;
         }
     };
-    
+
     let enabled_projects = workspace_manager.enabled_projects();
     let total_projects = enabled_projects.len();
+    println!("📊 [BACKGROUND INDEXING] Found {} enabled projects", total_projects);
 
     // Process projects in parallel (up to 4 concurrent)
     let max_concurrent_projects = std::cmp::min(4, total_projects);
-    println!("🚀 Starting parallel processing of {} projects (max {} concurrent)", total_projects, max_concurrent_projects);
+    println!("🚀 [BACKGROUND INDEXING] Starting parallel processing of {} projects (max {} concurrent)", total_projects, max_concurrent_projects);
     
     use tokio::sync::Semaphore;
     let semaphore = Arc::new(Semaphore::new(max_concurrent_projects));
@@ -1661,13 +1682,11 @@ async fn start_background_indexing_with_config(
         let collections = project_ref.collections.clone();
 
         let task = tokio::spawn(async move {
-            println!("📁 Debug: Acquiring semaphore for project: {}", project_name);
             let _permit = semaphore_clone.acquire().await.unwrap();
-            println!("📁 Processing project: {} (parallel)", project_name);
-
+            
             // Process all collections for this project sequentially
             for collection in &collections {
-                println!("🗂️ Processing collection: {} from {}", collection.name, project_path.display());
+                //println!("🗂️ Processing collection: {} from {}", collection.name, project_path.display());
 
                 // Update status to processing
                 update_collection_status(&collection.name, "processing", 0.0, None).await;
@@ -1681,7 +1700,20 @@ async fn start_background_indexing_with_config(
                 ).await {
                     Ok(count) => {
                         update_collection_status(&collection.name, "completed", 100.0, Some(count)).await;
-                        println!("✅ Collection '{}' indexed successfully: {} vectors", collection.name, count);
+                        
+                        // Apply quantization to all vectors if enabled
+                        if let Ok(coll) = vector_store_clone.get_collection(&collection.name) {
+                            let config = coll.config();
+                            if matches!(config.quantization, QuantizationConfig::SQ { bits: 8 }) {
+                                if let Err(e) = coll.requantize_existing_vectors() {
+                                    eprintln!("⚠️ Failed to quantize vectors in collection '{}': {}", collection.name, e);
+                                } else {
+                                    println!("✅ Successfully quantized {} vectors in collection '{}'", count, collection.name);
+                                }
+                            } 
+                        } else {
+                            println!("🔍 DEBUG: Could not get collection '{}'", collection.name);
+                        }
 
                         // Create summary collections for this collection
                         create_summary_collections_for_project(
@@ -1696,8 +1728,6 @@ async fn start_background_indexing_with_config(
                         if let Some(ref mut watcher) = *system {
                             if let Err(e) = watcher.update_with_collection(&collection.name).await {
                                 eprintln!("⚠️ Failed to update file watcher with collection '{}': {}", collection.name, e);
-                            } else {
-                                println!("👁️ File watcher updated with collection: {}", collection.name);
                             }
                         }
                     }
@@ -2248,10 +2278,19 @@ async fn run_as_daemon_workspace(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
+            eprintln!("⚠️ Failed to load config.yml: {}, using defaults", e);
             FullVectorizerConfig::default()
         });
 
-    let summarization_config = Some(full_config.summarization);
+    println!("🔧 Summarization config loaded: enabled={}", full_config.summarization.enabled);
+
+    let summarization_config = if full_config.summarization.enabled {
+        println!("✅ Summarization ENABLED - creating SummarizationManager");
+        Some(full_config.summarization)
+    } else {
+        println!("❌ Summarization DISABLED - skipping SummarizationManager creation");
+        None
+    };
     
     // Start GRPC server (same as interactive mode)
     let grpc_config = GrpcConfig::from_env();
@@ -2418,10 +2457,19 @@ async fn run_as_daemon(
     // Load full configuration including summarization
     let full_config = FullVectorizerConfig::from_yaml_file(&std::path::PathBuf::from("config.yml"))
         .unwrap_or_else(|e| {
+            eprintln!("⚠️ Failed to load config.yml: {}, using defaults", e);
             FullVectorizerConfig::default()
         });
 
-    let summarization_config = Some(full_config.summarization);
+    println!("🔧 Summarization config loaded: enabled={}", full_config.summarization.enabled);
+
+    let summarization_config = if full_config.summarization.enabled {
+        println!("✅ Summarization ENABLED - creating SummarizationManager");
+        Some(full_config.summarization)
+    } else {
+        println!("❌ Summarization DISABLED - skipping SummarizationManager creation");
+        None
+    };
     
     // Start GRPC server (same as interactive mode)
     let grpc_config = GrpcConfig::from_env();
@@ -2728,7 +2776,7 @@ async fn create_summary_collections_for_project(
     vector_store: Arc<VectorStore>,
     _embedding_manager: Arc<Mutex<EmbeddingManager>>,
 ) {
-    println!("📄 Verifying summary collections for '{}'", collection_name);
+    //println!("📄 Verifying summary collections for '{}'", collection_name);
 
     // Summary collection names
     let file_summary_collection = format!("{}_summaries", collection_name);
@@ -2741,7 +2789,7 @@ async fn create_summary_collections_for_project(
     if file_collection_exists {
         if let Ok(collection) = vector_store.get_collection(&file_summary_collection) {
             let count = collection.vector_count();
-            println!("   📊 Contains {} summaries", count);
+            //println!("   📊 Contains {} summaries", count);
         }
     } else {
         println!("⚠️ File summary collection not found: {}", file_summary_collection);
@@ -2750,7 +2798,6 @@ async fn create_summary_collections_for_project(
     if chunk_collection_exists {
         if let Ok(collection) = vector_store.get_collection(&chunk_summary_collection) {
             let count = collection.vector_count();
-            println!("   📊 Contains {} summaries", count);
         }
     } else {
         println!("⚠️ Chunk summary collection not found: {}", chunk_summary_collection);
@@ -2776,11 +2823,11 @@ async fn create_summary_collection(
             ef_search: 64,
             seed: Some(42),
         },
-        quantization: None,
+        quantization: QuantizationConfig::SQ { bits: 8 },
         compression: Default::default(),
     };
 
-    vector_store.create_collection(collection_name, config)
+    vector_store.create_collection_with_quantization(collection_name, config)
         .map_err(|e| format!("Failed to create collection '{}': {}", collection_name, e))
 }
 

@@ -3,10 +3,11 @@
 //! Provides specific tool implementations for vector database operations
 
 use crate::db::VectorStore;
+use crate::models::QuantizationConfig;
 use crate::embedding::EmbeddingManager;
 use crate::error::{Result, VectorizerError};
 use serde_json;
-use tracing::debug;
+use tracing::{debug, info, warn};
 
 /// Tool implementations for MCP
 pub struct McpTools;
@@ -300,7 +301,7 @@ impl McpTools {
             dimension,
             metric: distance_metric,
             hnsw_config: crate::models::HnswConfig::default(),
-            quantization: None,
+            quantization: QuantizationConfig::SQ { bits: 8 },
             compression: crate::models::CompressionConfig::default(),
         };
 
@@ -455,6 +456,235 @@ impl McpTools {
             "total_memory_estimate_bytes": total_memory_estimate,
             "collections": collection_stats
         }))
+    }
+
+    /// Get detailed memory analysis for all collections
+    pub async fn get_memory_analysis(vector_store: &VectorStore) -> Result<serde_json::Value> {
+        debug!("Getting detailed memory analysis via MCP");
+
+        // Get collections list
+        let collections = vector_store.list_collections();
+
+        let mut analysis = serde_json::json!({
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "collections": [],
+            "summary": {}
+        });
+
+        let mut total_theoretical_memory = 0;
+        let mut total_actual_memory = 0;
+        let mut collections_with_quantization = 0;
+        let mut collections_without_quantization = 0;
+
+        // Analyze each collection individually
+        for collection_name in &collections {
+            let metadata = vector_store.get_collection_metadata(collection_name)?;
+
+            let vector_count = metadata.vector_count;
+            let dimension = metadata.config.dimension;
+
+            // Calculate theoretical memory usage (f32 vectors)
+            let theoretical_memory = vector_count * dimension * 4; // 4 bytes per f32
+
+            // Try to get actual memory usage from collection
+            let actual_memory = match vector_store.get_collection(collection_name) {
+                Ok(collection_ref) => {
+                    let estimated_memory = (*collection_ref).estimated_memory_usage();
+                    let quantization_enabled = matches!((*collection_ref).config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
+
+                    if quantization_enabled {
+                        collections_with_quantization += 1;
+                    } else {
+                        collections_without_quantization += 1;
+                    }
+
+                    (estimated_memory, quantization_enabled)
+                },
+                Err(_) => {
+                    // Fallback to theoretical if can't access collection
+                    (theoretical_memory, false)
+                }
+            };
+
+            let (actual_memory_bytes, quantization_enabled) = actual_memory;
+            let compression_ratio = if theoretical_memory > 0 {
+                actual_memory_bytes as f64 / theoretical_memory as f64
+            } else { 1.0 };
+
+            let memory_savings_percent = if theoretical_memory > 0 {
+                (1.0 - compression_ratio) * 100.0
+            } else { 0.0 };
+
+            let quantization_status = if quantization_enabled {
+                if compression_ratio < 0.3 { "4x compression (SQ-8bit)" }
+                else if compression_ratio < 0.6 { "2x compression" }
+                else if compression_ratio < 0.8 { "Partial compression" }
+                else { "Quantization enabled but not effective" }
+            } else {
+                "No quantization"
+            };
+
+            let collection_analysis = serde_json::json!({
+                "name": collection_name,
+                "dimension": dimension,
+                "vector_count": vector_count,
+                "document_count": metadata.document_count,
+                "embedding_provider": "bm25", // Default for now
+                "metric": "cosine", // Default for now
+                "created_at": metadata.created_at.to_rfc3339(),
+                "updated_at": metadata.updated_at.to_rfc3339(),
+                "indexing_status": {
+                    "collection_name": collection_name,
+                    "status": "ready",
+                    "progress": 100.0,
+                    "vector_count": vector_count,
+                    "last_updated": metadata.updated_at.to_rfc3339()
+                },
+                "memory_analysis": {
+                    "theoretical_memory_bytes": theoretical_memory,
+                    "theoretical_memory_mb": theoretical_memory as f64 / (1024.0 * 1024.0),
+                    "actual_memory_bytes": actual_memory_bytes,
+                    "actual_memory_mb": actual_memory_bytes as f64 / (1024.0 * 1024.0),
+                    "memory_saved_bytes": theoretical_memory.saturating_sub(actual_memory_bytes),
+                    "memory_saved_mb": (theoretical_memory.saturating_sub(actual_memory_bytes)) as f64 / (1024.0 * 1024.0),
+                    "compression_ratio": compression_ratio,
+                    "memory_savings_percent": memory_savings_percent,
+                    "memory_per_vector_bytes": if vector_count > 0 { actual_memory_bytes / vector_count } else { 0 },
+                    "theoretical_memory_per_vector_bytes": dimension * 4
+                },
+                "quantization": {
+                    "enabled": quantization_enabled,
+                    "status": quantization_status,
+                    "effective": compression_ratio < 0.8,
+                    "compression_factor": if compression_ratio > 0.0 { 1.0 / compression_ratio } else { 1.0 }
+                },
+                "performance": {
+                    "memory_efficiency": if compression_ratio < 0.3 { "Excellent" }
+                    else if compression_ratio < 0.6 { "Good" }
+                    else if compression_ratio < 0.8 { "Fair" }
+                    else { "Poor" },
+                    "recommendation": if quantization_enabled && compression_ratio >= 0.8 {
+                        "Quantization enabled but not working - check implementation"
+                    } else if !quantization_enabled && vector_count > 1000 {
+                        "Enable quantization for memory savings"
+                    } else if quantization_enabled && compression_ratio < 0.3 {
+                        "Excellent quantization performance"
+                    } else {
+                        "No action needed"
+                    }
+                }
+            });
+
+            analysis["collections"].as_array_mut().unwrap().push(collection_analysis);
+
+            total_theoretical_memory += theoretical_memory;
+            total_actual_memory += actual_memory_bytes;
+        }
+
+        // Calculate overall summary
+        let overall_compression_ratio = if total_theoretical_memory > 0 {
+            total_actual_memory as f64 / total_theoretical_memory as f64
+        } else { 1.0 };
+
+        let overall_memory_savings = if total_theoretical_memory > 0 {
+            (1.0 - overall_compression_ratio) * 100.0
+        } else { 0.0 };
+
+        analysis["summary"] = serde_json::json!({
+            "total_collections": collections.len(),
+            "collections_with_quantization": collections_with_quantization,
+            "collections_without_quantization": collections_without_quantization,
+            "total_vectors": collections.iter().filter_map(|name| vector_store.get_collection_metadata(name).ok()).map(|m| m.vector_count).sum::<usize>(),
+            "total_documents": collections.iter().filter_map(|name| vector_store.get_collection_metadata(name).ok()).map(|m| m.document_count).sum::<usize>(),
+            "memory_analysis": {
+                "total_theoretical_memory_bytes": total_theoretical_memory,
+                "total_theoretical_memory_mb": total_theoretical_memory as f64 / (1024.0 * 1024.0),
+                "total_actual_memory_bytes": total_actual_memory,
+                "total_actual_memory_mb": total_actual_memory as f64 / (1024.0 * 1024.0),
+                "total_memory_saved_bytes": total_theoretical_memory.saturating_sub(total_actual_memory),
+                "total_memory_saved_mb": (total_theoretical_memory.saturating_sub(total_actual_memory)) as f64 / (1024.0 * 1024.0),
+                "overall_compression_ratio": overall_compression_ratio,
+                "overall_memory_savings_percent": overall_memory_savings,
+                "average_memory_per_vector_bytes": if collections.iter().filter_map(|name| vector_store.get_collection_metadata(name).ok()).map(|m| m.vector_count).sum::<usize>() > 0 {
+                    total_actual_memory / collections.iter().filter_map(|name| vector_store.get_collection_metadata(name).ok()).map(|m| m.vector_count as usize).sum::<usize>() as usize
+                } else { 0 }
+            },
+            "quantization_summary": {
+                "quantization_coverage_percent": if collections.len() > 0 {
+                    (collections_with_quantization as f64 / collections.len() as f64) * 100.0
+                } else { 0.0 },
+                "overall_quantization_status": if overall_compression_ratio < 0.3 { "4x compression achieved" }
+                else if overall_compression_ratio < 0.6 { "2x compression achieved" }
+                else if overall_compression_ratio < 0.8 { "Partial compression" }
+                else { "Quantization not effective" },
+                "recommendation": if overall_compression_ratio >= 0.8 {
+                    "Enable quantization on more collections for better memory efficiency"
+                } else if overall_compression_ratio < 0.3 {
+                    "Excellent quantization performance across all collections"
+                } else {
+                    "Good quantization performance"
+                }
+            }
+        });
+
+        info!("Detailed memory analysis complete via MCP: {} collections analyzed, {}MB actual vs {}MB theoretical",
+              collections.len(),
+              total_actual_memory as f64 / (1024.0 * 1024.0),
+              total_theoretical_memory as f64 / (1024.0 * 1024.0));
+
+        Ok(analysis)
+    }
+
+    /// Requantize all vectors in a collection for memory optimization
+    pub async fn requantize_collection(collection_name: &str, vector_store: &VectorStore) -> Result<serde_json::Value> {
+        info!("Requantizing collection '{}' via MCP", collection_name);
+
+        // Get the collection
+        let collection = match vector_store.get_collection(collection_name) {
+            Ok(coll) => coll,
+            Err(_) => {
+                return Ok(serde_json::json!({
+                    "collection_name": collection_name,
+                    "success": false,
+                    "message": format!("Collection '{}' not found", collection_name),
+                    "status": "not_found"
+                }));
+            }
+        };
+
+        // Check if quantization is enabled for this collection
+        let quantization_enabled = matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
+
+        if !quantization_enabled {
+            return Ok(serde_json::json!({
+                "collection_name": collection_name,
+                "success": false,
+                "message": format!("Quantization not enabled for collection '{}'", collection_name),
+                "status": "quantization_disabled"
+            }));
+        }
+
+        // Perform requantization
+        match collection.requantize_existing_vectors() {
+            Ok(_) => {
+                info!("✅ Successfully requantized collection '{}' via MCP", collection_name);
+                Ok(serde_json::json!({
+                    "collection_name": collection_name,
+                    "success": true,
+                    "message": "Collection requantized successfully",
+                    "status": "success"
+                }))
+            },
+            Err(e) => {
+                warn!("⚠️ Failed to requantize collection '{}' via MCP: {}", collection_name, e);
+                Ok(serde_json::json!({
+                    "collection_name": collection_name,
+                    "success": false,
+                    "message": format!("Failed to requantize collection: {}", e),
+                    "status": "error"
+                }))
+            }
+        }
     }
 }
 
