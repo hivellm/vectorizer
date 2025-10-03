@@ -1,0 +1,463 @@
+# Vectorizer Rust Coding Rules for Cursor and Copilot
+# These rules guide AI assistants in writing consistent, high-quality Rust code for the Vectorizer project
+
+## 🚨 CRITICAL REQUIREMENTS
+
+### Rust Edition 2024 - MANDATORY
+**This project REQUIRES Rust Edition 2024**
+- **Cargo.toml edition**: Must be `"2024"` (NEVER change to 2021 or other)
+- **Reason**: Uses Edition 2024 features for advanced async patterns and optimizations
+- **Build Environment**: Must use Rust toolchain with Edition 2024 support
+- **Consequences of changing**: Compilation failures, lost features, performance regressions
+
+### Architecture Rule: GRPC First, REST/MCP Second
+**MANDATORY**: GRPC, REST, and MCP must have EXACTLY the same functionality
+- Implement in GRPC first (core business logic)
+- Add REST endpoints second (HTTP interface)
+- Add MCP tools third (AI assistant interface)
+- NEVER implement features only in REST or MCP
+
+## Code Style and Structure
+
+### Documentation Standards
+- **Module docs**: Start with `//!` for crate/module-level documentation explaining the purpose
+- **Item docs**: Use `///` for all public functions, structs, enums, traits, and their fields
+- **Examples**: Include code examples in documentation where helpful
+- **Error docs**: Document all error conditions and edge cases
+
+### Naming Conventions
+- **Functions/Methods**: `snake_case` (e.g., `create_collection`, `search_vectors`)
+- **Structs/Enums/Traits**: `PascalCase` (e.g., `CollectionConfig`, `VectorizerError`)
+- **Variables**: `snake_case` (e.g., `vector_store`, `collection_name`)
+- **Constants**: `SCREAMING_SNAKE_CASE` (e.g., `DEFAULT_DIMENSION`)
+- **Modules**: `snake_case` (e.g., `vector_store`, `grpc_client`)
+- **Generics**: Single letters (T, U) or descriptive (CollectionId, VectorData)
+
+### Code Organization
+- **Modules**: Logical grouping (api/, db/, grpc/, models/, embedding/, etc.)
+- **Function length**: Keep under 50 lines, break into smaller functions if needed
+- **Import organization**: Group by std, external crates, then internal modules
+- **Struct fields**: Document all public fields, use meaningful names
+
+## Rust Patterns and Idioms
+
+### Error Handling
+```rust
+// Preferred: Custom error types with meaningful messages
+#[derive(thiserror::Error, Debug)]
+pub enum VectorizerError {
+    #[error("Collection not found: {0}")]
+    CollectionNotFound(String),
+
+    #[error("Dimension mismatch: expected {expected}, got {actual}")]
+    DimensionMismatch { expected: usize, actual: usize },
+}
+
+// Function signatures
+pub fn create_collection(name: &str, config: CollectionConfig) -> Result<(), VectorizerError>
+
+// Error propagation
+let collection = store.get_collection(name).context("Failed to get collection")?;
+
+// Error conversion
+impl From<std::io::Error> for VectorizerError {
+    fn from(err: std::io::Error) -> Self {
+        VectorizerError::IoError(err)
+    }
+}
+```
+
+### Concurrency Patterns
+```rust
+// Shared ownership across threads
+use std::sync::Arc;
+
+// Read-heavy concurrent access
+use parking_lot::RwLock;
+pub struct SharedData {
+    data: Arc<RwLock<HashMap<String, Vec<f32>>>>,
+}
+
+// Concurrent key-value operations
+use dashmap::DashMap;
+pub struct ConcurrentMap {
+    map: Arc<DashMap<String, Vector>>,
+}
+
+// Async operations
+pub async fn search_vectors(query: &[f32], collection: &str) -> Result<Vec<SearchResult>, VectorizerError> {
+    // Implementation
+}
+```
+
+### Memory Management
+```rust
+// Pre-allocate when size is known
+let mut vectors = Vec::with_capacity(expected_count);
+
+// Minimize allocations in hot paths
+for vector in &vectors {
+    // Process without allocation if possible
+}
+
+// Use Arc for shared heap data
+let shared_data = Arc::new(data);
+
+// Shrink after building
+vectors.shrink_to_fit();
+```
+
+### Serialization Patterns
+```rust
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Vector {
+    /// Unique identifier for the vector
+    pub id: String,
+    /// The vector data
+    pub data: Vec<f32>,
+    /// Optional payload associated with the vector
+    pub payload: Option<Payload>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DistanceMetric {
+    Cosine,
+    Euclidean,
+    DotProduct,
+}
+```
+
+## API Design Patterns
+
+### REST API Endpoints
+```rust
+// URL patterns: /api/v1/resource/action
+// GET /api/v1/collections/{name}/vectors
+// POST /api/v1/collections/{name}/search
+
+use axum::{
+    extract::{Path, Query, State},
+    http::StatusCode,
+    response::Json,
+};
+
+pub async fn search_collection(
+    Path(collection_name): Path<String>,
+    State(state): State<AppState>,
+    Json(request): Json<SearchRequest>,
+) -> Result<Json<SearchResponse>, (StatusCode, Json<ErrorResponse>)> {
+    // Implementation
+    Ok(Json(response))
+}
+```
+
+### gRPC Services
+```rust
+// Service definition in .proto files
+service VectorizerService {
+    rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
+    rpc SearchVectors(SearchRequest) returns (SearchResponse);
+}
+
+// Implementation
+pub async fn create_collection(
+    &self,
+    request: Request<CreateCollectionRequest>,
+) -> Result<Response<CreateCollectionResponse>, Status> {
+    // Implementation
+    Ok(Response::new(response))
+}
+```
+
+### Configuration Patterns
+```rust
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CollectionConfig {
+    /// Vector dimension
+    pub dimension: usize,
+    /// Distance metric for similarity calculations
+    pub metric: DistanceMetric,
+    /// HNSW index configuration
+    pub hnsw_config: HnswConfig,
+    /// Quantization configuration (enabled by default for memory optimization)
+    pub quantization: QuantizationConfig,
+    /// Compression configuration
+    pub compression: CompressionConfig,
+}
+
+impl Default for CollectionConfig {
+    fn default() -> Self {
+        Self {
+            dimension: 512,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig::default(),
+            quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
+            compression: CompressionConfig::default(),
+        }
+    }
+}
+```
+
+## Testing Patterns
+
+### Unit Tests
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_collection_success() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        let result = store.create_collection("test", config);
+        assert!(result.is_ok());
+
+        let collections = store.list_collections();
+        assert_eq!(collections.len(), 1);
+        assert!(collections.contains(&"test".to_string()));
+    }
+
+    #[test]
+    fn test_create_duplicate_collection() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("test", config.clone()).unwrap();
+        let result = store.create_collection("test", config);
+
+        assert!(matches!(result, Err(VectorizerError::CollectionAlreadyExists(_))));
+    }
+}
+```
+
+### Integration Tests
+```rust
+// In tests/ directory
+#[test]
+fn test_full_indexing_workflow() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(VectorStore::new());
+
+    // Create test documents
+    // Index collection
+    // Verify search results
+    // Clean up
+}
+```
+
+## Performance Optimizations
+
+### Memory Efficiency
+- Pre-allocate vectors: `Vec::with_capacity(size)`
+- Use `shrink_to_fit()` after building collections
+- Minimize heap allocations in hot loops
+- Use `SmallVec` for small fixed-size collections
+
+### CPU Efficiency
+- Use parallel processing: `rayon::iter::ParallelIterator`
+- Iterator chains over manual loops
+- `#[inline]` for small frequently-called functions
+- Profile-guided optimization hints
+
+### I/O Efficiency
+- Async I/O for network operations
+- Buffered reads/writes
+- Memory-mapped files for large data
+- Streaming for large datasets
+
+## Logging Patterns
+
+```rust
+use tracing::{debug, info, warn, error};
+
+// Log levels
+error!("System error that requires immediate attention: {}", error);
+warn!("Unexpected condition that doesn't break functionality: {}", condition);
+info!("Important state change: collection '{}' created", collection_name);
+debug!("Detailed information for troubleshooting: processing {} vectors", count);
+
+// Structured logging
+info!(
+    collection_name = %collection_name,
+    vector_count = vector_count,
+    "Collection indexed successfully"
+);
+```
+
+## Dependency Management
+
+### Cargo.toml Organization
+```toml
+[dependencies]
+# Core dependencies
+tokio = { version = "1.40", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+
+# Database and indexing
+hnsw_rs = "0.3"
+dashmap = "6.1"
+
+# Error handling
+anyhow = { version = "1.0", features = ["backtrace"] }
+thiserror = "2.0"
+
+# Async and networking
+axum = { version = "0.8", features = ["ws", "json"] }
+tonic = { version = "0.11", features = ["tls"] }
+
+[features]
+default = ["cuda_real"]
+cuda = []
+cuda_real = ["cuda"]
+```
+
+## Common Anti-Patterns to Avoid
+
+### ❌ Don't do this:
+```rust
+// Unclear variable names
+let x = vec![];
+let y = get_data();
+
+// Missing documentation
+pub fn process_data(input: Vec<String>) -> Vec<String> {
+    // Implementation
+}
+
+// Manual error handling
+match result {
+    Ok(value) => Ok(value),
+    Err(e) => Err(MyError::from(e)),
+}
+
+// Blocking operations in async code
+pub async fn slow_operation() -> Result<(), Error> {
+    std::thread::sleep(std::time::Duration::from_secs(1)); // Blocks!
+    Ok(())
+}
+```
+
+### ✅ Do this instead:
+```rust
+// Clear variable names
+let mut processed_vectors = Vec::new();
+let raw_documents = load_documents_from_path(path)?;
+
+// Comprehensive documentation
+/// Process documents by extracting text, chunking, and generating embeddings
+///
+/// This function performs the complete document processing pipeline:
+/// 1. Extract text from supported file formats
+/// 2. Split text into semantically meaningful chunks
+/// 3. Generate embeddings for each chunk
+/// 4. Store vectors in the specified collection
+///
+/// # Arguments
+/// * `documents` - List of documents to process
+/// * `collection_name` - Name of the collection to store vectors in
+/// * `chunk_size` - Maximum size of each text chunk
+///
+/// # Returns
+/// Returns the number of vectors created on success
+///
+/// # Errors
+/// Returns an error if document processing fails or collection doesn't exist
+pub async fn process_documents(
+    documents: &[Document],
+    collection_name: &str,
+    chunk_size: usize,
+) -> Result<usize, VectorizerError> {
+    // Implementation
+}
+
+// Proper error propagation
+let collection = store.get_collection(name)?;
+
+// Async sleep
+pub async fn slow_operation() -> Result<(), Error> {
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    Ok(())
+}
+```
+
+## Project-Specific Conventions
+
+### Vectorizer Architecture Layers
+1. **API Layer** (`src/api/`): HTTP/gRPC endpoints, request/response handling
+2. **Business Logic Layer** (`src/db/`, `src/embedding/`): Core vector operations, embedding generation
+3. **Data Access Layer** (`src/persistence/`): Storage, caching, indexing
+4. **Infrastructure Layer** (`src/grpc/`, `src/mcp/`): Inter-service communication
+
+### Module Organization
+```
+src/
+├── api/           # HTTP/gRPC API endpoints
+├── db/            # Core database operations (VectorStore, Collection)
+├── grpc/          # gRPC service implementations
+├── models/        # Data models and configurations
+├── embedding/     # Embedding providers (BM25, BERT, etc.)
+├── persistence/   # Storage, caching, persistence logic
+├── quantization/  # Vector quantization implementations
+├── mcp/           # Model Context Protocol integration
+├── batch/         # Batch processing utilities
+├── error.rs       # Error types and handling
+├── lib.rs         # Library exports and organization
+└── main.rs        # Binary entry point
+```
+
+### Configuration Hierarchy
+1. **Workspace config** (`vectorize-workspace.yml`): Project definitions, global settings
+2. **Runtime config**: Environment variables, command-line flags
+3. **Default config**: Sensible defaults in code
+
+## 🚨 Server Execution Requirements
+
+### CRITICAL: GRPC-First Architecture
+**Vectorizer uses a GRPC-first architecture where REST and MCP servers are managed internally by the GRPC orchestrator.**
+
+### Starting the Server
+```bash
+# ✅ CORRECT: Start all services via workspace orchestrator
+./scripts/start.sh --workspace vectorize-workspace.yml
+
+# This starts internally:
+# - vzr (GRPC orchestrator) on port 15003
+# - REST API on http://127.0.0.1:15001
+# - MCP Server on ws://127.0.0.1:15002/mcp
+```
+
+### Stopping the Server
+```bash
+# ✅ CORRECT: Kill vzr process (stops all services)
+pkill vzr
+
+# Alternative
+pkill -f vectorizer
+```
+
+### 🚫 NEVER DO THIS:
+```bash
+# ❌ WRONG: Don't start servers separately
+cargo run --bin vectorizer-server     # DON'T DO THIS
+cargo run --bin vectorizer-mcp-server # DON'T DO THIS
+
+# ❌ WRONG: Don't kill individual servers
+kill $(pgrep vectorizer-server)  # DON'T DO THIS
+kill $(pgrep vectorizer-mcp-server)  # DON'T DO THIS
+```
+
+### Architecture Flow
+```
+Client → REST/MCP → GRPC → vzr → Vector Store
+```
+
+### Why This Matters
+- REST and MCP servers **depend completely** on GRPC
+- The workspace orchestrator manages all service lifecycle
+- Individual server startup will fail or behave unpredictably
+- Proper shutdown requires killing the orchestrator
+
+Remember: These rules ensure consistency, maintainability, and performance across the Vectorizer codebase. Always consider the trade-offs between different approaches and document your decisions.

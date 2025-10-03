@@ -1,0 +1,1796 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vectorizer API",
+    "description": "High-performance vector database engine with semantic search capabilities.\nSupports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and\nprovides real-time indexing with HNSW optimization.\n",
+    "version": "0.21.0",
+    "contact": {
+      "name": "Vectorizer Team",
+      "url": "https://github.com/hivellm/vectorizer"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:15001/api/v1",
+      "description": "Local development server"
+    },
+    {
+      "url": "http://127.0.0.1:15001/api/v1",
+      "description": "Local server alternative"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Check if the Vectorizer service is running",
+        "operationId": "healthCheck",
+        "tags": [
+          "System"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Get System Statistics",
+        "description": "Retrieve system-wide statistics and metrics",
+        "operationId": "getStats",
+        "tags": [
+          "System"
+        ],
+        "responses": {
+          "200": {
+            "description": "System statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections": {
+      "get": {
+        "summary": "List Collections",
+        "description": "Get all available collections",
+        "operationId": "listCollections",
+        "tags": [
+          "Collections"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCollectionsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Collection",
+        "description": "Create a new vector collection",
+        "operationId": "createCollection",
+        "tags": [
+          "Collections"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCollectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Collection created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}": {
+      "get": {
+        "summary": "Get Collection Info",
+        "description": "Get detailed information about a specific collection",
+        "operationId": "getCollection",
+        "tags": [
+          "Collections"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Collection",
+        "description": "Delete a collection and all its vectors",
+        "operationId": "deleteCollection",
+        "tags": [
+          "Collections"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection to delete",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteCollectionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}/vectors": {
+      "get": {
+        "summary": "List Vectors",
+        "description": "List vectors in a collection",
+        "operationId": "listVectors",
+        "tags": [
+          "Vectors"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of vectors to return",
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 1000
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of vectors to skip",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of vectors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListVectorsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Insert Texts",
+        "description": "Insert text content with automatic embedding generation",
+        "operationId": "insertTexts",
+        "tags": [
+          "Vectors"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsertTextsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Texts inserted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsertTextsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}/vectors/{vector_id}": {
+      "get": {
+        "summary": "Get Vector",
+        "description": "Get a specific vector by ID",
+        "operationId": "getVector",
+        "tags": [
+          "Vectors"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vector_id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the vector",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vector information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vector not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Vector",
+        "description": "Delete a specific vector",
+        "operationId": "deleteVector",
+        "tags": [
+          "Vectors"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vector_id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the vector to delete",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vector deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteVectorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vector not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}/search": {
+      "post": {
+        "summary": "Search Vectors",
+        "description": "Search for similar vectors using vector or text query",
+        "operationId": "searchVectors",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchUnifiedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}/search/text": {
+      "post": {
+        "summary": "Search by Text",
+        "description": "Search using text query (automatically embedded)",
+        "operationId": "searchVectorsByText",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection to search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}/batch/insert": {
+      "post": {
+        "summary": "Batch Insert Texts",
+        "description": "Insert multiple texts efficiently in batch",
+        "operationId": "batchInsertTexts",
+        "tags": [
+          "Batch Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection_name",
+            "in": "path",
+            "required": true,
+            "description": "Name of the collection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchInsertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch operation completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/embedding/providers": {
+      "get": {
+        "summary": "List Embedding Providers",
+        "description": "Get available embedding providers",
+        "operationId": "listEmbeddingProviders",
+        "tags": [
+          "Embedding"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of embedding providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingProvidersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/embedding/providers/set": {
+      "post": {
+        "summary": "Set Embedding Provider",
+        "description": "Set the default embedding provider",
+        "operationId": "setEmbeddingProvider",
+        "tags": [
+          "Embedding"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetEmbeddingProviderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Embedding provider set successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetEmbeddingProviderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/indexing/progress": {
+      "get": {
+        "summary": "Get Indexing Progress",
+        "description": "Get current indexing progress for all collections",
+        "operationId": "getIndexingProgress",
+        "tags": [
+          "Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Indexing progress information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexingProgressResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/summarize/text": {
+      "post": {
+        "summary": "Summarize Text",
+        "description": "Generate intelligent summaries of text content",
+        "operationId": "summarizeText",
+        "tags": [
+          "Summarization"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummarizeTextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Text summarized successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummarizeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/summaries": {
+      "get": {
+        "summary": "List Summaries",
+        "description": "List all available summaries with filtering options",
+        "operationId": "listSummaries",
+        "tags": [
+          "Summarization"
+        ],
+        "parameters": [
+          {
+            "name": "method",
+            "in": "query",
+            "description": "Filter by summarization method",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "extractive",
+                "keyword",
+                "sentence",
+                "abstractive"
+              ]
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "description": "Filter by language",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of summaries to return",
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 1000
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of summaries to skip",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSummariesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/summaries/{summary_id}": {
+      "get": {
+        "summary": "Get Summary",
+        "description": "Retrieve a specific summary by ID",
+        "operationId": "getSummary",
+        "tags": [
+          "Summarization"
+        ],
+        "parameters": [
+          {
+            "name": "summary_id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the summary to retrieve",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Summary not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "timestamp",
+          "uptime",
+          "collections",
+          "total_vectors"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "unhealthy"
+            ],
+            "description": "Service health status"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Current server timestamp"
+          },
+          "uptime": {
+            "type": "integer",
+            "description": "Server uptime in seconds"
+          },
+          "collections": {
+            "type": "integer",
+            "description": "Number of collections"
+          },
+          "total_vectors": {
+            "type": "integer",
+            "description": "Total number of vectors across all collections"
+          }
+        }
+      },
+      "StatsResponse": {
+        "type": "object",
+        "required": [
+          "collections",
+          "total_vectors",
+          "total_documents",
+          "uptime"
+        ],
+        "properties": {
+          "collections": {
+            "type": "integer",
+            "description": "Number of collections"
+          },
+          "total_vectors": {
+            "type": "integer",
+            "description": "Total vectors across all collections"
+          },
+          "total_documents": {
+            "type": "integer",
+            "description": "Total documents indexed"
+          },
+          "uptime": {
+            "type": "integer",
+            "description": "Server uptime in seconds"
+          },
+          "memory_usage_mb": {
+            "type": "number",
+            "description": "Memory usage in MB"
+          },
+          "cpu_usage_percent": {
+            "type": "number",
+            "description": "CPU usage percentage"
+          }
+        }
+      },
+      "CreateCollectionRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "dimension",
+          "metric"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Collection name",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          },
+          "dimension": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096,
+            "description": "Vector dimension"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/DistanceMetric"
+          },
+          "hnsw_config": {
+            "$ref": "#/components/schemas/HnswConfig"
+          }
+        }
+      },
+      "CreateCollectionResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "collection"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "collection": {
+            "type": "string",
+            "description": "Created collection name"
+          }
+        }
+      },
+      "CollectionInfo": {
+        "type": "object",
+        "required": [
+          "name",
+          "dimension",
+          "metric",
+          "embedding_provider",
+          "vector_count",
+          "document_count",
+          "created_at",
+          "updated_at",
+          "indexing_status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "dimension": {
+            "type": "integer",
+            "description": "Vector dimension"
+          },
+          "metric": {
+            "$ref": "#/components/schemas/DistanceMetric"
+          },
+          "embedding_provider": {
+            "type": "string",
+            "description": "Embedding provider used"
+          },
+          "vector_count": {
+            "type": "integer",
+            "description": "Number of vectors"
+          },
+          "document_count": {
+            "type": "integer",
+            "description": "Number of documents"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "indexing_status": {
+            "$ref": "#/components/schemas/IndexingStatus"
+          }
+        }
+      },
+      "ListCollectionsResponse": {
+        "type": "object",
+        "required": [
+          "collections"
+        ],
+        "properties": {
+          "collections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectionInfo"
+            }
+          }
+        }
+      },
+      "DistanceMetric": {
+        "type": "string",
+        "enum": [
+          "cosine",
+          "euclidean",
+          "dot_product"
+        ],
+        "description": "Distance metric for similarity calculations"
+      },
+      "HnswConfig": {
+        "type": "object",
+        "properties": {
+          "m": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 64,
+            "default": 16,
+            "description": "Number of bi-directional links for each node"
+          },
+          "ef_construction": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 1000,
+            "default": 200,
+            "description": "Size of dynamic candidate list for construction"
+          },
+          "ef_search": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 1000,
+            "default": 64,
+            "description": "Size of dynamic candidate list for search"
+          }
+        }
+      },
+      "IndexingStatus": {
+        "type": "object",
+        "required": [
+          "status",
+          "progress",
+          "total_documents",
+          "processed_documents",
+          "vector_count",
+          "last_updated"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Current indexing status"
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Progress percentage"
+          },
+          "total_documents": {
+            "type": "integer",
+            "description": "Total documents to process"
+          },
+          "processed_documents": {
+            "type": "integer",
+            "description": "Documents processed so far"
+          },
+          "vector_count": {
+            "type": "integer",
+            "description": "Number of vectors in collection"
+          },
+          "estimated_time_remaining": {
+            "type": "integer",
+            "description": "Estimated time remaining in seconds"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InsertTextsRequest": {
+        "type": "object",
+        "required": [
+          "texts"
+        ],
+        "properties": {
+          "texts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TextData"
+            },
+            "description": "Array of texts to insert"
+          }
+        }
+      },
+      "TextData": {
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the text"
+          },
+          "text": {
+            "type": "string",
+            "description": "Text content to be embedded"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Optional metadata"
+          }
+        }
+      },
+      "InsertTextsResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "inserted",
+          "inserted_count"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "inserted": {
+            "type": "integer",
+            "description": "Number of texts inserted"
+          },
+          "inserted_count": {
+            "type": "integer",
+            "description": "Number of vectors inserted (alias)"
+          }
+        }
+      },
+      "SearchTextRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Text query to search for"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 10,
+            "description": "Maximum number of results"
+          },
+          "score_threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Minimum similarity score"
+          },
+          "file_filter": {
+            "type": "string",
+            "description": "Filter by file path"
+          }
+        }
+      },
+      "SearchRequest": {
+        "type": "object",
+        "required": [
+          "vector"
+        ],
+        "properties": {
+          "vector": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Query vector"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 10,
+            "description": "Maximum number of results"
+          },
+          "score_threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Minimum similarity score"
+          },
+          "file_filter": {
+            "type": "string",
+            "description": "Filter by file path"
+          }
+        }
+      },
+      "SearchUnifiedRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SearchRequest"
+          },
+          {
+            "$ref": "#/components/schemas/SearchTextRequest"
+          }
+        ]
+      },
+      "SearchResult": {
+        "type": "object",
+        "required": [
+          "id",
+          "score",
+          "vector"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Vector ID"
+          },
+          "score": {
+            "type": "number",
+            "description": "Similarity score"
+          },
+          "vector": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Vector values"
+          },
+          "payload": {
+            "type": "object",
+            "description": "Vector metadata"
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "required": [
+          "results",
+          "query_time_ms",
+          "total_results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "query_time_ms": {
+            "type": "number",
+            "description": "Query execution time in milliseconds"
+          },
+          "total_results": {
+            "type": "integer",
+            "description": "Total number of results found"
+          }
+        }
+      },
+      "ListVectorsResponse": {
+        "type": "object",
+        "required": [
+          "vectors",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "vectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VectorResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of vectors"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Limit used"
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Offset used"
+          },
+          "message": {
+            "type": "string",
+            "description": "Optional message"
+          }
+        }
+      },
+      "VectorResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Vector ID"
+          },
+          "payload": {
+            "type": "object",
+            "description": "Vector metadata"
+          }
+        }
+      },
+      "VectorInfo": {
+        "type": "object",
+        "required": [
+          "id",
+          "vector",
+          "metadata"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Vector ID"
+          },
+          "vector": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Vector values"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Vector metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BatchInsertRequest": {
+        "type": "object",
+        "required": [
+          "texts"
+        ],
+        "properties": {
+          "texts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TextData"
+            },
+            "description": "Array of texts to insert"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "bm25",
+              "native_bow",
+              "native_hash",
+              "native_ngram"
+            ],
+            "default": "bm25",
+            "description": "Embedding provider to use"
+          }
+        }
+      },
+      "BatchResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "collection",
+          "operation",
+          "total_operations",
+          "successful_operations",
+          "failed_operations",
+          "duration_ms",
+          "errors"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the batch operation succeeded"
+          },
+          "collection": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "operation": {
+            "type": "string",
+            "description": "Operation type"
+          },
+          "total_operations": {
+            "type": "integer",
+            "description": "Total number of operations"
+          },
+          "successful_operations": {
+            "type": "integer",
+            "description": "Number of successful operations"
+          },
+          "failed_operations": {
+            "type": "integer",
+            "description": "Number of failed operations"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "description": "Operation duration in milliseconds"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of error messages"
+          }
+        }
+      },
+      "EmbeddingProvidersResponse": {
+        "type": "object",
+        "required": [
+          "providers"
+        ],
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmbeddingProvider"
+            }
+          }
+        }
+      },
+      "EmbeddingProvider": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "supported_dimensions"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Provider name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Provider description"
+          },
+          "supported_dimensions": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Supported vector dimensions"
+          }
+        }
+      },
+      "SetEmbeddingProviderRequest": {
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "tfidf",
+              "bm25",
+              "svd",
+              "bert",
+              "minilm",
+              "bagofwords",
+              "charngram"
+            ],
+            "description": "Embedding provider name"
+          }
+        }
+      },
+      "SetEmbeddingProviderResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "provider"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Set provider name"
+          }
+        }
+      },
+      "IndexingProgressResponse": {
+        "type": "object",
+        "required": [
+          "overall_status",
+          "collections",
+          "started_at"
+        ],
+        "properties": {
+          "overall_status": {
+            "type": "string",
+            "description": "Overall indexing status"
+          },
+          "collections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndexingStatus"
+            }
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estimated_completion": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SummarizeTextRequest": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text to summarize"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "extractive",
+              "keyword",
+              "sentence",
+              "abstractive"
+            ],
+            "default": "extractive",
+            "description": "Summarization method"
+          },
+          "max_length": {
+            "type": "integer",
+            "minimum": 10,
+            "description": "Maximum summary length"
+          },
+          "compression_ratio": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 0.9,
+            "description": "Compression ratio"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language code"
+          }
+        }
+      },
+      "SummarizeResponse": {
+        "type": "object",
+        "required": [
+          "summary",
+          "original_text",
+          "summary_id",
+          "method",
+          "compression_ratio"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "Generated summary"
+          },
+          "original_text": {
+            "type": "string",
+            "description": "Original text"
+          },
+          "summary_id": {
+            "type": "string",
+            "description": "Unique summary ID"
+          },
+          "method": {
+            "type": "string",
+            "description": "Summarization method used"
+          },
+          "compression_ratio": {
+            "type": "number",
+            "description": "Achieved compression ratio"
+          },
+          "original_length": {
+            "type": "integer",
+            "description": "Original text length"
+          },
+          "summary_length": {
+            "type": "integer",
+            "description": "Summary length"
+          }
+        }
+      },
+      "ListSummariesResponse": {
+        "type": "object",
+        "required": [
+          "summaries",
+          "total_count"
+        ],
+        "properties": {
+          "summaries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SummaryInfo"
+            }
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "Total number of summaries"
+          }
+        }
+      },
+      "SummaryInfo": {
+        "type": "object",
+        "required": [
+          "summary_id",
+          "method",
+          "compression_ratio",
+          "created_at"
+        ],
+        "properties": {
+          "summary_id": {
+            "type": "string",
+            "description": "Summary ID"
+          },
+          "method": {
+            "type": "string",
+            "description": "Summarization method"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language code"
+          },
+          "compression_ratio": {
+            "type": "number",
+            "description": "Compression ratio achieved"
+          },
+          "original_length": {
+            "type": "integer",
+            "description": "Original text length"
+          },
+          "summary_length": {
+            "type": "integer",
+            "description": "Summary length"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeleteCollectionResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "collection"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "collection": {
+            "type": "string",
+            "description": "Deleted collection name"
+          }
+        }
+      },
+      "DeleteVectorResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "vector_id"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "vector_id": {
+            "type": "string",
+            "description": "Deleted vector ID"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error type"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Error timestamp"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authentication"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "System",
+      "description": "System health and statistics"
+    },
+    {
+      "name": "Collections",
+      "description": "Collection management operations"
+    },
+    {
+      "name": "Vectors",
+      "description": "Vector operations (insert, list, delete)"
+    },
+    {
+      "name": "Search",
+      "description": "Search operations"
+    },
+    {
+      "name": "Batch Operations",
+      "description": "Batch processing operations"
+    },
+    {
+      "name": "Embedding",
+      "description": "Embedding provider management"
+    },
+    {
+      "name": "Indexing",
+      "description": "Indexing progress and status"
+    },
+    {
+      "name": "Summarization",
+      "description": "Text summarization operations"
+    }
+  ],
+  "externalDocs": {
+    "description": "Vectorizer Documentation",
+    "url": "https://github.com/hivellm/vectorizer"
+  }
+}

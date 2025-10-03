@@ -1,0 +1,319 @@
+# Vectorizer Rust Code Rules - Cursor IDE Configuration
+# These rules define coding standards for the Vectorizer project
+# They ensure consistency across the codebase and promote best practices
+
+# ⚠️ CRITICAL ARCHITECTURE RULE ⚠️
+# =============================================================================
+# GRPC is the Primary Data Server - REST and MCP are Interfaces Only
+# =============================================================================
+#
+# - GRPC Server (vzr): Manages all real collections and vector data
+# - REST API: HTTP interface that proxies requests to GRPC
+# - MCP Server: Model Context Protocol interface that proxies requests to GRPC
+#
+# RULE: GRPC, REST, and MCP must have EXACTLY the same functionality
+#
+# When adding features:
+# 1. Implement in GRPC first (core business logic)
+# 2. Add REST endpoints (HTTP interface)
+# 3. Add MCP tools (AI assistant interface)
+#
+# NEVER implement features only in REST or MCP! All three layers must be kept in sync.
+#
+# Example Issue: memory-analysis endpoint exists only in REST API but not in MCP
+# =============================================================================
+
+# =============================================================================
+# 🚨 RUST EDITION REQUIREMENT - NON-NEGOTIABLE 🚨
+# =============================================================================
+#
+# CRITICAL: This project uses Rust Edition 2024
+#
+# - Edition in Cargo.toml: MUST be "2024" (never change to 2021 or other)
+# - Reason: Requires Edition 2024 features for advanced async patterns and optimizations
+# - NEVER CHANGE: Downgrading breaks compilation and loses critical features
+# - Build Environment: Must use Rust toolchain with Edition 2024 support
+#
+# Consequences of changing edition:
+# - Compilation failures for Edition 2024 specific code
+# - Loss of advanced language features
+# - Performance regressions
+# - Dependency incompatibility
+#
+# =============================================================================
+
+# =============================================================================
+# GENERAL CODING STANDARDS
+# =============================================================================
+
+# Documentation Requirements
+# - All public functions, structs, enums, and modules MUST have documentation comments
+# - Use `//!` for module-level documentation
+# - Use `///` for item-level documentation
+# - Include parameter descriptions and return value explanations
+# - Document error conditions and edge cases
+
+# Naming Conventions
+# - Functions and variables: snake_case
+# - Structs, enums, traits: PascalCase
+# - Constants: SCREAMING_SNAKE_CASE
+# - Modules: snake_case
+# - Generic type parameters: single uppercase letters (T, U, V) or descriptive names
+
+# Code Organization
+# - Group related functionality in modules
+# - Use clear module hierarchy (api/, db/, grpc/, models/, etc.)
+# - Keep functions under 50 lines when possible
+# - Use meaningful variable names, avoid single-letter variables except in generics
+
+# =============================================================================
+# RUST-SPECIFIC PATTERNS
+# =============================================================================
+
+# Error Handling
+# - Use `VectorizerError` enum for domain-specific errors
+# - Implement `From` traits for external error types
+# - Use `Result<T, VectorizerError>` for fallible operations
+# - Prefer `?` operator for error propagation
+# - Use `anyhow::Context` for adding context to errors
+
+# Concurrency Patterns
+# - Use `Arc` for shared ownership across threads
+# - Use `RwLock` for read-heavy concurrent access
+# - Use `DashMap` for concurrent key-value operations
+# - Prefer async/await over manual futures
+# - Use `tokio::sync` primitives for cross-task communication
+
+# Memory Management
+# - Prefer stack allocation when possible
+# - Use `Arc` for shared heap data
+# - Minimize allocations in hot paths
+# - Use `Cow` for read-only data that might need mutation
+# - Implement `Drop` for custom cleanup when necessary
+
+# Serialization
+# - Use `#[derive(Serialize, Deserialize)]` for data structures
+# - Use `serde` attributes for custom serialization behavior
+# - Prefer JSON for human-readable formats
+# - Use `bincode` for efficient binary serialization
+- Validate serialized data on deserialization
+
+# =============================================================================
+# STRUCT AND ENUM PATTERNS
+# =============================================================================
+
+# Struct Derives (always include in this order)
+# #[derive(Debug, Clone, Serialize, Deserialize)]
+# Add additional derives as needed: PartialEq, Eq, Hash, Default
+
+# Enum Patterns
+# - Use `#[serde(rename_all = "lowercase")]` for API enums
+# - Implement `Display` trait for user-facing enums
+# - Use exhaustive match expressions (avoid `_` when possible)
+# - Document enum variants clearly
+
+# Configuration Structs
+# - Implement `Default` trait for all config structs
+# - Use builder pattern for complex configurations
+# - Validate configuration values on creation
+# - Document default values and valid ranges
+
+# =============================================================================
+# FUNCTION PATTERNS
+# =============================================================================
+
+# Function Signatures
+# - Use descriptive parameter names
+# - Prefer `&str` over `&String` for read-only string parameters
+# - Use `impl Trait` for return types when appropriate
+# - Group parameters logically, put required params first
+
+# Async Functions
+# - Use async/await syntax consistently
+# - Prefer `tokio::spawn` for background tasks
+# - Use `StreamExt` for stream processing
+# - Handle cancellation properly with `select!`
+
+# Error Handling Functions
+# - Return `Result<T, VectorizerError>` for fallible operations
+# - Use custom error variants for domain-specific errors
+# - Provide meaningful error messages
+# - Log errors at appropriate levels (debug, info, warn, error)
+
+# =============================================================================
+# TESTING PATTERNS
+# =============================================================================
+
+# Unit Tests
+# - Place tests in `#[cfg(test)]` modules
+# - Use descriptive test function names: `test_function_name_condition`
+# - Test both success and failure cases
+# - Use `assert_eq!`, `assert!`, `assert_matches!` appropriately
+
+# Integration Tests
+# - Place in `tests/` directory
+# - Test end-to-end functionality
+# - Clean up resources properly
+# - Use realistic test data
+
+# Benchmark Tests
+# - Use `criterion` for performance benchmarks
+# - Include baseline comparisons
+- Test with realistic data sizes
+# - Measure both throughput and latency
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATIONS
+# =============================================================================
+
+# Memory Efficiency
+# - Pre-allocate vectors when size is known
+# - Use `shrink_to_fit()` after building collections
+# - Minimize heap allocations in hot loops
+# - Use `SmallVec` or `TinyVec` for small collections
+
+# CPU Efficiency
+# - Use parallel processing with `rayon` when beneficial
+# - Prefer iterator chains over manual loops
+# - Use `#[inline]` for small frequently-called functions
+# - Profile code to identify bottlenecks
+
+# I/O Efficiency
+# - Use async I/O for network operations
+# - Buffer reads/writes appropriately
+- Use memory-mapped files for large data
+# - Implement streaming for large datasets
+
+# =============================================================================
+# API DESIGN PATTERNS
+# =============================================================================
+
+# REST API Endpoints
+# - Use consistent URL patterns: `/api/v1/resource/action`
+# - Return appropriate HTTP status codes
+# - Use JSON for request/response bodies
+# - Implement proper error responses with error codes
+
+# gRPC Services
+# - Define clear service boundaries
+# - Use streaming for large data transfers
+# - Implement proper error codes
+# - Document service methods thoroughly
+
+# MCP (Model Context Protocol)
+# - Follow MCP specification strictly
+# - Implement proper tool schemas
+# - Handle tool calls and responses correctly
+# - Document tool capabilities clearly
+
+# =============================================================================
+# CONFIGURATION PATTERNS
+# =============================================================================
+
+# Workspace Configuration
+# - Use YAML for human-editable configuration
+# - Provide sensible defaults
+# - Validate configuration on load
+# - Support environment variable overrides
+
+# Runtime Configuration
+# - Use builder patterns for complex setup
+- Validate configuration early
+# - Log configuration on startup
+# - Support hot-reloading when possible
+
+# =============================================================================
+# LOGGING PATTERNS
+# =============================================================================
+
+# Log Levels
+# - `error`: System errors that require immediate attention
+# - `warn`: Unexpected conditions that don't break functionality
+# - `info`: Important state changes and user actions
+# - `debug`: Detailed information for troubleshooting
+# - `trace`: Very detailed execution flow information
+
+# Log Context
+# - Include relevant IDs (collection names, vector IDs, etc.)
+# - Use structured logging when possible
+# - Include timing information for performance-critical operations
+# - Log configuration on startup
+
+# =============================================================================
+# DEPENDENCY MANAGEMENT
+# =============================================================================
+
+# Cargo.toml Organization
+# - Group dependencies logically (core, async, ML, etc.)
+# - Use feature flags appropriately
+# - Pin major versions for stability
+# - Minimize dependency count
+
+# Feature Flags
+# - Use descriptive feature names
+# - Document feature purposes
+# - Test feature combinations
+# - Default features should provide basic functionality
+
+# =============================================================================
+# BUILD AND DEPLOYMENT
+# =============================================================================
+
+# Build Scripts
+# - Use `build.rs` for code generation
+# - Compile C/CUDA code as needed
+# - Generate version information
+# - Validate build environment
+
+# Cross-Compilation
+# - Support multiple target architectures
+# - Test on different platforms
+# - Handle platform-specific code appropriately
+# - Document platform requirements
+
+# Server Execution
+# =============================================================================
+# CRITICAL: Vectorizer uses GRPC-first architecture with workspace orchestrator
+# =============================================================================
+#
+# Starting the Server:
+# - Command: ./scripts/start.sh --workspace vectorize-workspace.yml
+# - This starts: vzr (GRPC) + REST API + MCP Server
+# - NEVER start REST or MCP servers separately - they depend on GRPC
+#
+# Stopping the Server:
+# - Command: pkill vzr
+# - Alternative: pkill -f vectorizer
+# - This stops all services managed by the orchestrator
+#
+# Architecture Flow:
+# Client → REST/MCP → GRPC → vzr → Vector Store
+#
+# Ports:
+# - REST API: http://127.0.0.1:15001
+# - MCP Server: ws://127.0.0.1:15002/mcp
+# - GRPC Orchestrator: http://127.0.0.1:15003
+#
+# =============================================================================
+
+# =============================================================================
+# SECURITY CONSIDERATIONS
+# =============================================================================
+
+# Input Validation
+# - Validate all user inputs
+# - Use safe deserialization practices
+# - Limit resource usage (memory, CPU, disk)
+# - Implement rate limiting
+
+# Authentication & Authorization
+# - Use secure authentication mechanisms
+# - Implement proper authorization checks
+# - Log security events
+# - Follow principle of least privilege
+
+# Data Protection
+# - Encrypt sensitive data at rest
+# - Use secure communication channels
+# - Implement proper access controls
+# - Follow data minimization principles

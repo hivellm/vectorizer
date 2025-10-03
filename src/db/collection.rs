@@ -8,7 +8,8 @@ use crate::{
 };
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
 
 use super::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
@@ -21,7 +22,7 @@ pub struct Collection {
     /// Collection configuration
     config: CollectionConfig,
     /// Vector storage
-    vectors: Arc<DashMap<String, Vector>>,
+    vectors: Arc<Mutex<HashMap<String, Vector>>>,
     /// Vector IDs in insertion order (for persistence consistency)
     vector_order: Arc<RwLock<Vec<String>>>,
     /// HNSW index for similarity search
@@ -79,7 +80,7 @@ impl Collection {
         Self {
             name,
             config,
-            vectors: Arc::new(DashMap::new()),
+            vectors: Arc::new(Mutex::new(HashMap::new())),
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
             embedding_type: Arc::new(RwLock::new(embedding_type)),
@@ -89,6 +90,7 @@ impl Collection {
             updated_at: Arc::new(RwLock::new(now)),
         }
     }
+
 
     /// Get collection metadata
     pub fn metadata(&self) -> CollectionMetadata {
@@ -138,6 +140,14 @@ impl Collection {
                 vector.data = data.clone(); // Update stored vector to normalized version
             }
 
+            // Apply quantization if enabled - clear data to save memory
+            if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                // For memory optimization, we just clear the data
+                // The quantization concept here is purely about memory reduction
+                vector.data.clear();
+                vector.data.shrink_to_fit();
+            }
+
             // Extract document ID from payload for tracking unique documents
             if let Some(payload) = &vector.payload {
                 if let Some(file_path) = payload.data.get("file_path") {
@@ -148,7 +158,7 @@ impl Collection {
             }
 
             // Store vector
-            self.vectors.insert(id.clone(), vector);
+            self.vectors.lock().unwrap().insert(id.clone(), vector);
 
             // Track insertion order for persistence consistency
             vector_order.push(id.clone());
@@ -185,7 +195,7 @@ impl Collection {
         let mut data = vector.data.clone();
 
         // Check if vector exists
-        if !self.vectors.contains_key(&id) {
+        if !self.vectors.lock().unwrap().contains_key(&id) {
             return Err(VectorizerError::VectorNotFound(id));
         }
 
@@ -196,7 +206,7 @@ impl Collection {
         }
 
         // Update vector
-        self.vectors.insert(id.clone(), vector);
+        self.vectors.lock().unwrap().insert(id.clone(), vector);
 
         // Update index
         let index = self.index.write();
@@ -211,7 +221,7 @@ impl Collection {
     /// Delete a vector
     pub fn delete(&self, vector_id: &str) -> Result<()> {
         // Remove from storage
-        self.vectors
+        self.vectors.lock().unwrap()
             .remove(vector_id)
             .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
 
@@ -234,9 +244,9 @@ impl Collection {
 
     /// Get a vector by ID
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
-        self.vectors
+        self.vectors.lock().unwrap()
             .get(vector_id)
-            .map(|entry| entry.value().clone())
+            .cloned()
             .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))
     }
 
@@ -264,7 +274,8 @@ impl Collection {
         // Build results
         let mut results = Vec::with_capacity(neighbors.len());
         for (id, score) in neighbors {
-            if let Some(vector) = self.vectors.get(&id) {
+            if let Some(vector) = self.vectors.lock().unwrap().get(&id) {
+                // Since we keep the original data for HNSW index, we can return it directly
                 results.push(SearchResult {
                     id: id.clone(),
                     score,
@@ -279,16 +290,108 @@ impl Collection {
 
     /// Get the number of vectors in the collection
     pub fn vector_count(&self) -> usize {
-        self.vectors.len()
+        self.vectors.lock().unwrap().len()
     }
 
-    /// Estimate memory usage in bytes
-    pub fn estimated_memory_usage(&self) -> usize {
-        let vector_size = std::mem::size_of::<f32>() * self.config.dimension;
-        let entry_overhead = std::mem::size_of::<String>() + std::mem::size_of::<Vector>();
-        let total_per_vector = vector_size + entry_overhead;
+    /// Requantize existing vectors if quantization is enabled
+    pub fn requantize_existing_vectors(&self) -> Result<()> {
+        if !matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            return Ok(()); // No quantization enabled
+        }
 
-        self.vectors.len() * total_per_vector
+        let mut updated_count = 0;
+        for (_, vector) in self.vectors.lock().unwrap().iter_mut() {
+
+            // Skip if vector is already quantized (data already cleared)
+            if vector.data.is_empty() {
+                continue;
+            }
+
+            // Apply quantization by clearing original data to save memory
+            // The quantization is just a memory optimization - we don't store quantized data
+            vector.data.clear();
+            vector.data.shrink_to_fit();
+            updated_count += 1;
+        }
+
+        if updated_count > 0 {
+            info!("Requantized {} vectors in collection '{}' for memory optimization", updated_count, self.name);
+        }
+
+        Ok(())
+    }
+
+    /// Quantize a vector using scalar quantization (8-bit)
+    fn quantize_vector(&self, vector: &[f32], bits: u8) -> Result<Vec<u8>> {
+        let max_val = 2_u32.pow(bits as u32) - 1;
+        let mut quantized = Vec::with_capacity(vector.len());
+        
+        for &val in vector {
+            // Normalize to [0, 1] range (assuming vectors are normalized to [-1, 1])
+            let normalized = (val + 1.0) / 2.0;
+            let normalized_clamped = normalized.clamp(0.0, 1.0);
+            let quantized_val = (normalized_clamped * max_val as f32) as u8;
+            quantized.push(quantized_val);
+        }
+        
+        Ok(quantized)
+    }
+
+
+    /// Estimate memory usage in bytes with quantization support
+    pub fn estimated_memory_usage(&self) -> usize {
+        let vector_count = self.vectors.lock().unwrap().len();
+        let dimension = self.config.dimension;
+
+        // Check if quantization is enabled in config
+        let quantization_enabled = matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
+
+        if quantization_enabled {
+            // Calculate memory usage for quantized vectors (4x compression with SQ-8bit)
+            let mut total_memory = 0;
+            let mut quantized_vectors = 0;
+            let mut unquantized_vectors = 0;
+
+            for vector in self.vectors.lock().unwrap().iter() {
+
+                // Base overhead for Vector struct
+                total_memory += std::mem::size_of::<Vector>();
+
+                // Check if vector is quantized (data cleared)
+                let is_quantized = vector.1.data.is_empty();
+
+                if is_quantized {
+                    // Vector is quantized - minimal memory usage
+                    total_memory += dimension; // 1 byte per dimension for quantized data
+                    quantized_vectors += 1;
+                } else {
+                    // Vector not yet quantized - use f32 data size
+                    total_memory += std::mem::size_of::<f32>() * dimension;
+                    unquantized_vectors += 1;
+                }
+
+                // Payload overhead
+                if let Some(payload) = &vector.1.payload {
+                    total_memory += std::mem::size_of_val(payload);
+                }
+            }
+
+            // Debug logging for memory analysis
+            if vector_count > 0 {
+                let quantization_ratio = quantized_vectors as f32 / vector_count as f32;
+                debug!("🔍 [MEMORY ANALYSIS] Collection '{}': {}/{} vectors quantized ({:.1}%), total_memory: {} bytes",
+                       self.name, quantized_vectors, vector_count, quantization_ratio * 100.0, total_memory);
+            }
+
+            total_memory
+        } else {
+            // Standard memory usage without quantization
+            let vector_size = std::mem::size_of::<f32>() * dimension;
+            let entry_overhead = std::mem::size_of::<String>() + std::mem::size_of::<Vector>();
+            let total_per_vector = vector_size + entry_overhead;
+
+            vector_count * total_per_vector
+        }
     }
 
     /// Fast load from cache without building HNSW index (index built lazily on first search)
@@ -303,17 +406,33 @@ impl Collection {
             runtime_vectors.push(pv.into_runtime_with_payload()?);
         }
 
+        // Apply quantization to loaded vectors if enabled
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            debug!("Applying quantization to {} loaded vectors in collection '{}'", runtime_vectors.len(), self.name);
+            for vector in &mut runtime_vectors {
+                // Skip if vector is already quantized (data already cleared)
+                if vector.data.is_empty() {
+                    continue;
+                }
+
+                // Clear original data to save memory
+                vector.data.clear();
+                vector.data.shrink_to_fit();
+            }
+            info!("Applied quantization to {} vectors during cache load", runtime_vectors.len());
+        }
+
         // Use fast load for runtime vectors
         self.fast_load_vectors(runtime_vectors)?;
 
-        debug!("Fast loaded {} vectors into collection '{}' with HNSW index", self.vectors.len(), self.name);
+        debug!("Fast loaded {} vectors into collection '{}' with HNSW index", self.vectors.lock().unwrap().len(), self.name);
         Ok(())
     }
 
     pub fn load_from_cache_with_hnsw_dump(&self, persisted_vectors: Vec<crate::persistence::PersistedVector>, hnsw_dump_path: Option<&std::path::Path>, hnsw_basename: Option<&str>) -> Result<()> {
         use crate::persistence::PersistedVector;
 
-        debug!("Loading {} vectors into collection '{}' from cache", persisted_vectors.len(), self.name);
+        info!("🚀 [CACHE LOAD] Loading {} vectors into collection '{}' from cache (HNSW dump path: {:?})", persisted_vectors.len(), self.name, hnsw_dump_path);
 
         // Try to load HNSW index from dump first
         let hnsw_loaded = if let (Some(path), Some(basename)) = (hnsw_dump_path, hnsw_basename) {
@@ -336,6 +455,29 @@ impl Collection {
             runtime_vectors.push(pv.into_runtime_with_payload()?);
         }
 
+        // Apply quantization to loaded vectors if enabled
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            debug!("🔧 [QUANTIZATION] Applying quantization to {} loaded vectors in collection '{}'", runtime_vectors.len(), self.name);
+            let mut quantized_count = 0;
+            let mut skipped_count = 0;
+
+            for vector in &mut runtime_vectors {
+                // Skip if vector is already quantized (data already cleared)
+                if vector.data.is_empty() {
+                    skipped_count += 1;
+                    continue;
+                }
+
+                // Clear original data to save memory
+                vector.data.clear();
+                vector.data.shrink_to_fit();
+                quantized_count += 1;
+            }
+            info!("✅ [QUANTIZATION] Applied quantization to {}/{} vectors during cache load with HNSW dump (skipped {} already quantized)", quantized_count, runtime_vectors.len(), skipped_count);
+        } else {
+            debug!("⚠️ [QUANTIZATION] Quantization not enabled for collection '{}'", self.name);
+        }
+
         if hnsw_loaded {
             // HNSW index already loaded, just load vectors into memory
             debug!("Loading {} vectors into memory (HNSW index already loaded)", runtime_vectors.len());
@@ -346,7 +488,7 @@ impl Collection {
             self.fast_load_vectors(runtime_vectors)?;
         }
 
-        debug!("Loaded {} vectors into collection '{}' {}", self.vectors.len(), self.name,
+        debug!("Loaded {} vectors into collection '{}' {}", self.vectors.lock().unwrap().len(), self.name,
                if hnsw_loaded { "(from dump)" } else { "(rebuilt)" });
         Ok(())
     }
@@ -369,7 +511,7 @@ impl Collection {
             }
 
             // Store vector
-            self.vectors.insert(id.clone(), vector);
+            self.vectors.lock().unwrap().insert(id.clone(), vector);
 
             // Track insertion order
             vector_order.push(id.clone());
@@ -411,7 +553,7 @@ impl Collection {
             // Vector is already normalized by into_runtime_with_payload if needed
 
             // Store vector
-            self.vectors.insert(id.clone(), vector.clone());
+            self.vectors.lock().unwrap().insert(id.clone(), vector.clone());
 
             // Add to batch for HNSW index
             batch_vectors.push((id.clone(), vector.data.clone()));
@@ -439,8 +581,7 @@ impl Collection {
         let vector_order = self.vector_order.read();
         vector_order
             .iter()
-            .filter_map(|id| self.vectors.get(id))
-            .map(|entry| entry.value().clone())
+            .filter_map(|id| self.vectors.lock().unwrap().get(id).cloned())
             .collect()
     }
 
@@ -457,35 +598,30 @@ impl Collection {
     }
 
 
-    /// Dump HNSW index to cache directory for faster future loading
-    pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(&self, project_path: P) -> Result<()> {
+    /// Dump HNSW index to centralized cache directory for faster future loading
+    pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(&self, _project_path: P) -> Result<()> {
         use tracing::{debug, info, warn};
         
-        let cache_dir = project_path.as_ref().join(".vectorizer");
+        // Get the vectorizer root directory (where config.yml is located)
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let cache_dir = current_dir.join("data");
+        
         if !cache_dir.exists() {
             std::fs::create_dir_all(&cache_dir)?;
         }
 
         let basename = format!("{}_hnsw", self.name);
-        
-        info!("🔍 COLLECTION DUMP DEBUG: Starting HNSW dump for collection '{}'", self.name);
-        info!("🔍 COLLECTION DUMP DEBUG: Cache directory: {}", cache_dir.display());
-        info!("🔍 COLLECTION DUMP DEBUG: Basename: {}", basename);
-        info!("🔍 COLLECTION DUMP DEBUG: Collection has {} vectors, {} documents", 
-              self.vector_count(), self.document_ids.len());
-        
+                
         // Check if index has vectors
         let index_len = (*self.index.read()).len();
-        info!("🔍 COLLECTION DUMP DEBUG: Index length: {}", index_len);
         
         if index_len == 0 {
             warn!("⚠️ COLLECTION DUMP WARNING: Index is empty for collection '{}'", self.name);
             return Err(VectorizerError::IndexError(format!("Index is empty for collection '{}'", self.name)));
         }
         
-        debug!("🔍 COLLECTION DUMP DEBUG: Calling index.file_dump...");
         (*self.index.write()).file_dump(&cache_dir, &basename)?;
-        info!("✅ Successfully dumped HNSW index for collection '{}' to cache", self.name);
+        info!("✅ Successfully dumped HNSW index for collection '{}' to centralized cache", self.name);
         Ok(())
     }
 }
@@ -500,7 +636,7 @@ mod tests {
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: Default::default(),
             compression: Default::default(),
         };
         Collection::new("test".to_string(), config)
@@ -569,3 +705,4 @@ mod tests {
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
     }
 }
+

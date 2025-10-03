@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 use crate::VectorStore;
+use crate::models::QuantizationConfig;
 use crate::embedding::EmbeddingManager;
 use crate::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use tonic::{Request, Response};
@@ -309,7 +310,7 @@ impl GrpcVectorOperations {
                 dimension,
                 metric: crate::models::DistanceMetric::Cosine,
                 hnsw_config: crate::models::HnswConfig::default(),
-                quantization: None,
+                quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
             };
 

@@ -33,6 +33,12 @@ service VectorizerService {
   rpc SummarizeContext(SummarizeContextRequest) returns (SummarizeContextResponse);
   rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse);
   rpc ListSummaries(ListSummariesRequest) returns (ListSummariesResponse);
+
+  // Operações de análise de memória
+  rpc GetMemoryAnalysis(Empty) returns (MemoryAnalysisResponse);
+
+  // Operações de requantização
+  rpc RequantizeCollection(RequantizeCollectionRequest) returns (RequantizeCollectionResponse);
 }
 
 // Mensagens de busca
@@ -297,4 +303,79 @@ message ListSummariesResponse {
   repeated SummaryInfo summaries = 1;
   int32 total_count = 2;
   string status = 3;
+}
+
+// Mensagens de análise de memória
+message MemoryAnalysisResponse {
+  string timestamp = 1;
+  repeated CollectionMemoryInfo collections = 2;
+  MemorySummary summary = 3;
+}
+
+message CollectionMemoryInfo {
+  string name = 1;
+  int32 dimension = 2;
+  int32 vector_count = 3;
+  int32 document_count = 4;
+  string embedding_provider = 5;
+  string metric = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  IndexingStatus indexing_status = 9;
+  MemoryInfo memory_analysis = 10;
+  QuantizationInfo quantization = 11;
+  PerformanceInfo performance = 12;
+}
+
+message MemoryInfo {
+  int64 theoretical_memory_bytes = 1;
+  double theoretical_memory_mb = 2;
+  int64 actual_memory_bytes = 3;
+  double actual_memory_mb = 4;
+  int64 memory_saved_bytes = 5;
+  double memory_saved_mb = 6;
+  double compression_ratio = 7;
+  double memory_savings_percent = 8;
+  int64 memory_per_vector_bytes = 9;
+  int64 theoretical_memory_per_vector_bytes = 10;
+}
+
+message QuantizationInfo {
+  bool enabled = 1;
+  string status = 2;
+  bool effective = 3;
+  double compression_factor = 4;
+}
+
+message PerformanceInfo {
+  string memory_efficiency = 1;
+  string recommendation = 2;
+}
+
+message MemorySummary {
+  int32 total_collections = 1;
+  int32 collections_with_quantization = 2;
+  int32 collections_without_quantization = 3;
+  int32 total_vectors = 4;
+  int32 total_documents = 5;
+  MemoryInfo memory_analysis = 6;
+  QuantizationSummary quantization_summary = 7;
+}
+
+message QuantizationSummary {
+  double quantization_coverage_percent = 1;
+  string overall_quantization_status = 2;
+  string recommendation = 3;
+}
+
+// Mensagens de requantização
+message RequantizeCollectionRequest {
+  string collection_name = 1;
+}
+
+message RequantizeCollectionResponse {
+  string collection_name = 1;
+  bool success = 2;
+  string message = 3;
+  string status = 4;
 }

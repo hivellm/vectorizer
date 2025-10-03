@@ -57,7 +57,7 @@ pub struct OptimizedHnswIndex {
     hnsw: Arc<RwLock<Hnsw<'static, f32, DistCosine>>>,
     /// Configuration
     config: OptimizedHnswConfig,
-    /// Vector storage
+    /// Vector storage (needed for HNSW operations)
     vectors: Arc<RwLock<HashMap<String, Vec<f32>>>>,
     /// ID to internal ID mapping
     id_map: Arc<RwLock<HashMap<String, usize>>>,

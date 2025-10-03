@@ -10,7 +10,7 @@ use crate::{
         BagOfWordsEmbedding, BertEmbedding, Bm25Embedding, CharNGramEmbedding, EmbeddingManager,
         MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding,
     },
-    models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector},
+    models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector},
     models::collection_metadata::{CollectionMetadataFile, FileMetadata, CollectionIndexingConfig, EmbeddingModelInfo},
     utils::file_hash::{calculate_file_hash, get_file_modified_time},
     summarization::{SummarizationManager, SummarizationConfig},
@@ -229,6 +229,13 @@ pub struct DocumentLoader {
 }
 
 impl DocumentLoader {
+    /// Get the centralized data directory path
+    fn get_data_dir() -> PathBuf {
+        // Get the vectorizer root directory (where config.yml is located)
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        current_dir.join("data")
+    }
+
     /// Check if a file path matches the include/exclude patterns
     fn matches_patterns(&self, file_path: &Path, project_root: &Path) -> bool {
         // Convert to relative path from project root for pattern matching
@@ -239,8 +246,8 @@ impl DocumentLoader {
 
         let path_str = relative_path.to_string_lossy();
 
-        // Debug logging for gov collections
-        if self.config.collection_name.starts_with("gov-") {
+        // Debug logging for all collections (especially voxa)
+        if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
             debug!("Checking file: {} against patterns for collection: {}", path_str, self.config.collection_name);
             debug!("Include patterns: {:?}", self.config.include_patterns);
             debug!("Exclude patterns: {:?}", self.config.exclude_patterns);
@@ -250,7 +257,7 @@ impl DocumentLoader {
         for exclude_pattern in &self.config.exclude_patterns {
             if let Ok(pattern) = Pattern::new(exclude_pattern) {
                 if pattern.matches(&path_str) {
-                    if self.config.collection_name.starts_with("gov-") {
+                    if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
                         debug!("File {} excluded by pattern: {}", path_str, exclude_pattern);
                     }
                     return false;
@@ -262,7 +269,7 @@ impl DocumentLoader {
         for include_pattern in &self.config.include_patterns {
             if let Ok(pattern) = Pattern::new(include_pattern) {
                 if pattern.matches(&path_str) {
-                    if self.config.collection_name.starts_with("gov-") {
+                    if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
                         debug!("File {} included by pattern: {}", path_str, include_pattern);
                     }
                     return true;
@@ -273,7 +280,7 @@ impl DocumentLoader {
         // If include patterns are specified, don't fall back to extension-based matching
         // This ensures we only process files that match the specific patterns
         if !self.config.include_patterns.is_empty() {
-            if self.config.collection_name.starts_with("gov-") {
+            if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
                 debug!("File {} not included (no pattern match, include patterns specified)", path_str);
             }
             return false;
@@ -283,13 +290,13 @@ impl DocumentLoader {
         if let Some(extension) = file_path.extension().and_then(|e| e.to_str()) {
             let ext_lower = extension.to_lowercase();
             let result = self.config.allowed_extensions.contains(&ext_lower);
-            if self.config.collection_name.starts_with("gov-") {
+            if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
                 debug!("File {} extension-based check: {} (extension: {})", path_str, result, ext_lower);
             }
             return result;
         }
 
-        if self.config.collection_name.starts_with("gov-") {
+        if self.config.collection_name.starts_with("gov-") || self.config.collection_name.starts_with("voxa-") {
             debug!("File {} rejected (no extension)", path_str);
         }
         false
@@ -394,7 +401,7 @@ impl DocumentLoader {
         progress_callback: Option<&IndexingProgressState>,
     ) -> CacheResult<(usize, bool)> {
         let collection_name = self.config.collection_name.clone();
-        let vector_store_path = PathBuf::from(project_path).join(".vectorizer").join(format!("{}_vector_store.bin", collection_name));
+        let vector_store_path = Self::get_data_dir().join(format!("{}_vector_store.bin", collection_name));
 
         // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
         if vector_store_path.exists() {
@@ -572,25 +579,48 @@ impl DocumentLoader {
         );
 
         // Save the newly indexed store.
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+        let data_dir = Self::get_data_dir();
+        if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
-                "Failed to create .vectorizer directory {}: {}",
-                vectorizer_dir.display(),
+                "Failed to create data directory {}: {}",
+                data_dir.display(),
                 e
             );
         }
-        let vector_store_path = vectorizer_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
+        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
         
         if let Some(collection) = store.get_collection(&self.config.collection_name).ok() {
             // HNSW dump temporariamente desabilitado devido a problemas com a biblioteca hnsw_rs
             info!("⚠️ HNSW dump temporarily disabled for collection '{}' due to library issues", self.config.collection_name);
-            
+
             // SEGUNDO: Criar sub_store e salvar vetores
             let sub_store = VectorStore::new();
             let meta = collection.metadata();
             sub_store.create_collection(&self.config.collection_name, meta.config.clone()).unwrap();
-            sub_store.insert(&self.config.collection_name, collection.get_all_vectors()).unwrap();
+
+            // Filter out vectors with incorrect dimensions before inserting
+            let mut valid_vectors = collection.get_all_vectors();
+            let original_count = valid_vectors.len();
+            valid_vectors.retain(|v| {
+                if v.data.len() != self.config.embedding_dimension {
+                    warn!("Filtering out vector {} with incorrect dimension: expected {}, got {}",
+                          v.id, self.config.embedding_dimension, v.data.len());
+                    false
+                } else {
+                    true
+                }
+            });
+
+            if valid_vectors.len() != original_count {
+                warn!("Filtered {} vectors with incorrect dimensions, {} remaining",
+                      original_count - valid_vectors.len(), valid_vectors.len());
+            }
+
+            if !valid_vectors.is_empty() {
+                sub_store.insert(&self.config.collection_name, valid_vectors).unwrap();
+            } else {
+                warn!("No valid vectors found for collection '{}', skipping save", self.config.collection_name);
+            }
 
             if let Err(e) = sub_store.save(&vector_store_path) {
                  error!("❌ Failed to save collection vector store to '{}': {}", vector_store_path.display(), e);
@@ -742,15 +772,15 @@ impl DocumentLoader {
         Ok(vector_count)
     }
 
-    /// Save tokenizer to .vectorizer directory
-    fn save_tokenizer(&self, project_path: &str) -> Result<()> {
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        fs::create_dir_all(&vectorizer_dir)?;
+    /// Save tokenizer to centralized data directory
+    fn save_tokenizer(&self, _project_path: &str) -> Result<()> {
+        let data_dir = Self::get_data_dir();
+        fs::create_dir_all(&data_dir)?;
         
         // Try to save tokenizer for sparse embedding types
         let embedding_type = self.config.embedding_type.as_str();
         if matches!(embedding_type, "bm25" | "tfidf" | "char_ngram" | "cng" | "bag_of_words" | "bow") {
-            let tokenizer_path = vectorizer_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
+            let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
             
             // Use the EmbeddingManager's save_vocabulary_json method
             match self.embedding_manager.save_vocabulary_json(embedding_type, &tokenizer_path) {
@@ -897,11 +927,14 @@ impl DocumentLoader {
                         || dir_name == "static"
                         || dir_name == "assets"
                     {
+                        debug!("Skipping directory: {}", path.display());
                         continue;
                     }
                 }
+                debug!("Recursively scanning subdirectory: {}", path.display());
                 self.collect_documents_recursive(&path, project_root, documents)?;
             } else if path.is_file() {
+                debug!("Found file: {}", path.display());
                 // Skip specific file names that should never be indexed
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                     let skip_file = file_name == "cache.bin"
@@ -949,6 +982,7 @@ impl DocumentLoader {
                 }
 
                 if self.matches_patterns(&path, project_root) {
+                    debug!("File {} matches patterns, processing...", path.display());
                     // Check file size
                     match fs::metadata(&path) {
                         Ok(metadata) => {
@@ -972,6 +1006,7 @@ impl DocumentLoader {
                     // Read file content
                     match fs::read_to_string(&path) {
                         Ok(content) => {
+                            debug!("Successfully read file: {} ({} bytes)", path.display(), content.len());
                             documents.push((path, content));
                         }
                         Err(e) => {
@@ -983,6 +1018,8 @@ impl DocumentLoader {
                             ));
                         }
                     }
+                } else {
+                    debug!("File {} does not match patterns, skipping", path.display());
                 }
             }
         }
@@ -1140,12 +1177,25 @@ impl DocumentLoader {
 
         // Insert remaining vectors
         if !all_vectors.is_empty() {
-            let remaining_count = all_vectors.len();
-            if let Err(e) = store.insert(&self.config.collection_name, all_vectors) {
-                error!("Failed to insert final batch: {}", e);
-                return Err(e.into());
+            // Filter out vectors with incorrect dimensions
+            let mut valid_vectors: Vec<Vector> = all_vectors.into_iter().filter(|v| {
+                if v.data.len() != self.config.embedding_dimension {
+                    warn!("Filtering out vector {} with incorrect dimension: expected {}, got {}",
+                          v.id, self.config.embedding_dimension, v.data.len());
+                    false
+                } else {
+                    true
+                }
+            }).collect();
+
+            if !valid_vectors.is_empty() {
+                let remaining_count = valid_vectors.len();
+                if let Err(e) = store.insert(&self.config.collection_name, valid_vectors) {
+                    error!("Failed to insert final batch: {}", e);
+                    return Err(e.into());
+                }
+                total_vectors += remaining_count;
             }
-            total_vectors += remaining_count;
         }
 
         // Generate summaries if summarization is enabled
@@ -1163,6 +1213,19 @@ impl DocumentLoader {
             self.config.collection_name,
             total_vectors
         );
+        
+        // Apply quantization to all vectors if enabled
+        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
+            if matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                info!("🔧 Applying quantization to {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                if let Err(e) = collection.requantize_existing_vectors() {
+                    warn!("Failed to quantize vectors in collection '{}': {}", self.config.collection_name, e);
+                } else {
+                    info!("✅ Successfully quantized {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                }
+            }
+        }
+        
         Ok(total_vectors)
     }
 
@@ -1338,12 +1401,15 @@ impl DocumentLoader {
                 ef_search: 64,
                 seed: Some(42), // For reproducible results
             },
-            quantization: None,
+            quantization: QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
         };
 
+        // Check if quantization is enabled before creating collection
+        let quantization_enabled = matches!(config.quantization, QuantizationConfig::SQ { bits: 8 });
+
         store
-            .create_collection(&self.config.collection_name, config)
+            .create_collection_with_quantization(&self.config.collection_name, config)
             .with_context(|| {
                 format!(
                     "Failed to create collection '{}'",
@@ -1358,6 +1424,16 @@ impl DocumentLoader {
                 "Set embedding type '{}' for collection '{}'",
                 self.config.embedding_type, self.config.collection_name
             );
+            
+            // Force apply quantization if enabled
+            if quantization_enabled {
+                info!("🔧 Applying quantization to collection '{}'", self.config.collection_name);
+                if let Err(e) = collection.requantize_existing_vectors() {
+                    warn!("Failed to apply quantization to collection '{}': {}", self.config.collection_name, e);
+                } else {
+                    info!("✅ Successfully applied quantization to collection '{}'", self.config.collection_name);
+                }
+            }
         }
 
         info!("Created collection: {}", self.config.collection_name);
@@ -1531,18 +1607,18 @@ impl DocumentLoader {
         }))
     }
 
-    /// Save collection metadata to disk
-    fn save_metadata(&self, project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        if let Err(e) = fs::create_dir_all(&vectorizer_dir) {
+    /// Save collection metadata to centralized data directory
+    fn save_metadata(&self, _project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
+        let data_dir = Self::get_data_dir();
+        if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
-                "Failed to create .vectorizer directory {}: {}",
-                vectorizer_dir.display(),
+                "Failed to create data directory {}: {}",
+                data_dir.display(),
                 e
             );
         }
         
-        let metadata_path = vectorizer_dir.join(format!("{}_metadata.json", self.config.collection_name));
+        let metadata_path = data_dir.join(format!("{}_metadata.json", self.config.collection_name));
         let metadata_json = serde_json::to_string_pretty(metadata)?;
         fs::write(&metadata_path, metadata_json)?;
         
@@ -1550,10 +1626,10 @@ impl DocumentLoader {
         Ok(())
     }
 
-    /// Load collection metadata from disk
-    fn load_metadata(&self, project_path: &str) -> Result<Option<CollectionMetadataFile>> {
-        let vectorizer_dir = PathBuf::from(project_path).join(".vectorizer");
-        let metadata_path = vectorizer_dir.join(format!("{}_metadata.json", self.config.collection_name));
+    /// Load collection metadata from centralized data directory
+    fn load_metadata(&self, _project_path: &str) -> Result<Option<CollectionMetadataFile>> {
+        let data_dir = Self::get_data_dir();
+        let metadata_path = data_dir.join(format!("{}_metadata.json", self.config.collection_name));
         
         if !metadata_path.exists() {
             return Ok(None);
@@ -1660,14 +1736,25 @@ impl DocumentLoader {
                     ef_search: 64,
                     seed: Some(42),
                 },
-                quantization: None,
+                quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
             };
             
-            match store.create_collection(&summary_collection_name, config) {
+            // Check if quantization is enabled before creating collection
+            let quantization_enabled = matches!(config.quantization, QuantizationConfig::SQ { bits: 8 });
+            
+            match store.create_collection_with_quantization(&summary_collection_name, config) {
                 Ok(_) => {
                     if let Ok(c) = store.get_collection(&summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
+                        // Force apply quantization to summary collection
+                        if quantization_enabled {
+                            if let Err(e) = c.requantize_existing_vectors() {
+                                warn!("Failed to apply quantization to summary collection '{}': {}", summary_collection_name, e);
+                            } else {
+                                info!("✅ Applied quantization to summary collection '{}'", summary_collection_name);
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -1687,14 +1774,26 @@ impl DocumentLoader {
                     ef_search: 64,
                     seed: Some(42),
                 },
-                quantization: None,
+                quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
             };
-            match store.create_collection(&chunk_summary_collection_name, config) {
+            
+            // Check if quantization is enabled before creating collection
+            let quantization_enabled = matches!(config.quantization, QuantizationConfig::SQ { bits: 8 });
+            
+            match store.create_collection_with_quantization(&chunk_summary_collection_name, config) {
                 Ok(_) => {
                     println!("✅ Created chunk summary collection: {}", chunk_summary_collection_name);
                     if let Ok(c) = store.get_collection(&chunk_summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
+                        // Force apply quantization to chunk summary collection
+                        if quantization_enabled {
+                            if let Err(e) = c.requantize_existing_vectors() {
+                                warn!("Failed to apply quantization to chunk summary collection '{}': {}", chunk_summary_collection_name, e);
+                            } else {
+                                info!("✅ Applied quantization to chunk summary collection '{}'", chunk_summary_collection_name);
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -1781,7 +1880,7 @@ impl DocumentLoader {
                     }
                 }
                 Err(e) => {
-                    eprintln!("⚠️  Failed to generate file summary for {}: {}", file_path, e);
+                    //eprintln!("⚠️  Failed to generate file summary for {}: {}", file_path, e);
                 }
             }
 
@@ -1833,7 +1932,7 @@ impl DocumentLoader {
                         }
                     }
                 } else if let Err(e) = chunk_summary_result {
-                    eprintln!("⚠️  Failed to generate chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
+                    //eprintln!("⚠️  Failed to generate chunk summary for {}#{}: {}", file_path, chunk.chunk_index, e);
                 }
             }
         }

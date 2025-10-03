@@ -15,8 +15,10 @@ use super::handlers::{
     create_collection,
     delete_collection,
     delete_vector,
+    embed_text,
     get_collection,
     get_indexing_progress,
+    get_memory_analysis,
     get_vector,
     health_check,
       get_stats,
@@ -32,6 +34,9 @@ use super::handlers::{
     mcp_sse,
     mcp_tools_call,
     mcp_tools_list,
+    requantize_collection,
+    generate_memory_profile,
+    analyze_heap_memory,
     search_by_file,
     search_vectors,
     search_vectors_by_text,
@@ -45,12 +50,20 @@ use super::handlers::{
     list_summaries,
 };
 
+use super::metrics_handlers::metrics_handler;
+
+use super::memory_handlers::{
+    generate_memory_snapshot,
+};
+
 /// Create the main API router
 pub fn create_router(state: AppState) -> Router {
     Router::new()
-        // Health check
+        // Health check and metrics
         .route("/health", get(health_check))
-          .route("/stats", get(get_stats))
+        .route("/stats", get(get_stats))
+        .route("/metrics", get(metrics_handler))
+        .route("/memory-analysis", get(get_memory_analysis))
         // Indexing progress
         .route("/indexing/progress", get(get_indexing_progress))
         .route("/indexing/progress", post(update_indexing_progress))
@@ -60,12 +73,17 @@ pub fn create_router(state: AppState) -> Router {
         .route("/collections", post(create_collection))
         .route("/collections/{collection_name}", get(get_collection))
         .route("/collections/{collection_name}", delete(delete_collection))
+        .route("/collections/{collection_name}/requantize", post(requantize_collection))
+        // Memory profiling
+        .route("/memory-profile", get(generate_memory_profile))
+        .route("/heap-analysis", get(analyze_heap_memory))
+        // Memory snapshot endpoints
+        // .route("/memory-snapshot", get(generate_memory_snapshot))
         // Vector operations
         .route(
             "/collections/{collection_name}/vectors",
-            post(insert_texts),
+            post(insert_texts).get(list_vectors),
         )
-        .route("/collections/{collection_name}/vectors", get(list_vectors))
         .route(
             "/collections/{collection_name}/search",
             post(search_vectors),
@@ -87,6 +105,8 @@ pub fn create_router(state: AppState) -> Router {
             "/collections/{collection_name}/vectors/{vector_id}",
             delete(delete_vector),
         )
+        // Embedding operations
+        .route("/embed", post(embed_text))
         // Embedding provider management
         .route("/embedding/providers", get(list_embedding_providers))
         .route("/embedding/providers/set", post(set_embedding_provider))

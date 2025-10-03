@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //! Vectorizer - High-performance, in-memory vector database written in Rust
 //!
 //! This crate provides a fast and efficient vector database for semantic search

@@ -35,8 +35,8 @@ impl Default for SummarizationConfig {
         languages.insert("fr".to_string(), LanguageConfig::default());
         
         Self {
-            enabled: true,
-            auto_summarize: true,
+            enabled: false,
+            auto_summarize: false,
             summary_collection: "summaries".to_string(),
             default_method: "extractive".to_string(),
             methods,

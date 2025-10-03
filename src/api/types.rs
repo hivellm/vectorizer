@@ -277,6 +277,16 @@ impl From<DistanceMetric> for crate::models::DistanceMetric {
     }
 }
 
+impl std::fmt::Display for DistanceMetric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DistanceMetric::Cosine => write!(f, "cosine"),
+            DistanceMetric::Euclidean => write!(f, "euclidean"),
+            DistanceMetric::DotProduct => write!(f, "dotproduct"),
+        }
+    }
+}
+
 impl From<crate::models::DistanceMetric> for DistanceMetric {
     fn from(metric: crate::models::DistanceMetric) -> Self {
         match metric {
@@ -356,8 +366,20 @@ pub struct SetEmbeddingProviderResponse {
 /// Response for listing embedding providers
 #[derive(Debug, Serialize)]
 pub struct ListEmbeddingProvidersResponse {
-    pub providers: Vec<String>,
+    pub providers: Vec<EmbeddingProviderInfo>,
+    pub total_count: usize,
+    pub status: String,
     pub default_provider: Option<String>,
+}
+
+/// Embedding provider information
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbeddingProviderInfo {
+    pub name: String,
+    pub provider_type: String,
+    pub status: String,
+    pub description: String,
+    pub capabilities: Vec<String>,
 }
 
 /// Query parameters for listing vectors
@@ -442,8 +464,10 @@ pub struct BatchVectorUpdateRequest {
 pub struct BatchSearchQueryRequest {
     /// Query vector (optional)
     pub query_vector: Option<Vec<f32>>,
-    /// Query text (optional)
+    /// Query text (optional) - alias for 'query'
     pub query_text: Option<String>,
+    /// Query text (optional) - main field name
+    pub query: Option<String>,
     /// Maximum number of results
     pub limit: usize,
     /// Score threshold (optional)
@@ -735,4 +759,26 @@ pub struct ListSummariesResponse {
     pub total_count: i32,
     /// Status
     pub status: String,
+}
+
+// =============================================================================
+// EMBEDDING TYPES
+// =============================================================================
+
+/// Request to generate text embedding
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbedTextRequest {
+    /// Text to embed
+    pub text: String,
+}
+
+/// Response containing generated embedding
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbedTextResponse {
+    /// Generated embedding vector
+    pub embedding: Vec<f32>,
+    /// Dimension of the embedding
+    pub dimension: usize,
+    /// Provider used to generate the embedding
+    pub provider: String,
 }

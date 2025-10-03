@@ -92,7 +92,7 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
+            quantization: crate::models::QuantizationConfig::default(),
             compression: crate::models::CompressionConfig::default(),
         };
         

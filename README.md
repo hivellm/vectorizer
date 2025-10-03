@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Vectorizer
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
@@ -415,4 +416,3 @@ For questions or collaboration, open an issue at [hivellm/gov](https://github.co
 
 ---
 
-**Note**: This project is part of the HiveLLM ecosystem.

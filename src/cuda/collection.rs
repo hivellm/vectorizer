@@ -539,7 +539,7 @@ mod tests {
                 seed: Some(42),
             },
             compression: CompressionConfig::default(),
-            quantization: None,
+            quantization: crate::models::QuantizationConfig::default(),
         }
     }
 

@@ -8,6 +8,7 @@ use super::{
 };
 use crate::auth::{AuthManager, Permission, Role};
 use crate::db::VectorStore;
+use crate::models::QuantizationConfig;
 use crate::error::Result;
 use serde_yaml;
 // PathBuf is used in function parameters
@@ -355,7 +356,7 @@ pub async fn handle_collection_command(
                 dimension,
                 metric: distance_metric,
                 hnsw_config: crate::models::HnswConfig::default(),
-                quantization: None,
+                quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: crate::models::CompressionConfig::default(),
             };
 
