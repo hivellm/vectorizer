@@ -6,6 +6,7 @@ use crate::error::{Result, VectorizerError};
 use crate::workspace::config::*;
 use crate::workspace::parser::*;
 use crate::workspace::validator::*;
+use crate::workspace::simplified_config::*;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info, warn};
 
@@ -42,8 +43,17 @@ impl WorkspaceManager {
 
         debug!("Loading workspace from: {}", config_path.display());
 
-        // Parse configuration
-        let config = parse_workspace_config(config_path)?;
+        // Try to parse as simplified config first, then fall back to full config
+        let config = match Self::try_load_simplified_config(config_path) {
+            Ok(simplified_config) => {
+                info!("✅ Loaded simplified workspace configuration with intelligent defaults");
+                simplified_config.to_full_workspace_config()
+            }
+            Err(_) => {
+                debug!("Not a simplified config, trying full configuration format");
+                parse_workspace_config(config_path)?
+            }
+        };
 
         debug!(
             "Parsed workspace config with {} projects from YAML",
@@ -69,6 +79,18 @@ impl WorkspaceManager {
         }
 
         Ok(Self::new(config, workspace_root, config_path.to_path_buf()))
+    }
+
+    /// Try to load simplified workspace configuration
+    fn try_load_simplified_config<P: AsRef<Path>>(config_path: P) -> std::result::Result<SimplifiedWorkspaceConfig, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(config_path)?;
+        
+        // Check if it has the simplified structure (has "defaults" section)
+        if content.contains("defaults:") {
+            parse_simplified_workspace_config_from_str(&content)
+        } else {
+            Err("Not a simplified workspace configuration".into())
+        }
     }
 
     /// Find and load workspace configuration
