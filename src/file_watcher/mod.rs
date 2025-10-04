@@ -12,19 +12,7 @@ pub mod file_index;
 pub mod enhanced_watcher;
 
 #[cfg(test)]
-pub mod test_enhanced_watcher;
-
-#[cfg(test)]
-pub mod integration_test;
-
-#[cfg(test)]
-pub mod simple_integration_test;
-
-#[cfg(test)]
-pub mod final_test;
-
-#[cfg(test)]
-pub mod success_test;
+pub mod tests;
 
 pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
@@ -253,5 +241,3 @@ pub enum FileWatcherError {
 
 pub type Result<T> = std::result::Result<T, FileWatcherError>;
 
-#[cfg(test)]
-mod tests;
