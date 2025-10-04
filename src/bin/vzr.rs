@@ -555,6 +555,10 @@ enum Commands {
         /// Port for MCP server
         #[arg(long, default_value = "15002")]
         mcp_port: u16,
+
+        /// GPU backend to use (auto, metal, vulkan, dx12, cuda, cpu)
+        #[arg(long, default_value = "auto")]
+        gpu_backend: String,
     },
     /// Stop running servers
     Stop,
@@ -640,8 +644,9 @@ async fn main() {
             host,
             port,
             mcp_port,
+            gpu_backend,
         } => {
-            run_servers(project, workspace, config, daemon, host, port, mcp_port).await;
+            run_servers(project, workspace, config, daemon, host, port, mcp_port, gpu_backend).await;
         }
         Commands::Stop => {
             stop_servers().await;
@@ -676,14 +681,17 @@ async fn run_servers(
     host: String,
     port: u16,
     mcp_port: u16,
+    gpu_backend: String,
 ) {
     let logger = WorkspaceLogger::new();
 
     logger.info("Starting Vectorizer Servers");
     logger.info(&format!("Config: {}", config.display()));
     logger.info(&format!("Workspace mode: {}", workspace.is_some()));
+    logger.info(&format!("GPU Backend: {}", gpu_backend));
 
     println!("🚀 Starting Vectorizer Servers...");
+    println!("🎨 GPU Backend: {}", gpu_backend);
 
     // Determine if using workspace or legacy project mode
     if let Some(workspace_path) = workspace {
@@ -1231,7 +1239,11 @@ async fn run_interactive(
     println!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
-    // Initialize File Watcher System for legacy mode with GRPC connection (auto GPU detection)
+    // Initialize File Watcher System for legacy mode with GRPC connection (universal GPU detection)
+    #[cfg(feature = "wgpu-gpu")]
+    let file_watcher_vector_store = Arc::new(VectorStore::new_auto_universal());
+    
+    #[cfg(not(feature = "wgpu-gpu"))]
     let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
     let file_watcher_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
@@ -1517,7 +1529,11 @@ async fn run_interactive_workspace(
     );
     println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
 
-    // Initialize GRPC server components (auto GPU detection)
+    // Initialize GRPC server components (universal GPU detection)
+    #[cfg(feature = "wgpu-gpu")]
+    let grpc_vector_store = Arc::new(VectorStore::new_auto_universal());
+    
+    #[cfg(not(feature = "wgpu-gpu"))]
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
@@ -2241,7 +2257,11 @@ async fn run_as_daemon_workspace(
     println!("📄 Logs: vectorizer-workspace.log");
     println!("🛑 Use 'vectorizer stop' to stop all services");
 
-    // Initialize GRPC server components with auto GPU detection
+    // Initialize GRPC server components with universal GPU detection
+    #[cfg(feature = "wgpu-gpu")]
+    let grpc_vector_store = Arc::new(VectorStore::new_auto_universal());
+    
+    #[cfg(not(feature = "wgpu-gpu"))]
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
@@ -2419,7 +2439,11 @@ async fn run_as_daemon(
     println!("📄 Logs: vectorizer-workspace.log");
     println!("🛑 Use 'vectorizer stop' to stop all services");
 
-    // Initialize GRPC server components with auto GPU detection
+    // Initialize GRPC server components with universal GPU detection
+    #[cfg(feature = "wgpu-gpu")]
+    let grpc_vector_store = Arc::new(VectorStore::new_auto_universal());
+    
+    #[cfg(not(feature = "wgpu-gpu"))]
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();

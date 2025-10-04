@@ -41,11 +41,19 @@ pub mod shaders;
 pub mod buffers;
 pub mod utils;
 pub mod metal_collection;
+pub mod vulkan_collection;
+pub mod dx12_collection;
+pub mod backends;
+pub mod hnsw_gpu;
 
 pub use config::{GpuConfig, GpuBackend};
 pub use context::GpuContext;
 pub use operations::GpuOperations;
 pub use metal_collection::MetalCollection;
+pub use vulkan_collection::VulkanCollection;
+pub use dx12_collection::DirectX12Collection;
+pub use backends::{GpuBackendType, detect_available_backends, select_best_backend};
+pub use hnsw_gpu::{GpuHnswSearch, GpuHnswConfig, GpuSearchCandidate};
 
 use crate::error::{Result, VectorizerError};
 use crate::models::DistanceMetric;

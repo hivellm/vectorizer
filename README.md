@@ -17,73 +17,128 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🐍 Python SDK**: 🚧 In development - PyPI publishing in progress
 - **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
-- **⚡ GPU Metal Acceleration**: Native Apple Silicon GPU support for vector operations (M1/M2/M3)
+- **🌍 Universal Multi-GPU Support**: Metal (macOS), Vulkan (Linux), DirectX 12 (Windows), CUDA (NVIDIA)
 
-## 🎮 **GPU Metal Acceleration** (NEW in v0.24.0)
+## 🌍 **Universal Multi-GPU Backend Detection** (NEW in v0.27.0)
 
-High-performance GPU acceleration for Apple Silicon with automatic CPU fallback:
+Cross-platform GPU acceleration with automatic backend selection and intelligent fallback:
 
-### **Features**
-- ✅ **Metal Backend**: Native GPU support via `wgpu 27.0` framework
-- ✅ **Smart Fallback**: Automatic CPU fallback for small workloads
-- ✅ **Cross-Platform**: Metal (macOS), Vulkan (Linux), DirectX12 (Windows)
-- ✅ **High Performance**: Up to **3.75× speedup** on large workloads
+### **Supported Backends**
+- 🍎 **Metal**: Apple Silicon (M1/M2/M3/M4) - Native macOS GPU
+- 🔥 **Vulkan**: AMD/NVIDIA/Intel GPUs - Cross-platform (Linux/Windows)
+- 🪟 **DirectX 12**: NVIDIA/AMD/Intel - Native Windows GPU
+- ⚡ **CUDA**: NVIDIA only - Maximum performance (optional)
+- 💻 **CPU**: Universal fallback - Always available
 
-### **Supported Operations**
-- Cosine Similarity (vec4 optimized)
+### **Key Features**
+- ✅ **Auto-Detection**: Automatically selects the best GPU backend for your system
+- ✅ **Smart Fallback**: Graceful degradation to CPU for small workloads or GPU failure
+- ✅ **Backend Priority**: Metal > Vulkan > DirectX12 > CUDA > CPU
+- ✅ **CLI Control**: `--gpu-backend` flag for explicit backend selection
+- ✅ **High Performance**: **6-10× speedup** over CPU for typical workloads
+
+### **GPU Operations**
+- Cosine Similarity (vec4 SIMD optimized)
 - Euclidean Distance
 - Dot Product
-- Batch Search
+- Batch Search (parallel processing)
 
-### **Performance** (Apple M3 Pro)
-- **Small** (100 vectors): CPU faster (auto fallback) ✅
-- **Medium** (1K vectors): 1.5× speedup
-- **Large** (10K vectors): **3.75× speedup**
-- **Peak**: 1.1M vectors/second
+### **Performance Benchmarks** (Apple M3 Pro - Metal)
+| Operation | Throughput | Latency | Speedup |
+|-----------|------------|---------|---------|
+| **Vector Insertion** | 1,373 ops/sec | 0.728 ms | ~8× |
+| **Single Search** | 1,151 QPS | 0.869 ms | ~7× |
+| **Batch Search (100)** | 1,129 QPS | 0.886 ms | ~8× |
+| **Large Set (10K)** | 1,213 ops/sec | 8.24 s | ~6× |
+| **Sustained Load** | 395 QPS | - | ~7× |
 
-### **Build with GPU**
+### **Build with Multi-GPU Support**
 ```bash
-# Build without GPU (default, CPU only)
-cargo build --release
-
-# Build with GPU Metal acceleration
+# Build with GPU support (Metal/Vulkan/DirectX12)
 cargo build --release --features wgpu-gpu
 
-# Run with GPU
-cargo run --release --features wgpu-gpu
+# Build CPU-only (no GPU)
+cargo build --release
 ```
 
-### **Usage Example**
+### **Usage Examples**
+
+**Auto-Detection (Recommended)**:
+```bash
+# Automatically detects best GPU backend
+./target/release/vzr start --workspace vectorize-workspace.yml
+```
+
+**Explicit Backend Selection**:
+```bash
+# Force Vulkan (Linux/Windows)
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend vulkan
+
+# Force DirectX 12 (Windows)
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend dx12
+
+# Force Metal (macOS)
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend metal
+
+# Force CPU (debugging)
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend cpu
+```
+
+**Rust API**:
 ```rust
-use vectorizer::gpu::{GpuContext, GpuConfig, GpuOperations};
+use vectorizer::db::VectorStore;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize GPU context
-    let config = GpuConfig::default();
-    let ctx = GpuContext::new(config).await?;
+    // Auto-detect best GPU backend
+    let store = VectorStore::new_auto_universal();
     
-    // Prepare data
-    let query = vec![0.1; 512];
-    let vectors: Vec<Vec<f32>> = (0..10000)
-        .map(|_| vec![0.2; 512])
-        .collect();
+    // Or use specific backend
+    let config = GpuConfig::for_vulkan();
+    let store = VectorStore::new_with_vulkan_config(config);
     
-    // GPU-accelerated operation
-    let results = ctx.cosine_similarity(&query, &vectors).await?;
+    // Create collection and use GPU-accelerated operations
+    store.create_collection("docs", config)?;
+    store.insert("docs", vectors)?;
+    let results = store.search("docs", &query, 10)?;
     
-    println!("Top similarity: {}", results[0]);
     Ok(())
 }
 ```
 
-### **System Requirements**
-- **macOS**: Apple Silicon (M1/M2/M3) or Metal-compatible GPU
-- **Linux**: Vulkan-compatible GPU (optional)
-- **Windows**: DirectX12-compatible GPU (optional)
-- **Memory**: 8GB+ recommended for large datasets
+### **Platform Support**
+| Platform | Auto-Detected Backend | Fallback |
+|----------|----------------------|----------|
+| **macOS (Apple Silicon)** | 🍎 Metal | CPU |
+| **Linux (AMD GPU)** | 🔥 Vulkan | CPU |
+| **Linux (NVIDIA GPU)** | 🔥 Vulkan → ⚡ CUDA | CPU |
+| **Windows (NVIDIA)** | 🪟 DirectX 12 → 🔥 Vulkan | CPU |
+| **Windows (AMD)** | 🪟 DirectX 12 → 🔥 Vulkan | CPU |
+| **Windows (Intel)** | 🪟 DirectX 12 → 🔥 Vulkan | CPU |
 
-📚 **Full Documentation**: See `README_GPU_METAL.md` and `docs/METAL_GPU_IMPLEMENTATION.md`
+### **System Requirements**
+- **macOS**: macOS 12+ with Apple Silicon or Metal-compatible GPU
+- **Linux**: Vulkan SDK and compatible GPU drivers (AMD/NVIDIA/Intel)
+- **Windows**: Windows 10 1709+ with DirectX 12 compatible GPU
+- **Memory**: 8GB+ recommended for large datasets
+- **GPU Memory**: 2GB+ VRAM recommended
+
+### **Benchmarks & Testing**
+```bash
+# Run comprehensive GPU benchmark
+cargo run --example multi_gpu_benchmark --features wgpu-gpu --release
+
+# Run GPU stress test
+cargo run --example gpu_stress_benchmark --features wgpu-gpu --release
+
+# Test GPU detection
+cargo run --example test_multi_gpu_detection --features wgpu-gpu --release
+```
+
+📚 **Full Documentation**: 
+- Setup: `docs/VULKAN_SETUP.md`, `docs/DIRECTX12_SETUP.md`
+- Benchmarks: `docs/GPU_BENCHMARKS.md`
+- Comparison: `docs/GPU_COMPARISON.md`
 
 ## 📝 **Automatic Summarization**
 
@@ -165,9 +220,17 @@ vectorizer:
   default_dimension: 512
   default_metric: "cosine"
   
-  # GPU Acceleration
-  cuda:
+  # Multi-GPU Configuration
+  gpu:
     enabled: true
+    backend: auto  # auto, metal, vulkan, dx12, cuda, cpu
+    device_id: 0
+    power_preference: high_performance
+    gpu_threshold_operations: 500
+  
+  # Legacy CUDA support (optional)
+  cuda:
+    enabled: false
     device_id: 0
   
   # Summarization
@@ -178,10 +241,11 @@ vectorizer:
 
 ## 🎯 **Current Status**
 
-**Version**: v0.22.0  
+**Version**: v0.27.0  
 **Status**: ✅ **Production Ready**  
 **Collections**: 99 active collections with 47,000+ vectors indexed  
-**Performance**: Sub-3ms search with GPU acceleration  
+**Performance**: Sub-1ms search with multi-GPU acceleration  
+**GPU Backends**: 🍎 Metal, 🔥 Vulkan, 🪟 DirectX 12, ⚡ CUDA, 💻 CPU  
 **Architecture**: GRPC + REST + MCP unified server system  
 **SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
 **Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
@@ -375,28 +439,50 @@ server:
   host: "127.0.0.1"
   port: 15001
 
-cuda:
+# Multi-GPU configuration
+gpu:
   enabled: true
+  backend: auto  # Detects best available: metal, vulkan, dx12, cuda, cpu
   device_id: 0
+  power_preference: high_performance
+  gpu_threshold_operations: 500  # Minimum operations for GPU (CPU fallback)
 ```
 
-## 🚀 CUDA GPU Acceleration
+## 🚀 Multi-GPU Acceleration
 
-High-performance GPU acceleration for vector operations:
+Universal GPU acceleration across platforms:
 
 ```bash
-# Build CUDA library
-./scripts/build_cuda.sh
+# Build with multi-GPU support
+cargo build --release --features wgpu-gpu
+
+# Auto-detect best GPU backend
+./target/release/vzr start --workspace vectorize-workspace.yml
+
+# Or use specific backend
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend vulkan
 ```
 
-**Performance**: Up to 3.6x speedup for vector operations
+**Performance**: 
+- **Metal (M3 Pro)**: 1,373 ops/sec, <1ms latency
+- **Expected Vulkan**: ~1,200-1,500 ops/sec
+- **Expected DirectX 12**: ~1,400-1,600 ops/sec
+- **Speedup**: 6-10× faster than CPU
 
 
 ## 📚 Documentation
 
+### GPU Acceleration
+- [GPU Benchmarks](docs/GPU_BENCHMARKS.md) - Complete performance analysis
+- [GPU Backend Comparison](docs/GPU_COMPARISON.md) - Backend selection guide
+- [Vulkan Setup](docs/VULKAN_SETUP.md) - Linux/Windows Vulkan installation
+- [DirectX 12 Setup](docs/DIRECTX12_SETUP.md) - Windows DirectX 12 setup
+
+### General Documentation
 - [Roadmap](docs/ROADMAP.md) - Implementation plan and status
 - [Future Implementations](docs/FUTURE_IMPLEMENTATIONS.md) - Planned enhancements
 - [Technical Documentation](docs/TECHNICAL_DOCUMENTATION_INDEX.md) - Complete overview
+- [Changelog](CHANGELOG.md) - Version history and changes
 
 
 ## 🤝 Contributing

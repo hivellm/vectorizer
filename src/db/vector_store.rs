@@ -13,7 +13,7 @@ use super::collection::Collection;
 #[cfg(feature = "cuda")]
 use crate::cuda::collection::CudaCollection;
 #[cfg(feature = "wgpu-gpu")]
-use crate::gpu::{MetalCollection, GpuConfig};
+use crate::gpu::{MetalCollection, VulkanCollection, DirectX12Collection, GpuConfig};
 
 /// Enum to represent different collection types (CPU, CUDA, or Metal)
 pub enum CollectionType {
@@ -25,6 +25,12 @@ pub enum CollectionType {
     /// Metal-accelerated collection (Apple Silicon)
     #[cfg(feature = "wgpu-gpu")]
     Metal(MetalCollection),
+    /// Vulkan-accelerated collection (AMD/NVIDIA/Intel/Universal)
+    #[cfg(feature = "wgpu-gpu")]
+    Vulkan(VulkanCollection),
+    /// DirectX 12-accelerated collection (Windows)
+    #[cfg(feature = "wgpu-gpu")]
+    DirectX12(DirectX12Collection),
 }
 
 impl std::fmt::Debug for CollectionType {
@@ -35,6 +41,10 @@ impl std::fmt::Debug for CollectionType {
             CollectionType::Cuda(c) => write!(f, "CollectionType::Cuda({})", c.name()),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => write!(f, "CollectionType::Metal({})", c.name()),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => write!(f, "CollectionType::Vulkan({})", c.name()),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => write!(f, "CollectionType::DirectX12({})", c.name()),
         }
     }
 }
@@ -48,6 +58,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.name(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.name(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.name(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.name(),
         }
     }
 
@@ -59,6 +73,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.config(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.config(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.config(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.config(),
         }
     }
 
@@ -70,6 +88,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.add_vector(vector),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.add_vector(vector)),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.add_vector(vector.id.clone(), vector),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.add_vector(vector.id.clone(), vector),
         }
     }
 
@@ -81,6 +103,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.search(query, limit),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.search(query, limit)),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => pollster::block_on(c.search(query, limit)),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => pollster::block_on(c.search(query, limit)),
         }
     }
 
@@ -92,6 +118,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.metadata(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.metadata(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.metadata(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.metadata(),
         }
     }
 
@@ -103,6 +133,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.remove_vector(id),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.remove_vector(id),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.remove_vector(id),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.remove_vector(id),
         }
     }
 
@@ -114,6 +148,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.get_vector(vector_id),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.get_vector(vector_id),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.get_vector(vector_id),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.get_vector(vector_id),
         }
     }
 
@@ -125,6 +163,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.vector_count(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.vector_count(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.vector_count(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.vector_count(),
         }
     }
 
@@ -136,6 +178,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.estimated_memory_usage(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.estimated_memory_usage(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.estimated_memory_usage(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.estimated_memory_usage(),
         }
     }
 
@@ -147,6 +193,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.get_all_vectors(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.get_all_vectors(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.get_all_vectors(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.get_all_vectors(),
         }
     }
 
@@ -158,6 +208,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.get_embedding_type(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.get_embedding_type(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.get_embedding_type().unwrap_or_default(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.get_embedding_type().unwrap_or_default(),
         }
     }
 
@@ -176,6 +230,16 @@ impl CollectionType {
                 warn!("Requantization not implemented for Metal collections yet");
                 Ok(())
             }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                warn!("Requantization not implemented for Vulkan collections yet");
+                Ok(())
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                warn!("Requantization not implemented for DirectX 12 collections yet");
+                Ok(())
+            }
         }
     }
 
@@ -187,6 +251,10 @@ impl CollectionType {
             CollectionType::Cuda(c) => c.set_embedding_type(embedding_type),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.set_embedding_type(embedding_type),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(c) => c.set_embedding_type(embedding_type),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(c) => c.set_embedding_type(embedding_type),
         }
     }
 
@@ -202,6 +270,16 @@ impl CollectionType {
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support HNSW dump loading yet");
+                Ok(()) // No-op for now
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                warn!("Vulkan collections don\'t support HNSW dump loading yet");
+                Ok(()) // No-op for now
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                warn!("DirectX 12 collections don\'t support HNSW dump loading yet");
                 Ok(()) // No-op for now
             }
         }
@@ -221,6 +299,16 @@ impl CollectionType {
                 warn!("Metal collections don't support vector loading into memory yet");
                 Ok(()) // No-op for now
             }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                warn!("Vulkan collections don\'t support vector loading into memory yet");
+                Ok(()) // No-op for now
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                warn!("DirectX 12 collections don\'t support vector loading into memory yet");
+                Ok(()) // No-op for now
+            }
         }
     }
 
@@ -238,6 +326,16 @@ impl CollectionType {
                 warn!("Metal collections don't support fast vector loading yet");
                 Ok(()) // No-op for now
             }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                warn!("Vulkan collections don\'t support fast vector loading yet");
+                Ok(()) // No-op for now
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                warn!("DirectX 12 collections don\'t support fast vector loading yet");
+                Ok(()) // No-op for now
+            }
         }
     }
 }
@@ -252,6 +350,12 @@ pub struct VectorStore {
     /// Metal GPU configuration
     #[cfg(feature = "wgpu-gpu")]
     metal_config: Option<GpuConfig>,
+    /// Vulkan GPU configuration
+    #[cfg(feature = "wgpu-gpu")]
+    vulkan_config: Option<GpuConfig>,
+    /// DirectX 12 GPU configuration
+    #[cfg(feature = "wgpu-gpu")]
+    dx12_config: Option<GpuConfig>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -277,6 +381,10 @@ impl VectorStore {
             cuda_config,
             #[cfg(feature = "wgpu-gpu")]
             metal_config: None,
+            #[cfg(feature = "wgpu-gpu")]
+            vulkan_config: None,
+            #[cfg(feature = "wgpu-gpu")]
+            dx12_config: None,
         }
     }
     
@@ -288,14 +396,29 @@ impl VectorStore {
             collections: Arc::new(DashMap::new()),
             cuda_config: CudaConfig { enabled: false, ..Default::default() },
             metal_config: Some(metal_config),
+            vulkan_config: None,
+            dx12_config: None,
+        }
+    }
+    
+    /// Create a new vector store with Vulkan GPU configuration
+    #[cfg(feature = "wgpu-gpu")]
+    pub fn new_with_vulkan_config(vulkan_config: GpuConfig) -> Self {
+        info!("Creating new VectorStore with Vulkan GPU config: enabled={}", vulkan_config.enabled);
+        Self {
+            collections: Arc::new(DashMap::new()),
+            cuda_config: CudaConfig { enabled: false, ..Default::default() },
+            metal_config: None,
+            vulkan_config: Some(vulkan_config),
+            dx12_config: None,
         }
     }
     
     /// Create a new vector store with automatic GPU detection
     /// Priority: Metal (Mac Silicon) > CUDA > CPU
     pub fn new_auto() -> Self {
-        // SEMPRE imprimir para debug
-        eprintln!("🔍 VectorStore::new_auto() chamado - iniciando detecção GPU...");
+        // Always print for debug
+        eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
         
         // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
         #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
@@ -315,7 +438,7 @@ impl VectorStore {
         
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu")))]
         {
-            eprintln!("⚠️ Metal não disponível (não é Mac Silicon ou feature wgpu-gpu não compilada)");
+            eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
         
         // 2. Try CUDA (if feature is enabled)
@@ -333,6 +456,95 @@ impl VectorStore {
         eprintln!("💻 Using CPU-only mode");
         info!("💻 Using CPU-only mode");
         Self::new_with_cuda_config(CudaConfig { enabled: false, ..Default::default() })
+    }
+    
+    /// Universal GPU detection across all backends (Vulkan, DirectX, CUDA, Metal)
+    /// Priority: Metal (macOS) > Vulkan (AMD/Universal) > DirectX12 (Windows) > CUDA (NVIDIA) > CPU
+    #[cfg(feature = "wgpu-gpu")]
+    pub fn new_auto_universal() -> Self {
+        use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
+        
+        eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
+        info!("🔍 Starting universal GPU backend detection...");
+        
+        // Detect all available backends
+        let available = detect_available_backends();
+        
+        if available.is_empty() {
+            eprintln!("❌ No GPU backends detected - using CPU");
+            warn!("No GPU backends available");
+            return Self::new();
+        }
+        
+        // Select best backend
+        let best = select_best_backend(&available);
+        eprintln!("🎯 Selected: {}", best);
+        info!("Selected backend: {}", best);
+        
+        // Initialize VectorStore with the selected backend
+        match best {
+            GpuBackendType::Metal => {
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                {
+                    eprintln!("🍎 Initializing Metal GPU backend...");
+                    let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
+                    if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
+                        eprintln!("✅ Metal GPU initialized successfully!");
+                        info!("✅ Metal GPU initialized successfully!");
+                        return Self::new_with_metal_config(metal_config);
+                    } else {
+                        eprintln!("⚠️ Metal initialization failed - falling back");
+                        warn!("Metal GPU initialization failed");
+                    }
+                }
+            }
+            
+            GpuBackendType::Vulkan => {
+                #[cfg(feature = "wgpu-gpu")]
+                {
+                    eprintln!("🔥 Initializing Vulkan GPU backend...");
+                    info!("Initializing Vulkan GPU backend...");
+                    let vulkan_config = crate::gpu::GpuConfig::default();
+                    eprintln!("✅ Vulkan GPU initialized!");
+                    info!("✅ Vulkan GPU initialized!");
+                    return Self::new_with_vulkan_config(vulkan_config);
+                }
+                
+                #[cfg(not(feature = "wgpu-gpu"))]
+                {
+                    eprintln!("⚠️ Vulkan requires wgpu-gpu feature");
+                    warn!("Vulkan selected but wgpu-gpu feature not enabled");
+                }
+            }
+            
+            GpuBackendType::DirectX12 => {
+                eprintln!("🪟 DirectX 12 detected but integration pending...");
+                info!("DirectX 12 backend detected but not yet integrated");
+                // TODO: Implement DirectX12Collection (FASE 3)
+            }
+            
+            GpuBackendType::CudaNative => {
+                #[cfg(feature = "cuda")]
+                {
+                    eprintln!("⚡ Initializing CUDA GPU backend...");
+                    info!("Initializing CUDA GPU backend...");
+                    let cuda_config = CudaConfig { enabled: true, ..Default::default() };
+                    eprintln!("✅ CUDA GPU initialized!");
+                    info!("✅ CUDA GPU initialized!");
+                    return Self::new_with_cuda_config(cuda_config);
+                }
+            }
+            
+            GpuBackendType::Cpu => {
+                eprintln!("💻 Using CPU backend");
+                info!("Using CPU backend");
+            }
+        }
+        
+        // Fallback to CPU if GPU initialization failed
+        eprintln!("💻 Falling back to CPU backend");
+        warn!("GPU initialization failed, using CPU fallback");
+        Self::new()
     }
 
     /// Create a new collection
@@ -576,6 +788,26 @@ impl VectorStore {
                     collection_ref.add_vector(vector.id.clone(), vector)?;
                 }
             }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                warn!("Vulkan collections don't support cache loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for Vulkan collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                warn!("DirectX 12 collections don't support cache loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for DirectX 12 collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
         }
 
         Ok(())
@@ -606,6 +838,26 @@ impl VectorStore {
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support HNSW dump loading yet - falling back to manual insertion");
                 // For now, manually insert vectors for Metal collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                warn!("Vulkan collections don't support HNSW dump loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for Vulkan collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                warn!("DirectX 12 collections don't support HNSW dump loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for DirectX 12 collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();

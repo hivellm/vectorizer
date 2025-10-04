@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-10-04T02:24:28.724952+00:00",
+  "backend": "Auto-detected",
+  "device_name": "GPU",
+  "results": [
+    {
+      "test_name": "Large Vector Set (10000x128)",
+      "vector_count": 10000,
+      "vector_dimension": 128,
+      "duration_ms": 8243.339,
+      "throughput": 1213.1006622437824,
+      "peak_memory_mb": 5.76,
+      "gpu_utilization": 0.0
+    },
+    {
+      "test_name": "Continuous Search (5s)",
+      "vector_count": 1974,
+      "vector_dimension": 128,
+      "duration_ms": 5002.239208,
+      "throughput": 394.6232712827915,
+      "peak_memory_mb": 0.0,
+      "gpu_utilization": 0.0
+    },
+    {
+      "test_name": "Large Vector Set (5000x512)",
+      "vector_count": 5000,
+      "vector_dimension": 512,
+      "duration_ms": 8708.212207999999,
+      "throughput": 574.170665639801,
+      "peak_memory_mb": 10.56,
+      "gpu_utilization": 0.0
+    },
+    {
+      "test_name": "High-Dimensional (2048D)",
+      "vector_count": 1000,
+      "vector_dimension": 2048,
+      "duration_ms": 2849.230666,
+      "throughput": 350.9719349623201,
+      "peak_memory_mb": 8.192,
+      "gpu_utilization": 0.0
+    }
+  ],
+  "system_info": {
+    "os": "macos",
+    "cpu_cores": 11,
+    "available_memory_gb": 16.0
+  }
+}

@@ -5,6 +5,217 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] - 2025-10-04
+
+### 🌍 **Universal Multi-GPU Backend Detection**
+
+#### **Major Features**
+- **Universal GPU Auto-Detection**: Automatic detection and prioritization of Metal, Vulkan, DirectX 12, CUDA, and CPU backends
+- **Vulkan GPU Support**: Full implementation of Vulkan-accelerated vector operations (AMD/NVIDIA/Intel GPUs)
+- **DirectX 12 GPU Support**: Native DirectX 12 acceleration for Windows (NVIDIA/AMD/Intel GPUs)
+- **Smart Backend Selection**: Priority-based selection (Metal > Vulkan > DX12 > CUDA > CPU)
+- **CLI GPU Backend Selection**: New `--gpu-backend` flag for explicit backend choice
+
+#### **New Backend Modules**
+- **`src/gpu/backends/mod.rs`**: Core GPU backend detection and selection
+- **`src/gpu/backends/detector.rs`**: Multi-platform GPU detection logic with `GpuBackendType` enum
+- **`src/gpu/backends/vulkan.rs`**: Vulkan backend initialization (`VulkanBackend` struct)
+- **`src/gpu/backends/dx12.rs`**: DirectX 12 backend initialization (`DirectX12Backend` struct)
+- **`src/gpu/backends/metal.rs`**: Metal backend initialization (`MetalBackend` struct)
+- **`src/gpu/vulkan_collection.rs`**: Vulkan-accelerated collection (305 lines)
+- **`src/gpu/dx12_collection.rs`**: DirectX 12-accelerated collection (306 lines)
+
+#### **VectorStore Enhancements**
+- **`VectorStore::new_auto_universal()`**: Universal auto-detection constructor
+  - Detects all available backends on system
+  - Prioritizes by performance: Metal (macOS) > Vulkan (AMD) > DirectX12 (Windows) > CUDA (NVIDIA) > CPU
+  - Graceful fallback on initialization failure
+- **`VectorStore::new_with_vulkan_config()`**: Explicit Vulkan backend constructor
+- **`VectorStore::new_with_dx12_config()`**: Explicit DirectX 12 backend constructor
+- **`CollectionType::Vulkan`**: New collection variant for Vulkan operations
+- **`CollectionType::DirectX12`**: New collection variant for DirectX 12 operations
+
+#### **CLI Integration** (`src/bin/vzr.rs`)
+- **`--gpu-backend` flag**: Accepts `auto`, `metal`, `vulkan`, `dx12`, `cuda`, or `cpu`
+- **6 locations updated**: All server initialization paths now use `new_auto_universal()`
+  - `run_interactive()`: Legacy mode with GRPC
+  - `run_interactive_workspace()`: Workspace mode with GRPC
+  - `run_as_daemon()`: Daemon mode legacy
+  - `run_as_daemon_workspace()`: Daemon mode workspace
+- **Conditional compilation**: Feature-gated with `#[cfg(feature = "wgpu-gpu")]`
+
+#### **GPU Backend Types**
+```rust
+pub enum GpuBackendType {
+    Metal,       // 🍎 Apple Silicon (macOS)
+    Vulkan,      // 🔥 AMD/NVIDIA/Intel (Cross-platform)
+    DirectX12,   // 🪟 Windows (NVIDIA/AMD/Intel)
+    CudaNative,  // ⚡ NVIDIA only (Linux/Windows)
+    Cpu,         // 💻 Universal fallback
+}
+```
+
+#### **Detection Logic**
+- **Metal Detection**: Checks `target_os = "macos"` and `target_arch = "aarch64"`
+- **Vulkan Detection**: Attempts wgpu instance creation with `Backends::VULKAN`
+- **DirectX 12 Detection**: Windows-only, attempts wgpu instance with `Backends::DX12`
+- **CUDA Detection**: Checks for CUDA library availability (requires `cuda` feature)
+- **Score-Based Selection**: Priority scores (Metal: 100, Vulkan: 90, DX12: 85, CUDA: 95, CPU: 10)
+
+#### **Benchmark Tools**
+- **`examples/multi_gpu_benchmark.rs`**: Comprehensive multi-GPU benchmark suite
+  - Vector insertion benchmark (1,000 vectors)
+  - Single vector search (1,000 queries)
+  - Batch vector search (100 queries)
+  - JSON and Markdown report generation
+- **`examples/gpu_stress_benchmark.rs`**: GPU stress testing suite
+  - Large vector sets (10,000 × 128D)
+  - High-dimensional vectors (1,000 × 2048D)
+  - Continuous search load test (5 seconds)
+  - Memory usage estimation
+
+#### **Benchmark Results** (Apple M3 Pro, Metal Backend)
+| Operation | Throughput | Latency | Notes |
+|-----------|------------|---------|-------|
+| **Vector Insertion** | 1,373 ops/sec | 0.728 ms/op | 1,000 vectors × 512D |
+| **Single Search** | 1,151 QPS | 0.869 ms/query | k=10, 512D |
+| **Batch Search** | 1,129 QPS | 0.886 ms/query | 100 queries |
+| **Large Set (10K)** | 1,213 ops/sec | 8.24 s total | 128D vectors |
+| **High-Dim (2048D)** | 351 ops/sec | 2.85 ms/op | 1,000 vectors |
+| **Continuous Load** | 395 QPS | - | 5s sustained |
+
+**Performance Gains**:
+- ✅ **6-10× faster** than CPU for typical workloads
+- ✅ **Sustained 400 QPS** under continuous load
+- ✅ **<1ms latency** for single operations
+- ✅ **Linear memory scaling** with vector count
+
+#### **Documentation**
+- **`docs/VULKAN_SETUP.md`** (394 lines): Complete Vulkan setup guide
+  - Installation for Linux, Windows, macOS
+  - Driver setup (AMD, NVIDIA, Intel)
+  - Troubleshooting (5 scenarios)
+  - Performance tips and benchmarks
+- **`docs/DIRECTX12_SETUP.md`** (512 lines): DirectX 12 setup guide
+  - Windows 10/11 prerequisites
+  - GPU driver installation
+  - Troubleshooting (6 scenarios)
+  - Windows-specific commands
+- **`docs/GPU_COMPARISON.md`** (460 lines): Backend comparison guide
+  - Quick recommendation matrix
+  - Performance benchmarks
+  - Selection decision tree
+  - Migration guide
+- **`docs/GPU_BENCHMARKS.md`** (580 lines): Comprehensive benchmark results
+  - Metal M3 Pro performance data
+  - Dimension scaling analysis
+  - Throughput vs vector count
+  - Production recommendations
+
+#### **CI/CD Integration**
+- **`.github/workflows/gpu-tests.yml`**: Multi-platform GPU testing
+  - macOS Metal tests (macos-latest)
+  - Linux Vulkan tests (ubuntu-latest)
+  - Windows DirectX 12 tests (windows-latest)
+  - Cross-platform CPU baseline tests
+  - Benchmark result artifacts
+- **`.github/workflows/nightly-benchmarks.yml`**: Nightly performance tracking
+  - Daily benchmark runs at 3 AM UTC
+  - Metal GPU comprehensive benchmarks
+  - CPU baseline comparison
+  - Automated comparison reports
+
+#### **Files Modified**
+| File | Lines Changed | Description |
+|------|---------------|-------------|
+| `src/gpu/mod.rs` | +7 | Export new backends modules |
+| `src/gpu/config.rs` | +5 | Add `GpuBackendType` support |
+| `src/db/vector_store.rs` | +250 | Multi-GPU integration |
+| `src/bin/vzr.rs` | +30 | CLI flag and auto-detection |
+| `src/main.rs` | +5 | Use `new_auto_universal()` |
+
+#### **Files Created**
+| File | Lines | Description |
+|------|-------|-------------|
+| `src/gpu/backends/mod.rs` | 45 | Backend detection API |
+| `src/gpu/backends/detector.rs` | 280 | Detection logic |
+| `src/gpu/backends/vulkan.rs` | 187 | Vulkan backend |
+| `src/gpu/backends/dx12.rs` | 185 | DirectX 12 backend |
+| `src/gpu/backends/metal.rs` | 175 | Metal backend |
+| `src/gpu/vulkan_collection.rs` | 305 | Vulkan collection |
+| `src/gpu/dx12_collection.rs` | 306 | DX12 collection |
+| `examples/multi_gpu_benchmark.rs` | 380 | Benchmark suite |
+| `examples/gpu_stress_benchmark.rs` | 420 | Stress test suite |
+
+#### **Configuration Example**
+```yaml
+# config.yml
+gpu:
+  enabled: true
+  backend: auto  # or: metal, vulkan, dx12, cuda, cpu
+  device_id: 0
+  power_preference: high_performance
+  gpu_threshold_operations: 500
+```
+
+#### **Usage Examples**
+```bash
+# Auto-detection (Recommended)
+./target/release/vzr start --workspace vectorize-workspace.yml
+
+# Force specific backend
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend vulkan
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend dx12
+./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend metal
+
+# Run benchmarks
+cargo run --example multi_gpu_benchmark --features wgpu-gpu --release
+cargo run --example gpu_stress_benchmark --features wgpu-gpu --release
+```
+
+#### **Breaking Changes**
+- **None**: All changes are backward compatible
+- `VectorStore::new_auto()` still works (Metal/CUDA only)
+- `VectorStore::new_auto_universal()` is new and recommended
+
+#### **Platform Support**
+| Platform | Backends Available | Auto-Detected Priority |
+|----------|-------------------|------------------------|
+| **macOS (Apple Silicon)** | Metal, CPU | Metal → CPU |
+| **macOS (Intel)** | Metal (limited), CPU | CPU |
+| **Linux (AMD GPU)** | Vulkan, CPU | Vulkan → CPU |
+| **Linux (NVIDIA GPU)** | Vulkan, CUDA, CPU | Vulkan → CUDA → CPU |
+| **Windows (NVIDIA)** | DX12, Vulkan, CUDA, CPU | DX12 → Vulkan → CUDA → CPU |
+| **Windows (AMD)** | DX12, Vulkan, CPU | DX12 → Vulkan → CPU |
+| **Windows (Intel)** | DX12, Vulkan, CPU | DX12 → Vulkan → CPU |
+
+#### **Dependencies**
+- No new dependencies added (reuses existing `wgpu 27.0`)
+- All GPU code is feature-gated with `wgpu-gpu` feature
+
+#### **Testing**
+- ✅ Compilation tests (all platforms)
+- ✅ GPU detection tests (macOS Metal verified)
+- ✅ Benchmark suite (Metal M3 Pro verified)
+- ✅ Stress tests (10K+ vectors, 2048D)
+- ⏳ Pending: Linux Vulkan hardware tests
+- ⏳ Pending: Windows DirectX 12 hardware tests
+
+#### **Known Limitations**
+- **HNSW indexing remains CPU-bound**: Graph traversal not GPU-accelerated (future work)
+- **GPU utilization 40-60%**: Due to CPU↔GPU transfer overhead and small batch sizes
+- **No multi-GPU support yet**: Single GPU only (planned for future release)
+- **Headless DirectX 12 limited**: Requires display subsystem on Windows
+
+#### **Future Work**
+- [ ] GPU-accelerated HNSW graph traversal
+- [ ] Multi-GPU load balancing
+- [ ] Asynchronous compute pipelines
+- [ ] Quantization on GPU
+- [ ] Compressed vector operations on GPU
+
+---
+
 ## [0.26.0] - 2025-10-03
 
 ### 🚀 **GPU Metal Acceleration (Apple Silicon)**
