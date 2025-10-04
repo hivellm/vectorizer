@@ -1247,10 +1247,24 @@ async fn run_interactive(
 
     // Initialize File Watcher System for legacy mode with GRPC connection (universal GPU detection)
     #[cfg(feature = "wgpu-gpu")]
-    let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
-    
+    let file_watcher_vector_store = Arc::new({
+        let mut store = VectorStore::new_auto();
+        // Load dynamic collections after workspace initialization
+        if let Err(e) = store.load_dynamic_collections() {
+            eprintln!("⚠️ Failed to load dynamic collections for file watcher: {}", e);
+        }
+        store
+    });
+
     #[cfg(not(feature = "wgpu-gpu"))]
-    let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
+    let file_watcher_vector_store = Arc::new({
+        let mut store = VectorStore::new_auto();
+        // Load dynamic collections after workspace initialization
+        if let Err(e) = store.load_dynamic_collections() {
+            eprintln!("⚠️ Failed to load dynamic collections for file watcher: {}", e);
+        }
+        store
+    });
     let file_watcher_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -1540,10 +1554,24 @@ async fn run_interactive_workspace(
 
     // Initialize GRPC server components (universal GPU detection)
     #[cfg(feature = "wgpu-gpu")]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto());
-    
+    let grpc_vector_store = Arc::new({
+        let mut store = VectorStore::new_auto();
+        // Load dynamic collections after workspace initialization
+        if let Err(e) = store.load_dynamic_collections() {
+            eprintln!("⚠️ Failed to load dynamic collections for GRPC server: {}", e);
+        }
+        store
+    });
+
     #[cfg(not(feature = "wgpu-gpu"))]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto());
+    let grpc_vector_store = Arc::new({
+        let mut store = VectorStore::new_auto();
+        // Load dynamic collections after workspace initialization
+        if let Err(e) = store.load_dynamic_collections() {
+            eprintln!("⚠️ Failed to load dynamic collections for GRPC server: {}", e);
+        }
+        store
+    });
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -2274,7 +2302,14 @@ async fn run_as_daemon_workspace(
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
     
     #[cfg(not(feature = "wgpu-gpu"))]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto());
+    let grpc_vector_store = Arc::new({
+        let mut store = VectorStore::new_auto();
+        // Load dynamic collections after workspace initialization
+        if let Err(e) = store.load_dynamic_collections() {
+            eprintln!("⚠️ Failed to load dynamic collections for GRPC server: {}", e);
+        }
+        store
+    });
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -2456,7 +2491,14 @@ async fn run_as_daemon(
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
     
     #[cfg(not(feature = "wgpu-gpu"))]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto());
+    let grpc_vector_store = Arc::new({
+        let mut store = VectorStore::new_auto();
+        // Load dynamic collections after workspace initialization
+        if let Err(e) = store.load_dynamic_collections() {
+            eprintln!("⚠️ Failed to load dynamic collections for GRPC server: {}", e);
+        }
+        store
+    });
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
