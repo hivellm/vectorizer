@@ -170,7 +170,7 @@
                     </div>
 
                     <!-- Quantization Metrics Section -->
-                    <div v-if="isAuthenticated && quantizationMetrics" class="card">
+                    <div v-if="isInitialized && isAuthenticated && quantizationMetrics" class="card">
                         <div class="card-header">
                             <h3><i class="fas fa-compress-alt"></i> Quantization Metrics</h3>
                             <div class="quant-badge">
@@ -765,6 +765,7 @@
                 // Authentication
                 const isAuthenticated = ref(false);
                 const currentUser = ref(null);
+                const isInitialized = ref(false);
                 const loginForm = ref({
                     username: '',
                     password: '',
@@ -1930,12 +1931,16 @@
                     stopIndexingRefresh();
                 });
 
+                // Initialize the application
+                isInitialized.value = true;
+
                 return {
                     currentPage,
                     collections,
                     indexingProgress,
                     loading,
                     connected,
+                    isInitialized,
                     pageTitle,
                     totalVectors,
                     avgDimension,
