@@ -85,11 +85,20 @@ impl WorkspaceManager {
     fn try_load_simplified_config<P: AsRef<Path>>(config_path: P) -> std::result::Result<SimplifiedWorkspaceConfig, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(config_path)?;
         
-        // Check if it has the simplified structure (has "defaults" section)
-        if content.contains("defaults:") {
-            parse_simplified_workspace_config_from_str(&content)
-        } else {
-            Err("Not a simplified workspace configuration".into())
+        debug!("Trying to parse as simplified workspace configuration...");
+        debug!("Content preview: {}", &content[..content.len().min(200)]);
+        
+        // Try to parse as simplified config - it will work if it has the simplified structure
+        // (projects with collections that only have name, description, include_patterns, exclude_patterns)
+        match crate::workspace::parser::parse_simplified_workspace_config_from_str(&content) {
+            Ok(config) => {
+                debug!("✅ Successfully parsed as simplified workspace configuration");
+                Ok(config)
+            },
+            Err(e) => {
+                debug!("❌ Failed to parse as simplified workspace configuration: {}", e);
+                Err("Not a simplified workspace configuration".into())
+            }
         }
     }
 

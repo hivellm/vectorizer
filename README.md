@@ -52,20 +52,20 @@ collections:
       exclude_patterns: ["docs/draft/**"]
 ```
 
-**After (Simplified)** - ~5 lines per collection:
+**After (Ultra-Simplified)** - ~3 lines per collection:
 ```yaml
-defaults:
-  embedding: { model: "bm25", dimension: 512, parameters: { k1: 1.5, b: 0.75 } }
-  dimension: 512
-  metric: "cosine"
-  indexing: { index_type: "hnsw", parameters: { m: 16, ef_construction: 200, ef_search: 64 } }
-  processing: { chunk_size: 2048, chunk_overlap: 256 }
+workspace:
+  name: "My Workspace"
+  version: "1.0.0"
 
-collections:
-  - name: "docs"
-    description: "Documentation"
-    include_patterns: ["docs/**/*.md"]
-    exclude_patterns: ["docs/draft/**"]
+projects:
+  - name: "my-project"
+    path: "../my-project"
+    collections:
+      - name: "docs"
+        description: "Documentation"
+        include_patterns: ["docs/**/*.md"]
+        exclude_patterns: ["docs/draft/**"]
 ```
 
 ### **Usage**

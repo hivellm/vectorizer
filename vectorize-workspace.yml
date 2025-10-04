@@ -1,1330 +1,403 @@
-# Vectorizer Workspace Configuration
-# This file defines multiple projects and their configurations for the Vectorizer system.
-# Copy this file to vectorize-workspace.yml and customize according to your needs.
-
-# =============================================================================
-# WORKSPACE METADATA
-# =============================================================================
-workspace:
-  name: "HiveLLM Complete Workspace"
-  version: "1.2.0"
-  description: "Complete multi-project workspace for HiveLLM ecosystem development with Gateway, Task Queue, Dev Tools, and Rust SDK"
-  created_at: "2025-09-26T00:00:00Z"
-  last_updated: "2025-10-01T00:00:00Z"
-
-# =============================================================================
-# GLOBAL SETTINGS
-# =============================================================================
-global:
-  # Default embedding configuration for all projects
-  default_embedding:
-    model: "bm25"                 # native_bow, native_hash, native_ngram, bm25, real_model, onnx_model
-    dimension: 512                 # Vector dimension (384, 512, etc.)
-    parameters:
-      k1: 1.5
-      b: 0.75
-  
-  # Default collection settings
-  default_collection:
-    dimension: 512                 # Default dimension for BM25
-    metric: "cosine"               # cosine, euclidean, dot_product
-    compression:
-      enabled: true
-      threshold_bytes: 1024
-      algorithm: "lz4"
-  
-  # Default indexing settings
-  default_indexing:
-    index_type: "hnsw"
-    parameters:
-      m: 16
-      ef_construction: 200
-      ef_search: 64
-  
-  # Processing settings
-  processing:
-    chunk_size: 2048    # Chunks maiores para melhor contexto semântico
-    chunk_overlap: 256  # Overlap maior para melhor continuidade
-    max_file_size_mb: 10
-    supported_extensions:
-      - ".md"
-      - ".txt"
-      - ".rs"
-      - ".py"
-      - ".js"
-      - ".ts"
-      - ".json"
-      - ".yaml"
-      - ".yml"
-      - ".toml"
-      - ".cpp"
-      - ".h"
-      - ".cc"
-      - ".html"
-      - ".css"
-      - ".sh"
-      - ".bat"
-
-# =============================================================================
-# PROJECT CONFIGURATIONS
-# =============================================================================
+# HiveLLM Ecosystem Workspace
 projects:
-  # Governance Project (BIP Specs)
-  # - name: "governance-bip-specs"
-  #   path: "../gov"
-  #   description: "🏛️ Governance (BIP Specs) - HiveLLM Governance System with BIPs, proposals, and voting"
-  #   enabled: true
-    
-  #   # Project-specific embedding configuration
-  #   embedding:
-  #     model: "bm25"               # Override global default
-  #     dimension: 512               # Higher dimension for governance docs
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   # Collections for this project
-  #   collections:
-  #     - name: "gov-bips"
-  #       description: "Blockchain Improvement Proposals"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 2048  # Chunks maiores para BIPs
-  #         chunk_overlap: 256
-  #         include_patterns:
-  #           - "bips/**/*.md"
-  #           - "bips/**/*.txt"
-  #         exclude_patterns:
-  #           - "bips/**/README.md"
-      
-  #     - name: "gov-proposals"
-  #       description: "Governance proposals and voting records"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 2048  # Chunks maiores para propostas
-  #         chunk_overlap: 256
-  #         include_patterns:
-  #           - "proposals/**/*.md"
-  #           - "proposals/**/*.json"
-  #         exclude_patterns: []
-      
-  #     - name: "gov-minutes"
-  #       description: "Governance meeting minutes"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 1024  # Chunks médios para atas
-  #         chunk_overlap: 128
-  #         include_patterns:
-  #           - "minutes/**/*.md"
-  #           - "minutes/**/*.json"
-  #         exclude_patterns: []
-      
-  #     - name: "gov-guidelines"
-  #       description: "Governance guidelines and protocols"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 2048  # Chunks maiores para guidelines
-  #         chunk_overlap: 256
-  #         include_patterns:
-  #           - "guidelines/**/*.md"
-  #         exclude_patterns: []
-      
-  #     - name: "gov-schemas"
-  #       description: "JSON schemas and data structures"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "schemas/**/*.json"
-  #           - "schemas/**/*.md"
-  #         exclude_patterns: []
-
-  # Governance Dashboard Project
-  # - name: "governance-dashboard"
-  #   path: "../governance"
-  #   description: "🏛️ Governance Dashboard - Implementation of the governance system"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     - name: "governance-source_code"
-  #       description: "Governance dashboard source code"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "src/**/*.ts"
-  #           - "src/**/*.js"
-  #           - "src/**/*.json"
-  #         exclude_patterns:
-  #           - "src/**/node_modules/**"
-  #           - "src/**/dist/**"
-  #           - "src/**/*.d.ts"
-      
-  #     - name: "governance-configurations"
-  #       description: "Configuration files and schemas"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 128
-  #         chunk_overlap: 10
-  #         include_patterns:
-  #           - "**/*.json"
-  #           - "**/*.yml"
-  #           - "**/*.yaml"
-  #           - "**/*.toml"
-  #           - "**/*.env*"
-  #         exclude_patterns: []
-      
-  #     - name: "governance-documentation"
-  #       description: "Project documentation and guides"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 512
-  #         chunk_overlap: 50
-  #         include_patterns:
-  #           - "**/*.md"
-  #           - "docs/**/*.md"
-  #         exclude_patterns: []
-
-  # # TypeScript Workspace Project (BIP-01,02,03)
-  # # - name: "ts-workspace"
-  #   path: "../ts-workspace"
-  #   description: "🔷 TypeScript (BIP-01,02,03) - TypeScript development workspace with packages"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     - name: "ts-packages"
-  #       description: "TypeScript packages and modules"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "packages/**/*.ts"
-  #           - "packages/**/*.js"
-  #           - "packages/**/*.json"
-  #         exclude_patterns:
-  #           - "packages/**/node_modules/**"
-  #           - "packages/**/dist/**"
-  #           - "packages/**/*.d.ts"
-      
-  #     - name: "ts-documentation"
-  #       description: "Project documentation and guides"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 512
-  #         chunk_overlap: 50
-  #         include_patterns:
-  #           - "**/*.md"
-  #           - "docs/**/*.md"
-  #         exclude_patterns: []
-      
-  #     # ts-analytics collection removed - Analytics and Monitoring directories are empty
-
-  # # Cursor Extension Project (BIP-00)
-  # # - name: "cursor-extension"
-  #   path: "../cursor-extension"
-  #   description: "🎯 Cursor Extension (BIP-00) - Cursor IDE extension for HiveLLM"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     - name: "cursor-extension_code"
-  #       description: "Extension source code and implementation"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "src/**/*.ts"
-  #           - "src/**/*.js"
-  #           - "packages/**/*.ts"
-  #           - "packages/**/*.js"
-  #         exclude_patterns:
-  #           - "**/node_modules/**"
-  #           - "**/dist/**"
-  #           - "**/*.d.ts"
-      
-  #     - name: "cursor-scripts"
-  #       description: "Build and utility scripts"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 128
-  #         chunk_overlap: 10
-  #         include_patterns:
-  #           - "scripts/**/*.py"
-  #           - "scripts/**/*.sh"
-  #           - "scripts/**/*.js"
-  #         exclude_patterns: []
-      
-  #     - name: "cursor-testing_utils"
-  #       description: "Testing utilities and shared types"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "packages/testing-utils/**/*.ts"
-  #           - "packages/shared-types/**/*.ts"
-  #         exclude_patterns: []
-
-  # # Security Environment Project (BIP-04)
-  # # - name: "py-env-security"
-  #   path: "../py-env-security"
-  #   description: "🔒 Security Environment (BIP-04) - Python security environment and tools"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     - name: "py-security_tools"
-  #       description: "Security analysis and audit tools"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "**/*.py"
-  #           - "**/*.md"
-  #         exclude_patterns:
-  #           - "**/__pycache__/**"
-  #           - "**/tests/**"
-      
-  #     - name: "py-documentation"
-  #       description: "Security documentation and guides"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 512
-  #         chunk_overlap: 50
-  #         include_patterns:
-  #           - "docs/**/*.md"
-  #           - "**/*.md"
-  #         exclude_patterns: []
-      
-  #     # py-scripts collection removed - scripts directory only contains logs subdirectory
-
-  # # UMICP Project (BIP-05)
-  # # - name: "umicp"
-  # #   path: "../umicp"
-  # #   description: "🌐 UMICP Protocol (BIP-05) - Universal Matrix Inter-Communication Protocol"
-  # #   enabled: true
-    
-  #   # embedding:
-  #   #   model: "bm25"
-  #   #   dimension: 512
-  #   #   parameters:
-  #   #     k1: 1.5
-  #   #     b: 0.75
-    
-  #   # collections:
-  #     # - name: "umicp-protocol_spec"
-  #     #   description: "UMICP protocol specification and documentation"
-  #     #   dimension: 512
-  #     #   metric: "cosine"
-  #     #   embedding:
-  #     #     model: "bm25"
-  #     #     dimension: 512
-  #     #     parameters:
-  #     #       k1: 1.5
-  #     #       b: 0.75
-  #     #   indexing:
-  #     #     index_type: "hnsw"
-  #     #     parameters:
-  #     #       m: 16
-  #     #       ef_construction: 200
-  #     #       ef_search: 64
-  #     #   processing:
-  #     #     chunk_size: 1024
-  #     #     chunk_overlap: 100
-  #     #     include_patterns:
-  #     #       - "docs/**/*.md"
-  #     #       - "docs/**/*.html"
-  #     #       - "docs/**/*.js"
-  #     #     exclude_patterns: []
-      
-  #     # - name: "umicp-implementations"
-  #     #   description: "UMICP implementations in different languages"
-  #     #   dimension: 512
-  #     #   metric: "cosine"
-  #     #   embedding:
-  #     #     model: "bm25"
-  #     #     dimension: 512
-  #     #     parameters:
-  #     #       k1: 1.5
-  #     #       b: 0.75
-  #     #   indexing:
-  #     #     index_type: "hnsw"
-  #     #     parameters:
-  #     #       m: 16
-  #     #       ef_construction: 200
-  #     #       ef_search: 64
-  #     #   processing:
-  #     #     chunk_size: 256
-  #     #     chunk_overlap: 25
-  #     #     include_patterns:
-  #     #       - "bindings/**/*.rs"
-  #     #       - "bindings/**/*.ts"
-  #     #       - "cpp/**/*.cpp"
-  #     #       - "cpp/**/*.h"
-  #     #     exclude_patterns:
-  #     #       - "**/build/**"
-  #     #       - "**/target/**"
-      
-  #     # - name: "umicp-cpp_implementation"
-  #     #   description: "C++ implementation and examples"
-  #     #   dimension: 512
-  #     #   metric: "cosine"
-  #     #   embedding:
-  #     #     model: "bm25"
-  #     #     dimension: 512
-  #     #     parameters:
-  #     #       k1: 1.5
-  #     #       b: 0.75
-  #     #   indexing:
-  #     #     index_type: "hnsw"
-  #     #     parameters:
-  #     #       m: 16
-  #     #       ef_construction: 200
-  #     #       ef_search: 64
-  #     #   processing:
-  #     #     chunk_size: 256
-  #     #     chunk_overlap: 25
-  #     #     include_patterns:
-  #     #       - "cpp/src/*.cpp"
-  #     #       - "cpp/include/*.h"
-  #     #       - "cpp/examples/*.cpp"
-  #     #     exclude_patterns:
-  #     #       - "cpp/build/**"
-  #     #       - "cpp/tests/**"
-
-  # # Chat Hub Project
-  # # - name: "chat-hub"
-  # #   path: "../chat-hub"
-  # #   description: "💬 Chat Hub & Monitoring - Centralized chat hub for HiveLLM ecosystem"
-  # #   enabled: true
-    
-  # #   embedding:
-  # #     model: "bm25"
-  # #     dimension: 512
-  # #     parameters:
-  # #       k1: 1.5
-  # #       b: 0.75
-    
-  # #   collections:
-  # #     - name: "chat-server_code"
-  # #       description: "Chat hub server implementation"
-  # #       dimension: 512
-  # #       metric: "cosine"
-  # #       embedding:
-  # #         model: "bm25"
-  # #         dimension: 512
-  # #         parameters:
-  # #           k1: 1.5
-  # #           b: 0.75
-  # #       indexing:
-  # #         index_type: "hnsw"
-  # #         parameters:
-  # #           m: 16
-  # #           ef_construction: 200
-  # #           ef_search: 64
-  # #       processing:
-  # #         chunk_size: 256
-  # #         chunk_overlap: 25
-  # #         include_patterns:
-  # #           - "**/*.js"
-  # #           - "**/*.json"
-  # #           - "**/*.html"
-  # #         exclude_patterns:
-  # #           - "**/node_modules/**"
-      
-  # #     - name: "chat-scripts"
-  # #       description: "Utility scripts and tools"
-  # #       dimension: 512
-  # #       metric: "cosine"
-  # #       embedding:
-  # #         model: "bm25"
-  # #         dimension: 512
-  # #         parameters:
-  # #           k1: 1.5
-  # #           b: 0.75
-  # #       indexing:
-  # #         index_type: "hnsw"
-  # #         parameters:
-  # #           m: 16
-  # #           ef_construction: 200
-  # #           ef_search: 64
-  # #       processing:
-  # #         chunk_size: 128
-  # #         chunk_overlap: 10
-  # #         include_patterns:
-  # #           - "scripts/**/*.js"
-  # #         exclude_patterns: []
-      
-  # #     - name: "chat-documentation"
-  # #       description: "Chat hub documentation"
-  # #       dimension: 512
-  # #       metric: "cosine"
-  # #       embedding:
-  # #         model: "bm25"
-  # #         dimension: 512
-  # #         parameters:
-  # #           k1: 1.5
-  # #           b: 0.75
-  # #       indexing:
-  # #         index_type: "hnsw"
-  # #         parameters:
-  # #           m: 16
-  # #           ef_construction: 200
-  # #           ef_search: 64
-  # #       processing:
-  # #         chunk_size: 512
-  # #         chunk_overlap: 50
-  # #         include_patterns:
-  # #           - "docs/**/*.md"
-  # #           - "**/*.md"
-  # #         exclude_patterns: []
-
-  # # Vectorizer Project (Current)
-  - name: "vectorizer"
-    path: "."
-    description: "🔍 Vectorizer - Vector database and search engine"
-    enabled: true
-    
-    embedding:
-      model: "bm25"
-      dimension: 512
-      parameters:
-        k1: 1.5
-        b: 0.75
-    
+  - name: "chat-hub"
+    path: "../chat-hub"
+    description: "Chat Hub - Real-time communication platform"
     collections:
-      - name: "vectorizer-rust_source"
-        description: "Rust source code implementation"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 256
-          chunk_overlap: 25
-          include_patterns:
-            - "src/**/*.rs"
-            - "benches/**/*.rs"
-            - "tests/**/*.rs"
-          exclude_patterns:
-            - "target/**"
-            - "**/Cargo.lock"
-      
-      - name: "vectorizer-documentation"
-        description: "Project documentation and guides"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 512
-          chunk_overlap: 50
-          include_patterns:
-            - "docs/**/*.md"
-            - "**/*.md"
-            - "README.md"
-            - "CHANGELOG.md"
-          exclude_patterns: []
-      
-      - name: "vectorizer-configurations"
-        description: "Configuration files and schemas"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 128
-          chunk_overlap: 10
-          include_patterns:
-            - "**/*.yml"
-            - "**/*.yaml"
-            - "**/*.toml"
-            - "**/*.json"
-            - "config/**/*"
-          exclude_patterns: []
-      
-      - name: "vectorizer-scripts"
-        description: "Build and utility scripts"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 128
-          chunk_overlap: 10
-          include_patterns:
-            - "scripts/**/*.sh"
-            - "scripts/**/*.bat"
-            - "scripts/**/*.py"
-            - "**/*.sh"
-            - "**/*.bat"
-          exclude_patterns: []
-      
-      - name: "vectorizer-benchmarks"
-        description: "Performance benchmarks and test results"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 512
-          chunk_overlap: 50
-          include_patterns:
-            - "benchmark/**/*.rs"
-            - "benchmark/**/*.md"
-            - "benchmark/**/*.json"
-            - "benchmark/reports/**/*.md"
-            - "benchmark/reports/**/*.json"
-            - "benchmark/tests/**/*.rs"
-          exclude_patterns:
-            - "benchmark/**/target/**"
-            - "benchmark/**/Cargo.lock"
+      - name: "chat-hub-docs"
+        description: "Chat Hub documentation and guides"
+        include_patterns:
+          - "docs/**/*.md"
+          - "README.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "*.log"
+      - name: "chat-hub-source"
+        description: "Chat Hub source code and configuration"
+        include_patterns:
+          - "*.js"
+          - "*.json"
+          - "*.env*"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "*.log"
 
-  # # Task Queue Project
+  - name: "cursor-extension"
+    path: "../cursor-extension"
+    description: "Cursor Extension - AI-powered development tools"
+    collections:
+      - name: "cursor-extension-docs"
+        description: "Cursor Extension documentation"
+        include_patterns:
+          - "*.md"
+          - "packages/**/*.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "packages/**/node_modules/**"
+      - name: "cursor-extension-source"
+        description: "Cursor Extension source code"
+        include_patterns:
+          - "src/**/*.ts"
+          - "src/**/*.js"
+          - "packages/**/*.ts"
+          - "packages/**/*.js"
+          - "*.json"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "packages/**/node_modules/**"
+          - "**/*.map"
+
+  - name: "dev-tools"
+    path: "../dev-tools"
+    description: "Development Tools - Utilities and automation"
+    collections:
+      - name: "dev-tools-docs"
+        description: "Development tools documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "node_modules/**"
+      - name: "dev-tools-source"
+        description: "Development tools source code"
+        include_patterns:
+          - "**/*.ts"
+          - "**/*.js"
+          - "**/*.json"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+
+  - name: "gateway"
+    path: "../gateway"
+    description: "API Gateway - Centralized API management"
+    collections:
+      - name: "gateway-docs"
+        description: "Gateway documentation and API specs"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "node_modules/**"
+      - name: "gateway-source"
+        description: "Gateway source code and configuration"
+        include_patterns:
+          - "**/*.ts"
+          - "**/*.js"
+          - "**/*.json"
+          - "*.env*"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+
+  - name: "governance"
+    path: "../governance"
+    description: "Governance System - Project management and oversight"
+    collections:
+      - name: "governance-docs"
+        description: "Governance documentation"
+        include_patterns:
+          - "*.md"
+          - "views/**/*.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+      - name: "governance-source"
+        description: "Governance system source code"
+        include_patterns:
+          - "src/**/*.ts"
+          - "src/**/*.js"
+          - "**/*.json"
+          - "scripts/**/*"
+          - "migrations/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+          - "*.db*"
+
+  - name: "py-env-security"
+    path: "../py-env-security"
+    description: "Python Environment Security - Security analysis tools"
+    collections:
+      - name: "py-security-docs"
+        description: "Python security tools documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "__pycache__/**"
+          - "venv/**"
+      - name: "py-security-source"
+        description: "Python security tools source code"
+        include_patterns:
+          - "**/*.py"
+          - "**/*.toml"
+          - "**/*.txt"
+          - "**/*.json"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "__pycache__/**"
+          - "venv/**"
+          - "*.log"
+
   - name: "task-queue"
     path: "../task-queue"
-    description: "📋 Task Queue - High-performance task queue system"
-    enabled: true
-    
-    embedding:
-      model: "bm25"
-      dimension: 512
-      parameters:
-        k1: 1.5
-        b: 0.75
-    
+    description: "Task Queue - Distributed task processing system"
     collections:
-      - name: "task-queue-rust_source"
-        description: "Rust source code implementation"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 256
-          chunk_overlap: 25
-          include_patterns:
-            - "src/**/*.rs"
-            - "examples/**/*.rs"
-            - "tests/**/*.rs"
-          exclude_patterns:
-            - "target/**"
-            - "**/Cargo.lock"
-      
-      - name: "task-queue-documentation"
-        description: "Project documentation and API guides"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 512
-          chunk_overlap: 50
-          include_patterns:
-            - "docs/**/*.md"
-            - "**/*.md"
-            - "README.md"
-          exclude_patterns: []
-      
-      - name: "task-queue-configurations"
-        description: "Configuration files and schemas"
-        dimension: 512
-        metric: "cosine"
-        embedding:
-          model: "bm25"
-          dimension: 512
-          parameters:
-            k1: 1.5
-            b: 0.75
-        indexing:
-          index_type: "hnsw"
-          parameters:
-            m: 16
-            ef_construction: 200
-            ef_search: 64
-        processing:
-          chunk_size: 128
-          chunk_overlap: 10
-          include_patterns:
-            - "**/*.yml"
-            - "**/*.yaml"
-            - "**/*.toml"
-            - "**/*.json"
-          exclude_patterns: []
+      - name: "task-queue-docs"
+        description: "Task queue documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+      - name: "task-queue-source"
+        description: "Task queue Rust source code"
+        include_patterns:
+          - "src/**/*.rs"
+          - "cli/**/*.rs"
+          - "**/*.toml"
+          - "**/*.json"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "logs/**"
+      - name: "task-queue-dashboard"
+        description: "Task queue dashboard and web interface"
+        include_patterns:
+          - "dashboard/**/*.js"
+          - "dashboard/**/*.vue"
+          - "dashboard/**/*.html"
+          - "dashboard/**/*.css"
+        exclude_patterns:
+          - "dashboard/node_modules/**"
+      - name: "task-queue-sdk-typescript"
+        description: "Task Queue TypeScript/JavaScript SDK"
+        include_patterns:
+          - "sdks/typescript/**/*.ts"
+          - "sdks/typescript/**/*.js"
+          - "sdks/typescript/**/*.json"
+        exclude_patterns:
+          - "sdks/typescript/node_modules/**"
+          - "sdks/typescript/coverage/**"
+          - "sdks/typescript/**/*.map"
+      - name: "task-queue-sdk-python"
+        description: "Task Queue Python SDK"
+        include_patterns:
+          - "sdks/python/**/*.py"
+          - "sdks/python/**/*.txt"
+          - "sdks/python/**/*.toml"
+          - "sdks/python/**/*.md"
+        exclude_patterns:
+          - "sdks/python/**/__pycache__/**"
+          - "sdks/python/**/build/**"
 
-  # # Dev Tools Project
-  # - name: "dev-tools"
-  #   path: "../dev-tools"
-  #   description: "🛠️ Dev Tools - Development utilities and tools"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     # dev-tools-typescript_source collection removed - src directory does not exist
-      
-  #     - name: "dev-tools-documentation"
-  #       description: "Project documentation and guides"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 512
-  #         chunk_overlap: 50
-  #         include_patterns:
-  #           - "docs/**/*.md"
-  #           - "**/*.md"
-  #           - "README.md"
-  #           - "CONTRIBUTING.md"
-  #         exclude_patterns: []
-      
-  #     - name: "dev-tools-configurations"
-  #       description: "Configuration files and schemas"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 128
-  #         chunk_overlap: 10
-  #         include_patterns:
-  #           - "**/*.json"
-  #           - "**/*.yml"
-  #           - "**/*.yaml"
-  #           - "**/*.toml"
-  #           - "**/*.env*"
-  #         exclude_patterns: []
+  - name: "ts-workspace"
+    path: "../ts-workspace"
+    description: "TypeScript Workspace - Shared TypeScript utilities"
+    collections:
+      - name: "ts-workspace-docs"
+        description: "TypeScript workspace documentation"
+        include_patterns:
+          - "*.md"
+          - "packages/**/*.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "packages/**/node_modules/**"
+      - name: "ts-workspace-source"
+        description: "TypeScript workspace source code"
+        include_patterns:
+          - "packages/**/*.ts"
+          - "packages/**/*.js"
+          - "**/*.json"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "packages/**/node_modules/**"
+          - "**/*.map"
 
-  # # Gateway Project
-  # - name: "gateway"
-  #   path: "../gateway"
-  #   description: "🚪 Gateway - Multi-user MCP integration and management gateway"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     - name: "gateway-typescript_source"
-  #       description: "Gateway TypeScript source code"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "src/**/*.ts"
-  #           - "src/**/*.js"
-  #         exclude_patterns:
-  #           - "**/node_modules/**"
-  #           - "**/dist/**"
-  #           - "**/*.d.ts"
-      
-  #     - name: "gateway-documentation"
-  #       description: "Gateway documentation and guides"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 1024
-  #         chunk_overlap: 128
-  #         include_patterns:
-  #           - "docs/**/*.md"
-  #           - "README.md"
-  #           - "CHANGELOG.md"
-  #         exclude_patterns: []
-      
-  #     - name: "gateway-api_specs"
-  #       description: "API specifications and database schemas"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 512
-  #         chunk_overlap: 64
-  #         include_patterns:
-  #           - "docs/API_SPEC.md"
-  #           - "docs/DATABASE_SCHEMA.md"
-  #           - "docs/ARCHITECTURE.md"
-  #         exclude_patterns: []
-      
-  #     - name: "gateway-configurations"
-  #       description: "Configuration files and environment settings"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 128
-  #         chunk_overlap: 10
-  #         include_patterns:
-  #           - "**/*.json"
-  #           - "**/*.yml"
-  #           - "**/*.yaml"
-  #           - "**/*.toml"
-  #           - "env.example"
-  #           - "tsconfig.json"
-  #           - "vitest.config.ts"
-  #         exclude_patterns:
-  #           - "**/node_modules/**"
-  #           - "package-lock.json"
+  - name: "umicp"
+    path: "../umicp"
+    description: "Universal Model Interface Communication Protocol"
+    collections:
+      - name: "umicp-docs"
+        description: "UMICP documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "bindings/**/target/**"
+      - name: "umicp-cpp"
+        description: "UMICP C++ implementation"
+        include_patterns:
+          - "cpp/**/*.cpp"
+          - "cpp/**/*.h"
+          - "cpp/**/*.md"
+        exclude_patterns:
+          - "cpp/build/**"
+          - "cpp/obj/**"
+      - name: "umicp-bindings-rust"
+        description: "UMICP Rust language bindings"
+        include_patterns:
+          - "bindings/**/*.rs"
+          - "bindings/**/*.toml"
+        exclude_patterns:
+          - "bindings/**/target/**"
+          - "bindings/**/Cargo.lock"
+      - name: "umicp-bindings-typescript"
+        description: "UMICP TypeScript/JavaScript language bindings"
+        include_patterns:
+          - "bindings/**/*.ts"
+          - "bindings/**/*.js"
+          - "bindings/**/*.json"
+        exclude_patterns:
+          - "bindings/**/node_modules/**"
+          - "bindings/**/dist/**"
+          - "bindings/**/*.map"
+      - name: "umicp-bindings-cpp"
+        description: "UMICP C++ language bindings"
+        include_patterns:
+          - "bindings/**/*.cc"
+          - "bindings/**/*.cpp"
+          - "bindings/**/*.h"
+          - "bindings/**/*.hpp"
+        exclude_patterns:
+          - "bindings/**/build/**"
+          - "bindings/**/obj/**"
 
-  # # Vectorizer Rust SDK Project
-  # - name: "vectorizer-rust-sdk"
-  #   path: "./client-sdks/rust"
-  #   description: "🦀 Vectorizer Rust SDK - High-performance native client"
-  #   enabled: true
-    
-  #   embedding:
-  #     model: "bm25"
-  #     dimension: 512
-  #     parameters:
-  #       k1: 1.5
-  #       b: 0.75
-    
-  #   collections:
-  #     - name: "rust-sdk-source_code"
-  #       description: "Rust SDK source code implementation"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 256
-  #         chunk_overlap: 25
-  #         include_patterns:
-  #           - "src/**/*.rs"
-  #           - "examples/**/*.rs"
-  #           - "tests/**/*.rs"
-  #           - "benches/**/*.rs"
-  #         exclude_patterns:
-  #           - "target/**"
-  #           - "**/Cargo.lock"
-      
-  #     - name: "rust-sdk-documentation"
-  #       description: "SDK documentation and examples"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 512
-  #         chunk_overlap: 50
-  #         include_patterns:
-  #           - "**/*.md"
-  #           - "README.md"
-  #           - "docs/**/*.md"
-  #         exclude_patterns: []
-      
-  #     - name: "rust-sdk-configurations"
-  #       description: "SDK configuration files"
-  #       dimension: 512
-  #       metric: "cosine"
-  #       embedding:
-  #         model: "bm25"
-  #         dimension: 512
-  #         parameters:
-  #           k1: 1.5
-  #           b: 0.75
-  #       indexing:
-  #         index_type: "hnsw"
-  #         parameters:
-  #           m: 16
-  #           ef_construction: 200
-  #           ef_search: 64
-  #       processing:
-  #         chunk_size: 128
-  #         chunk_overlap: 10
-  #         include_patterns:
-  #           - "**/*.toml"
-  #           - "**/*.json"
-  #           - "**/*.yml"
-  #           - "**/*.yaml"
-  #         exclude_patterns: []
+  - name: "vectorizer"
+    path: "."
+    description: "Vectorizer - Vector database and search engine"
+    collections:
+      - name: "vectorizer-docs"
+        description: "Vectorizer documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "node_modules/**"
+      - name: "vectorizer-source"
+        description: "Vectorizer Rust source code"
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+          - "**/*.json"
+          - "scripts/**/*"
+          - "build.rs"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "logs/**"
+      - name: "vectorizer-sdk-typescript"
+        description: "Vectorizer TypeScript/JavaScript SDK"
+        include_patterns:
+          - "client-sdks/**/*.ts"
+          - "client-sdks/**/*.js"
+          - "client-sdks/**/*.json"
+        exclude_patterns:
+          - "client-sdks/**/node_modules/**"
+          - "client-sdks/**/dist/**"
+          - "client-sdks/**/*.map"
+      - name: "vectorizer-sdk-python"
+        description: "Vectorizer Python SDK"
+        include_patterns:
+          - "client-sdks/**/*.py"
+          - "client-sdks/**/*.txt"
+          - "client-sdks/**/*.toml"
+        exclude_patterns:
+          - "client-sdks/**/__pycache__/**"
+          - "client-sdks/**/venv/**"
+          - "client-sdks/**/build/**"
+      - name: "vectorizer-sdk-rust"
+        description: "Vectorizer Rust SDK"
+        include_patterns:
+          - "client-sdks/**/*.rs"
+          - "client-sdks/**/*.toml"
+          - "client-sdks/**/*.json"
+        exclude_patterns:
+          - "client-sdks/**/target/**"
+          - "client-sdks/**/Cargo.lock"
 
-# =============================================================================
-# WORKSPACE PROCESSING SETTINGS
-# =============================================================================
-processing:
-  # Global processing settings
-  parallel_processing: true
-  max_concurrent_projects: 10
-  max_concurrent_collections: 18
-  
-  # File processing
-  file_processing:
-    batch_size: 100
-    max_file_size_mb: 10
-    skip_hidden_files: true
-    skip_binary_files: true
-    
-  # Memory management
-  memory:
-    max_memory_usage_gb: 16.0
-    gc_threshold_mb: 2048
-    
-  # Error handling
-  error_handling:
-    max_retries: 3
-    retry_delay_seconds: 5
-    continue_on_error: true
-    log_errors: true
+  - name: "voxa"
+    path: "../voxa"
+    description: "Voxa - Voice AI assistant framework"
+    collections:
+      - name: "voxa-docs"
+        description: "Voxa documentation and guides"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "venv/**"
+          - "models/**"
+      - name: "voxa-source"
+        description: "Voxa Python source code"
+        include_patterns:
+          - "**/*.py"
+          - "**/*.json"
+          - "**/*.txt"
+          - "**/*.yml"
+          - "**/*.yaml"
+        exclude_patterns:
+          - "venv/**"
+          - "models/**"
+          - "__pycache__/**"
+          - "*.log"
 
-# =============================================================================
-# WORKSPACE MONITORING
-# =============================================================================
-monitoring:
-  # Health checks
-  health_check:
-    enabled: true
-    interval_seconds: 60
-    check_projects: true
-    check_collections: true
-  
-  # Metrics collection
-  metrics:
-    enabled: true
-    collection_interval_seconds: 300
-    
-    # Metrics to collect
-    project_metrics:
-      - file_count
-      - total_size_mb
-      - processing_time_seconds
-      - error_count
-    
-    collection_metrics:
-      - vector_count
-      - index_size_mb
-      - query_latency_ms
-      - memory_usage_mb
-  
-  # Logging
-  logging:
-    level: "info"
-    log_file: "./.logs/workspace.log"
-    max_log_size_mb: 100
-    max_log_files: 5
-
-# =============================================================================
-# WORKSPACE VALIDATION
-# =============================================================================
-validation:
-  # Path validation
-  paths:
-    validate_existence: true
-    validate_permissions: true
-    create_missing_dirs: false
-  
-  # Configuration validation
-  config:
-    validate_embedding_models: true
-    validate_dimensions: true
-    validate_collections: true
-  
-  # Data validation
-  data:
-    validate_file_types: true
-    validate_file_sizes: true
-    validate_encoding: true
-
-# =============================================================================
-# FILE WATCHER CONFIGURATION
-# =============================================================================
-# File watcher automatically discovers and monitors indexed files
-# No manual configuration needed - it reads from existing collections
-file_watcher:
-  enabled: true
-  debounce_delay_ms: 1000
-  hash_validation_enabled: true
-  grpc_enabled: true
+  - name: "gov"
+    path: "../gov"
+    description: "Governance Documentation - BIPs, proposals, and governance documents"
+    collections:
+      - name: "gov-bips"
+        description: "Bitcoin Improvement Proposals (BIPs)"
+        include_patterns:
+          - "bips/**/*.md"
+          - "bips/**/*.json"
+          - "bips/**/*.txt"
+        exclude_patterns:
+          - "bips/draft/**"
+      - name: "gov-proposals"
+        description: "Governance proposals and voting records"
+        include_patterns:
+          - "proposals/**/*.md"
+          - "proposals/**/*.json"
+          - "snapshot/**/*.md"
+        exclude_patterns:
+          - "proposals/draft/**"
+      - name: "gov-meetings"
+        description: "Meeting minutes and governance records"
+        include_patterns:
+          - "minutes/**/*.md"
+          - "minutes/**/*.json"
+        exclude_patterns:
+          - "minutes/draft/**"
+      - name: "gov-teams"
+        description: "Team documentation and structure"
+        include_patterns:
+          - "teams/**/*.md"
+          - "teams/**/*.json"
+        exclude_patterns:
+          - "teams/inactive/**"
+      - name: "gov-guidelines"
+        description: "Governance guidelines and policies"
+        include_patterns:
+          - "guidelines/**/*.md"
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "draft/**"
+      - name: "gov-metrics"
+        description: "Governance metrics and analytics"
+        include_patterns:
+          - "metrics/**/*.json"
+          - "schemas/**/*.json"
+        exclude_patterns:
+          - "metrics/temp/**"

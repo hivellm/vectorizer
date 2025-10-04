@@ -8,11 +8,11 @@ use std::path::PathBuf;
 /// Simplified workspace configuration root structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimplifiedWorkspaceConfig {
-    /// Workspace metadata
-    pub workspace: WorkspaceMetadata,
+    /// Workspace metadata (optional - will use built-in defaults if not specified)
+    pub workspace: Option<WorkspaceMetadata>,
     
-    /// Global defaults applied to all collections
-    pub defaults: DefaultConfiguration,
+    /// Global defaults applied to all collections (optional - will use built-in defaults if not specified)
+    pub defaults: Option<DefaultConfiguration>,
     
     /// List of projects in the workspace
     pub projects: Vec<SimplifiedProjectConfig>,
@@ -355,13 +355,18 @@ impl SimplifiedCollectionConfig {
             dimension: dimension as usize,
             metric: distance_metric,
             embedding: EmbeddingConfig {
-                model: match embedding_config.model.as_str() {
-                    "bm25" => EmbeddingModel::Bm25,
-                    "native_bow" => EmbeddingModel::NativeBow,
-                    "native_hash" => EmbeddingModel::NativeHash,
-                    "native_ngram" => EmbeddingModel::NativeNgram,
-                    _ => EmbeddingModel::Bm25,
-                },
+                    model: match embedding_config.model.as_str() {
+                        "tfidf" => EmbeddingModel::TfIdf,
+                        "bm25" => EmbeddingModel::Bm25,
+                        "svd" => EmbeddingModel::Svd,
+                        "bert" => EmbeddingModel::Bert,
+                        "minilm" => EmbeddingModel::MiniLm,
+                        "bagofwords" => EmbeddingModel::BagOfWords,
+                        "charngram" => EmbeddingModel::CharNGram,
+                        "real_model" => EmbeddingModel::RealModel,
+                        "onnx_model" => EmbeddingModel::OnnxModel,
+                        _ => EmbeddingModel::Bm25,
+                    },
                 dimension: embedding_config.dimension as usize,
                 parameters: embedding_params,
             },
@@ -429,37 +434,58 @@ impl SimplifiedProjectConfig {
 }
 
 impl SimplifiedWorkspaceConfig {
+    /// Get the effective defaults (user-specified or built-in)
+    pub fn get_effective_defaults(&self) -> DefaultConfiguration {
+        self.defaults.clone().unwrap_or_else(|| DefaultConfiguration::default())
+    }
+    
+    /// Get effective workspace metadata, using built-in defaults if none specified
+    pub fn get_effective_workspace(&self) -> WorkspaceMetadata {
+        self.workspace.clone().unwrap_or_else(|| WorkspaceMetadata {
+            name: "Default Workspace".to_string(),
+            version: "1.0.0".to_string(),
+            description: "Auto-generated workspace configuration".to_string(),
+        })
+    }
+
     /// Convert to full workspace configuration for compatibility
     pub fn to_full_workspace_config(&self) -> crate::workspace::config::WorkspaceConfig {
         use crate::workspace::config::*;
         use crate::models::HnswConfig;
         
+        let effective_defaults = self.get_effective_defaults();
+        let effective_workspace = self.get_effective_workspace();
         let projects: Vec<ProjectConfig> = self.projects
             .iter()
-            .map(|p| p.to_full_project_config(&self.defaults))
+            .map(|p| p.to_full_project_config(&effective_defaults))
             .collect();
         
         WorkspaceConfig {
             workspace: WorkspaceMetadata {
-                name: self.workspace.name.clone(),
-                version: self.workspace.version.clone(),
-                description: self.workspace.description.clone(),
+                name: effective_workspace.name.clone(),
+                version: effective_workspace.version.clone(),
+                description: effective_workspace.description.clone(),
                 created_at: chrono::Utc::now().to_rfc3339(),
                 last_updated: chrono::Utc::now().to_rfc3339(),
             },
             global: GlobalSettings {
                 default_embedding: EmbeddingConfig {
-                    model: match self.defaults.embedding.model.as_str() {
+                    model: match effective_defaults.embedding.model.as_str() {
+                        "tfidf" => EmbeddingModel::TfIdf,
                         "bm25" => EmbeddingModel::Bm25,
-                        "native_bow" => EmbeddingModel::NativeBow,
-                        "native_hash" => EmbeddingModel::NativeHash,
-                        "native_ngram" => EmbeddingModel::NativeNgram,
+                        "svd" => EmbeddingModel::Svd,
+                        "bert" => EmbeddingModel::Bert,
+                        "minilm" => EmbeddingModel::MiniLm,
+                        "bagofwords" => EmbeddingModel::BagOfWords,
+                        "charngram" => EmbeddingModel::CharNGram,
+                        "real_model" => EmbeddingModel::RealModel,
+                        "onnx_model" => EmbeddingModel::OnnxModel,
                         _ => EmbeddingModel::Bm25,
                     },
-                    dimension: self.defaults.embedding.dimension as usize,
+                    dimension: effective_defaults.embedding.dimension as usize,
                     parameters: {
                         let mut param_map = std::collections::HashMap::new();
-                        if let serde_yaml::Value::Mapping(params) = &self.defaults.embedding.parameters {
+                        if let serde_yaml::Value::Mapping(params) = &effective_defaults.embedding.parameters {
                             for (key, value) in params {
                                 if let Some(key_str) = key.as_str() {
                                     // Convert serde_yaml::Value to serde_json::Value (simplified for defaults)
@@ -488,7 +514,7 @@ impl SimplifiedWorkspaceConfig {
                     },
                 },
                 default_collection: CollectionDefaults {
-                    metric: match self.defaults.metric.as_str() {
+                    metric: match effective_defaults.metric.as_str() {
                         "cosine" => crate::workspace::config::DistanceMetric::Cosine,
                         "euclidean" => crate::workspace::config::DistanceMetric::Euclidean,
                         "dot_product" => crate::workspace::config::DistanceMetric::DotProduct,
@@ -502,10 +528,10 @@ impl SimplifiedWorkspaceConfig {
                     },
                 },
                 default_indexing: IndexingDefaults {
-                    index_type: self.defaults.indexing.index_type.clone(),
+                    index_type: effective_defaults.indexing.index_type.clone(),
                     parameters: {
                         let mut param_map = std::collections::HashMap::new();
-                        if let serde_yaml::Value::Mapping(params) = &self.defaults.indexing.parameters {
+                        if let serde_yaml::Value::Mapping(params) = &effective_defaults.indexing.parameters {
                             for (key, value) in params {
                                 if let Some(key_str) = key.as_str() {
                                     // Convert serde_yaml::Value to serde_json::Value (simplified for defaults)
@@ -534,10 +560,10 @@ impl SimplifiedWorkspaceConfig {
                     },
                 },
                 processing: ProcessingDefaults {
-                    chunk_size: self.defaults.processing.chunk_size as usize,
-                    chunk_overlap: self.defaults.processing.chunk_overlap as usize,
-                    max_file_size_mb: self.defaults.processing.max_file_size_mb as usize,
-                    supported_extensions: self.defaults.processing.supported_extensions.clone(),
+                    chunk_size: effective_defaults.processing.chunk_size as usize,
+                    chunk_overlap: effective_defaults.processing.chunk_overlap as usize,
+                    max_file_size_mb: effective_defaults.processing.max_file_size_mb as usize,
+                    supported_extensions: effective_defaults.processing.supported_extensions.clone(),
                 },
             },
             projects,

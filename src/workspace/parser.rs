@@ -4,6 +4,7 @@
 
 use crate::error::{Result, VectorizerError};
 use crate::workspace::config::WorkspaceConfig;
+use crate::workspace::simplified_config::SimplifiedWorkspaceConfig;
 use serde_yaml;
 use std::fs;
 use std::path::Path;
@@ -53,6 +54,18 @@ pub fn parse_workspace_config_from_str(content: &str) -> Result<WorkspaceConfig>
         config.workspace.name,
         config.projects.len()
     );
+
+    Ok(config)
+}
+
+/// Parse simplified workspace configuration from string content
+pub fn parse_simplified_workspace_config_from_str(content: &str) -> Result<SimplifiedWorkspaceConfig> {
+    debug!("Parsing simplified workspace configuration from string content");
+
+    let config: SimplifiedWorkspaceConfig = serde_yaml::from_str(content)?;
+
+    info!("Successfully parsed simplified workspace configuration from string");
+    debug!("Projects: {}", config.projects.len());
 
     Ok(config)
 }

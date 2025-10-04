@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] - 2025-10-04
+
+### 🔧 **Critical Bug Fixes**
+
+#### **Cache Loading System - Complete Rewrite**
+- **Fixed Critical Bug**: Collections were showing 0 vectors after restart despite cache files existing
+- **Root Cause**: CUDA was being force-enabled even with `enabled: false` in config, causing cache loading to fail silently
+- **Solution Implemented**:
+  - Changed default behavior to **CPU-only mode** (CUDA must be explicitly enabled in config)
+  - Rewrote cache loading to use `load_collection_from_cache` directly instead of creating separate VectorStore instances
+  - Added proper verification logs showing actual vector counts after cache load
+
+#### **Cache Loading Process**
+- **Before**: Used `VectorStore::load()` which created isolated instances, causing data loss
+- **After**: Direct JSON parsing and `load_collection_from_cache()` integration with main store
+- **Result**: ✅ All 37 collections now load correctly from cache with proper vector counts
+
+#### **GPU Detection Changes**
+- **CUDA**: No longer auto-enabled by default (respects config.yml settings)
+- **CPU**: Now the default mode for maximum compatibility
+- **Metal**: Still auto-detects on Apple Silicon when available
+
+### 🚀 **Performance & Stability**
+
+#### **Vector Store Improvements**
+- Fixed `PersistedVector` to implement `Clone` for efficient cache operations
+- Improved logging with detailed vector count verification after cache loads
+- Added safety checks for 0-vector collections to skip unnecessary processing
+
+### 📝 **Technical Details**
+
+#### **Files Modified**
+- `src/db/vector_store.rs`: Changed GPU detection logic to default to CPU
+- `src/document_loader.rs`: Complete rewrite of `load_persisted_store()` function
+- `src/persistence/mod.rs`: Made fields public and added `Clone` trait to `PersistedVector`
+
+#### **Affected Components**
+- Cache loading system
+- GPU detection and initialization
+- Vector count metadata tracking
+- Collection persistence and restoration
+
+### ⚡ **Impact**
+
+This release fixes a **critical data persistence bug** where all vector data appeared to be lost after restarting the vectorizer, even though cache files existed and were valid. The system now correctly loads and displays all indexed vectors.
+
+**Before v0.27.0**: 0 vectors shown in API (data lost on restart)  
+**After v0.27.0**: ✅ All vectors correctly loaded from cache (16, 272, 53, 693, etc.)
+
 ## [0.26.0] - 2025-10-03
 
 ### 🚀 **GPU Metal Acceleration (Apple Silicon)**

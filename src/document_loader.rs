@@ -668,45 +668,39 @@ impl DocumentLoader {
             return Err(crate::error::VectorizerError::Other(format!("Cache file does not exist: {}", path.display())).into());
         }
         
-        // Load the persisted store
-        info!("🔍 Attempting to load VectorStore from {}", path.display());
-        let persisted_store = match VectorStore::load(path) {
-            Ok(store) => {
-                info!("✅ Successfully loaded VectorStore from {}", path.display());
-                store
-            },
-            Err(e) => {
-                error!("❌ Failed to load VectorStore from {}: {}", path.display(), e);
-                return Err(e.into());
-            }
-        };
-        info!("✅ Successfully loaded persisted store, getting collection '{}'", collection_name);
+        // 🔧 FIX: Load cache data directly without creating separate VectorStore
+        info!("🔍 Loading cache data from {}", path.display());
+        let json_data = std::fs::read_to_string(path)?;
+        let persisted: crate::persistence::PersistedVectorStore = serde_json::from_str(&json_data)?;
         
-        let src_collection = persisted_store.get_collection(collection_name)?;
-        info!("✅ Successfully got collection '{}' from persisted store", collection_name);
+        // Find the collection in the persisted data
+        let persisted_collection = persisted.collections.iter()
+            .find(|c| c.name == collection_name)
+            .ok_or_else(|| crate::error::VectorizerError::Other(format!("Collection '{}' not found in cache", collection_name)))?;
         
-        let meta = src_collection.metadata();
-        if app_store.get_collection(collection_name).is_err() {
-            app_store.create_collection(collection_name, meta.config.clone())?;
+        let vector_count = persisted_collection.vectors.len();
+        info!("📊 Found {} vectors in cache for collection '{}'", vector_count, collection_name);
+        
+        if vector_count == 0 {
+            warn!("⚠️ Cache has 0 vectors, skipping");
+            return Ok(0);
         }
-
-        let vectors = src_collection.get_all_vectors();
-        let vector_count = vectors.len();
-
-        // Get the app collection and load vectors
-        let app_collection = app_store.get_collection(collection_name)?;
         
-        // Convert vectors to runtime format for loading
-        let runtime_vectors: Vec<crate::models::Vector> = vectors
-            .into_iter()
-            .map(|v| v.into())
-            .collect();
+        // Create collection if it doesn't exist
+        if app_store.get_collection(collection_name).is_err() {
+            info!("📝 Creating collection '{}' in app store", collection_name);
+            app_store.create_collection(collection_name, persisted_collection.config.clone())?;
+        }
         
-        // Load vectors into the app collection
-        app_collection.fast_load_vectors(runtime_vectors)?;
-        info!("✅ Successfully loaded {} vectors into app collection '{}'", vector_count, collection_name);
-
-
+        // Load vectors directly using load_collection_from_cache (proper way)
+        info!("🚀 Loading {} vectors into app collection '{}'", vector_count, collection_name);
+        app_store.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
+        
+        // Verify the load was successful
+        let loaded_meta = app_store.get_collection(collection_name)?.metadata();
+        info!("✅ Successfully loaded {} vectors (metadata shows {} vectors, {} documents)", 
+              vector_count, loaded_meta.vector_count, loaded_meta.document_count);
+        
         Ok(vector_count)
     }
     fn save_tokenizer(&self, _project_path: &str) -> Result<()> {
