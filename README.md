@@ -18,6 +18,64 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
 - **⚡ GPU Metal Acceleration**: Native Apple Silicon GPU support for vector operations (M1/M2/M3)
+- **🎯 Simplified Workspace**: Minimal configuration with intelligent defaults (NEW in v0.26.0)
+
+## 🎯 **Simplified Workspace Configuration** (NEW in v0.26.0)
+
+Dramatically reduce workspace configuration verbosity with intelligent defaults:
+
+### **Features**
+- ✅ **Minimal Collections**: Only `name`, `description`, `include_patterns`, `exclude_patterns` required
+- ✅ **Intelligent Defaults**: Centralized configuration inheritance system
+- ✅ **Backward Compatible**: Existing configurations continue to work
+- ✅ **Override Support**: Still override any default when needed
+
+### **Before vs After**
+**Before (Complex)** - ~50 lines per collection:
+```yaml
+collections:
+  - name: "docs"
+    description: "Documentation"
+    dimension: 512
+    metric: "cosine"
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters: { k1: 1.5, b: 0.75 }
+    indexing:
+      index_type: "hnsw"
+      parameters: { m: 16, ef_construction: 200, ef_search: 64 }
+    processing:
+      chunk_size: 2048
+      chunk_overlap: 256
+      include_patterns: ["docs/**/*.md"]
+      exclude_patterns: ["docs/draft/**"]
+```
+
+**After (Simplified)** - ~5 lines per collection:
+```yaml
+defaults:
+  embedding: { model: "bm25", dimension: 512, parameters: { k1: 1.5, b: 0.75 } }
+  dimension: 512
+  metric: "cosine"
+  indexing: { index_type: "hnsw", parameters: { m: 16, ef_construction: 200, ef_search: 64 } }
+  processing: { chunk_size: 2048, chunk_overlap: 256 }
+
+collections:
+  - name: "docs"
+    description: "Documentation"
+    include_patterns: ["docs/**/*.md"]
+    exclude_patterns: ["docs/draft/**"]
+```
+
+### **Usage**
+```bash
+# Use simplified workspace configuration
+vzr start --workspace vectorize-workspace-simplified.yml
+
+# Automatic detection - works with both formats
+vzr workspace validate --config your-workspace.yml
+```
 
 ## 🎮 **GPU Metal Acceleration** (NEW in v0.24.0)
 
