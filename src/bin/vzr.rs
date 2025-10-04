@@ -5,16 +5,20 @@
 
 use chrono::Utc;
 use clap::{Parser, Subcommand};
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use serde_json::json;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::fs;
+use std::io::{self, Write};
 use std::path::PathBuf;
+use tar::{Archive, Builder as TarBuilder};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use tokio::process::Command as TokioCommand;
 use std::collections::HashMap;
 use tokio::sync::Mutex;
-use std::fs;
+// (fs already imported above)
 use vectorizer::logging;
 
 // Memory analysis available via /heap-analysis endpoint
@@ -575,6 +579,27 @@ enum Commands {
         #[command(subcommand)]
         command: WorkspaceCommands,
     },
+    /// Create a compressed backup from the data directory
+    Backup {
+        /// Data directory to archive (default: data)
+        #[arg(long, default_value = "data")]
+        data_dir: PathBuf,
+        /// Output archive path (default: backups/vectorizer_data_<timestamp>.tar.gz)
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Restore a compressed backup archive into the data directory
+    Restore {
+        /// Archive file to restore (tar.gz)
+        #[arg(long)]
+        archive: PathBuf,
+        /// Destination data directory (default: data)
+        #[arg(long, default_value = "data")]
+        data_dir: PathBuf,
+        /// If set, clears destination before restoring
+        #[arg(long, default_value_t = false)]
+        clean: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -669,6 +694,18 @@ async fn main() {
         }
         Commands::Workspace { command } => {
             handle_workspace_command(command).await;
+        }
+        Commands::Backup { data_dir, output } => {
+            if let Err(e) = run_backup_command(&data_dir, output.as_ref()) {
+                eprintln!("❌ Backup failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Restore { archive, data_dir, clean } => {
+            if let Err(e) = run_restore_command(&archive, &data_dir, clean) {
+                eprintln!("❌ Restore failed: {}", e);
+                std::process::exit(1);
+            }
         }
     }
 }
@@ -901,6 +938,52 @@ async fn handle_workspace_command(command: WorkspaceCommands) {
             list_workspace_projects(config).await;
         }
     }
+}
+
+fn default_backup_path() -> io::Result<PathBuf> {
+    let backups = PathBuf::from("backups");
+    if !backups.exists() {
+        fs::create_dir_all(&backups)?;
+    }
+    let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    Ok(backups.join(format!("vectorizer_data_{}.tar.gz", ts)))
+}
+
+fn run_backup_command(data_dir: &PathBuf, output: Option<&PathBuf>) -> io::Result<()> {
+    let data = data_dir;
+    if !data.is_dir() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, format!("Data dir not found: {}", data.display())));
+    }
+
+    let out_path = match output { Some(p) => p.clone(), None => default_backup_path()? };
+    if let Some(parent) = out_path.parent() { fs::create_dir_all(parent)?; }
+
+    let tar_gz = fs::File::create(&out_path)?;
+    let enc = GzEncoder::new(tar_gz, Compression::default());
+    let mut tar = TarBuilder::new(enc);
+    tar.append_dir_all(".", data)?;
+    tar.into_inner()?.finish()?;
+
+    println!("✅ Backup criado: {}", out_path.display());
+    Ok(())
+}
+
+fn run_restore_command(archive: &PathBuf, data_dir: &PathBuf, clean: bool) -> io::Result<()> {
+    if !archive.exists() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, format!("Arquivo não encontrado: {}", archive.display())));
+    }
+    if clean && data_dir.exists() {
+        fs::remove_dir_all(&data_dir)?;
+    }
+    fs::create_dir_all(&data_dir)?;
+
+    let file = fs::File::open(archive)?;
+    let dec = flate2::read::GzDecoder::new(file);
+    let mut ar = Archive::new(dec);
+    ar.unpack(&data_dir)?;
+
+    println!("✅ Restore concluído em: {}", data_dir.display());
+    Ok(())
 }
 
 /// Initialize a new workspace
@@ -1433,7 +1516,10 @@ async fn run_interactive_workspace(
                             vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
                         },
                         "dimension": collection.embedding.dimension,
-                        "parameters": collection.embedding.parameters
+                        "parameters": {
+                            "k1": 1.5,
+                            "b": 0.75
+                        }
                     },
                     "indexing": {
                         "index_type": collection.indexing.index_type,
