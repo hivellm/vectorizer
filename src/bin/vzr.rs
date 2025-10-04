@@ -528,7 +528,7 @@ struct Args {
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 enum Commands {
     /// Start both REST API and MCP servers
     Start {
@@ -602,7 +602,7 @@ enum Commands {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 enum WorkspaceCommands {
     /// Initialize a new workspace
     Init {
@@ -648,15 +648,20 @@ async fn main() {
 
     let args = Args::parse();
 
-    // Check for duplicate processes before starting
+    // Skip process checks for non-server commands (backup/restore)
+    let skip_process_check = matches!(&args.command, Commands::Backup { .. } | Commands::Restore { .. });
+
+    // Check for duplicate processes before starting for server-related commands
     let logger = WorkspaceLogger::new();
-    if check_existing_processes_enhanced(&logger) {
-        logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
-        if let Err(e) = kill_existing_processes(&logger) {
-            logger.error(&format!("Failed to kill existing processes: {}", e));
-            eprintln!("❌ Failed to kill existing vectorizer processes: {}", e);
-            eprintln!("💡 Please manually kill existing processes with: pkill -f vectorizer");
-            std::process::exit(1);
+    if !skip_process_check {
+        if check_existing_processes_enhanced(&logger) {
+            logger.warn("Found existing vectorizer processes. Killing them to prevent conflicts...");
+            if let Err(e) = kill_existing_processes(&logger) {
+                logger.error(&format!("Failed to kill existing processes: {}", e));
+                eprintln!("❌ Failed to kill existing vectorizer processes: {}", e);
+                eprintln!("💡 Please manually kill existing processes with: pkill -f vectorizer");
+                std::process::exit(1);
+            }
         }
     }
 

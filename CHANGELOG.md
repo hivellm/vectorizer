@@ -316,7 +316,7 @@ cargo run --example gpu_stress_benchmark --features wgpu-gpu --release
 - **Root Cause**: CUDA was being force-enabled even with `enabled: false` in config, causing cache loading to fail silently
 - **Solution Implemented**:
   - Changed default behavior to **CPU-only mode** (CUDA must be explicitly enabled in config)
-  - Rewrote cache loading to use `load_collection_from_cache` directly instead of creating separate VectorStore instances
+  - Rewritten cache loading to use `load_collection_from_cache` directly instead of creating separate VectorStore instances
   - Added proper verification logs showing actual vector counts after cache load
 
 #### **Cache Loading Process**
@@ -2139,4 +2139,9 @@ Actual results from testing with 3931 real documents (gov/ directory):
 - Client SDKs (Python, TypeScript) planned for Phase 4
 
 [0.1.0]: https://github.com/hivellm/vectorizer/releases/tag/v0.1.0
+
+## v0.28.1 - 2025-10-04
+- feat(cli): add `vzr backup` and `vzr restore` subcommands to archive and restore the `data/` directory as `.tar.gz`
+- chore: add dependencies `tar` and `flate2`
+- docs: usage will be reflected in README
 
