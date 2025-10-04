@@ -14,6 +14,18 @@ pub mod enhanced_watcher;
 #[cfg(test)]
 pub mod test_enhanced_watcher;
 
+#[cfg(test)]
+pub mod integration_test;
+
+#[cfg(test)]
+pub mod simple_integration_test;
+
+#[cfg(test)]
+pub mod final_test;
+
+#[cfg(test)]
+pub mod success_test;
+
 pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
 pub use grpc_operations::GrpcVectorOperations;

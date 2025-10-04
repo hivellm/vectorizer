@@ -31,7 +31,7 @@ pub struct EnhancedFileWatcher {
     file_index: FileIndexArc,
     watcher: Option<notify::RecommendedWatcher>,
     running: Arc<RwLock<bool>>,
-    workspace_config: Arc<RwLock<Option<WorkspaceConfig>>>,
+    pub workspace_config: Arc<RwLock<Option<WorkspaceConfig>>>,
 }
 
 /// Workspace configuration for pattern matching
@@ -359,7 +359,7 @@ impl EnhancedFileWatcher {
     }
 
     /// Find collections that match the file pattern
-    async fn find_matching_collections(
+    pub async fn find_matching_collections(
         file_path: &PathBuf,
         workspace_config: &Arc<RwLock<Option<WorkspaceConfig>>>,
     ) -> Vec<String> {
@@ -431,6 +431,10 @@ impl EnhancedFileWatcher {
                         let ext = &suffix[1..]; // Remove "*" to get ".ext"
                         return file_str.ends_with(ext);
                     }
+                }
+                // Handle ** pattern (matches everything)
+                if pattern == "**" {
+                    return true;
                 }
                 return file_str.contains(&pattern.replace("**", ""));
             } else if pattern.contains("*") {
