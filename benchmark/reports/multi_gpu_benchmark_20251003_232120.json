@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-10-04T02:21:20.074524+00:00",
+  "system_info": {
+    "os": "macos",
+    "os_version": "Unknown",
+    "cpu": "Unknown",
+    "cpu_cores": 11,
+    "total_ram_gb": 16.0
+  },
+  "results": [
+    {
+      "backend": "Current",
+      "platform": "macos",
+      "gpu_name": "Auto-detected",
+      "test_name": "Vector Insertion",
+      "operations": 1000,
+      "duration_ms": 728.474875,
+      "ops_per_second": 1372.730940102773,
+      "speedup_vs_cpu": 1.0
+    },
+    {
+      "backend": "Current",
+      "platform": "macos",
+      "gpu_name": "Auto-detected",
+      "test_name": "Single Vector Search",
+      "operations": 1000,
+      "duration_ms": 869.1794590000001,
+      "ops_per_second": 1150.510391893649,
+      "speedup_vs_cpu": 1.0
+    },
+    {
+      "backend": "Current",
+      "platform": "macos",
+      "gpu_name": "Auto-detected",
+      "test_name": "Batch Vector Search",
+      "operations": 100,
+      "duration_ms": 88.555042,
+      "ops_per_second": 1129.2411786106995,
+      "speedup_vs_cpu": 1.0
+    }
+  ]
+}

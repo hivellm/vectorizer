@@ -214,7 +214,7 @@ impl MetalCollection {
         CollectionMetadata {
             name: self.name.clone(),
             vector_count: self.vectors.len(),
-            document_count: 0, // Metal collections não rastreiam documents separadamente
+            document_count: 0, // Metal collections don't track documents separately
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
             config: self.config.clone(),
