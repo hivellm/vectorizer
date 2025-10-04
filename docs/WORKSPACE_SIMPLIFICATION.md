@@ -14,7 +14,7 @@ Collections now only require the essential fields:
 - `exclude_patterns`: File patterns to exclude
 
 ### 2. Intelligent Defaults
-All unspecified parameters inherit from a centralized `defaults` section:
+All unspecified parameters inherit from internal defaults (no `defaults` section required):
 - Embedding configuration (model, dimension, parameters)
 - Indexing settings (HNSW parameters)
 - Processing settings (chunk size, overlap, file size limits)
@@ -40,14 +40,12 @@ collections:
 
 ## Configuration Structure
 
-### Simplified Format
+### Ultra-Simplified Format (v0.27.0+)
 ```yaml
-workspace:
-  name: "My Workspace"
-  version: "1.0.0"
-  description: "Simplified workspace configuration"
+# No workspace section needed
+# No defaults section needed
 
-defaults:
+projects:
   embedding:
     model: "bm25"
     dimension: 512

@@ -1,6 +1,11 @@
 # GPU Usage Status in Vectorizer
 
-## 📊 **Current Summary**
+## 📊 **Current Summary (Updated v0.27.0)**
+
+### 🔧 **Critical Changes in v0.27.0**
+- **CPU Mode Default**: GPU no longer auto-enabled, respects user configuration
+- **Cache Loading Fixed**: All collections now load correctly from cache files
+- **CUDA Configuration**: Must be explicitly enabled in `config.yml`
 
 ### ✅ **WHAT USES GPU**
 1. **Similarity/Distance Operations** (via `src/gpu/`)

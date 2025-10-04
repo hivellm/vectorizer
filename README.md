@@ -19,6 +19,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
 - **⚡ GPU Metal Acceleration**: Native Apple Silicon GPU support for vector operations (M1/M2/M3)
 - **🎯 Simplified Workspace**: Minimal configuration with intelligent defaults (NEW in v0.26.0)
+- **🔧 Critical Bug Fixes**: Fixed cache loading system and GPU detection (NEW in v0.27.0)
 
 ## 🎯 **Simplified Workspace Configuration** (NEW in v0.26.0)
 
@@ -76,6 +77,25 @@ vzr start --workspace vectorize-workspace-simplified.yml
 # Automatic detection - works with both formats
 vzr workspace validate --config your-workspace.yml
 ```
+
+## 🔧 **Critical Bug Fixes** (NEW in v0.27.0)
+
+Fixed critical data persistence issues that were causing vector data to appear lost on restart:
+
+### **Issues Resolved**
+- ✅ **Cache Loading Bug**: Collections now correctly load from cache files
+- ✅ **GPU Detection**: CPU mode now defaults correctly (CUDA requires explicit config)
+- ✅ **Data Persistence**: All 37 collections load properly with correct vector counts
+- ✅ **Memory Management**: Improved cache operations with Clone trait support
+
+### **Before vs After**
+- **Before v0.27.0**: ❌ 0 vectors shown in API (data lost on restart)
+- **After v0.27.0**: ✅ All vectors correctly loaded (16, 272, 53, 693, 1076, 1558, etc.)
+
+### **Breaking Changes**
+- CUDA is no longer auto-enabled by default
+- CPU mode is now the default for maximum compatibility
+- Explicit CUDA configuration required in `config.yml`
 
 ## 🎮 **GPU Metal Acceleration** (NEW in v0.24.0)
 

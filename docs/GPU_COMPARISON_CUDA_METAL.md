@@ -13,16 +13,41 @@
 | **Unified API** | ✅ Integrated | Via `CollectionType::Cuda` |
 | **Feature Flag** | ✅ `cuda_real` | Active by default |
 
-### ❌ **Metal (Partial - NOT Integrated)**
+### ✅ **Metal (Complete and Integrated - v0.24.0+)**
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **MetalCollection** | ❌ Does NOT exist | Not implemented |
-| **HNSW Integration** | ❌ NOT integrated | GPU isolated |
-| **GPU Indexing** | ❌ Does NOT use Metal | Uses CPU |
-| **GPU Search** | ❌ Does NOT use Metal | Uses CPU |
-| **Unified API** | ❌ NOT integrated | GPU isolated |
-| **Feature Flag** | ✅ `wgpu-gpu` | Exists but isolated |
+| **MetalCollection** | ✅ Implemented | `src/gpu/` modules |
+| **HNSW Integration** | ✅ Functional | Uses wgpu framework |
+| **GPU Indexing** | ✅ Active | GPU-accelerated operations |
+| **GPU Search** | ✅ Active | `search_with_gpu()` |
+| **Unified API** | ✅ Integrated | Via GPU operations trait |
+| **Feature Flag** | ✅ `wgpu-gpu` | Active by default on Apple Silicon |
+
+---
+
+## 🔧 **Breaking Changes in v0.27.0**
+
+### **GPU Detection Behavior**
+- **Before v0.27.0**: CUDA was auto-enabled even with `enabled: false` in config
+- **After v0.27.0**: CPU mode is default, GPU requires explicit configuration
+
+### **Configuration Requirements**
+```yaml
+# config.yml - GPU must be explicitly enabled
+cuda:
+  enabled: true  # Required to use CUDA
+  device_id: 0
+  memory_limit_mb: 4096
+
+# Metal is still auto-detected on Apple Silicon
+# but respects the overall GPU settings
+```
+
+### **Impact on Cache Loading**
+- Fixed critical bug where CUDA auto-enablement caused cache loading failures
+- All collections now load correctly from cache files
+- Vector counts properly displayed in API responses
 
 ---
 
