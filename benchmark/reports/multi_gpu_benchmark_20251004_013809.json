@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-10-04T04:38:09.322705400+00:00",
+  "system_info": {
+    "os": "windows",
+    "os_version": "Unknown",
+    "cpu": "Unknown",
+    "cpu_cores": 32,
+    "total_ram_gb": 16.0
+  },
+  "results": [
+    {
+      "backend": "Current",
+      "platform": "windows",
+      "gpu_name": "Auto-detected",
+      "test_name": "Vector Insertion",
+      "operations": 1000,
+      "duration_ms": 558.8626,
+      "ops_per_second": 1789.3485804918776,
+      "speedup_vs_cpu": 1.0
+    },
+    {
+      "backend": "Current",
+      "platform": "windows",
+      "gpu_name": "Auto-detected",
+      "test_name": "Single Vector Search",
+      "operations": 1000,
+      "duration_ms": 402.7758,
+      "ops_per_second": 2482.7708119504696,
+      "speedup_vs_cpu": 1.0
+    },
+    {
+      "backend": "Current",
+      "platform": "windows",
+      "gpu_name": "Auto-detected",
+      "test_name": "Batch Vector Search",
+      "operations": 100,
+      "duration_ms": 41.5849,
+      "ops_per_second": 2404.7190206060372,
+      "speedup_vs_cpu": 1.0
+    }
+  ]
+}

@@ -45,15 +45,21 @@ pub mod vulkan_collection;
 pub mod dx12_collection;
 pub mod backends;
 pub mod hnsw_gpu;
+pub mod hnsw_storage;
+pub mod hnsw_navigation;
+pub mod vector_storage;
 
 pub use config::{GpuConfig, GpuBackend};
 pub use context::GpuContext;
 pub use operations::GpuOperations;
-pub use metal_collection::MetalCollection;
-pub use vulkan_collection::VulkanCollection;
-pub use dx12_collection::DirectX12Collection;
+pub use metal_collection::{MetalCollection, MetalGpuMemoryStats};
+pub use vulkan_collection::{VulkanCollection, VulkanGpuMemoryStats};
+pub use dx12_collection::{DirectX12Collection, DirectX12GpuMemoryStats};
 pub use backends::{GpuBackendType, detect_available_backends, select_best_backend};
 pub use hnsw_gpu::{GpuHnswSearch, GpuHnswConfig, GpuSearchCandidate};
+pub use hnsw_storage::{GpuHnswStorage, GpuHnswStorageConfig, GpuHnswNode, GpuHnswMemoryStats};
+pub use hnsw_navigation::{GpuHnswNavigation, GpuHnswNavigationParams, GpuHnswSearchResult};
+pub use vector_storage::{GpuVectorStorage, GpuVectorStorageConfig, GpuVectorStorageStats};
 
 use crate::error::{Result, VectorizerError};
 use crate::models::DistanceMetric;

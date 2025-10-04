@@ -228,3 +228,7 @@ full = ["real-models", "onnx-models", "arrow", "parquet"]
 [[bin]]
 name = "vzr"
 path = "src/bin/vzr.rs"
+
+[[bin]]
+name = "gpu_scale_benchmark"
+path = "benchmark/scripts/gpu_scale_benchmark.rs"

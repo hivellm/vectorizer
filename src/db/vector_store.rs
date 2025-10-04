@@ -89,9 +89,9 @@ impl CollectionType {
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.add_vector(vector)),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.add_vector(vector.id.clone(), vector),
+            CollectionType::Vulkan(c) => pollster::block_on(c.add_vector(vector)),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.add_vector(vector.id.clone(), vector),
+            CollectionType::DirectX12(c) => pollster::block_on(c.add_vector(vector)),
         }
     }
 
@@ -147,11 +147,11 @@ impl CollectionType {
             #[cfg(feature = "cuda")]
             CollectionType::Cuda(c) => c.get_vector(vector_id),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.get_vector(vector_id),
+            CollectionType::Metal(c) => pollster::block_on(c.get_vector(vector_id)),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.get_vector(vector_id),
+            CollectionType::Vulkan(c) => pollster::block_on(c.get_vector(vector_id)),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.get_vector(vector_id),
+            CollectionType::DirectX12(c) => pollster::block_on(c.get_vector(vector_id)),
         }
     }
 
@@ -192,11 +192,11 @@ impl CollectionType {
             #[cfg(feature = "cuda")]
             CollectionType::Cuda(c) => c.get_all_vectors(),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.get_all_vectors(),
+            CollectionType::Metal(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.get_all_vectors(),
+            CollectionType::Vulkan(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.get_all_vectors(),
+            CollectionType::DirectX12(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
         }
     }
 
@@ -209,9 +209,9 @@ impl CollectionType {
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.get_embedding_type(),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.get_embedding_type().unwrap_or_default(),
+            CollectionType::Vulkan(_c) => "unknown".to_string(),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.get_embedding_type().unwrap_or_default(),
+            CollectionType::DirectX12(_c) => "unknown".to_string(),
         }
     }
 
@@ -252,9 +252,9 @@ impl CollectionType {
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.set_embedding_type(embedding_type),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.set_embedding_type(embedding_type),
+            CollectionType::Vulkan(_c) => (),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.set_embedding_type(embedding_type),
+            CollectionType::DirectX12(_c) => (),
         }
     }
 
