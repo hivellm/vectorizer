@@ -73,10 +73,39 @@ impl DirectX12Collection {
             gpu_memory_limit: 4 * 1024 * 1024 * 1024, // 4GB for DirectX 12
         };
 
+        // Calculate safe initial capacity based on GPU buffer limits
+        let gpu_limits = &gpu_context.info().limits;
+        let gpu_info = &gpu_context.info();
+        
+        // Estimate total VRAM based on GPU name and max buffer size
+        let estimated_vram = if gpu_info.name.contains("RTX 4090") || gpu_info.name.contains("RTX 4080") || gpu_info.name.contains("RTX 3090") {
+            24 * 1024 * 1024 * 1024 // 24GB for high-end GPUs
+        } else if gpu_info.name.contains("RTX 4070") || gpu_info.name.contains("RTX 3070") {
+            12 * 1024 * 1024 * 1024 // 12GB for mid-range GPUs
+        } else if gpu_info.name.contains("RTX 4060") || gpu_info.name.contains("RTX 3060") {
+            8 * 1024 * 1024 * 1024 // 8GB for entry-level GPUs
+        } else {
+            // Fallback: use max_buffer_size as conservative estimate
+            gpu_limits.max_buffer_size
+        };
+        
+        let max_buffer_size = (estimated_vram as f64 * 0.8) as u64; // 80% of estimated VRAM
+        let vector_size_bytes = config.dimension * std::mem::size_of::<f32>();
+        let safe_initial_capacity = (max_buffer_size / vector_size_bytes as u64).min(1_000_000) as usize; // Increased max capacity
+        
+        info!("🔧 DirectX 12 GPU Buffer Configuration:");
+        info!("  - GPU Name: {}", gpu_info.name);
+        info!("  - Max buffer binding size: {:.2} GB", gpu_limits.max_storage_buffer_binding_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Max buffer size: {:.2} GB", gpu_limits.max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Estimated total VRAM: {:.2} GB", estimated_vram as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Using 80% of estimated VRAM: {:.2} GB", max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Vector size: {} bytes", vector_size_bytes);
+        info!("  - Calculated initial capacity: {} vectors", safe_initial_capacity);
+        
         // Create GPU vector storage configuration
         let vector_storage_config = GpuVectorStorageConfig {
             dimension: config.dimension,
-            initial_capacity: 100_000,
+            initial_capacity: safe_initial_capacity,
             max_capacity: 1_000_000,
             gpu_memory_limit: 4 * 1024 * 1024 * 1024, // 4GB for DirectX 12
             enable_compression: false,
@@ -178,13 +207,15 @@ impl DirectX12Collection {
         }
 
         // Execute GPU-accelerated HNSW search with complete GPU navigation
+        // Use primary buffer from multi-buffer storage system
+        let primary_vector_buffer = self.vector_storage.get_primary_vector_buffer();
         let search_result = self.navigation.search(
             query,
             k,
             self.config.hnsw_config.ef_search,
             self.config.metric.clone(),
             &self.hnsw_storage.node_buffer,
-            &self.vector_storage.vector_buffer,
+            &primary_vector_buffer,
             &self.hnsw_storage.connection_buffer,
             hnsw_stats.node_count,
             self.config.dimension,

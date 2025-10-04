@@ -9,11 +9,102 @@ use crate::models::{Vector, DistanceMetric};
 use crate::gpu::{GpuContext};
 use crate::gpu::buffers::BufferManager;
 use std::sync::Arc;
+use std::collections::BTreeMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
 #[cfg(feature = "wgpu-gpu")]
 use wgpu::{Buffer, BufferUsages, Device, Queue};
+
+/// Buffer chunk information for multi-buffer storage
+#[derive(Debug, Clone)]
+pub struct BufferChunk {
+    pub buffer_id: usize,
+    pub start_index: usize,
+    pub end_index: usize,
+    pub capacity: usize,
+    pub used: usize,
+}
+
+impl BufferChunk {
+    pub fn new(buffer_id: usize, start_index: usize, capacity: usize) -> Self {
+        Self {
+            buffer_id,
+            start_index,
+            end_index: start_index + capacity - 1,
+            capacity,
+            used: 0,
+        }
+    }
+    
+    pub fn has_space(&self) -> bool {
+        self.used < self.capacity
+    }
+    
+    pub fn remaining_capacity(&self) -> usize {
+        self.capacity - self.used
+    }
+}
+
+/// Multi-buffer storage system with balanced tree
+#[derive(Debug)]
+pub struct MultiBufferStorage {
+    /// Buffer chunks indexed by buffer ID
+    pub chunks: BTreeMap<usize, BufferChunk>,
+    /// Vector-to-buffer mapping (vector_index -> buffer_id)
+    pub vector_to_buffer: BTreeMap<usize, usize>,
+    /// Next available vector index
+    pub next_vector_index: usize,
+    /// Buffer manager for creating new buffers
+    pub buffer_manager: BufferManager,
+    /// Actual GPU buffers
+    pub buffers: Vec<Buffer>,
+}
+
+impl MultiBufferStorage {
+    pub fn new(buffer_manager: BufferManager) -> Self {
+        Self {
+            chunks: BTreeMap::new(),
+            vector_to_buffer: BTreeMap::new(),
+            next_vector_index: 0,
+            buffer_manager,
+            buffers: Vec::new(),
+        }
+    }
+    
+    /// Find the best chunk to insert a vector
+    pub fn find_best_chunk(&self) -> Option<usize> {
+        // Find chunk with most remaining capacity
+        self.chunks
+            .iter()
+            .filter(|(_, chunk)| chunk.has_space())
+            .max_by_key(|(_, chunk)| chunk.remaining_capacity())
+            .map(|(buffer_id, _)| *buffer_id)
+    }
+    
+    /// Add a new buffer chunk
+    pub fn add_buffer_chunk(&mut self, capacity: usize) -> Result<usize> {
+        let buffer_id = self.buffers.len();
+        let start_index = self.next_vector_index;
+        
+        // Create GPU buffer
+        let vector_size = capacity * 512 * std::mem::size_of::<f32>(); // Assuming 512 dimensions
+        let buffer = self.buffer_manager.create_storage_buffer_rw(
+            &format!("gpu_vectors_chunk_{}", buffer_id),
+            vector_size as u64,
+        )?;
+        
+        // Create chunk
+        let chunk = BufferChunk::new(buffer_id, start_index, capacity);
+        
+        self.chunks.insert(buffer_id, chunk);
+        self.buffers.push(buffer);
+        
+        info!("🔧 Added buffer chunk {} with capacity {} vectors", buffer_id, capacity);
+        
+        Ok(buffer_id)
+    }
+}
 
 /// GPU Vector Storage Configuration
 #[derive(Debug, Clone)]
@@ -45,7 +136,7 @@ impl Default for GpuVectorStorageConfig {
     }
 }
 
-/// GPU Vector Storage Manager
+/// GPU Vector Storage Manager with Multi-Buffer Support
 pub struct GpuVectorStorage {
     /// GPU context for operations
     gpu_context: Arc<GpuContext>,
@@ -53,7 +144,9 @@ pub struct GpuVectorStorage {
     buffer_manager: BufferManager,
     /// Storage configuration
     config: GpuVectorStorageConfig,
-    /// Vector storage buffer (persistent in VRAM)
+    /// Multi-buffer storage system
+    multi_buffer_storage: Arc<RwLock<MultiBufferStorage>>,
+    /// Vector storage buffer (legacy - will be replaced by multi-buffer)
     #[cfg(feature = "wgpu-gpu")]
     pub vector_buffer: Buffer,
     /// Vector metadata buffer (IDs, offsets, etc.)
@@ -105,11 +198,29 @@ impl GpuVectorStorage {
             Arc::new(gpu_context.queue().clone()),
         );
 
-        // Calculate buffer sizes
-        let vector_size = config.initial_capacity * config.dimension * std::mem::size_of::<f32>();
-        let metadata_size = config.initial_capacity * std::mem::size_of::<GpuVectorMetadata>();
+        // Calculate buffer sizes with chunking to respect GPU buffer limits
+        let gpu_limits = &gpu_context.info().limits;
+        let max_buffer_size = gpu_limits.max_storage_buffer_binding_size as u64;
+        let vector_size_bytes = config.dimension * std::mem::size_of::<f32>();
+        let vectors_per_chunk = (max_buffer_size / vector_size_bytes as u64).min(config.initial_capacity as u64) as usize;
+        
+        // Use smaller chunks to respect buffer limits
+        let vector_size = vectors_per_chunk * config.dimension * std::mem::size_of::<f32>();
+        let metadata_size = vectors_per_chunk * std::mem::size_of::<GpuVectorMetadata>();
+        
+        info!("🔧 GPU Vector Storage Chunking Configuration:");
+        info!("  - Max buffer binding size: {:.2} MB", max_buffer_size as f64 / (1024.0 * 1024.0));
+        info!("  - Vector size: {} bytes", vector_size_bytes);
+        info!("  - Vectors per chunk: {}", vectors_per_chunk);
+        info!("  - Chunk buffer size: {:.2} MB", vector_size as f64 / (1024.0 * 1024.0));
 
-        // Create persistent GPU buffers
+        // Create multi-buffer storage system
+        let mut multi_buffer_storage = MultiBufferStorage::new(buffer_manager.clone());
+        
+        // Add initial buffer chunk
+        multi_buffer_storage.add_buffer_chunk(vectors_per_chunk)?;
+        
+        // Create persistent GPU buffers (legacy)
         #[cfg(feature = "wgpu-gpu")]
         let (vector_buffer, metadata_buffer) = {
             let vector_buffer = buffer_manager.create_storage_buffer_rw(
@@ -140,6 +251,7 @@ impl GpuVectorStorage {
             gpu_context,
             buffer_manager,
             config,
+            multi_buffer_storage: Arc::new(RwLock::new(multi_buffer_storage)),
             vector_buffer,
             metadata_buffer,
             vector_count: Arc::new(RwLock::new(0)),
@@ -149,7 +261,7 @@ impl GpuVectorStorage {
         })
     }
 
-    /// Add a vector to GPU storage
+    /// Add a vector to GPU storage using multi-buffer system
     pub async fn add_vector(&self, vector: &Vector) -> Result<u32> {
         // Validate dimension
         if vector.data.len() != self.config.dimension {
@@ -177,55 +289,52 @@ impl GpuVectorStorage {
             ));
         }
 
-        // Find free space
-        let required_size = self.config.dimension * std::mem::size_of::<f32>();
-        let buffer_offset = self.allocate_space(required_size as u64)?;
-
-        // Prepare vector data
-        let mut vector_data = vector.data.clone();
+        // Use multi-buffer storage system
+        let mut multi_buffer = self.multi_buffer_storage.write();
         
-        // Apply compression if enabled
-        if self.config.enable_compression {
-            vector_data = self.compress_vector(&vector_data)?;
-        }
-
-        // Upload vector data to GPU
-        #[cfg(feature = "wgpu-gpu")]
-        {
-            self.upload_vector_data(&vector_data, buffer_offset).await?;
-        }
-
-        // Create metadata
-        let metadata = GpuVectorMetadata {
-            id_hash: self.hash_vector_id(&vector.id),
-            buffer_offset,
-            dimension: self.config.dimension as u32,
-            compressed: if self.config.enable_compression { 1 } else { 0 },
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-            last_accessed: 0,
+        // Find best chunk to insert vector
+        let buffer_id = match multi_buffer.find_best_chunk() {
+            Some(id) => id,
+            None => {
+                // No space available, create new chunk
+                let gpu_limits = &self.gpu_context.info().limits;
+                let max_buffer_size = gpu_limits.max_storage_buffer_binding_size as u64;
+                let vector_size_bytes = self.config.dimension * std::mem::size_of::<f32>();
+                let vectors_per_chunk = (max_buffer_size / vector_size_bytes as u64).min(100_000) as usize;
+                
+                multi_buffer.add_buffer_chunk(vectors_per_chunk)?
+            }
         };
 
-        // Upload metadata to GPU
-        #[cfg(feature = "wgpu-gpu")]
-        {
-            self.upload_metadata(&metadata, current_count as u32).await?;
-        }
-
+        // Get vector index and update chunk usage
+        let (vector_index, buffer, offset) = {
+            let chunk = multi_buffer.chunks.get_mut(&buffer_id).unwrap();
+            let vector_index = chunk.start_index + chunk.used;
+            let offset = chunk.used * self.config.dimension * std::mem::size_of::<f32>();
+            chunk.used += 1;
+            
+            (vector_index, multi_buffer.buffers[buffer_id].clone(), offset)
+        };
+        
+        // Update mappings
+        multi_buffer.vector_to_buffer.insert(vector_index, buffer_id);
+        multi_buffer.next_vector_index = vector_index + 1;
+        
+        // For now, use the existing method - TODO: implement proper multi-buffer upload
+        self.upload_vector_data(&vector.data, offset as u64).await?;
+        
         // Update tracking
         {
             let mut count = self.vector_count.write();
             let mut id_map = self.vector_id_map.write();
-            id_map.insert(vector.id.clone(), *count as u32);
+            id_map.insert(vector.id.clone(), vector_index as u32);
             *count += 1;
             
-            debug!("GPU Vector Storage: Added vector '{}', total count now: {}", vector.id, *count);
+            debug!("Multi-buffer: Added vector '{}' to buffer {} at index {}, total count: {}", 
+                   vector.id, buffer_id, vector_index, *count);
         }
 
-        debug!("Added vector {} to GPU storage at offset {}", vector.id, buffer_offset);
-        Ok(current_count as u32)
+        Ok(vector_index as u32)
     }
 
     /// Batch add vectors to GPU storage
@@ -543,6 +652,21 @@ impl GpuVectorStorage {
         // TODO: Implement last accessed time update
         Ok(())
     }
+
+    /// Get all vector buffers from multi-buffer storage for HNSW search
+    pub fn get_all_vector_buffers(&self) -> Vec<Buffer> {
+        let multi_buffer = self.multi_buffer_storage.read();
+        multi_buffer.buffers.clone()
+    }
+
+    /// Get the primary vector buffer (for compatibility with existing code)
+    pub fn get_primary_vector_buffer(&self) -> Buffer {
+        let multi_buffer = self.multi_buffer_storage.read();
+        // Return the first buffer or fallback to legacy buffer
+        multi_buffer.buffers.first()
+            .cloned()
+            .unwrap_or_else(|| self.vector_buffer.clone())
+    }
 }
 
 /// GPU Vector Storage Statistics
@@ -556,6 +680,7 @@ pub struct GpuVectorStorageStats {
     pub total_free_space: u64,
     pub free_space_fragments: usize,
 }
+
 
 /// Safe to use across threads
 unsafe impl Send for GpuVectorStorage {}

@@ -1,6 +1,7 @@
 //! Gerenciamento de buffers GPU
 
 use crate::error::{Result, VectorizerError};
+use tracing::warn;
 
 #[cfg(feature = "wgpu-gpu")]
 use wgpu::{Buffer, BufferUsages, Device, Queue};
@@ -12,6 +13,7 @@ use wgpu::util::DeviceExt;
 use bytemuck;
 
 /// Gerenciador de buffers GPU
+#[derive(Debug, Clone)]
 pub struct BufferManager {
     #[cfg(feature = "wgpu-gpu")]
     device: std::sync::Arc<Device>,
@@ -47,6 +49,17 @@ impl BufferManager {
         Ok(buffer)
     }
 
+    /// Criar buffer que pode ser mapeado para leitura (sem STORAGE)
+    pub fn create_read_buffer(&self, label: &str, size: u64) -> Result<Buffer> {
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(label),
+            size,
+            usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        Ok(buffer)
+    }
+
     /// Criar buffer uniforme
     pub fn create_uniform_buffer(&self, label: &str, data: &[u8]) -> Result<Buffer> {
         let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -71,6 +84,12 @@ impl BufferManager {
     /// Ler dados de volta do buffer (síncrono com polling ativo)
     pub fn read_buffer_sync(&self, buffer: &Buffer) -> Result<Vec<f32>> {
         use std::sync::{Arc, Mutex};
+        
+        // Verificar se o buffer tem dados antes de tentar lê-lo
+        if buffer.size() == 0 {
+            warn!("Attempting to read from empty buffer (size=0), returning empty vector");
+            return Ok(Vec::new());
+        }
         
         let buffer_slice = buffer.slice(..);
         

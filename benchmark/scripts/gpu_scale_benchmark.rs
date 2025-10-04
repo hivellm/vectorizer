@@ -578,8 +578,8 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
         size_groups.entry(result.dataset_size).or_default().push(result);
     }
 
-    md.push_str("| Size | Vulkan QPS | DirectX12 QPS | CPU QPS | Vulkan Speedup | DirectX12 Speedup |\n");
-    md.push_str("|------|------------|---------------|---------|----------------|-------------------|\n");
+    md.push_str("| Size | Vulkan QPS | DirectX12 QPS | DirectX12 vs Vulkan |\n");
+    md.push_str("|------|------------|---------------|--------------------|\n");
 
     let mut sorted_sizes = report.test_sizes.clone();
     sorted_sizes.sort();
@@ -587,14 +587,11 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
         if let Some(size_results) = size_groups.get(&size) {
             let vulkan_result = size_results.iter().find(|r| r.backend_type == "vulkan");
             let directx12_result = size_results.iter().find(|r| r.backend_type == "directx12");
-            let cpu_result = size_results.iter().find(|r| r.backend_type == "cpu");
 
             let vulkan_qps = vulkan_result.map(|r| r.search_throughput_qps).unwrap_or(0.0);
             let directx12_qps = directx12_result.map(|r| r.search_throughput_qps).unwrap_or(0.0);
-            let cpu_qps = cpu_result.map(|r| r.search_throughput_qps).unwrap_or(0.0);
 
-            let vulkan_speedup = if cpu_qps > 0.0 { vulkan_qps / cpu_qps } else { 0.0 };
-            let directx12_speedup = if cpu_qps > 0.0 { directx12_qps / cpu_qps } else { 0.0 };
+            let directx12_vs_vulkan = if vulkan_qps > 0.0 { directx12_qps / vulkan_qps } else { 0.0 };
 
             let size_str = if size >= 1000 {
                 format!("{}K", size / 1000)
@@ -603,16 +600,16 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
             };
 
             md.push_str(&format!(
-                "| {} | {:.0} | {:.0} | {:.0} | {:.2}x | {:.2}x |\n",
-                size_str, vulkan_qps, directx12_qps, cpu_qps, vulkan_speedup, directx12_speedup
+                "| {} | {:.0} | {:.0} | {:.2}x |\n",
+                size_str, vulkan_qps, directx12_qps, directx12_vs_vulkan
             ));
         }
     }
 
-    md.push_str("\n## GPU Recommendations\n\n");
+    md.push_str("\n## GPU vs GPU Comparison\n\n");
 
     let rec = &report.recommendations;
-    md.push_str(&format!("### Optimal Backend by Size\n\n"));
+    md.push_str(&format!("### Optimal GPU Backend by Size\n\n"));
     for (size, backend) in &rec.optimal_backend_per_size {
         let size_str = if *size >= 1000 {
             format!("{}K", size / 1000)
@@ -622,15 +619,14 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
         md.push_str(&format!("- **{} vectors**: {}\n", size_str, backend));
     }
 
-    md.push_str(&format!("\n### GPU Threshold: **{}K vectors**\n\n", rec.gpu_threshold_size / 1000));
-    md.push_str(&format!("### Most Efficient Backends\n\n"));
-    md.push_str(&format!("- **Memory Efficient**: {}\n", rec.memory_efficient_backend));
-    md.push_str(&format!("- **Performance Efficient**: {}\n", rec.performance_efficient_backend));
-    md.push_str(&format!("- **Cost Effective**: {}\n\n", rec.cost_effective_backend));
+    md.push_str(&format!("\n### GPU Performance Analysis\n\n"));
+    md.push_str(&format!("- **Best Performance**: {}\n", rec.performance_efficient_backend));
+    md.push_str(&format!("- **Most Memory Efficient**: {}\n", rec.memory_efficient_backend));
+    md.push_str(&format!("- **Most Cost Effective**: {}\n\n", rec.cost_effective_backend));
 
-    md.push_str("## Implementation Guidelines\n\n");
-    md.push_str("### Backend Selection Strategy\n\n");
-    md.push_str("1. **Small Datasets** (< 5K): Use CPU for simplicity\n");
+    md.push_str("## GPU Implementation Guidelines\n\n");
+    md.push_str("### GPU Backend Selection Strategy\n\n");
+    md.push_str("1. **Small Datasets** (< 5K): Use Vulkan for cross-platform compatibility\n");
     md.push_str("2. **Medium Datasets** (5K-25K): Use DirectX 12 on Windows, Vulkan on Linux\n");
     md.push_str("3. **Large Datasets** (25K+): Use Vulkan for best cross-platform performance\n\n");
 
@@ -670,7 +666,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dimension = 512;
     let test_sizes = vec![1_000, 5_000, 10_000, 25_000, 50_000, 100_000];
     let backends = vec![
-        GpuBackendType::Cpu,
         GpuBackendType::Vulkan,
         GpuBackendType::DirectX12,
     ];

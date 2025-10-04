@@ -62,15 +62,44 @@ impl MetalCollection {
             metric: config.metric.clone(),
             initial_node_capacity: 100_000,
             initial_vector_capacity: 100_000,
-            gpu_memory_limit: 2 * 1024 * 1024 * 1024, // 2GB for Metal
+            gpu_memory_limit: 4 * 1024 * 1024 * 1024, // 4GB for Metal
         };
 
+        // Calculate safe initial capacity based on GPU buffer limits
+        let gpu_limits = &gpu_ctx.info().limits;
+        let gpu_info = &gpu_ctx.info();
+        
+        // Estimate total VRAM based on GPU name and max buffer size
+        let estimated_vram = if gpu_info.name.contains("M1 Ultra") || gpu_info.name.contains("M2 Ultra") || gpu_info.name.contains("M3 Ultra") {
+            24 * 1024 * 1024 * 1024 // 24GB for Apple Silicon Ultra
+        } else if gpu_info.name.contains("M1 Max") || gpu_info.name.contains("M2 Max") || gpu_info.name.contains("M3 Max") {
+            12 * 1024 * 1024 * 1024 // 12GB for Apple Silicon Max
+        } else if gpu_info.name.contains("M1 Pro") || gpu_info.name.contains("M2 Pro") || gpu_info.name.contains("M3 Pro") {
+            8 * 1024 * 1024 * 1024 // 8GB for Apple Silicon Pro
+        } else {
+            // Fallback: use max_buffer_size as conservative estimate
+            gpu_limits.max_buffer_size
+        };
+        
+        let max_buffer_size = (estimated_vram as f64 * 0.8) as u64; // 80% of estimated VRAM
+        let vector_size_bytes = config.dimension * std::mem::size_of::<f32>();
+        let safe_initial_capacity = (max_buffer_size / vector_size_bytes as u64).min(1_000_000) as usize; // Increased max capacity
+        
+        info!("🔧 Metal GPU Buffer Configuration:");
+        info!("  - GPU Name: {}", gpu_info.name);
+        info!("  - Max buffer binding size: {:.2} GB", gpu_limits.max_storage_buffer_binding_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Max buffer size: {:.2} GB", gpu_limits.max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Estimated total VRAM: {:.2} GB", estimated_vram as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Using 80% of estimated VRAM: {:.2} GB", max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Vector size: {} bytes", vector_size_bytes);
+        info!("  - Calculated initial capacity: {} vectors", safe_initial_capacity);
+        
         // Create GPU vector storage configuration
         let vector_storage_config = GpuVectorStorageConfig {
             dimension: config.dimension,
-            initial_capacity: 100_000,
+            initial_capacity: safe_initial_capacity,
             max_capacity: 1_000_000,
-            gpu_memory_limit: 2 * 1024 * 1024 * 1024, // 2GB for Metal
+            gpu_memory_limit: 4 * 1024 * 1024 * 1024, // 4GB for Metal
             enable_compression: false,
             compression_ratio: 0.5,
         };
@@ -181,13 +210,15 @@ impl MetalCollection {
         }
 
         // Execute GPU-accelerated HNSW search with complete GPU navigation
+        // Use primary buffer from multi-buffer storage system
+        let primary_vector_buffer = self.vector_storage.get_primary_vector_buffer();
         let search_result = self.navigation.search(
             query,
             k,
             self.config.hnsw_config.ef_search,
             self.config.metric.clone(),
             &self.hnsw_storage.node_buffer,
-            &self.vector_storage.vector_buffer,
+            &primary_vector_buffer,
             &self.hnsw_storage.connection_buffer,
             hnsw_stats.node_count,
             self.config.dimension,
