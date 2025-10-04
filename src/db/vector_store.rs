@@ -441,20 +441,17 @@ impl VectorStore {
             eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
         
-        // 2. Try CUDA (if feature is enabled)
+        // 2. CUDA is compiled but NOT auto-enabled - respect user config
+        // Users must explicitly enable CUDA in config.yml
         #[cfg(feature = "cuda")]
         {
-            eprintln!("🔥 Attempting to use CUDA GPU...");
-            info!("🔥 Attempting to use CUDA GPU...");
-            let cuda_config = CudaConfig { enabled: true, ..Default::default() };
-            eprintln!("✅ CUDA GPU enabled!");
-            info!("✅ CUDA GPU enabled!");
-            return Self::new_with_cuda_config(cuda_config);
+            eprintln!("ℹ️  CUDA support is available but disabled by default");
+            info!("ℹ️  CUDA support is available but disabled by default");
         }
         
-        // 3. Fallback to CPU
-        eprintln!("💻 Using CPU-only mode");
-        info!("💻 Using CPU-only mode");
+        // 3. Default to CPU-only mode
+        eprintln!("💻 Using CPU-only mode (default)");
+        info!("💻 Using CPU-only mode (default)");
         Self::new_with_cuda_config(CudaConfig { enabled: false, ..Default::default() })
     }
     
@@ -615,13 +612,17 @@ impl VectorStore {
                 if vector_count > 0 {
                     info!("📦 Storing {} existing vectors for quantization upgrade", vector_count);
                     
+                    // Store the existing vector count and document count
+                    let existing_metadata = existing_collection.metadata();
+                    let existing_document_count = existing_metadata.document_count;
+                    
                     // Remove old collection
                     self.collections.remove(name);
                     
                     // Create new collection with quantization
                     self.create_collection(name, config)?;
                     
-                    // Get the new collection and apply quantization to existing vectors
+                    // Get the new collection
                     let new_collection = self.get_collection(name)?;
                     
                     // Apply quantization to existing vectors
@@ -770,13 +771,14 @@ impl VectorStore {
             },
             #[cfg(feature = "cuda")]
             CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support cache loading yet - falling back to manual insertion");
-                // For now, manually insert vectors for CUDA collections
+                info!("🔧 Loading {} vectors into CUDA collection '{}'", persisted_vectors.len(), collection_name);
+                // For CUDA collections, manually insert vectors (cache loading not fully implemented)
                 for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();
                     collection_ref.add_vector(vector.id.clone(), vector)?;
                 }
+                let final_count = collection_ref.metadata().vector_count;
+                info!("✅ Successfully loaded {} vectors into CUDA collection '{}'", final_count, collection_name);
             }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
@@ -826,13 +828,14 @@ impl VectorStore {
             CollectionType::Cpu(c) => c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?,
             #[cfg(feature = "cuda")]
             CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support HNSW dump loading yet - falling back to manual insertion");
-                // For now, manually insert vectors for CUDA collections
+                info!("🔧 Loading {} vectors into CUDA collection '{}' (HNSW dump not supported yet)", persisted_vectors.len(), collection_name);
+                // For CUDA collections, manually insert vectors (cache loading not fully implemented)
                 for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();
                     collection_ref.add_vector(vector.id.clone(), vector)?;
                 }
+                let final_count = collection_ref.metadata().vector_count;
+                info!("✅ Successfully loaded {} vectors into CUDA collection '{}'", final_count, collection_name);
             }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {

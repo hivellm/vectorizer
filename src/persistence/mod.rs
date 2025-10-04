@@ -26,26 +26,26 @@ mod debug_test;
 #[derive(Serialize, Deserialize)]
 pub struct PersistedVectorStore {
     /// Version for backward compatibility
-    version: u32,
+    pub version: u32,
     /// Collections
-    collections: Vec<PersistedCollection>,
+    pub collections: Vec<PersistedCollection>,
 }
 
 /// Persisted representation of a collection
 #[derive(Serialize, Deserialize)]
 pub struct PersistedCollection {
     /// Collection name
-    name: String,
+    pub name: String,
     /// Collection configuration
-    config: CollectionConfig,
+    pub config: CollectionConfig,
     /// Vectors in the collection
-    vectors: Vec<PersistedVector>,
+    pub vectors: Vec<PersistedVector>,
     /// HNSW index dump basename (if available)
-    hnsw_dump_basename: Option<String>,
+    pub hnsw_dump_basename: Option<String>,
 }
 
 /// Persisted representation of a vector with payload serialized as JSON string
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PersistedVector {
     id: String,
     data: Vec<f32>,

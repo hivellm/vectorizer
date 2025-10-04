@@ -10,6 +10,30 @@ This document describes the complete implementation of GPU acceleration using Me
 2. Provide automatic fallback to CPU for small workloads
 3. Maintain cross-platform compatibility (Metal, Vulkan, DirectX12)
 4. Optimize for high throughput vector operations
+5. **NEW in v0.27.0**: Respect user configuration - CPU mode is now default, GPU requires explicit enablement
+
+## 🔧 **Breaking Changes in v0.27.0**
+
+### **GPU Detection Behavior**
+- **Before v0.27.0**: CUDA was auto-enabled even with `enabled: false` in config
+- **After v0.27.0**: CPU mode is default, GPU requires explicit configuration
+
+### **Configuration Requirements**
+```yaml
+# config.yml - GPU must be explicitly enabled
+cuda:
+  enabled: true  # Required to use CUDA
+  device_id: 0
+  memory_limit_mb: 4096
+
+# Metal is still auto-detected on Apple Silicon
+# but respects the overall GPU settings
+```
+
+### **Impact on Cache Loading**
+- Fixed critical bug where CUDA auto-enablement caused cache loading failures
+- All collections now load correctly from cache files
+- Vector counts properly displayed in API responses
 
 ## 🏗️ Architecture
 

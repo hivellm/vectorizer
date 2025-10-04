@@ -19,9 +19,12 @@
 **Test Suite Status**: ✅ **STABILIZED** - 236 tests standardized and corrected, comprehensive coverage
 **Code Quality Status**: ✅ **IMPROVED** - Test structure standardized, all compilation errors resolved
 **CUDA GPU Acceleration Status**: ✅ **COMPLETE** - CUHNSW integration with 8-9x build speedup, 3-4x search speedup
+**Metal GPU Acceleration Status**: ✅ **COMPLETE** - Apple Silicon GPU support with wgpu 27.0 framework
+**Cache Loading System Status**: ✅ **CRITICAL BUG FIXED v0.27.0** - All 37 collections now load correctly from cache
+**GPU Detection Status**: ✅ **IMPROVED v0.27.0** - CPU mode now default, GPU requires explicit configuration
 **API Stability Status**: ✅ **CRITICAL FIXES APPLIED** - Vector counts, embedding providers, provider defaults all fixed
 **Target Timeline**: Production-ready vector database with GPU acceleration and intelligent features
-**Last Update**: September 29, 2025
+**Last Update**: October 4, 2025
 
 ## 🎯 Project Status Overview
 

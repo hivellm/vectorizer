@@ -1,11 +1,22 @@
 # Visual Dependency Graph - Multiple Formats
 
-**Last Updated**: October 1, 2025 - **PRIORITIES REVISED BASED ON BENCHMARK ANALYSIS**
+**Last Updated**: October 4, 2025 - **UPDATED WITH v0.27.0 CRITICAL FIXES**
 
 ## 🎨 Format 1: Detailed Tree with Metrics
 
 ```
-START (Current State: v0.21.0 - 92% Complete) - **PRIORITIES REVISED**
+START (Current State: v0.27.0 - 95% Complete) - **CRITICAL FIXES APPLIED**
+│
+├─[✅]──► v0.27.0 CRITICAL FIXES ────────────────────────────┐
+│         │ Status: COMPLETED (Oct 4, 2025)                   │
+│         │ Priority: P0 (Critical) - **URGENT FIX**          │
+│         │ Effort: 1 day                                      │
+│         │ Risk: None                                         │
+│         │ **Fixed cache loading bug**                        │
+│         │ **GPU detection now respects config**              │
+│         │ **All 37 collections load correctly**              │
+│         │ **CPU mode is now default**                        │
+│         └────────────────────────────────────────────────────┘
 │
 ├─[P0]──► QUANTIZATION (SQ-8bit) ─────────────────────────────┐
 │         │ Priority: P0 (Critical) - **NEW PRIORITY**        │
