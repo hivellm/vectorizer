@@ -8,6 +8,9 @@ use crate::{
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::ops::Deref;
+use std::collections::HashSet;
+use std::time::Duration;
+use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
 use super::collection::Collection;
@@ -357,6 +360,12 @@ pub struct VectorStore {
     /// DirectX 12 GPU configuration
     #[cfg(feature = "wgpu-gpu")]
     dx12_config: Option<GpuConfig>,
+    /// Auto-save enabled flag (prevents auto-save during initialization)
+    auto_save_enabled: Arc<std::sync::atomic::AtomicBool>,
+    /// Collections pending save (for batch persistence)
+    pending_saves: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
+    /// Background save task handle
+    save_task_handle: Arc<std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -386,6 +395,9 @@ impl VectorStore {
             vulkan_config: None,
             #[cfg(feature = "wgpu-gpu")]
             dx12_config: None,
+            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         }
     }
     
@@ -399,6 +411,9 @@ impl VectorStore {
             metal_config: Some(metal_config),
             vulkan_config: None,
             dx12_config: None,
+            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         }
     }
     
@@ -412,15 +427,29 @@ impl VectorStore {
             metal_config: None,
             vulkan_config: Some(vulkan_config),
             dx12_config: None,
+            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         }
     }
     
     /// Create a new vector store with automatic GPU detection
     /// Priority: Metal (Mac Silicon) > CUDA > CPU
     pub fn new_auto() -> Self {
-        // Always print for debug
         eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
-        
+
+        // Try to load persisted collections first
+        let mut store = Self::new();
+        if let Ok(collections_loaded) = store.load_all_persisted_collections() {
+            if collections_loaded > 0 {
+                eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                // Enable auto-save after loading persisted collections
+                store.enable_auto_save();
+                return store;
+            }
+        }
+
         // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
         #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
         {
@@ -430,18 +459,20 @@ impl VectorStore {
             if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
                 eprintln!("✅ Metal GPU detected and enabled!");
                 info!("✅ Metal GPU detected and enabled!");
-                return Self::new_with_metal_config(metal_config);
+                let mut store = Self::new_with_metal_config(metal_config);
+                store.enable_auto_save();
+                return store;
             } else {
                 eprintln!("⚠️ Metal GPU detection failed, falling back...");
                 warn!("⚠️ Metal GPU detection failed, falling back...");
             }
         }
-        
+
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu")))]
         {
             eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
-        
+
         // 2. CUDA is compiled but NOT auto-enabled - respect user config
         // Users must explicitly enable CUDA in config.yml
         #[cfg(feature = "cuda")]
@@ -449,11 +480,13 @@ impl VectorStore {
             eprintln!("ℹ️  CUDA support is available but disabled by default");
             info!("ℹ️  CUDA support is available but disabled by default");
         }
-        
+
         // 3. Default to CPU-only mode
         eprintln!("💻 Using CPU-only mode (default)");
         info!("💻 Using CPU-only mode (default)");
-        Self::new_with_cuda_config(CudaConfig { enabled: false, ..Default::default() })
+        let mut store = Self::new_with_cuda_config(CudaConfig { enabled: false, ..Default::default() });
+        store.enable_auto_save();
+        store
     }
     
     /// Universal GPU detection across all backends (Vulkan, DirectX, CUDA, Metal)
@@ -461,15 +494,20 @@ impl VectorStore {
     #[cfg(feature = "wgpu-gpu")]
     pub fn new_auto_universal() -> Self {
         use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
-        
+
         //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
         info!("🔍 Starting universal GPU backend detection...");
-        
-        // Try to load existing persisted data first
-        if let Ok(mut store) = Self::load("vector_store_gpu.json") {
-            eprintln!("✅ Loaded existing GPU vector store from persistence");
-            info!("✅ Loaded existing GPU vector store from persistence");
-            return store;
+
+        // Try to load persisted collections first
+        let mut store = Self::new();
+        if let Ok(collections_loaded) = store.load_all_persisted_collections() {
+            if collections_loaded > 0 {
+                eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                // Enable auto-save after loading persisted collections
+                store.enable_auto_save();
+                return store;
+            }
         }
         
         // Detect all available backends
@@ -496,7 +534,9 @@ impl VectorStore {
                     if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
                         eprintln!("✅ Metal GPU initialized successfully!");
                         info!("✅ Metal GPU initialized successfully!");
-                        return Self::new_with_metal_config(metal_config);
+                        let mut store = Self::new_with_metal_config(metal_config);
+                        store.enable_auto_save();
+                        return store;
                     } else {
                         eprintln!("⚠️ Metal initialization failed - falling back");
                         warn!("Metal GPU initialization failed");
@@ -512,7 +552,9 @@ impl VectorStore {
                     let vulkan_config = crate::gpu::GpuConfig::default();
                     eprintln!("✅ Vulkan GPU initialized!");
                     info!("✅ Vulkan GPU initialized!");
-                    return Self::new_with_vulkan_config(vulkan_config);
+                    let mut store = Self::new_with_vulkan_config(vulkan_config);
+                    store.enable_auto_save();
+                    return store;
                 }
                 
                 #[cfg(not(feature = "wgpu-gpu"))]
@@ -536,7 +578,9 @@ impl VectorStore {
                     let cuda_config = CudaConfig { enabled: true, ..Default::default() };
                     eprintln!("✅ CUDA GPU initialized!");
                     info!("✅ CUDA GPU initialized!");
-                    return Self::new_with_cuda_config(cuda_config);
+                    let mut store = Self::new_with_cuda_config(cuda_config);
+                    store.enable_auto_save();
+                    return store;
                 }
             }
             
@@ -549,7 +593,9 @@ impl VectorStore {
         // Fallback to CPU if GPU initialization failed
         eprintln!("💻 Falling back to CPU backend");
         warn!("GPU initialization failed, using CPU fallback");
-        Self::new()
+        let mut store = Self::new();
+        store.enable_auto_save();
+        store
     }
 
     /// Create a new collection
@@ -749,19 +795,8 @@ impl VectorStore {
             }
         }
 
-        // Auto-save after insertion for GPU collections
-        #[cfg(feature = "wgpu-gpu")]
-        match collection_ref.deref() {
-            CollectionType::Metal(_) | CollectionType::Vulkan(_) | CollectionType::DirectX12(_) => {
-                // Auto-save GPU collections to ensure persistence
-                if let Err(e) = self.save("vector_store_gpu.json") {
-                    warn!("Failed to auto-save GPU collection '{}': {}", collection_name, e);
-                } else {
-                    debug!("Auto-saved GPU collection '{}'", collection_name);
-                }
-            },
-            _ => {}
-        }
+        // Mark collection for auto-save
+        self.mark_collection_for_save(collection_name);
 
         Ok(())
     }
@@ -778,6 +813,9 @@ impl VectorStore {
         collection_ref.delete_vector(&vector.id)?;
         collection_ref.add_vector(vector.id.clone(), vector)?;
 
+        // Mark collection for auto-save
+        self.mark_collection_for_save(collection_name);
+
         Ok(())
     }
 
@@ -790,6 +828,9 @@ impl VectorStore {
 
         let collection_ref = self.get_collection(collection_name)?;
         collection_ref.delete_vector(vector_id)?;
+
+        // Mark collection for auto-save
+        self.mark_collection_for_save(collection_name);
 
         Ok(())
     }
@@ -968,6 +1009,443 @@ pub struct VectorStoreStats {
     pub total_vectors: usize,
     /// Estimated memory usage in bytes
     pub total_memory_bytes: usize,
+}
+
+impl VectorStore {
+    /// Get the centralized data directory path (same as DocumentLoader)
+    fn get_data_dir() -> PathBuf {
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        current_dir.join("data")
+    }
+
+    /// Load all persisted collections from the data directory
+    pub fn load_all_persisted_collections(&mut self) -> Result<usize> {
+        let data_dir = Self::get_data_dir();
+        if !data_dir.exists() {
+            debug!("Data directory does not exist: {:?}", data_dir);
+            return Ok(0);
+        }
+
+        let mut collections_loaded = 0;
+
+        // Find all .bin files in the data directory
+        for entry in std::fs::read_dir(&data_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if let Some(extension) = path.extension() {
+                if extension == "bin" {
+                    // Extract collection name from filename (remove _vector_store.bin suffix)
+                    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                        if let Some(collection_name) = filename.strip_suffix("_vector_store.bin") {
+                            debug!("Found persisted collection: {}", collection_name);
+
+                            match self.load_persisted_collection(&path, collection_name) {
+                                Ok(_) => {
+                                    collections_loaded += 1;
+                                    info!("✅ Successfully loaded collection '{}' from persistence", collection_name);
+                                }
+                                Err(e) => {
+                                    warn!("❌ Failed to load collection '{}' from {:?}: {}", collection_name, path, e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        info!("📊 Loaded {} collections from persistence directory", collections_loaded);
+        Ok(collections_loaded)
+    }
+
+    /// Load dynamic collections that are not in the workspace
+    /// Call this after workspace initialization to load any additional persisted collections
+    pub fn load_dynamic_collections(&mut self) -> Result<usize> {
+        let data_dir = Self::get_data_dir();
+        if !data_dir.exists() {
+            debug!("Data directory does not exist: {:?}", data_dir);
+            return Ok(0);
+        }
+
+        let mut dynamic_collections_loaded = 0;
+        let existing_collections: std::collections::HashSet<String> = self.list_collections().into_iter().collect();
+
+        // Find all .bin files in the data directory that are not already loaded
+        for entry in std::fs::read_dir(&data_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if let Some(extension) = path.extension() {
+                if extension == "bin" {
+                    // Extract collection name from filename (remove _vector_store.bin suffix)
+                    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                        if let Some(collection_name) = filename.strip_suffix("_vector_store.bin") {
+                            // Skip if this collection is already loaded (from workspace)
+                            if existing_collections.contains(collection_name) {
+                                debug!("Skipping collection '{}' - already loaded from workspace", collection_name);
+                                continue;
+                            }
+
+                            debug!("Loading dynamic collection: {}", collection_name);
+
+                            match self.load_persisted_collection(&path, collection_name) {
+                                Ok(_) => {
+                                    dynamic_collections_loaded += 1;
+                                    info!("✅ Loaded dynamic collection '{}' from persistence", collection_name);
+                                }
+                                Err(e) => {
+                                    warn!("❌ Failed to load dynamic collection '{}' from {:?}: {}", collection_name, path, e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if dynamic_collections_loaded > 0 {
+            info!("📊 Loaded {} additional dynamic collections from persistence", dynamic_collections_loaded);
+        }
+
+        Ok(dynamic_collections_loaded)
+    }
+
+    /// Load a single persisted collection from file
+    fn load_persisted_collection<P: AsRef<std::path::Path>>(&mut self, path: P, collection_name: &str) -> Result<()> {
+        use crate::persistence::PersistedVectorStore;
+
+        let path = path.as_ref();
+        debug!("Loading persisted collection '{}' from {:?}", collection_name, path);
+
+        // Read and parse the JSON file
+        let json_data = std::fs::read_to_string(path)?;
+        let persisted: PersistedVectorStore = serde_json::from_str(&json_data)?;
+
+        // Check version
+        if persisted.version != 1 {
+            return Err(crate::error::VectorizerError::Other(format!(
+                "Unsupported persisted collection version: {}",
+                persisted.version
+            )));
+        }
+
+        // Find the collection in the persisted data
+        let persisted_collection = persisted.collections.iter()
+            .find(|c| c.name == collection_name)
+            .ok_or_else(|| crate::error::VectorizerError::Other(format!(
+                "Collection '{}' not found in persisted data", collection_name
+            )))?;
+
+        // Create collection with the persisted config
+        let mut config = persisted_collection.config.clone();
+        config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
+
+        self.create_collection_with_quantization(collection_name, config)?;
+
+        // Load vectors if any exist
+        if !persisted_collection.vectors.is_empty() {
+            debug!("Loading {} vectors into collection '{}'", persisted_collection.vectors.len(), collection_name);
+            self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
+        }
+
+        Ok(())
+    }
+
+    /// Enable auto-save for all collections
+    /// Call this after initialization is complete
+    pub fn enable_auto_save(&self) {
+        self.auto_save_enabled.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        // Start background save task
+        let pending_saves: Arc<std::sync::Mutex<HashSet<String>>> = Arc::clone(&self.pending_saves);
+        let collections = Arc::clone(&self.collections);
+
+        let save_task = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(30)); // Save every 30 seconds
+
+            loop {
+                interval.tick().await;
+
+                if !pending_saves.lock().unwrap().is_empty() {
+                    info!("🔄 Background save: {} collections pending", pending_saves.lock().unwrap().len());
+
+                    // Process all pending saves
+                    let collections_to_save: Vec<String> = pending_saves.lock().unwrap().iter().cloned().collect();
+                    pending_saves.lock().unwrap().clear();
+
+                    for collection_name in collections_to_save {
+                        if let Some(collection) = collections.get(&collection_name) {
+                            match Self::save_collection_to_file_static(&collection_name, &*collection) {
+                                Ok(_) => debug!("✅ Background saved collection '{}'", collection_name),
+                                Err(e) => warn!("❌ Background save failed for '{}': {}", collection_name, e),
+                            }
+                        }
+                    }
+
+                    info!("✅ Background save completed");
+                }
+            }
+        });
+
+        // Store the task handle
+        *self.save_task_handle.lock().unwrap() = Some(save_task);
+        info!("✅ Auto-save enabled with background task");
+    }
+
+    /// Disable auto-save for all collections
+    /// Useful during bulk operations or maintenance
+    pub fn disable_auto_save(&self) {
+        self.auto_save_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
+        info!("⏸️ Auto-save disabled for all collections");
+    }
+
+    /// Force immediate save of all pending collections
+    /// Useful before shutdown or critical operations
+    pub fn force_save_all(&self) -> Result<()> {
+        if self.pending_saves.lock().unwrap().is_empty() {
+            debug!("No pending saves to force");
+            return Ok(());
+        }
+
+        info!("🔄 Force saving {} pending collections", self.pending_saves.lock().unwrap().len());
+
+        let collections_to_save: Vec<String> = self.pending_saves.lock().unwrap().iter().cloned().collect();
+        self.pending_saves.lock().unwrap().clear();
+
+        for collection_name in collections_to_save {
+            if let Some(collection) = self.collections.get(&collection_name) {
+                match Self::save_collection_to_file_static(&collection_name, &*collection) {
+                    Ok(_) => debug!("✅ Force saved collection '{}'", collection_name),
+                    Err(e) => warn!("❌ Force save failed for '{}': {}", collection_name, e),
+                }
+            }
+        }
+
+        info!("✅ Force save completed");
+        Ok(())
+    }
+
+    /// Save a single collection to file following workspace pattern
+    /// Creates separate files for vectors, tokenizer, and metadata
+    pub fn save_collection_to_file(&self, collection_name: &str) -> Result<()> {
+        use std::fs;
+        use crate::persistence::PersistedCollection;
+
+        info!("Saving collection '{}' to individual files", collection_name);
+
+        // Get collection
+        let collection = self.get_collection(collection_name)?;
+        let metadata = collection.metadata();
+
+        // Ensure data directory exists
+        let data_dir = Self::get_data_dir();
+        if let Err(e) = fs::create_dir_all(&data_dir) {
+            return Err(crate::error::VectorizerError::Other(format!(
+                "Failed to create data directory '{}': {}",
+                data_dir.display(),
+                e
+            )));
+        }
+
+        // Collect all vectors from the collection
+        let vectors: Vec<crate::persistence::PersistedVector> = collection
+            .get_all_vectors()
+            .into_iter()
+            .map(crate::persistence::PersistedVector::from)
+            .collect();
+
+        // Create persisted collection
+        let persisted_collection = PersistedCollection {
+            name: collection_name.to_string(),
+            config: metadata.config.clone(),
+            vectors,
+            hnsw_dump_basename: None,
+        };
+
+        // Save vectors to binary file (following workspace pattern)
+        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
+        self.save_collection_vectors_binary(&persisted_collection, &vector_store_path)?;
+
+        // Save metadata to JSON file
+        let metadata_path = data_dir.join(format!("{}_metadata.json", collection_name));
+        self.save_collection_metadata(&persisted_collection, &metadata_path)?;
+
+        // Save tokenizer (for dynamic collections, create a minimal tokenizer)
+        let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
+        self.save_collection_tokenizer(collection_name, &tokenizer_path)?;
+
+        info!("Successfully saved collection '{}' to files", collection_name);
+        Ok(())
+    }
+
+    /// Static method to save collection to file (for background task)
+    fn save_collection_to_file_static(collection_name: &str, collection: &CollectionType) -> Result<()> {
+        use std::fs;
+        use crate::persistence::PersistedCollection;
+
+        debug!("Saving collection '{}' to individual files", collection_name);
+
+        // Get collection metadata
+        let metadata = collection.metadata();
+
+        // Ensure data directory exists
+        let data_dir = Self::get_data_dir();
+        if let Err(e) = fs::create_dir_all(&data_dir) {
+            return Err(crate::error::VectorizerError::Other(format!(
+                "Failed to create data directory '{}': {}",
+                data_dir.display(),
+                e
+            )));
+        }
+
+        // Collect all vectors from the collection
+        let vectors: Vec<crate::persistence::PersistedVector> = collection
+            .get_all_vectors()
+            .into_iter()
+            .map(crate::persistence::PersistedVector::from)
+            .collect();
+
+        // Create persisted collection
+        let persisted_collection = PersistedCollection {
+            name: collection_name.to_string(),
+            config: metadata.config.clone(),
+            vectors,
+            hnsw_dump_basename: None,
+        };
+
+        // Save vectors to binary file
+        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
+        Self::save_collection_vectors_binary_static(&persisted_collection, &vector_store_path)?;
+
+        // Save metadata to JSON file
+        let metadata_path = data_dir.join(format!("{}_metadata.json", collection_name));
+        Self::save_collection_metadata_static(&persisted_collection, &metadata_path)?;
+
+        // Save tokenizer
+        let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
+        Self::save_collection_tokenizer_static(collection_name, &tokenizer_path)?;
+
+        debug!("Successfully saved collection '{}' to files", collection_name);
+        Ok(())
+    }
+
+    /// Mark a collection for auto-save (internal method)
+    fn mark_collection_for_save(&self, collection_name: &str) {
+        if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+            self.pending_saves.lock().unwrap().insert(collection_name.to_string());
+        }
+    }
+
+    /// Save collection vectors to binary file
+    fn save_collection_vectors_binary(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let json_data = serde_json::to_string_pretty(&persisted_collection)?;
+        let mut file = File::create(path)?;
+        file.write_all(json_data.as_bytes())?;
+
+        debug!("Saved {} vectors to {}", persisted_collection.vectors.len(), path.display());
+        Ok(())
+    }
+
+    /// Save collection metadata to JSON file
+    fn save_collection_metadata(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let metadata = serde_json::json!({
+            "name": persisted_collection.name,
+            "config": persisted_collection.config,
+            "vector_count": persisted_collection.vectors.len(),
+            "created_at": chrono::Utc::now().to_rfc3339(),
+        });
+
+        let json_data = serde_json::to_string_pretty(&metadata)?;
+        let mut file = File::create(path)?;
+        file.write_all(json_data.as_bytes())?;
+
+        debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
+        Ok(())
+    }
+
+    /// Save collection tokenizer to JSON file
+    fn save_collection_tokenizer(&self, collection_name: &str, path: &std::path::Path) -> Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        // For dynamic collections, create a minimal tokenizer
+        let tokenizer_data = serde_json::json!({
+            "collection_name": collection_name,
+            "tokenizer_type": "dynamic",
+            "created_at": chrono::Utc::now().to_rfc3339(),
+            "vocab_size": 0,
+            "special_tokens": {},
+        });
+
+        let json_data = serde_json::to_string_pretty(&tokenizer_data)?;
+        let mut file = File::create(path)?;
+        file.write_all(json_data.as_bytes())?;
+
+        debug!("Saved tokenizer for '{}' to {}", collection_name, path.display());
+        Ok(())
+    }
+
+    /// Static version of save_collection_vectors_binary
+    fn save_collection_vectors_binary_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let json_data = serde_json::to_string_pretty(&persisted_collection)?;
+        let mut file = File::create(path)?;
+        file.write_all(json_data.as_bytes())?;
+
+        debug!("Saved {} vectors to {}", persisted_collection.vectors.len(), path.display());
+        Ok(())
+    }
+
+    /// Static version of save_collection_metadata
+    fn save_collection_metadata_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let metadata = serde_json::json!({
+            "name": persisted_collection.name,
+            "config": persisted_collection.config,
+            "vector_count": persisted_collection.vectors.len(),
+            "created_at": chrono::Utc::now().to_rfc3339(),
+        });
+
+        let json_data = serde_json::to_string_pretty(&metadata)?;
+        let mut file = File::create(path)?;
+        file.write_all(json_data.as_bytes())?;
+
+        debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
+        Ok(())
+    }
+
+    /// Static version of save_collection_tokenizer
+    fn save_collection_tokenizer_static(collection_name: &str, path: &std::path::Path) -> Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        // For dynamic collections, create a minimal tokenizer
+        let tokenizer_data = serde_json::json!({
+            "collection_name": collection_name,
+            "tokenizer_type": "dynamic",
+            "created_at": chrono::Utc::now().to_rfc3339(),
+            "vocab_size": 0,
+            "special_tokens": {},
+        });
+
+        let json_data = serde_json::to_string_pretty(&tokenizer_data)?;
+        let mut file = File::create(path)?;
+        file.write_all(json_data.as_bytes())?;
+
+        debug!("Saved tokenizer for '{}' to {}", collection_name, path.display());
+        Ok(())
+    }
 }
 
 #[cfg(test)]
