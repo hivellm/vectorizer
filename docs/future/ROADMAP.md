@@ -1,8 +1,8 @@
 # Vectorizer Future Features Roadmap
 
-**Version**: 0.22.0 - 1.0.0  
+**Version**: 0.28.0 - 1.0.0  
 **Timeline**: Q4 2025 - Q1 2026  
-**Last Updated**: October 1, 2025 - **PRIORITIES REVISED BASED ON BENCHMARKS**
+**Last Updated**: October 4, 2025 - **UPDATED WITH v0.27.0 CRITICAL FIXES**
 
 ## 🎯 Vision - **REVISED WITH BENCHMARK INSIGHTS**
 
@@ -17,17 +17,19 @@ Transform the Vectorizer from a functional vector database into a **production-g
 ```
 Q4 2025 (Oct-Dec)          Q1 2026 (Jan-Feb)
 ├─────────────────────────┼─────────────────────────┤
-│ v0.22.0  │ v0.23.0      │ v0.24.0  │ v1.0.0      │
+│ v0.28.0  │ v0.29.0      │ v0.30.0  │ v1.0.0      │
 │ Phase 1  │ Phase 2      │ Phase 3  │ Phase 4     │
 │ Quantization│ Stability │ UX       │ Polish      │
 │ + Dashboard │           │ Advanced │ & Launch    │
 └──────────┴──────────────┴──────────┴─────────────┘
+
+✅ v0.27.0 COMPLETED: Critical cache loading bug fixed, GPU detection improved
 ```
 
 ## 🗓️ Detailed Phases - **REVISED WITH QUANTIZATION FIRST**
 
-### Phase 1: Quantization + Dashboard (v0.22.0) - 9 weeks
-**Timeline**: Oct 1 - Dec 3, 2025  
+### Phase 1: Quantization + Dashboard (v0.28.0) - 9 weeks
+**Timeline**: Oct 4 - Dec 6, 2025  
 **Focus**: Immediate value with 4x memory reduction
 
 #### Week 1-6: Memory & Quantization (PRIORITY #1)
