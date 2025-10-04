@@ -133,6 +133,18 @@ impl GrpcVectorOperations {
         Ok(())
     }
 
+    /// Remove a vector by ID from the collection
+    pub async fn remove_vector(&self, vector_id: &str, collection_name: &str) -> Result<()> {
+        if let Some(grpc_client) = &self.grpc_client {
+            self.remove_vector_grpc(grpc_client, collection_name, vector_id).await?;
+        } else {
+            self.remove_vector_local(collection_name, vector_id).await?;
+        }
+
+        tracing::info!("Removed vector: {} from collection: {}", vector_id, collection_name);
+        Ok(())
+    }
+
     /// Generate embedding for text content
     async fn generate_embedding(&self, content: &str) -> Result<Vec<f32>> {
         let manager = self.embedding_manager.read().await;
