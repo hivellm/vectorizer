@@ -5,6 +5,10 @@
 
 #![allow(warnings)]
 
+// Feature conflict detection
+#[cfg(all(feature = "cuda", feature = "wgpu-gpu"))]
+compile_error!("Features 'cuda' and 'wgpu-gpu' are mutually exclusive. Please choose only one GPU backend.");
+
 pub mod api;
 pub mod auth;
 pub mod batch;

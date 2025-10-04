@@ -192,7 +192,7 @@ path = "src/bin/vectorizer-mcp-server.rs"
 
 
 [features]
-default = ["cuda_real"]
+default = []
 cuda = []
 cuda_real = ["cuda"]
 metal = ["wgpu", "pollster", "bytemuck", "futures"]
