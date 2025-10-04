@@ -55,25 +55,21 @@ fn get_node_at(index: u32) -> HnswNode {
     );
 }
 
-fn get_vector_at(offset: u32, dimension: u32) -> array<f32> {
-    // This is a simplified version - in reality we'd need to handle
-    // variable-length arrays differently in WGSL
-    var vector: array<f32, 768>; // Max dimension
-    for (var i: u32 = 0u; i < dimension; i++) {
-        vector[i] = vector_buffer[offset + i];
-    }
-    return vector;
+fn get_vector_component(offset: u32, index: u32) -> f32 {
+    return vector_buffer[offset + index];
 }
 
-fn cosine_similarity(a: array<f32>, b: array<f32>, dimension: u32) -> f32 {
+fn cosine_similarity_with_offset(offset_a: u32, offset_b: u32, dimension: u32) -> f32 {
     var dot: f32 = 0.0;
     var norm_a: f32 = 0.0;
     var norm_b: f32 = 0.0;
     
     for (var i: u32 = 0u; i < dimension; i++) {
-        dot += a[i] * b[i];
-        norm_a += a[i] * a[i];
-        norm_b += b[i] * b[i];
+        let val_a = vector_buffer[offset_a + i];
+        let val_b = vector_buffer[offset_b + i];
+        dot += val_a * val_b;
+        norm_a += val_a * val_a;
+        norm_b += val_b * val_b;
     }
     
     norm_a = sqrt(norm_a);
@@ -86,37 +82,37 @@ fn cosine_similarity(a: array<f32>, b: array<f32>, dimension: u32) -> f32 {
     return dot / (norm_a * norm_b);
 }
 
-fn euclidean_distance(a: array<f32>, b: array<f32>, dimension: u32) -> f32 {
+fn euclidean_distance_with_offset(offset_a: u32, offset_b: u32, dimension: u32) -> f32 {
     var sum_squared_diff: f32 = 0.0;
     
     for (var i: u32 = 0u; i < dimension; i++) {
-        let diff = a[i] - b[i];
+        let diff = vector_buffer[offset_a + i] - vector_buffer[offset_b + i];
         sum_squared_diff += diff * diff;
     }
     
     return sqrt(sum_squared_diff);
 }
 
-fn dot_product(a: array<f32>, b: array<f32>, dimension: u32) -> f32 {
+fn dot_product_with_offset(offset_a: u32, offset_b: u32, dimension: u32) -> f32 {
     var dot: f32 = 0.0;
     
     for (var i: u32 = 0u; i < dimension; i++) {
-        dot += a[i] * b[i];
+        dot += vector_buffer[offset_a + i] * vector_buffer[offset_b + i];
     }
     
     return dot;
 }
 
-fn calculate_distance(query: array<f32>, vector: array<f32>, dimension: u32, metric_type: u32) -> f32 {
+fn calculate_distance_with_offset(query_offset: u32, vector_offset: u32, dimension: u32, metric_type: u32) -> f32 {
     switch (metric_type) {
         case 0u: { // Cosine similarity
-            return cosine_similarity(query, vector, dimension);
+            return cosine_similarity_with_offset(query_offset, vector_offset, dimension);
         }
         case 1u: { // Euclidean distance
-            return euclidean_distance(query, vector, dimension);
+            return euclidean_distance_with_offset(query_offset, vector_offset, dimension);
         }
         case 2u: { // Dot product
-            return dot_product(query, vector, dimension);
+            return dot_product_with_offset(query_offset, vector_offset, dimension);
         }
         default: {
             return 0.0;
@@ -140,7 +136,7 @@ fn find_entry_point() -> u32 {
     return entry_point;
 }
 
-fn greedy_search(query: array<f32>, entry_point: u32, level: u32) -> u32 {
+fn greedy_search(query_offset: u32, entry_point: u32, level: u32) -> u32 {
     var current_node: u32 = entry_point;
     var improved: bool = true;
     
@@ -149,8 +145,7 @@ fn greedy_search(query: array<f32>, entry_point: u32, level: u32) -> u32 {
         
         // Get current node
         let node = get_node_at(current_node);
-        let current_vector = get_vector_at(node.vector_offset, params.dimension);
-        let current_distance = calculate_distance(query, current_vector, params.dimension, params.metric_type);
+        let current_distance = calculate_distance_with_offset(query_offset, node.vector_offset, params.dimension, params.metric_type);
         
         // Check all connections at this level
         for (var i: u32 = 0u; i < node.connection_count; i++) {
@@ -166,16 +161,16 @@ fn greedy_search(query: array<f32>, entry_point: u32, level: u32) -> u32 {
                 continue; // Skip lower level connections
             }
             
-            let neighbor_vector = get_vector_at(neighbor.vector_offset, params.dimension);
-            let neighbor_distance = calculate_distance(query, neighbor_vector, params.dimension, params.metric_type);
+            let neighbor_distance = calculate_distance_with_offset(query_offset, neighbor.vector_offset, params.dimension, params.metric_type);
             
             // For similarity metrics (cosine, dot), we want higher values
             // For distance metrics (euclidean), we want lower values
-            let is_better = if (params.metric_type == 1u) { // Euclidean
-                neighbor_distance < current_distance
+            var is_better: bool;
+            if (params.metric_type == 1u) { // Euclidean
+                is_better = neighbor_distance < current_distance;
             } else { // Cosine or Dot Product
-                neighbor_distance > current_distance
-            };
+                is_better = neighbor_distance > current_distance;
+            }
             
             if (is_better) {
                 current_node = neighbor_id;
@@ -190,11 +185,8 @@ fn greedy_search(query: array<f32>, entry_point: u32, level: u32) -> u32 {
 
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    // Initialize query vector from buffer
-    var query: array<f32, 768>; // Max dimension
-    for (var i: u32 = 0u; i < params.dimension; i++) {
-        query[i] = query_buffer[i];
-    }
+    // Query vector starts at offset 0 in query_buffer
+    let query_offset: u32 = 0u;
     
     // Find entry point (highest level node)
     let entry_point = find_entry_point();
@@ -205,7 +197,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     // Greedy search at each level from top to bottom
     for (var level: u32 = top_node.level; level > 0u; level--) {
-        current_node = greedy_search(query, current_node, level);
+        current_node = greedy_search(query_offset, current_node, level);
     }
     
     // Final search at level 0 with ef_search

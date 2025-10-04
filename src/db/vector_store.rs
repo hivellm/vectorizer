@@ -7,6 +7,7 @@ use crate::{
 };
 use dashmap::DashMap;
 use std::sync::Arc;
+use std::ops::Deref;
 use tracing::{debug, info, warn};
 
 use super::collection::Collection;
@@ -461,8 +462,15 @@ impl VectorStore {
     pub fn new_auto_universal() -> Self {
         use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
         
-        eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
+        //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
         info!("🔍 Starting universal GPU backend detection...");
+        
+        // Try to load existing persisted data first
+        if let Ok(mut store) = Self::load("vector_store_gpu.json") {
+            eprintln!("✅ Loaded existing GPU vector store from persistence");
+            info!("✅ Loaded existing GPU vector store from persistence");
+            return store;
+        }
         
         // Detect all available backends
         let available = detect_available_backends();
@@ -552,7 +560,7 @@ impl VectorStore {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        // Prioridade: Metal > CUDA > CPU
+        // Prioridade: Metal > Vulkan > DirectX12 > CUDA > CPU
         #[cfg(feature = "wgpu-gpu")]
         if let Some(ref metal_cfg) = self.metal_config {
             if metal_cfg.enabled {
@@ -563,6 +571,34 @@ impl VectorStore {
                 let collection = CollectionType::Metal(metal_collection);
                 self.collections.insert(name.to_string(), collection);
                 info!("Collection '{}' created successfully with Metal GPU", name);
+                return Ok(());
+            }
+        }
+
+        #[cfg(feature = "wgpu-gpu")]
+        if let Some(ref vulkan_cfg) = self.vulkan_config {
+            if vulkan_cfg.enabled {
+                info!("Creating Vulkan GPU-accelerated collection '{}'", name);
+                let vulkan_collection = pollster::block_on(
+                    crate::gpu::VulkanCollection::new(name.to_string(), config, vulkan_cfg.clone())
+                )?;
+                let collection = CollectionType::Vulkan(vulkan_collection);
+                self.collections.insert(name.to_string(), collection);
+                info!("Collection '{}' created successfully with Vulkan GPU", name);
+                return Ok(());
+            }
+        }
+
+        #[cfg(feature = "wgpu-gpu")]
+        if let Some(ref dx12_cfg) = self.dx12_config {
+            if dx12_cfg.enabled {
+                info!("Creating DirectX 12 GPU-accelerated collection '{}'", name);
+                let dx12_collection = pollster::block_on(
+                    crate::gpu::DirectX12Collection::new(name.to_string(), config, dx12_cfg.clone())
+                )?;
+                let collection = CollectionType::DirectX12(dx12_collection);
+                self.collections.insert(name.to_string(), collection);
+                info!("Collection '{}' created successfully with DirectX 12 GPU", name);
                 return Ok(());
             }
         }
@@ -688,18 +724,44 @@ impl VectorStore {
     /// Insert vectors into a collection
     pub fn insert(&self, collection_name: &str, vectors: Vec<Vector>) -> Result<()> {
         debug!(
-            "Inserting {} vectors into collection '{}' (parallel)",
+            "Inserting {} vectors into collection '{}'",
             vectors.len(),
             collection_name
         );
 
         let collection_ref = self.get_collection(collection_name)?;
 
-        // Use parallel iteration for better performance
-        use rayon::prelude::*;
-        vectors.into_par_iter().try_for_each(|vector| {
-            collection_ref.add_vector(vector.id.clone(), vector)
-        })?;
+        // Check if this is a GPU collection that needs async handling
+        match collection_ref.deref() {
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Metal(_) | CollectionType::Vulkan(_) | CollectionType::DirectX12(_) => {
+                // For GPU collections, use sequential insertion to avoid async issues
+                for vector in vectors {
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            },
+            _ => {
+                // For CPU collections, use parallel iteration for better performance
+                use rayon::prelude::*;
+                vectors.into_par_iter().try_for_each(|vector| {
+                    collection_ref.add_vector(vector.id.clone(), vector)
+                })?;
+            }
+        }
+
+        // Auto-save after insertion for GPU collections
+        #[cfg(feature = "wgpu-gpu")]
+        match collection_ref.deref() {
+            CollectionType::Metal(_) | CollectionType::Vulkan(_) | CollectionType::DirectX12(_) => {
+                // Auto-save GPU collections to ensure persistence
+                if let Err(e) = self.save("vector_store_gpu.json") {
+                    warn!("Failed to auto-save GPU collection '{}': {}", collection_name, e);
+                } else {
+                    debug!("Auto-saved GPU collection '{}'", collection_name);
+                }
+            },
+            _ => {}
+        }
 
         Ok(())
     }

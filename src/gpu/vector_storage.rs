@@ -220,6 +220,8 @@ impl GpuVectorStorage {
             let mut id_map = self.vector_id_map.write();
             id_map.insert(vector.id.clone(), *count as u32);
             *count += 1;
+            
+            debug!("GPU Vector Storage: Added vector '{}', total count now: {}", vector.id, *count);
         }
 
         debug!("Added vector {} to GPU storage at offset {}", vector.id, buffer_offset);
@@ -332,6 +334,9 @@ impl GpuVectorStorage {
         let total_free = free_space.iter().map(|(_, size)| *size).sum::<u64>();
         let memory_usage_percent = (memory_usage as f64 / self.config.gpu_memory_limit as f64) * 100.0;
 
+        debug!("GPU Vector Storage Stats: vector_count={}, memory_used={}MB, free_space={}MB", 
+               current_count, memory_usage / (1024*1024), total_free / (1024*1024));
+
         GpuVectorStorageStats {
             vector_count: current_count,
             max_capacity: self.config.max_capacity,
@@ -406,7 +411,7 @@ impl GpuVectorStorage {
         let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("vector_staging"),
             size: data.len() as u64 * std::mem::size_of::<f32>() as u64,
-            usage: BufferUsages::COPY_SRC,
+            usage: BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -441,7 +446,7 @@ impl GpuVectorStorage {
         let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("metadata_staging"),
             size: std::mem::size_of::<GpuVectorMetadata>() as u64,
-            usage: BufferUsages::COPY_SRC,
+            usage: BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 

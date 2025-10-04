@@ -215,7 +215,7 @@ impl GpuHnswStorage {
             let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("vector_staging"),
                 size: vector.data.len() as u64 * std::mem::size_of::<f32>() as u64,
-                usage: BufferUsages::COPY_SRC,
+                usage: BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
 
@@ -281,7 +281,7 @@ impl GpuHnswStorage {
             let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("node_staging"),
                 size: std::mem::size_of::<GpuHnswNode>() as u64,
-                usage: BufferUsages::COPY_SRC,
+                usage: BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
 

@@ -41,7 +41,7 @@ impl BufferManager {
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
             size,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         Ok(buffer)

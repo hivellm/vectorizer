@@ -211,7 +211,7 @@ impl VectorStore {
             )));
         }
 
-        // Create new vector store
+        // Create new vector store (CPU-only to avoid recursion)
         let store = VectorStore::new();
 
         // Restore collections with fast loading and automatic quantization
