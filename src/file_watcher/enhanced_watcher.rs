@@ -382,7 +382,7 @@ impl EnhancedFileWatcher {
     }
 
     /// Check if file matches include/exclude patterns
-    fn file_matches_patterns(
+    pub fn file_matches_patterns(
         file_path: &PathBuf,
         include_patterns: &[String],
         exclude_patterns: &[String],
@@ -391,6 +391,14 @@ impl EnhancedFileWatcher {
         for pattern in exclude_patterns {
             if Self::matches_pattern(file_path, pattern) {
                 return false;
+            }
+            // Also check if any part of the path starts with a dot (hidden files/dirs)
+            if pattern == "**/.*" {
+                if let Some(path_str) = file_path.to_str() {
+                    if path_str.contains("/.") || path_str.starts_with('.') {
+                        return false;
+                    }
+                }
             }
         }
 
@@ -410,20 +418,32 @@ impl EnhancedFileWatcher {
     }
 
     /// Check if file matches a glob pattern
-    fn matches_pattern(file_path: &PathBuf, pattern: &str) -> bool {
+    pub fn matches_pattern(file_path: &PathBuf, pattern: &str) -> bool {
         // Simple pattern matching - can be enhanced with proper glob library
         if let Some(file_str) = file_path.to_str() {
             if pattern.contains("**") {
-                // Handle recursive patterns
-                let pattern = pattern.replace("**", "*");
-                file_str.contains(&pattern.replace("*", ""))
+                // Handle recursive patterns like **/*.rs
+                if pattern.starts_with("**/") {
+                    let suffix = &pattern[3..]; // Remove "**/"
+                    if suffix == "*" {
+                        return true; // **/* matches everything
+                    } else if suffix.starts_with("*.") {
+                        let ext = &suffix[1..]; // Remove "*" to get ".ext"
+                        return file_str.ends_with(ext);
+                    }
+                }
+                return file_str.contains(&pattern.replace("**", ""));
             } else if pattern.contains("*") {
-                // Handle simple wildcards
-                let pattern = pattern.replace("*", "");
-                file_str.contains(&pattern)
+                // Handle simple wildcards like *.rs
+                if pattern.starts_with("*.") {
+                    return file_str.ends_with(&pattern[1..]); // Remove "*" to get ".ext"
+                } else {
+                    let pattern = pattern.replace("*", "");
+                    return file_str.contains(&pattern);
+                }
             } else {
                 // Exact match
-                file_str == pattern || file_str.ends_with(pattern)
+                return file_str == pattern || file_str.ends_with(pattern);
             }
         } else {
             false

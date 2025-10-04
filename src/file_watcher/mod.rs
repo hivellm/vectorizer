@@ -11,6 +11,9 @@ pub mod grpc_operations;
 pub mod file_index;
 pub mod enhanced_watcher;
 
+#[cfg(test)]
+pub mod test_enhanced_watcher;
+
 pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
 pub use grpc_operations::GrpcVectorOperations;

@@ -69,7 +69,7 @@ mod integration_tests {
             dimension: 64,
             metric: crate::models::DistanceMetric::Euclidean,
             hnsw_config: crate::models::HnswConfig::default(),
-            quantization: None,
+            quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
         };
 
@@ -167,7 +167,7 @@ mod integration_tests {
                         ef_search: 50,
                         seed: None,
                     },
-                    quantization: None,
+                    quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
                 },
             ),
@@ -182,7 +182,7 @@ mod integration_tests {
                         ef_search: 100,
                         seed: Some(123),
                     },
-                    quantization: None,
+                    quantization: crate::models::QuantizationConfig::None,
                     compression: crate::models::CompressionConfig {
                         enabled: true,
                         threshold_bytes: 2048,
