@@ -17,10 +17,13 @@ pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
+#[cfg(feature = "wgpu-gpu")]
+pub mod gpu;
 pub mod grpc;
 pub mod hybrid_search;
 pub mod mcp;
 pub mod mcp_service;
+pub mod memory_snapshot;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
@@ -31,8 +34,6 @@ pub mod utils;
 pub mod file_watcher;
 pub mod process_manager;
 pub mod logging;
-pub mod quantization;
-pub mod memory_snapshot;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};
@@ -42,7 +43,6 @@ pub use evaluation::{EvaluationMetrics, QueryMetrics, QueryResult, evaluate_sear
 pub use models::{CollectionConfig, Payload, SearchResult, Vector};
 pub use batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder};
 pub use summarization::{SummarizationManager, SummarizationConfig, SummarizationMethod, SummarizationResult, SummarizationError};
-pub use quantization::{QuantizationManager, QuantizationConfig, QuantizationType, QuantizationStats};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -69,7 +69,7 @@ mod integration_tests {
             dimension: 64,
             metric: crate::models::DistanceMetric::Euclidean,
             hnsw_config: crate::models::HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::default(),
+            quantization: None,
             compression: Default::default(),
         };
 
@@ -167,7 +167,7 @@ mod integration_tests {
                         ef_search: 50,
                         seed: None,
                     },
-                    quantization: crate::models::QuantizationConfig::default(),
+                    quantization: None,
                     compression: Default::default(),
                 },
             ),
@@ -182,7 +182,7 @@ mod integration_tests {
                         ef_search: 100,
                         seed: Some(123),
                     },
-                    quantization: crate::models::QuantizationConfig::default(),
+                    quantization: None,
                     compression: crate::models::CompressionConfig {
                         enabled: true,
                         threshold_bytes: 2048,

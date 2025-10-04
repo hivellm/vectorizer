@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let store = vectorizer::VectorStore::new_with_cuda_config(cuda_config);
+    let store = vectorizer::VectorStore::new_auto();
     info!("Vector store initialized");
 
     // Load project documents if specified

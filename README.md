@@ -8,7 +8,6 @@ A high-performance vector database and search engine built in Rust, designed for
 - **📚 Document Indexing**: Intelligent chunking and processing of various file types
 - **🧠 Multiple Embeddings**: Support for TF-IDF, BM25, BERT, MiniLM, and custom models
 - **⚡ High Performance**: Sub-3ms search times with optimized HNSW indexing
-- **🔥 Quantization Breakthrough**: 4x memory compression with improved quality (77% memory reduction)
 - **🏗️ GRPC Architecture**: High-performance binary communication between services
 - **🔧 MCP Integration**: Model Context Protocol for AI IDE integration (Cursor, VS Code)
 - **🌐 REST API**: Complete HTTP API with authentication and security
@@ -18,39 +17,151 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🐍 Python SDK**: 🚧 In development - PyPI publishing in progress
 - **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
+- **⚡ GPU Metal Acceleration**: Native Apple Silicon GPU support for vector operations (M1/M2/M3)
+- **🎯 Simplified Workspace**: Minimal configuration with intelligent defaults (NEW in v0.26.0)
+- **🔧 Critical Bug Fixes**: Fixed cache loading system and GPU detection (NEW in v0.27.0)
 
-## ⚡ **Quick Start**
+## 🎯 **Simplified Workspace Configuration** (NEW in v0.26.0)
 
-### **🚀 Starting the Vectorizer Server**
+Dramatically reduce workspace configuration verbosity with intelligent defaults:
 
-**IMPORTANT**: Vectorizer uses a GRPC-first architecture. REST and MCP servers are managed internally by the GRPC orchestrator.
+### **Features**
+- ✅ **Minimal Collections**: Only `name`, `description`, `include_patterns`, `exclude_patterns` required
+- ✅ **Intelligent Defaults**: Centralized configuration inheritance system
+- ✅ **Backward Compatible**: Existing configurations continue to work
+- ✅ **Override Support**: Still override any default when needed
 
-```bash
-# Start all services (GRPC + REST + MCP)
-./scripts/start.sh --workspace vectorize-workspace.yml
-
-# This starts:
-# - GRPC Orchestrator (vzr) on port 15003
-# - REST API on http://127.0.0.1:15001
-# - MCP Server on ws://127.0.0.1:15002/mcp
+### **Before vs After**
+**Before (Complex)** - ~50 lines per collection:
+```yaml
+collections:
+  - name: "docs"
+    description: "Documentation"
+    dimension: 512
+    metric: "cosine"
+    embedding:
+      model: "bm25"
+      dimension: 512
+      parameters: { k1: 1.5, b: 0.75 }
+    indexing:
+      index_type: "hnsw"
+      parameters: { m: 16, ef_construction: 200, ef_search: 64 }
+    processing:
+      chunk_size: 2048
+      chunk_overlap: 256
+      include_patterns: ["docs/**/*.md"]
+      exclude_patterns: ["docs/draft/**"]
 ```
 
-### **🛑 Stopping the Server**
+**After (Ultra-Simplified)** - ~3 lines per collection:
+```yaml
+workspace:
+  name: "My Workspace"
+  version: "1.0.0"
 
-```bash
-# Kill the vzr process (this stops all services)
-pkill vzr
-
-# Alternative: Kill by process name
-pkill -f vectorizer
+projects:
+  - name: "my-project"
+    path: "../my-project"
+    collections:
+      - name: "docs"
+        description: "Documentation"
+        include_patterns: ["docs/**/*.md"]
+        exclude_patterns: ["docs/draft/**"]
 ```
 
-### **⚠️ Important Architecture Notes**
+### **Usage**
+```bash
+# Use simplified workspace configuration
+vzr start --workspace vectorize-workspace-simplified.yml
 
-- **NEVER** start REST or MCP servers separately - they depend on GRPC
-- **ALWAYS** use the workspace orchestrator (`./scripts/start.sh`)
-- **Architecture**: `Client → REST/MCP → GRPC → vzr → Vector Store`
-- **Single Entry Point**: Only `vzr` manages all services internally
+# Automatic detection - works with both formats
+vzr workspace validate --config your-workspace.yml
+```
+
+## 🔧 **Critical Bug Fixes** (NEW in v0.27.0)
+
+Fixed critical data persistence issues that were causing vector data to appear lost on restart:
+
+### **Issues Resolved**
+- ✅ **Cache Loading Bug**: Collections now correctly load from cache files
+- ✅ **GPU Detection**: CPU mode now defaults correctly (CUDA requires explicit config)
+- ✅ **Data Persistence**: All 37 collections load properly with correct vector counts
+- ✅ **Memory Management**: Improved cache operations with Clone trait support
+
+### **Before vs After**
+- **Before v0.27.0**: ❌ 0 vectors shown in API (data lost on restart)
+- **After v0.27.0**: ✅ All vectors correctly loaded (16, 272, 53, 693, 1076, 1558, etc.)
+
+### **Breaking Changes**
+- CUDA is no longer auto-enabled by default
+- CPU mode is now the default for maximum compatibility
+- Explicit CUDA configuration required in `config.yml`
+
+## 🎮 **GPU Metal Acceleration** (NEW in v0.24.0)
+
+High-performance GPU acceleration for Apple Silicon with automatic CPU fallback:
+
+### **Features**
+- ✅ **Metal Backend**: Native GPU support via `wgpu 27.0` framework
+- ✅ **Smart Fallback**: Automatic CPU fallback for small workloads
+- ✅ **Cross-Platform**: Metal (macOS), Vulkan (Linux), DirectX12 (Windows)
+- ✅ **High Performance**: Up to **3.75× speedup** on large workloads
+
+### **Supported Operations**
+- Cosine Similarity (vec4 optimized)
+- Euclidean Distance
+- Dot Product
+- Batch Search
+
+### **Performance** (Apple M3 Pro)
+- **Small** (100 vectors): CPU faster (auto fallback) ✅
+- **Medium** (1K vectors): 1.5× speedup
+- **Large** (10K vectors): **3.75× speedup**
+- **Peak**: 1.1M vectors/second
+
+### **Build with GPU**
+```bash
+# Build without GPU (default, CPU only)
+cargo build --release
+
+# Build with GPU Metal acceleration
+cargo build --release --features wgpu-gpu
+
+# Run with GPU
+cargo run --release --features wgpu-gpu
+```
+
+### **Usage Example**
+```rust
+use vectorizer::gpu::{GpuContext, GpuConfig, GpuOperations};
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize GPU context
+    let config = GpuConfig::default();
+    let ctx = GpuContext::new(config).await?;
+    
+    // Prepare data
+    let query = vec![0.1; 512];
+    let vectors: Vec<Vec<f32>> = (0..10000)
+        .map(|_| vec![0.2; 512])
+        .collect();
+    
+    // GPU-accelerated operation
+    let results = ctx.cosine_similarity(&query, &vectors).await?;
+    
+    println!("Top similarity: {}", results[0]);
+    Ok(())
+}
+```
+
+### **System Requirements**
+- **macOS**: Apple Silicon (M1/M2/M3) or Metal-compatible GPU
+- **Linux**: Vulkan-compatible GPU (optional)
+- **Windows**: DirectX12-compatible GPU (optional)
+- **Memory**: 8GB+ recommended for large datasets
+
+📚 **Full Documentation**: See `README_GPU_METAL.md` and `docs/METAL_GPU_IMPLEMENTATION.md`
 
 ## 📝 **Automatic Summarization**
 
@@ -148,11 +259,9 @@ vectorizer:
 **Version**: v0.22.0  
 **Status**: ✅ **Production Ready**  
 **Collections**: 99 active collections with 47,000+ vectors indexed  
-**Performance**: Sub-3ms search with GPU acceleration
-**Memory**: 4x compression via SQ-8bit quantization (77% reduction)
-**Quality**: MAP score improvement (+8.9% with quantization)
-**Architecture**: GRPC + REST + MCP unified server system
-**SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**
+**Performance**: Sub-3ms search with GPU acceleration  
+**Architecture**: GRPC + REST + MCP unified server system  
+**SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
 **Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
 
 
@@ -384,4 +493,3 @@ For questions or collaboration, open an issue at [hivellm/gov](https://github.co
 
 ---
 
-**Note**: This project is part of the HiveLLM ecosystem.

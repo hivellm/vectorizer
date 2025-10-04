@@ -6,9 +6,9 @@ The Vectorizer REST API provides HTTP endpoints for interacting with the vector 
 
 **Base URL**: `http://localhost:15001/api/v1`
 
-## Architecture (v0.13.0)
+## Architecture (v0.27.0)
 
-The REST API now operates as a GRPC client that communicates with the central `vzr` orchestrator service:
+The REST API operates as a GRPC client that communicates with the central `vzr` orchestrator service. **NEW in v0.27.0**: Fixed critical cache loading issues ensuring all collections load correctly.
 
 ```
 Client → REST API (Port 15001) → GRPC Client → vzr GRPC Server (Port 15003) → Vector Store

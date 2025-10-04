@@ -6,6 +6,7 @@ use crate::error::{Result, VectorizerError};
 use crate::workspace::config::*;
 use crate::workspace::parser::*;
 use crate::workspace::validator::*;
+use crate::workspace::simplified_config::*;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info, warn};
 
@@ -42,8 +43,17 @@ impl WorkspaceManager {
 
         debug!("Loading workspace from: {}", config_path.display());
 
-        // Parse configuration
-        let config = parse_workspace_config(config_path)?;
+        // Try to parse as simplified config first, then fall back to full config
+        let config = match Self::try_load_simplified_config(config_path) {
+            Ok(simplified_config) => {
+                info!("✅ Loaded simplified workspace configuration with intelligent defaults");
+                simplified_config.to_full_workspace_config()
+            }
+            Err(_) => {
+                debug!("Not a simplified config, trying full configuration format");
+                parse_workspace_config(config_path)?
+            }
+        };
 
         debug!(
             "Parsed workspace config with {} projects from YAML",
@@ -69,6 +79,27 @@ impl WorkspaceManager {
         }
 
         Ok(Self::new(config, workspace_root, config_path.to_path_buf()))
+    }
+
+    /// Try to load simplified workspace configuration
+    fn try_load_simplified_config<P: AsRef<Path>>(config_path: P) -> std::result::Result<SimplifiedWorkspaceConfig, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(config_path)?;
+        
+        debug!("Trying to parse as simplified workspace configuration...");
+        debug!("Content preview: {}", &content[..content.len().min(200)]);
+        
+        // Try to parse as simplified config - it will work if it has the simplified structure
+        // (projects with collections that only have name, description, include_patterns, exclude_patterns)
+        match crate::workspace::parser::parse_simplified_workspace_config_from_str(&content) {
+            Ok(config) => {
+                debug!("✅ Successfully parsed as simplified workspace configuration");
+                Ok(config)
+            },
+            Err(e) => {
+                debug!("❌ Failed to parse as simplified workspace configuration: {}", e);
+                Err("Not a simplified workspace configuration".into())
+            }
+        }
     }
 
     /// Find and load workspace configuration

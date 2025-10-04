@@ -1,6 +1,8 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "vectorizer"
-version = "0.21.0"
+version = "0.27.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -10,6 +12,7 @@ keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similar
 categories = ["database", "science"]
 
 [dependencies]
+ctrlc = { version = "3.4", optional = true }
 # Core dependencies
 tokio = { version = "1.40", features = ["full"] }
 axum = { version = "0.8", features = ["ws", "json"] }
@@ -36,20 +39,25 @@ ndarray = "0.16"
 cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
 cc = { version = "1.0", features = ["parallel"] }
 
+# WebGPU/Metal dependencies (cross-platform GPU acceleration)
+wgpu = { version = "27.0", features = ["wgsl"], optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1.22", features = ["derive"], optional = true }
+futures = { version = "0.3", optional = true }
+
 # Parallel processing
 rayon = "1.10"
 crossbeam = "0.8"
 num_cpus = "1.16"
+
+# Memory analysis
+memory-stats = "1.0"
 
 # Data structures
 dashmap = "6.1"
 parking_lot = "0.12"
 once_cell = "1.19"
 arc-swap = "1.7"
-lru = "0.12"
-pprof = { version = "0.13", features = ["flamegraph", "protobuf"], optional = true }
-base64 = "0.22"
-memory-stats = "1.2"
 
 # Error handling and logging
 anyhow = { version = "1.0", features = ["backtrace"] }
@@ -110,14 +118,13 @@ tokio-util = "0.7"
 async-trait = "0.1"
 
 # gRPC dependencies
-tonic = { version = "0.14", features = ["transport"] }
-tonic-prost = "0.14"
-tonic-reflection = "0.14"
-prost = "0.14"
-prost-types = "0.14"
+tonic = { version = "0.11", features = ["tls"] }
+tonic-reflection = "0.11"
+prost = "0.12"
+prost-types = "0.12"
 
 [build-dependencies]
-tonic-prost-build = "0.14"
+tonic-build = "0.11"
 cc = { version = "1.0", features = ["parallel"] }
 
 [dev-dependencies]
@@ -188,6 +195,9 @@ path = "src/bin/vectorizer-mcp-server.rs"
 default = ["cuda_real"]
 cuda = []
 cuda_real = ["cuda"]
+metal = ["wgpu", "pollster", "bytemuck", "futures"]
+wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
+gpu-accel = ["wgpu-gpu"]
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
 candle-transformers = ["dep:candle-transformers"]

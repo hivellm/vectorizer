@@ -297,17 +297,26 @@ fn validate_embedding_config(
 
     // Validate model-specific parameters
     match embedding.model {
-        EmbeddingModel::NativeBow => {
-            validate_bow_parameters(&embedding.parameters, prefix, result);
-        }
-        EmbeddingModel::NativeHash => {
-            validate_hash_parameters(&embedding.parameters, prefix, result);
-        }
-        EmbeddingModel::NativeNgram => {
-            validate_ngram_parameters(&embedding.parameters, prefix, result);
+        EmbeddingModel::TfIdf => {
+            validate_tfidf_parameters(&embedding.parameters, prefix, result);
         }
         EmbeddingModel::Bm25 => {
             validate_bm25_parameters(&embedding.parameters, prefix, result);
+        }
+        EmbeddingModel::Svd => {
+            validate_svd_parameters(&embedding.parameters, prefix, result);
+        }
+        EmbeddingModel::Bert => {
+            validate_bert_parameters(&embedding.parameters, prefix, result);
+        }
+        EmbeddingModel::MiniLm => {
+            validate_minilm_parameters(&embedding.parameters, prefix, result);
+        }
+        EmbeddingModel::BagOfWords => {
+            validate_bow_parameters(&embedding.parameters, prefix, result);
+        }
+        EmbeddingModel::CharNGram => {
+            validate_charngram_parameters(&embedding.parameters, prefix, result);
         }
         EmbeddingModel::RealModel => {
             validate_real_model_parameters(&embedding.parameters, prefix, result);
@@ -381,6 +390,121 @@ fn validate_ngram_parameters(
                         ));
                     }
                 }
+            }
+        }
+    }
+
+    if let Some(vocab_size) = parameters.get("vocab_size") {
+        if let Some(size) = vocab_size.as_u64() {
+            if size == 0 {
+                result.add_error(format!("{}: vocab_size must be greater than 0", prefix));
+            }
+        }
+    }
+}
+
+/// Validate TF-IDF parameters
+fn validate_tfidf_parameters(
+    parameters: &std::collections::HashMap<String, serde_json::Value>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    if let Some(vocab_size) = parameters.get("vocab_size") {
+        if let Some(size) = vocab_size.as_u64() {
+            if size == 0 {
+                result.add_error(format!("{}: vocab_size must be greater than 0", prefix));
+            }
+        }
+    }
+
+    if let Some(min_df) = parameters.get("min_df") {
+        if let Some(df) = min_df.as_f64() {
+            if df < 0.0 || df > 1.0 {
+                result.add_error(format!("{}: min_df must be between 0.0 and 1.0", prefix));
+            }
+        }
+    }
+}
+
+/// Validate SVD parameters
+fn validate_svd_parameters(
+    parameters: &std::collections::HashMap<String, serde_json::Value>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    if let Some(n_components) = parameters.get("n_components") {
+        if let Some(components) = n_components.as_u64() {
+            if components == 0 {
+                result.add_error(format!("{}: n_components must be greater than 0", prefix));
+            }
+        }
+    }
+
+    if let Some(iterations) = parameters.get("iterations") {
+        if let Some(iter) = iterations.as_u64() {
+            if iter == 0 {
+                result.add_error(format!("{}: iterations must be greater than 0", prefix));
+            }
+        }
+    }
+}
+
+/// Validate BERT parameters
+fn validate_bert_parameters(
+    parameters: &std::collections::HashMap<String, serde_json::Value>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    if let Some(max_seq_len) = parameters.get("max_sequence_length") {
+        if let Some(len) = max_seq_len.as_u64() {
+            if len == 0 || len > 512 {
+                result.add_error(format!("{}: max_sequence_length must be between 1 and 512", prefix));
+            }
+        }
+    }
+
+    if let Some(model_name) = parameters.get("model_name") {
+        if let Some(name) = model_name.as_str() {
+            if name.is_empty() {
+                result.add_error(format!("{}: model_name cannot be empty", prefix));
+            }
+        }
+    }
+}
+
+/// Validate MiniLM parameters
+fn validate_minilm_parameters(
+    parameters: &std::collections::HashMap<String, serde_json::Value>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    if let Some(max_seq_len) = parameters.get("max_sequence_length") {
+        if let Some(len) = max_seq_len.as_u64() {
+            if len == 0 || len > 256 {
+                result.add_error(format!("{}: max_sequence_length must be between 1 and 256", prefix));
+            }
+        }
+    }
+
+    if let Some(model_name) = parameters.get("model_name") {
+        if let Some(name) = model_name.as_str() {
+            if name.is_empty() {
+                result.add_error(format!("{}: model_name cannot be empty", prefix));
+            }
+        }
+    }
+}
+
+/// Validate CharNGram parameters
+fn validate_charngram_parameters(
+    parameters: &std::collections::HashMap<String, serde_json::Value>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    if let Some(n) = parameters.get("n") {
+        if let Some(n_val) = n.as_u64() {
+            if n_val == 0 || n_val > 10 {
+                result.add_error(format!("{}: n must be between 1 and 10", prefix));
             }
         }
     }

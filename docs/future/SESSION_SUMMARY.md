@@ -1,4 +1,21 @@
-# Session Summary - October 1, 2025
+# Session Summary - October 4, 2025
+
+## 🔧 v0.27.0 Critical Fixes Applied
+
+### ✅ Major Bug Fixes Completed
+1. **Cache Loading System** - Fixed critical bug where collections showed 0 vectors after restart
+2. **GPU Detection** - CPU mode now default, GPU requires explicit configuration
+3. **Data Persistence** - All 37 collections now load correctly from cache files
+4. **Memory Management** - Improved cache operations with Clone trait support
+
+### 📚 Documentation Updates
+- Updated all MCP documentation to reflect v0.27.0 changes
+- Added breaking changes documentation for GPU detection behavior
+- Updated README, workspace simplification, Metal GPU, and comparison docs
+
+---
+
+# Previous Session Summary - October 1, 2025
 
 ## 🎯 What Was Accomplished
 

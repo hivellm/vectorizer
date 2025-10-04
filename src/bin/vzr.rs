@@ -774,12 +774,15 @@ fn create_project_workspace_info(
                     },
                     "embedding": {
                         "model": match collection.embedding.model {
-                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "bm25",
-                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "bm25",
-                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::TfIdf => "tfidf",
                             vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
-                            vectorizer::workspace::config::EmbeddingModel::RealModel => "bm25",
-                            vectorizer::workspace::config::EmbeddingModel::OnnxModel => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::Svd => "svd",
+                            vectorizer::workspace::config::EmbeddingModel::Bert => "bert",
+                            vectorizer::workspace::config::EmbeddingModel::MiniLm => "minilm",
+                            vectorizer::workspace::config::EmbeddingModel::BagOfWords => "bagofwords",
+                            vectorizer::workspace::config::EmbeddingModel::CharNGram => "charngram",
+                            vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
+                            vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
                         },
                         "dimension": collection.dimension,
                         "parameters": {
@@ -832,10 +835,13 @@ fn create_workspace_info(
                     },
                     "embedding": {
                         "model": match collection.embedding.model {
-                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "native_bow",
-                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "native_hash",
-                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "native_ngram",
+                            vectorizer::workspace::config::EmbeddingModel::TfIdf => "tfidf",
                             vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::Svd => "svd",
+                            vectorizer::workspace::config::EmbeddingModel::Bert => "bert",
+                            vectorizer::workspace::config::EmbeddingModel::MiniLm => "minilm",
+                            vectorizer::workspace::config::EmbeddingModel::BagOfWords => "bagofwords",
+                            vectorizer::workspace::config::EmbeddingModel::CharNGram => "charngram",
                             vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
                             vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
                         },
@@ -1231,9 +1237,8 @@ async fn run_interactive(
     println!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
     println!("\n⚡ Press Ctrl+C to stop both servers\n");
 
-    // Initialize File Watcher System for legacy mode with GRPC connection
-    let cuda_config = load_cuda_config();
-    let file_watcher_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize File Watcher System for legacy mode with GRPC connection (auto GPU detection)
+    let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
     let file_watcher_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -1391,10 +1396,13 @@ async fn run_interactive_workspace(
                     },
                     "embedding": {
                         "model": match collection.embedding.model {
-                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "native_bow",
-                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "native_hash",
-                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "native_ngram",
+                            vectorizer::workspace::config::EmbeddingModel::TfIdf => "tfidf",
                             vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::Svd => "svd",
+                            vectorizer::workspace::config::EmbeddingModel::Bert => "bert",
+                            vectorizer::workspace::config::EmbeddingModel::MiniLm => "minilm",
+                            vectorizer::workspace::config::EmbeddingModel::BagOfWords => "bagofwords",
+                            vectorizer::workspace::config::EmbeddingModel::CharNGram => "charngram",
                             vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
                             vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
                         },
@@ -1518,9 +1526,8 @@ async fn run_interactive_workspace(
     );
     println!("\n⚡ Ctrl+C to stop | 📄 vectorizer-workspace.log\n");
 
-    // Initialize GRPC server components
-    let cuda_config = load_cuda_config();
-    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize GRPC server components (auto GPU detection)
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -2122,10 +2129,13 @@ async fn run_as_daemon_workspace(
                     },
                     "embedding": {
                         "model": match collection.embedding.model {
-                            vectorizer::workspace::config::EmbeddingModel::NativeBow => "native_bow",
-                            vectorizer::workspace::config::EmbeddingModel::NativeHash => "native_hash",
-                            vectorizer::workspace::config::EmbeddingModel::NativeNgram => "native_ngram",
+                            vectorizer::workspace::config::EmbeddingModel::TfIdf => "tfidf",
                             vectorizer::workspace::config::EmbeddingModel::Bm25 => "bm25",
+                            vectorizer::workspace::config::EmbeddingModel::Svd => "svd",
+                            vectorizer::workspace::config::EmbeddingModel::Bert => "bert",
+                            vectorizer::workspace::config::EmbeddingModel::MiniLm => "minilm",
+                            vectorizer::workspace::config::EmbeddingModel::BagOfWords => "bagofwords",
+                            vectorizer::workspace::config::EmbeddingModel::CharNGram => "charngram",
                             vectorizer::workspace::config::EmbeddingModel::RealModel => "real_model",
                             vectorizer::workspace::config::EmbeddingModel::OnnxModel => "onnx_model",
                         },
@@ -2243,9 +2253,8 @@ async fn run_as_daemon_workspace(
     println!("📄 Logs: vectorizer-workspace.log");
     println!("🛑 Use 'vectorizer stop' to stop all services");
 
-    // Initialize GRPC server components (same as interactive mode)
-    let cuda_config = load_cuda_config();
-    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize GRPC server components with auto GPU detection
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         
@@ -2422,9 +2431,8 @@ async fn run_as_daemon(
     println!("📄 Logs: vectorizer-workspace.log");
     println!("🛑 Use 'vectorizer stop' to stop all services");
 
-    // Initialize GRPC server components (same as interactive mode)
-    let cuda_config = load_cuda_config();
-    let grpc_vector_store = Arc::new(VectorStore::new_with_cuda_config(cuda_config));
+    // Initialize GRPC server components with auto GPU detection
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     let grpc_embedding_manager = Arc::new(Mutex::new({
         let mut manager = EmbeddingManager::new();
         

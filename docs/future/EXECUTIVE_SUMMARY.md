@@ -2,8 +2,8 @@
 
 **Version**: Road to v1.0.0  
 **Timeline**: 5-6 months (Q4 2025 - Q2 2026)  
-**Status**: Ready for Implementation - **PRIORITIES REVISED**  
-**Last Updated**: October 1, 2025 - **UPDATED BASED ON BENCHMARK ANALYSIS**
+**Status**: Ready for Implementation - **CRITICAL FIXES APPLIED**  
+**Last Updated**: October 4, 2025 - **UPDATED WITH v0.27.0 FIXES**
 
 ## 🎯 What We're Building
 
@@ -16,7 +16,7 @@ Transform Vectorizer from **"functional"** to **"enterprise-ready"** with:
 
 ## 📊 Current State vs Target
 
-| Aspect | Current (v0.21.0) | Target (v1.0.0) |
+| Aspect | Current (v0.27.0) | Target (v1.0.0) |
 |--------|-------------------|-----------------|
 | **Data Safety** | Cache-based (risky) | WAL + Persistence ✅ |
 | **Configuration** | Manual YAML (hard) | Visual UI ✅ |
