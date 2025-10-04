@@ -44,6 +44,17 @@ impl HashValidator {
         Ok(hash)
     }
 
+    /// Calculate hash for content string
+    pub async fn calculate_content_hash(&self, content: &str) -> String {
+        if !self.enabled {
+            return "disabled".to_string();
+        }
+
+        let mut hasher = Sha256::new();
+        hasher.update(content.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+
     /// Check if file content has changed
     pub async fn has_content_changed(&self, path: &std::path::Path) -> Result<bool, std::io::Error> {
         if !self.enabled {

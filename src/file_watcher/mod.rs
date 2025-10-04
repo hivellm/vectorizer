@@ -8,10 +8,14 @@ pub mod debouncer;
 pub mod hash_validator;
 pub mod watcher;
 pub mod grpc_operations;
+pub mod file_index;
+pub mod enhanced_watcher;
 
 pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
 pub use grpc_operations::GrpcVectorOperations;
+pub use file_index::{FileIndex, FileIndexArc, CollectionVectorMapping, FileIndexStats};
+pub use enhanced_watcher::{EnhancedFileWatcher, FileSystemEvent, WorkspaceConfig, ProjectConfig, CollectionConfig};
 
 // Re-export FileWatcherSystem for external use
 
