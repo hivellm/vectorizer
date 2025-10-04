@@ -25,6 +25,8 @@ This index organizes all Vectorizer documentation to facilitate navigation and u
 - [FILE_WATCHER_SYSTEM.md](FILE_WATCHER_SYSTEM.md) - File monitoring system
 - [CACHE_AND_INCREMENTAL_INDEXING.md](CACHE_AND_INCREMENTAL_INDEXING.md) - Cache and incremental indexing
 - [WATCHER_SPECIFICATION.md](WATCHER_SPECIFICATION.md) - Monitoring system specification
+- [../WORKSPACE_SIMPLIFICATION.md](../WORKSPACE_SIMPLIFICATION.md) - **NEW v0.26.0**: Simplified workspace configuration
+- [METAL_GPU_IMPLEMENTATION.md](METAL_GPU_IMPLEMENTATION.md) - **NEW v0.24.0**: Metal GPU acceleration implementation
 
 ## 🧠 **Embeddings and Search**
 

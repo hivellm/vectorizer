@@ -1,7 +1,7 @@
 # Implementation Dependency Graph (DAG)
 
-**Purpose**: Visual representation of feature dependencies - **REVISED WITH QUANTIZATION FIRST**  
-**Last Updated**: October 1, 2025 - **PRIORITIES UPDATED BASED ON BENCHMARKS**
+**Purpose**: Visual representation of feature dependencies - **CRITICAL FIXES APPLIED**  
+**Last Updated**: October 4, 2025 - **UPDATED WITH v0.27.0 FIXES**
 
 ## 🌳 Complete Dependency Tree - **REVISED WITH QUANTIZATION FIRST**
 
@@ -10,9 +10,12 @@
                                       │
                     ┌─────────────────┴─────────────────┐
                     │                                   │
-        [QUANTIZATION - SQ-8bit]              [DASHBOARD IMPROVEMENTS]
-        🔴 P0 - 6 weeks                     🔴 P0 - 3 weeks
-        **4x compression + BETTER quality**  **Real-time metrics display**
+        [v0.27.0 CRITICAL FIXES]            [QUANTIZATION - SQ-8bit]
+        ✅ COMPLETED - 1 day               🔴 P0 - 6 weeks
+        **Cache loading fixed**             **4x compression + BETTER quality**
+        **GPU detection improved**          **Real-time metrics display**
+                    │                                   │
+                    └───────────────────────────────────┤
                     │                                   │
                     │         ┌─────────────────────────┤
                     │         │                         │

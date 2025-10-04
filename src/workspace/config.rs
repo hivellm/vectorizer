@@ -129,21 +129,33 @@ pub struct EmbeddingConfig {
 /// Embedding model types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum EmbeddingModel {
-    /// Native Bag of Words
-    #[serde(rename = "native_bow")]
-    NativeBow,
-
-    /// Native feature hashing
-    #[serde(rename = "native_hash")]
-    NativeHash,
-
-    /// Native N-gram
-    #[serde(rename = "native_ngram")]
-    NativeNgram,
+    /// TF-IDF embedding
+    #[serde(rename = "tfidf")]
+    TfIdf,
 
     /// BM25 sparse retrieval
     #[serde(rename = "bm25")]
     Bm25,
+
+    /// SVD embedding
+    #[serde(rename = "svd")]
+    Svd,
+
+    /// BERT embedding
+    #[serde(rename = "bert")]
+    Bert,
+
+    /// MiniLM embedding
+    #[serde(rename = "minilm")]
+    MiniLm,
+
+    /// Bag of Words embedding
+    #[serde(rename = "bagofwords")]
+    BagOfWords,
+
+    /// Character N-gram embedding
+    #[serde(rename = "charngram")]
+    CharNGram,
 
     /// Real transformer model (Candle)
     #[serde(rename = "real_model")]
@@ -448,7 +460,7 @@ impl Default for WorkspaceConfig {
             },
             global: GlobalSettings {
                 default_embedding: EmbeddingConfig {
-                    model: EmbeddingModel::NativeBow,
+                    model: EmbeddingModel::Bm25,
                     dimension: 384,
                     parameters: HashMap::new(),
                 },

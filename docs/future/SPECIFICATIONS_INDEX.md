@@ -1,13 +1,22 @@
 # Future Features - Specifications Index
 
-**Last Updated**: October 1, 2025 - **PRIORITIES REVISED BASED ON BENCHMARK ANALYSIS**  
+**Last Updated**: October 4, 2025 - **UPDATED WITH v0.27.0 CRITICAL FIXES**  
 **Status**: All specifications ready for implementation
 
 ## 📋 Overview
 
 This directory contains detailed technical specifications for upcoming Vectorizer features. Each document is implementation-ready with complete API designs, code examples, and success criteria.
 
-## 🎯 Priority Roadmap - **REVISED WITH BENCHMARK INSIGHTS**
+## 🎯 Priority Roadmap - **CRITICAL FIXES APPLIED**
+
+### ✅ Completed Critical Fixes (v0.27.0)
+
+| Fix | Status | Impact | Date |
+|-----|--------|---------|------|
+| **Cache Loading Bug** | ✅ **COMPLETED** | All 37 collections load correctly | Oct 4, 2025 |
+| **GPU Detection** | ✅ **COMPLETED** | CPU mode default, GPU explicit config | Oct 4, 2025 |
+| **Data Persistence** | ✅ **COMPLETED** | Vector counts properly displayed | Oct 4, 2025 |
+| **Memory Management** | ✅ **COMPLETED** | Clone trait for cache operations | Oct 4, 2025 |
 
 ### 🔴 Critical Priority (P0) - **IMMEDIATE VALUE**
 
