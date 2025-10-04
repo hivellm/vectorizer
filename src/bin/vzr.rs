@@ -1247,7 +1247,7 @@ async fn run_interactive(
 
     // Initialize File Watcher System for legacy mode with GRPC connection (universal GPU detection)
     #[cfg(feature = "wgpu-gpu")]
-    let file_watcher_vector_store = Arc::new(VectorStore::new_auto_universal());
+    let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
     
     #[cfg(not(feature = "wgpu-gpu"))]
     let file_watcher_vector_store = Arc::new(VectorStore::new_auto());
@@ -1540,7 +1540,7 @@ async fn run_interactive_workspace(
 
     // Initialize GRPC server components (universal GPU detection)
     #[cfg(feature = "wgpu-gpu")]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto_universal());
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     
     #[cfg(not(feature = "wgpu-gpu"))]
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
@@ -2271,7 +2271,7 @@ async fn run_as_daemon_workspace(
 
     // Initialize GRPC server components with universal GPU detection
     #[cfg(feature = "wgpu-gpu")]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto_universal());
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     
     #[cfg(not(feature = "wgpu-gpu"))]
     let grpc_vector_store = Arc::new(VectorStore::new_auto());
@@ -2453,7 +2453,7 @@ async fn run_as_daemon(
 
     // Initialize GRPC server components with universal GPU detection
     #[cfg(feature = "wgpu-gpu")]
-    let grpc_vector_store = Arc::new(VectorStore::new_auto_universal());
+    let grpc_vector_store = Arc::new(VectorStore::new_auto());
     
     #[cfg(not(feature = "wgpu-gpu"))]
     let grpc_vector_store = Arc::new(VectorStore::new_auto());

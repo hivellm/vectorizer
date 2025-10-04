@@ -1,0 +1,30 @@
+# HiveLLM Ecosystem Workspace
+projects:
+  - name: "chat-hub"
+    path: "../chat-hub"
+    description: "Chat Hub - Real-time communication platform"
+    collections:
+      - name: "chat-hub-docs"
+        description: "Chat Hub documentation and guides"
+        include_patterns:
+          - "docs/**/*.md"
+          - "README.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "*.log"
+      - name: "chat-hub-source"
+        description: "Chat Hub source code and configuration"
+        include_patterns:
+          - "*.js"
+          - "*.json"
+          - "*.env*"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "*.log"
+
+  - name: "cursor-extension"
+    path: "../cursor-extension"
+    description: "Cursor Extension - AI-powered development tools"
+    collections:
+      - name: "cursor-extension-docs"

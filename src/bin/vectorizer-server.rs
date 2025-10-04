@@ -131,7 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let app_vector_store = Arc::new(VectorStore::new_auto_universal());
+    let app_vector_store = Arc::new(VectorStore::new_auto());
 
     // Create shared indexing progress tracker
     let indexing_progress = IndexingProgressState::new();

@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "vectorizer"
 version = "0.28.0"
@@ -232,3 +230,4 @@ path = "src/bin/vzr.rs"
 [[bin]]
 name = "gpu_scale_benchmark"
 path = "benchmark/scripts/gpu_scale_benchmark.rs"
+required-features = ["wgpu-gpu"]
