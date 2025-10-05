@@ -1,4 +1,4 @@
-# Vectorizer v0.3.0
+# Vectorizer
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
@@ -96,13 +96,6 @@ curl -X POST http://localhost:15002/collections/my-collection/search \
   -d '{"query": "example text", "limit": 10}'
 ```
 
-## 📝 **Automatic Summarization**
-
-Intelligent content summarization with MMR algorithm:
-- **Extractive Summarization**: MMR algorithm for diversity and relevance
-- **Keyword Summarization**: Key term extraction for quick overview  
-- **Dynamic Collections**: Auto-created summary collections with rich metadata
-
 ## 🔗 **Framework Integrations**
 
 Complete integrations with popular AI frameworks:
@@ -154,16 +147,6 @@ vectorizer:
     enabled: true
     default_method: "extractive"
 ```
-
-## 🎯 **Current Status**
-
-**Version**: v0.28.1  
-**Status**: ✅ **Production Ready**  
-**Collections**: 105 active collections with 50,000+ vectors indexed  
-**Performance**: 164μs latency at 10,000 QPS (1K vectors)  
-**Architecture**: REST + MCP unified server system  
-**SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
-**Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
 
 ## 🚀 Quick Start
 
@@ -227,18 +210,3 @@ server:
 logging:
   level: "info"
 ```
-
-## 📋 Changelog
-
-### v0.3.0 (2025-10-05) - Complete Persistence & File Watcher
-- ✅ **Dynamic Collection Persistence**: Collections automatically saved and loaded on server restart
-- ✅ **Real-time File Watcher**: Monitor file changes and auto-index documents
-- ✅ **Background Auto-save**: Collections saved every 30 seconds automatically
-- ✅ **Seamless Restart**: All collections restored exactly as they were
-- ✅ **File System Monitoring**: Real-time indexing of document changes
-- 🔧 **Technical Fixes**: PersistedVectorStore format compatibility, file flush/sync, ownership resolution
-- 🎯 **Production Ready**: Stable, tested, and verified working
-
-### Previous Versions
-- v0.2.x: REST API and MCP integration
-- v0.1.x: Core vector database functionality
