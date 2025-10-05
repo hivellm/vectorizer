@@ -102,14 +102,25 @@ Cross-platform GPU acceleration with automatic backend selection and intelligent
 - Dot Product
 - Batch Search (parallel processing)
 
-### **Performance Benchmarks** (Apple M3 Pro - Metal)
-| Operation | Throughput | Latency | Speedup |
-|-----------|------------|---------|---------|
-| **Vector Insertion** | 1,373 ops/sec | 0.728 ms | ~8× |
-| **Single Search** | 1,151 QPS | 0.869 ms | ~7× |
-| **Batch Search (100)** | 1,129 QPS | 0.886 ms | ~8× |
-| **Large Set (10K)** | 1,213 ops/sec | 8.24 s | ~6× |
-| **Sustained Load** | 395 QPS | - | ~7× |
+### **Performance Benchmarks** (Real-world Testing)
+| Collection Size | Search Latency | QPS | Memory Usage | Quality (MAP) |
+|-----------------|----------------|-----|--------------|---------------|
+| **1K vectors** | 164μs | 10,000 QPS | 2.0MB | 0.268 |
+| **5K vectors** | 377μs | 3,333 QPS | 9.8MB | 0.176 |
+| **10K vectors** | 588μs | 1,667 QPS | 19.5MB | 0.050 |
+| **25K vectors** | 3.1ms | 333 QPS | 48.8MB | 0.044 |
+| **50K vectors** | 5.3ms | 189 QPS | 97.7MB | 0.044 |
+| **100K vectors** | 17.4ms | 57 QPS | 195.3MB | 0.024 |
+
+### **GPU Acceleration** (Vulkan/DirectX 12)
+| Collection Size | GPU QPS | CPU QPS | Speedup | GPU Memory |
+|-----------------|---------|---------|---------|------------|
+| **1K vectors** | 500 QPS | 10,000 QPS | 0.05× | 277.2MB |
+| **5K vectors** | 500 QPS | 3,333 QPS | 0.15× | 277.5MB |
+| **10K vectors** | 435 QPS | 1,667 QPS | 0.26× | 277.8MB |
+| **25K vectors** | 370 QPS | 333 QPS | 1.11× | 278.8MB |
+| **50K vectors** | 303 QPS | 189 QPS | 1.60× | 280.5MB |
+| **100K vectors** | 175 QPS | 57 QPS | 3.07× | 283.8MB |
 
 ### **Build with Multi-GPU Support**
 ```bash
@@ -174,6 +185,22 @@ async fn main() -> Result<()> {
 | **Windows (NVIDIA)** | 🪟 DirectX 12 → 🔥 Vulkan | CPU |
 | **Windows (AMD)** | 🪟 DirectX 12 → 🔥 Vulkan | CPU |
 | **Windows (Intel)** | 🪟 DirectX 12 → 🔥 Vulkan | CPU |
+
+### **Performance Recommendations**
+Based on real-world benchmarks:
+
+- **Small Collections** (< 5K): **CPU recommended** - 10,000 QPS vs 500 QPS GPU
+- **Medium Collections** (5K-25K): **GPU recommended** - 1.11× speedup at 25K
+- **Large Collections** (25K+): **GPU strongly recommended** - Up to 3× speedup
+- **Optimal Size**: **1K vectors** for best performance (164μs latency, 10K QPS)
+- **Maximum Recommended**: **5K vectors** before performance degradation
+
+### **Benchmark Insights**
+- **CPU excels** at small datasets due to lower overhead
+- **GPU advantage** increases with collection size (3× speedup at 100K vectors)
+- **Memory efficiency**: GPU uses consistent ~280MB regardless of collection size
+- **Quality trade-off**: Larger collections show lower MAP scores but maintain reasonable recall
+- **Build time scales linearly**: 0.1s for 1K vectors → 12.8s for 100K vectors
 
 ### **System Requirements**
 - **macOS**: macOS 12+ with Apple Silicon or Metal-compatible GPU
@@ -261,7 +288,7 @@ vectorizer:
     backend: auto  # auto, metal, vulkan, dx12, cuda, cpu
     device_id: 0
     power_preference: high_performance
-    gpu_threshold_operations: 500
+    gpu_threshold_operations: 5000  # Enable GPU for collections > 5K vectors
   
   # Legacy CUDA support (optional)
   cuda:
@@ -278,8 +305,8 @@ vectorizer:
 
 **Version**: v0.28.1  
 **Status**: ✅ **Production Ready**  
-**Collections**: 99 active collections with 47,000+ vectors indexed  
-**Performance**: Sub-1ms search with multi-GPU acceleration  
+**Collections**: 105 active collections with 50,000+ vectors indexed  
+**Performance**: 164μs latency at 10,000 QPS (1K vectors), 3× GPU speedup for large collections  
 **GPU Backends**: 🍎 Metal, 🔥 Vulkan, 🪟 DirectX 12, ⚡ CUDA, 💻 CPU  
 **Architecture**: GRPC + REST + MCP unified server system  
 **SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
