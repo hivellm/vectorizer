@@ -23,7 +23,6 @@ pub mod grpc;
 pub mod hybrid_search;
 pub mod mcp;
 pub mod mcp_service;
-pub mod memory_snapshot;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]

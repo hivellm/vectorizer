@@ -2,7 +2,7 @@
 // Conecta o dashboard com as rotas da API do backend
 
 class VectorizerAPIClient {
-    constructor(baseUrl = '/api/v1') {
+    constructor(baseUrl = '') {
         this.baseUrl = baseUrl;
         this.defaultHeaders = {
             'Content-Type': 'application/json',

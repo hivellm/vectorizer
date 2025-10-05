@@ -4,29 +4,20 @@
 //! and provides direct MCP + REST API access.
 
 use vectorizer::server::VectorizerServer;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use tracing::error;
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
-#[command(about = "Vectorizer Server - Unified MCP + REST API")]
+#[command(about = "Vectorizer Server - MCP + REST API")]
 struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
+    /// Server host
+    #[arg(long, default_value = "0.0.0.0")]
+    host: String,
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Start the unified server
-    Start {
-        /// Server host
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Server port
-        #[arg(long, default_value = "15002")]
-        port: u16,
-    },
+    /// Server port
+    #[arg(long, default_value = "15002")]
+    port: u16,
 }
 
 #[tokio::main]
@@ -36,27 +27,20 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    match cli.command {
-        Commands::Start { host, port } => {
-            println!("🚀 Starting Vectorizer Server");
-            println!("🌐 Server: {}:{}", host, port);
+    println!("🚀 Starting Vectorizer Server");
+    println!("🌐 Server: {}:{}", cli.host, cli.port);
 
-            // Create and start the server
-            let server = VectorizerServer::new().await?;
-            
-            println!("✅ Server initialized successfully");
-            println!("🎯 Press Ctrl+C to stop the server");
-            
-            // Start the server (this will block)
-            if let Err(e) = server.start(&host, port).await {
-                error!("❌ Server failed: {}", e);
-                eprintln!("❌ Server failed: {}", e);
-                std::process::exit(1);
-            }
-
-            println!("✅ Server completed successfully");
-        }
+    // Create and start the server
+    let server = VectorizerServer::new().await?;
+        
+    // Start the server (this will block)
+    if let Err(e) = server.start(&cli.host, cli.port).await {
+        error!("❌ Server failed: {}", e);
+        eprintln!("❌ Server failed: {}", e);
+        std::process::exit(1);
     }
+
+    println!("✅ Server completed successfully");
 
     Ok(())
 }

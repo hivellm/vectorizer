@@ -1,7 +1,7 @@
 // Vectorizer Dashboard - Qdrant-style Implementation
 class VectorizerDashboard {
     constructor() {
-        this.apiBaseUrl = '/api/v1';
+        this.apiBaseUrl = '';
         this.currentPage = 'overview';
         this.refreshInterval = null;
         this.autoRefresh = false;

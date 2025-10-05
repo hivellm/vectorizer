@@ -21,7 +21,7 @@ use super::handlers::{
     get_memory_analysis,
     get_vector,
     health_check,
-      get_stats,
+    get_stats,
     insert_texts,
     list_collections,
     list_embedding_providers,
@@ -50,20 +50,12 @@ use super::handlers::{
     list_summaries,
 };
 
-use super::metrics_handlers::metrics_handler;
-
-use super::memory_handlers::{
-    generate_memory_snapshot,
-};
-
 /// Create the main API router
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         // Health check and metrics
         .route("/health", get(health_check))
         .route("/stats", get(get_stats))
-        .route("/metrics", get(metrics_handler))
-        .route("/memory-analysis", get(get_memory_analysis))
         // Indexing progress
         .route("/indexing/progress", get(get_indexing_progress))
         .route("/indexing/progress", post(update_indexing_progress))

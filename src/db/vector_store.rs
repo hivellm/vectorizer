@@ -5,6 +5,7 @@ use crate::{
     models::{CollectionConfig, CollectionMetadata, SearchResult, Vector},
     cuda::CudaConfig,
 };
+use anyhow::anyhow;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::ops::Deref;
@@ -1013,10 +1014,11 @@ pub struct VectorStoreStats {
 
 impl VectorStore {
     /// Get the centralized data directory path (same as DocumentLoader)
-    fn get_data_dir() -> PathBuf {
+    pub fn get_data_dir() -> PathBuf {
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         current_dir.join("data")
     }
+
 
     /// Load all persisted collections from the data directory
     pub fn load_all_persisted_collections(&mut self) -> Result<usize> {

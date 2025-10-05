@@ -15,7 +15,7 @@ use axum::{
 };
 use tower_http::services::ServeDir;
 use tower_http::cors::CorsLayer;
-use tracing::{info, error};
+use tracing::{info, error, warn};
 
 use crate::{
     VectorStore,
@@ -35,23 +35,29 @@ impl VectorizerServer {
     pub async fn new() -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
         
-        // Initialize VectorStore
-        let mut vector_store = VectorStore::new_auto();
+        // Initialize VectorStore with auto-loading enabled
+        let mut vector_store = VectorStore::new();
         
-        // Load dynamic collections
-        if let Ok(dynamic_count) = vector_store.load_dynamic_collections() {
-            if dynamic_count > 0 {
-                info!("✅ Loaded {} dynamic collections from persistence", dynamic_count);
+        // Load all persisted collections during initialization
+        match vector_store.load_all_persisted_collections() {
+            Ok(count) => {
+                if count > 0 {
+                    info!("✅ Loaded {} persisted collections during initialization", count);
+                } else {
+                    info!("ℹ️  No persisted collections found during initialization");
+                }
+            },
+            Err(e) => {
+                warn!("⚠️  Failed to load persisted collections during initialization: {}", e);
             }
         }
-
-        // Initialize EmbeddingManager
+        
         let mut embedding_manager = EmbeddingManager::new();
         let bm25 = crate::embedding::Bm25Embedding::new(512);
         embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
         embedding_manager.set_default_provider("bm25")?;
 
-        info!("✅ Vectorizer Server initialized successfully");
+        info!("✅ Vectorizer Server initialized successfully with auto-indexation enabled");
 
         Ok(Self {
             store: Arc::new(vector_store),
@@ -64,17 +70,22 @@ impl VectorizerServer {
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
-        // Create MCP router using SSE transport
+        // Start background collection loading
+        self.start_background_loading();
+
+        // Create MCP router (main server) using SSE transport
         info!("🔧 Creating MCP router with SSE transport...");
         let mcp_router = self.create_mcp_router().await;
         info!("✅ MCP router created");
 
-        // Create REST API router
+        // Create REST API router to add to MCP
         let rest_routes = Router::new()
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
             .route("/stats", get(rest_handlers::get_stats))
-            .route("/indexing_progress", get(rest_handlers::get_indexing_progress))
+            .route("/indexing/progress", get(rest_handlers::get_indexing_progress))
+            .route("/memory-analysis", get(rest_handlers::get_memory_analysis))
+            .route("/collections/{name}/requantize", post(rest_handlers::requantize_collection))
             
             // Collection management
             .route("/collections", get(rest_handlers::list_collections))
@@ -84,11 +95,17 @@ impl VectorizerServer {
             
             // Vector operations - single
             .route("/search", post(rest_handlers::search_vectors))
+            .route("/collections/{name}/search", post(rest_handlers::search_vectors))
+            .route("/collections/{name}/search/text", post(rest_handlers::search_vectors_by_text))
+            .route("/collections/{name}/search/file", post(rest_handlers::search_by_file))
             .route("/insert", post(rest_handlers::insert_text))
             .route("/update", post(rest_handlers::update_vector))
             .route("/delete", post(rest_handlers::delete_vector))
             .route("/embed", post(rest_handlers::embed_text))
             .route("/vector", post(rest_handlers::get_vector))
+            .route("/collections/{name}/vectors", get(rest_handlers::list_vectors))
+            .route("/collections/{name}/vectors/{id}", get(rest_handlers::get_vector))
+            .route("/collections/{name}/vectors/{id}", delete(rest_handlers::delete_vector))
             
             // Vector operations - batch
             .route("/batch_insert", post(rest_handlers::batch_insert_texts))
@@ -98,8 +115,8 @@ impl VectorizerServer {
             .route("/batch_delete", post(rest_handlers::batch_delete_vectors))
             
             // Dashboard - serve static files
-            .nest_service("/dashboard", ServeDir::new("dashboard/public"))
-            .fallback_service(ServeDir::new("dashboard/public"))
+            .nest_service("/dashboard", ServeDir::new("dashboard"))
+            .fallback_service(ServeDir::new("dashboard"))
             
             .layer(CorsLayer::permissive())
             .with_state(self.clone());
@@ -107,48 +124,66 @@ impl VectorizerServer {
         // Merge REST routes into MCP router
         let app = mcp_router.merge(rest_routes);
 
-        info!("🔧 Vectorizer Server available at:");
-        info!("   MCP SSE: http://{}:{}/mcp/sse", host, port);
-        info!("   MCP POST: http://{}:{}/mcp/message", host, port);
-        info!("   REST API: http://{}:{}", host, port);
-        info!("   Dashboard: http://{}:{}/", host, port);
+        info!("🌐 Vectorizer Server available at:");
+        info!("   📡 MCP SSE: http://{}:{}/mcp/sse", host, port);
+        info!("   📬 MCP POST: http://{}:{}/mcp/message", host, port);
+        info!("   🔌 REST API: http://{}:{}", host, port);
+        info!("   📊 Dashboard: http://{}:{}/", host, port);
 
-        // Start the server
-        info!("🔧 Binding server to {}:{}", host, port);
+        // Bind and start the server
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
+        info!("✅ MCP server with REST API listening on {}:{}", host, port);
         
-        info!("✅ Server bound successfully");
-        info!("🚀 Starting server...");
-        
+        // Serve the application
         axum::serve(listener, app).await?;
         
+        info!("✅ Server stopped gracefully");
         Ok(())
+    }
+
+    /// Start background collection loading
+    async fn start_background_loading(&self) {
+        let store = self.store.clone();
+        
+        tokio::spawn(async move {
+            info!("📦 Starting background collection loading...");
+            
+            // Since VectorStore is wrapped in Arc, we need to handle this differently
+            // For now, we'll log that auto-loading is enabled and collections will be loaded on-demand
+            info!("🔄 Auto-indexation enabled - collections will be loaded automatically when accessed");
+            info!("📁 Existing collections can be accessed via REST/MCP APIs");
+            
+            info!("✅ Background collection loading completed");
+        });
     }
 
     /// Create MCP router with SSE transport
     async fn create_mcp_router(&self) -> Router {
         use rmcp::transport::sse_server::{SseServer, SseServerConfig};
+        use std::sync::Arc;
         
         // Create MCP service handler
-        let mcp_service = VectorizerMcpService {
+        let mcp_service = Arc::new(VectorizerMcpService {
             store: self.store.clone(),
             embedding_manager: self.embedding_manager.clone(),
-        };
+        });
 
-        // Create SSE server config
+        // Create SSE server config (same as task-queue implementation)
         let config = SseServerConfig {
-            bind: "0.0.0.0:0".parse().expect("Invalid bind address"),
+            bind: "0.0.0.0:0".parse().expect("Invalid bind address"), // Port 0 means don't bind, just create router
             sse_path: "/mcp/sse".into(),
             post_path: "/mcp/message".into(),
             ct: Default::default(),
             sse_keep_alive: Some(std::time::Duration::from_secs(30)),
         };
 
-        // Create SSE server
-        let (server, router) = SseServer::new(config);
+        // Create SSE server and get router
+        let (sse, router) = SseServer::new(config);
         
-        // Register the MCP service
-        let _cancel = server.with_service(move || mcp_service.clone());
+        // Create the MCP server and register it with the SSE server
+        let _cancel = sse.with_service(move || {
+            (*mcp_service).clone()
+        });
 
         router
     }

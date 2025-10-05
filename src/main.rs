@@ -14,7 +14,7 @@ struct Args {
     port: u16,
 
     /// Host to bind to
-    #[arg(short = 'H', long, default_value = "127.0.0.1")]
+    #[arg(short = 'H', long, default_value = "0.0.0.0")]
     host: String,
 
     /// Configuration file path

@@ -903,7 +903,7 @@
         const loadQuantizationMetrics = async () => {
             try {
                 // Get real memory analysis from vectorizer API
-                const response = await fetch('/api/v1/memory-analysis');
+                const response = await fetch('/memory-analysis');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -1144,6 +1144,9 @@
                         vectors.value = data.vectors || [];
                         vectorsTotal.value = data.total || 0;
                         vectorsCurrentPage.value = validPage;
+                        
+                        // Store vectors globally for modal access
+                        window.currentVectors = vectors.value;
                     } catch (error) {
                         console.error('Error loading vectors:', error);
                         vectors.value = [];
@@ -1172,13 +1175,10 @@
                                         <h2>Vector Details</h2>
                                         <div class="vector-id-display">
                                             <code class="vector-id-code">${vectorId}</code>
-                                            <button class="btn btn-icon btn-xs" onclick="copyVectorId('${vectorId}')" title="Copy Vector ID">
-                                                <i class="fas fa-copy"></i>
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                                <button class="modal-close">&times;</button>
+                                <button class="modal-close" onclick="closeModal()">&times;</button>
                             </div>
                             <div class="modal-body vector-modal-body">
                                 <!-- Vector Overview Cards -->
@@ -1233,44 +1233,20 @@
                                         <i class="fas fa-code"></i>
                                         <h3>Vector Content</h3>
                                     </div>
-                                    <div class="content-tabs">
-                                        <div class="tab-buttons">
-                                            <button class="tab-btn active" onclick="switchVectorTab(this, 'payload')">Payload Data</button>
-                                            <button class="tab-btn" onclick="switchVectorTab(this, 'embedding')">Embedding</button>
-                                        </div>
-                                        <div class="tab-content">
-                                            <div class="tab-pane active" id="payload-tab">
-                                                ${vector.payload ? `
-                                                    <div class="data-display">
-                                                        <div class="data-header">
-                                                            <span class="data-label">JSON Payload</span>
-                                                            <button class="btn btn-xs" onclick="copyVectorData('${JSON.stringify(vector.payload).replace(/"/g, '\\"')}')">
-                                                                <i class="fas fa-copy"></i>
-                                                                Copy
-                                                            </button>
-                                                        </div>
-                                                        <pre class="json-display">${formatVectorPayload(vector.payload)}</pre>
-                                                    </div>
-                                                ` : `
-                                                    <div class="no-data">
-                                                        <i class="fas fa-inbox"></i>
-                                                        <p>No payload data available for this vector</p>
-                                                    </div>
-                                                `}
-                                            </div>
-                                                <div class="tab-pane" id="embedding-tab">
-                                                <div class="data-display">
-                                                    <div class="data-header">
-                                                        <span class="data-label">Vector Embedding (${dimension} dimensions)</span>
-                                                        <button class="btn btn-xs" onclick="copyVectorEmbedding('${JSON.stringify(vector.vector || vector.embedding || []).replace(/"/g, '\\"')}')">
-                                                            <i class="fas fa-copy"></i>
-                                                            Copy
-                                                        </button>
-                                                    </div>
-                                                    <pre class="vector-display">${formatVectorEmbedding(vector)}</pre>
+                                    <div class="vector-content-simple">
+                                        ${vector.payload ? `
+                                            <div class="data-display">
+                                                <div class="data-header">
+                                                    <span class="data-label">JSON Payload</span>
                                                 </div>
+                                                <pre class="json-display">${formatVectorPayload(vector.payload)}</pre>
                                             </div>
-                                        </div>
+                                        ` : `
+                                            <div class="no-data">
+                                                <i class="fas fa-inbox"></i>
+                                                <p>No payload data available for this vector</p>
+                                            </div>
+                                        `}
                                     </div>
                                 </div>
 
@@ -1281,43 +1257,13 @@
                                         <i class="fas fa-copy"></i>
                                         <span>Copy ID</span>
                                     </button>
-                                    <button class="btn btn-primary" onclick="copyVectorData('${JSON.stringify(vector).replace(/"/g, '\\"')}')">
-                                        <i class="fas fa-download"></i>
-                                        <span>Export Vector</span>
-                                    </button>
                                 </div>
-                                <button class="btn btn-secondary modal-close">Close</button>
+                                <button class="btn btn-secondary modal-close" onclick="closeModal()">Close</button>
                             </div>
                         `;
 
                         showModal(modalContent);
 
-                        // Add tab switching functionality
-                        setTimeout(() => {
-                            window.switchVectorTab = (btn, tabName) => {
-                                const tabButtons = btn.parentNode.querySelectorAll('.tab-btn');
-                                const tabPanes = btn.parentNode.parentNode.querySelectorAll('.tab-pane');
-
-                                tabButtons.forEach(b => b.classList.remove('active'));
-                                tabPanes.forEach(p => p.classList.remove('active'));
-
-                                btn.classList.add('active');
-                                document.getElementById(tabName + '-tab').classList.add('active');
-                            };
-
-                            window.copyVectorEmbedding = (embeddingData) => {
-                                try {
-                                    navigator.clipboard.writeText(embeddingData).then(() => {
-                                        showToast('Vector embedding copied to clipboard', 'success');
-                                    }).catch(() => {
-                                        showToast('Failed to copy embedding', 'error');
-                                    });
-                                } catch (error) {
-                                    showToast('Error copying embedding', 'error');
-                                }
-                            };
-
-                        }, 100);
 
                         showToast('Vector details loaded', 'success');
                     } catch (error) {
@@ -1768,6 +1714,27 @@
                         });
                     } catch (error) {
                         showToast('Error copying vector data', 'error');
+                    }
+                };
+
+                window.copyVectorPayloadSafe = (vectorId) => {
+                    try {
+                        // Find the vector in the current vectors list
+                        const currentVectors = window.currentVectors || [];
+                        const vector = currentVectors.find(v => v.id === vectorId);
+                        
+                        if (vector && vector.payload) {
+                            const payloadText = JSON.stringify(vector.payload, null, 2);
+                            navigator.clipboard.writeText(payloadText).then(() => {
+                                showToast('Vector payload copied to clipboard', 'success');
+                            }).catch(() => {
+                                showToast('Failed to copy payload', 'error');
+                            });
+                        } else {
+                            showToast('No payload data available', 'warning');
+                        }
+                    } catch (error) {
+                        showToast('Error copying payload', 'error');
                     }
                 };
 
