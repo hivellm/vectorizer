@@ -427,7 +427,7 @@ impl VectorStore {
         info!("Creating new VectorStore with Metal GPU config: enabled={}", metal_config.enabled);
         Self {
             collections: Arc::new(DashMap::new()),
-            cuda_config: CudaConfig { enabled: false, ..Default::default() },
+            gpu_config: GpuConfig { enabled: false, ..Default::default() },
             metal_config: Some(metal_config),
             vulkan_config: None,
             dx12_config: None,
@@ -443,7 +443,7 @@ impl VectorStore {
         info!("Creating new VectorStore with Vulkan GPU config: enabled={}", vulkan_config.enabled);
         Self {
             collections: Arc::new(DashMap::new()),
-            cuda_config: CudaConfig { enabled: false, ..Default::default() },
+            gpu_config: GpuConfig { enabled: false, ..Default::default() },
             metal_config: None,
             vulkan_config: Some(vulkan_config),
             dx12_config: None,

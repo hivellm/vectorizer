@@ -1,11 +1,11 @@
-# Multi-stage Dockerfile for Vectorizer v0.20.0 (CPU-Only Production)
-# Features: GRPC Architecture, Automatic Summarization, Batch Operations
-# Note: This version does NOT include CUDA support for maximum compatibility
+# Multi-stage Dockerfile for Vectorizer v0.29.0 (Unified Server)
+# Features: REST + MCP Architecture, Simplified Deployment
+# Note: Unified server architecture without gRPC dependencies
 
 # Stage 1: Build
 FROM rust:1.82-slim as builder
 
-# Install system dependencies (CPU-only, no CUDA)
+# Install system dependencies (unified server)
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     cmake \
-    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -32,7 +31,6 @@ RUN cargo build --release --features full && rm -rf src
 
 # Copy source code
 COPY src/ src/
-COPY proto/ proto/
 COPY examples/ examples/
 COPY docs/ docs/
 COPY benches/ benches/
@@ -41,7 +39,7 @@ COPY scripts/ scripts/
 COPY config/ ./config/
 COPY audit.toml ./
 
-# Build all binaries with full features (CPU-only, no CUDA)
+# Build all binaries with unified server features
 RUN cargo build --release --features full --no-default-features
 
 # Run tests to ensure build quality
@@ -64,10 +62,7 @@ RUN useradd -r -s /bin/false vectorizer
 WORKDIR /app
 
 # Copy binaries from builder stage
-COPY --from=builder /app/target/release/vzr /app/vzr
-COPY --from=builder /app/target/release/vectorizer-server /app/vectorizer-server
-COPY --from=builder /app/target/release/vectorizer-mcp-server /app/vectorizer-mcp-server
-COPY --from=builder /app/target/release/vectorizer-cli /app/vectorizer-cli
+COPY --from=builder /app/target/release/vectorizer /app/vectorizer
 
 # Copy configuration files
 COPY --from=builder /app/config/config.yml /app/config.yml
@@ -84,14 +79,12 @@ RUN mkdir -p /app/data /app/cache /app/logs && \
 # Switch to non-root user
 USER vectorizer
 
-# Expose ports for GRPC architecture
-EXPOSE 15001 15002 15003
+# Expose port for unified server (REST + MCP)
+EXPOSE 15002
 
-# Health check for GRPC architecture
+# Health check for unified server
 HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
-    CMD curl -f http://localhost:15001/api/v1/health && \
-        curl -f http://localhost:15002/health && \
-        curl -f http://localhost:15003/health || exit 1
+    CMD curl -f http://localhost:15002/health || exit 1
 
-# Default command - start all services using vzr orchestrator
-CMD ["./vzr", "start", "--workspace", "vectorize-workspace.yml", "--daemon"]
+# Default command - start unified server
+CMD ["./vectorizer", "--config", "config.yml"]

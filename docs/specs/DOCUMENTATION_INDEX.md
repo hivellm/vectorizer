@@ -17,7 +17,7 @@ This index organizes all Vectorizer documentation to facilitate navigation and u
 ## 🏗️ **Architecture and Implementation**
 
 ### **Core Architecture**
-- [GRPC_ARCHITECTURE.md](GRPC_ARCHITECTURE.md) - GRPC architecture and microservices
+- [REST_ARCHITECTURE.md](REST_ARCHITECTURE.md) - REST architecture and unified server
 - [phase1/ARCHITECTURE.md](phase1/ARCHITECTURE.md) - Base system architecture
 - [phase1/TECHNICAL_IMPLEMENTATION.md](phase1/TECHNICAL_IMPLEMENTATION.md) - Detailed technical implementation
 
@@ -94,7 +94,7 @@ summarization:
 - [phase1/](phase1/) - Phase 1: Foundation ✅
 - [phase2/](phase2/) - Phase 2: Advanced Embeddings ✅
 - [phase3/](phase3/) - Phase 3: Production APIs ✅
-- [phase4/](phase4/) - Phase 4: GRPC, MCP & SDKs ✅
+- [phase4/](phase4/) - Phase 4: REST, MCP & SDKs ✅
 - [phase5/](phase5/) - Phase 5: Advanced Features ✅
 - [phase6/](phase6/) - Phase 6: Batch Operations ✅
 
@@ -121,7 +121,7 @@ summarization:
 - ✅ Summarization system implemented
 - ✅ Dynamic collections for summaries
 - ✅ MMR algorithm for extractive summarization
-- ✅ Integration with GRPC, REST and MCP
+- ✅ Integration with REST and MCP
 - ✅ Rich metadata for derived content
 
 ### **Next Required Updates**
@@ -139,7 +139,7 @@ summarization:
 - [ ] `docs/MCP_TOOLS.md` - Add summarization tools
 - [ ] `docs/API.md` - Document summarization endpoints
 - [ ] `client-sdks/` - Update SDKs with summarization
-- [ ] `docs/GRPC_ARCHITECTURE.md` - Document summarization RPCs
+- [ ] `docs/REST_ARCHITECTURE.md` - Document summarization endpoints
 
 ### **New Files Needed**
 - [ ] `docs/SUMMARIZATION_GUIDE.md` - Complete summarization guide

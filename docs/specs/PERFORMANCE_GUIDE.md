@@ -378,7 +378,7 @@ cargo build --features "real-models candle-models onnx-models"
 
 ## Future Optimizations
 
-- GPU support via CUDA/ROCm
+- GPU support via GPU/ROCm
 - AVX-512 SIMD optimizations
 - Distributed indexing
 - Streaming embeddings

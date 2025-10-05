@@ -1,6 +1,6 @@
-//! CUDA vs CPU Performance Benchmark
+//! GPU vs CPU Performance Benchmark
 //!
-//! This benchmark compares CUDA-accelerated vector search operations
+//! This benchmark compares GPU-accelerated vector search operations
 //! against CPU-only HNSW search in the Vectorizer.
 
 use vectorizer::models::{
@@ -9,7 +9,7 @@ use vectorizer::models::{
 };
 use vectorizer::error::Result;
 use vectorizer::db::optimized_hnsw::OptimizedHnswIndex;
-use vectorizer::cuda::CudaVectorOperations;
+use vectorizer::gpu::GpuVectorOperations;
 use std::time::{Duration, Instant};
 use std::sync::Arc;
 use rand::prelude::*;

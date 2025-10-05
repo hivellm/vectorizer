@@ -69,7 +69,7 @@ mcp:
   enabled: true
   host: "127.0.0.1"
   port: 15002  # MCP Server port
-  grpc_url: "http://127.0.0.1:15003"  # vzr GRPC server
+  internal_url: "http://127.0.0.1:15003"  # vzr internal server
   max_connections: 10
   connection_timeout: 300
   auth_required: true
@@ -84,14 +84,14 @@ mcp:
   enabled: true
   host: "127.0.0.1"
   port: 15002  # MCP Server port
-  grpc_url: "http://127.0.0.1:15003"  # vzr GRPC server
+  internal_url: "http://127.0.0.1:15003"  # vzr internal server
   
   # Connection management
   max_connections: 10
   connection_timeout: 300
   
-  # GRPC client configuration
-  grpc_client:
+  # Internal client configuration
+  internal_client:
     timeout: 30
     connect_timeout: 5
     keep_alive_timeout: 30
@@ -473,7 +473,7 @@ curl http://127.0.0.1:15001/api/v1/health
 # Check MCP port
 netstat -tlnp | grep 15002
 
-# Check GRPC port
+# Check internal port
 netstat -tlnp | grep 15003
 ```
 
@@ -549,8 +549,8 @@ mcp:
 - `GET /api/v1/status` - Server status including MCP info
 - `GET /api/v1/collections` - List collections
 
-### GRPC Endpoints
-- `http://127.0.0.1:15003` - vzr GRPC orchestrator
+### Internal Endpoints
+- `http://127.0.0.1:15003` - vzr internal orchestrator
 
 ### MCP Protocol Methods
 - `initialize` - Initialize MCP connection

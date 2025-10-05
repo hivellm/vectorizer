@@ -662,7 +662,7 @@ services:
     build: .
     ports:
       - "8080:8080"  # REST API
-      - "8081:8081"  # gRPC API
+      - "8081:8081"  # MCP API
     volumes:
       - ./data:/app/data
     environment:

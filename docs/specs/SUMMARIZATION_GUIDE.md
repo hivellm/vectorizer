@@ -158,10 +158,10 @@ Summarization happens automatically during document indexing:
 3. **Collection Creation**: Summary collections are created automatically
 4. **Vector Storage**: Summaries are embedded and stored with rich metadata
 
-### **Manual Summarization** (GRPC)
+### **Manual Summarization** (REST)
 ```rust
 // Summarize specific text
-let result = grpc_client.summarize_text(
+let result = rest_client.summarize_text(
     "Your text content here",
     SummarizationParams {
         method: SummarizationMethod::Extractive,
@@ -172,10 +172,10 @@ let result = grpc_client.summarize_text(
 ).await?;
 ```
 
-### **Context Summarization** (GRPC)
+### **Context Summarization** (REST)
 ```rust
 // Summarize context for AI models
-let result = grpc_client.summarize_context(
+let result = rest_client.summarize_context(
     ContextSummarizationParams {
         query: "What are the main proposals?".to_string(),
         collection: "gov-proposals".to_string(),

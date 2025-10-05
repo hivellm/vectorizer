@@ -1,6 +1,6 @@
-# Development Dockerfile for Vectorizer v0.20.0 (CPU-Only)
+# Development Dockerfile for Vectorizer v0.29.0 (Unified Server)
 # Features: Development tools, hot reload, debugging support
-# Note: This version does NOT include CUDA support for maximum compatibility
+# Note: Unified server architecture without gRPC dependencies
 
 FROM rust:1.82-slim
 
@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     cmake \
     gdb \
     valgrind \
-    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Install additional Rust tools for development
@@ -32,7 +31,6 @@ COPY build.rs ./
 
 # Copy source code
 COPY src/ src/
-COPY proto/ proto/
 COPY examples/ examples/
 COPY docs/ docs/
 COPY benches/ benches/
@@ -47,8 +45,8 @@ RUN chmod +x scripts/*.sh
 # Create data directory
 RUN mkdir -p /app/data /app/cache /app/logs
 
-# Expose ports for GRPC architecture
-EXPOSE 15001 15002 15003
+# Expose port for unified server (REST + MCP)
+EXPOSE 15002
 
 # Development command - use development scripts with hot reload
 CMD ["./scripts/start-dev.sh"]

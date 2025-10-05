@@ -67,7 +67,7 @@ class TestVectorizerClient:
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "status": "healthy",
-            "service": "vectorizer-grpc",
+            "service": "vectorizer",
             "version": "1.0.0"
         })
         
@@ -77,7 +77,7 @@ class TestVectorizerClient:
             result = await client.health_check()
             
             assert result["status"] == "healthy"
-            assert result["service"] == "vectorizer-grpc"
+            assert result["service"] == "vectorizer"
     
     @pytest.mark.asyncio
     async def test_health_check_failure(self, client):

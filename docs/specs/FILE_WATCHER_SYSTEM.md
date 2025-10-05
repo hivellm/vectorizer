@@ -7,7 +7,7 @@ The File Watcher System is a critical component of Phase 5 that provides real-ti
 ## Architecture
 
 ```
-┌─────────────────┐    File Events    ┌──────────────────┐    GRPC    ┌─────────────────┐
+┌─────────────────┐    File Events    ┌──────────────────┐    REST    ┌─────────────────┐
 │   File System   │ ◄────────────────► │  File Watcher    │ ◄─────────► │ Vector Database │
 │                 │   (inotify/fsevents)│  System          │            │  Engine         │
 └─────────────────┘                    └──────────────────┘            └─────────────────┘
@@ -28,7 +28,7 @@ pub struct FileWatcherSystem {
     watcher: notify::RecommendedWatcher,
     change_queue: Arc<Mutex<VecDeque<FileChangeEvent>>>,
     debounce_timer: Arc<Mutex<Option<tokio::time::Instant>>>,
-    grpc_client: GrpcClient,
+    rest_client: RestClient,
     config: FileWatcherConfig,
 }
 

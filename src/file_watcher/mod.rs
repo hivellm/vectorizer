@@ -219,9 +219,6 @@ pub enum FileWatcherError {
     #[error("Notify error: {0}")]
     Notify(#[from] notify::Error),
     
-    #[error("GRPC error: {0}")]
-    Grpc(#[from] tonic::Status),
-    
     #[error("Embedding error: {0}")]
     Embedding(String),
     

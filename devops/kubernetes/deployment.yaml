@@ -5,7 +5,7 @@ metadata:
   namespace: vectorizer
   labels:
     app: vectorizer
-    version: v0.20.0
+    version: v0.29.0
 spec:
   replicas: 3
   selector:
@@ -15,21 +15,15 @@ spec:
     metadata:
       labels:
         app: vectorizer
-        version: v0.20.0
+        version: v0.29.0
     spec:
       containers:
       - name: vectorizer
-        image: vectorizer:latest
+        image: vectorizer:v0.29.0
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 15001
-          name: rest-api
-          protocol: TCP
         - containerPort: 15002
-          name: mcp-server
-          protocol: TCP
-        - containerPort: 15003
-          name: grpc-server
+          name: unified-server
           protocol: TCP
         env:
         - name: RUST_LOG
@@ -57,9 +51,6 @@ spec:
         - name: config-volume
           mountPath: /app/config.yml
           subPath: config.yml
-        - name: workspace-volume
-          mountPath: /app/vectorize-workspace.yml
-          subPath: vectorize-workspace.yml
         - name: data-volume
           mountPath: /app/data
         - name: cache-volume
@@ -68,24 +59,24 @@ spec:
           mountPath: /app/logs
         livenessProbe:
           httpGet:
-            path: /api/v1/health
-            port: 15001
+            path: /health
+            port: 15002
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 15
           failureThreshold: 5
         readinessProbe:
           httpGet:
-            path: /api/v1/health
-            port: 15001
+            path: /health
+            port: 15002
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
         startupProbe:
           httpGet:
-            path: /api/v1/health
-            port: 15001
+            path: /health
+            port: 15002
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -94,9 +85,6 @@ spec:
       - name: config-volume
         configMap:
           name: vectorizer-config
-      - name: workspace-volume
-        configMap:
-          name: vectorizer-workspace
       - name: data-volume
         persistentVolumeClaim:
           claimName: vectorizer-data-pvc

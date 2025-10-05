@@ -24,8 +24,6 @@ pub struct FileWatcherYamlConfig {
     pub max_file_size_bytes: Option<u64>,
     /// Enable content hash validation
     pub hash_validation_enabled: Option<bool>,
-    /// Enable GRPC integration
-    pub grpc_enabled: Option<bool>,
     /// Collection name for indexed files
     pub collection_name: Option<String>,
 }
@@ -51,7 +49,6 @@ impl Default for FileWatcherYamlConfig {
             min_file_size_bytes: Some(1),
             max_file_size_bytes: Some(10 * 1024 * 1024), // 10MB
             hash_validation_enabled: Some(true),
-            grpc_enabled: Some(true),
             collection_name: Some("default_collection".to_string()),
         }
     }
@@ -67,13 +64,11 @@ impl FileWatcherYamlConfig {
             debounce_delay_ms: self.debounce_delay_ms.unwrap_or(1000),
             max_file_size: self.max_file_size_bytes.unwrap_or(10 * 1024 * 1024),
             enable_hash_validation: self.hash_validation_enabled.unwrap_or(true),
-            grpc_endpoint: None,
             collection_name: self.collection_name.clone().unwrap_or_else(|| "default_collection".to_string()),
             recursive: self.recursive.unwrap_or(true),
             max_concurrent_tasks: 4,
             enable_realtime_indexing: true,
             batch_size: 10,
-            grpc_timeout_ms: 5000,
             enable_monitoring: true,
             log_level: "info".to_string(),
         }

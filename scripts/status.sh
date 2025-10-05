@@ -1,23 +1,23 @@
 #!/bin/bash
 
-echo "📊 Vectorizer Servers Status (GRPC Architecture)"
-echo "================================================"
+echo "📊 Vectorizer Server Status (REST + MCP Architecture)"
+echo "=================================================="
 
-# Check vzr orchestrator (GRPC server)
+# Check vzr orchestrator (internal server)
 VZR_PIDS=$(pgrep -f "vzr" || true)
 if [ ! -z "$VZR_PIDS" ]; then
-    echo "✅ vzr Orchestrator (GRPC): RUNNING"
+    echo "✅ vzr Orchestrator (Internal): RUNNING"
     echo "   PIDs: $VZR_PIDS"
-    echo "   Port: 15003 (GRPC)"
+    echo "   Port: 15003 (Internal)"
 
-    # Test GRPC server health
+    # Test internal server health
     if curl -s --max-time 2 http://127.0.0.1:15003/health > /dev/null 2>&1; then
         echo "   Health: 🟢 OK"
     else
         echo "   Health: 🟡 UNREACHABLE"
     fi
 else
-    echo "❌ vzr Orchestrator (GRPC): NOT RUNNING"
+    echo "❌ vzr Orchestrator (Internal): NOT RUNNING"
 fi
 
 echo ""
@@ -64,7 +64,7 @@ fi
 
 echo ""
 echo "🏗️  Architecture:"
-echo "   Client → REST/MCP → GRPC → vzr → Vector Store"
+echo "   Client → REST/MCP → Internal Server → Vector Store"
 echo ""
 echo "💡 Commands:"
 echo "   Start all servers: ./start.sh"

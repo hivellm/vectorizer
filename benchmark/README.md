@@ -29,11 +29,11 @@ Tested with 3931 real documents from the gov/ directory:
 cargo run --bin benchmark_embeddings --release
 ```
 
-### CUDA Performance Benchmark
+### GPU Performance Benchmark
 ```bash
-cargo run --bin cuda_benchmark --features cuda --release
+cargo run --bin gpu_benchmark --features gpu --release
 ```
-Compares CPU vs CUDA performance for vector indexing and search operations.
+Compares CPU vs GPU performance for vector indexing and search operations.
 
 ### With Real Transformer Models
 ```bash

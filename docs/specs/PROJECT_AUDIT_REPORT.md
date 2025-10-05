@@ -6,7 +6,7 @@ This comprehensive audit evaluates the Vectorizer project against established co
 
 ## Audit Scope
 
-- **Architecture Compliance**: 3-layer rule (GRPC/REST/MCP)
+- **Architecture Compliance**: 2-layer rule (REST/MCP)
 - **Code Quality**: Rust idioms, patterns, documentation
 - **Testing Coverage**: Unit, integration, and benchmark tests
 - **Performance**: Memory usage, CPU optimization, scalability
@@ -23,7 +23,7 @@ This comprehensive audit evaluates the Vectorizer project against established co
 **Impact**: Breaks fundamental architecture promise
 
 **Violations Identified**:
-- `get_memory_analysis()`: REST only (missing GRPC, MCP)
+- `get_memory_analysis()`: REST only (missing MCP)
 - `requantize_collection()`: REST only (missing GRPC, MCP)
 - `get_stats()` vs `get_database_stats()`: Inconsistent implementations
 - Batch operations: REST only (missing GRPC, MCP)
@@ -227,7 +227,7 @@ This comprehensive audit evaluates the Vectorizer project against established co
 - Feature flags for optional components
 - Cross-compilation support
 - Optimized release builds
-- CUDA integration
+- GPU integration
 
 #### CI/CD Pipeline
 **Score**: 70/100 ⚠️ NEEDS IMPROVEMENT

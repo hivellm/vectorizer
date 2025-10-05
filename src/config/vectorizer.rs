@@ -27,8 +27,6 @@ pub struct ServerConfig {
     pub host: String,
     /// Port to listen on
     pub port: u16,
-    /// GRPC port
-    pub grpc_port: u16,
     /// MCP port
     pub mcp_port: u16,
 }
@@ -38,7 +36,6 @@ impl Default for ServerConfig {
         Self {
             host: "0.0.0.0".to_string(),
             port: 15002,
-            grpc_port: 15002,
             mcp_port: 15003,
         }
     }
@@ -137,12 +134,6 @@ impl VectorizerConfig {
         if let Ok(port) = std::env::var("VECTORIZER_PORT") {
             if let Ok(port_num) = port.parse::<u16>() {
                 config.server.port = port_num;
-            }
-        }
-
-        if let Ok(grpc_port) = std::env::var("VECTORIZER_GRPC_PORT") {
-            if let Ok(port_num) = grpc_port.parse::<u16>() {
-                config.server.grpc_port = port_num;
             }
         }
 

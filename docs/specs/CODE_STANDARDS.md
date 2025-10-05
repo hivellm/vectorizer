@@ -231,7 +231,7 @@ eprintln!("💡 Dica: Compile com --features wgpu-gpu para habilitar Metal");
 /// 1. Metal (macOS Apple Silicon)
 /// 2. Vulkan (AMD/Linux/Universal)
 /// 3. DirectX 12 (Windows)
-/// 4. CUDA (NVIDIA)
+/// 4. GPU (NVIDIA)
 /// 5. CPU (fallback)
 ///
 /// # Examples

@@ -1,8 +1,8 @@
 //! Unified Vectorizer Server - MCP + REST API
 //!
 //! This server implements MCP as the primary server using SSE transport,
-//! with REST API routes layered on top. This eliminates GRPC complexity and
-//! centralizes all methods in a single implementation.
+//! with REST API routes layered on top. This provides a unified implementation
+//! for all vector operations.
 
 mod mcp_tools;
 mod mcp_handlers;

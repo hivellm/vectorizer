@@ -389,7 +389,6 @@ EOF
 
 - **REST API**: http://localhost:15001
 - **MCP Server**: ws://localhost:15002/mcp
-- **GRPC Server**: http://localhost:15003
 
 ## Configuration
 
@@ -481,7 +480,6 @@ echo.
 echo Services:
 echo   REST API: http://localhost:15001
 echo   MCP Server: ws://localhost:15002/mcp
-echo   GRPC Server: http://localhost:15003
 echo.
 pause
 EOF
@@ -510,7 +508,6 @@ EOF
 
 - **REST API**: http://localhost:15001
 - **MCP Server**: ws://localhost:15002/mcp
-- **GRPC Server**: http://localhost:15003
 
 ## Configuration
 
@@ -565,7 +562,6 @@ create_release_notes() {
 
 - **REST API**: http://localhost:15001
 - **MCP Server**: ws://localhost:15002/mcp  
-- **GRPC Server**: http://localhost:15003
 
 ## 📚 Documentation
 

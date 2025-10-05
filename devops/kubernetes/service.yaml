@@ -8,18 +8,10 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 15001
-    targetPort: 15001
-    protocol: TCP
-    name: rest-api
   - port: 15002
     targetPort: 15002
     protocol: TCP
-    name: mcp-server
-  - port: 15003
-    targetPort: 15003
-    protocol: TCP
-    name: grpc-server
+    name: unified-server
   selector:
     app: vectorizer
 
@@ -34,21 +26,11 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: 15001
-    targetPort: 15001
-    nodePort: 30001
-    protocol: TCP
-    name: rest-api
   - port: 15002
     targetPort: 15002
     nodePort: 30002
     protocol: TCP
-    name: mcp-server
-  - port: 15003
-    targetPort: 15003
-    nodePort: 30003
-    protocol: TCP
-    name: grpc-server
+    name: unified-server
   selector:
     app: vectorizer
 
@@ -63,17 +45,9 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 15001
-    targetPort: 15001
-    protocol: TCP
-    name: rest-api
   - port: 15002
     targetPort: 15002
     protocol: TCP
-    name: mcp-server
-  - port: 15003
-    targetPort: 15003
-    protocol: TCP
-    name: grpc-server
+    name: unified-server
   selector:
     app: vectorizer

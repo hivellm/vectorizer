@@ -339,7 +339,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "status": "healthy",
-            "service": "vectorizer-grpc",
+            "service": "vectorizer",
             "version": "1.0.0"
         })
         
@@ -349,7 +349,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             result = await self.client.health_check()
             
             self.assertEqual(result["status"], "healthy")
-            self.assertEqual(result["service"], "vectorizer-grpc")
+            self.assertEqual(result["service"], "vectorizer")
             self.assertEqual(result["version"], "1.0.0")
     
     async def test_health_check_failure(self):

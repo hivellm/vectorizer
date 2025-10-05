@@ -25,9 +25,6 @@ pub struct FileWatcherConfig {
     /// Enable content hash validation
     pub enable_hash_validation: bool,
     
-    /// GRPC server endpoint for vector operations
-    pub grpc_endpoint: Option<String>,
-    
     /// Collection name for indexed files
     pub collection_name: String,
     
@@ -42,9 +39,6 @@ pub struct FileWatcherConfig {
     
     /// Batch size for bulk operations
     pub batch_size: usize,
-    
-    /// Timeout for GRPC operations (in milliseconds)
-    pub grpc_timeout_ms: u64,
     
     /// Enable performance monitoring
     pub enable_monitoring: bool,
@@ -88,13 +82,11 @@ impl Default for FileWatcherConfig {
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB
             enable_hash_validation: true,
-            grpc_endpoint: Some("http://127.0.0.1:15002".to_string()),
             collection_name: "watched_files".to_string(),
             recursive: true,
             max_concurrent_tasks: 4,
             enable_realtime_indexing: true,
             batch_size: 100,
-            grpc_timeout_ms: 5000,
             enable_monitoring: true,
             log_level: "info".to_string(),
         }
@@ -163,11 +155,6 @@ impl FileWatcherConfig {
     /// Get debounce duration
     pub fn debounce_duration(&self) -> Duration {
         Duration::from_millis(self.debounce_delay_ms)
-    }
-
-    /// Get GRPC timeout duration
-    pub fn grpc_timeout_duration(&self) -> Duration {
-        Duration::from_millis(self.grpc_timeout_ms)
     }
 
     /// Check if a file should be processed based on patterns
@@ -262,6 +249,5 @@ mod tests {
     fn test_duration_conversion() {
         let config = FileWatcherConfig::default();
         assert_eq!(config.debounce_duration(), Duration::from_millis(1000));
-        assert_eq!(config.grpc_timeout_duration(), Duration::from_millis(5000));
     }
 }

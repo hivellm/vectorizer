@@ -7,7 +7,7 @@ The File Watcher System is a critical component of Phase 5 that provides real-ti
 **Status**: Phase 5 Implementation Target  
 **Priority**: High - Production Performance Critical  
 **Timeline**: Weeks 25-28 of Phase 5  
-**Dependencies**: GRPC Vector Operations, Incremental Indexing Engine
+**Dependencies**: REST Vector Operations, Incremental Indexing Engine
 
 ## Problem Statement
 
@@ -16,7 +16,7 @@ The File Watcher System is a critical component of Phase 5 that provides real-ti
 - **No Real-time Updates**: Changes to indexed files are not automatically detected
 - **Resource Waste**: Full reindexing for minor file changes
 - **Poor User Experience**: No automatic synchronization with file system changes
-- **Limited Vector Operations**: GRPC lacks update/delete operations for vectors
+- **Limited Vector Operations**: REST lacks update/delete operations for vectors
 
 ### Impact on Production
 - **Slow Response**: 30-60 seconds startup time for reindexing

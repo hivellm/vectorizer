@@ -77,7 +77,7 @@ This technical documentation was created through complete analysis of the Vector
 **Content**:
 - Main components (VectorStore, EmbeddingEngine, HNSW Index, Persistence)
 - Native embedding models and quantization
-- Available interfaces (REST, gRPC, SDKs)
+- Available interfaces (REST, MCP, SDKs)
 - Data models and structures
 - Concurrency strategies
 - Scalability considerations
@@ -85,7 +85,7 @@ This technical documentation was created through complete analysis of the Vector
 ### 4. docs/APIS.md
 **Purpose**: Complete API documentation
 **Content**:
-- Detailed REST/gRPC APIs with mandatory API key authentication
+- Detailed REST/MCP APIs with mandatory API key authentication
 - API key management via CLI and dashboard (localhost:15002)
 - Client-server architecture specifications
 - Network configuration (internal vs cloud deployment)
@@ -142,7 +142,7 @@ This technical documentation was created through complete analysis of the Vector
 - Phased implementation plan (5 months timeline)
 - Priority order: Core → APIs → Testing → SDKs → Production → Experimental
 - UMICP integration moved to experimental phase (Phase 6+)
-- CUDA/GPU acceleration as future experimental feature
+- GPU acceleration as future experimental feature
 - Team requirements and success metrics
 - Risk mitigation and adaptive planning strategies
 
@@ -238,7 +238,7 @@ This technical documentation was created through complete analysis of the Vector
 - Binary persistence
 
 ### Phase 2: APIs and Interfaces (3-4 weeks)
-- REST/gRPC APIs
+- REST/MCP APIs
 - CLI tools
 - Unit and integration tests
 
@@ -416,7 +416,7 @@ These features transform the Vectorizer from a static vector database into an in
    - **Priority 5**: Production features (dashboard, CLI)
 
 3. **Experimental Features Separated**:
-   - **CUDA/GPU Acceleration**: Clearly marked as experimental
+   - **GPU Acceleration**: Clearly marked as experimental
    - **Advanced ML Integrations**: Deferred until after core is solid
    - **LangChain Integration**: Moved to experimental phase
 

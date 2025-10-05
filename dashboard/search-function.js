@@ -36,9 +36,9 @@
                         searchResults.value = [];
                         searchTime.value = Date.now() - startTime;
                         
-                        // Fallback: try direct GRPC call simulation
+                        // Fallback: try direct API call
                         try {
-                            const grpcResponse = await fetch('http://localhost:15003', {
+                            const apiResponse = await fetch('http://localhost:15002', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -50,12 +50,12 @@
                                 })
                             });
                             
-                            if (grpcResponse.ok) {
-                                const grpcData = await grpcResponse.json();
-                                searchResults.value = grpcData.results || [];
+                            if (apiResponse.ok) {
+                                const apiData = await apiResponse.json();
+                                searchResults.value = apiData.results || [];
                             }
-                        } catch (grpcError) {
-                            console.error('GRPC fallback error:', grpcError);
+                        } catch (apiError) {
+                            console.error('API fallback error:', apiError);
                         }
                     } finally {
                         loading.value = false;

@@ -1,6 +1,6 @@
 # Vectorizer Server Configuration File
 # Updated for v0.28.1 - REST API architecture with MCP support
-# Removed gRPC and CUDA dependencies for simplified deployment
+# Simplified deployment without complex dependencies
 
 # =============================================================================
 # FILE WATCHER CONFIGURATION
@@ -11,7 +11,6 @@ file_watcher:
   min_file_size_bytes: 1
   max_file_size_bytes: 10485760  # 10MB
   hash_validation_enabled: true
-  grpc_enabled: false
   collection_name: "workspace-files"
 
 # =============================================================================

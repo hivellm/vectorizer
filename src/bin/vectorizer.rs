@@ -1,7 +1,7 @@
 //! Vectorizer Server - Unified MCP + REST API
 //!
-//! This is the new unified server that eliminates GRPC complexity
-//! and provides direct MCP + REST API access.
+//! This is the unified server that provides MCP + REST API access
+//! for all vector operations.
 
 use vectorizer::server::VectorizerServer;
 use clap::Parser;

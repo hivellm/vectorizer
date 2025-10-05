@@ -9,7 +9,7 @@ Vectorizer provides multiple interfaces for interaction, each optimized for diff
 | Interface | Type | Description | Use Cases |
 |-----------|------|-------------|-----------|
 | **REST API** | Server API | Direct HTTP/JSON access to server | Custom integrations, direct API calls |
-| **gRPC API** | Server API | Direct Protocol Buffers access to server | High performance, distributed systems |
+| **MCP API** | Server API | Direct Model Context Protocol access to server | AI integration, model context |
 | **Python SDK** | Client SDK | Python client connecting to server | Data Science, ML pipelines |
 | **TypeScript SDK** | Client SDK | TypeScript/JavaScript client connecting to server | Web applications, Node.js |
 | **CLI Tools** | Client Tools | Command-line client tools | Administration, scripts |
@@ -18,7 +18,7 @@ Vectorizer provides multiple interfaces for interaction, each optimized for diff
 
 Vectorizer follows a **client-server architecture** with **mandatory authentication** where:
 
-- **Server**: Centralized Rust application providing REST/gRPC APIs with native vector processing, API key management, and local dashboard
+- **Server**: Centralized Rust application providing REST/MCP APIs with native vector processing, API key management, and local dashboard
 - **SDKs**: Lightweight clients (Python, TypeScript) that connect to the server via HTTP/gRPC with mandatory API keys
 - **Security**: All operations require valid API keys; dashboard provides key management (localhost only)
 - **Network**: Configurable for internal network or cloud deployment
