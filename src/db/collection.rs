@@ -700,7 +700,7 @@ mod tests {
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
-            quantization: Default::default(),
+            quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
         };
         Collection::new("test".to_string(), config)
