@@ -35,32 +35,43 @@ impl VectorizerServer {
     pub async fn new() -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
         
-        // Initialize VectorStore with auto-loading enabled
-        let mut vector_store = VectorStore::new();
-        
-        // Load all persisted collections during initialization
-        match vector_store.load_all_persisted_collections() {
-            Ok(count) => {
-                if count > 0 {
-                    info!("✅ Loaded {} persisted collections during initialization", count);
-                } else {
-                    info!("ℹ️  No persisted collections found during initialization");
-                }
-            },
-            Err(e) => {
-                warn!("⚠️  Failed to load persisted collections during initialization: {}", e);
-            }
-        }
+        // Initialize VectorStore without loading collections yet
+        let vector_store = VectorStore::new();
+        let store_arc = Arc::new(vector_store);
         
         let mut embedding_manager = EmbeddingManager::new();
         let bm25 = crate::embedding::Bm25Embedding::new(512);
         embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
         embedding_manager.set_default_provider("bm25")?;
 
-        info!("✅ Vectorizer Server initialized successfully with auto-indexation enabled");
+        info!("✅ Vectorizer Server initialized successfully - starting background collection loading");
+
+        // Start background collection loading
+        let store_for_loading = store_arc.clone();
+        tokio::task::spawn(async move {
+            println!("📦 Background task started - loading collections...");
+            info!("📦 Background task started - loading collections...");
+            
+            // Load all persisted collections in background
+            match store_for_loading.load_all_persisted_collections() {
+                Ok(count) => {
+                    if count > 0 {
+                        println!("✅ Background loading completed - {} collections loaded", count);
+                        info!("✅ Background loading completed - {} collections loaded", count);
+                    } else {
+                        println!("ℹ️  Background loading completed - no persisted collections found");
+                        info!("ℹ️  Background loading completed - no persisted collections found");
+                    }
+                },
+                Err(e) => {
+                    println!("⚠️  Failed to load persisted collections in background: {}", e);
+                    warn!("⚠️  Failed to load persisted collections in background: {}", e);
+                }
+            }
+        });
 
         Ok(Self {
-            store: Arc::new(vector_store),
+            store: store_arc,
             embedding_manager: Arc::new(embedding_manager),
             start_time: std::time::Instant::now(),
         })
@@ -69,9 +80,6 @@ impl VectorizerServer {
     /// Start the server
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
-
-        // Start background collection loading
-        self.start_background_loading();
 
         // Create MCP router (main server) using SSE transport
         info!("🔧 Creating MCP router with SSE transport...");
@@ -140,21 +148,6 @@ impl VectorizerServer {
         Ok(())
     }
 
-    /// Start background collection loading
-    async fn start_background_loading(&self) {
-        let store = self.store.clone();
-        
-        tokio::spawn(async move {
-            info!("📦 Starting background collection loading...");
-            
-            // Since VectorStore is wrapped in Arc, we need to handle this differently
-            // For now, we'll log that auto-loading is enabled and collections will be loaded on-demand
-            info!("🔄 Auto-indexation enabled - collections will be loaded automatically when accessed");
-            info!("📁 Existing collections can be accessed via REST/MCP APIs");
-            
-            info!("✅ Background collection loading completed");
-        });
-    }
 
     /// Create MCP router with SSE transport
     async fn create_mcp_router(&self) -> Router {

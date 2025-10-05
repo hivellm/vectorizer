@@ -214,6 +214,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(vectorizer::summarization::SummarizationConfig::default())
     };
 
+
     // Create and start the HTTP server
     let server = vectorizer::api::VectorizerServer::new(
         &args.host,

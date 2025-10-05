@@ -275,25 +275,33 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
     
     let collection_infos: Vec<Value> = collections.iter().map(|name| {
         match state.store.get_collection(name) {
-            Ok(collection) => json!({
-                "name": name,
-                "vector_count": collection.vector_count(),
-                "document_count": collection.vector_count(), // Same as vector count for now
-                "dimension": collection.config().dimension,
-                "metric": format!("{:?}", collection.config().metric),
-                "embedding_provider": "bm25",
-                "created_at": chrono::Utc::now().to_rfc3339(),
-                "updated_at": chrono::Utc::now().to_rfc3339(),
-                "indexing_status": {
-                    "status": "completed",
-                    "progress": 1.0,
-                    "total_documents": collection.vector_count(),
-                    "processed_documents": collection.vector_count(),
-                    "errors": 0,
-                    "start_time": chrono::Utc::now().to_rfc3339(),
-                    "end_time": chrono::Utc::now().to_rfc3339()
-                }
-            }),
+            Ok(collection) => {
+                let config = collection.config();
+                json!({
+                    "name": name,
+                    "vector_count": collection.vector_count(),
+                    "document_count": collection.vector_count(), // Same as vector count for now
+                    "dimension": config.dimension,
+                    "metric": format!("{:?}", config.metric),
+                    "embedding_provider": "bm25",
+                    "quantization": {
+                        "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
+                        "type": format!("{:?}", config.quantization),
+                        "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
+                    },
+                    "created_at": chrono::Utc::now().to_rfc3339(),
+                    "updated_at": chrono::Utc::now().to_rfc3339(),
+                    "indexing_status": {
+                        "status": "completed",
+                        "progress": 1.0,
+                        "total_documents": collection.vector_count(),
+                        "processed_documents": collection.vector_count(),
+                        "errors": 0,
+                        "start_time": chrono::Utc::now().to_rfc3339(),
+                        "end_time": chrono::Utc::now().to_rfc3339()
+                    }
+                })
+            },
             Err(_) => json!({
                 "name": name,
                 "vector_count": 0,
@@ -349,11 +357,17 @@ pub async fn get_collection(
 ) -> Result<Json<Value>, StatusCode> {
     match state.store.get_collection(&name) {
         Ok(collection) => {
+            let config = collection.config();
             Ok(Json(json!({
                 "name": name,
                 "vector_count": collection.vector_count(),
-                "dimension": collection.config().dimension,
-                "metric": format!("{:?}", collection.config().metric),
+                "dimension": config.dimension,
+                "metric": format!("{:?}", config.metric),
+                "quantization": {
+                    "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
+                    "type": format!("{:?}", config.quantization),
+                    "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
+                },
                 "status": "ready"
             })))
         },

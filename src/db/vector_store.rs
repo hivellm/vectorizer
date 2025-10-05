@@ -916,7 +916,7 @@ impl VectorStore {
 
 
     /// Load all persisted collections from the data directory (in parallel)
-    pub fn load_all_persisted_collections(&mut self) -> Result<usize> {
+    pub fn load_all_persisted_collections(&self) -> Result<usize> {
         let data_dir = Self::get_data_dir();
         if !data_dir.exists() {
             debug!("Data directory does not exist: {:?}", data_dir);
@@ -1017,7 +1017,7 @@ impl VectorStore {
     }
 
     /// Load a single persisted collection from file
-    fn load_persisted_collection<P: AsRef<std::path::Path>>(&mut self, path: P, collection_name: &str) -> Result<()> {
+    fn load_persisted_collection<P: AsRef<std::path::Path>>(&self, path: P, collection_name: &str) -> Result<()> {
         use crate::persistence::PersistedVectorStore;
 
         let path = path.as_ref();
