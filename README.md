@@ -2,19 +2,11 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## 🎉 **v0.3.0 Release - Complete Persistence & File Watcher**
-
-**Major Milestone**: Complete persistence system and real-time file monitoring implementation.
-
-### ✅ **New Features in v0.3.0**
 - **💾 Dynamic Collection Persistence**: Collections automatically saved and loaded on server restart
 - **🔍 Real-time File Watcher**: Monitor file changes and auto-index documents
 - **⚡ Background Auto-save**: Collections saved every 30 seconds automatically
 - **🔄 Seamless Restart**: All collections restored exactly as they were
 - **📁 File System Monitoring**: Real-time indexing of document changes
-
-## 🚀 **Key Features**
-
 - **🔍 Semantic Search**: Advanced vector similarity search with multiple distance metrics
 - **📚 Document Indexing**: Intelligent chunking and processing of various file types
 - **🧠 Multiple Embeddings**: Support for TF-IDF, BM25, BERT, MiniLM, and custom models
@@ -22,11 +14,6 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🏗️ Unified Architecture**: Single server with REST API and MCP integration
 - **🔧 MCP Integration**: Model Context Protocol for AI IDE integration (Cursor, VS Code)
 - **🌐 REST API**: Complete HTTP API with authentication and security
-- **📱 TypeScript SDK**: ✅ Published on npm - Complete TypeScript client for web applications
-- **🟨 JavaScript SDK**: ✅ Published on npm - Modern JavaScript client with multiple build formats
-- **🦀 Rust SDK**: ✅ Published on crates.io - High-performance native client with memory safety and MCP support
-- **🐍 Python SDK**: 🚧 In development - PyPI publishing in progress
-- **🔗 LangChain Integration**: Complete VectorStore for Python and JavaScript/TypeScript
 - **🚀 Advanced Embedding Models**: BM25, TF-IDF, and custom embedding providers
 - **🎯 Simplified Configuration**: Minimal setup with intelligent defaults
 - **💾 Automatic Persistence**: Collections automatically saved and loaded
