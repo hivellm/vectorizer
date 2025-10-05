@@ -52,7 +52,7 @@ cargo build --release
 - **Dashboard**: http://localhost:15002/dashboard
 - **Health Check**: http://localhost:15002/health
 
-## 💾 **Persistence & File Watcher (v0.3.0)**
+## 💾 **Persistence & File Watcher**
 
 ### **Dynamic Collections**
 Create collections via REST API that persist automatically:
@@ -148,14 +148,6 @@ vectorizer:
     default_method: "extractive"
 ```
 
-## 🚀 Quick Start
-
-### MCP Integration
-```bash
-# MCP endpoint: http://localhost:15002/mcp/sse
-# Available tools: search_vectors, list_collections, embed_text, create_collection
-```
-
 ## 💾 Data Management
 
 Vectorizer automatically manages data persistence in the `data/` directory:
@@ -196,17 +188,3 @@ IDE integration via Model Context Protocol:
 ```
 
 **Available Tools:** search_vectors, list_collections, embed_text, create_collection, insert_texts, delete_vectors, batch operations
-
-## 📁 Configuration
-
-Vectorizer uses intelligent defaults and minimal configuration:
-
-```yaml
-# Optional configuration file (config.yml)
-server:
-  host: "0.0.0.0"
-  port: 15002
-
-logging:
-  level: "info"
-```
