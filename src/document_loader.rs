@@ -379,7 +379,15 @@ impl DocumentLoader {
         Ok(loader)
     }
 
-    /// Load and index all documents from a project directory
+    /// Load and index all documents from a project directory (async version)
+    pub async fn load_project_async(&mut self, project_path: &str, store: &VectorStore) -> Result<usize> {
+        self.full_project_indexing(project_path, store, None).await
+            .map(|(count, _)| count)
+            .map_err(|e| anyhow::anyhow!("Failed to index project: {}", e))
+    }
+
+    /// Load and index all documents from a project directory (sync wrapper - deprecated)
+    #[deprecated(note = "Use load_project_async instead to avoid runtime conflicts")]
     pub fn load_project(&mut self, project_path: &str, store: &VectorStore) -> Result<usize> {
         // This is now a simplified entry point that internally calls the async version.
         let rt = tokio::runtime::Runtime::new()

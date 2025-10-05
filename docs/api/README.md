@@ -1,126 +1,126 @@
 # Vectorizer API Documentation
 
-Este diretório contém a documentação completa da API do Vectorizer, incluindo o schema OpenAPI 3.0.3.
+This directory contains the complete API documentation for Vectorizer, including the OpenAPI 3.0.3 schema.
 
-## 📁 Arquivos
+## 📁 Files
 
-- **`openapi.yaml`** - Schema OpenAPI 3.0.3 completo da API do Vectorizer
-- **`README.md`** - Este arquivo com instruções de uso
+- **`openapi.yaml`** - Complete OpenAPI 3.0.3 schema for Vectorizer API
+- **`README.md`** - This file with usage instructions
 
-## 🚀 Como Usar
+## 🚀 How to Use
 
-### 1. Visualizar a Documentação
+### 1. View Documentation
 
 #### Swagger UI Online
-1. Acesse [Swagger Editor](https://editor.swagger.io/)
-2. Copie o conteúdo do arquivo `openapi.yaml`
-3. Cole no editor para visualizar a documentação interativa
+1. Visit [Swagger Editor](https://editor.swagger.io/)
+2. Copy the content from `openapi.yaml` file
+3. Paste in the editor to view interactive documentation
 
 #### Swagger UI Local
 ```bash
-# Instalar Swagger UI
+# Install Swagger UI
 npm install -g swagger-ui-serve
 
-# Servir a documentação localmente
+# Serve documentation locally
 swagger-ui-serve vectorizer/docs/api/openapi.yaml
 ```
 
 #### Redoc
 ```bash
-# Instalar Redoc CLI
+# Install Redoc CLI
 npm install -g redoc-cli
 
-# Gerar documentação HTML
+# Generate HTML documentation
 redoc-cli build vectorizer/docs/api/openapi.yaml --output vectorizer/docs/api/index.html
 ```
 
-### 2. Gerar SDKs
+### 2. Generate SDKs
 
 #### OpenAPI Generator
 ```bash
-# Instalar OpenAPI Generator
+# Install OpenAPI Generator
 npm install -g @openapitools/openapi-generator-cli
 
-# Gerar SDK para TypeScript
+# Generate SDK for TypeScript
 openapi-generator-cli generate -i vectorizer/docs/api/openapi.yaml -g typescript-fetch -o ./sdks/typescript
 
-# Gerar SDK para Python
+# Generate SDK for Python
 openapi-generator-cli generate -i vectorizer/docs/api/openapi.yaml -g python -o ./sdks/python
 
-# Gerar SDK para Rust
+# Generate SDK for Rust
 openapi-generator-cli generate -i vectorizer/docs/api/openapi.yaml -g rust -o ./sdks/rust
 ```
 
 #### Swagger Codegen
 ```bash
-# Instalar Swagger Codegen
+# Install Swagger Codegen
 npm install -g swagger-codegen
 
-# Gerar SDK para JavaScript
+# Generate SDK for JavaScript
 swagger-codegen generate -i vectorizer/docs/api/openapi.yaml -l javascript -o ./sdks/javascript
 
-# Gerar SDK para Java
+# Generate SDK for Java
 swagger-codegen generate -i vectorizer/docs/api/openapi.yaml -l java -o ./sdks/java
 ```
 
-### 3. Validar o Schema
+### 3. Validate Schema
 
 ```bash
-# Instalar Swagger CLI
+# Install Swagger CLI
 npm install -g swagger-cli
 
-# Validar o schema
+# Validate schema
 swagger-cli validate vectorizer/docs/api/openapi.yaml
 
-# Bundle (resolver referências)
+# Bundle (resolve references)
 swagger-cli bundle vectorizer/docs/api/openapi.yaml -o vectorizer/docs/api/openapi-bundled.yaml
 ```
 
-## 📋 Endpoints Principais
+## 📋 Main Endpoints
 
-### 🏥 Sistema
+### 🏥 System
 - `GET /health` - Health check
-- `GET /stats` - Estatísticas do sistema
+- `GET /stats` - System statistics
 
 ### 📚 Collections
-- `GET /collections` - Listar collections
-- `POST /collections` - Criar collection
-- `GET /collections/{name}` - Obter info da collection
-- `DELETE /collections/{name}` - Deletar collection
+- `GET /collections` - List collections
+- `POST /collections` - Create collection
+- `GET /collections/{name}` - Get collection info
+- `DELETE /collections/{name}` - Delete collection
 
 ### 🔍 Vectors
-- `POST /collections/{name}/vectors` - Inserir textos
-- `GET /collections/{name}/vectors` - Listar vectors
-- `GET /collections/{name}/vectors/{id}` - Obter vector específico
-- `DELETE /collections/{name}/vectors/{id}` - Deletar vector
+- `POST /collections/{name}/vectors` - Insert texts
+- `GET /collections/{name}/vectors` - List vectors
+- `GET /collections/{name}/vectors/{id}` - Get specific vector
+- `DELETE /collections/{name}/vectors/{id}` - Delete vector
 
 ### 🔎 Search
-- `POST /collections/{name}/search` - Buscar vectors
-- `POST /collections/{name}/search/text` - Buscar por texto
+- `POST /collections/{name}/search` - Search vectors
+- `POST /collections/{name}/search/text` - Search by text
 
 ### 📦 Batch Operations
-- `POST /collections/{name}/batch/insert` - Inserção em lote
-- `POST /collections/{name}/batch/update` - Atualização em lote
-- `POST /collections/{name}/batch/delete` - Deleção em lote
-- `POST /collections/{name}/batch/search` - Busca em lote
+- `POST /collections/{name}/batch/insert` - Batch insertion
+- `POST /collections/{name}/batch/update` - Batch update
+- `POST /collections/{name}/batch/delete` - Batch deletion
+- `POST /collections/{name}/batch/search` - Batch search
 
 ### 🧠 Embedding
-- `GET /embedding/providers` - Listar providers
-- `POST /embedding/providers/set` - Definir provider
+- `GET /embedding/providers` - List providers
+- `POST /embedding/providers/set` - Set provider
 
 ### 📊 Indexing
-- `GET /indexing/progress` - Progresso da indexação
+- `GET /indexing/progress` - Indexing progress
 
 ### 📝 Summarization
-- `POST /summarize/text` - Resumir texto
-- `GET /summaries` - Listar resumos
-- `GET /summaries/{id}` - Obter resumo específico
+- `POST /summarize/text` - Summarize text
+- `GET /summaries` - List summaries
+- `GET /summaries/{id}` - Get specific summary
 
-## 🎯 Exemplos de Uso
+## 🎯 Usage Examples
 
-### Criar Collection
+### Create Collection
 ```bash
-curl -X POST "http://localhost:15001/api/v1/collections" \
+curl -X POST "http://localhost:15002/collections" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-collection",
@@ -129,27 +129,27 @@ curl -X POST "http://localhost:15001/api/v1/collections" \
   }'
 ```
 
-### Inserir Textos
+### Insert Texts
 ```bash
-curl -X POST "http://localhost:15001/api/v1/collections/my-collection/vectors" \
+curl -X POST "http://localhost:15002/collections/my-collection/vectors" \
   -H "Content-Type: application/json" \
   -d '{
     "texts": [
       {
         "id": "doc1",
-        "text": "Este é um exemplo de texto para indexar",
+        "text": "This is an example text to index",
         "metadata": {"source": "example"}
       }
     ]
   }'
 ```
 
-### Buscar por Texto
+### Search by Text
 ```bash
-curl -X POST "http://localhost:15001/api/v1/collections/my-collection/search" \
+curl -X POST "http://localhost:15002/collections/my-collection/search" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "exemplo de busca",
+    "query": "example search",
     "limit": 10,
     "score_threshold": 0.1
   }'
@@ -157,76 +157,76 @@ curl -X POST "http://localhost:15001/api/v1/collections/my-collection/search" \
 
 ### Health Check
 ```bash
-curl "http://localhost:15001/api/v1/health"
+curl "http://localhost:15002/health"
 ```
 
-## 🔧 Configuração
+## 🔧 Configuration
 
-### Servidor Local
-- **URL Base**: `http://localhost:15001/api/v1`
-- **Porta**: 15001
-- **Versão**: 0.21.0
+### Local Server
+- **Base URL**: `http://localhost:15002`
+- **Port**: 15002
+- **Version**: 0.3.0
 
-### Autenticação
-Atualmente não há autenticação implementada. Para produção, considere implementar:
+### Authentication
+Currently no authentication is implemented. For production, consider implementing:
 - API Keys
 - JWT Tokens
 - OAuth 2.0
 
-## 📖 Especificações Técnicas
+## 📖 Technical Specifications
 
-### Formatos Suportados
+### Supported Formats
 - **Input**: JSON
 - **Output**: JSON
 - **Encoding**: UTF-8
 
-### Métricas de Distância
-- `cosine` - Similaridade do cosseno
-- `euclidean` - Distância euclidiana
-- `dot_product` - Produto escalar
+### Distance Metrics
+- `cosine` - Cosine similarity
+- `euclidean` - Euclidean distance
+- `dot_product` - Dot product
 
-### Providers de Embedding
-- `bm25` - BM25 (padrão)
+### Embedding Providers
+- `bm25` - BM25 (default)
 - `tfidf` - TF-IDF
 - `bert` - BERT
 - `minilm` - MiniLM
 - `bagofwords` - Bag of Words
 - `charngram` - Character N-grams
 
-### Métodos de Resumo
-- `extractive` - Extrativo (padrão)
-- `keyword` - Por palavras-chave
-- `sentence` - Por sentenças
-- `abstractive` - Abstrativo
+### Summarization Methods
+- `extractive` - Extractive (default)
+- `keyword` - By keywords
+- `sentence` - By sentences
+- `abstractive` - Abstractive
 
 ## 🐛 Troubleshooting
 
-### Erro 404 - Collection Not Found
+### Error 404 - Collection Not Found
 ```bash
-# Verificar collections existentes
-curl "http://localhost:15001/api/v1/collections"
+# Check existing collections
+curl "http://localhost:15002/collections"
 ```
 
-### Erro 400 - Bad Request
-- Verificar formato JSON
-- Validar parâmetros obrigatórios
-- Conferir tipos de dados
+### Error 400 - Bad Request
+- Check JSON format
+- Validate required parameters
+- Verify data types
 
-### Erro 500 - Internal Server Error
-- Verificar logs do servidor
-- Confirmar que o Vectorizer está rodando
-- Verificar recursos do sistema
+### Error 500 - Internal Server Error
+- Check server logs
+- Confirm Vectorizer is running
+- Check system resources
 
-## 📝 Atualizações
+## 📝 Updates
 
-Este schema é atualizado automaticamente quando:
-- Novos endpoints são adicionados
-- Estruturas de dados são modificadas
-- Novos parâmetros são incluídos
+This schema is automatically updated when:
+- New endpoints are added
+- Data structures are modified
+- New parameters are included
 
-Para contribuir com melhorias na documentação, consulte o [CONTRIBUTING.md](../../CONTRIBUTING.md).
+To contribute with documentation improvements, see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-## 🔗 Links Úteis
+## 🔗 Useful Links
 
 - [OpenAPI Specification](https://swagger.io/specification/)
 - [Swagger UI](https://swagger.io/tools/swagger-ui/)
@@ -234,6 +234,6 @@ Para contribuir com melhorias na documentação, consulte o [CONTRIBUTING.md](..
 - [OpenAPI Generator](https://openapi-generator.tech/)
 - [Swagger Codegen](https://swagger.io/tools/swagger-codegen/)
 
-## 📄 Licença
+## 📄 License
 
-Este projeto está licenciado sob a [MIT License](../../LICENSE).
+This project is licensed under the [MIT License](../../LICENSE).

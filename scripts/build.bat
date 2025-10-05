@@ -17,9 +17,7 @@ if !errorlevel! equ 0 (
     echo ✅ Build successful!
     echo.
     echo 📦 Built binaries:
-    echo    vzr.exe (GRPC orchestrator)
-    echo    vectorizer-server.exe (REST API)
-    echo    vectorizer-mcp-server.exe (MCP server)
+    echo    vectorizer.exe (Main server with REST API and MCP)
     echo.
     echo 📁 Location: target\release\
     echo.

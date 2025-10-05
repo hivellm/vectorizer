@@ -2,23 +2,23 @@
 
 ## Overview
 
-The Vectorizer REST API provides HTTP endpoints for interacting with the vector database through a GRPC-based microservices architecture. All endpoints return JSON responses and follow RESTful conventions.
+The Vectorizer REST API provides HTTP endpoints for interacting with the vector database through a unified server architecture. All endpoints return JSON responses and follow RESTful conventions.
 
-**Base URL**: `http://localhost:15001/api/v1`
+**Base URL**: `http://localhost:15002`
 
-## Architecture (v0.27.0)
+## Architecture (v0.3.0)
 
-The REST API operates as a GRPC client that communicates with the central `vzr` orchestrator service. **NEW in v0.27.0**: Fixed critical cache loading issues ensuring all collections load correctly.
+The REST API operates as part of a unified server with MCP integration. **NEW in v0.3.0**: Unified server architecture with background collection loading and automatic quantization.
 
 ```
-Client → REST API (Port 15001) → GRPC Client → vzr GRPC Server (Port 15003) → Vector Store
+Client → Unified Server (Port 15002) → Vector Store
 ```
 
 This architecture provides:
-- **300% faster** service communication with GRPC
-- **500% faster** binary serialization vs JSON
-- **80% reduction** in connection overhead
-- **60% reduction** in network latency
+- **Unified Interface**: Single server with REST API and MCP
+- **Background Loading**: Non-blocking server startup
+- **Automatic Quantization**: Memory optimization
+- **Simplified Deployment**: Single binary
 
 ## Authentication
 
@@ -29,7 +29,7 @@ All endpoints require authentication via API key:
 
 ```bash
 # Include API key in headers
-curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:15001/api/v1/health
+curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:15002/health
 ```
 
 ### JWT Token Authentication
@@ -37,7 +37,7 @@ For advanced users, JWT tokens are supported:
 
 ```bash
 # Include JWT token in headers
-curl -H "Authorization: Bearer JWT_TOKEN" http://localhost:15001/api/v1/collections
+curl -H "Authorization: Bearer JWT_TOKEN" http://localhost:15002/collections
 ```
 
 ## Endpoints
@@ -46,25 +46,21 @@ curl -H "Authorization: Bearer JWT_TOKEN" http://localhost:15001/api/v1/collecti
 
 #### `GET /health`
 
-Check the health status of the Vectorizer service and GRPC communication.
+Check the health status of the Vectorizer unified server.
 
 **Headers:**
-- `Authorization: Bearer YOUR_API_KEY` (required)
+- `Authorization: Bearer YOUR_API_KEY` (optional)
 
 **Response:**
 ```json
 {
   "status": "healthy",
-  "version": "0.13.0",
+  "version": "0.3.0",
   "uptime": 3600,
-  "grpc_status": "connected",
   "collections": 21,
   "total_vectors": 25000,
-  "services": {
-    "vzr": "healthy",
-    "rest_api": "healthy",
-    "mcp_server": "healthy"
-  }
+  "background_loading": "completed",
+  "quantization": "enabled"
 }
 ```
 
@@ -72,7 +68,7 @@ Check the health status of the Vectorizer service and GRPC communication.
 
 #### `GET /collections`
 
-List all collections in the vector database with GRPC communication.
+List all collections in the vector database.
 
 **Headers:**
 - `Authorization: Bearer YOUR_API_KEY` (required)

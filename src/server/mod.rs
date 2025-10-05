@@ -20,6 +20,8 @@ use tracing::{info, error, warn};
 use crate::{
     VectorStore,
     embedding::EmbeddingManager,
+    workspace::{WorkspaceManager, WorkspaceConfig},
+    document_loader::{DocumentLoader, LoaderConfig},
 };
 
 /// Vectorizer server state
@@ -46,33 +48,55 @@ impl VectorizerServer {
 
         info!("✅ Vectorizer Server initialized successfully - starting background collection loading");
 
-        // Start background collection loading
+        // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
+        let embedding_manager_arc = Arc::new(embedding_manager);
+        let embedding_manager_for_loading = embedding_manager_arc.clone();
         tokio::task::spawn(async move {
-            println!("📦 Background task started - loading collections...");
-            info!("📦 Background task started - loading collections...");
+            println!("📦 Background task started - loading collections and checking workspace...");
+            info!("📦 Background task started - loading collections and checking workspace...");
             
             // Load all persisted collections in background
-            match store_for_loading.load_all_persisted_collections() {
+            let persisted_count = match store_for_loading.load_all_persisted_collections() {
                 Ok(count) => {
                     if count > 0 {
                         println!("✅ Background loading completed - {} collections loaded", count);
                         info!("✅ Background loading completed - {} collections loaded", count);
+                        count
                     } else {
                         println!("ℹ️  Background loading completed - no persisted collections found");
                         info!("ℹ️  Background loading completed - no persisted collections found");
+                        0
                     }
                 },
                 Err(e) => {
                     println!("⚠️  Failed to load persisted collections in background: {}", e);
                     warn!("⚠️  Failed to load persisted collections in background: {}", e);
+                    0
+                }
+            };
+
+            // Check for workspace configuration and reindex if needed
+            match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading).await {
+                Ok(workspace_count) => {
+                    if workspace_count > 0 {
+                        println!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
+                        info!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
+                    } else {
+                        println!("ℹ️  No workspace configuration found or no indexing needed");
+                        info!("ℹ️  No workspace configuration found or no indexing needed");
+                    }
+                },
+                Err(e) => {
+                    println!("⚠️  Failed to process workspace: {}", e);
+                    warn!("⚠️  Failed to process workspace: {}", e);
                 }
             }
         });
 
         Ok(Self {
             store: store_arc,
-            embedding_manager: Arc::new(embedding_manager),
+            embedding_manager: embedding_manager_arc,
             start_time: std::time::Instant::now(),
         })
     }
@@ -252,4 +276,109 @@ impl rmcp::ServerHandler for VectorizerMcpService {
             })
         }
     }
+
+}
+
+/// Load workspace collections using the existing document_loader.rs
+pub async fn load_workspace_collections(
+    store: &Arc<VectorStore>,
+    embedding_manager: &Arc<EmbeddingManager>,
+) -> anyhow::Result<usize> {
+    use std::path::Path;
+    use crate::workspace::manager::WorkspaceManager;
+    use crate::document_loader::DocumentLoader;
+
+    // Look for workspace configuration file
+    let workspace_file = Path::new("vectorize-workspace.yml");
+    info!("Checking for workspace file at: {}", workspace_file.display());
+    if !workspace_file.exists() {
+        info!("No workspace configuration file found at vectorize-workspace.yml");
+        return Ok(0);
+    }
+
+    info!("Found workspace configuration file, loading...");
+    
+    // Load workspace configuration
+    let workspace_manager = match WorkspaceManager::load_from_file(workspace_file) {
+        Ok(manager) => manager,
+        Err(e) => {
+            warn!("Failed to load workspace configuration: {}", e);
+            return Ok(0);
+        }
+    };
+
+    info!("Workspace loaded with {} projects", workspace_manager.config().projects.len());
+
+    let mut indexed_count = 0;
+
+    // Process each enabled project
+    for project in workspace_manager.enabled_projects() {
+        info!("Processing project: {}", project.name);
+        
+        for collection in &project.collections {
+            info!("Processing collection: {}", collection.name);
+            
+            // Check if collection already exists in store
+            if store.get_collection(&collection.name).is_ok() {
+                info!("Collection '{}' already exists, skipping", collection.name);
+                continue;
+            }
+
+            // Convert workspace collection config to models collection config
+            let models_config = crate::models::CollectionConfig {
+                dimension: collection.embedding.dimension,
+                metric: crate::models::DistanceMetric::Cosine,
+                hnsw_config: crate::models::HnswConfig::default(),
+                quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
+                compression: crate::models::CompressionConfig::default(),
+            };
+
+            // Create collection if it doesn't exist
+            match store.create_collection(&collection.name, models_config) {
+                Ok(_) => {
+                    info!("Created collection: {}", collection.name);
+                },
+                Err(e) => {
+                    warn!("Failed to create collection '{}': {}", collection.name, e);
+                    continue;
+                }
+            }
+
+            // Get project path
+            let project_path = match workspace_manager.get_project_path(&project.name) {
+                Ok(path) => path,
+                Err(e) => {
+                    warn!("Failed to get project path for '{}': {}", project.name, e);
+                    continue;
+                }
+            };
+
+            // Use DocumentLoader to index files properly
+            let loader_config = crate::document_loader::LoaderConfig {
+                max_chunk_size: 2048,
+                chunk_overlap: 256,
+                allowed_extensions: vec![], // Not used with include_patterns
+                include_patterns: collection.processing.include_patterns.clone(),
+                exclude_patterns: collection.processing.exclude_patterns.clone(),
+                embedding_dimension: collection.embedding.dimension,
+                embedding_type: "bm25".to_string(),
+                collection_name: collection.name.clone(),
+                max_file_size: 1024 * 1024, // 1MB
+            };
+
+            let mut loader = DocumentLoader::new(loader_config);
+
+            match loader.load_project_async(&project_path.to_string_lossy(), &store).await {
+                Ok(file_count) => {
+                    info!("Indexed {} files for collection '{}'", file_count, collection.name);
+                    indexed_count += 1;
+                },
+                Err(e) => {
+                    warn!("Failed to index collection '{}': {}", collection.name, e);
+                }
+            }
+        }
+    }
+
+    Ok(indexed_count)
 }

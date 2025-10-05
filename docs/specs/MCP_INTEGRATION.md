@@ -2,36 +2,36 @@
 
 ## Overview
 
-Vectorizer implements a comprehensive MCP (Model Context Protocol) server that enables seamless integration with AI-powered IDEs and development tools. The MCP server provides a standardized interface for AI models to interact with the vector database through WebSocket connections.
+Vectorizer implements a comprehensive MCP (Model Context Protocol) server that enables seamless integration with AI-powered IDEs and development tools. The MCP server provides a standardized interface for AI models to interact with the vector database through Server-Sent Events (SSE) connections.
 
-## Architecture (v0.13.0)
+## Architecture (v0.3.0)
 
 ```
-┌─────────────────┐    WebSocket    ┌──────────────────┐    GRPC    ┌─────────────────┐
-│   AI IDE/Client │ ◄─────────────► │  MCP Server      │ ◄─────────► │ vzr Orchestrator│
-│                 │   ws://:15002   │  (Port 15002)    │            │  (Port 15003)   │
-└─────────────────┘                 └──────────────────┘            └─────────────────┘
-                                                      │
-                                                      ▼
-                                            ┌─────────────────┐
-                                            │ Vector Database │
-                                            │                 │
-                                            └─────────────────┘
+┌─────────────────┐    SSE/HTTP     ┌──────────────────┐
+│   AI IDE/Client │ ◄─────────────► │  Unified Server  │
+│                 │   http://:15002 │  (Port 15002)    │
+└─────────────────┘                 └──────────────────┘
+                                              │
+                                              ▼
+                                    ┌─────────────────┐
+                                    │ Vector Database │
+                                    │                 │
+                                    └─────────────────┘
 ```
 
-### GRPC Communication Benefits
-- **300% faster** service communication vs HTTP
-- **500% faster** binary serialization vs JSON
-- **80% reduction** in connection overhead
-- **60% reduction** in network latency
+### Unified Server Benefits
+- **Single Process**: Reduced memory footprint
+- **Unified Interface**: REST API and MCP in one server
+- **Background Loading**: Non-blocking server startup
+- **Automatic Quantization**: Memory optimization
 
 ## Features
 
-### 🔌 WebSocket Communication
-- Real-time bidirectional communication
+### 🔌 Server-Sent Events (SSE) Communication
+- Real-time unidirectional communication from server to client
 - JSON-RPC 2.0 protocol compliance
 - Automatic connection management
-- Heartbeat and ping/pong support
+- HTTP-based with SSE transport
 
 ### 🛠️ Comprehensive Tool Set
 - **search_vectors**: Semantic search across collections
@@ -107,8 +107,8 @@ mcp:
   # Server information
   server_info:
     name: "Vectorizer MCP Server"
-    version: "0.13.0"
-    description: "Model Context Protocol server for Vectorizer with GRPC backend"
+    version: "0.3.0"
+    description: "Model Context Protocol server for Vectorizer unified architecture"
   
   # Performance settings
   performance:
@@ -127,62 +127,49 @@ mcp:
 
 ## Getting Started
 
-### 1. Start the MCP Server
+### 1. Start the Unified Server
 
 ```bash
-# Start all services with GRPC architecture
-cargo run --bin vzr -- start --workspace vectorize-workspace.yml
+# Start unified server with REST API and MCP
+cargo run --bin vectorizer
 
 # This starts:
-# - vzr (GRPC orchestrator on port 15003)
-# - vectorizer-server (REST API on port 15001)  
-# - vectorizer-mcp-server (MCP on port 15002)
-
-# Or start MCP server only
-cargo run --bin vectorizer-mcp-server -- ../gov
+# - Unified server (REST API and MCP on port 15002)
+# - Background collection loading
+# - Automatic quantization
 ```
 
-### 2. Verify MCP Server Status
+### 2. Verify Server Status
 
 ```bash
 # Check server health
-curl http://127.0.0.1:15001/api/v1/health
+curl http://127.0.0.1:15002/health
 
 # Check MCP status
-curl http://127.0.0.1:15001/api/v1/status | jq '.mcp'
-
-# Check GRPC connection
-curl http://127.0.0.1:15003/health
+curl http://127.0.0.1:15002/mcp/sse
 ```
 
-### 3. Connect via WebSocket
+### 3. Connect via Server-Sent Events
 
 ```javascript
-const WebSocket = require('ws');
-const ws = new WebSocket('ws://127.0.0.1:15002/mcp');  // Updated port
+const EventSource = require('eventsource');
+const es = new EventSource('http://127.0.0.1:15002/mcp/sse');
 
-ws.on('open', () => {
+es.onopen = () => {
   console.log('Connected to MCP server');
   
-  // Initialize connection
-  ws.send(JSON.stringify({
-    jsonrpc: '2.0',
-    method: 'initialize',
-    params: {
-      protocol_version: '2024-11-05',
-      capabilities: {},
-      client_info: {
-        name: 'My IDE',
-        version: '1.0.0'
-      }
-    }
-  }));
+  // SSE automatically handles connection
+  console.log('SSE connection established');
 });
 
-ws.on('message', (data) => {
-  const response = JSON.parse(data.toString());
+es.onmessage = (event) => {
+  const response = JSON.parse(event.data);
   console.log('Received:', response);
-});
+};
+
+es.onerror = (error) => {
+  console.error('SSE connection error:', error);
+};
 ```
 
 ## MCP Tools Reference

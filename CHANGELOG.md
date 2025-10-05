@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-10-05
+
+### 🚀 **Major Release - Background Collection Loading & Server Optimization**
+
+#### **Background Collection Loading - 100% Complete**
+- **Asynchronous collection loading** implemented to prevent server startup blocking
+- **103 collections loaded** automatically in background without blocking server access
+- **Server accessibility** maintained during collection loading process
+- **Parallel processing** with improved performance and progress reporting
+- **Production ready** with comprehensive error handling and logging
+
+#### **Server Architecture Improvements - 100% Complete**
+- **Non-blocking server startup** with immediate API accessibility
+- **Background task management** using `tokio::task::spawn` for collection loading
+- **Improved logging** with detailed progress tracking for collection loading
+- **Error resilience** with graceful handling of failed collection loads
+- **Performance optimization** for large-scale collection management
+
+#### **Codebase Cleanup - 100% Complete**
+- **Removed legacy GRPC implementation** and replaced with modern REST API
+- **Removed CUDA dependencies** for simplified deployment
+- **Removed telemetry and process manager** for reduced complexity
+- **Removed protobuf compilation** dependencies
+- **Streamlined architecture** with focus on core functionality
+
+#### **API Improvements - 100% Complete**
+- **Quantization information** properly exposed in collection endpoints
+- **Vector data** correctly returned in API responses
+- **Search functionality** fully operational with proper embedding integration
+- **Dashboard compatibility** maintained with updated API patterns
+- **Error handling** improved across all endpoints
+
+### 🐛 **Bug Fixes**
+- Fixed server startup blocking during collection loading
+- Fixed missing vector data in API responses
+- Fixed quantization status not being reported correctly
+- Fixed CSS styling issues in dashboard modal components
+- Fixed search route functionality and data retrieval
+- Fixed background task execution and logging
+
+### 🔧 **Technical Improvements**
+- Background collection loading moved to `VectorizerServer::new()` for proper execution
+- Enhanced logging with both `println!` and `info!` for better visibility
+- Improved error handling and recovery mechanisms
+- Optimized memory usage during collection loading
+- Better progress reporting for large collection sets
+
 ## [0.28.0] - 2025-10-04
 
 ### 🎉 **Major Implementations Completed**
