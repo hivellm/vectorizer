@@ -66,6 +66,8 @@ scopeguard = "1.2"
 
 # CLI
 clap = { version = "4.5", features = ["derive"] }
+tar = "0.4"
+flate2 = "1.0"
 
 # HTTP client for status checks
 reqwest = { version = "0.11", features = ["json"] }

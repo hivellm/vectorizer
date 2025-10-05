@@ -359,7 +359,27 @@ cargo build --release
 # Available tools: search_vectors, list_collections, embed_text, create_collection
 ```
 
+## 💾 Backup & Restore (CLI)
 
+Use the `vzr` CLI to criar e restaurar backups do diretório `data/` em um único arquivo `.tar.gz`:
+
+```bash
+# Backup (gera backups/vectorizer_data_<timestamp>.tar.gz por padrão)
+./target/release/vzr backup --data-dir data
+
+# Backup com caminho de saída customizado
+./target/release/vzr backup --data-dir data --output backups/meu_backup.tar.gz
+
+# Restore para o diretório data (cria se não existir)
+./target/release/vzr restore --archive backups/meu_backup.tar.gz --data-dir data
+
+# Restore limpando o destino antes
+./target/release/vzr restore --archive backups/meu_backup.tar.gz --data-dir data --clean
+```
+
+Notas:
+- O arquivo inclui todos os conteúdos de `data/` (por coleção: `_vector_store.bin`, `*_metadata.json`, `*_tokenizer.json`, etc.).
+- O restore respeita o diretório de destino informado e pode limpar antes com `--clean`.
 
 ## 🎯 Use Cases
 
@@ -480,102 +500,4 @@ workspace:
 
 Production-ready HTTP API:
 
-```bash
-# Health check
-curl http://127.0.0.1:15001/api/v1/health
-
-# List collections
-curl http://127.0.0.1:15001/api/v1/collections
-
-# Semantic search
-curl -X POST http://127.0.0.1:15001/api/v1/collections/docs/search/text \
-  -H "Content-Type: application/json" \
-  -d '{"query": "machine learning algorithms", "limit": 5}'
 ```
-
-## 🏗️ Technical Details
-
-- **Architecture**: GRPC-based microservices with REST/MCP interfaces
-- **Storage**: In-memory with binary persistence and smart caching
-- **Indexing**: HNSW for ANN search with parallel processing
-- **Performance**: 3x faster service communication with GRPC
-- **Compression**: LZ4 for payloads >1KB
-
-## 🧪 Testing
-
-```bash
-cargo test --all
-cargo clippy
-```
-
-**Status**: 73+ tests passing, zero warnings
-
-## ⚙️ Configuration
-
-```yaml
-server:
-  host: "127.0.0.1"
-  port: 15001
-
-# Multi-GPU configuration
-gpu:
-  enabled: true
-  backend: auto  # Detects best available: metal, vulkan, dx12, cuda, cpu
-  device_id: 0
-  power_preference: high_performance
-  gpu_threshold_operations: 500  # Minimum operations for GPU (CPU fallback)
-```
-
-## 🚀 Multi-GPU Acceleration
-
-Universal GPU acceleration across platforms:
-
-```bash
-# Build with multi-GPU support
-cargo build --release --features wgpu-gpu
-
-# Auto-detect best GPU backend
-./target/release/vzr start --workspace vectorize-workspace.yml
-
-# Or use specific backend
-./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend vulkan
-```
-
-**Performance**: 
-- **Metal (M3 Pro)**: 1,373 ops/sec, <1ms latency
-- **Expected Vulkan**: ~1,200-1,500 ops/sec
-- **Expected DirectX 12**: ~1,400-1,600 ops/sec
-- **Speedup**: 6-10× faster than CPU
-
-
-## 📚 Documentation
-
-### GPU Acceleration
-- [GPU Benchmarks](docs/GPU_BENCHMARKS.md) - Complete performance analysis
-- [GPU Backend Comparison](docs/GPU_COMPARISON.md) - Backend selection guide
-- [Vulkan Setup](docs/VULKAN_SETUP.md) - Linux/Windows Vulkan installation
-- [DirectX 12 Setup](docs/DIRECTX12_SETUP.md) - Windows DirectX 12 setup
-
-### General Documentation
-- [Roadmap](docs/ROADMAP.md) - Implementation plan and status
-- [Future Implementations](docs/FUTURE_IMPLEMENTATIONS.md) - Planned enhancements
-- [Technical Documentation](docs/TECHNICAL_DOCUMENTATION_INDEX.md) - Complete overview
-- [Changelog](CHANGELOG.md) - Version history and changes
-
-
-## 🤝 Contributing
-
-1. Review documentation in `docs/`
-2. Submit PRs with tests and documentation
-3. Follow Rust best practices
-
-## 📜 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## 📬 Contact
-
-For questions or collaboration, open an issue at [hivellm/gov](https://github.com/hivellm/gov).
-
----
-
