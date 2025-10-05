@@ -19,7 +19,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🚀 Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
 - **🌍 Universal Multi-GPU Support**: Metal (macOS), Vulkan (Linux), DirectX 12 (Windows), CUDA (NVIDIA)
 - **🎯 Simplified Workspace**: Minimal configuration with intelligent defaults (NEW in v0.26.0)
-- **🔧 Critical Bug Fixes**: Fixed cache loading system and GPU detection (NEW in v0.27.0)
+- **💾 Backup & Restore**: CLI commands for data directory backup/restore (NEW in v0.28.1)
 
 ## 🎯 **Simplified Workspace Configuration** (NEW in v0.26.0)
 
@@ -78,26 +78,7 @@ vzr start --workspace vectorize-workspace-simplified.yml
 vzr workspace validate --config your-workspace.yml
 ```
 
-## 🔧 **Critical Bug Fixes** (NEW in v0.27.0)
-
-Fixed critical data persistence issues that were causing vector data to appear lost on restart:
-
-### **Issues Resolved**
-- ✅ **Cache Loading Bug**: Collections now correctly load from cache files
-- ✅ **GPU Detection**: CPU mode now defaults correctly (CUDA requires explicit config)
-- ✅ **Data Persistence**: All 37 collections load properly with correct vector counts
-- ✅ **Memory Management**: Improved cache operations with Clone trait support
-
-### **Before vs After**
-- **Before v0.27.0**: ❌ 0 vectors shown in API (data lost on restart)
-- **After v0.27.0**: ✅ All vectors correctly loaded (16, 272, 53, 693, 1076, 1558, etc.)
-
-### **Breaking Changes**
-- CUDA is no longer auto-enabled by default
-- CPU mode is now the default for maximum compatibility
-- Explicit CUDA configuration required in `config.yml`
-
-## 🌍 **Universal Multi-GPU Backend Detection** (NEW in v0.27.0)
+## 🌍 **Universal Multi-GPU Backend Detection**
 
 Cross-platform GPU acceleration with automatic backend selection and intelligent fallback:
 
@@ -247,29 +228,6 @@ client = PyTorchVectorizerClient()
 client.set_embedder(embedder)
 ```
 
-## 🏷️ **Releases & Downloads**
-
-### **Latest Release**
-[![Latest Release](https://img.shields.io/github/v/release/hivellm/vectorizer)](https://github.com/hivellm/vectorizer/releases/latest)
-[![Build Status](https://github.com/hivellm/vectorizer/actions/workflows/tag-release.yml/badge.svg)](https://github.com/hivellm/vectorizer/actions/workflows/tag-release.yml)
-
-**Pre-built Binaries Available:**
-- 🐧 **Linux** (x86_64, ARM64)
-- 🪟 **Windows** (x86_64) 
-- 🍎 **macOS** (x86_64, ARM64)
-
-### **Automatic Releases**
-Releases are automatically created when version tags are pushed:
-```bash
-git tag v0.22.0
-git push origin v0.22.0
-```
-
-GitHub Actions will automatically:
-- ✅ Build all binaries for 6 platforms
-- ✅ Create installation scripts
-- ✅ Generate GitHub release with downloads
-- ✅ Include all configuration files
 
 ## 🚀 **Advanced Embedding Models**
 
@@ -319,7 +277,7 @@ vectorizer:
 
 ## 🎯 **Current Status**
 
-**Version**: v0.27.0  
+**Version**: v0.28.1  
 **Status**: ✅ **Production Ready**  
 **Collections**: 99 active collections with 47,000+ vectors indexed  
 **Performance**: Sub-1ms search with multi-GPU acceleration  
@@ -396,70 +354,6 @@ Notas:
 **Dense Embeddings**: BERT, MiniLM with contextual understanding  
 **Hybrid Search**: Sparse retrieval + dense re-ranking for optimal results
 
-## 🛠️ Installation
-
-### **Pre-built Binaries (Recommended)**
-
-Download the latest release for your platform:
-
-| Platform | Architecture | Download |
-|----------|-------------|----------|
-| **Linux** | x86_64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-linux-x86_64.tar.gz) |
-| **Linux** | ARM64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-linux-aarch64.tar.gz) |
-| **Windows** | x86_64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-windows-x86_64.zip) |
-| **Windows** | ARM64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-windows-aarch64.zip) |
-| **macOS** | x86_64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-macos-x86_64.tar.gz) |
-| **macOS** | ARM64 | [Download](https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-macos-aarch64.tar.gz) |
-
-```bash
-# Example: Linux x86_64
-wget https://github.com/hivellm/vectorizer/releases/latest/download/vectorizer-linux-x86_64.tar.gz
-tar -xzf vectorizer-linux-x86_64.tar.gz
-./vectorizer-server --config config.yml
-```
-
-### **Build from Source**
-
-```bash
-# Clone repository
-git clone https://github.com/hivellm/vectorizer
-cd vectorizer
-
-# Use Rust nightly
-rustup override set nightly
-
-# Build the project
-cargo build --release
-
-# The vzr CLI will automatically find executables in ./target/release/
-./target/release/vzr start --workspace vectorize-workspace.yml
-
-# Start all services
-./scripts/start.sh --workspace vectorize-workspace.yml
-
-# Check status
-./scripts/status.sh
-```
-
-### Docker
-```bash
-docker-compose up --build
-```
-
-### SDKs
-```bash
-# TypeScript SDK (Published)
-npm install @hivellm/vectorizer-client-ts
-
-# JavaScript SDK (Published)
-npm install @hivellm/vectorizer-client-js
-
-# Rust SDK (Published)
-cargo add vectorizer-rust-sdk
-
-# Python SDK (Coming Soon)
-# pip install hivellm-vectorizer-client
-```
 
 ## 🔧 MCP Integration
 
