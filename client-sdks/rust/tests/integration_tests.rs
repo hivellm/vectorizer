@@ -10,11 +10,11 @@ async fn test_client_creation() {
     assert!(client.is_ok());
     
     // Test creation with custom URL
-    let client = VectorizerClient::new_with_url("http://localhost:15001");
+    let client = VectorizerClient::new_with_url("http://localhost:15002");
     assert!(client.is_ok());
     
     // Test creation with API key
-    let client = VectorizerClient::new_with_api_key("http://localhost:15001", "test-key");
+    let client = VectorizerClient::new_with_api_key("http://localhost:15002", "test-key");
     assert!(client.is_ok());
 }
 

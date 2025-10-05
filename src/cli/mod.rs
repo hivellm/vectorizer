@@ -82,7 +82,7 @@ pub enum ServerCommands {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// Port to bind to
-        #[arg(long, default_value = "15001")]
+        #[arg(long, default_value = "15002")]
         port: u16,
         /// Enable authentication
         #[arg(long)]
@@ -97,7 +97,7 @@ pub enum ServerCommands {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// Server port
-        #[arg(long, default_value = "15001")]
+        #[arg(long, default_value = "15002")]
         port: u16,
     },
     /// Restart the server
@@ -106,7 +106,7 @@ pub enum ServerCommands {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// Server port
-        #[arg(long, default_value = "15001")]
+        #[arg(long, default_value = "15002")]
         port: u16,
     },
 }
@@ -336,7 +336,7 @@ impl Default for CliConfig {
         Self {
             server: ServerConfig {
                 host: "127.0.0.1".to_string(),
-                port: 15001,
+                port: 15002,
                 data_dir: PathBuf::from("./data"),
                 auth_enabled: true,
             },
@@ -450,7 +450,7 @@ mod tests {
     fn test_cli_config_default() {
         let config = CliConfig::default();
         assert_eq!(config.server.host, "127.0.0.1");
-        assert_eq!(config.server.port, 15001);
+        assert_eq!(config.server.port, 15002);
         assert!(config.auth.enabled);
     }
 }

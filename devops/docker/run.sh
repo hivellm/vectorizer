@@ -1,6 +1,6 @@
 #!/bin/bash
 # Docker Compose management script for Vectorizer
-# Usage: ./run.sh [cpu|cuda|dev-cpu|dev-cuda|stop|status]
+# Usage: ./run.sh [prod|dev|stop|status]
 
 set -e
 
@@ -28,52 +28,24 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to run CPU-only production
-run_cpu() {
-    print_status "Starting CPU-only production environment..."
-    docker-compose --profile cpu-only up -d
-    print_success "CPU-only production environment started!"
+# Function to run production
+run_prod() {
+    print_status "Starting production environment..."
+    docker-compose up -d
+    print_success "Production environment started!"
     print_status "Services available at:"
-    echo "  - REST API: http://localhost:15001"
-    echo "  - MCP Server: http://localhost:15002"
-    echo "  - GRPC Server: http://localhost:15003"
+    echo "  - Unified Server: http://localhost:15002"
 }
 
-# Function to run CUDA production
-run_cuda() {
-    print_status "Starting CUDA production environment..."
-    docker-compose --profile cuda up -d
-    print_success "CUDA production environment started!"
+# Function to run development
+run_dev() {
+    print_status "Starting development environment..."
+    docker-compose --profile dev up -d
+    print_success "Development environment started!"
     print_status "Services available at:"
-    echo "  - REST API: http://localhost:15001"
-    echo "  - MCP Server: http://localhost:15002"
-    echo "  - GRPC Server: http://localhost:15003"
-}
-
-# Function to run CPU-only development
-run_dev_cpu() {
-    print_status "Starting CPU-only development environment..."
-    docker-compose --profile dev-cpu up -d
-    print_success "CPU-only development environment started!"
-    print_status "Services available at:"
-    echo "  - REST API: http://localhost:15001"
-    echo "  - MCP Server: http://localhost:15002"
-    echo "  - GRPC Server: http://localhost:15003"
+    echo "  - Unified Server: http://localhost:15002"
     print_status "To access the development container:"
-    echo "  docker exec -it vectorizer-dev-cpu bash"
-}
-
-# Function to run CUDA development
-run_dev_cuda() {
-    print_status "Starting CUDA development environment..."
-    docker-compose --profile dev-cuda up -d
-    print_success "CUDA development environment started!"
-    print_status "Services available at:"
-    echo "  - REST API: http://localhost:15001"
-    echo "  - MCP Server: http://localhost:15002"
-    echo "  - GRPC Server: http://localhost:15003"
-    print_status "To access the development container:"
-    echo "  docker exec -it vectorizer-dev-cuda bash"
+    echo "  docker exec -it vectorizer-dev bash"
 }
 
 # Function to stop all services
@@ -91,37 +63,28 @@ show_status() {
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 [cpu|cuda|dev-cpu|dev-cuda|stop|status]"
+    echo "Usage: $0 [prod|dev|stop|status]"
     echo ""
     echo "Options:"
-    echo "  cpu      - Start CPU-only production environment"
-    echo "  cuda     - Start CUDA production environment"
-    echo "  dev-cpu  - Start CPU-only development environment"
-    echo "  dev-cuda - Start CUDA development environment"
+    echo "  prod     - Start production environment"
+    echo "  dev      - Start development environment"
     echo "  stop     - Stop all services"
     echo "  status   - Show services status"
     echo ""
     echo "Examples:"
-    echo "  $0 cpu        # Start CPU-only production"
-    echo "  $0 cuda       # Start CUDA production"
-    echo "  $0 dev-cpu    # Start CPU-only development"
+    echo "  $0 prod       # Start production"
+    echo "  $0 dev        # Start development"
     echo "  $0 stop       # Stop all services"
     echo "  $0 status     # Show status"
 }
 
 # Main script logic
 case "${1:-}" in
-    cpu)
-        run_cpu
+    prod)
+        run_prod
         ;;
-    cuda)
-        run_cuda
-        ;;
-    dev-cpu)
-        run_dev_cpu
-        ;;
-    dev-cuda)
-        run_dev_cuda
+    dev)
+        run_dev
         ;;
     stop)
         stop_all

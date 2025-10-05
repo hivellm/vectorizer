@@ -29,11 +29,11 @@ class TestClientInitialization(unittest.TestCase):
     def test_should_create_client_with_api_key(self):
         """Test creating client with API key."""
         client = VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-api-key"
         )
         self.assertIsNotNone(client)
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
         self.assertEqual(client.api_key, "test-api-key")
 
     def test_should_create_client_with_custom_config(self):
@@ -53,7 +53,7 @@ class TestClientInitialization(unittest.TestCase):
     def test_should_create_client_with_default_config(self):
         """Test creating client with default config."""
         client = VectorizerClient()
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
         self.assertIsNone(client.api_key)
         self.assertEqual(client.timeout, 30)
         self.assertEqual(client.max_retries, 3)
@@ -114,7 +114,7 @@ class TestHttpClientFunctionality(unittest.TestCase):
         """Test creating client with default config."""
         client = VectorizerClient()
 
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
         self.assertIsNone(client.api_key)
         self.assertEqual(client.timeout, 30)
         self.assertEqual(client.max_retries, 3)
@@ -138,14 +138,14 @@ class TestHttpClientFunctionality(unittest.TestCase):
         client = VectorizerClient(api_key="test-api-key")
 
         self.assertEqual(client.api_key, "test-api-key")
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
 
 
 class TestUrlHandling(unittest.TestCase):
     """Tests for URL handling."""
 
     def setUp(self):
-        self.client = VectorizerClient(base_url="http://localhost:15001")
+        self.client = VectorizerClient(base_url="http://localhost:15002")
 
     def test_should_handle_absolute_urls(self):
         """Test handling of absolute URLs."""

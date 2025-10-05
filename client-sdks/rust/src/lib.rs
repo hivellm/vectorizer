@@ -17,7 +17,7 @@ pub use models::*;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Default API base URL
-pub const DEFAULT_BASE_URL: &str = "http://localhost:15001";
+pub const DEFAULT_BASE_URL: &str = "http://localhost:15002";
 
 
 /// Default MCP server URL

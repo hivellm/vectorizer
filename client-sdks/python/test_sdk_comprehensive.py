@@ -286,14 +286,14 @@ class TestVectorizerClient(unittest.TestCase):
     def setUp(self):
         """Configuração inicial para cada teste."""
         self.client = VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key",
             timeout=30
         )
     
     def test_client_initialization(self):
         """Teste inicialização do cliente."""
-        self.assertEqual(self.client.base_url, "http://localhost:15001")
+        self.assertEqual(self.client.base_url, "http://localhost:15002")
         self.assertEqual(self.client.api_key, "test-key")
         self.assertEqual(self.client.timeout, 30)
         self.assertEqual(self.client.max_retries, 3)
@@ -302,7 +302,7 @@ class TestVectorizerClient(unittest.TestCase):
         """Teste inicialização com valores padrão."""
         client = VectorizerClient()
         
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
         self.assertIsNone(client.api_key)
         self.assertEqual(client.timeout, 30)
         self.assertEqual(client.max_retries, 3)
@@ -328,7 +328,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         """Configuração inicial para cada teste."""
         self.client = VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key",
             timeout=30
         )
@@ -339,7 +339,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "status": "healthy",
-            "service": "vectorizer-grpc",
+            "service": "vectorizer",
             "version": "1.0.0"
         })
         
@@ -349,7 +349,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             result = await self.client.health_check()
             
             self.assertEqual(result["status"], "healthy")
-            self.assertEqual(result["service"], "vectorizer-grpc")
+            self.assertEqual(result["service"], "vectorizer")
             self.assertEqual(result["version"], "1.0.0")
     
     async def test_health_check_failure(self):
@@ -698,7 +698,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         """Configuração inicial para cada teste."""
         self.client = VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key"
         )
     

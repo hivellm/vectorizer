@@ -31,7 +31,7 @@ impl VectorizerClient {
 
         Ok(Self {
             http_client: client,
-            base_url: "http://localhost:15001".to_string(),
+            base_url: "http://localhost:15002".to_string(),
             api_key: None,
         })
     }
@@ -76,7 +76,7 @@ impl VectorizerClient {
 
     /// Health check
     pub async fn health_check(&self) -> Result<HealthStatus> {
-        let response = self.make_request("GET", "/api/v1/health", None).await?;
+        let response = self.make_request("GET", "/health", None).await?;
         let health: HealthStatus = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse health check response: {}", e)))?;
         Ok(health)
@@ -84,7 +84,7 @@ impl VectorizerClient {
 
     /// List collections
     pub async fn list_collections(&self) -> Result<Vec<CollectionInfo>> {
-        let response = self.make_request("GET", "/api/v1/collections", None).await?;
+        let response = self.make_request("GET", "/collections", None).await?;
         let collections_response: CollectionsResponse = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse collections response: {}", e)))?;
         Ok(collections_response.collections)
@@ -106,7 +106,7 @@ impl VectorizerClient {
             payload.insert("score_threshold".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(threshold as f64).unwrap()));
         }
 
-        let response = self.make_request("POST", &format!("/api/v1/collections/{}/search/text", collection), Some(serde_json::Value::Object(payload))).await?;
+        let response = self.make_request("POST", &format!("/collections/{}/search/text", collection), Some(serde_json::Value::Object(payload))).await?;
         let search_response: SearchResponse = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse search response: {}", e)))?;
         Ok(search_response)
@@ -124,7 +124,7 @@ impl VectorizerClient {
         payload.insert("dimension".to_string(), serde_json::Value::Number(dimension.into()));
         payload.insert("metric".to_string(), serde_json::Value::String(format!("{:?}", metric.unwrap_or_default()).to_lowercase()));
 
-        let response = self.make_request("POST", "/api/v1/collections", Some(serde_json::Value::Object(payload))).await?;
+        let response = self.make_request("POST", "/collections", Some(serde_json::Value::Object(payload))).await?;
         let create_response: CreateCollectionResponse = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse create collection response: {}", e)))?;
 
@@ -160,7 +160,7 @@ impl VectorizerClient {
             "texts": texts
         });
 
-        let response = self.make_request("POST", &format!("/api/v1/collections/{}/documents", collection), Some(serde_json::to_value(payload)?)).await?;
+        let response = self.make_request("POST", &format!("/collections/{}/documents", collection), Some(serde_json::to_value(payload)?)).await?;
         let batch_response: BatchResponse = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse insert texts response: {}", e)))?;
         Ok(batch_response)
@@ -168,13 +168,13 @@ impl VectorizerClient {
 
     /// Delete collection
     pub async fn delete_collection(&self, name: &str) -> Result<()> {
-        self.make_request("DELETE", &format!("/api/v1/collections/{}", name), None).await?;
+        self.make_request("DELETE", &format!("/collections/{}", name), None).await?;
         Ok(())
     }
 
     /// Get vector
     pub async fn get_vector(&self, collection: &str, vector_id: &str) -> Result<Vector> {
-        let response = self.make_request("GET", &format!("/api/v1/collections/{}/vectors/{}", collection, vector_id), None).await?;
+        let response = self.make_request("GET", &format!("/collections/{}/vectors/{}", collection, vector_id), None).await?;
         let vector: Vector = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse get vector response: {}", e)))?;
         Ok(vector)
@@ -182,7 +182,7 @@ impl VectorizerClient {
 
     /// Get collection info
     pub async fn get_collection_info(&self, collection: &str) -> Result<CollectionInfo> {
-        let response = self.make_request("GET", &format!("/api/v1/collections/{}", collection), None).await?;
+        let response = self.make_request("GET", &format!("/collections/{}", collection), None).await?;
         let info: CollectionInfo = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse collection info: {}", e)))?;
         Ok(info)
@@ -197,7 +197,7 @@ impl VectorizerClient {
             payload.insert("model".to_string(), serde_json::Value::String(model.to_string()));
         }
 
-        let response = self.make_request("POST", "/api/v1/embed", Some(serde_json::Value::Object(payload))).await?;
+        let response = self.make_request("POST", "/embed", Some(serde_json::Value::Object(payload))).await?;
         let embedding_response: EmbeddingResponse = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse embedding response: {}", e)))?;
         Ok(embedding_response)

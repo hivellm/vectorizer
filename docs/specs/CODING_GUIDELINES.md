@@ -4,12 +4,12 @@ This document outlines the coding standards and best practices for the Vectorize
 
 ## ⚠️ CRITICAL ARCHITECTURE RULE
 
-### GRPC is the Primary Data Server - REST and MCP are Interfaces Only
+### REST + MCP is the Primary Architecture - Unified Server
 
 **Architecture Overview:**
-- **GRPC Server (`vzr`)**: Manages all real collections and vector data
-- **REST API**: HTTP interface that proxies requests to GRPC
-- **MCP Server**: Model Context Protocol interface that proxies requests to GRPC
+- **Unified Server**: Manages all real collections and vector data
+- **REST API**: HTTP interface for direct access
+- **MCP Server**: Model Context Protocol interface for AI integration
 
 **MANDATORY RULE: GRPC, REST, and MCP must have EXACTLY the same functionality**
 
@@ -828,12 +828,12 @@ thiserror = "2.0"
 
 # Optional features
 candle-core = { version = "0.9.1", optional = true }
-cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
+gudarc = { version = "0.17", features = ["gpu-12080"], optional = true }
 
 [features]
-default = ["cuda_real"]
-cuda = []
-cuda_real = ["cuda"]
+default = ["gpu_real"]
+gpu = []
+gpu_real = ["gpu"]
 candle-models = ["candle-core", "candle-nn", "candle-transformers"]
 onnx-models = ["ort"]
 ```

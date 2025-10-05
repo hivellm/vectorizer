@@ -8,9 +8,9 @@ This directory contains all DevOps configurations for Vectorizer, including Dock
 devops/
 ├── docker/                    # Docker configurations
 │   ├── Dockerfile            # CPU-only production image
-│   ├── Dockerfile.cuda      # CUDA production image
+│   ├── Dockerfile.gpu      # GPU production image
 │   ├── Dockerfile.dev       # CPU-only development image
-│   ├── Dockerfile.dev.cuda  # CUDA development image
+│   ├── Dockerfile.dev.gpu  # GPU development image
 │   ├── docker-compose.yml   # Multi-profile compose file
 │   ├── build.sh             # Build script for all images
 │   └── run.sh               # Run script for different profiles
@@ -30,14 +30,14 @@ Vectorizer provides multiple Docker configurations to suit different needs:
 
 #### CPU-Only Production (`Dockerfile`)
 - **Base**: `rust:1.82-slim` → `debian:bookworm-slim`
-- **Features**: GRPC Architecture, Automatic Summarization, Batch Operations
+- **Features**: REST API Architecture, Automatic Summarization, Batch Operations
 - **Use Case**: Maximum compatibility, no GPU required
 - **Size**: Smaller image size
 - **Performance**: CPU-optimized operations
 
 #### CUDA Production (`Dockerfile.cuda`)
 - **Base**: `nvidia/cuda:12.6-devel-ubuntu22.04` → `nvidia/cuda:12.6-runtime-ubuntu22.04`
-- **Features**: GRPC Architecture, CUDA GPU Acceleration, Automatic Summarization, Batch Operations
+- **Features**: REST API Architecture, CUDA GPU Acceleration, Automatic Summarization, Batch Operations
 - **Dependencies**: [CUHNSW](https://github.com/js1010/cuhnsw) - CUDA implementation of HNSW algorithm
 - **Use Case**: Maximum performance with GPU acceleration
 - **Size**: Larger image size
@@ -159,7 +159,6 @@ docker-compose --profile dev-cuda up -d
 |------|---------|-------------|
 | 15001 | REST API | HTTP API endpoint |
 | 15002 | MCP Server | Model Context Protocol |
-| 15003 | GRPC Server | Internal GRPC communication |
 
 ### Volumes
 
@@ -208,7 +207,6 @@ kubectl port-forward -n vectorizer svc/vectorizer-service 15003:15003
 # Access via NodePort (if enabled)
 # REST API: http://<node-ip>:30001
 # MCP Server: http://<node-ip>:30002
-# GRPC Server: http://<node-ip>:30003
 ```
 
 ## 🔍 Monitoring
@@ -306,6 +304,6 @@ docker-compose --profile cpu-only up -d
 - CPU images work on any Docker installation
 - Development images include debugging tools
 - Production images are optimized for size and security
-- All images support GRPC architecture
+- All images support REST API architecture
 - Automatic summarization works in all variants
 - CUHNSW provides 8-9x faster build and 3-4x faster search performance

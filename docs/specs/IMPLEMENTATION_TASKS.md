@@ -88,5 +88,5 @@ This document tracks the assignment and status of implementation tasks for the V
 | :--------------- | :---------------------------------------------------------------- | :---------- | :------------ | :-------- | :------ |
 | **P6-EXP-001**   | **Quantization**: Implement PQ, SQ, and Binary quantization.        | TBD         | TBD, TBD, TBD | `Pending` |         |
 | **P6-EXP-002**   | **UMICP Integration**: Spike integration with UMICP.              | TBD         | TBD, TBD, TBD | `Pending` |         |
-| **P6-EXP-003**   | **CUDA Acceleration**: Spike GPU-accelerated search with CUDA.        | TBD         | TBD, TBD, TBD | `Pending` |         |
+| **P6-EXP-003**   | **GPU Acceleration**: Spike GPU-accelerated search with GPU.        | TBD         | TBD, TBD, TBD | `Pending` |         |
 | **P6-EXP-004**   | **LangChain Integration**: Implement LangChain VectorStore classes.   | TBD         | TBD, TBD, TBD | `Pending` |         |

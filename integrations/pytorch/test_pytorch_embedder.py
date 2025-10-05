@@ -41,7 +41,7 @@ class TestPyTorchModelConfig:
         """Test custom configuration"""
         config = PyTorchModelConfig(
             model_path="custom_model.pt",
-            device="cuda",
+            device="gpu",
             batch_size=64,
             max_length=256,
             normalize_embeddings=False,
@@ -51,7 +51,7 @@ class TestPyTorchModelConfig:
         )
         
         assert config.model_path == "custom_model.pt"
-        assert config.device == "cuda"
+        assert config.device == "gpu"
         assert config.batch_size == 64
         assert config.max_length == 256
         assert config.normalize_embeddings is False

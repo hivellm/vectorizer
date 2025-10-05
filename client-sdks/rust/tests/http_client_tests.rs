@@ -14,7 +14,7 @@ fn test_vectorizer_client_creation() {
     assert!(client_result.is_ok());
     
     let client = client_result.unwrap();
-    assert_eq!(client.base_url(), "http://localhost:15001");
+    assert_eq!(client.base_url(), "http://localhost:15002");
 }
 
 #[test]
@@ -30,11 +30,11 @@ fn test_vectorizer_client_with_custom_url() {
 #[test]
 fn test_vectorizer_client_with_api_key() {
     // Test client creation with API key
-    let client_result = VectorizerClient::new_with_api_key("http://localhost:15001", "test-api-key");
+    let client_result = VectorizerClient::new_with_api_key("http://localhost:15002", "test-api-key");
     assert!(client_result.is_ok());
     
     let client = client_result.unwrap();
-    assert_eq!(client.base_url(), "http://localhost:15001");
+    assert_eq!(client.base_url(), "http://localhost:15002");
     // Note: API key verification would require actual HTTP calls
 }
 
@@ -266,7 +266,7 @@ fn test_http_status_code_edge_cases() {
 fn test_client_url_handling() {
     // Test various URL formats
     let urls = vec![
-        "http://localhost:15001",
+        "http://localhost:15002",
         "https://api.example.com",
         "http://127.0.0.1:8080",
         "https://vectorizer.example.com:443",

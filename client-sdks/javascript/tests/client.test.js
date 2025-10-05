@@ -29,7 +29,7 @@ describe('VectorizerClient', () => {
 
     // Create client
     client = new VectorizerClient({
-      baseURL: 'http://localhost:15001',
+      baseURL: 'http://localhost:15002',
       apiKey: 'test-api-key',
     });
   });
@@ -57,7 +57,7 @@ describe('VectorizerClient', () => {
 
       const result = await client.healthCheck();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/v1/health');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/health');
       expect(result).toEqual(mockResponse);
     });
 
@@ -82,7 +82,7 @@ describe('VectorizerClient', () => {
 
       const result = await client.getDatabaseStats();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/v1/stats');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/stats');
       expect(result).toEqual(mockResponse);
     });
   });
@@ -97,7 +97,7 @@ describe('VectorizerClient', () => {
 
       const result = await client.listCollections();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/v1/collections');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/collections');
       expect(result).toEqual(mockResponse);
     });
   });
@@ -115,7 +115,7 @@ describe('VectorizerClient', () => {
 
       const result = await client.createCollection(request);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/api/v1/collections', request);
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/collections', request);
       expect(result).toEqual(mockResponse);
     });
 
@@ -142,7 +142,7 @@ describe('VectorizerClient', () => {
       const result = await client.insertVectors('test-collection', vectors);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/api/v1/collections/test-collection/vectors',
+        '/collections/test-collection/vectors',
         { vectors }
       );
       expect(result).toEqual(mockResponse);
@@ -176,7 +176,7 @@ describe('VectorizerClient', () => {
       const result = await client.searchVectors('test-collection', request);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/api/v1/collections/test-collection/search',
+        '/collections/test-collection/search',
         request
       );
       expect(result).toEqual(mockResponse);
@@ -210,7 +210,7 @@ describe('VectorizerClient', () => {
       const result = await client.searchText('test-collection', request);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/api/v1/collections/test-collection/search/text',
+        '/collections/test-collection/search/text',
         request
       );
       expect(result).toEqual(mockResponse);
@@ -232,7 +232,7 @@ describe('VectorizerClient', () => {
 
       const result = await client.embedText(request);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/api/v1/embed', request);
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/embed', request);
       expect(result).toEqual(mockResponse);
     });
   });

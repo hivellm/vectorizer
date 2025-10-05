@@ -265,18 +265,18 @@ impl Payload {
         Self { data }
     }
 
-    /// Create a payload from a serializable type
-    pub fn from_value<T: Serialize>(value: T) -> Result<Self, serde_json::Error> {
-        Ok(Self {
-            data: serde_json::to_value(value)?,
-        })
+    /// Create a new payload from a serializable type
+    pub fn from_serializable<T: serde::Serialize>(value: &T) -> Result<Self, serde_json::Error> {
+        let data = serde_json::to_value(value)?;
+        Ok(Self::new(data))
     }
 
-    /// Extract a value from the payload
-    pub fn get<T: for<'de> Deserialize<'de>>(&self) -> Result<T, serde_json::Error> {
+    /// Deserialize payload to a specific type
+    pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
         serde_json::from_value(self.data.clone())
     }
 }
 
 /// Collection metadata module for tracking indexed files
 pub mod collection_metadata;
+

@@ -3,7 +3,7 @@
 echo "🧪 Testing Vectorizer API Endpoints"
 echo "===================================="
 
-BASE_URL="http://localhost:15001/api/v1"
+BASE_URL="http://localhost:15002"
 
 # Test Health
 echo -e "\n1️⃣ Testing Health Endpoint:"

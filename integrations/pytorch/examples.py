@@ -320,7 +320,7 @@ def device_comparison_example():
     try:
         devices = ["cpu"]
         if torch.cuda.is_available():
-            devices.append("cuda")
+            devices.append("gpu")
         if torch.backends.mps.is_available():
             devices.append("mps")
         

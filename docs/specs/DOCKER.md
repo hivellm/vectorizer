@@ -15,9 +15,9 @@ cd vectorizer
 docker-compose up --build
 
 # The service will be available at:
-# - REST API: http://localhost:15001
-# - WebSocket API: http://localhost:15002
-# - MCP Server: ws://localhost:15003
+# - Unified Server: http://localhost:15002
+# - REST API: http://localhost:15002
+# - MCP Server: http://localhost:15002/mcp/sse
 ```
 
 ### Development Environment

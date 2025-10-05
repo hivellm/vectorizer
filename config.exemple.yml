@@ -1,0 +1,123 @@
+# Vectorizer Server Configuration File
+# Updated for v0.28.1 - REST API architecture with MCP support
+# Simplified deployment without complex dependencies
+
+# =============================================================================
+# FILE WATCHER CONFIGURATION
+# =============================================================================
+file_watcher:
+  enabled: true
+  debounce_delay_ms: 1000
+  min_file_size_bytes: 1
+  max_file_size_bytes: 10485760  # 10MB
+  hash_validation_enabled: true
+  collection_name: "workspace-files"
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+server:
+  # Basic server settings
+  host: "127.0.0.1"          # Server bind address
+  port: 15002                # Server port
+  mcp_port: 15002            # MCP server port
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+logging:
+  # Log levels
+  level: "info"               # Global log level: error/warn/info/debug/trace
+  format: "json"              # Log format: json/text
+  
+  # Request/Response logging
+  log_requests: true          # Log all requests
+  log_responses: false        # Log responses (can be verbose)
+  log_errors: true            # Log errors
+
+# =============================================================================
+# DEFAULT COLLECTION CONFIGURATION
+# =============================================================================
+collections:
+  defaults:
+    # Vector settings
+    dimension: 512            # Default vector dimension
+    metric: "cosine"          # Default distance metric: cosine/euclidean/dot_product
+
+    # Quantization (memory optimization)
+    quantization:
+      type: "sq"              # Quantization type: sq (scalar quantization)
+      sq:
+        bits: 8               # SQ bits per dimension
+
+    # Embedding settings
+    embedding:
+      model: "bm25"     # Default embedding: bm25
+      bow:
+        vocab_size: 50000     # BOW vocabulary size
+        max_sequence_length: 512 # Maximum sequence length
+      hash:
+        hash_size: 1000000    # Feature hash size
+      ngram:
+        ngram_range: [1, 3]   # N-gram range [min, max]
+        vocab_size: 100000    # N-gram vocabulary size
+      bm25:
+        k1: 1.5               # BM25 k1 parameter
+        b: 0.75               # BM25 b parameter
+
+    # Index settings (HNSW)
+    index:
+      type: "hnsw"            # Index type: hnsw/optimized_hnsw
+      hnsw:
+        m: 16                 # HNSW connections per layer
+        ef_construction: 200  # Construction search width
+        ef_search: 64         # Query search width
+      optimized_hnsw:
+        batch_size: 1000      # Batch insertion size
+        parallel: true        # Enable parallel construction
+        initial_capacity: 100000  # Pre-allocation size
+        max_connections: 16   # Maximum connections per layer
+        max_connections_0: 32 # Connections for layer 0
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATION CONFIGURATION
+# =============================================================================
+performance:
+  # CPU optimization settings
+  cpu:
+    max_threads: 8                # Maximum CPU threads for parallel operations
+    enable_simd: true             # Enable SIMD optimizations
+    memory_pool_size_mb: 1024     # Memory pool size for allocations
+  
+  # Batch processing
+  batch:
+    default_size: 100             # Default batch size for operations
+    max_size: 1000                # Maximum batch size
+    parallel_processing: true     # Enable parallel batch processing
+
+# =============================================================================
+# WORKSPACE CONFIGURATION
+# =============================================================================
+workspace:
+  # Enable workspace functionality
+  enabled: true
+  
+  # Default workspace file
+  default_workspace_file: "./vectorize-workspace.yml"
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+api:
+  # REST API settings
+  rest:
+    enabled: true                 # Enable REST API
+    cors_enabled: true            # Enable CORS
+    max_request_size_mb: 10       # Maximum request size
+    timeout_seconds: 30           # Request timeout
+  
+  # MCP (Model Context Protocol) settings
+  mcp:
+    enabled: true                 # Enable MCP server
+    port: 15002                   # MCP server port
+    max_connections: 100          # Maximum concurrent connections

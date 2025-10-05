@@ -3,7 +3,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::config::FileWatcherYamlConfig;
-use crate::cuda::CudaConfig;
 use crate::summarization::SummarizationConfig;
 
 /// Main Vectorizer configuration
@@ -15,8 +14,6 @@ pub struct VectorizerConfig {
     pub file_watcher: FileWatcherYamlConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
-    /// CUDA GPU acceleration configuration
-    pub cuda: CudaConfig,
     /// Summarization configuration
     pub summarization: SummarizationConfig,
     /// Projects configuration
@@ -30,8 +27,6 @@ pub struct ServerConfig {
     pub host: String,
     /// Port to listen on
     pub port: u16,
-    /// GRPC port
-    pub grpc_port: u16,
     /// MCP port
     pub mcp_port: u16,
 }
@@ -39,9 +34,8 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            host: "127.0.0.1".to_string(),
-            port: 15001,
-            grpc_port: 15002,
+            host: "0.0.0.0".to_string(),
+            port: 15002,
             mcp_port: 15003,
         }
     }
@@ -107,7 +101,6 @@ impl Default for VectorizerConfig {
             server: ServerConfig::default(),
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
-            cuda: CudaConfig::default(),
             summarization: SummarizationConfig::default(),
             projects: Vec::new(),
         }
@@ -141,12 +134,6 @@ impl VectorizerConfig {
         if let Ok(port) = std::env::var("VECTORIZER_PORT") {
             if let Ok(port_num) = port.parse::<u16>() {
                 config.server.port = port_num;
-            }
-        }
-
-        if let Ok(grpc_port) = std::env::var("VECTORIZER_GRPC_PORT") {
-            if let Ok(port_num) = grpc_port.parse::<u16>() {
-                config.server.grpc_port = port_num;
             }
         }
 

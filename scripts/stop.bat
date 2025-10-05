@@ -2,56 +2,53 @@
 setlocal enabledelayedexpansion
 
 REM Vectorizer Stop Script for Windows
-REM Stops all Vectorizer servers and processes
+REM Stops Vectorizer unified server
 
-echo 🛑 Stopping Vectorizer Servers (GRPC Architecture)...
-echo =====================================================
+echo 🛑 Stopping Vectorizer Unified Server...
+echo ========================================
 
-REM Stop vzr orchestrator processes
-echo Stopping vzr orchestrator...
-taskkill /f /im vzr.exe 2>nul
-if !errorlevel! equ 0 (
-    echo ✅ vzr orchestrator stopped
-) else (
-    echo ℹ️  No vzr orchestrator running
-)
+set STOPPED=0
 
-REM Stop vectorizer-mcp-server processes
-echo Stopping MCP servers...
-taskkill /f /im vectorizer-mcp-server.exe 2>nul
-if !errorlevel! equ 0 (
-    echo ✅ MCP servers stopped
-) else (
-    echo ℹ️  No MCP servers running
-)
-
-REM Stop vectorizer-server processes
-echo Stopping REST servers...
-taskkill /f /im vectorizer-server.exe 2>nul
-if !errorlevel! equ 0 (
-    echo ✅ REST servers stopped
-) else (
-    echo ℹ️  No REST servers running
-)
-
-REM Stop cargo processes
-echo Stopping cargo processes...
-taskkill /f /im cargo.exe 2>nul
-if !errorlevel! equ 0 (
-    echo ✅ Cargo processes stopped
-) else (
-    echo ℹ️  No cargo processes running
-)
-
-REM Kill processes using Vectorizer ports
+REM Kill processes using Vectorizer ports (primary method)
 echo Checking for processes using Vectorizer ports...
-for %%p in (15001 15002 15003) do (
-    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%%p') do (
-        echo Killing process using port %%p (PID: %%a)
+for %%p in (15002) do (
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%%p 2^>nul') do (
+        echo Stopping server on port %%p (PID: %%a)
+        taskkill /pid %%a 2>nul
+        timeout /t 1 /nobreak >nul
+        REM Force kill if still running
         taskkill /f /pid %%a 2>nul
+        set STOPPED=1
+    )
+)
+
+REM Stop vectorizer binary processes
+echo Stopping vectorizer processes...
+taskkill /im vectorizer.exe 2>nul
+if !errorlevel! equ 0 (
+    set STOPPED=1
+    timeout /t 1 /nobreak >nul
+    REM Force kill if still running
+    taskkill /f /im vectorizer.exe 2>nul
+)
+
+REM Stop cargo processes running vectorizer
+echo Stopping cargo processes...
+for /f "tokens=2" %%a in ('tasklist /fi "imagename eq cargo.exe" /fo list ^| findstr PID') do (
+    wmic process where "ProcessId=%%a" get CommandLine 2>nul | findstr /i "vectorizer" >nul
+    if !errorlevel! equ 0 (
+        echo Stopping cargo process (PID: %%a)
+        taskkill /pid %%a 2>nul
+        timeout /t 1 /nobreak >nul
+        taskkill /f /pid %%a 2>nul
+        set STOPPED=1
     )
 )
 
 echo.
-echo 🎉 All Vectorizer servers stopped successfully!
-echo 🏗️  Architecture: vzr (GRPC) + MCP + REST servers
+if !STOPPED! equ 1 (
+    echo 🎉 Vectorizer server stopped successfully!
+) else (
+    echo ℹ️  No Vectorizer server was running
+)
+echo 🏗️  Architecture: Unified Server (REST/MCP on single process)

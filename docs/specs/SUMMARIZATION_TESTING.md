@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive test suite for the Vectorizer summarization system. The test suite ensures that all summarization functionality works correctly across all interfaces (GRPC, REST API, MCP) and handles edge cases properly.
+This document describes the comprehensive test suite for the Vectorizer summarization system. The test suite ensures that all summarization functionality works correctly across all interfaces (REST API, MCP) and handles edge cases properly.
 
 ## Test Structure
 
@@ -23,7 +23,7 @@ Tests the core `SummarizationManager` functionality:
 - **Multi-language Support**: Tests different language codes
 - **Summary Persistence**: Tests that summaries are stored and retrievable
 
-### 2. GRPC Tests (`src/grpc/summarization_tests.rs`)
+### 2. REST Tests (`src/server/rest_handlers/tests.rs`)
 
 Tests the GRPC server implementation:
 

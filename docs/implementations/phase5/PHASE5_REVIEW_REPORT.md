@@ -343,7 +343,7 @@ const app = Vue.createApp({
 - ✅ **Production Features**: Health checks, backup/restore ready
 
 ### Enterprise Features (Phase 7)
-- 🚧 **GPU/CUDA Acceleration**: Foundation for ML acceleration
+- 🚧 **GPU Acceleration**: Foundation for ML acceleration
 - 🚧 **Distributed Systems**: Multi-node architecture support
 - 🚧 **Advanced Security**: E2EE and enterprise compliance
 - 🚧 **UMICP Integration**: Federated embedding support

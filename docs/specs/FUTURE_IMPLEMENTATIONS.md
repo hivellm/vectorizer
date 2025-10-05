@@ -93,13 +93,13 @@ interface DashboardState {
 
 ### Priority: **HIGH** (1-3 months)
 
-#### 3.1 CUDA/GPU Acceleration
+#### 3.1 GPU Acceleration
 ```rust
-// Planned CUDA Implementation
-pub struct CudaVectorStore {
-    device_memory: CudaMemory,
-    kernels: CudaKernels,
-    streams: Vec<CudaStream>,
+// Planned GPU Implementation
+pub struct GpuVectorStore {
+    device_memory: GpuMemory,
+    kernels: GpuKernels,
+    streams: Vec<GpuStream>,
 }
 
 impl CudaVectorStore {

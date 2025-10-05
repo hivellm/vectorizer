@@ -6,22 +6,22 @@ Vectorizer is a high-performance, in-memory vector database written in Rust, des
 
 ## ⚠️ CRITICAL ARCHITECTURE NOTE
 
-**GRPC is the Primary Data Server - REST and MCP are Interfaces Only**
+**REST-First Architecture with MCP Support**
 
-- **GRPC Server (`vzr`)**: Manages all real collections and vector data
-- **REST API**: HTTP interface that proxies requests to GRPC
-- **MCP Server**: Model Context Protocol interface that proxies requests to GRPC
+- **REST API**: Primary HTTP interface managing all collections and vector data
+- **MCP Server**: Model Context Protocol interface for AI assistants
+- **Core Engine**: Rust-based vector store with HNSW indexing
 
-**RULE: GRPC, REST, and MCP must have EXACTLY the same functionality**
+**RULE: REST and MCP must have EXACTLY the same functionality**
 
 When adding features:
-1. **Implement in GRPC first** (core business logic)
+1. **Implement in core engine first** (business logic)
 2. **Add REST endpoints** (HTTP interface)
 3. **Add MCP tools** (AI assistant interface)
 
-**NEVER implement features only in REST or MCP!** All three layers must be kept in sync.
+**NEVER implement features only in MCP!** Both layers must be kept in sync.
 
-**Example Issue**: `memory-analysis` endpoint exists only in REST API but not in MCP - this violates the architecture rule.
+**Architecture**: REST + MCP unified server system
 
 ## 🚨 RUST EDITION REQUIREMENT - CRITICAL
 
@@ -332,41 +332,39 @@ pub async fn search_collection(
 }
 ```
 
-### gRPC Services
+### REST API Services
 
 #### Service Definitions
 ```rust
-// .proto file patterns
-service VectorizerService {
-    rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
-    rpc SearchVectors(SearchRequest) returns (SearchResponse);
-    rpc GetCollectionStats(GetCollectionStatsRequest) returns (CollectionStatsResponse);
-}
-
-// Implementation patterns
+// REST endpoint patterns
 pub async fn create_collection(
-    &self,
-    request: Request<CreateCollectionRequest>,
-) -> Result<Response<CreateCollectionResponse>, Status> {
-    let req = request.into_inner();
-
-    tracing::debug!("GRPC CreateCollection request: name={}, dimension={}",
-                   req.name, req.dimension);
+    State(state): State<AppState>,
+    Json(request): Json<CreateCollectionRequest>,
+) -> Result<Json<CreateCollectionResponse>, (StatusCode, Json<ErrorResponse>)> {
+    tracing::debug!("REST CreateCollection request: name={}, dimension={}",
+                   request.name, request.config.dimension);
 
     // Validate request
-    if req.name.is_empty() {
-        return Err(Status::invalid_argument("Collection name cannot be empty"));
+    if request.name.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "Collection name cannot be empty".to_string(),
+                code: "INVALID_NAME".to_string(),
+                details: None,
+            }),
+        ));
     }
 
     // Create collection
-    self.vector_store.create_collection(&req.name, req.config.into()).await?;
+    state.vector_store.create_collection(&request.name, request.config.into()).await?;
 
     let response = CreateCollectionResponse {
-        name: req.name,
-        created_at: Utc::now().timestamp(),
+        name: request.name,
+        created_at: Utc::now(),
     };
 
-    Ok(Response::new(response))
+    Ok(Json(response))
 }
 ```
 
@@ -813,10 +811,6 @@ src/
 │   ├── collection.rs   # Collection implementation
 │   ├── vector_store.rs # Main vector store
 │   └── mod.rs
-├── grpc/
-│   ├── server.rs       # gRPC server implementation
-│   ├── client.rs       # gRPC client
-│   └── mod.rs
 ├── models/
 │   ├── collection.rs   # Collection models
 │   ├── vector.rs       # Vector models
@@ -1107,10 +1101,10 @@ pub fn sum_positive(numbers: &[i32]) -> i32 {
 
 ### Vectorizer Architecture Patterns
 
-1. **API Layer**: HTTP/gRPC endpoints in `src/api/`
+1. **API Layer**: HTTP endpoints in `src/api/`
 2. **Business Logic**: Core operations in `src/db/` and `src/embedding/`
 3. **Data Access**: Persistence and caching in `src/persistence/`
-4. **Infrastructure**: gRPC and MCP in `src/grpc/` and `src/mcp/`
+4. **Infrastructure**: MCP in `src/mcp/`
 
 ### Configuration Hierarchy
 
@@ -1126,49 +1120,39 @@ pub fn sum_positive(numbers: &[i32]) -> i32 {
 
 ## 🚨 CRITICAL: Server Execution Instructions
 
-### Vectorizer GRPC-First Architecture
-**CRITICAL REQUIREMENT**: Vectorizer uses a GRPC-first architecture. REST and MCP servers are managed internally by the GRPC orchestrator and should NEVER be started separately.
+### Vectorizer REST-First Architecture
+**CRITICAL REQUIREMENT**: Vectorizer uses a REST-first architecture with integrated MCP support. Both REST and MCP are part of a unified server process.
 
 ### ✅ CORRECT: Starting the Server
 ```bash
-# Start all services via workspace orchestrator
-./scripts/start.sh --workspace vectorize-workspace.yml
+# Start unified server
+./target/release/vectorizer
 
-# This internally starts:
-# - vzr (GRPC orchestrator) on port 15003
-# - REST API on http://127.0.0.1:15001
+# Development mode
+cargo run
+
+# This starts:
+# - REST API on http://127.0.0.1:15002
 # - MCP Server on ws://127.0.0.1:15002/mcp
 ```
 
 ### ✅ CORRECT: Stopping the Server
 ```bash
-# Kill vzr process (stops all managed services)
-pkill vzr
+# Kill vectorizer process
+pkill vectorizer
 
-# Alternative method
-pkill -f vectorizer
-```
-
-### 🚫 INCORRECT: NEVER Do This
-```bash
-# ❌ WRONG: Don't start servers separately
-cargo run --bin vectorizer-server      # DEPENDS ON GRPC
-cargo run --bin vectorizer-mcp-server  # DEPENDS ON GRPC
-
-# ❌ WRONG: Don't kill individual servers
-kill $(pgrep vectorizer-server)       # BREAKS ARCHITECTURE
-kill $(pgrep vectorizer-mcp-server)    # BREAKS ARCHITECTURE
+# Alternative: Ctrl+C if running in foreground
 ```
 
 ### Architecture Flow
 ```
-Client → REST/MCP → GRPC → vzr → Vector Store
+Client → REST/MCP → Core Engine → Vector Store
 ```
 
 ### Why This Matters for Code Generation
-- **NEVER generate code** that assumes REST/MCP can run independently
-- **ALWAYS generate code** that connects through GRPC client
-- **Architecture dependency**: REST/MCP → GRPC → Vector Store
-- **Service lifecycle**: Managed by vzr orchestrator only
+- **ALWAYS generate code** that works with unified server architecture
+- **Architecture**: REST + MCP integrated in single process
+- **Service lifecycle**: Managed by single vectorizer process
+- **Simplified deployment**: No need for orchestrator or multiple processes
 
 These instructions ensure GitHub Copilot generates code that seamlessly integrates with the Vectorizer codebase, following established patterns and maintaining high quality standards. Always consider the performance implications and security requirements when generating new code.

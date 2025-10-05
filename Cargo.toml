@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.28.0"
+version = "0.3.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -33,7 +33,7 @@ hnsw_rs = "0.3"
 # Linear algebra for basic matrix operations
 ndarray = "0.16"
 
-# CUDA dependencies (real GPU processing)
+# GPU dependencies (real GPU processing)
 cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
 cc = { version = "1.0", features = ["parallel"] }
 
@@ -81,10 +81,6 @@ lz4_flex = "0.11"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
-# Configuration
-
-# Date and time
-
 # Authentication and security
 jsonwebtoken = "9.3"
 uuid = { version = "1.6", features = ["v4", "serde"] }
@@ -113,18 +109,11 @@ arrow = { version = "56", optional = true }
 parquet = { version = "56", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.7", features = ["server", "transport-sse-server"] }
+rmcp = { version = "0.7", features = ["server", "macros", "transport-sse-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 
-# gRPC dependencies
-tonic = { version = "0.11", features = ["tls"] }
-tonic-reflection = "0.11"
-prost = "0.12"
-prost-types = "0.12"
-
 [build-dependencies]
-tonic-build = "0.11"
 cc = { version = "1.0", features = ["parallel"] }
 
 [dev-dependencies]
@@ -136,68 +125,69 @@ reqwest = { version = "0.11", features = ["json"] }
 [[bin]]
 name = "benchmark_embeddings"
 path = "benchmark/scripts/benchmark_embeddings.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
-name = "cuda_benchmark"
-path = "benchmark/scripts/cuda_benchmark.rs"
+name = "gpu_benchmark"
+path = "benchmark/scripts/gpu_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "quantization_benchmark"
 path = "benchmark/scripts/quantization_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "core_operations_benchmark"
 path = "benchmark/scripts/core_operations_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "dimension_comparison_benchmark"
 path = "benchmark/scripts/dimension_comparison_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "combined_optimization_benchmark"
 path = "benchmark/scripts/combined_optimization_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "scale_benchmark"
 path = "benchmark/scripts/scale_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "patched_benchmark"
 path = "benchmark/scripts/patched_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "large_scale_benchmark"
 path = "benchmark/scripts/large_scale_benchmark.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "diagnostic_benchmark"
 path = "benchmark/scripts/diagnostic_benchmark.rs"
-
-[[bin]]
-name = "download_models"
-path = "scripts/download_models.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "vectorizer-cli"
 path = "src/bin/vectorizer-cli.rs"
 
 [[bin]]
-name = "vectorizer-server"
-path = "src/bin/vectorizer-server.rs"
-
-[[bin]]
-name = "vectorizer-mcp-server"
-path = "src/bin/vectorizer-mcp-server.rs"
-
-
+name = "vectorizer"
+path = "src/bin/vectorizer.rs"
 
 [features]
-default = ["cuda_real"]
-cuda = []
-cuda_real = ["cuda"]
+default = ["gpu_real"]
+gpu = []
+gpu_real = ["gpu"]
 metal = ["wgpu", "pollster", "bytemuck", "futures"]
 wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
 gpu-accel = ["wgpu-gpu"]
+benchmarks = []
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
 candle-transformers = ["dep:candle-transformers"]
@@ -225,9 +215,6 @@ candle-models = [
 full = ["real-models", "onnx-models", "arrow", "parquet"]
 
 
-[[bin]]
-name = "vzr"
-path = "src/bin/vzr.rs"
 
 [[bin]]
 name = "gpu_scale_benchmark"

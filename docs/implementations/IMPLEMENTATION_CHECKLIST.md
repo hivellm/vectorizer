@@ -18,7 +18,7 @@
 
 ### 🔄 In Progress (Phase 6)
 - **Phase 6: Experimental Features** - 50% Complete
-  - ✅ CUDA GPU acceleration
+  - ✅ GPU acceleration
   - ✅ Summarization features
   - ⚠️ Vector quantization (PQ, SQ, Binary) - pending
   - ⚠️ LangChain integrations - partial
@@ -48,7 +48,7 @@
 - [x] Add core dependencies (axum, tonic, hnsw_rs, lz4_flex)
 - [x] Add development dependencies (criterion, proptest)
 - [x] Add documentation dependencies
-- [x] Configure feature flags for optional components (cuda_real, real-models, onnx-models, candle-models)
+- [x] Configure feature flags for optional components (gpu_real, real-models, onnx-models, candle-models)
 - [x] Audit dependencies for security
 
 ---

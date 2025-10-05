@@ -4,7 +4,7 @@
 //! - Metal (Apple Silicon)
 //! - Vulkan (AMD/NVIDIA/Intel/Universal)
 //! - DirectX 12 (Windows)
-//! - CUDA (NVIDIA native)
+//! - GPU (NVIDIA native)
 //! - CPU (fallback)
 
 pub mod detector;

@@ -24,7 +24,7 @@ class TestVectorizerConfig:
         """Test default configuration"""
         config = VectorizerConfig()
         assert config.host == "localhost"
-        assert config.port == 15001
+        assert config.port == 15002
         assert config.collection_name == "langchain_documents"
         assert config.auto_create_collection is True
         assert config.batch_size == 100

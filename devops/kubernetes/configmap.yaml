@@ -5,11 +5,11 @@ metadata:
   namespace: vectorizer
 data:
   config.yml: |
+    # Vectorizer v0.29.0 Configuration
     server:
       host: "0.0.0.0"
-      port: 15001
-      grpc_port: 15003
-      mcp_port: 15002
+      port: 15002
+      mcp_port: 15003
       mode: "production"
     
     storage:
@@ -22,28 +22,26 @@ data:
       default_dimension: 768
       default_metric: "cosine"
     
-    cuda:
+    gpu:
       enabled: false
       device_id: 0
       memory_limit_mb: 4096
     
-    summarization:
-      enabled: true
-      default_method: "extractive"
-      methods:
-        extractive:
-          enabled: true
-          max_sentences: 5
-          lambda: 0.7
-        keyword:
-          enabled: true
-          max_keywords: 10
-        sentence:
-          enabled: true
-          max_sentences: 3
-        abstractive:
-          enabled: false
-          max_length: 200
+    api:
+      rest:
+        enabled: true
+        cors_enabled: true
+      mcp:
+        enabled: true
+        sse_enabled: true
+    
+    performance:
+      cpu:
+        threads: 4
+        batch_size: 100
+      batch:
+        max_size: 1000
+        timeout_ms: 5000
 
 ---
 apiVersion: v1

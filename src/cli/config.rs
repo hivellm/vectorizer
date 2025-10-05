@@ -77,7 +77,7 @@ impl Default for ConfigFile {
         Self {
             server: ServerConfigFile {
                 host: "127.0.0.1".to_string(),
-                port: 15001,
+                port: 15002,
                 data_dir: "./data".to_string(),
                 auth_enabled: true,
             },
@@ -292,7 +292,7 @@ mod tests {
     fn test_config_file_default() {
         let config = ConfigFile::default();
         assert_eq!(config.server.host, "127.0.0.1");
-        assert_eq!(config.server.port, 15001);
+        assert_eq!(config.server.port, 15002);
         assert!(config.auth.enabled);
         assert!(config.database.compression_enabled);
     }
@@ -309,7 +309,7 @@ mod tests {
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Reset port
-        config.server.port = 15001;
+        config.server.port = 15002;
 
         // Invalid JWT secret should fail
         config.auth.jwt_secret = "short".to_string();
@@ -349,7 +349,7 @@ mod tests {
         // Load config file
         let config = ConfigManager::load_from_file(&config_path).unwrap();
         assert_eq!(config.server.host, "127.0.0.1");
-        assert_eq!(config.server.port, 15001);
+        assert_eq!(config.server.port, 15002);
 
         // Modify and save config
         let mut modified_config = config;

@@ -251,8 +251,8 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
                     │     Server      │    │                 │
                     │                 │    │ • Model Context │
                     │ • REST API      │    │ • AI Integration │
-                    │ • GRPC          │    │ • Tool Calling  │
-                    │ • MCP Protocol  │    │ • SSE Transport │
+                    │ • MCP Protocol  │    │ • Tool Calling  │
+                    │                 │    │ • SSE Transport │
                     └─────────────────┘    └─────────────────┘
 ```
 

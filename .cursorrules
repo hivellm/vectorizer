@@ -10,12 +10,12 @@
 - **Build Environment**: Must use Rust toolchain with Edition 2024 support
 - **Consequences of changing**: Compilation failures, lost features, performance regressions
 
-### Architecture Rule: GRPC First, REST/MCP Second
-**MANDATORY**: GRPC, REST, and MCP must have EXACTLY the same functionality
-- Implement in GRPC first (core business logic)
+### Architecture Rule: REST-First with MCP Support
+**MANDATORY**: REST and MCP must have EXACTLY the same functionality
+- Implement in core engine first (business logic)
 - Add REST endpoints second (HTTP interface)
 - Add MCP tools third (AI assistant interface)
-- NEVER implement features only in REST or MCP
+- NEVER implement features only in MCP
 
 ## Code Style and Structure
 
@@ -30,11 +30,11 @@
 - **Structs/Enums/Traits**: `PascalCase` (e.g., `CollectionConfig`, `VectorizerError`)
 - **Variables**: `snake_case` (e.g., `vector_store`, `collection_name`)
 - **Constants**: `SCREAMING_SNAKE_CASE` (e.g., `DEFAULT_DIMENSION`)
-- **Modules**: `snake_case` (e.g., `vector_store`, `grpc_client`)
+- **Modules**: `snake_case` (e.g., `vector_store`, `mcp_client`)
 - **Generics**: Single letters (T, U) or descriptive (CollectionId, VectorData)
 
 ### Code Organization
-- **Modules**: Logical grouping (api/, db/, grpc/, models/, embedding/, etc.)
+- **Modules**: Logical grouping (api/, db/, models/, embedding/, etc.)
 - **Function length**: Keep under 50 lines, break into smaller functions if needed
 - **Import organization**: Group by std, external crates, then internal modules
 - **Struct fields**: Document all public fields, use meaningful names
@@ -152,21 +152,15 @@ pub async fn search_collection(
 }
 ```
 
-### gRPC Services
+### REST API Services
 ```rust
-// Service definition in .proto files
-service VectorizerService {
-    rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
-    rpc SearchVectors(SearchRequest) returns (SearchResponse);
-}
-
-// Implementation
+// REST endpoint implementation
 pub async fn create_collection(
-    &self,
-    request: Request<CreateCollectionRequest>,
-) -> Result<Response<CreateCollectionResponse>, Status> {
+    State(state): State<AppState>,
+    Json(request): Json<CreateCollectionRequest>,
+) -> Result<Json<CreateCollectionResponse>, (StatusCode, Json<ErrorResponse>)> {
     // Implementation
-    Ok(Response::new(response))
+    Ok(Json(response))
 }
 ```
 
@@ -306,12 +300,10 @@ thiserror = "2.0"
 
 # Async and networking
 axum = { version = "0.8", features = ["ws", "json"] }
-tonic = { version = "0.11", features = ["tls"] }
 
 [features]
-default = ["cuda_real"]
-cuda = []
-cuda_real = ["cuda"]
+default = ["quantization"]
+quantization = []
 ```
 
 ## Common Anti-Patterns to Avoid
@@ -386,17 +378,16 @@ pub async fn slow_operation() -> Result<(), Error> {
 ## Project-Specific Conventions
 
 ### Vectorizer Architecture Layers
-1. **API Layer** (`src/api/`): HTTP/gRPC endpoints, request/response handling
+1. **API Layer** (`src/api/`): HTTP endpoints, request/response handling
 2. **Business Logic Layer** (`src/db/`, `src/embedding/`): Core vector operations, embedding generation
 3. **Data Access Layer** (`src/persistence/`): Storage, caching, indexing
-4. **Infrastructure Layer** (`src/grpc/`, `src/mcp/`): Inter-service communication
+4. **Infrastructure Layer** (`src/mcp/`): MCP communication
 
 ### Module Organization
 ```
 src/
-├── api/           # HTTP/gRPC API endpoints
+├── api/           # HTTP API endpoints
 ├── db/            # Core database operations (VectorStore, Collection)
-├── grpc/          # gRPC service implementations
 ├── models/        # Data models and configurations
 ├── embedding/     # Embedding providers (BM25, BERT, etc.)
 ├── persistence/   # Storage, caching, persistence logic
@@ -415,49 +406,38 @@ src/
 
 ## 🚨 Server Execution Requirements
 
-### CRITICAL: GRPC-First Architecture
-**Vectorizer uses a GRPC-first architecture where REST and MCP servers are managed internally by the GRPC orchestrator.**
+### CRITICAL: REST-First Architecture
+**Vectorizer uses a REST-first architecture with integrated MCP support.**
 
 ### Starting the Server
 ```bash
-# ✅ CORRECT: Start all services via workspace orchestrator
-./scripts/start.sh --workspace vectorize-workspace.yml
+# ✅ CORRECT: Start unified server
+./target/release/vectorizer
 
-# This starts internally:
-# - vzr (GRPC orchestrator) on port 15003
-# - REST API on http://127.0.0.1:15001
+# Development mode
+cargo run
+
+# This starts:
+# - REST API on http://127.0.0.1:15002
 # - MCP Server on ws://127.0.0.1:15002/mcp
 ```
 
 ### Stopping the Server
 ```bash
-# ✅ CORRECT: Kill vzr process (stops all services)
-pkill vzr
+# ✅ CORRECT: Kill vectorizer process
+pkill vectorizer
 
-# Alternative
-pkill -f vectorizer
-```
-
-### 🚫 NEVER DO THIS:
-```bash
-# ❌ WRONG: Don't start servers separately
-cargo run --bin vectorizer-server     # DON'T DO THIS
-cargo run --bin vectorizer-mcp-server # DON'T DO THIS
-
-# ❌ WRONG: Don't kill individual servers
-kill $(pgrep vectorizer-server)  # DON'T DO THIS
-kill $(pgrep vectorizer-mcp-server)  # DON'T DO THIS
+# Alternative: Ctrl+C if running in foreground
 ```
 
 ### Architecture Flow
 ```
-Client → REST/MCP → GRPC → vzr → Vector Store
+Client → REST/MCP → Core Engine → Vector Store
 ```
 
 ### Why This Matters
-- REST and MCP servers **depend completely** on GRPC
-- The workspace orchestrator manages all service lifecycle
-- Individual server startup will fail or behave unpredictably
-- Proper shutdown requires killing the orchestrator
+- REST and MCP are integrated in a single server process
+- Unified configuration and lifecycle management
+- Simplified deployment and maintenance
 
 Remember: These rules ensure consistency, maintainability, and performance across the Vectorizer codebase. Always consider the trade-offs between different approaches and document your decisions.

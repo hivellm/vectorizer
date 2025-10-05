@@ -27,7 +27,7 @@ class TestVectorizerClient:
     def client(self):
         """Create a test client."""
         return VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key"
         )
     
@@ -55,7 +55,7 @@ class TestVectorizerClient:
     @pytest.mark.asyncio
     async def test_client_initialization(self, client):
         """Test client initialization."""
-        assert client.base_url == "http://localhost:15001"
+        assert client.base_url == "http://localhost:15002"
         assert client.api_key == "test-key"
         assert client.timeout == 30
         assert client.max_retries == 3
@@ -67,7 +67,7 @@ class TestVectorizerClient:
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "status": "healthy",
-            "service": "vectorizer-grpc",
+            "service": "vectorizer",
             "version": "1.0.0"
         })
         
@@ -77,7 +77,7 @@ class TestVectorizerClient:
             result = await client.health_check()
             
             assert result["status"] == "healthy"
-            assert result["service"] == "vectorizer-grpc"
+            assert result["service"] == "vectorizer"
     
     @pytest.mark.asyncio
     async def test_health_check_failure(self, client):
@@ -422,7 +422,7 @@ class TestIntegration:
     def integration_client(self):
         """Create client for integration tests."""
         return VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key"
         )
     

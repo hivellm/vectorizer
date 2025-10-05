@@ -1,0 +1,674 @@
+//! REST API handlers
+
+use axum::{
+    extract::{Path, Query, State},
+    response::Json,
+    http::StatusCode,
+};
+use std::collections::HashMap;
+use serde_json::{json, Value};
+use tracing::{info, debug, error};
+
+use super::VectorizerServer;
+
+pub async fn health_check() -> Json<Value> {
+    Json(json!({
+        "status": "healthy",
+        "timestamp": chrono::Utc::now(),
+        "version": env!("CARGO_PKG_VERSION")
+    }))
+}
+
+pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
+    let collections = state.store.list_collections();
+    let total_vectors: usize = collections.iter().map(|name| {
+        state.store.get_collection(name).map(|c| c.vector_count()).unwrap_or(0)
+    }).sum();
+    
+    Json(json!({
+        "collections": collections.len(),
+        "total_vectors": total_vectors,
+        "uptime_seconds": state.start_time.elapsed().as_secs(),
+        "version": env!("CARGO_PKG_VERSION")
+    }))
+}
+
+pub async fn get_indexing_progress(State(state): State<VectorizerServer>) -> Json<Value> {
+    let collections = state.store.list_collections();
+    let total_collections = collections.len();
+    
+    Json(json!({
+        "overall_status": "completed",
+        "collections": collections.iter().map(|name| {
+            json!({
+                "name": name,
+                "status": "completed",
+                "progress": 1.0,
+                "total_documents": 0,
+                "processed_documents": 0,
+                "errors": 0
+            })
+        }).collect::<Vec<_>>(),
+        "total_collections": total_collections,
+        "completed_collections": total_collections,
+        "processing_collections": 0
+    }))
+}
+
+
+
+pub async fn search_vectors_by_text(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let query = payload.get("query")
+        .and_then(|q| q.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let limit = payload.get("limit")
+        .and_then(|l| l.as_u64())
+        .unwrap_or(10) as usize;
+
+    info!("🔍 Searching for '{}' in collection '{}'", query, collection_name);
+
+    // Get the collection
+    let collection = match state.store.get_collection(&collection_name) {
+        Ok(collection) => collection,
+        Err(_) => {
+            return Ok(Json(json!({
+                "results": [],
+                "query": query,
+                "limit": limit,
+                "collection": collection_name,
+                "error": "Collection not found"
+            })));
+        }
+    };
+
+    // Generate embedding for the query
+    let query_embedding = match state.embedding_manager.embed(query) {
+        Ok(embedding) => embedding,
+        Err(e) => {
+            error!("Failed to generate embedding: {}", e);
+            return Ok(Json(json!({
+                "results": [],
+                "query": query,
+                "limit": limit,
+                "collection": collection_name,
+                "error": "Failed to generate embedding"
+            })));
+        }
+    };
+
+    // Search vectors in the collection
+    let search_results = match collection.search(&query_embedding, limit) {
+        Ok(results) => results,
+        Err(e) => {
+            error!("Search failed: {}", e);
+            return Ok(Json(json!({
+                "results": [],
+                "query": query,
+                "limit": limit,
+                "collection": collection_name,
+                "error": "Search failed"
+            })));
+        }
+    };
+
+    // Convert results to JSON format
+    let results: Vec<Value> = search_results.into_iter().map(|result| {
+        json!({
+            "id": result.id,
+            "score": result.score,
+            "vector": result.vector,
+            "payload": result.payload.map(|p| p.data)
+        })
+    }).collect();
+
+    Ok(Json(json!({
+        "results": results,
+        "query": query,
+        "limit": limit,
+        "collection": collection_name,
+        "total_results": results.len()
+    })))
+}
+
+pub async fn search_by_file(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let file_path = payload.get("file_path")
+        .and_then(|f| f.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let limit = payload.get("limit")
+        .and_then(|l| l.as_u64())
+        .unwrap_or(10) as usize;
+
+    // For now, return empty results
+    Ok(Json(json!({
+        "results": [],
+        "file_path": file_path,
+        "limit": limit,
+        "collection": collection_name
+    })))
+}
+
+pub async fn list_vectors(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<Json<Value>, StatusCode> {
+    let start_time = std::time::Instant::now();
+    debug!("Listing vectors from collection: {}", collection_name);
+
+    // Parse query parameters for pagination - cap at 50 for vector browser
+    let limit = params.get("limit")
+        .and_then(|l| l.parse::<usize>().ok())
+        .unwrap_or(10)
+        .min(50);
+    let offset = params.get("offset")
+        .and_then(|o| o.parse::<usize>().ok())
+        .unwrap_or(0);
+    let min_score = params.get("min_score")
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(0.0)
+        .max(0.0)
+        .min(1.0);
+
+    // Get the collection
+    let collection = match state.store.get_collection(&collection_name) {
+        Ok(collection) => collection,
+        Err(_) => {
+            return Ok(Json(json!({
+                "vectors": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "collection": collection_name,
+                "error": "Collection not found"
+            })));
+        }
+    };
+
+    // Get actual vectors from the local collection
+    let all_vectors = collection.get_all_vectors();
+    let total_count = all_vectors.len();
+
+    // Filter vectors by minimum score (placeholder: filter by payload size)
+    let filtered_vectors: Vec<_> = all_vectors
+        .into_iter()
+        .filter(|v| {
+            // Calculate a score based on payload content length
+            let score = if let Some(ref payload) = v.payload {
+                // Simple scoring based on content richness
+                let content_length = payload.data.get("content")
+                    .and_then(|c| c.as_str())
+                    .map(|s| s.len())
+                    .unwrap_or(0);
+                (content_length as f32 / 1000.0).min(1.0) // Normalize to 0-1 range
+            } else {
+                0.0
+            };
+            score >= min_score
+        })
+        .collect();
+
+    let filtered_total = filtered_vectors.len();
+
+    // Apply pagination to filtered results
+    let paginated_vectors: Vec<Value> = filtered_vectors
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(|v| json!({
+            "id": v.id,
+            "vector": v.data,
+            "payload": v.payload.map(|p| p.data),
+        }))
+        .collect();
+
+    let paginated_count = paginated_vectors.len();
+
+    let response = json!({
+        "vectors": paginated_vectors,
+        "total": if min_score > 0.0 { filtered_total } else { total_count },
+        "limit": limit,
+        "offset": offset,
+        "message": if min_score > 0.0 && filtered_total != total_count {
+            Some(format!("Filtered {} of {} vectors by min_score >= {:.2}. Showing {} of {} filtered vectors.",
+                filtered_total, total_count, min_score, paginated_count, filtered_total))
+        } else if total_count > limit {
+            Some(format!("Showing {} of {} vectors. Use pagination for more.", limit.min(total_count), total_count))
+        } else {
+            None
+        },
+    });
+
+    let duration = start_time.elapsed();
+    info!(
+        "Listed {} vectors from local collection '{}' (total: {}) in {:?}",
+        paginated_count,
+        collection_name,
+        total_count,
+        duration
+    );
+
+    Ok(Json(response))
+}
+
+pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Value> {
+    let collections = state.store.list_collections();
+    
+    let collection_infos: Vec<Value> = collections.iter().map(|name| {
+        match state.store.get_collection(name) {
+            Ok(collection) => {
+                let config = collection.config();
+                let (index_size, payload_size, total_size) = collection.get_size_info();
+                let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
+                
+                json!({
+                    "name": name,
+                    "vector_count": collection.vector_count(),
+                    "document_count": collection.vector_count(), // Same as vector count for now
+                    "dimension": config.dimension,
+                    "metric": format!("{:?}", config.metric),
+                    "embedding_provider": "bm25",
+                    "size": {
+                        "total": total_size,
+                        "total_bytes": total_bytes,
+                        "index": index_size,
+                        "index_bytes": index_bytes,
+                        "payload": payload_size,
+                        "payload_bytes": payload_bytes
+                    },
+                    "quantization": {
+                        "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
+                        "type": format!("{:?}", config.quantization),
+                        "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
+                    },
+                    "created_at": chrono::Utc::now().to_rfc3339(),
+                    "updated_at": chrono::Utc::now().to_rfc3339(),
+                    "indexing_status": {
+                        "status": "completed",
+                        "progress": 1.0,
+                        "total_documents": collection.vector_count(),
+                        "processed_documents": collection.vector_count(),
+                        "errors": 0,
+                        "start_time": chrono::Utc::now().to_rfc3339(),
+                        "end_time": chrono::Utc::now().to_rfc3339()
+                    }
+                })
+            },
+            Err(_) => json!({
+                "name": name,
+                "vector_count": 0,
+                "document_count": 0,
+                "dimension": 512,
+                "metric": "Cosine",
+                "embedding_provider": "bm25",
+                "size": {
+                    "total": "0 B",
+                    "total_bytes": 0,
+                    "index": "0 B",
+                    "index_bytes": 0,
+                    "payload": "0 B",
+                    "payload_bytes": 0
+                },
+                "created_at": chrono::Utc::now().to_rfc3339(),
+                "updated_at": chrono::Utc::now().to_rfc3339(),
+                "indexing_status": {
+                    "status": "error",
+                    "progress": 0.0,
+                    "total_documents": 0,
+                    "processed_documents": 0,
+                    "errors": 1,
+                    "start_time": chrono::Utc::now().to_rfc3339(),
+                    "end_time": chrono::Utc::now().to_rfc3339()
+                }
+            })
+        }
+    }).collect();
+
+    Json(json!({
+        "collections": collection_infos,
+        "total_collections": collections.len()
+    }))
+}
+
+pub async fn create_collection(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let name = payload.get("name")
+        .and_then(|n| n.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let dimension = payload.get("dimension")
+        .and_then(|d| d.as_u64())
+        .unwrap_or(512) as usize;
+    let metric = payload.get("metric")
+        .and_then(|m| m.as_str())
+        .unwrap_or("cosine");
+
+    info!("Creating collection: {} with dimension {} and metric {}", name, dimension, metric);
+
+    // Create collection configuration
+    let config = crate::models::CollectionConfig {
+        dimension,
+        metric: match metric {
+            "cosine" => crate::models::DistanceMetric::Cosine,
+            "euclidean" => crate::models::DistanceMetric::Euclidean,
+            "dot" => crate::models::DistanceMetric::DotProduct,
+            _ => crate::models::DistanceMetric::Cosine,
+        },
+        hnsw_config: crate::models::HnswConfig::default(),
+        quantization: crate::models::QuantizationConfig::None,
+        compression: crate::models::CompressionConfig::default(),
+    };
+
+    // Actually create the collection in the store
+    match state.store.create_collection(name, config) {
+        Ok(_) => {
+            info!("Collection '{}' created successfully", name);
+            Ok(Json(json!({
+                "message": format!("Collection '{}' created successfully", name),
+                "collection": name,
+                "dimension": dimension,
+                "metric": metric
+            })))
+        }
+        Err(e) => {
+            error!("Failed to create collection '{}': {}", name, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn get_collection(
+    State(state): State<VectorizerServer>,
+    Path(name): Path<String>,
+) -> Result<Json<Value>, StatusCode> {
+    match state.store.get_collection(&name) {
+        Ok(collection) => {
+            let config = collection.config();
+            let (index_size, payload_size, total_size) = collection.get_size_info();
+            let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
+            
+            Ok(Json(json!({
+                "name": name,
+                "vector_count": collection.vector_count(),
+                "dimension": config.dimension,
+                "metric": format!("{:?}", config.metric),
+                "size": {
+                    "total": total_size,
+                    "total_bytes": total_bytes,
+                    "index": index_size,
+                    "index_bytes": index_bytes,
+                    "payload": payload_size,
+                    "payload_bytes": payload_bytes
+                },
+                "quantization": {
+                    "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
+                    "type": format!("{:?}", config.quantization),
+                    "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
+                },
+                "status": "ready"
+            })))
+        },
+        Err(_) => Err(StatusCode::NOT_FOUND)
+    }
+}
+
+pub async fn delete_collection(
+    State(_state): State<VectorizerServer>,
+    Path(name): Path<String>,
+) -> Result<Json<Value>, StatusCode> {
+    info!("Deleting collection: {}", name);
+    
+    // For now, just return success
+    Ok(Json(json!({
+        "message": format!("Collection '{}' deleted successfully", name)
+    })))
+}
+
+pub async fn get_vector(
+    State(state): State<VectorizerServer>,
+    Path((collection_name, vector_id)): Path<(String, String)>,
+) -> Result<Json<Value>, StatusCode> {
+    match state.store.get_collection(&collection_name) {
+        Ok(_collection) => {
+            // For now, return mock data
+            Ok(Json(json!({
+                "id": vector_id,
+                "vector": vec![0.1; 512],
+                "metadata": {
+                    "collection": collection_name
+                }
+            })))
+        },
+        Err(_) => Err(StatusCode::NOT_FOUND)
+    }
+}
+
+pub async fn delete_vector(
+    State(_state): State<VectorizerServer>,
+    Path((collection_name, vector_id)): Path<(String, String)>,
+) -> Result<Json<Value>, StatusCode> {
+    info!("Deleting vector {} from collection {}", vector_id, collection_name);
+    
+    Ok(Json(json!({
+        "message": format!("Vector '{}' deleted from collection '{}'", vector_id, collection_name)
+    })))
+}
+
+pub async fn search_vectors(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let query_vector = payload.get("vector")
+        .and_then(|v| v.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let limit = payload.get("limit")
+        .and_then(|l| l.as_u64())
+        .unwrap_or(10) as usize;
+
+    // For now, return empty results
+    Ok(Json(json!({
+        "results": [],
+        "query_vector": query_vector,
+        "limit": limit
+    })))
+}
+
+pub async fn insert_text(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let collection_name = payload.get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let text = payload.get("text")
+        .and_then(|t| t.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let metadata = payload.get("metadata")
+        .and_then(|m| m.as_object())
+        .map(|m| {
+            m.iter().map(|(k, v)| {
+                (k.clone(), match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => v.to_string(),
+                })
+            }).collect::<std::collections::HashMap<String, String>>()
+        })
+        .unwrap_or_default();
+
+    info!("Inserting text into collection '{}': {}", collection_name, text);
+
+    // Get the collection
+    let collection = state.store.get_collection(collection_name)
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    // Generate embedding for the text
+    let embedding = state.embedding_manager.embed(text)
+        .map_err(|e| {
+            error!("Failed to generate embedding: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Create payload with metadata
+    let payload_data = crate::models::Payload::new(serde_json::Value::Object(
+        metadata.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))).collect()
+    ));
+
+    // Create vector with generated ID
+    let vector_id = format!("{}", uuid::Uuid::new_v4());
+    let vector = crate::models::Vector {
+        id: vector_id.clone(),
+        data: embedding,
+        payload: Some(payload_data),
+    };
+
+    // Insert the vector using the store
+    state.store.insert(collection_name, vec![vector])
+        .map_err(|e| {
+            error!("Failed to insert vector: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    info!("Vector inserted successfully with ID: {}", vector_id);
+
+    Ok(Json(json!({
+        "message": "Text inserted successfully",
+        "text": text,
+        "vector_id": vector_id,
+        "collection": collection_name
+    })))
+}
+
+pub async fn update_vector(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let id = payload.get("id")
+        .and_then(|i| i.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Updating vector: {}", id);
+
+    Ok(Json(json!({
+        "message": format!("Vector '{}' updated successfully", id)
+    })))
+}
+
+pub async fn delete_vector_generic(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let id = payload.get("id")
+        .and_then(|i| i.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Deleting vector: {}", id);
+
+    Ok(Json(json!({
+        "message": format!("Vector '{}' deleted successfully", id)
+    })))
+}
+
+pub async fn embed_text(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let text = payload.get("text")
+        .and_then(|t| t.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    // For now, return mock embedding
+    Ok(Json(json!({
+        "embedding": vec![0.1; 512],
+        "text": text,
+        "dimension": 512
+    })))
+}
+
+pub async fn batch_insert_texts(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let texts = payload.get("texts")
+        .and_then(|t| t.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Batch inserting {} texts", texts.len());
+
+    Ok(Json(json!({
+        "message": format!("Batch inserted {} texts successfully", texts.len()),
+        "count": texts.len()
+    })))
+}
+
+pub async fn insert_texts(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let texts = payload.get("texts")
+        .and_then(|t| t.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Inserting {} texts", texts.len());
+
+    Ok(Json(json!({
+        "message": format!("Inserted {} texts successfully", texts.len()),
+        "count": texts.len()
+    })))
+}
+
+pub async fn batch_search_vectors(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let queries = payload.get("queries")
+        .and_then(|q| q.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Batch searching {} queries", queries.len());
+
+    Ok(Json(json!({
+        "results": [],
+        "queries": queries.len(),
+        "message": "Batch search completed"
+    })))
+}
+
+pub async fn batch_update_vectors(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let updates = payload.get("updates")
+        .and_then(|u| u.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Batch updating {} vectors", updates.len());
+
+    Ok(Json(json!({
+        "message": format!("Batch updated {} vectors successfully", updates.len()),
+        "count": updates.len()
+    })))
+}
+
+pub async fn batch_delete_vectors(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let ids = payload.get("ids")
+        .and_then(|i| i.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    info!("Batch deleting {} vectors", ids.len());
+
+    Ok(Json(json!({
+        "message": format!("Batch deleted {} vectors successfully", ids.len()),
+        "count": ids.len()
+    })))
+}

@@ -3,8 +3,8 @@
 use crate::{
     error::{Result, VectorizerError},
     models::{CollectionConfig, CollectionMetadata, SearchResult, Vector},
-    cuda::CudaConfig,
 };
+use anyhow::anyhow;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::ops::Deref;
@@ -14,18 +14,13 @@ use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
 use super::collection::Collection;
-#[cfg(feature = "cuda")]
-use crate::cuda::collection::CudaCollection;
 #[cfg(feature = "wgpu-gpu")]
 use crate::gpu::{MetalCollection, VulkanCollection, DirectX12Collection, GpuConfig};
 
-/// Enum to represent different collection types (CPU, CUDA, or Metal)
+/// Enum to represent different collection types (CPU or GPU)
 pub enum CollectionType {
     /// CPU-based collection
     Cpu(Collection),
-    /// CUDA-accelerated collection
-    #[cfg(feature = "cuda")]
-    Cuda(CudaCollection),
     /// Metal-accelerated collection (Apple Silicon)
     #[cfg(feature = "wgpu-gpu")]
     Metal(MetalCollection),
@@ -41,8 +36,6 @@ impl std::fmt::Debug for CollectionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CollectionType::Cpu(c) => write!(f, "CollectionType::Cpu({})", c.name()),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => write!(f, "CollectionType::Cuda({})", c.name()),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => write!(f, "CollectionType::Metal({})", c.name()),
             #[cfg(feature = "wgpu-gpu")]
@@ -58,8 +51,6 @@ impl CollectionType {
     pub fn name(&self) -> &str {
         match self {
             CollectionType::Cpu(c) => c.name(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.name(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.name(),
             #[cfg(feature = "wgpu-gpu")]
@@ -73,8 +64,6 @@ impl CollectionType {
     pub fn config(&self) -> &CollectionConfig {
         match self {
             CollectionType::Cpu(c) => c.config(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.config(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.config(),
             #[cfg(feature = "wgpu-gpu")]
@@ -88,8 +77,6 @@ impl CollectionType {
     pub fn add_vector(&self, _id: String, vector: Vector) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.insert(vector),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.add_vector(vector),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.add_vector(vector)),
             #[cfg(feature = "wgpu-gpu")]
@@ -103,8 +90,6 @@ impl CollectionType {
     pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
         match self {
             CollectionType::Cpu(c) => c.search(query, limit),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.search(query, limit),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.search(query, limit)),
             #[cfg(feature = "wgpu-gpu")]
@@ -118,8 +103,6 @@ impl CollectionType {
     pub fn metadata(&self) -> CollectionMetadata {
         match self {
             CollectionType::Cpu(c) => c.metadata(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.metadata(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.metadata(),
             #[cfg(feature = "wgpu-gpu")]
@@ -133,8 +116,6 @@ impl CollectionType {
     pub fn delete_vector(&self, id: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.delete(id),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.remove_vector(id),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.remove_vector(id),
             #[cfg(feature = "wgpu-gpu")]
@@ -148,8 +129,6 @@ impl CollectionType {
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_vector(vector_id),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.get_vector(vector_id),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.get_vector(vector_id)),
             #[cfg(feature = "wgpu-gpu")]
@@ -163,8 +142,6 @@ impl CollectionType {
     pub fn vector_count(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.vector_count(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.vector_count(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.vector_count(),
             #[cfg(feature = "wgpu-gpu")]
@@ -178,8 +155,6 @@ impl CollectionType {
     pub fn estimated_memory_usage(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.estimated_memory_usage(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.estimated_memory_usage(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.estimated_memory_usage(),
             #[cfg(feature = "wgpu-gpu")]
@@ -193,8 +168,6 @@ impl CollectionType {
     pub fn get_all_vectors(&self) -> Vec<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_all_vectors(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.get_all_vectors(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
             #[cfg(feature = "wgpu-gpu")]
@@ -208,8 +181,6 @@ impl CollectionType {
     pub fn get_embedding_type(&self) -> String {
         match self {
             CollectionType::Cpu(c) => c.get_embedding_type(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.get_embedding_type(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.get_embedding_type(),
             #[cfg(feature = "wgpu-gpu")]
@@ -223,12 +194,6 @@ impl CollectionType {
     pub fn requantize_existing_vectors(&self) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.requantize_existing_vectors(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => {
-                // For CUDA collections, we don't implement requantization yet
-                warn!("Requantization not implemented for CUDA collections yet");
-                Ok(())
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Requantization not implemented for Metal collections yet");
@@ -247,12 +212,91 @@ impl CollectionType {
         }
     }
 
+    /// Calculate approximate memory usage of the collection
+    pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
+        match self {
+            CollectionType::Cpu(c) => c.calculate_memory_usage(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Metal(_) => {
+                // For GPU collections, return basic estimation
+                let total = self.estimated_memory_usage();
+                (total / 2, total / 2, total)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                let total = self.estimated_memory_usage();
+                (total / 2, total / 2, total)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                let total = self.estimated_memory_usage();
+                (total / 2, total / 2, total)
+            }
+        }
+    }
+
+    /// Get collection size information in a formatted way
+    pub fn get_size_info(&self) -> (String, String, String) {
+        match self {
+            CollectionType::Cpu(c) => c.get_size_info(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Metal(_) => {
+                let total = self.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                let total = self.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                let total = self.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+        }
+    }
+
     /// Set embedding type
     pub fn set_embedding_type(&self, embedding_type: String) {
         match self {
             CollectionType::Cpu(c) => c.set_embedding_type(embedding_type),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.set_embedding_type(embedding_type),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.set_embedding_type(embedding_type),
             #[cfg(feature = "wgpu-gpu")]
@@ -266,11 +310,6 @@ impl CollectionType {
     pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_hnsw_index_from_dump(path, basename),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support HNSW dump loading yet");
-                Ok(()) // No-op for now
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support HNSW dump loading yet");
@@ -293,11 +332,6 @@ impl CollectionType {
     pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_vectors_into_memory(vectors),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support vector loading into memory yet");
-                Ok(()) // No-op for now
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support vector loading into memory yet");
@@ -320,11 +354,6 @@ impl CollectionType {
     pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.fast_load_vectors(vectors),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support fast vector loading yet");
-                Ok(()) // No-op for now
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support fast vector loading yet");
@@ -349,8 +378,6 @@ impl CollectionType {
 pub struct VectorStore {
     /// Collections stored in a concurrent hash map
     collections: Arc<DashMap<String, CollectionType>>,
-    /// CUDA configuration
-    cuda_config: CudaConfig,
     /// Metal GPU configuration
     #[cfg(feature = "wgpu-gpu")]
     metal_config: Option<GpuConfig>,
@@ -372,7 +399,6 @@ impl std::fmt::Debug for VectorStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VectorStore")
             .field("collections", &self.collections.len())
-            .field("cuda_enabled", &self.cuda_config.enabled)
             .finish()
     }
 }
@@ -380,15 +406,9 @@ impl std::fmt::Debug for VectorStore {
 impl VectorStore {
     /// Create a new empty vector store
     pub fn new() -> Self {
-        Self::new_with_cuda_config(CudaConfig::default())
-    }
-
-    /// Create a new vector store with CUDA configuration
-    pub fn new_with_cuda_config(cuda_config: CudaConfig) -> Self {
-        info!("Creating new VectorStore with CUDA config: enabled={}", cuda_config.enabled);
+        info!("Creating new VectorStore");
         Self {
             collections: Arc::new(DashMap::new()),
-            cuda_config,
             #[cfg(feature = "wgpu-gpu")]
             metal_config: None,
             #[cfg(feature = "wgpu-gpu")]
@@ -407,7 +427,7 @@ impl VectorStore {
         info!("Creating new VectorStore with Metal GPU config: enabled={}", metal_config.enabled);
         Self {
             collections: Arc::new(DashMap::new()),
-            cuda_config: CudaConfig { enabled: false, ..Default::default() },
+            gpu_config: GpuConfig { enabled: false, ..Default::default() },
             metal_config: Some(metal_config),
             vulkan_config: None,
             dx12_config: None,
@@ -423,7 +443,7 @@ impl VectorStore {
         info!("Creating new VectorStore with Vulkan GPU config: enabled={}", vulkan_config.enabled);
         Self {
             collections: Arc::new(DashMap::new()),
-            cuda_config: CudaConfig { enabled: false, ..Default::default() },
+            gpu_config: GpuConfig { enabled: false, ..Default::default() },
             metal_config: None,
             vulkan_config: Some(vulkan_config),
             dx12_config: None,
@@ -444,12 +464,13 @@ impl VectorStore {
             if collections_loaded > 0 {
                 eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
                 info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-                // Enable auto-save after loading persisted collections
-                store.enable_auto_save();
-                return store;
             }
         }
-
+        
+        // Always enable auto-save for dynamic collections
+        store.enable_auto_save();
+        info!("🔄 Auto-save enabled for all collections (including dynamic ones)");
+        
         // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
         #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
         {
@@ -467,25 +488,15 @@ impl VectorStore {
                 warn!("⚠️ Metal GPU detection failed, falling back...");
             }
         }
-
+        
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu")))]
         {
             eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
-
-        // 2. CUDA is compiled but NOT auto-enabled - respect user config
-        // Users must explicitly enable CUDA in config.yml
-        #[cfg(feature = "cuda")]
-        {
-            eprintln!("ℹ️  CUDA support is available but disabled by default");
-            info!("ℹ️  CUDA support is available but disabled by default");
-        }
-
-        // 3. Default to CPU-only mode
-        eprintln!("💻 Using CPU-only mode (default)");
-        info!("💻 Using CPU-only mode (default)");
-        let mut store = Self::new_with_cuda_config(CudaConfig { enabled: false, ..Default::default() });
-        store.enable_auto_save();
+        
+        // 2. Return the store with loaded collections and auto-save already enabled
+        eprintln!("💻 Using CPU-only mode with loaded collections");
+        info!("💻 Using CPU-only mode with loaded collections");
         store
     }
     
@@ -494,10 +505,10 @@ impl VectorStore {
     #[cfg(feature = "wgpu-gpu")]
     pub fn new_auto_universal() -> Self {
         use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
-
+        
         //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
         info!("🔍 Starting universal GPU backend detection...");
-
+        
         // Try to load persisted collections first
         let mut store = Self::new();
         if let Ok(collections_loaded) = store.load_all_persisted_collections() {
@@ -506,7 +517,7 @@ impl VectorStore {
                 info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
                 // Enable auto-save after loading persisted collections
                 store.enable_auto_save();
-                return store;
+            return store;
             }
         }
         
@@ -516,7 +527,9 @@ impl VectorStore {
         if available.is_empty() {
             eprintln!("❌ No GPU backends detected - using CPU");
             warn!("No GPU backends available");
-            return Self::new();
+            let mut store = Self::new();
+            store.enable_auto_save();
+            return store;
         }
         
         // Select best backend
@@ -649,22 +662,9 @@ impl VectorStore {
             }
         }
 
-        // Fallback para CUDA
-        let collection = if self.cuda_config.enabled {
-            #[cfg(feature = "cuda")]
-            {
-                info!("Creating CUDA-accelerated collection '{}'", name);
-                CollectionType::Cuda(CudaCollection::new(name.to_string(), config, self.cuda_config.clone()))
-            }
-            #[cfg(not(feature = "cuda"))]
-            {
-                warn!("CUDA requested but not compiled in - falling back to CPU collection");
-                CollectionType::Cpu(Collection::new(name.to_string(), config))
-            }
-        } else {
-            debug!("Creating CPU-based collection '{}'", name);
-            CollectionType::Cpu(Collection::new(name.to_string(), config))
-        };
+        // Fallback to CPU
+        debug!("Creating CPU-based collection '{}'", name);
+        let collection = CollectionType::Cpu(Collection::new(name.to_string(), config));
 
         self.collections.insert(name.to_string(), collection);
 
@@ -872,17 +872,6 @@ impl VectorStore {
                 // Requantize existing vectors if quantization is enabled
                 c.requantize_existing_vectors()?;
             },
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                info!("🔧 Loading {} vectors into CUDA collection '{}'", persisted_vectors.len(), collection_name);
-                // For CUDA collections, manually insert vectors (cache loading not fully implemented)
-                for pv in persisted_vectors {
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-                let final_count = collection_ref.metadata().vector_count;
-                info!("✅ Successfully loaded {} vectors into CUDA collection '{}'", final_count, collection_name);
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support cache loading yet - falling back to manual insertion");
@@ -929,17 +918,6 @@ impl VectorStore {
         // TODO: Implement load_from_cache_with_hnsw_dump for CudaCollection and Metal
         match &*collection_ref {
             CollectionType::Cpu(c) => c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?,
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                info!("🔧 Loading {} vectors into CUDA collection '{}' (HNSW dump not supported yet)", persisted_vectors.len(), collection_name);
-                // For CUDA collections, manually insert vectors (cache loading not fully implemented)
-                for pv in persisted_vectors {
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-                let final_count = collection_ref.metadata().vector_count;
-                info!("✅ Successfully loaded {} vectors into CUDA collection '{}'", final_count, collection_name);
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support HNSW dump loading yet - falling back to manual insertion");
@@ -1013,22 +991,22 @@ pub struct VectorStoreStats {
 
 impl VectorStore {
     /// Get the centralized data directory path (same as DocumentLoader)
-    fn get_data_dir() -> PathBuf {
+    pub fn get_data_dir() -> PathBuf {
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         current_dir.join("data")
     }
 
-    /// Load all persisted collections from the data directory
-    pub fn load_all_persisted_collections(&mut self) -> Result<usize> {
+
+    /// Load all persisted collections from the data directory (in parallel)
+    pub fn load_all_persisted_collections(&self) -> Result<usize> {
         let data_dir = Self::get_data_dir();
         if !data_dir.exists() {
             debug!("Data directory does not exist: {:?}", data_dir);
             return Ok(0);
         }
 
-        let mut collections_loaded = 0;
-
-        // Find all .bin files in the data directory
+        // Collect all collection files first
+        let mut collection_files = Vec::new();
         for entry in std::fs::read_dir(&data_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -1039,18 +1017,27 @@ impl VectorStore {
                     if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
                         if let Some(collection_name) = filename.strip_suffix("_vector_store.bin") {
                             debug!("Found persisted collection: {}", collection_name);
-
-                            match self.load_persisted_collection(&path, collection_name) {
-                                Ok(_) => {
-                                    collections_loaded += 1;
-                                    info!("✅ Successfully loaded collection '{}' from persistence", collection_name);
-                                }
-                                Err(e) => {
-                                    warn!("❌ Failed to load collection '{}' from {:?}: {}", collection_name, path, e);
-                                }
-                            }
+                            collection_files.push((path.clone(), collection_name.to_string()));
                         }
                     }
+                }
+            }
+        }
+
+        info!("📦 Found {} persisted collections to load", collection_files.len());
+
+        // Load collections sequentially but with better progress reporting
+        let mut collections_loaded = 0;
+        for (i, (path, collection_name)) in collection_files.iter().enumerate() {
+            info!("⏳ Loading collection {}/{}: '{}'", i + 1, collection_files.len(), collection_name);
+            
+            match self.load_persisted_collection(path, collection_name) {
+                Ok(_) => {
+                    collections_loaded += 1;
+                    info!("✅ Successfully loaded collection '{}' from persistence ({}/{})", collection_name, i + 1, collection_files.len());
+                }
+                Err(e) => {
+                    warn!("❌ Failed to load collection '{}' from {:?}: {}", collection_name, path, e);
                 }
             }
         }
@@ -1112,7 +1099,7 @@ impl VectorStore {
     }
 
     /// Load a single persisted collection from file
-    fn load_persisted_collection<P: AsRef<std::path::Path>>(&mut self, path: P, collection_name: &str) -> Result<()> {
+    fn load_persisted_collection<P: AsRef<std::path::Path>>(&self, path: P, collection_name: &str) -> Result<()> {
         use crate::persistence::PersistedVectorStore;
 
         let path = path.as_ref();
@@ -1148,32 +1135,33 @@ impl VectorStore {
             debug!("Loading {} vectors into collection '{}'", persisted_collection.vectors.len(), collection_name);
             self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
         }
-
+        
         Ok(())
     }
-
+    
     /// Enable auto-save for all collections
     /// Call this after initialization is complete
     pub fn enable_auto_save(&self) {
         self.auto_save_enabled.store(true, std::sync::atomic::Ordering::Relaxed);
-
+        
         // Start background save task
         let pending_saves: Arc<std::sync::Mutex<HashSet<String>>> = Arc::clone(&self.pending_saves);
         let collections = Arc::clone(&self.collections);
-
+        
         let save_task = tokio::spawn(async move {
+            info!("🔄 Background save task started - will save collections every 30 seconds");
             let mut interval = tokio::time::interval(Duration::from_secs(30)); // Save every 30 seconds
-
+            
             loop {
                 interval.tick().await;
-
+                
                 if !pending_saves.lock().unwrap().is_empty() {
                     info!("🔄 Background save: {} collections pending", pending_saves.lock().unwrap().len());
-
+                    
                     // Process all pending saves
                     let collections_to_save: Vec<String> = pending_saves.lock().unwrap().iter().cloned().collect();
                     pending_saves.lock().unwrap().clear();
-
+                    
                     for collection_name in collections_to_save {
                         if let Some(collection) = collections.get(&collection_name) {
                             match Self::save_collection_to_file_static(&collection_name, &*collection) {
@@ -1182,24 +1170,24 @@ impl VectorStore {
                             }
                         }
                     }
-
+                    
                     info!("✅ Background save completed");
                 }
             }
         });
-
+        
         // Store the task handle
         *self.save_task_handle.lock().unwrap() = Some(save_task);
         info!("✅ Auto-save enabled with background task");
     }
-
+    
     /// Disable auto-save for all collections
     /// Useful during bulk operations or maintenance
     pub fn disable_auto_save(&self) {
         self.auto_save_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
         info!("⏸️ Auto-save disabled for all collections");
     }
-
+    
     /// Force immediate save of all pending collections
     /// Useful before shutdown or critical operations
     pub fn force_save_all(&self) -> Result<()> {
@@ -1207,12 +1195,12 @@ impl VectorStore {
             debug!("No pending saves to force");
             return Ok(());
         }
-
+        
         info!("🔄 Force saving {} pending collections", self.pending_saves.lock().unwrap().len());
-
+        
         let collections_to_save: Vec<String> = self.pending_saves.lock().unwrap().iter().cloned().collect();
         self.pending_saves.lock().unwrap().clear();
-
+        
         for collection_name in collections_to_save {
             if let Some(collection) = self.collections.get(&collection_name) {
                 match Self::save_collection_to_file_static(&collection_name, &*collection) {
@@ -1221,7 +1209,7 @@ impl VectorStore {
                 }
             }
         }
-
+        
         info!("✅ Force save completed");
         Ok(())
     }
@@ -1278,62 +1266,93 @@ impl VectorStore {
         info!("Successfully saved collection '{}' to files", collection_name);
         Ok(())
     }
-
+    
     /// Static method to save collection to file (for background task)
     fn save_collection_to_file_static(collection_name: &str, collection: &CollectionType) -> Result<()> {
         use std::fs;
         use crate::persistence::PersistedCollection;
-
-        debug!("Saving collection '{}' to individual files", collection_name);
-
+        
+        info!("💾 Starting save for collection '{}'", collection_name);
+        
         // Get collection metadata
         let metadata = collection.metadata();
-
+        info!("💾 Got metadata for collection '{}'", collection_name);
+        
         // Ensure data directory exists
         let data_dir = Self::get_data_dir();
         if let Err(e) = fs::create_dir_all(&data_dir) {
+            warn!("Failed to create data directory '{}': {}", data_dir.display(), e);
             return Err(crate::error::VectorizerError::Other(format!(
                 "Failed to create data directory '{}': {}",
                 data_dir.display(),
                 e
             )));
         }
-
+        info!("💾 Data directory ready: {:?}", data_dir);
+        
         // Collect all vectors from the collection
         let vectors: Vec<crate::persistence::PersistedVector> = collection
             .get_all_vectors()
             .into_iter()
             .map(crate::persistence::PersistedVector::from)
             .collect();
-
-        // Create persisted collection
-        let persisted_collection = PersistedCollection {
+        info!("💾 Collected {} vectors from collection '{}'", vectors.len(), collection_name);
+        
+        // Create persisted collection for vector store
+        let persisted_collection_for_store = PersistedCollection {
+            name: collection_name.to_string(),
+            config: metadata.config.clone(),
+            vectors: vectors.clone(),
+            hnsw_dump_basename: None,
+        };
+        
+        // Create persisted vector store with version
+        let persisted_vector_store = crate::persistence::PersistedVectorStore {
+            version: 1,
+            collections: vec![persisted_collection_for_store],
+        };
+        
+        // Save vectors to binary file
+        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
+        info!("💾 Saving vectors to: {:?}", vector_store_path);
+        Self::save_collection_vectors_binary_static(&persisted_vector_store, &vector_store_path)?;
+        info!("💾 Vectors saved successfully");
+        
+        // Create persisted collection for metadata
+        let persisted_collection_for_metadata = PersistedCollection {
             name: collection_name.to_string(),
             config: metadata.config.clone(),
             vectors,
             hnsw_dump_basename: None,
         };
-
-        // Save vectors to binary file
-        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
-        Self::save_collection_vectors_binary_static(&persisted_collection, &vector_store_path)?;
-
+        
         // Save metadata to JSON file
         let metadata_path = data_dir.join(format!("{}_metadata.json", collection_name));
-        Self::save_collection_metadata_static(&persisted_collection, &metadata_path)?;
-
+        info!("💾 Saving metadata to: {:?}", metadata_path);
+        Self::save_collection_metadata_static(&persisted_collection_for_metadata, &metadata_path)?;
+        info!("💾 Metadata saved successfully");
+        
         // Save tokenizer
         let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
+        info!("💾 Saving tokenizer to: {:?}", tokenizer_path);
         Self::save_collection_tokenizer_static(collection_name, &tokenizer_path)?;
-
-        debug!("Successfully saved collection '{}' to files", collection_name);
+        info!("💾 Tokenizer saved successfully");
+        
+        info!("✅ Successfully saved collection '{}' to files", collection_name);
         Ok(())
     }
-
+    
     /// Mark a collection for auto-save (internal method)
     fn mark_collection_for_save(&self, collection_name: &str) {
         if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+            info!("📝 Marking collection '{}' for auto-save", collection_name);
             self.pending_saves.lock().unwrap().insert(collection_name.to_string());
+            info!("📝 Collection '{}' added to pending saves (total: {})", 
+                collection_name, 
+                self.pending_saves.lock().unwrap().len()
+            );
+        } else {
+            warn!("⚠️ Auto-save is disabled, collection '{}' will not be saved", collection_name);
         }
     }
 
@@ -1349,7 +1368,7 @@ impl VectorStore {
         debug!("Saved {} vectors to {}", persisted_collection.vectors.len(), path.display());
         Ok(())
     }
-
+    
     /// Save collection metadata to JSON file
     fn save_collection_metadata(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
@@ -1369,7 +1388,7 @@ impl VectorStore {
         debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
         Ok(())
     }
-
+    
     /// Save collection tokenizer to JSON file
     fn save_collection_tokenizer(&self, collection_name: &str, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
@@ -1393,15 +1412,24 @@ impl VectorStore {
     }
 
     /// Static version of save_collection_vectors_binary
-    fn save_collection_vectors_binary_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+    fn save_collection_vectors_binary_static(persisted_vector_store: &crate::persistence::PersistedVectorStore, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
-        let json_data = serde_json::to_string_pretty(&persisted_collection)?;
+        let json_data = serde_json::to_string_pretty(&persisted_vector_store)?;
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
+        file.flush()?;
+        file.sync_all()?;
+        
+        // Verify file was created
+        if path.exists() {
+            info!("✅ File created successfully: {:?}", path);
+        } else {
+            warn!("❌ File was not created: {:?}", path);
+        }
 
-        debug!("Saved {} vectors to {}", persisted_collection.vectors.len(), path.display());
+        debug!("Saved {} collections to {}", persisted_vector_store.collections.len(), path.display());
         Ok(())
     }
 
@@ -1550,17 +1578,17 @@ mod tests {
             Vector::with_payload(
                 "vec1".to_string(),
                 vec![1.0, 0.0, 0.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 1})).unwrap(),
+                Payload::new(serde_json::json!({"type": "test", "id": 1})),
             ),
             Vector::with_payload(
                 "vec2".to_string(),
                 vec![0.0, 1.0, 0.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 2})).unwrap(),
+                Payload::new(serde_json::json!({"type": "test", "id": 2})),
             ),
             Vector::with_payload(
                 "vec3".to_string(),
                 vec![0.0, 0.0, 1.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 3})).unwrap(),
+                Payload::new(serde_json::json!({"type": "test", "id": 3})),
             ),
         ];
 
@@ -1580,7 +1608,7 @@ mod tests {
         let updated = Vector::with_payload(
             "vec1".to_string(),
             vec![2.0, 0.0, 0.0],
-            Payload::from_value(serde_json::json!({"type": "updated", "id": 1})).unwrap(),
+            Payload::new(serde_json::json!({"type": "updated", "id": 1})),
         );
         store.update("test", updated).unwrap();
 
