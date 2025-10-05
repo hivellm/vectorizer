@@ -1,0 +1,582 @@
+//! MCP Tool handlers
+
+use std::sync::Arc;
+use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
+use serde_json::json;
+use crate::{VectorStore, embedding::EmbeddingManager};
+
+pub async fn handle_mcp_tool(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    match request.name.as_ref() {
+        "search_vectors" => handle_search_vectors(request, store, embedding_manager).await,
+        "list_collections" => handle_list_collections(store).await,
+        "create_collection" => handle_create_collection(request, store).await,
+        "get_collection_info" => handle_get_collection_info(request, store).await,
+        "delete_collection" => handle_delete_collection(request, store).await,
+        "insert_text" => handle_insert_text(request, store, embedding_manager).await,
+        "batch_insert_texts" => handle_batch_insert_texts(request, store, embedding_manager).await,
+        "embed_text" => handle_embed_text(request, embedding_manager).await,
+        "get_vector" => handle_get_vector(request, store).await,
+        "delete_vectors" => handle_delete_vectors(request, store).await,
+        "update_vector" => handle_update_vector(request, store, embedding_manager).await,
+        "health_check" => handle_health_check().await,
+        "insert_texts" => handle_insert_texts(request, store, embedding_manager).await,
+        "batch_search_vectors" => handle_batch_search_vectors(request, store, embedding_manager).await,
+        "batch_update_vectors" => handle_batch_update_vectors(request, store, embedding_manager).await,
+        "batch_delete_vectors" => handle_batch_delete_vectors(request, store).await,
+        "get_indexing_progress" => handle_get_indexing_progress().await,
+        _ => Err(ErrorData::invalid_params("Unknown tool", None)),
+    }
+}
+
+async fn handle_search_vectors(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let query = args.get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+    
+    let limit = args.get("limit")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10) as usize;
+    
+    // Generate embedding
+    let embedding = embedding_manager.embed(query)
+        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+    
+    // Search
+    let results = store.search(collection, &embedding, limit)
+        .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
+    
+    let response = json!({
+        "results": results.iter().map(|r| json!({
+            "id": r.id,
+            "score": r.score,
+            "payload": r.payload
+        })).collect::<Vec<_>>(),
+        "total": results.len()
+    });
+    
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_list_collections(store: Arc<VectorStore>) -> Result<CallToolResult, ErrorData> {
+    let collections = store.list_collections();
+    let response = json!({
+        "collections": collections,
+        "total": collections.len()
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_create_collection(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let name = args.get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing name", None))?;
+    
+    let dimension = args.get("dimension")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| ErrorData::invalid_params("Missing dimension", None))? as usize;
+    
+    let metric = args.get("metric")
+        .and_then(|v| v.as_str())
+        .unwrap_or("cosine");
+    
+    let distance_metric = match metric {
+        "euclidean" => crate::models::DistanceMetric::Euclidean,
+        _ => crate::models::DistanceMetric::Cosine,
+    };
+    
+    let config = crate::models::CollectionConfig {
+        dimension,
+        metric: distance_metric,
+        quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
+        hnsw_config: crate::models::HnswConfig::default(),
+        compression: crate::models::CompressionConfig {
+            enabled: false,
+            threshold_bytes: 1024,
+            algorithm: crate::models::CompressionAlgorithm::Lz4,
+        },
+    };
+    
+    store.create_collection(name, config)
+        .map_err(|e| ErrorData::internal_error(format!("Failed to create collection: {}", e), None))?;
+    
+    let response = json!({
+        "status": "created",
+        "name": name,
+        "dimension": dimension,
+        "metric": metric
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_get_collection_info(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let name = args.get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing name", None))?;
+    
+    let collection = store.get_collection(name)
+        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+    
+    let response = json!({
+        "name": name,
+        "vector_count": collection.vector_count(),
+        "dimension": collection.config().dimension,
+        "metric": format!("{:?}", collection.config().metric)
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_delete_collection(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let name = args.get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing name", None))?;
+    
+    store.delete_collection(name)
+        .map_err(|e| ErrorData::internal_error(format!("Failed to delete collection: {}", e), None))?;
+    
+    let response = json!({"status": "deleted", "name": name});
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_insert_text(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection_name = args.get("collection_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection_name", None))?;
+    
+    let text = args.get("text")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing text", None))?;
+    
+    let metadata = args.get("metadata").cloned();
+    
+    // Generate embedding
+    let embedding = embedding_manager.embed(text)
+        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+    
+    let vector_id = uuid::Uuid::new_v4().to_string();
+    let payload = if let Some(meta) = metadata {
+        crate::models::Payload::from_value(meta).unwrap()
+    } else {
+        crate::models::Payload::from_value(json!({})).unwrap()
+    };
+    
+    store.insert(collection_name, vec![crate::models::Vector::with_payload(
+        vector_id.clone(),
+        embedding,
+        payload
+    )]).map_err(|e| ErrorData::internal_error(format!("Insert failed: {}", e), None))?;
+    
+    let response = json!({
+        "status": "inserted",
+        "vector_id": vector_id,
+        "collection": collection_name
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_batch_insert_texts(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection_name = args.get("collection_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection_name", None))?;
+    
+    let texts = args.get("texts")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing texts array", None))?;
+    
+    let mut vectors = Vec::new();
+    for text_value in texts {
+        if let Some(text) = text_value.as_str() {
+            let embedding = embedding_manager.embed(text)
+                .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+            
+            let vector_id = uuid::Uuid::new_v4().to_string();
+            vectors.push(crate::models::Vector::new(vector_id, embedding));
+        }
+    }
+    
+    store.insert(collection_name, vectors.clone())
+        .map_err(|e| ErrorData::internal_error(format!("Batch insert failed: {}", e), None))?;
+    
+    let response = json!({
+        "status": "batch_inserted",
+        "collection": collection_name,
+        "count": vectors.len()
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_embed_text(
+    request: CallToolRequestParam,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let text = args.get("text")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing text", None))?;
+    
+    let embedding = embedding_manager.embed(text)
+        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+    
+    let response = json!({
+        "embedding": embedding,
+        "dimension": embedding.len(),
+        "provider": "bm25"
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_get_vector(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let vector_id = args.get("vector_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing vector_id", None))?;
+    
+    let coll = store.get_collection(collection)
+        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+    
+    let vector = coll.get_vector(vector_id)
+        .map_err(|e| ErrorData::internal_error(format!("Vector not found: {}", e), None))?;
+    
+    let response = json!({
+        "id": vector.id,
+        "data": vector.data,
+        "payload": vector.payload,
+        "collection": collection
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_delete_vectors(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let vector_ids = args.get("vector_ids")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing vector_ids array", None))?;
+    
+    let mut deleted_count = 0;
+    for id_value in vector_ids {
+        if let Some(id) = id_value.as_str() {
+            if store.delete(collection, id).is_ok() {
+                deleted_count += 1;
+            }
+        }
+    }
+    
+    let response = json!({
+        "status": "deleted",
+        "collection": collection,
+        "count": deleted_count
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_update_vector(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let vector_id = args.get("vector_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing vector_id", None))?;
+    
+    let text = args.get("text").and_then(|v| v.as_str());
+    let metadata = args.get("metadata").cloned();
+    
+    if let Some(text) = text {
+        let embedding = embedding_manager.embed(text)
+            .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+        
+        let payload = if let Some(meta) = metadata {
+            crate::models::Payload::from_value(meta).unwrap()
+        } else {
+            crate::models::Payload::from_value(json!({})).unwrap()
+        };
+        
+        store.update(collection, crate::models::Vector::with_payload(
+            vector_id.to_string(),
+            embedding,
+            payload
+        )).map_err(|e| ErrorData::internal_error(format!("Update failed: {}", e), None))?;
+    }
+    
+    let response = json!({
+        "status": "updated",
+        "vector_id": vector_id,
+        "collection": collection
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_health_check() -> Result<CallToolResult, ErrorData> {
+    let response = json!({
+        "status": "healthy",
+        "service": "vectorizer",
+        "version": env!("CARGO_PKG_VERSION"),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_insert_texts(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let texts = args.get("texts")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing texts array", None))?;
+    
+    let mut vectors = Vec::new();
+    for text_obj in texts {
+        if let Some(obj) = text_obj.as_object() {
+            let id = obj.get("id").and_then(|v| v.as_str())
+                .ok_or_else(|| ErrorData::invalid_params("Missing id in text object", None))?;
+            let text = obj.get("text").and_then(|v| v.as_str())
+                .ok_or_else(|| ErrorData::invalid_params("Missing text in text object", None))?;
+            let metadata = obj.get("metadata").cloned();
+            
+            let embedding = embedding_manager.embed(text)
+                .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+            
+            let payload = if let Some(meta) = metadata {
+                crate::models::Payload::from_value(meta).unwrap()
+            } else {
+                crate::models::Payload::from_value(json!({})).unwrap()
+            };
+            
+            vectors.push(crate::models::Vector::with_payload(id.to_string(), embedding, payload));
+        }
+    }
+    
+    store.insert(collection, vectors.clone())
+        .map_err(|e| ErrorData::internal_error(format!("Insert failed: {}", e), None))?;
+    
+    let response = json!({
+        "status": "inserted",
+        "collection": collection,
+        "count": vectors.len()
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_batch_search_vectors(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let queries = args.get("queries")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing queries array", None))?;
+    
+    let mut all_results = Vec::new();
+    
+    for query_obj in queries {
+        if let Some(obj) = query_obj.as_object() {
+            let query = obj.get("query").and_then(|v| v.as_str())
+                .ok_or_else(|| ErrorData::invalid_params("Missing query in query object", None))?;
+            let limit = obj.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+            
+            let embedding = embedding_manager.embed(query)
+                .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+            
+            let results = store.search(collection, &embedding, limit)
+                .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
+            
+            all_results.push(json!({
+                "query": query,
+                "results": results.iter().map(|r| json!({
+                    "id": r.id,
+                    "score": r.score,
+                    "payload": r.payload
+                })).collect::<Vec<_>>()
+            }));
+        }
+    }
+    
+    let response = json!({
+        "collection": collection,
+        "searches": all_results,
+        "total_searches": all_results.len()
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_batch_update_vectors(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let updates = args.get("updates")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing updates array", None))?;
+    
+    let mut updated_count = 0;
+    
+    for update_obj in updates {
+        if let Some(obj) = update_obj.as_object() {
+            let vector_id = obj.get("vector_id").and_then(|v| v.as_str())
+                .ok_or_else(|| ErrorData::invalid_params("Missing vector_id in update object", None))?;
+            
+            if let Some(text) = obj.get("text").and_then(|v| v.as_str()) {
+                let embedding = embedding_manager.embed(text)
+                    .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+                
+                let metadata = obj.get("metadata").cloned();
+                let payload = if let Some(meta) = metadata {
+                    crate::models::Payload::from_value(meta).unwrap()
+                } else {
+                    crate::models::Payload::from_value(json!({})).unwrap()
+                };
+                
+                if store.update(collection, crate::models::Vector::with_payload(
+                    vector_id.to_string(),
+                    embedding,
+                    payload
+                )).is_ok() {
+                    updated_count += 1;
+                }
+            }
+        }
+    }
+    
+    let response = json!({
+        "status": "updated",
+        "collection": collection,
+        "count": updated_count
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_batch_delete_vectors(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let vector_ids = args.get("vector_ids")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing vector_ids array", None))?;
+    
+    let mut deleted_count = 0;
+    for id_value in vector_ids {
+        if let Some(id) = id_value.as_str() {
+            if store.delete(collection, id).is_ok() {
+                deleted_count += 1;
+            }
+        }
+    }
+    
+    let response = json!({
+        "status": "deleted",
+        "collection": collection,
+        "count": deleted_count
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_get_indexing_progress() -> Result<CallToolResult, ErrorData> {
+    let response = json!({
+        "status": "no_indexing_in_progress",
+        "message": "No active indexing operations",
+        "collections": []
+    });
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}

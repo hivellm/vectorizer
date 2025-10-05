@@ -34,6 +34,7 @@ pub mod utils;
 pub mod file_watcher;
 pub mod process_manager;
 pub mod logging;
+pub mod server;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};
