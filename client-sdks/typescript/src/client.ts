@@ -73,7 +73,7 @@ export class VectorizerClient {
 
   constructor(config: VectorizerClientConfig = {}) {
     this.config = {
-      baseURL: 'http://localhost:15001',
+      baseURL: 'http://localhost:15002',
       timeout: 30000,
       headers: {},
       logger: { level: 'info', enabled: true },
@@ -104,7 +104,7 @@ export class VectorizerClient {
    */
   public async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {
-      const response = await this.httpClient.get<{ status: string; timestamp: string }>('/api/v1/health');
+      const response = await this.httpClient.get<{ status: string; timestamp: string }>('/health');
       this.logger.debug('Health check successful', response);
       return response;
     } catch (error) {
@@ -118,7 +118,7 @@ export class VectorizerClient {
    */
   public async getDatabaseStats(): Promise<DatabaseStats> {
     try {
-      const response = await this.httpClient.get<DatabaseStats>('/api/v1/stats');
+      const response = await this.httpClient.get<DatabaseStats>('/stats');
       validateDatabaseStats(response);
       this.logger.debug('Database stats retrieved', response);
       return response;
@@ -135,7 +135,7 @@ export class VectorizerClient {
    */
   public async listCollections(): Promise<Collection[]> {
     try {
-      const response = await this.httpClient.get<Collection[]>('/api/v1/collections');
+      const response = await this.httpClient.get<Collection[]>('/collections');
       this.logger.debug('Collections listed', { count: response.length });
       return response;
     } catch (error) {
@@ -149,7 +149,7 @@ export class VectorizerClient {
    */
   public async getCollection(collectionName: string): Promise<CollectionInfo> {
     try {
-      const response = await this.httpClient.get<CollectionInfo>(`/api/v1/collections/${collectionName}`);
+      const response = await this.httpClient.get<CollectionInfo>(`/collections/${collectionName}`);
       validateCollectionInfo(response);
       this.logger.debug('Collection info retrieved', { collectionName });
       return response;
@@ -165,7 +165,7 @@ export class VectorizerClient {
   public async createCollection(request: CreateCollectionRequest): Promise<Collection> {
     try {
       validateCreateCollectionRequest(request);
-      const response = await this.httpClient.post<Collection>('/api/v1/collections', request);
+      const response = await this.httpClient.post<Collection>('/collections', request);
       validateCollection(response);
       this.logger.info('Collection created', { collectionName: request.name });
       return response;
@@ -180,7 +180,7 @@ export class VectorizerClient {
    */
   public async updateCollection(collectionName: string, request: UpdateCollectionRequest): Promise<Collection> {
     try {
-      const response = await this.httpClient.put<Collection>(`/api/v1/collections/${collectionName}`, request);
+      const response = await this.httpClient.put<Collection>(`/collections/${collectionName}`, request);
       validateCollection(response);
       this.logger.info('Collection updated', { collectionName });
       return response;
@@ -195,7 +195,7 @@ export class VectorizerClient {
    */
   public async deleteCollection(collectionName: string): Promise<void> {
     try {
-      await this.httpClient.delete(`/api/v1/collections/${collectionName}`);
+      await this.httpClient.delete(`/collections/${collectionName}`);
       this.logger.info('Collection deleted', { collectionName });
     } catch (error) {
       this.logger.error('Failed to delete collection', { collectionName, error });
@@ -212,7 +212,7 @@ export class VectorizerClient {
     try {
       vectors.forEach(validateCreateVectorRequest);
       const response = await this.httpClient.post<{ inserted: number }>(
-        `/api/v1/collections/${collectionName}/vectors`,
+        `/collections/${collectionName}/vectors`,
         { vectors }
       );
       this.logger.info('Vectors inserted', { collectionName, count: vectors.length });
@@ -228,7 +228,7 @@ export class VectorizerClient {
    */
   public async getVector(collectionName: string, vectorId: string): Promise<Vector> {
     try {
-      const response = await this.httpClient.get<Vector>(`/api/v1/collections/${collectionName}/vectors/${vectorId}`);
+      const response = await this.httpClient.get<Vector>(`/collections/${collectionName}/vectors/${vectorId}`);
       validateVector(response);
       this.logger.debug('Vector retrieved', { collectionName, vectorId });
       return response;
@@ -244,7 +244,7 @@ export class VectorizerClient {
   public async updateVector(collectionName: string, vectorId: string, request: UpdateVectorRequest): Promise<Vector> {
     try {
       const response = await this.httpClient.put<Vector>(
-        `/api/v1/collections/${collectionName}/vectors/${vectorId}`,
+        `/collections/${collectionName}/vectors/${vectorId}`,
         request
       );
       validateVector(response);
@@ -261,7 +261,7 @@ export class VectorizerClient {
    */
   public async deleteVector(collectionName: string, vectorId: string): Promise<void> {
     try {
-      await this.httpClient.delete(`/api/v1/collections/${collectionName}/vectors/${vectorId}`);
+      await this.httpClient.delete(`/collections/${collectionName}/vectors/${vectorId}`);
       this.logger.info('Vector deleted', { collectionName, vectorId });
     } catch (error) {
       this.logger.error('Failed to delete vector', { collectionName, vectorId, error });
@@ -275,7 +275,7 @@ export class VectorizerClient {
   public async deleteVectors(collectionName: string, vectorIds: string[]): Promise<{ deleted: number }> {
     try {
       const response = await this.httpClient.post<{ deleted: number }>(
-        `/api/v1/collections/${collectionName}/vectors/delete`,
+        `/collections/${collectionName}/vectors/delete`,
         { vector_ids: vectorIds }
       );
       this.logger.info('Vectors deleted', { collectionName, count: vectorIds.length });
@@ -295,7 +295,7 @@ export class VectorizerClient {
     try {
       validateSearchRequest(request);
       const response = await this.httpClient.post<SearchResponse>(
-        `/api/v1/collections/${collectionName}/search`,
+        `/collections/${collectionName}/search`,
         request
       );
       validateSearchResponse(response);
@@ -314,7 +314,7 @@ export class VectorizerClient {
     try {
       validateTextSearchRequest(request);
       const response = await this.httpClient.post<SearchResponse>(
-        `/api/v1/collections/${collectionName}/search/text`,
+        `/collections/${collectionName}/search/text`,
         request
       );
       validateSearchResponse(response);
@@ -334,7 +334,7 @@ export class VectorizerClient {
   public async embedText(request: EmbeddingRequest): Promise<EmbeddingResponse> {
     try {
       validateEmbeddingRequest(request);
-      const response = await this.httpClient.post<EmbeddingResponse>('/api/v1/embed', request);
+      const response = await this.httpClient.post<EmbeddingResponse>('/embed', request);
       validateEmbeddingResponse(response);
       this.logger.debug('Text embedding generated', { text: request.text, model: response.model });
       return response;
@@ -383,7 +383,7 @@ export class VectorizerClient {
 
     try {
       const response = await this.httpClient.post<BatchResponse>(
-        `/api/v1/collections/${collection}/batch/insert`,
+        `/batch_insert`,
         request
       );
 
@@ -412,7 +412,7 @@ export class VectorizerClient {
 
     try {
       const response = await this.httpClient.post<BatchSearchResponse>(
-        `/api/v1/collections/${collection}/batch/search`,
+        `/batch_search`,
         request
       );
 
@@ -441,7 +441,7 @@ export class VectorizerClient {
 
     try {
       const response = await this.httpClient.post<BatchResponse>(
-        `/api/v1/collections/${collection}/batch/update`,
+        `/batch_update`,
         request
       );
 
@@ -470,7 +470,7 @@ export class VectorizerClient {
 
     try {
       const response = await this.httpClient.post<BatchResponse>(
-        `/api/v1/collections/${collection}/batch/delete`,
+        `/batch_delete`,
         request
       );
 
@@ -492,15 +492,20 @@ export class VectorizerClient {
   // SUMMARIZATION METHODS
   // =============================================================================
 
+  // NOTE: Summarization endpoints are not available in the current server version
+  // The following methods are commented out until summarization is re-implemented
+  
+  /*
   /**
    * Summarize text using various methods
    */
+  /*
   public async summarizeText(request: SummarizeTextRequest): Promise<SummarizeTextResponse> {
     this.logger.debug('Summarizing text', { method: request.method, textLength: request.text.length });
 
     try {
       const response = await this.httpClient.post<SummarizeTextResponse>(
-        '/api/v1/summarize/text',
+        '/summarize/text',
         request
       );
 
@@ -522,12 +527,13 @@ export class VectorizerClient {
   /**
    * Summarize context using various methods
    */
+  /*
   public async summarizeContext(request: SummarizeContextRequest): Promise<SummarizeContextResponse> {
     this.logger.debug('Summarizing context', { method: request.method, contextLength: request.context.length });
 
     try {
       const response = await this.httpClient.post<SummarizeContextResponse>(
-        '/api/v1/summarize/context',
+        '/summarize/context',
         request
       );
 
@@ -549,12 +555,13 @@ export class VectorizerClient {
   /**
    * Get a specific summary by ID
    */
+  /*
   public async getSummary(summaryId: string): Promise<GetSummaryResponse> {
     this.logger.debug('Getting summary', { summaryId });
 
     try {
       const response = await this.httpClient.get<GetSummaryResponse>(
-        `/api/v1/summaries/${summaryId}`
+        `/summaries/${summaryId}`
       );
 
       this.logger.info('Summary retrieved successfully', {
@@ -573,12 +580,13 @@ export class VectorizerClient {
   /**
    * List summaries with optional filtering
    */
+  /*
   public async listSummaries(query?: ListSummariesQuery): Promise<ListSummariesResponse> {
     this.logger.debug('Listing summaries', { query });
 
     try {
       const response = await this.httpClient.get<ListSummariesResponse>(
-        '/api/v1/summaries',
+        '/summaries',
         query ? { params: query } : {}
       );
 
@@ -593,6 +601,7 @@ export class VectorizerClient {
       throw error;
     }
   }
+  */
 
   /**
    * Close the client and clean up resources.

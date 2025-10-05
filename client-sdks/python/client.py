@@ -62,8 +62,8 @@ class VectorizerClient:
     
     def __init__(
         self,
-        base_url: str = "http://localhost:15001",
-        ws_url: str = "ws://localhost:15001/ws",
+        base_url: str = "http://localhost:15002",
+        ws_url: str = "ws://localhost:15002/ws",
         api_key: Optional[str] = None,
         timeout: int = 30,
         max_retries: int = 3
@@ -507,7 +507,7 @@ class VectorizerClient:
         
         try:
             async with self._session.post(
-                f"{self.base_url}/api/v1/collections/{collection}/batch/insert",
+                f"{self.base_url}/batch_insert",
                 json=asdict(request)
             ) as response:
                 if response.status == 200:
@@ -548,7 +548,7 @@ class VectorizerClient:
         
         try:
             async with self._session.post(
-                f"{self.base_url}/api/v1/collections/{collection}/batch/search",
+                f"{self.base_url}/batch_search",
                 json=asdict(request)
             ) as response:
                 if response.status == 200:
@@ -589,7 +589,7 @@ class VectorizerClient:
         
         try:
             async with self._session.post(
-                f"{self.base_url}/api/v1/collections/{collection}/batch/update",
+                f"{self.base_url}/batch_update",
                 json=asdict(request)
             ) as response:
                 if response.status == 200:
@@ -630,7 +630,7 @@ class VectorizerClient:
         
         try:
             async with self._session.post(
-                f"{self.base_url}/api/v1/collections/{collection}/batch/delete",
+                f"{self.base_url}/batch_delete",
                 json=asdict(request)
             ) as response:
                 if response.status == 200:
@@ -651,11 +651,15 @@ class VectorizerClient:
     # SUMMARIZATION METHODS
     # =============================================================================
 
+    # NOTE: Summarization endpoints are not available in the current server version
+    # The following methods are commented out until summarization is re-implemented
+
+    """
     async def summarize_text(
         self, 
         request: SummarizeTextRequest
     ) -> SummarizeTextResponse:
-        """
+        \"\"\"
         Summarize text using various methods.
         
         Args:
@@ -668,12 +672,12 @@ class VectorizerClient:
             NetworkError: If unable to connect to service
             ServerError: If service returns error
             ValidationError: If request is invalid
-        """
+        \"\"\"
         logger.debug(f"Summarizing text using method '{request.method}'")
         
         try:
             async with self._session.post(
-                f"{self.base_url}/api/v1/summarize/text",
+                f"{self.base_url}/summarize/text",
                 json=asdict(request)
             ) as response:
                 if response.status == 200:
@@ -692,7 +696,7 @@ class VectorizerClient:
         self, 
         request: SummarizeContextRequest
     ) -> SummarizeContextResponse:
-        """
+        \"\"\"
         Summarize context using various methods.
         
         Args:
@@ -705,12 +709,12 @@ class VectorizerClient:
             NetworkError: If unable to connect to service
             ServerError: If service returns error
             ValidationError: If request is invalid
-        """
+        \"\"\"
         logger.debug(f"Summarizing context using method '{request.method}'")
         
         try:
             async with self._session.post(
-                f"{self.base_url}/api/v1/summarize/context",
+                f"{self.base_url}/summarize/context",
                 json=asdict(request)
             ) as response:
                 if response.status == 200:
@@ -729,7 +733,7 @@ class VectorizerClient:
         self, 
         summary_id: str
     ) -> GetSummaryResponse:
-        """
+        \"\"\"
         Get a specific summary by ID.
         
         Args:
@@ -742,12 +746,12 @@ class VectorizerClient:
             NetworkError: If unable to connect to service
             ServerError: If service returns error
             ValidationError: If summary not found
-        """
+        \"\"\"
         logger.debug(f"Getting summary '{summary_id}'")
         
         try:
             async with self._session.get(
-                f"{self.base_url}/api/v1/summaries/{summary_id}"
+                f"{self.base_url}/summaries/{summary_id}"
             ) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -767,7 +771,7 @@ class VectorizerClient:
         limit: Optional[int] = None,
         offset: Optional[int] = None
     ) -> ListSummariesResponse:
-        """
+        \"\"\"
         List summaries with optional filtering.
         
         Args:
@@ -782,7 +786,7 @@ class VectorizerClient:
         Raises:
             NetworkError: If unable to connect to service
             ServerError: If service returns error
-        """
+        \"\"\"
         logger.debug(f"Listing summaries with filters: method={method}, language={language}, limit={limit}, offset={offset}")
         
         params = {}
@@ -797,7 +801,7 @@ class VectorizerClient:
         
         try:
             async with self._session.get(
-                f"{self.base_url}/api/v1/summaries",
+                f"{self.base_url}/summaries",
                 params=params
             ) as response:
                 if response.status == 200:
@@ -808,6 +812,7 @@ class VectorizerClient:
                     raise ServerError(f"Failed to list summaries: {response.status}")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to list summaries: {e}")
+    """
 
     async def get_indexing_progress(self) -> Dict[str, Any]:
         """
