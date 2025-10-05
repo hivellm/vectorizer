@@ -9,6 +9,7 @@ mod mcp_handlers;
 pub mod rest_handlers;
 
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use axum::{
     Router,
     routing::{get, post, delete},
@@ -48,10 +49,33 @@ impl VectorizerServer {
 
         info!("✅ Vectorizer Server initialized successfully - starting background collection loading");
 
+        // Initialize file watcher if enabled
+        let mut embedding_manager_for_watcher = EmbeddingManager::new();
+        let bm25_for_watcher = crate::embedding::Bm25Embedding::new(512);
+        embedding_manager_for_watcher.register_provider("bm25".to_string(), Box::new(bm25_for_watcher));
+        embedding_manager_for_watcher.set_default_provider("bm25")?;
+        
+        let embedding_manager_for_watcher_arc = Arc::new(RwLock::new(embedding_manager_for_watcher));
+        let file_watcher_arc = embedding_manager_for_watcher_arc.clone();
+        let store_for_watcher = store_arc.clone();
+        tokio::task::spawn(async move {
+            info!("🔍 Starting file watcher system...");
+            let watcher_system = crate::file_watcher::FileWatcherSystem::new(
+                crate::file_watcher::FileWatcherConfig::default(),
+                store_for_watcher,
+                file_watcher_arc,
+            );
+            
+            if let Err(e) = watcher_system.start().await {
+                warn!("❌ Failed to start file watcher: {}", e);
+            } else {
+                info!("✅ File watcher started successfully");
+            }
+        });
+
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
-        let embedding_manager_arc = Arc::new(embedding_manager);
-        let embedding_manager_for_loading = embedding_manager_arc.clone();
+        let embedding_manager_for_loading = Arc::new(embedding_manager);
         tokio::task::spawn(async move {
             println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
@@ -94,9 +118,15 @@ impl VectorizerServer {
             }
         });
 
+        // Create final embedding manager for the server struct
+        let mut final_embedding_manager = EmbeddingManager::new();
+        let final_bm25 = crate::embedding::Bm25Embedding::new(512);
+        final_embedding_manager.register_provider("bm25".to_string(), Box::new(final_bm25));
+        final_embedding_manager.set_default_provider("bm25")?;
+
         Ok(Self {
             store: store_arc,
-            embedding_manager: embedding_manager_arc,
+            embedding_manager: Arc::new(final_embedding_manager),
             start_time: std::time::Instant::now(),
         })
     }
