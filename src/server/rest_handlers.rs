@@ -347,15 +347,42 @@ pub async fn create_collection(
     let dimension = payload.get("dimension")
         .and_then(|d| d.as_u64())
         .unwrap_or(512) as usize;
+    let metric = payload.get("metric")
+        .and_then(|m| m.as_str())
+        .unwrap_or("cosine");
 
-    info!("Creating collection: {}", name);
+    info!("Creating collection: {} with dimension {} and metric {}", name, dimension, metric);
 
-    // For now, just return success
-    Ok(Json(json!({
-        "message": format!("Collection '{}' created successfully", name),
-        "collection": name,
-        "dimension": dimension
-    })))
+    // Create collection configuration
+    let config = crate::models::CollectionConfig {
+        dimension,
+        metric: match metric {
+            "cosine" => crate::models::DistanceMetric::Cosine,
+            "euclidean" => crate::models::DistanceMetric::Euclidean,
+            "dot" => crate::models::DistanceMetric::DotProduct,
+            _ => crate::models::DistanceMetric::Cosine,
+        },
+        hnsw_config: crate::models::HnswConfig::default(),
+        quantization: crate::models::QuantizationConfig::None,
+        compression: crate::models::CompressionConfig::default(),
+    };
+
+    // Actually create the collection in the store
+    match state.store.create_collection(name, config) {
+        Ok(_) => {
+            info!("Collection '{}' created successfully", name);
+            Ok(Json(json!({
+                "message": format!("Collection '{}' created successfully", name),
+                "collection": name,
+                "dimension": dimension,
+                "metric": metric
+            })))
+        }
+        Err(e) => {
+            error!("Failed to create collection '{}': {}", name, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 pub async fn get_collection(
@@ -455,18 +482,67 @@ pub async fn search_vectors(
 }
 
 pub async fn insert_text(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
+    let collection_name = payload.get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
     let text = payload.get("text")
         .and_then(|t| t.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
+    let metadata = payload.get("metadata")
+        .and_then(|m| m.as_object())
+        .map(|m| {
+            m.iter().map(|(k, v)| {
+                (k.clone(), match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => v.to_string(),
+                })
+            }).collect::<std::collections::HashMap<String, String>>()
+        })
+        .unwrap_or_default();
 
-    info!("Inserting text: {}", text);
+    info!("Inserting text into collection '{}': {}", collection_name, text);
+
+    // Get the collection
+    let collection = state.store.get_collection(collection_name)
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    // Generate embedding for the text
+    let embedding = state.embedding_manager.embed(text)
+        .map_err(|e| {
+            error!("Failed to generate embedding: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Create payload with metadata
+    let payload_data = crate::models::Payload::new(serde_json::Value::Object(
+        metadata.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))).collect()
+    ));
+
+    // Create vector with generated ID
+    let vector_id = format!("{}", uuid::Uuid::new_v4());
+    let vector = crate::models::Vector {
+        id: vector_id.clone(),
+        data: embedding,
+        payload: Some(payload_data),
+    };
+
+    // Insert the vector using the store
+    state.store.insert(collection_name, vec![vector])
+        .map_err(|e| {
+            error!("Failed to insert vector: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    info!("Vector inserted successfully with ID: {}", vector_id);
 
     Ok(Json(json!({
         "message": "Text inserted successfully",
-        "text": text
+        "text": text,
+        "vector_id": vector_id,
+        "collection": collection_name
     })))
 }
 

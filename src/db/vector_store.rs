@@ -464,11 +464,12 @@ impl VectorStore {
             if collections_loaded > 0 {
                 eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
                 info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-                // Enable auto-save after loading persisted collections
-                store.enable_auto_save();
-                return store;
             }
         }
+        
+        // Always enable auto-save for dynamic collections
+        store.enable_auto_save();
+        info!("🔄 Auto-save enabled for all collections (including dynamic ones)");
         
         // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
         #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
@@ -493,11 +494,9 @@ impl VectorStore {
             eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
         
-        // 2. Default to CPU-only mode
-        eprintln!("💻 Using CPU-only mode (default)");
-        info!("💻 Using CPU-only mode (default)");
-        let mut store = Self::new();
-        store.enable_auto_save();
+        // 2. Return the store with loaded collections and auto-save already enabled
+        eprintln!("💻 Using CPU-only mode with loaded collections");
+        info!("💻 Using CPU-only mode with loaded collections");
         store
     }
     
@@ -528,7 +527,9 @@ impl VectorStore {
         if available.is_empty() {
             eprintln!("❌ No GPU backends detected - using CPU");
             warn!("No GPU backends available");
-            return Self::new();
+            let mut store = Self::new();
+            store.enable_auto_save();
+            return store;
         }
         
         // Select best backend
@@ -1148,6 +1149,7 @@ impl VectorStore {
         let collections = Arc::clone(&self.collections);
         
         let save_task = tokio::spawn(async move {
+            info!("🔄 Background save task started - will save collections every 30 seconds");
             let mut interval = tokio::time::interval(Duration::from_secs(30)); // Save every 30 seconds
             
             loop {
@@ -1270,20 +1272,23 @@ impl VectorStore {
         use std::fs;
         use crate::persistence::PersistedCollection;
         
-        debug!("Saving collection '{}' to individual files", collection_name);
+        info!("💾 Starting save for collection '{}'", collection_name);
         
         // Get collection metadata
         let metadata = collection.metadata();
+        info!("💾 Got metadata for collection '{}'", collection_name);
         
         // Ensure data directory exists
         let data_dir = Self::get_data_dir();
         if let Err(e) = fs::create_dir_all(&data_dir) {
+            warn!("Failed to create data directory '{}': {}", data_dir.display(), e);
             return Err(crate::error::VectorizerError::Other(format!(
                 "Failed to create data directory '{}': {}",
                 data_dir.display(),
                 e
             )));
         }
+        info!("💾 Data directory ready: {:?}", data_dir);
         
         // Collect all vectors from the collection
         let vectors: Vec<crate::persistence::PersistedVector> = collection
@@ -1291,35 +1296,63 @@ impl VectorStore {
             .into_iter()
             .map(crate::persistence::PersistedVector::from)
             .collect();
+        info!("💾 Collected {} vectors from collection '{}'", vectors.len(), collection_name);
         
-        // Create persisted collection
-        let persisted_collection = PersistedCollection {
+        // Create persisted collection for vector store
+        let persisted_collection_for_store = PersistedCollection {
+            name: collection_name.to_string(),
+            config: metadata.config.clone(),
+            vectors: vectors.clone(),
+            hnsw_dump_basename: None,
+        };
+        
+        // Create persisted vector store with version
+        let persisted_vector_store = crate::persistence::PersistedVectorStore {
+            version: 1,
+            collections: vec![persisted_collection_for_store],
+        };
+        
+        // Save vectors to binary file
+        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
+        info!("💾 Saving vectors to: {:?}", vector_store_path);
+        Self::save_collection_vectors_binary_static(&persisted_vector_store, &vector_store_path)?;
+        info!("💾 Vectors saved successfully");
+        
+        // Create persisted collection for metadata
+        let persisted_collection_for_metadata = PersistedCollection {
             name: collection_name.to_string(),
             config: metadata.config.clone(),
             vectors,
             hnsw_dump_basename: None,
         };
         
-        // Save vectors to binary file
-        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
-        Self::save_collection_vectors_binary_static(&persisted_collection, &vector_store_path)?;
-        
         // Save metadata to JSON file
         let metadata_path = data_dir.join(format!("{}_metadata.json", collection_name));
-        Self::save_collection_metadata_static(&persisted_collection, &metadata_path)?;
+        info!("💾 Saving metadata to: {:?}", metadata_path);
+        Self::save_collection_metadata_static(&persisted_collection_for_metadata, &metadata_path)?;
+        info!("💾 Metadata saved successfully");
         
         // Save tokenizer
         let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
+        info!("💾 Saving tokenizer to: {:?}", tokenizer_path);
         Self::save_collection_tokenizer_static(collection_name, &tokenizer_path)?;
+        info!("💾 Tokenizer saved successfully");
         
-        debug!("Successfully saved collection '{}' to files", collection_name);
+        info!("✅ Successfully saved collection '{}' to files", collection_name);
         Ok(())
     }
     
     /// Mark a collection for auto-save (internal method)
     fn mark_collection_for_save(&self, collection_name: &str) {
         if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+            info!("📝 Marking collection '{}' for auto-save", collection_name);
             self.pending_saves.lock().unwrap().insert(collection_name.to_string());
+            info!("📝 Collection '{}' added to pending saves (total: {})", 
+                collection_name, 
+                self.pending_saves.lock().unwrap().len()
+            );
+        } else {
+            warn!("⚠️ Auto-save is disabled, collection '{}' will not be saved", collection_name);
         }
     }
 
@@ -1379,15 +1412,24 @@ impl VectorStore {
     }
 
     /// Static version of save_collection_vectors_binary
-    fn save_collection_vectors_binary_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+    fn save_collection_vectors_binary_static(persisted_vector_store: &crate::persistence::PersistedVectorStore, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
-        let json_data = serde_json::to_string_pretty(&persisted_collection)?;
+        let json_data = serde_json::to_string_pretty(&persisted_vector_store)?;
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
+        file.flush()?;
+        file.sync_all()?;
+        
+        // Verify file was created
+        if path.exists() {
+            info!("✅ File created successfully: {:?}", path);
+        } else {
+            warn!("❌ File was not created: {:?}", path);
+        }
 
-        debug!("Saved {} vectors to {}", persisted_collection.vectors.len(), path.display());
+        debug!("Saved {} collections to {}", persisted_vector_store.collections.len(), path.display());
         Ok(())
     }
 

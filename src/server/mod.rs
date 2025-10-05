@@ -37,8 +37,8 @@ impl VectorizerServer {
     pub async fn new() -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
         
-        // Initialize VectorStore without loading collections yet
-        let vector_store = VectorStore::new();
+        // Initialize VectorStore with auto-save enabled
+        let vector_store = VectorStore::new_auto();
         let store_arc = Arc::new(vector_store);
         
         let mut embedding_manager = EmbeddingManager::new();
