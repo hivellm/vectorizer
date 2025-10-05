@@ -212,6 +212,87 @@ impl CollectionType {
         }
     }
 
+    /// Calculate approximate memory usage of the collection
+    pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
+        match self {
+            CollectionType::Cpu(c) => c.calculate_memory_usage(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Metal(_) => {
+                // For GPU collections, return basic estimation
+                let total = self.estimated_memory_usage();
+                (total / 2, total / 2, total)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                let total = self.estimated_memory_usage();
+                (total / 2, total / 2, total)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                let total = self.estimated_memory_usage();
+                (total / 2, total / 2, total)
+            }
+        }
+    }
+
+    /// Get collection size information in a formatted way
+    pub fn get_size_info(&self) -> (String, String, String) {
+        match self {
+            CollectionType::Cpu(c) => c.get_size_info(),
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Metal(_) => {
+                let total = self.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::Vulkan(_) => {
+                let total = self.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+            #[cfg(feature = "wgpu-gpu")]
+            CollectionType::DirectX12(_) => {
+                let total = self.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+        }
+    }
+
     /// Set embedding type
     pub fn set_embedding_type(&self, embedding_type: String) {
         match self {

@@ -597,6 +597,71 @@ impl Collection {
     }
 
 
+    /// Calculate approximate memory usage of the collection
+    pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
+        let vectors = self.vectors.lock().unwrap();
+        let vector_count = vectors.len();
+        
+        let mut index_size = 0;
+        let mut payload_size = 0;
+        let mut total_size = 0;
+        
+        // Calculate size for each vector
+        for (id, vector) in vectors.iter() {
+            // Vector ID size
+            let id_size = id.len();
+            
+            // Vector data size (f32 = 4 bytes per element)
+            let vector_data_size = vector.data.len() * 4;
+            
+            // Payload size (approximate JSON serialization size)
+            let vector_payload_size = if let Some(ref payload) = vector.payload {
+                // Estimate JSON size by serializing and measuring
+                match serde_json::to_string(&payload.data) {
+                    Ok(json_str) => json_str.len(),
+                    Err(_) => 0,
+                }
+            } else {
+                0
+            };
+            
+            // Total size for this vector
+            let vector_total_size = id_size + vector_data_size + vector_payload_size;
+            
+            index_size += id_size + vector_data_size;
+            payload_size += vector_payload_size;
+            total_size += vector_total_size;
+        }
+        
+        // Add HNSW index overhead (approximate)
+        let index_overhead = vector_count * 100; // Rough estimate of HNSW overhead per vector
+        index_size += index_overhead;
+        total_size += index_overhead;
+        
+        (index_size, payload_size, total_size)
+    }
+
+    /// Get collection size information in a formatted way
+    pub fn get_size_info(&self) -> (String, String, String) {
+        let (index_size, payload_size, total_size) = self.calculate_memory_usage();
+        
+        let format_bytes = |bytes: usize| -> String {
+            if bytes >= 1024 * 1024 {
+                format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+            } else if bytes >= 1024 {
+                format!("{:.1} KB", bytes as f64 / 1024.0)
+            } else {
+                format!("{} B", bytes)
+            }
+        };
+        
+        (
+            format_bytes(index_size),
+            format_bytes(payload_size),
+            format_bytes(total_size)
+        )
+    }
+
     /// Dump HNSW index to centralized cache directory for faster future loading
     pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(&self, _project_path: P) -> Result<()> {
         use tracing::{debug, info, warn};

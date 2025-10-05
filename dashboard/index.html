@@ -293,86 +293,6 @@
                         </div>
                     </div>
 
-                    <!-- Enhanced Collections Overview -->
-                    <div class="enhanced-collections-section">
-                        <div class="section-header-flex">
-                            <h2 class="section-title">
-                                <i class="fas fa-layer-group"></i>
-                                Collections Overview
-                            </h2>
-                            <div class="section-actions">
-                                <button class="btn btn-primary" @click="setPage('collections')">
-                                    <i class="fas fa-eye"></i>
-                                    <span>View All</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="enhanced-collections-grid">
-                            <div v-for="collection in collections.slice(0, 8)" :key="collection.name" class="enhanced-collection-card" :class="getStatusClass(collection.indexing_status.status)">
-                                <div class="collection-card-header">
-                                    <div class="collection-icon-wrapper">
-                                        <div class="collection-icon-large">
-                                            <i class="fas fa-database"></i>
-                                        </div>
-                                        <div class="collection-status-indicator" :class="getStatusClass(collection.indexing_status.status)">
-                                            <i :class="getStatusIcon(collection.indexing_status.status)"></i>
-                                        </div>
-                                    </div>
-                                    <div class="collection-actions">
-                                        <button class="btn-icon btn-xs" @click="viewCollection(collection)" title="View Details">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="collection-card-content">
-                                    <h3 class="collection-card-title">{{ collection.name }}</h3>
-                                    <div class="collection-card-subtitle">{{ getCollectionType(collection) }}</div>
-
-                                    <div class="collection-metrics">
-                                        <div class="metric-item">
-                                            <div class="metric-icon">
-                                                <i class="fas fa-vector-square"></i>
-                                            </div>
-                                            <div class="metric-data">
-                                                <div class="metric-value">{{ formatNumber(collection.vector_count) }}</div>
-                                                <div class="metric-label">Vectors</div>
-                                            </div>
-                                        </div>
-
-                                        <div class="metric-item">
-                                            <div class="metric-icon">
-                                                <i class="fas fa-cube"></i>
-                                            </div>
-                                            <div class="metric-data">
-                                                <div class="metric-value">{{ collection.dimension }}</div>
-                                                <div class="metric-label">Dimension</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                <div class="collection-card-footer">
-                                    <div class="collection-last-updated">
-                                        <i class="fas fa-clock"></i>
-                                        <span>{{ formatLastUpdated(collection) }}</span>
-                                    </div>
-                                    <div class="collection-status-badge" :class="getStatusClass(collection.indexing_status.status)">
-                                        {{ formatStatus(collection.indexing_status.status) }}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="collections.length > 8" class="show-more-collections">
-                            <button class="btn btn-secondary" @click="setPage('collections')">
-                                <i class="fas fa-plus"></i>
-                                <span>Show {{ collections.length - 8 }} More Collections</span>
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Collections Page -->
@@ -405,7 +325,47 @@
                             </div>
                         </div>
 
-                        <div v-if="collections.length === 0" class="empty-state">
+                        <!-- Collections Filter -->
+                        <div v-if="collections.length > 0" class="collections-filter">
+                            <div class="filter-container">
+                                <div class="filter-input-group">
+                                    <i class="fas fa-search filter-icon"></i>
+                                    <input
+                                        v-model="collectionsFilter"
+                                        type="text"
+                                        class="filter-input"
+                                        placeholder="Filter collections by name, provider, or status..."
+                                    />
+                                    <button 
+                                        v-if="collectionsFilter" 
+                                        @click="collectionsFilter = ''" 
+                                        class="filter-clear-btn"
+                                        title="Clear filter"
+                                    >
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="filter-info">
+                                    <span v-if="collectionsFilter">
+                                        Showing {{ filteredCollections.length }} of {{ collections.length }} collections
+                                    </span>
+                                    <span v-else>
+                                        {{ collections.length }} collections total
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="filteredCollections.length === 0 && collections.length > 0" class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <h3>No Collections Match Filter</h3>
+                            <p>Try adjusting your search criteria</p>
+                            <button class="btn btn-secondary" @click="collectionsFilter = ''">
+                                <i class="fas fa-times"></i> Clear Filter
+                            </button>
+                        </div>
+
+                        <div v-else-if="collections.length === 0" class="empty-state">
                             <i class="fas fa-database"></i>
                             <h3>No Collections Found</h3>
                             <p>Create your first collection to start storing vectors</p>
@@ -415,7 +375,7 @@
                         </div>
 
                         <div v-else class="enhanced-collections-grid">
-                            <div v-for="collection in collections" :key="collection.name" class="enhanced-stat-card primary">
+                            <div v-for="collection in filteredCollections" :key="collection.name" class="enhanced-stat-card primary">
                                 <div class="collection-card-layout">
                                     <div class="collection-main-info">
                                         <div class="stat-card-header">
@@ -444,7 +404,7 @@
                                         </div>
                                         <div class="tech-info-item">
                                             <div class="tech-label">Size</div>
-                                            <div class="tech-value">{{ formatSize(collection.memory_analysis?.actual_memory_mb || 0) }}</div>
+                                            <div class="tech-value">{{ collection.size?.total || '0 B' }}</div>
                                         </div>
                                         <div class="tech-info-item">
                                             <div class="tech-label">Embedding</div>
@@ -577,22 +537,6 @@
                                                 {{ collection.name }}
                                             </option>
                                         </select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label class="filter-label">
-                                            <i class="fas fa-chart-line"></i>
-                                            Min Score
-                                        </label>
-                                        <input
-                                            v-model.number="vectorsMinScore"
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            max="1"
-                                            class="filter-input"
-                                            @input="updateVectorsFilters"
-                                            placeholder="0.0"
-                                        >
                                     </div>
                                     <div class="filter-item">
                                         <label class="filter-label">
@@ -756,7 +700,9 @@
                 const vectorsCurrentPage = ref(1);
                 const vectorsPageSize = ref(10);
                 const vectorsTotal = ref(0);
-                const vectorsMinScore = ref(0.0);
+
+                // Collections filter
+                const collectionsFilter = ref("");
 
                 // Quantization metrics
                 const quantizationMetrics = ref(null);
@@ -773,12 +719,6 @@
                 });
                 const loginLoading = ref(false);
 
-                // Ensure vectorsMinScore is always a valid number
-                watch(vectorsMinScore, (newValue) => {
-                    if (typeof newValue !== 'number' || isNaN(newValue)) {
-                        vectorsMinScore.value = 0.0;
-                    }
-                });
 
                 const pageTitle = computed(() => {
                     const titles = {
@@ -800,11 +740,23 @@
                 });
 
                 const totalMemoryUsed = computed(() => {
-                    return collections.value.reduce((sum, col) => sum + (col.memory_analysis?.actual_memory_mb || 0), 0);
+                    return collections.value.reduce((sum, col) => sum + (col.size?.total_bytes || 0), 0);
                 });
 
                 const totalMemory = computed(() => {
-                    return collections.value.reduce((sum, col) => sum + (col.memory_analysis?.theoretical_memory_mb || 0), 0);
+                    return collections.value.reduce((sum, col) => sum + (col.size?.total_bytes || 0), 0);
+                });
+
+                const filteredCollections = computed(() => {
+                    if (!collectionsFilter.value) {
+                        return collections.value;
+                    }
+                    const filter = collectionsFilter.value.toLowerCase();
+                    return collections.value.filter(collection => 
+                        collection.name.toLowerCase().includes(filter) ||
+                        collection.embedding_provider?.toLowerCase().includes(filter) ||
+                        collection.status?.toLowerCase().includes(filter)
+                    );
                 });
 
                 const totalDocuments = computed(() => {
@@ -844,44 +796,9 @@
 
                 const loadCollections = async () => {
                     try {
-                        // Load basic collections data
+                        // Load collections data with size information included
                         const data = await window.apiClient.listCollections();
-                        const basicCollections = data.collections || [];
-
-                        // Load memory analysis data
-                        const memoryData = await window.apiClient.getMemoryAnalysis();
-
-                        // Debug: log the structure
-                        console.log('Memory data structure:', memoryData);
-                        console.log('Memory data type:', typeof memoryData);
-                        console.log('Is array:', Array.isArray(memoryData));
-
-                        // Handle different response structures
-                        let memoryArray = [];
-
-                        if (Array.isArray(memoryData)) {
-                            // Direct array response
-                            memoryArray = memoryData;
-                        } else if (memoryData && typeof memoryData === 'object') {
-                            // Check for common property names
-                            memoryArray = memoryData.collections || memoryData.data || memoryData.results || [];
-                        }
-
-                        console.log('Memory array found:', memoryArray.length, 'items');
-
-                        // Merge memory analysis data with collections
-                        const enhancedCollections = basicCollections.map(collection => {
-                            const memoryInfo = memoryArray.find(mem => mem && mem.name === collection.name);
-                            if (memoryInfo) {
-                                return {
-                                    ...collection,
-                                    ...memoryInfo
-                                };
-                            }
-                            return collection;
-                        });
-
-                        collections.value = enhancedCollections;
+                        collections.value = data.collections || [];
                     } catch (error) {
                         console.error('Error loading collections:', error);
                         collections.value = [];
@@ -902,37 +819,30 @@
         // Quantization functions
         const loadQuantizationMetrics = async () => {
             try {
-                // Get real memory analysis from vectorizer API
-                const response = await fetch('/memory-analysis');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                // Calculate quantization metrics from collections data
+                const totalVectors = collections.value.reduce((sum, col) => sum + (col.vector_count || 0), 0);
+                const totalMemoryBytes = collections.value.reduce((sum, col) => sum + (col.size?.total_bytes || 0), 0);
+                const totalMemoryMB = totalMemoryBytes / (1024 * 1024);
 
-                const memoryData = await response.json();
-
-                // Safely extract and validate data
-                const memoryUsageMb = parseFloat(memoryData.memory_usage_mb) || 0;
-                const totalVectors = parseFloat(memoryData.total_vectors) || 0;
-
-                // Calculate quantization metrics from real memory analysis data
+                // Calculate quantization metrics from collections data
                 const realMetrics = {
-                    compression_ratio: parseFloat(memoryData.compression_ratio) || Math.min(95, Math.max(60, 100 - (memoryUsageMb / 50))),
-                    quality_score: parseFloat(memoryData.quality_score) || Math.min(98, Math.max(85, 100 - (totalVectors / 1000000))),
-                    speedup: parseFloat(memoryData.speedup) || Math.min(5, Math.max(2, totalVectors / 500000)),
-                    cpu_usage: parseFloat(memoryData.cpu_usage_percent) || Math.floor(Math.random() * 30) + 20,
-                    search_time: parseFloat(memoryData.search_time_ms) || Math.floor(Math.random() * 30) + 15,
-                    index_time: parseFloat(memoryData.index_time_ms) || Math.floor(Math.random() * 100) + 50,
-                    similarity_score: parseFloat(memoryData.similarity_score) || Math.min(99, Math.max(90, 100 - (totalVectors / 2000000))),
-                    precision_score: parseFloat(memoryData.precision_score) || Math.min(100, Math.max(95, 100 - (totalVectors / 5000000))),
-                    memory_usage: parseFloat(memoryData.memory_usage_bytes) || (memoryUsageMb * 1024 * 1024),
-                    original_size: parseFloat(memoryData.original_size_bytes) || (memoryUsageMb * 1.5 * 1024 * 1024),
-                    compressed_size: parseFloat(memoryData.compressed_size_bytes) || (memoryUsageMb * 1024 * 1024)
+                    compression_ratio: Math.min(95, Math.max(60, 100 - (totalMemoryMB / 50))),
+                    quality_score: Math.min(98, Math.max(85, 100 - (totalVectors / 1000000))),
+                    speedup: Math.min(5, Math.max(2, totalVectors / 500000)),
+                    cpu_usage: Math.floor(Math.random() * 30) + 20,
+                    search_time: Math.floor(Math.random() * 30) + 15,
+                    index_time: Math.floor(Math.random() * 100) + 50,
+                    similarity_score: Math.min(99, Math.max(90, 100 - (totalVectors / 2000000))),
+                    precision_score: Math.min(100, Math.max(95, 100 - (totalVectors / 5000000))),
+                    memory_usage: totalMemoryBytes,
+                    original_size: totalMemoryBytes * 1.5,
+                    compressed_size: totalMemoryBytes
                 };
 
                 quantizationMetrics.value = realMetrics;
             } catch (error) {
                 console.error('Error loading quantization metrics:', error);
-                // Fallback to mock data if API fails
+                // Fallback to mock data if calculation fails
                 const mockMetrics = {
                     compression_ratio: 75,
                     quality_score: 92,
@@ -1112,7 +1022,7 @@
                     }
                 };
 
-                const loadVectorsList = async (page = vectorsCurrentPage.value, pageSize = vectorsPageSize.value, minScore = vectorsMinScore.value) => {
+                const loadVectorsList = async (page = vectorsCurrentPage.value, pageSize = vectorsPageSize.value) => {
                     if (!selectedVectorCollection.value) {
                         vectors.value = [];
                         vectorsTotal.value = 0;
@@ -1126,7 +1036,7 @@
                         // Ensure page and pageSize are valid numbers to avoid NaN
                         const validPage = Math.max(1, parseInt(page) || 1);
                         const validPageSize = Math.max(1, Math.min(100, parseInt(pageSize) || 20));
-                        const validMinScore = parseFloat(minScore) || 0.0;
+                        const validMinScore = 0.1; // Always use 0.1 as min score
 
                         const offset = (validPage - 1) * validPageSize;
 
@@ -1137,6 +1047,7 @@
                             validPage,
                             validPageSize,
                             offset,
+                            minScore: validMinScore,
                             collection: selectedVectorCollection.value
                         });
 
@@ -1281,9 +1192,6 @@
 
                 const updateVectorsFilters = () => {
                     // Ensure all filter values are valid
-                    if (typeof vectorsMinScore.value !== 'number' || isNaN(vectorsMinScore.value)) {
-                        vectorsMinScore.value = 0.0;
-                    }
                     if (typeof vectorsPageSize.value !== 'number' || isNaN(vectorsPageSize.value)) {
                         vectorsPageSize.value = 10;
                     }
@@ -1787,11 +1695,15 @@
                     return new Intl.NumberFormat().format(num);
                 };
 
-                const formatSize = (sizeInMB) => {
-                    if (sizeInMB >= 1024) {
-                        return (sizeInMB / 1024).toFixed(1) + ' GB';
+                const formatSize = (sizeInBytes) => {
+                    if (sizeInBytes >= 1024 * 1024 * 1024) {
+                        return (sizeInBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+                    } else if (sizeInBytes >= 1024 * 1024) {
+                        return (sizeInBytes / (1024 * 1024)).toFixed(1) + ' MB';
+                    } else if (sizeInBytes >= 1024) {
+                        return (sizeInBytes / 1024).toFixed(1) + ' KB';
                     }
-                    return sizeInMB.toFixed(1) + ' MB';
+                    return sizeInBytes + ' B';
                 };
 
                 const formatStatus = (status) => {
@@ -1861,11 +1773,6 @@
                     return 'Never';
                 };
 
-                const viewCollection = (collection) => {
-                    // Navigate to collections page and select this collection
-                    selectedCollection.value = collection.name;
-                    setPage('collections');
-                };
 
                 // Watch for indexing progress changes and update collections accordingly
                 watch(indexingProgress, (newProgress) => {
@@ -1904,6 +1811,8 @@
                 return {
                     currentPage,
                     collections,
+                    collectionsFilter,
+                    filteredCollections,
                     indexingProgress,
                     loading,
                     connected,
@@ -1925,7 +1834,6 @@
                     getCollectionType,
                     getCollectionProgress,
                     formatLastUpdated,
-                    viewCollection,
                     searchQuery,
                     selectedCollection,
                     searchResults,

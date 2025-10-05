@@ -116,7 +116,6 @@ impl VectorizerServer {
             .route("/health", get(rest_handlers::health_check))
             .route("/stats", get(rest_handlers::get_stats))
             .route("/indexing/progress", get(rest_handlers::get_indexing_progress))
-            .route("/memory-analysis", get(rest_handlers::get_memory_analysis))
             
             // Collection management
             .route("/collections", get(rest_handlers::list_collections))

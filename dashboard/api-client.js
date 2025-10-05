@@ -207,13 +207,6 @@ class VectorizerAPIClient {
         };
     }
 
-    // Memory Analysis - get detailed memory usage and quantization info
-    // Updated: 2025-10-02 - Force cache reload
-    async getMemoryAnalysis() {
-        const result = await this.request('/memory-analysis');
-        console.log('Raw memory analysis response:', result);
-        return result;
-    }
 
     // Batch operations
     async batchInsertVectors(collectionName, vectors) {

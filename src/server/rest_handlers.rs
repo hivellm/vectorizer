@@ -55,18 +55,6 @@ pub async fn get_indexing_progress(State(state): State<VectorizerServer>) -> Jso
     }))
 }
 
-pub async fn get_memory_analysis(State(_state): State<VectorizerServer>) -> Json<Value> {
-    Json(json!({
-        "memory_usage": {
-            "total_memory_mb": 0,
-            "used_memory_mb": 0,
-            "free_memory_mb": 0,
-            "memory_percentage": 0.0
-        },
-        "collections_memory": [],
-        "timestamp": chrono::Utc::now().to_rfc3339()
-    }))
-}
 
 
 pub async fn search_vectors_by_text(
@@ -277,6 +265,9 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
         match state.store.get_collection(name) {
             Ok(collection) => {
                 let config = collection.config();
+                let (index_size, payload_size, total_size) = collection.get_size_info();
+                let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
+                
                 json!({
                     "name": name,
                     "vector_count": collection.vector_count(),
@@ -284,6 +275,14 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
                     "dimension": config.dimension,
                     "metric": format!("{:?}", config.metric),
                     "embedding_provider": "bm25",
+                    "size": {
+                        "total": total_size,
+                        "total_bytes": total_bytes,
+                        "index": index_size,
+                        "index_bytes": index_bytes,
+                        "payload": payload_size,
+                        "payload_bytes": payload_bytes
+                    },
                     "quantization": {
                         "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
                         "type": format!("{:?}", config.quantization),
@@ -309,6 +308,14 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
                 "dimension": 512,
                 "metric": "Cosine",
                 "embedding_provider": "bm25",
+                "size": {
+                    "total": "0 B",
+                    "total_bytes": 0,
+                    "index": "0 B",
+                    "index_bytes": 0,
+                    "payload": "0 B",
+                    "payload_bytes": 0
+                },
                 "created_at": chrono::Utc::now().to_rfc3339(),
                 "updated_at": chrono::Utc::now().to_rfc3339(),
                 "indexing_status": {
@@ -358,11 +365,22 @@ pub async fn get_collection(
     match state.store.get_collection(&name) {
         Ok(collection) => {
             let config = collection.config();
+            let (index_size, payload_size, total_size) = collection.get_size_info();
+            let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
+            
             Ok(Json(json!({
                 "name": name,
                 "vector_count": collection.vector_count(),
                 "dimension": config.dimension,
                 "metric": format!("{:?}", config.metric),
+                "size": {
+                    "total": total_size,
+                    "total_bytes": total_bytes,
+                    "index": index_size,
+                    "index_bytes": index_bytes,
+                    "payload": payload_size,
+                    "payload_bytes": payload_bytes
+                },
                 "quantization": {
                     "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
                     "type": format!("{:?}", config.quantization),
