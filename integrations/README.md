@@ -45,7 +45,7 @@ integrations/
 - **Status**: ✅ Complete
 - **Features**:
   - Multiple model types (Transformer, CNN, Custom)
-  - Device flexibility (CPU, CUDA, MPS)
+  - Device flexibility (CPU, MPS)
   - Batch processing
   - Model management
   - Comprehensive testing

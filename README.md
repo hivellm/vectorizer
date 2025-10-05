@@ -96,7 +96,7 @@ client.set_embedder(embedder)
 
 ## 🚀 **Advanced Embedding Models**
 
-Production-ready models with GPU acceleration:
+Production-ready embedding models:
 
 ### **Available Models**
 - **MiniLM Multilingual** (384D): Fast, efficient multilingual embeddings
@@ -106,9 +106,7 @@ Production-ready models with GPU acceleration:
 - **DistilUSE** (512D): Google's efficient universal embeddings
 
 ### **Features**
-- **GPU Acceleration**: Automatic GPU detection and utilization
 - **Batch Processing**: Optimized batch inference for high throughput
-- **Quantization**: INT8 quantization for ONNX models (3x speedup)
 - **Multilingual**: Support for 100+ languages
 
 ## 📚 **Configuration**
@@ -116,23 +114,9 @@ Production-ready models with GPU acceleration:
 ```yaml
 vectorizer:
   host: "localhost"
-  port: 15001
-  grpc_port: 15002
+  port: 15002
   default_dimension: 512
   default_metric: "cosine"
-  
-  # Multi-GPU Configuration
-  gpu:
-    enabled: true
-    backend: auto  # auto, metal, vulkan, dx12, cuda, cpu
-    device_id: 0
-    power_preference: high_performance
-    gpu_threshold_operations: 5000  # Enable GPU for collections > 5K vectors
-  
-  # Legacy CUDA support (optional)
-  cuda:
-    enabled: false
-    device_id: 0
   
   # Summarization
   summarization:
@@ -145,9 +129,8 @@ vectorizer:
 **Version**: v0.28.1  
 **Status**: ✅ **Production Ready**  
 **Collections**: 105 active collections with 50,000+ vectors indexed  
-**Performance**: 164μs latency at 10,000 QPS (1K vectors), 3× GPU speedup for large collections  
-**GPU Backends**: 🍎 Metal, 🔥 Vulkan, 🪟 DirectX 12, ⚡ CUDA, 💻 CPU  
-**Architecture**: GRPC + REST + MCP unified server system  
+**Performance**: 164μs latency at 10,000 QPS (1K vectors)  
+**Architecture**: REST + MCP unified server system  
 **SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
 **Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
 

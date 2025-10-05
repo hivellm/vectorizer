@@ -24,10 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance optimization** for large-scale collection management
 
 #### **Codebase Cleanup - 100% Complete**
-- **Removed legacy GRPC implementation** and replaced with modern REST API
-- **Removed CUDA dependencies** for simplified deployment
 - **Removed telemetry and process manager** for reduced complexity
-- **Removed protobuf compilation** dependencies
 - **Streamlined architecture** with focus on core functionality
 
 #### **API Improvements - 100% Complete**

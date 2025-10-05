@@ -424,8 +424,8 @@ curl -X POST http://localhost:15001/api/v1/collections/gov-proposals/search \
 
 ## Performance Metrics (v0.13.0)
 
-### GRPC Communication Performance
-- **Service Communication**: 300% faster than HTTP
+### REST Communication Performance
+- **Service Communication**: Optimized HTTP with high performance
 - **Binary Serialization**: 500% faster than JSON
 - **Connection Overhead**: 80% reduction
 - **Network Latency**: 60% reduction
@@ -441,7 +441,7 @@ curl -X POST http://localhost:15001/api/v1/collections/gov-proposals/search \
 
 ✅ **COMPLETED FEATURES:**
 - JWT + API Key authentication with RBAC
-- GRPC-based microservices architecture
+- REST-based microservices architecture
 - Text search with automatic embedding generation
 - Multiple embedding models (BM25, TF-IDF, BOW, CharNGram)
 - Real-time collection management

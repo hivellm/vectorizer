@@ -5,7 +5,7 @@ This integration provides seamless integration with PyTorch models for custom em
 ## 🚀 Features
 
 - ✅ **Multiple Model Types**: Support for Transformer, CNN, and Custom PyTorch models
-- ✅ **Device Flexibility**: Automatic device detection (CPU, CUDA, MPS)
+- ✅ **Device Flexibility**: Automatic device detection (CPU, MPS)
 - ✅ **Batch Processing**: Efficient batch processing for large datasets
 - ✅ **Model Management**: Easy loading and configuration of PyTorch models
 - ✅ **Vectorizer Integration**: Direct integration with Vectorizer API
@@ -47,7 +47,7 @@ embedder = TransformerEmbedder(config)
 ```python
 config = PyTorchModelConfig(
     model_path="path/to/your/model.pt",
-    device="cuda",
+    device="auto",
     batch_size=64,
     max_length=256,
     normalize_embeddings=True,
@@ -160,7 +160,7 @@ results = client.search_similar("custom processing", k=5)
 embedder = create_transformer_embedder(
     model_path="sentence-transformers/all-MiniLM-L6-v2",
     batch_size=64,  # Large batch size for efficiency
-    device="cuda"   # Use GPU for faster processing
+    device="auto"   # Use automatic device detection
 )
 
 client = PyTorchVectorizerClient()
@@ -181,18 +181,17 @@ print(f"Added {len(vector_ids)} documents in batch")
 # Automatic device detection
 embedder = create_transformer_embedder(
     model_path="sentence-transformers/all-MiniLM-L6-v2",
-    device="auto"  # Automatically uses CUDA, MPS, or CPU
+    device="auto"  # Automatically uses MPS or CPU
 )
 
 # Manual device specification
 embedder = create_transformer_embedder(
     model_path="sentence-transformers/all-MiniLM-L6-v2",
-    device="cuda"  # Force CUDA
+    device="mps"  # Force MPS (Apple Silicon)
 )
 
 # Check available devices
 import torch
-print(f"CUDA available: {torch.cuda.is_available()}")
 print(f"MPS available: {torch.backends.mps.is_available()}")
 ```
 
@@ -203,7 +202,7 @@ print(f"MPS available: {torch.backends.mps.is_available()}")
 Configuration class for PyTorch models:
 
 - `model_path`: Path to the model file
-- `device`: Device to use ("auto", "cpu", "cuda", "mps")
+- `device`: Device to use ("auto", "cpu", "mps")
 - `batch_size`: Batch size for processing
 - `max_length`: Maximum sequence length
 - `normalize_embeddings`: Whether to normalize embeddings
@@ -328,7 +327,7 @@ except Exception as e:
 ### Recommended Optimizations
 
 1. **Batch Size**: Use appropriate batch size (16-64 for transformers)
-2. **Device**: Use GPU (CUDA/MPS) for faster processing
+2. **Device**: Use MPS for faster processing on Apple Silicon
 3. **Model Size**: Choose models appropriate for your hardware
 4. **Normalization**: Enable normalization for better similarity search
 
