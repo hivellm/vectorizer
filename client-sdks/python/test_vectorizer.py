@@ -27,7 +27,7 @@ class TestVectorizerClient:
     def client(self):
         """Create a test client."""
         return VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key"
         )
     
@@ -55,7 +55,7 @@ class TestVectorizerClient:
     @pytest.mark.asyncio
     async def test_client_initialization(self, client):
         """Test client initialization."""
-        assert client.base_url == "http://localhost:15001"
+        assert client.base_url == "http://localhost:15002"
         assert client.api_key == "test-key"
         assert client.timeout == 30
         assert client.max_retries == 3
@@ -422,7 +422,7 @@ class TestIntegration:
     def integration_client(self):
         """Create client for integration tests."""
         return VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-key"
         )
     

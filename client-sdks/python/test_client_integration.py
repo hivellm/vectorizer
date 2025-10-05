@@ -25,7 +25,7 @@ class TestClientIntegration(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.client = VectorizerClient(
-            base_url="http://localhost:15001",
+            base_url="http://localhost:15002",
             api_key="test-api-key"
         )
 
@@ -38,7 +38,7 @@ class TestClientIntegration(unittest.TestCase):
         client = VectorizerClient()
 
         self.assertIsInstance(client, VectorizerClient)
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
         self.assertIsNone(client.api_key)
 
     def test_should_initialize_client_with_custom_params(self):

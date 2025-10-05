@@ -176,7 +176,7 @@ class TestClientInitialization(unittest.TestCase):
         """Teste inicialização padrão do cliente."""
         client = VectorizerClient()
         
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
         self.assertIsNone(client.api_key)
         self.assertEqual(client.timeout, 30)
         self.assertEqual(client.max_retries, 3)
@@ -200,7 +200,7 @@ class TestClientInitialization(unittest.TestCase):
         client = VectorizerClient(api_key="test-api-key")
         
         self.assertEqual(client.api_key, "test-api-key")
-        self.assertEqual(client.base_url, "http://localhost:15001")
+        self.assertEqual(client.base_url, "http://localhost:15002")
 
 
 class TestDataValidation(unittest.TestCase):

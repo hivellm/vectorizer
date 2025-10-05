@@ -8,15 +8,15 @@ use std::collections::HashMap;
 fn test_client_initialization() {
     // Test default client initialization
     let client = VectorizerClient::new_default().unwrap();
-    assert_eq!(client.base_url(), "http://localhost:15001");
+    assert_eq!(client.base_url(), "http://localhost:15002");
     
     // Test custom URL initialization
     let client_custom = VectorizerClient::new_with_url("http://custom:8080").unwrap();
     assert_eq!(client_custom.base_url(), "http://custom:8080");
     
     // Test API key initialization
-    let client_with_key = VectorizerClient::new_with_api_key("http://localhost:15001", "test-key").unwrap();
-    assert_eq!(client_with_key.base_url(), "http://localhost:15001");
+    let client_with_key = VectorizerClient::new_with_api_key("http://localhost:15002", "test-key").unwrap();
+    assert_eq!(client_with_key.base_url(), "http://localhost:15002");
 }
 
 #[test]

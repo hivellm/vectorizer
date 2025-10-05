@@ -37,7 +37,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             host: "0.0.0.0".to_string(),
-            port: 15001,
+            port: 15002,
             grpc_port: 15002,
             mcp_port: 15003,
         }

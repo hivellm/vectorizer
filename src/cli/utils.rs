@@ -365,7 +365,7 @@ mod tests {
     #[test]
     fn test_validate_port() {
         assert!(CliUtils::validate_port(8080).is_ok());
-        assert!(CliUtils::validate_port(15001).is_ok());
+        assert!(CliUtils::validate_port(15002).is_ok());
         assert!(CliUtils::validate_port(0).is_err());
     }
 

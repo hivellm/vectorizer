@@ -88,7 +88,7 @@ impl Default for FileWatcherConfig {
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB
             enable_hash_validation: true,
-            grpc_endpoint: Some("http://127.0.0.1:15001".to_string()),
+            grpc_endpoint: Some("http://127.0.0.1:15002".to_string()),
             collection_name: "watched_files".to_string(),
             recursive: true,
             max_concurrent_tasks: 4,

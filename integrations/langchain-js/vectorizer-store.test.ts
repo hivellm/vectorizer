@@ -15,7 +15,7 @@ describe('VectorizerConfig', () => {
     const config = VectorizerUtils.createDefaultConfig();
     
     expect(config.host).toBe('localhost');
-    expect(config.port).toBe(15001);
+    expect(config.port).toBe(15002);
     expect(config.collectionName).toBe('langchain_documents');
     expect(config.autoCreateCollection).toBe(true);
     expect(config.batchSize).toBe(100);
@@ -66,7 +66,7 @@ describe('VectorizerClient', () => {
   beforeEach(() => {
     const config: VectorizerConfig = {
       host: 'localhost',
-      port: 15001,
+      port: 15002,
       collectionName: 'test_collection',
       autoCreateCollection: true,
       batchSize: 100,
@@ -220,7 +220,7 @@ describe('VectorizerStore', () => {
   beforeEach(() => {
     const config: VectorizerConfig = {
       host: 'localhost',
-      port: 15001,
+      port: 15002,
       collectionName: 'test_collection',
       autoCreateCollection: true,
       batchSize: 100,

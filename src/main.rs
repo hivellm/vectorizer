@@ -10,7 +10,7 @@ use std::collections::HashMap;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on
-    #[arg(short, long, default_value_t = 15001)]
+    #[arg(short, long, default_value_t = 15002)]
     port: u16,
 
     /// Host to bind to

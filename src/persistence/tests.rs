@@ -37,10 +37,10 @@ use tempfile::tempdir;
             let vector = Vector::with_payload(
                 format!("vec_{}", i),
                 data,
-                Payload::from_value(serde_json::json!({
+                Payload::new(serde_json::json!({
                     "index": i,
                     "timestamp": format!("2025-09-23T10:00:{:02}Z", i % 60)
-                })).unwrap()
+                }))
             );
             vectors.push(vector);
         }
@@ -128,24 +128,24 @@ use tempfile::tempdir;
             Vector::with_payload(
                 "large_1".to_string(),
                 vec![1.0, 0.0, 0.0],
-                Payload::from_value(serde_json::json!({
+                Payload::new(serde_json::json!({
                     "text": large_text.clone(),
                     "metadata": {
                         "size": large_text.len(),
                         "compressed": true
                     }
-                })).unwrap()
+                }))
             ),
             Vector::with_payload(
                 "large_2".to_string(),
                 vec![0.0, 1.0, 0.0],
-                Payload::from_value(serde_json::json!({
+                Payload::new(serde_json::json!({
                     "text": large_text.clone(),
                     "metadata": {
                         "size": large_text.len(),
                         "compressed": true
                     }
-                })).unwrap()
+                }))
             ),
         ];
 

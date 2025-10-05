@@ -87,12 +87,12 @@ mod integration_tests {
                     let vector = Vector::with_payload(
                         vector_id.clone(),
                         vector_data,
-                        Payload::from_value(serde_json::json!({
+                        Payload::new(serde_json::json!({
                             "thread_id": thread_id,
                             "vector_index": i,
                             "created_by": format!("thread_{}", thread_id)
                         }))
-                        .unwrap(),
+                        ,
                     );
 
                     store_clone.insert("concurrent", vec![vector]).unwrap();

@@ -27,7 +27,7 @@ describe('VectorizerClient Integration Tests', () => {
     (HttpClient as unknown as jest.Mock).mockImplementation(() => mockHttpClient);
 
     client = new VectorizerClient({
-      baseURL: 'http://localhost:15001',
+      baseURL: 'http://localhost:15002',
       apiKey: 'test-api-key',
     });
   });
@@ -137,7 +137,7 @@ describe('VectorizerClient Integration Tests', () => {
       mockHttpClient.delete.mockResolvedValueOnce(undefined);
 
       await client.deleteCollection('test-collection');
-      expect(mockHttpClient.delete).toHaveBeenCalledWith('/api/v1/collections/test-collection');
+      expect(mockHttpClient.delete).toHaveBeenCalledWith('/collections/test-collection');
     });
 
     it('should handle error scenarios gracefully', async () => {

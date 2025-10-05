@@ -4,23 +4,23 @@
 
 # ⚠️ CRITICAL ARCHITECTURE RULE ⚠️
 # =============================================================================
-# GRPC is the Primary Data Server - REST and MCP are Interfaces Only
+# REST-First Architecture with MCP Support
 # =============================================================================
 #
-# - GRPC Server (vzr): Manages all real collections and vector data
-# - REST API: HTTP interface that proxies requests to GRPC
-# - MCP Server: Model Context Protocol interface that proxies requests to GRPC
+# - REST API: Primary HTTP interface managing all collections and vector data
+# - MCP Server: Model Context Protocol interface for AI assistants
+# - Core Engine: Rust-based vector store with HNSW indexing
 #
-# RULE: GRPC, REST, and MCP must have EXACTLY the same functionality
+# RULE: REST and MCP must have EXACTLY the same functionality
 #
 # When adding features:
-# 1. Implement in GRPC first (core business logic)
+# 1. Implement in core engine first (business logic)
 # 2. Add REST endpoints (HTTP interface)
 # 3. Add MCP tools (AI assistant interface)
 #
-# NEVER implement features only in REST or MCP! All three layers must be kept in sync.
+# NEVER implement features only in MCP! Both layers must be kept in sync.
 #
-# Example Issue: memory-analysis endpoint exists only in REST API but not in MCP
+# Architecture: REST + MCP unified server system
 # =============================================================================
 
 # =============================================================================
@@ -62,7 +62,7 @@
 
 # Code Organization
 # - Group related functionality in modules
-# - Use clear module hierarchy (api/, db/, grpc/, models/, etc.)
+# - Use clear module hierarchy (api/, db/, models/, etc.)
 # - Keep functions under 50 lines when possible
 # - Use meaningful variable names, avoid single-letter variables except in generics
 
@@ -194,11 +194,11 @@
 # - Use JSON for request/response bodies
 # - Implement proper error responses with error codes
 
-# gRPC Services
-# - Define clear service boundaries
-# - Use streaming for large data transfers
-# - Implement proper error codes
-# - Document service methods thoroughly
+# REST API Services
+# - Define clear endpoint boundaries
+# - Use proper HTTP methods and status codes
+# - Implement proper error responses
+# - Document API endpoints thoroughly
 
 # MCP (Model Context Protocol)
 # - Follow MCP specification strictly
@@ -261,7 +261,6 @@
 
 # Build Scripts
 # - Use `build.rs` for code generation
-# - Compile C/CUDA code as needed
 # - Generate version information
 # - Validate build environment
 
@@ -273,26 +272,24 @@
 
 # Server Execution
 # =============================================================================
-# CRITICAL: Vectorizer uses GRPC-first architecture with workspace orchestrator
+# CRITICAL: Vectorizer uses REST-first architecture with MCP support
 # =============================================================================
 #
 # Starting the Server:
-# - Command: ./scripts/start.sh --workspace vectorize-workspace.yml
-# - This starts: vzr (GRPC) + REST API + MCP Server
-# - NEVER start REST or MCP servers separately - they depend on GRPC
+# - Command: ./target/release/vectorizer
+# - This starts: REST API + MCP Server unified
+# - Alternative: cargo run (development mode)
 #
 # Stopping the Server:
-# - Command: pkill vzr
-# - Alternative: pkill -f vectorizer
-# - This stops all services managed by the orchestrator
+# - Command: pkill vectorizer
+# - Alternative: Ctrl+C if running in foreground
 #
 # Architecture Flow:
-# Client → REST/MCP → GRPC → vzr → Vector Store
+# Client → REST/MCP → Core Engine → Vector Store
 #
 # Ports:
-# - REST API: http://127.0.0.1:15001
-# - MCP Server: ws://127.0.0.1:15002/mcp
-# - GRPC Orchestrator: http://127.0.0.1:15003
+# - REST API: http://127.0.0.1:15002
+# - MCP Server: ws://127.0.0.1:15002/mcp (same port)
 #
 # =============================================================================
 

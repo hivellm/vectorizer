@@ -20,7 +20,7 @@ describe('HttpClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     httpClient = new HttpClient({
-      baseURL: 'http://localhost:15001',
+      baseURL: 'http://localhost:15002',
       apiKey: 'test-api-key',
       timeout: 5000,
     });
@@ -29,7 +29,7 @@ describe('HttpClient', () => {
   describe('constructor', () => {
     it('should create client with default config', () => {
       const client = new HttpClient({
-        baseURL: 'http://localhost:15001',
+        baseURL: 'http://localhost:15002',
       });
 
       expect(client).toBeInstanceOf(HttpClient);
@@ -59,7 +59,7 @@ describe('HttpClient', () => {
       const result = await httpClient.get('/test');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -73,7 +73,7 @@ describe('HttpClient', () => {
 
     it('should make GET request without API key', async () => {
       const client = new HttpClient({
-        baseURL: 'http://localhost:15001',
+        baseURL: 'http://localhost:15002',
       });
 
       const mockResponse = { data: 'test' };
@@ -86,7 +86,7 @@ describe('HttpClient', () => {
       await client.get('/test');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -132,7 +132,7 @@ describe('HttpClient', () => {
       const result = await httpClient.post('/test', requestData);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify(requestData),
@@ -157,7 +157,7 @@ describe('HttpClient', () => {
       const result = await httpClient.post('/test');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.objectContaining({
           method: 'POST',
           body: undefined,
@@ -181,7 +181,7 @@ describe('HttpClient', () => {
       const result = await httpClient.put('/test/123', requestData);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test/123',
+        'http://localhost:15002/test/123',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify(requestData),
@@ -204,7 +204,7 @@ describe('HttpClient', () => {
       const result = await httpClient.delete('/test/123');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test/123',
+        'http://localhost:15002/test/123',
         expect.objectContaining({
           method: 'DELETE',
         })
@@ -316,7 +316,7 @@ describe('HttpClient', () => {
       await httpClient.get('/test');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.any(Object)
       );
     });
@@ -325,7 +325,7 @@ describe('HttpClient', () => {
   describe('Custom headers', () => {
     it('should include custom headers', async () => {
       const client = new HttpClient({
-        baseURL: 'http://localhost:15001',
+        baseURL: 'http://localhost:15002',
         headers: { 'Custom-Header': 'custom-value' },
       });
 
@@ -339,7 +339,7 @@ describe('HttpClient', () => {
       await client.get('/test');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
@@ -351,7 +351,7 @@ describe('HttpClient', () => {
 
     it('should override default headers with request headers', async () => {
       const client = new HttpClient({
-        baseURL: 'http://localhost:15001',
+        baseURL: 'http://localhost:15002',
         headers: { 'Content-Type': 'application/xml' },
       });
 
@@ -367,7 +367,7 @@ describe('HttpClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:15001/test',
+        'http://localhost:15002/test',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',

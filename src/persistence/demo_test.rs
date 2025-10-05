@@ -45,7 +45,7 @@ async fn test_persistence_demo() {
     let dynamic_metadata = EnhancedCollectionMetadata::new_dynamic(
         "demo-dynamic-collection".to_string(),
         Some("user123".to_string()),
-        "/api/v1/collections".to_string(),
+        "/collections".to_string(),
         config,
     );
     

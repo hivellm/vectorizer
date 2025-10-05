@@ -1536,17 +1536,17 @@ mod tests {
             Vector::with_payload(
                 "vec1".to_string(),
                 vec![1.0, 0.0, 0.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 1})).unwrap(),
+                Payload::new(serde_json::json!({"type": "test", "id": 1})),
             ),
             Vector::with_payload(
                 "vec2".to_string(),
                 vec![0.0, 1.0, 0.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 2})).unwrap(),
+                Payload::new(serde_json::json!({"type": "test", "id": 2})),
             ),
             Vector::with_payload(
                 "vec3".to_string(),
                 vec![0.0, 0.0, 1.0],
-                Payload::from_value(serde_json::json!({"type": "test", "id": 3})).unwrap(),
+                Payload::new(serde_json::json!({"type": "test", "id": 3})),
             ),
         ];
 
@@ -1566,7 +1566,7 @@ mod tests {
         let updated = Vector::with_payload(
             "vec1".to_string(),
             vec![2.0, 0.0, 0.0],
-            Payload::from_value(serde_json::json!({"type": "updated", "id": 1})).unwrap(),
+            Payload::new(serde_json::json!({"type": "updated", "id": 1})),
         );
         store.update("test", updated).unwrap();
 
