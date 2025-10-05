@@ -1,6 +1,17 @@
-# Vectorizer
+# Vectorizer v0.3.0
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
+
+## 🎉 **v0.3.0 Release - Complete Persistence & File Watcher**
+
+**Major Milestone**: Complete persistence system and real-time file monitoring implementation.
+
+### ✅ **New Features in v0.3.0**
+- **💾 Dynamic Collection Persistence**: Collections automatically saved and loaded on server restart
+- **🔍 Real-time File Watcher**: Monitor file changes and auto-index documents
+- **⚡ Background Auto-save**: Collections saved every 30 seconds automatically
+- **🔄 Seamless Restart**: All collections restored exactly as they were
+- **📁 File System Monitoring**: Real-time indexing of document changes
 
 ## 🚀 **Key Features**
 
@@ -19,6 +30,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🚀 Advanced Embedding Models**: BM25, TF-IDF, and custom embedding providers
 - **🎯 Simplified Configuration**: Minimal setup with intelligent defaults
 - **💾 Automatic Persistence**: Collections automatically saved and loaded
+- **👀 File Watcher**: Real-time file monitoring and indexing
 
 ## 🎯 **Simple Configuration**
 
@@ -29,6 +41,8 @@ Vectorizer uses intelligent defaults with minimal configuration required:
 - ✅ **Intelligent Defaults**: Automatic configuration with sensible defaults
 - ✅ **Background Loading**: Collections load automatically without blocking server
 - ✅ **Auto-Persistence**: Data is automatically saved and restored
+- ✅ **File Watcher**: Real-time file monitoring with intelligent patterns
+- ✅ **Dynamic Collections**: Create collections via REST API with automatic persistence
 
 ## 🚀 **Quick Start**
 
@@ -48,8 +62,38 @@ cargo build --release
 ### **2. Access Services**
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp/sse  
-- **Dashboard**: http://localhost:15002/
+- **Dashboard**: http://localhost:15002/dashboard
 - **Health Check**: http://localhost:15002/health
+
+## 💾 **Persistence & File Watcher (v0.3.0)**
+
+### **Dynamic Collections**
+Create collections via REST API that persist automatically:
+
+```bash
+# Create a new collection
+curl -X POST http://localhost:15002/collections \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-docs", "dimension": 512, "metric": "cosine"}'
+
+# Insert documents
+curl -X POST http://localhost:15002/insert \
+  -H "Content-Type: application/json" \
+  -d '{"collection": "my-docs", "text": "Your document content", "metadata": {"source": "file.txt"}}'
+```
+
+### **File Watcher**
+Monitor file changes in real-time:
+- **Supported formats**: `.md`, `.txt`, `.rs`, `.py`, `.js`, `.ts`, `.json`, `.yaml`, `.yml`
+- **Auto-exclusion**: `target/`, `node_modules/`, `.git/`, etc.
+- **Debounce**: 1000ms delay to handle rapid changes
+- **Collection**: `watched_files` (configurable)
+
+### **Persistence Features**
+- **Auto-save**: Collections saved every 30 seconds
+- **Restart recovery**: All collections restored on server restart
+- **Format compatibility**: Versioned persistence format for future compatibility
+- **Reliable writes**: File flush/sync ensures data integrity
 
 ### **3. Basic Usage**
 ```bash
@@ -144,10 +188,13 @@ vectorizer:
 
 ## 💾 Data Management
 
-Vectorizer automatically manages data persistence in the `.vectorizer/` directory:
-- Collections are automatically saved and loaded
-- Background loading ensures server availability during startup
-- Quantization is applied automatically for memory optimization
+Vectorizer automatically manages data persistence in the `data/` directory:
+- **Collections are automatically saved and loaded** (v0.3.0)
+- **Background loading** ensures server availability during startup
+- **Auto-save every 30 seconds** for dynamic collections
+- **File watcher** monitors changes and updates indexes
+- **Quantization** is applied automatically for memory optimization
+- **Versioned persistence format** for future compatibility
 
 ## 🎯 Use Cases
 
@@ -193,3 +240,18 @@ server:
 logging:
   level: "info"
 ```
+
+## 📋 Changelog
+
+### v0.3.0 (2025-10-05) - Complete Persistence & File Watcher
+- ✅ **Dynamic Collection Persistence**: Collections automatically saved and loaded on server restart
+- ✅ **Real-time File Watcher**: Monitor file changes and auto-index documents
+- ✅ **Background Auto-save**: Collections saved every 30 seconds automatically
+- ✅ **Seamless Restart**: All collections restored exactly as they were
+- ✅ **File System Monitoring**: Real-time indexing of document changes
+- 🔧 **Technical Fixes**: PersistedVectorStore format compatibility, file flush/sync, ownership resolution
+- 🎯 **Production Ready**: Stable, tested, and verified working
+
+### Previous Versions
+- v0.2.x: REST API and MCP integration
+- v0.1.x: Core vector database functionality
