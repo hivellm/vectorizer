@@ -19,7 +19,7 @@ def basic_example():
     # Create configuration
     config = VectorizerConfig(
         host="localhost",
-        port=15001,
+        port=15002,
         collection_name="example_documents"
     )
     
@@ -69,7 +69,7 @@ def document_loading_example():
     # Create store
     store = create_vectorizer_store(
         host="localhost",
-        port=15001,
+        port=15002,
         collection_name="file_documents"
     )
     
@@ -121,7 +121,7 @@ def text_splitting_example():
     # Create store
     store = create_vectorizer_store(
         host="localhost",
-        port=15001,
+        port=15002,
         collection_name="split_documents"
     )
     
@@ -165,7 +165,7 @@ def metadata_filtering_example():
     # Create store
     store = create_vectorizer_store(
         host="localhost",
-        port=15001,
+        port=15002,
         collection_name="filtered_documents"
     )
     
@@ -207,7 +207,7 @@ def batch_operations_example():
     # Create store
     store = create_vectorizer_store(
         host="localhost",
-        port=15001,
+        port=15002,
         collection_name="batch_documents"
     )
     
@@ -245,4 +245,4 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f"Error running examples: {e}")
-        print("Make sure Vectorizer is running on localhost:15001")
+        print("Make sure Vectorizer is running on localhost:15002")

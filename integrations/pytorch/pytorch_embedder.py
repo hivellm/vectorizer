@@ -307,7 +307,7 @@ class CustomPyTorchEmbedder(PyTorchEmbedder):
 class PyTorchVectorizerClient:
     """Client for integrating PyTorch models with Vectorizer"""
     
-    def __init__(self, vectorizer_url: str = "http://localhost:15001", api_key: Optional[str] = None):
+    def __init__(self, vectorizer_url: str = "http://localhost:15002", api_key: Optional[str] = None):
         self.vectorizer_url = vectorizer_url
         self.api_key = api_key
         self.embedder = None
@@ -328,7 +328,7 @@ class PyTorchVectorizerClient:
             elif dimension is None:
                 dimension = 512  # Default dimension
             
-            url = f"{self.vectorizer_url}/api/v1/collections"
+            url = f"{self.vectorizer_url}/collections"
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
@@ -336,8 +336,7 @@ class PyTorchVectorizerClient:
             data = {
                 "name": collection_name,
                 "dimension": dimension,
-                "metric": "cosine",
-                "embedding_model": "custom_pytorch"
+                "metric": "cosine"
             }
             
             response = requests.post(url, json=data, headers=headers)
@@ -366,30 +365,29 @@ class PyTorchVectorizerClient:
             embeddings = self.embedder.embed_texts(texts)
             
             # Prepare data for Vectorizer
-            vectors_data = []
+            vector_ids = []
             for i, (text, embedding) in enumerate(zip(texts, embeddings)):
                 metadata = metadatas[i] if metadatas else {}
                 metadata["text"] = text
                 metadata["embedder"] = "pytorch"
                 
-                vectors_data.append({
-                    "vector": embedding.tolist(),
-                    "payload": metadata
-                })
-            
-            # Send to Vectorizer
-            url = f"{self.vectorizer_url}/api/v1/collections/{self.collection_name}/vectors/batch"
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            
-            data = {"vectors": vectors_data}
-            
-            response = requests.post(url, json=data, headers=headers)
-            response.raise_for_status()
-            
-            result = response.json()
-            vector_ids = result.get("vector_ids", [])
+                data = {
+                    "collection": self.collection_name,
+                    "text": text,
+                    "metadata": metadata
+                }
+                
+                # Send to Vectorizer
+                url = f"{self.vectorizer_url}/insert"
+                headers = {"Content-Type": "application/json"}
+                if self.api_key:
+                    headers["Authorization"] = f"Bearer {self.api_key}"
+                
+                response = requests.post(url, json=data, headers=headers)
+                response.raise_for_status()
+                
+                result = response.json()
+                vector_ids.append(result.get("vector_id", ""))
             
             logger.info(f"Added {len(vector_ids)} texts to collection {self.collection_name}")
             return vector_ids
@@ -413,14 +411,14 @@ class PyTorchVectorizerClient:
             query_embedding = self.embedder.embed_text(query)
             
             # Prepare search request
-            url = f"{self.vectorizer_url}/api/v1/collections/{self.collection_name}/search"
+            url = f"{self.vectorizer_url}/collections/{self.collection_name}/search"
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
             
             data = {
-                "query_vector": query_embedding.tolist(),
-                "top_k": k,
+                "query": query,
+                "limit": k,
                 "filter": filter or {}
             }
             

@@ -1,4 +1,4 @@
-# LangChain.js Integration for Vectorizer
+# LangChain.js Integration for Vectorizer v0.3.0
 
 This integration provides a complete implementation of LangChain.js's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
 
@@ -33,7 +33,7 @@ import { VectorizerConfig, VectorizerStore } from './vectorizer-store';
 // Default configuration
 const config: VectorizerConfig = {
   host: 'localhost',
-  port: 15001,
+  port: 15002,
   collectionName: 'my_documents',
   autoCreateCollection: true,
   batchSize: 100,
@@ -49,7 +49,7 @@ const store = new VectorizerStore(config);
 ```typescript
 const config: VectorizerConfig = {
   host: 'vectorizer.example.com',
-  port: 15001,
+  port: 15002,
   collectionName: 'production_documents',
   apiKey: 'prod_api_key',
   timeout: 60000,
@@ -70,7 +70,7 @@ import { Document } from '@langchain/core/documents';
 // Create configuration
 const config: VectorizerConfig = {
   host: 'localhost',
-  port: 15001,
+  port: 15002,
   collectionName: 'my_docs',
   autoCreateCollection: true,
   batchSize: 100,
@@ -129,7 +129,7 @@ const documents = [
 // Create store and add documents
 const config: VectorizerConfig = {
   host: 'localhost',
-  port: 15001,
+  port: 15002,
   collectionName: 'document_chunks',
   autoCreateCollection: true,
   batchSize: 100,
@@ -275,10 +275,10 @@ Make sure Vectorizer is running:
 
 ```bash
 # Start Vectorizer
-cargo run --bin vectorizer-server
+cargo run --bin vectorizer
 
 # Or use Docker
-docker run -p 15001:15001 vectorizer:latest
+docker run -p 15002:15002 vectorizer:latest
 ```
 
 ## 🚨 Error Handling

@@ -28,7 +28,7 @@ export interface VectorizerConfig {
  */
 export const DEFAULT_CONFIG: VectorizerConfig = {
   host: "localhost",
-  port: 15001,
+  port: 15002,
   timeout: 30000,
   collectionName: "langchain_documents",
   autoCreateCollection: true,
@@ -54,7 +54,7 @@ export class VectorizerClient {
   private headers: Record<string, string>;
 
   constructor(private config: VectorizerConfig) {
-    this.baseUrl = `http://${config.host}:${config.port}/api/v1`;
+    this.baseUrl = `http://${config.host}:${config.port}`;
     this.headers = {
       "Content-Type": "application/json",
     };
@@ -124,7 +124,7 @@ export class VectorizerClient {
    */
   async createCollection(
     name: string,
-    dimension: number = 384,
+    dimension: number = 512,
     metric: string = "cosine"
   ): Promise<boolean> {
     try {
@@ -132,7 +132,6 @@ export class VectorizerClient {
         name,
         dimension,
         metric,
-        embedding_model: "bm25",
       });
       return true;
     } catch {
@@ -159,18 +158,20 @@ export class VectorizerClient {
     texts: string[],
     metadatas?: Record<string, any>[]
   ): Promise<string[]> {
-    const data = {
-      texts,
-      metadatas: metadatas || texts.map(() => ({}))
-    };
+    const vectorIds: string[] = [];
+    
+    for (let i = 0; i < texts.length; i++) {
+      const data = {
+        collection: this.config.collectionName,
+        text: texts[i],
+        metadata: metadatas?.[i] || {}
+      };
 
-    const response = await this.makeRequest(
-      "POST",
-      `/collections/${this.config.collectionName}/vectors/batch`,
-      data
-    );
+      const response = await this.makeRequest("POST", "/insert", data);
+      vectorIds.push(response.vector_id || "");
+    }
 
-    return response.vector_ids || [];
+    return vectorIds;
   }
 
   /**
@@ -183,7 +184,7 @@ export class VectorizerClient {
   ): Promise<any[]> {
     const data = {
       query,
-      top_k: k,
+      limit: k,
       filter: filter || {}
     };
 
@@ -215,7 +216,7 @@ export class VectorizerClient {
     try {
       await this.makeRequest(
         "DELETE",
-        `/collections/${this.config.collectionName}/vectors/batch`,
+        `/collections/${this.config.collectionName}/vectors`,
         { vector_ids: ids }
       );
       return true;
@@ -253,7 +254,7 @@ export class VectorizerStore extends VectorStore {
       if (!collections.includes(this.client["config"].collectionName)) {
         await this.client.createCollection(
           this.client["config"].collectionName,
-          384, // Default for BM25
+          512, // Default for v0.3.0
           "cosine"
         );
       }
@@ -364,7 +365,7 @@ export class VectorizerStore extends VectorStore {
  */
 export async function createVectorizerStore(
   host: string = "localhost",
-  port: number = 15001,
+  port: number = 15002,
   collectionName: string = "langchain_documents",
   apiKey?: string,
   config?: Partial<VectorizerConfig>

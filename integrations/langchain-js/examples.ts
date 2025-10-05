@@ -17,7 +17,7 @@ async function basicExample() {
   // Create configuration
   const config: VectorizerConfig = {
     host: 'localhost',
-    port: 15001,
+    port: 15002,
     collectionName: 'example_documents',
     autoCreateCollection: true,
     batchSize: 100,
@@ -79,7 +79,7 @@ async function documentLoadingExample() {
   // Create store
   const store = await createVectorizerStore(
     'localhost',
-    15001,
+    15002,
     'file_documents'
   );
   
@@ -128,7 +128,7 @@ async function textSplittingExample() {
   // Create store
   const store = await createVectorizerStore(
     'localhost',
-    15001,
+    15002,
     'split_documents'
   );
   
@@ -188,7 +188,7 @@ async function metadataFilteringExample() {
   // Create store
   const store = await createVectorizerStore(
     'localhost',
-    15001,
+    15002,
     'filtered_documents'
   );
   
@@ -239,7 +239,7 @@ async function batchOperationsExample() {
   // Create store
   const store = await createVectorizerStore(
     'localhost',
-    15001,
+    15002,
     'batch_documents'
   );
   
@@ -281,7 +281,7 @@ async function configurationExample() {
     // Validate configuration
     const config = VectorizerUtils.createDefaultConfig({
       host: 'localhost',
-      port: 15001,
+      port: 15002,
       collectionName: 'config_test',
       batchSize: 50,
       similarityThreshold: 0.8
@@ -309,7 +309,7 @@ async function errorHandlingExample() {
     // Try to connect to non-existent server
     const store = await createVectorizerStore(
       'non-existent-host',
-      15001,
+      15002,
       'error_test'
     );
     
@@ -341,7 +341,7 @@ async function runAllExamples() {
     
   } catch (error) {
     console.error('Error running examples:', error);
-    console.log('Make sure Vectorizer is running on localhost:15001');
+    console.log('Make sure Vectorizer is running on localhost:15002');
   }
 }
 

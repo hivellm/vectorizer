@@ -1,6 +1,6 @@
-# Vectorizer Integrations
+# Vectorizer Integrations v0.3.0
 
-This directory contains integrations with external frameworks and libraries for Vectorizer.
+This directory contains integrations with external frameworks and libraries for Vectorizer v0.3.0.
 
 ## 📁 Structure
 
@@ -18,58 +18,62 @@ integrations/
 - **Location**: `integrations/langchain/`
 - **Language**: Python
 - **Description**: Complete VectorStore implementation for LangChain
-- **Status**: ✅ Complete
+- **Status**: ✅ Complete (v0.3.0)
 - **Features**: 
   - Complete VectorStore interface
   - Batch operations
   - Metadata filtering
   - Robust error handling
   - Comprehensive tests
+  - Updated for v0.3.0 API (port 15002, new routes)
 
 ### LangChain.js Integration (JavaScript/TypeScript)
 - **Location**: `integrations/langchain-js/`
 - **Language**: JavaScript/TypeScript
 - **Description**: Complete VectorStore implementation for LangChain.js
-- **Status**: ✅ Complete
+- **Status**: ✅ Complete (v0.3.0)
 - **Features**:
   - Full TypeScript support
   - Complete VectorStore interface
   - Async operations
   - Flexible configuration
   - Jest tests
+  - Updated for v0.3.0 API (port 15002, new routes)
 
 ### PyTorch Integration
 - **Location**: `integrations/pytorch/`
 - **Language**: Python
 - **Description**: Support for custom PyTorch models
-- **Status**: ✅ Complete
+- **Status**: ✅ Complete (v0.3.0)
 - **Features**:
   - Multiple model types (Transformer, CNN, Custom)
   - Device flexibility (CPU, MPS)
   - Batch processing
   - Model management
   - Comprehensive testing
+  - Updated for v0.3.0 API (port 15002, new routes)
 
 ### TensorFlow Integration
 - **Location**: `integrations/tensorflow/`
 - **Language**: Python
 - **Description**: Support for custom TensorFlow models
-- **Status**: ✅ Complete
+- **Status**: ✅ Complete (v0.3.0)
 - **Features**:
   - Multiple model types (Transformer, CNN, Custom)
   - Device flexibility (CPU, GPU)
   - Batch processing
   - Model management
   - Comprehensive testing
+  - Updated for v0.3.0 API (port 15002, new routes)
 
 
 ## 📋 Integration Roadmap
 
-### Phase 9: Advanced Integrations & Enterprise Features
-- [x] **LangChain VectorStore**: Complete LangChain integration (Python)
-- [x] **LangChain.js VectorStore**: Complete LangChain.js integration (JavaScript/TypeScript)
-- [x] **PyTorch Support**: Support for custom PyTorch models
-- [x] **TensorFlow Support**: Support for custom TensorFlow models
+### Phase 9: Advanced Integrations & Enterprise Features (v0.3.0)
+- [x] **LangChain VectorStore**: Complete LangChain integration (Python) - Updated for v0.3.0
+- [x] **LangChain.js VectorStore**: Complete LangChain.js integration (JavaScript/TypeScript) - Updated for v0.3.0
+- [x] **PyTorch Support**: Support for custom PyTorch models - Updated for v0.3.0
+- [x] **TensorFlow Support**: Support for custom TensorFlow models - Updated for v0.3.0
 - [ ] **Model Management**: Model management system
 - [ ] **Custom Embeddings**: Support for custom embeddings
 
@@ -97,7 +101,7 @@ from integrations.langchain.vectorizer_store import VectorizerStore
 # Create VectorizerStore instance
 store = VectorizerStore(
     host="localhost",
-    port=15001,
+    port=15002,
     collection_name="my_documents"
 )
 
@@ -119,7 +123,7 @@ import { VectorizerStore, VectorizerConfig } from './integrations/langchain-js/v
 // Create configuration
 const config: VectorizerConfig = {
   host: 'localhost',
-  port: 15001,
+  port: 15002,
   collectionName: 'my_documents',
   autoCreateCollection: true,
   batchSize: 100,

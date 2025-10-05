@@ -1,4 +1,4 @@
-# LangChain Integration for Vectorizer
+# LangChain Integration for Vectorizer v0.3.0
 
 This integration provides a complete implementation of LangChain's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
 
@@ -34,7 +34,7 @@ config = VectorizerConfig()
 # Custom configuration
 config = VectorizerConfig(
     host="localhost",
-    port=15001,
+    port=15002,
     collection_name="my_documents",
     api_key="your_api_key",
     batch_size=100,
@@ -47,7 +47,7 @@ config = VectorizerConfig(
 ```python
 config = VectorizerConfig(
     host="vectorizer.example.com",
-    port=15001,
+    port=15002,
     collection_name="production_documents",
     api_key="prod_api_key",
     timeout=60,
@@ -243,10 +243,10 @@ Make sure Vectorizer is running:
 
 ```bash
 # Start Vectorizer
-cargo run --bin vectorizer-server
+cargo run --bin vectorizer
 
 # Or use Docker
-docker run -p 15001:15001 vectorizer:latest
+docker run -p 15002:15002 vectorizer:latest
 ```
 
 ## 🚨 Error Handling

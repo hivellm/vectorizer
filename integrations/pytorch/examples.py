@@ -423,7 +423,7 @@ def run_all_examples():
         
     except Exception as e:
         print(f"Error running examples: {e}")
-        print("Make sure Vectorizer is running on localhost:15001")
+        print("Make sure Vectorizer is running on localhost:15002")
         print("Make sure you have required dependencies installed:")
         print("  pip install torch transformers requests")
 

@@ -34,7 +34,7 @@ except ImportError:
 class VectorizerConfig:
     """Configuration for Vectorizer connection"""
     host: str = "localhost"
-    port: int = 15001
+    port: int = 15002
     api_key: Optional[str] = None
     timeout: int = 30
     collection_name: str = "langchain_documents"
@@ -48,7 +48,7 @@ class VectorizerClient:
     
     def __init__(self, config: VectorizerConfig):
         self.config = config
-        self.base_url = f"http://{config.host}:{config.port}/api/v1"
+        self.base_url = f"http://{config.host}:{config.port}"
         self.session = requests.Session()
         
         if config.api_key:
@@ -92,13 +92,12 @@ class VectorizerClient:
         response = self._make_request("GET", "/collections")
         return [col["name"] for col in response.get("collections", [])]
     
-    def create_collection(self, name: str, dimension: int = 384, metric: str = "cosine") -> bool:
+    def create_collection(self, name: str, dimension: int = 512, metric: str = "cosine") -> bool:
         """Create a new collection"""
         data = {
             "name": name,
             "dimension": dimension,
-            "metric": metric,
-            "embedding_model": "bm25"
+            "metric": metric
         }
         
         try:
@@ -120,18 +119,18 @@ class VectorizerClient:
         if metadatas is None:
             metadatas = [{} for _ in texts]
         
-        data = {
-            "texts": texts,
-            "metadatas": metadatas
-        }
+        vector_ids = []
+        for text, metadata in zip(texts, metadatas):
+            data = {
+                "collection": self.config.collection_name,
+                "text": text,
+                "metadata": metadata
+            }
+            
+            response = self._make_request("POST", "/insert", json=data)
+            vector_ids.append(response.get("vector_id", ""))
         
-        response = self._make_request(
-            "POST", 
-            f"/collections/{self.config.collection_name}/vectors/batch",
-            json=data
-        )
-        
-        return response.get("vector_ids", [])
+        return vector_ids
     
     def similarity_search(
         self, 
@@ -142,7 +141,7 @@ class VectorizerClient:
         """Perform similarity search"""
         data = {
             "query": query,
-            "top_k": k,
+            "limit": k,
             "filter": filter or {}
         }
         
@@ -171,7 +170,7 @@ class VectorizerClient:
         try:
             self._make_request(
                 "DELETE",
-                f"/collections/{self.config.collection_name}/vectors/batch",
+                f"/collections/{self.config.collection_name}/vectors",
                 json=data
             )
             return True
@@ -212,7 +211,7 @@ class VectorizerStore(VectorStore):
         if self.config.collection_name not in collections:
             self.client.create_collection(
                 self.config.collection_name,
-                dimension=384,  # Default for BM25
+                dimension=512,  # Default for v0.3.0
                 metric="cosine"
             )
     
@@ -368,7 +367,7 @@ class VectorizerStore(VectorStore):
 # Convenience functions for easy usage
 def create_vectorizer_store(
     host: str = "localhost",
-    port: int = 15001,
+    port: int = 15002,
     collection_name: str = "langchain_documents",
     api_key: Optional[str] = None,
     **kwargs
@@ -402,7 +401,7 @@ if __name__ == "__main__":
     # Example usage
     config = VectorizerConfig(
         host="localhost",
-        port=15001,
+        port=15002,
         collection_name="test_documents"
     )
     
