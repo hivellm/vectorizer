@@ -228,7 +228,6 @@ client = PyTorchVectorizerClient()
 client.set_embedder(embedder)
 ```
 
-
 ## 🚀 **Advanced Embedding Models**
 
 Production-ready models with GPU acceleration:
@@ -285,7 +284,6 @@ vectorizer:
 **Architecture**: GRPC + REST + MCP unified server system  
 **SDKs**: ✅ **TypeScript (npm), JavaScript (npm), Rust (crates.io)** | 🚧 **Python (PyPI in progress)**  
 **Integrations**: ✅ **LangChain, PyTorch, TensorFlow**
-
 
 ## 🚀 Quick Start
 
@@ -346,14 +344,11 @@ Notas:
 - **Document Search**: Intelligent document indexing and search
 - **Production Workflows**: Enterprise-grade vector operations
 
-
-
 ## 🔍 Embedding Methods
 
 **Sparse Embeddings**: TF-IDF, BM25 with SVD dimensionality reduction  
 **Dense Embeddings**: BERT, MiniLM with contextual understanding  
 **Hybrid Search**: Sparse retrieval + dense re-ranking for optimal results
-
 
 ## 🔧 MCP Integration
 
@@ -388,10 +383,4 @@ workspace:
           dimension: 768
           embedding:
             model: "bm25"
-```
-
-## 🌐 REST API
-
-Production-ready HTTP API:
-
 ```
