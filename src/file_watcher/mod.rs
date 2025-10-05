@@ -1,22 +1,22 @@
 //! File Watcher System for real-time file monitoring and incremental reindexing
 //!
 //! This module provides a cross-platform file monitoring system that tracks changes
-//! in indexed files and updates the vector database in real-time through GRPC operations.
+//! in indexed files and updates the vector database in real-time through vector operations.
 
 pub mod config;
 pub mod debouncer;
 pub mod hash_validator;
 pub mod watcher;
-pub mod grpc_operations;
 pub mod file_index;
 pub mod enhanced_watcher;
+pub mod operations;
 
 #[cfg(test)]
 pub mod tests;
 
 pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
-pub use grpc_operations::GrpcVectorOperations;
+pub use operations::VectorOperations;
 pub use file_index::{FileIndex, FileIndexArc, CollectionVectorMapping, FileIndexStats};
 pub use enhanced_watcher::{EnhancedFileWatcher, FileSystemEvent, WorkspaceConfig, ProjectConfig, CollectionConfig};
 
@@ -27,7 +27,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;
-use crate::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 
 /// File change event types
 #[derive(Debug, Clone, PartialEq)]
@@ -56,10 +55,9 @@ pub struct FileWatcherSystem {
     config: FileWatcherConfig,
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<RwLock<EmbeddingManager>>,
-    grpc_client: Option<Arc<VectorizerServiceClient<tonic::transport::Channel>>>,
+    vector_operations: Arc<operations::VectorOperations>,
     debouncer: Arc<debouncer::Debouncer>,
     hash_validator: Arc<hash_validator::HashValidator>,
-    grpc_operations: Arc<grpc_operations::GrpcVectorOperations>,
 }
 
 impl FileWatcherSystem {
@@ -68,24 +66,23 @@ impl FileWatcherSystem {
         config: FileWatcherConfig,
         vector_store: Arc<VectorStore>,
         embedding_manager: Arc<RwLock<EmbeddingManager>>,
-        grpc_client: Option<Arc<VectorizerServiceClient<tonic::transport::Channel>>>,
     ) -> Self {
         let debouncer = Arc::new(debouncer::Debouncer::new(config.debounce_delay_ms));
         let hash_validator = Arc::new(hash_validator::HashValidator::new());
-        let grpc_operations = Arc::new(grpc_operations::GrpcVectorOperations::new(
+        
+        // Create vector operations - we'll pass the Arc<RwLock<EmbeddingManager>> directly
+        let vector_operations = Arc::new(operations::VectorOperations::new(
             vector_store.clone(),
             embedding_manager.clone(),
-            grpc_client.clone(),
         ));
 
         Self {
             config,
             vector_store,
             embedding_manager,
-            grpc_client,
+            vector_operations,
             debouncer,
             hash_validator,
-            grpc_operations,
         }
     }
 
@@ -102,7 +99,6 @@ impl FileWatcherSystem {
             dynamic_config,
             self.debouncer.clone(),
             self.hash_validator.clone(),
-            self.grpc_operations.clone(),
         )?;
 
         // Start watching

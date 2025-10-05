@@ -194,9 +194,9 @@ async fn handle_insert_text(
     
     let vector_id = uuid::Uuid::new_v4().to_string();
     let payload = if let Some(meta) = metadata {
-        crate::models::Payload::from_value(meta).unwrap()
+        crate::models::Payload::new(meta)
     } else {
-        crate::models::Payload::from_value(json!({})).unwrap()
+        crate::models::Payload::new(json!({}))
     };
     
     store.insert(collection_name, vec![crate::models::Vector::with_payload(
@@ -359,9 +359,9 @@ async fn handle_update_vector(
             .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
         
         let payload = if let Some(meta) = metadata {
-            crate::models::Payload::from_value(meta).unwrap()
+            crate::models::Payload::new(meta)
         } else {
-            crate::models::Payload::from_value(json!({})).unwrap()
+            crate::models::Payload::new(json!({}))
         };
         
         store.update(collection, crate::models::Vector::with_payload(
@@ -418,9 +418,9 @@ async fn handle_insert_texts(
                 .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
             
             let payload = if let Some(meta) = metadata {
-                crate::models::Payload::from_value(meta).unwrap()
+                crate::models::Payload::new(meta)
             } else {
-                crate::models::Payload::from_value(json!({})).unwrap()
+                crate::models::Payload::new(json!({}))
             };
             
             vectors.push(crate::models::Vector::with_payload(id.to_string(), embedding, payload));
@@ -516,9 +516,9 @@ async fn handle_batch_update_vectors(
                 
                 let metadata = obj.get("metadata").cloned();
                 let payload = if let Some(meta) = metadata {
-                    crate::models::Payload::from_value(meta).unwrap()
+                    crate::models::Payload::new(meta)
                 } else {
-                    crate::models::Payload::from_value(json!({})).unwrap()
+                    crate::models::Payload::new(json!({}))
                 };
                 
                 if store.update(collection, crate::models::Vector::with_payload(

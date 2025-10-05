@@ -140,10 +140,15 @@ impl Collection {
                 vector.data = data.clone(); // Update stored vector to normalized version
             }
 
-            // IMPORTANT: Do NOT clear vector data here - it prevents proper persistence!
-            // Quantization should only be applied in-memory during runtime operations,
-            // not when storing vectors for cache/persistence.
-            // The original code was clearing vector.data which caused all .bin files to be empty.
+            // Apply quantization if enabled in config
+            if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                // Apply scalar quantization (8-bit) to reduce memory usage
+                let quantized_data = self.quantize_vector(&data, 8)?;
+                // Replace vector data with quantized data to save memory
+                vector.data = self.dequantize_vector(&quantized_data, 8)?;
+                debug!("Applied 8-bit scalar quantization to vector '{}' ({} -> {} bytes)", 
+                       id, data.len() * 4, quantized_data.len());
+            }
 
             // Extract document ID from payload for tracking unique documents
             if let Some(payload) = &vector.payload {
@@ -290,15 +295,37 @@ impl Collection {
         self.vectors.lock().unwrap().len()
     }
 
-    /// Requantize existing vectors if quantization is enabled
-    /// DEPRECATED: This function is disabled to prevent data loss during persistence.
-    /// Quantization by clearing data is incompatible with the save/load cycle.
+    /// Requantize existing vectors if quantization is enabled (parallel processing)
     pub fn requantize_existing_vectors(&self) -> Result<()> {
-        // DO NOT clear vector data - it prevents proper persistence!
-        // Quantization should be implemented differently (e.g., separate quantized storage)
-        // or applied only during search operations, not in the main vector storage.
+        use rayon::prelude::*;
         
-        debug!("Requantization skipped - preserving full vector data for persistence");
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            debug!("Applying 8-bit scalar quantization to existing vectors in collection '{}' (parallel)", self.name);
+            
+            let mut vectors = self.vectors.lock().unwrap();
+            let vector_count = vectors.len();
+            
+            // Process vectors in parallel using rayon
+            let quantized_vectors: Vec<(String, Vec<f32>)> = vectors
+                .par_iter()
+                .map(|(id, vector)| {
+                    // Apply quantization to reduce memory usage
+                    let quantized_data = self.quantize_vector(&vector.data, 8).unwrap();
+                    let dequantized = self.dequantize_vector(&quantized_data, 8).unwrap();
+                    (id.clone(), dequantized)
+                })
+                .collect();
+            
+            // Update vectors with quantized data
+            for (id, quantized_data) in quantized_vectors {
+                if let Some(mut vector) = vectors.get_mut(&id) {
+                    vector.data = quantized_data;
+                }
+            }
+            
+            debug!("Quantized {} vectors in collection '{}' (parallel)", vector_count, self.name);
+        }
+        
         Ok(())
     }
 
@@ -318,6 +345,20 @@ impl Collection {
         Ok(quantized)
     }
 
+    /// Dequantize a vector from scalar quantization (8-bit)
+    fn dequantize_vector(&self, quantized: &[u8], bits: u8) -> Result<Vec<f32>> {
+        let max_val = 2_u32.pow(bits as u32) - 1;
+        let mut dequantized = Vec::with_capacity(quantized.len());
+        
+        for &val in quantized {
+            // Denormalize from [0, 1] range back to [-1, 1]
+            let normalized = val as f32 / max_val as f32;
+            let denormalized = normalized * 2.0 - 1.0;
+            dequantized.push(denormalized);
+        }
+        
+        Ok(dequantized)
+    }
 
     /// Estimate memory usage in bytes with quantization support
     pub fn estimated_memory_usage(&self) -> usize {
@@ -387,16 +428,16 @@ impl Collection {
             runtime_vectors.push(pv.into_runtime_with_payload()?);
         }
 
-        // IMPORTANT: Do NOT apply quantization here - it will clear vector data
-        // and prevent proper re-persistence. Quantization should only be applied
-        // in search operations, not in storage.
-        // The original code was clearing vector.data after loading from cache,
-        // which caused re-saved .bin files to be empty.
-        
-        debug!("Loaded {} vectors without applying quantization (preserving data for persistence)", runtime_vectors.len());
+        debug!("Loaded {} vectors from cache", runtime_vectors.len());
 
         // Use fast load for runtime vectors
         self.fast_load_vectors(runtime_vectors)?;
+        
+        // Apply quantization automatically after loading if enabled
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            debug!("Applying automatic quantization to loaded vectors in collection '{}'", self.name);
+            self.requantize_existing_vectors()?;
+        }
 
         debug!("Fast loaded {} vectors into collection '{}' with HNSW index", self.vectors.lock().unwrap().len(), self.name);
         Ok(())

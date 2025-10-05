@@ -68,21 +68,6 @@ pub async fn get_memory_analysis(State(_state): State<VectorizerServer>) -> Json
     }))
 }
 
-pub async fn requantize_collection(
-    State(_state): State<VectorizerServer>,
-    Path(collection_name): Path<String>,
-    Json(_payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
-    info!("📦 Requantizing collection '{}'", collection_name);
-    
-    // For now, just return success
-    Ok(Json(json!({
-        "status": "success",
-        "message": format!("Collection '{}' requantized successfully", collection_name),
-        "collection": collection_name,
-        "timestamp": chrono::Utc::now().to_rfc3339()
-    })))
-}
 
 pub async fn search_vectors_by_text(
     State(state): State<VectorizerServer>,
@@ -251,6 +236,7 @@ pub async fn list_vectors(
         .take(limit)
         .map(|v| json!({
             "id": v.id,
+            "vector": v.data,
             "payload": v.payload.map(|p| p.data),
         }))
         .collect();

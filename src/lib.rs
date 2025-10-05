@@ -5,13 +5,11 @@
 
 #![allow(warnings)]
 
-pub mod api;
 pub mod auth;
 pub mod batch;
 pub mod cache;
 pub mod cli;
 pub mod config;
-pub mod cuda;
 pub mod db;
 pub mod document_loader;
 pub mod embedding;
@@ -19,10 +17,7 @@ pub mod error;
 pub mod evaluation;
 #[cfg(feature = "wgpu-gpu")]
 pub mod gpu;
-pub mod grpc;
 pub mod hybrid_search;
-pub mod mcp;
-pub mod mcp_service;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
@@ -31,7 +26,6 @@ pub mod summarization;
 pub mod workspace;
 pub mod utils;
 pub mod file_watcher;
-pub mod process_manager;
 pub mod logging;
 pub mod server;
 

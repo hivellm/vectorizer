@@ -3,7 +3,6 @@
 use crate::{
     error::{Result, VectorizerError},
     models::{CollectionConfig, CollectionMetadata, SearchResult, Vector},
-    cuda::CudaConfig,
 };
 use anyhow::anyhow;
 use dashmap::DashMap;
@@ -15,18 +14,13 @@ use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
 use super::collection::Collection;
-#[cfg(feature = "cuda")]
-use crate::cuda::collection::CudaCollection;
 #[cfg(feature = "wgpu-gpu")]
 use crate::gpu::{MetalCollection, VulkanCollection, DirectX12Collection, GpuConfig};
 
-/// Enum to represent different collection types (CPU, CUDA, or Metal)
+/// Enum to represent different collection types (CPU or GPU)
 pub enum CollectionType {
     /// CPU-based collection
     Cpu(Collection),
-    /// CUDA-accelerated collection
-    #[cfg(feature = "cuda")]
-    Cuda(CudaCollection),
     /// Metal-accelerated collection (Apple Silicon)
     #[cfg(feature = "wgpu-gpu")]
     Metal(MetalCollection),
@@ -42,8 +36,6 @@ impl std::fmt::Debug for CollectionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CollectionType::Cpu(c) => write!(f, "CollectionType::Cpu({})", c.name()),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => write!(f, "CollectionType::Cuda({})", c.name()),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => write!(f, "CollectionType::Metal({})", c.name()),
             #[cfg(feature = "wgpu-gpu")]
@@ -59,8 +51,6 @@ impl CollectionType {
     pub fn name(&self) -> &str {
         match self {
             CollectionType::Cpu(c) => c.name(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.name(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.name(),
             #[cfg(feature = "wgpu-gpu")]
@@ -74,8 +64,6 @@ impl CollectionType {
     pub fn config(&self) -> &CollectionConfig {
         match self {
             CollectionType::Cpu(c) => c.config(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.config(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.config(),
             #[cfg(feature = "wgpu-gpu")]
@@ -89,8 +77,6 @@ impl CollectionType {
     pub fn add_vector(&self, _id: String, vector: Vector) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.insert(vector),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.add_vector(vector),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.add_vector(vector)),
             #[cfg(feature = "wgpu-gpu")]
@@ -104,8 +90,6 @@ impl CollectionType {
     pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
         match self {
             CollectionType::Cpu(c) => c.search(query, limit),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.search(query, limit),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.search(query, limit)),
             #[cfg(feature = "wgpu-gpu")]
@@ -119,8 +103,6 @@ impl CollectionType {
     pub fn metadata(&self) -> CollectionMetadata {
         match self {
             CollectionType::Cpu(c) => c.metadata(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.metadata(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.metadata(),
             #[cfg(feature = "wgpu-gpu")]
@@ -134,8 +116,6 @@ impl CollectionType {
     pub fn delete_vector(&self, id: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.delete(id),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.remove_vector(id),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.remove_vector(id),
             #[cfg(feature = "wgpu-gpu")]
@@ -149,8 +129,6 @@ impl CollectionType {
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_vector(vector_id),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.get_vector(vector_id),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.get_vector(vector_id)),
             #[cfg(feature = "wgpu-gpu")]
@@ -164,8 +142,6 @@ impl CollectionType {
     pub fn vector_count(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.vector_count(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.vector_count(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.vector_count(),
             #[cfg(feature = "wgpu-gpu")]
@@ -179,8 +155,6 @@ impl CollectionType {
     pub fn estimated_memory_usage(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.estimated_memory_usage(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.estimated_memory_usage(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.estimated_memory_usage(),
             #[cfg(feature = "wgpu-gpu")]
@@ -194,8 +168,6 @@ impl CollectionType {
     pub fn get_all_vectors(&self) -> Vec<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_all_vectors(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.get_all_vectors(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
             #[cfg(feature = "wgpu-gpu")]
@@ -209,8 +181,6 @@ impl CollectionType {
     pub fn get_embedding_type(&self) -> String {
         match self {
             CollectionType::Cpu(c) => c.get_embedding_type(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.get_embedding_type(),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.get_embedding_type(),
             #[cfg(feature = "wgpu-gpu")]
@@ -224,12 +194,6 @@ impl CollectionType {
     pub fn requantize_existing_vectors(&self) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.requantize_existing_vectors(),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => {
-                // For CUDA collections, we don't implement requantization yet
-                warn!("Requantization not implemented for CUDA collections yet");
-                Ok(())
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Requantization not implemented for Metal collections yet");
@@ -252,8 +216,6 @@ impl CollectionType {
     pub fn set_embedding_type(&self, embedding_type: String) {
         match self {
             CollectionType::Cpu(c) => c.set_embedding_type(embedding_type),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(c) => c.set_embedding_type(embedding_type),
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => c.set_embedding_type(embedding_type),
             #[cfg(feature = "wgpu-gpu")]
@@ -267,11 +229,6 @@ impl CollectionType {
     pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_hnsw_index_from_dump(path, basename),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support HNSW dump loading yet");
-                Ok(()) // No-op for now
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support HNSW dump loading yet");
@@ -294,11 +251,6 @@ impl CollectionType {
     pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_vectors_into_memory(vectors),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support vector loading into memory yet");
-                Ok(()) // No-op for now
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support vector loading into memory yet");
@@ -321,11 +273,6 @@ impl CollectionType {
     pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.fast_load_vectors(vectors),
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                warn!("CUDA collections don't support fast vector loading yet");
-                Ok(()) // No-op for now
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support fast vector loading yet");
@@ -350,8 +297,6 @@ impl CollectionType {
 pub struct VectorStore {
     /// Collections stored in a concurrent hash map
     collections: Arc<DashMap<String, CollectionType>>,
-    /// CUDA configuration
-    cuda_config: CudaConfig,
     /// Metal GPU configuration
     #[cfg(feature = "wgpu-gpu")]
     metal_config: Option<GpuConfig>,
@@ -373,7 +318,6 @@ impl std::fmt::Debug for VectorStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VectorStore")
             .field("collections", &self.collections.len())
-            .field("cuda_enabled", &self.cuda_config.enabled)
             .finish()
     }
 }
@@ -381,15 +325,9 @@ impl std::fmt::Debug for VectorStore {
 impl VectorStore {
     /// Create a new empty vector store
     pub fn new() -> Self {
-        Self::new_with_cuda_config(CudaConfig::default())
-    }
-
-    /// Create a new vector store with CUDA configuration
-    pub fn new_with_cuda_config(cuda_config: CudaConfig) -> Self {
-        info!("Creating new VectorStore with CUDA config: enabled={}", cuda_config.enabled);
+        info!("Creating new VectorStore");
         Self {
             collections: Arc::new(DashMap::new()),
-            cuda_config,
             #[cfg(feature = "wgpu-gpu")]
             metal_config: None,
             #[cfg(feature = "wgpu-gpu")]
@@ -474,18 +412,10 @@ impl VectorStore {
             eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
         
-        // 2. CUDA is compiled but NOT auto-enabled - respect user config
-        // Users must explicitly enable CUDA in config.yml
-        #[cfg(feature = "cuda")]
-        {
-            eprintln!("ℹ️  CUDA support is available but disabled by default");
-            info!("ℹ️  CUDA support is available but disabled by default");
-        }
-        
-        // 3. Default to CPU-only mode
+        // 2. Default to CPU-only mode
         eprintln!("💻 Using CPU-only mode (default)");
         info!("💻 Using CPU-only mode (default)");
-        let mut store = Self::new_with_cuda_config(CudaConfig { enabled: false, ..Default::default() });
+        let mut store = Self::new();
         store.enable_auto_save();
         store
     }
@@ -650,22 +580,9 @@ impl VectorStore {
             }
         }
 
-        // Fallback para CUDA
-        let collection = if self.cuda_config.enabled {
-            #[cfg(feature = "cuda")]
-            {
-                info!("Creating CUDA-accelerated collection '{}'", name);
-                CollectionType::Cuda(CudaCollection::new(name.to_string(), config, self.cuda_config.clone()))
-            }
-            #[cfg(not(feature = "cuda"))]
-            {
-                warn!("CUDA requested but not compiled in - falling back to CPU collection");
-                CollectionType::Cpu(Collection::new(name.to_string(), config))
-            }
-        } else {
-            debug!("Creating CPU-based collection '{}'", name);
-            CollectionType::Cpu(Collection::new(name.to_string(), config))
-        };
+        // Fallback to CPU
+        debug!("Creating CPU-based collection '{}'", name);
+        let collection = CollectionType::Cpu(Collection::new(name.to_string(), config));
 
         self.collections.insert(name.to_string(), collection);
 
@@ -873,17 +790,6 @@ impl VectorStore {
                 // Requantize existing vectors if quantization is enabled
                 c.requantize_existing_vectors()?;
             },
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                info!("🔧 Loading {} vectors into CUDA collection '{}'", persisted_vectors.len(), collection_name);
-                // For CUDA collections, manually insert vectors (cache loading not fully implemented)
-                for pv in persisted_vectors {
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-                let final_count = collection_ref.metadata().vector_count;
-                info!("✅ Successfully loaded {} vectors into CUDA collection '{}'", final_count, collection_name);
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support cache loading yet - falling back to manual insertion");
@@ -930,17 +836,6 @@ impl VectorStore {
         // TODO: Implement load_from_cache_with_hnsw_dump for CudaCollection and Metal
         match &*collection_ref {
             CollectionType::Cpu(c) => c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?,
-            #[cfg(feature = "cuda")]
-            CollectionType::Cuda(_) => {
-                info!("🔧 Loading {} vectors into CUDA collection '{}' (HNSW dump not supported yet)", persisted_vectors.len(), collection_name);
-                // For CUDA collections, manually insert vectors (cache loading not fully implemented)
-                for pv in persisted_vectors {
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-                let final_count = collection_ref.metadata().vector_count;
-                info!("✅ Successfully loaded {} vectors into CUDA collection '{}'", final_count, collection_name);
-            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
                 warn!("Metal collections don't support HNSW dump loading yet - falling back to manual insertion");
@@ -1020,7 +915,7 @@ impl VectorStore {
     }
 
 
-    /// Load all persisted collections from the data directory
+    /// Load all persisted collections from the data directory (in parallel)
     pub fn load_all_persisted_collections(&mut self) -> Result<usize> {
         let data_dir = Self::get_data_dir();
         if !data_dir.exists() {
@@ -1028,9 +923,8 @@ impl VectorStore {
             return Ok(0);
         }
 
-        let mut collections_loaded = 0;
-
-        // Find all .bin files in the data directory
+        // Collect all collection files first
+        let mut collection_files = Vec::new();
         for entry in std::fs::read_dir(&data_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -1041,18 +935,27 @@ impl VectorStore {
                     if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
                         if let Some(collection_name) = filename.strip_suffix("_vector_store.bin") {
                             debug!("Found persisted collection: {}", collection_name);
-
-                            match self.load_persisted_collection(&path, collection_name) {
-                                Ok(_) => {
-                                    collections_loaded += 1;
-                                    info!("✅ Successfully loaded collection '{}' from persistence", collection_name);
-                                }
-                                Err(e) => {
-                                    warn!("❌ Failed to load collection '{}' from {:?}: {}", collection_name, path, e);
-                                }
-                            }
+                            collection_files.push((path.clone(), collection_name.to_string()));
                         }
                     }
+                }
+            }
+        }
+
+        info!("📦 Found {} persisted collections to load", collection_files.len());
+
+        // Load collections sequentially but with better progress reporting
+        let mut collections_loaded = 0;
+        for (i, (path, collection_name)) in collection_files.iter().enumerate() {
+            info!("⏳ Loading collection {}/{}: '{}'", i + 1, collection_files.len(), collection_name);
+            
+            match self.load_persisted_collection(path, collection_name) {
+                Ok(_) => {
+                    collections_loaded += 1;
+                    info!("✅ Successfully loaded collection '{}' from persistence ({}/{})", collection_name, i + 1, collection_files.len());
+                }
+                Err(e) => {
+                    warn!("❌ Failed to load collection '{}' from {:?}: {}", collection_name, path, e);
                 }
             }
         }

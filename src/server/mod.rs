@@ -85,7 +85,6 @@ impl VectorizerServer {
             .route("/stats", get(rest_handlers::get_stats))
             .route("/indexing/progress", get(rest_handlers::get_indexing_progress))
             .route("/memory-analysis", get(rest_handlers::get_memory_analysis))
-            .route("/collections/{name}/requantize", post(rest_handlers::requantize_collection))
             
             // Collection management
             .route("/collections", get(rest_handlers::list_collections))
