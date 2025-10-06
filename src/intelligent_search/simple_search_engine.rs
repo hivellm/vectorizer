@@ -47,9 +47,9 @@ impl SimpleSearchEngine {
             
             if score > 0.0 {
                 let score_breakdown = ScoreBreakdown {
-                    text_similarity: score,
-                    term_frequency: self.calculate_term_frequency(&doc.content, query),
-                    collection_relevance: self.calculate_collection_relevance(&doc.collection, query),
+                    relevance: score,
+                    collection_bonus: self.calculate_collection_relevance(&doc.collection, query),
+                    technical_bonus: 0.0, // Simplified for now
                     final_score: score,
                 };
                 
@@ -246,8 +246,8 @@ mod tests {
         assert!(relevance_score > 0.0);
     }
 
-    #[test]
-    fn test_get_documents_by_collection() {
+    #[tokio::test]
+    async fn test_get_documents_by_collection() {
         let mut engine = SimpleSearchEngine::new();
         
         let mut metadata = HashMap::new();

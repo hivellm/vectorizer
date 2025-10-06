@@ -4,6 +4,58 @@ use std::sync::Arc;
 use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
 use serde_json::json;
 use crate::{VectorStore, embedding::EmbeddingManager};
+use crate::intelligent_search::mcp_tools::*;
+
+/// Helper function to create an embedding manager for a specific collection
+fn create_embedding_manager_for_collection(embedding_type: &str, dimension: usize) -> Result<EmbeddingManager, String> {
+    let mut manager = EmbeddingManager::new();
+    
+    match embedding_type {
+        "bm25" => {
+            let bm25 = crate::embedding::Bm25Embedding::new(dimension);
+            manager.register_provider("bm25".to_string(), Box::new(bm25));
+            manager.set_default_provider("bm25").map_err(|e| format!("Failed to set BM25 provider: {}", e))?;
+        },
+        "tfidf" => {
+            let tfidf = crate::embedding::TfIdfEmbedding::new(dimension);
+            manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+            manager.set_default_provider("tfidf").map_err(|e| format!("Failed to set TF-IDF provider: {}", e))?;
+        },
+        "svd" => {
+            let svd = crate::embedding::SvdEmbedding::new(dimension, dimension);
+            manager.register_provider("svd".to_string(), Box::new(svd));
+            manager.set_default_provider("svd").map_err(|e| format!("Failed to set SVD provider: {}", e))?;
+        },
+        "bert" => {
+            let bert = crate::embedding::BertEmbedding::new(dimension);
+            manager.register_provider("bert".to_string(), Box::new(bert));
+            manager.set_default_provider("bert").map_err(|e| format!("Failed to set BERT provider: {}", e))?;
+        },
+        "minilm" => {
+            let minilm = crate::embedding::MiniLmEmbedding::new(dimension);
+            manager.register_provider("minilm".to_string(), Box::new(minilm));
+            manager.set_default_provider("minilm").map_err(|e| format!("Failed to set MiniLM provider: {}", e))?;
+        },
+        "bagofwords" => {
+            let bow = crate::embedding::BagOfWordsEmbedding::new(dimension);
+            manager.register_provider("bagofwords".to_string(), Box::new(bow));
+            manager.set_default_provider("bagofwords").map_err(|e| format!("Failed to set BagOfWords provider: {}", e))?;
+        },
+        "charngram" => {
+            let char_ngram = crate::embedding::CharNGramEmbedding::new(dimension, 3);
+            manager.register_provider("charngram".to_string(), Box::new(char_ngram));
+            manager.set_default_provider("charngram").map_err(|e| format!("Failed to set CharNGram provider: {}", e))?;
+        },
+        _ => {
+            // Default to BM25 if unknown type
+            let bm25 = crate::embedding::Bm25Embedding::new(dimension);
+            manager.register_provider("bm25".to_string(), Box::new(bm25));
+            manager.set_default_provider("bm25").map_err(|e| format!("Failed to set default BM25 provider: {}", e))?;
+        }
+    }
+    
+    Ok(manager)
+}
 
 pub async fn handle_mcp_tool(
     request: CallToolRequestParam,
@@ -28,6 +80,11 @@ pub async fn handle_mcp_tool(
         "batch_update_vectors" => handle_batch_update_vectors(request, store, embedding_manager).await,
         "batch_delete_vectors" => handle_batch_delete_vectors(request, store).await,
         "get_indexing_progress" => handle_get_indexing_progress().await,
+        // Intelligent Search Tools
+        "intelligent_search" => handle_intelligent_search(request, store, embedding_manager).await,
+        "multi_collection_search" => handle_multi_collection_search(request, store, embedding_manager).await,
+        "semantic_search" => handle_semantic_search(request, store, embedding_manager).await,
+        "contextual_search" => handle_contextual_search(request, store, embedding_manager).await,
         _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
@@ -35,12 +92,12 @@ pub async fn handle_mcp_tool(
 async fn handle_search_vectors(
     request: CallToolRequestParam,
     store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
+    _embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request.arguments.as_ref()
         .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
     
-    let collection = args.get("collection")
+    let collection_name = args.get("collection")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
     
@@ -52,12 +109,23 @@ async fn handle_search_vectors(
         .and_then(|v| v.as_u64())
         .unwrap_or(10) as usize;
     
-    // Generate embedding
-    let embedding = embedding_manager.embed(query)
+    // Get the collection to access its embedding type and dimension
+    let collection = store.get_collection(collection_name)
+        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+    
+    let embedding_type = collection.get_embedding_type();
+    let dimension = collection.config().dimension;
+    
+    // Create embedding manager specific to this collection
+    let collection_embedding_manager = create_embedding_manager_for_collection(&embedding_type, dimension)
+        .map_err(|e| ErrorData::internal_error(format!("Failed to create embedding manager: {}", e), None))?;
+    
+    // Generate embedding using the collection-specific manager
+    let embedding = collection_embedding_manager.embed(query)
         .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
     
     // Search
-    let results = store.search(collection, &embedding, limit)
+    let results = store.search(collection_name, &embedding, limit)
         .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
     
     let response = json!({
@@ -579,4 +647,219 @@ async fn handle_get_indexing_progress() -> Result<CallToolResult, ErrorData> {
         "collections": []
     });
     Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+// Intelligent Search Handlers
+
+async fn handle_intelligent_search(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let query = args.get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+    
+    let collections = args.get("collections")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect::<Vec<_>>());
+    
+    let max_results = args.get("max_results")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10) as usize;
+    
+    let domain_expansion = args.get("domain_expansion")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    
+    let technical_focus = args.get("technical_focus")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    
+    let mmr_enabled = args.get("mmr_enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    
+    let mmr_lambda = args.get("mmr_lambda")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.7) as f32;
+    
+    let tool = IntelligentSearchTool {
+        query: query.to_string(),
+        collections,
+        max_results: Some(max_results),
+        domain_expansion: Some(domain_expansion),
+        technical_focus: Some(technical_focus),
+        mmr_enabled: Some(mmr_enabled),
+        mmr_lambda: Some(mmr_lambda),
+    };
+    
+    // Create handler with collection-specific embedding managers
+    let handler = MCPToolHandler::new_with_store(store.clone());
+    let response = handler.handle_intelligent_search(tool).await
+        .map_err(|e| ErrorData::internal_error(format!("Intelligent search failed: {}", e), None))?;
+    
+    let json_response = serde_json::to_value(response)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
+    
+    Ok(CallToolResult::success(vec![Content::text(json_response.to_string())]))
+}
+
+async fn handle_multi_collection_search(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let query = args.get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+    
+    let collections = args.get("collections")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collections", None))?
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    
+    let max_per_collection = args.get("max_per_collection")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(5) as usize;
+    
+    let max_total_results = args.get("max_total_results")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(20) as usize;
+    
+    let cross_collection_reranking = args.get("cross_collection_reranking")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    
+    let tool = MultiCollectionSearchTool {
+        query: query.to_string(),
+        collections,
+        max_per_collection: Some(max_per_collection),
+        max_total_results: Some(max_total_results),
+        cross_collection_reranking: Some(cross_collection_reranking),
+    };
+    
+    let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
+    let response = handler.handle_multi_collection_search(tool).await
+        .map_err(|e| ErrorData::internal_error(format!("Multi collection search failed: {}", e), None))?;
+    
+    let json_response = serde_json::to_value(response)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
+    
+    Ok(CallToolResult::success(vec![Content::text(json_response.to_string())]))
+}
+
+async fn handle_semantic_search(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let query = args.get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let max_results = args.get("max_results")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10) as usize;
+    
+    let semantic_reranking = args.get("semantic_reranking")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    
+    let cross_encoder_reranking = args.get("cross_encoder_reranking")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    
+    let similarity_threshold = args.get("similarity_threshold")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.5) as f32;
+    
+    let tool = SemanticSearchTool {
+        query: query.to_string(),
+        collection: collection.to_string(),
+        max_results: Some(max_results),
+        semantic_reranking: Some(semantic_reranking),
+        cross_encoder_reranking: Some(cross_encoder_reranking),
+        similarity_threshold: Some(similarity_threshold),
+    };
+    
+    let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
+    let response = handler.handle_semantic_search(tool).await
+        .map_err(|e| ErrorData::internal_error(format!("Semantic search failed: {}", e), None))?;
+    
+    let json_response = serde_json::to_value(response)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
+    
+    Ok(CallToolResult::success(vec![Content::text(json_response.to_string())]))
+}
+
+async fn handle_contextual_search(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let query = args.get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let context_filters = args.get("context_filters")
+        .and_then(|v| v.as_object())
+        .map(|obj| {
+            obj.iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<std::collections::HashMap<String, serde_json::Value>>()
+        });
+    
+    let max_results = args.get("max_results")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10) as usize;
+    
+    let context_reranking = args.get("context_reranking")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    
+    let context_weight = args.get("context_weight")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.3) as f32;
+    
+    let tool = ContextualSearchTool {
+        query: query.to_string(),
+        collection: collection.to_string(),
+        context_filters,
+        max_results: Some(max_results),
+        context_reranking: Some(context_reranking),
+        context_weight: Some(context_weight),
+    };
+    
+    let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
+    let response = handler.handle_contextual_search(tool).await
+        .map_err(|e| ErrorData::internal_error(format!("Contextual search failed: {}", e), None))?;
+    
+    let json_response = serde_json::to_value(response)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
+    
+    Ok(CallToolResult::success(vec![Content::text(json_response.to_string())]))
 }

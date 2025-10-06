@@ -5,7 +5,7 @@ info:
     High-performance vector database engine with semantic search capabilities.
     Supports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and
     provides real-time indexing with HNSW optimization.
-  version: 0.21.0
+  version: 0.3.1
   contact:
     name: Vectorizer Team
     url: https://github.com/hivellm/vectorizer
@@ -546,6 +546,130 @@ paths:
                 $ref: '#/components/schemas/SummaryInfo'
         '404':
           description: Summary not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /intelligent_search:
+    post:
+      summary: Intelligent Search
+      description: |
+        Advanced semantic search with AI-powered query expansion, intelligent deduplication, 
+        and Maximal Marginal Relevance (MMR) diversification. Automatically generates multiple 
+        query variations, applies domain-specific knowledge, and ensures diverse, high-quality results.
+        Ideal for complex research queries and comprehensive information retrieval.
+      operationId: intelligentSearch
+      tags:
+        - Intelligent Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntelligentSearchRequest'
+      responses:
+        '200':
+          description: Intelligent search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntelligentSearchResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /multi_collection_search:
+    post:
+      summary: Multi-Collection Search
+      description: |
+        Search across multiple vector collections simultaneously with intelligent cross-collection 
+        ranking and result aggregation. Automatically balances results from different collections, 
+        applies collection-specific scoring bonuses, and provides unified ranking across all sources.
+        Perfect for comprehensive research across multiple data sources.
+      operationId: multiCollectionSearch
+      tags:
+        - Intelligent Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiCollectionSearchRequest'
+      responses:
+        '200':
+          description: Multi-collection search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiCollectionSearchResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /semantic_search:
+    post:
+      summary: Semantic Search
+      description: |
+        Advanced semantic search with sophisticated reranking algorithms including semantic 
+        similarity scoring, cross-encoder reranking, and similarity threshold filtering. 
+        Provides highly accurate results by understanding context and meaning beyond simple 
+        keyword matching. Ideal for precise information retrieval with quality control.
+      operationId: semanticSearch
+      tags:
+        - Intelligent Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SemanticSearchRequest'
+      responses:
+        '200':
+          description: Semantic search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contextual_search:
+    post:
+      summary: Contextual Search
+      description: |
+        Context-aware semantic search with intelligent metadata filtering and contextual reranking. 
+        Combines semantic similarity with metadata-based filtering to provide highly relevant 
+        results based on specific context requirements. Supports complex filtering criteria and 
+        context-weighted scoring for precise information retrieval.
+      operationId: contextualSearch
+      tags:
+        - Intelligent Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextualSearchRequest'
+      responses:
+        '200':
+          description: Contextual search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextualSearchResponse'
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
@@ -1229,6 +1353,444 @@ components:
           format: date-time
           description: Error timestamp
 
+    IntelligentSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Primary search query in natural language
+          example: "CMMV framework architecture"
+        collections:
+          type: array
+          items:
+            type: string
+          description: Specific collections to search in. If not provided, searches all available collections
+          example: ["cmmv-core-docs", "cmmv-admin-docs"]
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+          description: Maximum number of results to return after deduplication and MMR diversification
+        domain_expansion:
+          type: boolean
+          default: true
+          description: Enable automatic domain-specific query expansion. Generates related technical terms and synonyms
+        technical_focus:
+          type: boolean
+          default: true
+          description: Prioritize technical content and boost scores for API documentation, code examples, and implementation details
+        mmr_enabled:
+          type: boolean
+          default: true
+          description: Enable Maximal Marginal Relevance diversification to ensure result diversity and avoid redundant information
+        mmr_lambda:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.7
+          description: MMR balance parameter: 0.0 = maximum diversity, 1.0 = maximum relevance. Controls the trade-off between relevance and diversity
+
+    IntelligentSearchResponse:
+      type: object
+      required:
+        - api_version
+        - results
+        - metadata
+        - timestamp
+        - tool_metadata
+      properties:
+        api_version:
+          type: string
+          description: API version
+          example: "1.0.0"
+        results:
+          type: object
+          description: Search results organized by collection
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/IntelligentSearchResult'
+        metadata:
+          type: object
+          required:
+            - total_queries
+            - total_results_found
+            - results_after_dedup
+            - collections_searched
+            - processing_time_ms
+          properties:
+            total_queries:
+              type: integer
+              description: Total number of queries generated and executed
+            total_results_found:
+              type: integer
+              description: Total results found before deduplication
+            results_after_dedup:
+              type: integer
+              description: Results after deduplication
+            collections_searched:
+              type: integer
+              description: Number of collections searched
+            processing_time_ms:
+              type: number
+              description: Total processing time in milliseconds
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        tool_metadata:
+          type: object
+          required:
+            - tool_name
+          properties:
+            tool_name:
+              type: string
+              description: Name of the tool used
+              example: "intelligent_search"
+            additional_info:
+              type: string
+              description: Additional tool-specific information
+
+    MultiCollectionSearchRequest:
+      type: object
+      required:
+        - query
+        - collections
+      properties:
+        query:
+          type: string
+          description: Search query in natural language
+          example: "authentication patterns"
+        collections:
+          type: array
+          items:
+            type: string
+          description: List of collection names to search across
+          example: ["cmmv-core-docs", "cmmv-admin-docs", "cmmv-formbuilder-docs"]
+        max_per_collection:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+          description: Maximum number of results to retrieve from each individual collection before cross-collection ranking
+        max_total_results:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          description: Maximum total number of results to return after cross-collection reranking and aggregation
+        cross_collection_reranking:
+          type: boolean
+          default: true
+          description: Enable intelligent cross-collection reranking to ensure optimal result distribution and relevance across collections
+
+    MultiCollectionSearchResponse:
+      type: object
+      required:
+        - api_version
+        - results
+        - metadata
+        - timestamp
+        - tool_metadata
+      properties:
+        api_version:
+          type: string
+          description: API version
+          example: "1.0.0"
+        results:
+          type: object
+          description: Search results organized by collection
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/IntelligentSearchResult'
+        metadata:
+          type: object
+          required:
+            - collections_searched
+            - total_queries
+            - total_results_found
+            - results_after_dedup
+            - processing_time_ms
+          properties:
+            collections_searched:
+              type: integer
+              description: Number of collections searched
+            total_queries:
+              type: integer
+              description: Total number of queries executed
+            total_results_found:
+              type: integer
+              description: Total results found before cross-collection ranking
+            results_after_dedup:
+              type: integer
+              description: Results after deduplication and cross-collection ranking
+            processing_time_ms:
+              type: number
+              description: Total processing time in milliseconds
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        tool_metadata:
+          type: object
+          required:
+            - tool_name
+          properties:
+            tool_name:
+              type: string
+              description: Name of the tool used
+              example: "multi_collection_search"
+            additional_info:
+              type: string
+              description: Additional tool-specific information
+
+    SemanticSearchRequest:
+      type: object
+      required:
+        - query
+        - collection
+      properties:
+        query:
+          type: string
+          description: Search query in natural language
+          example: "API documentation"
+        collection:
+          type: string
+          description: Name of the vector collection to search in
+          example: "cmmv-core-docs"
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+          description: Maximum number of results to return after semantic reranking and filtering
+        semantic_reranking:
+          type: boolean
+          default: true
+          description: Enable advanced semantic reranking using multiple similarity algorithms and context analysis
+        cross_encoder_reranking:
+          type: boolean
+          default: false
+          description: Enable cross-encoder reranking for maximum precision. Uses advanced neural models for query-document matching
+        similarity_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Minimum similarity score threshold. Results below this threshold will be filtered out
+
+    SemanticSearchResponse:
+      type: object
+      required:
+        - api_version
+        - results
+        - metadata
+        - timestamp
+        - tool_metadata
+      properties:
+        api_version:
+          type: string
+          description: API version
+          example: "1.0.0"
+        results:
+          type: object
+          description: Search results organized by collection
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/IntelligentSearchResult'
+        metadata:
+          type: object
+          required:
+            - collections_searched
+            - total_queries
+            - total_results_found
+            - results_after_dedup
+            - processing_time_ms
+          properties:
+            collections_searched:
+              type: integer
+              description: Number of collections searched
+            total_queries:
+              type: integer
+              description: Total number of queries executed
+            total_results_found:
+              type: integer
+              description: Total results found before semantic reranking
+            results_after_dedup:
+              type: integer
+              description: Results after semantic reranking and filtering
+            processing_time_ms:
+              type: number
+              description: Total processing time in milliseconds
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        tool_metadata:
+          type: object
+          required:
+            - tool_name
+          properties:
+            tool_name:
+              type: string
+              description: Name of the tool used
+              example: "semantic_search"
+            additional_info:
+              type: string
+              description: Additional tool-specific information
+
+    ContextualSearchRequest:
+      type: object
+      required:
+        - query
+        - collection
+      properties:
+        query:
+          type: string
+          description: Search query in natural language
+          example: "TypeScript framework"
+        collection:
+          type: string
+          description: Name of the vector collection to search in
+          example: "cmmv-core-docs"
+        context_filters:
+          type: object
+          description: Metadata-based context filters to narrow down results. Supports nested filtering and multiple criteria
+          example:
+            file_extension: "md"
+            author: "John Doe"
+            version: "1.0"
+        context_weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.3
+          description: Weight of context factors in final scoring. Higher values prioritize metadata matches over semantic similarity
+        context_reranking:
+          type: boolean
+          default: true
+          description: Enable context-aware reranking that considers metadata relevance alongside semantic similarity
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+          description: Maximum number of results to return after context filtering and reranking
+
+    ContextualSearchResponse:
+      type: object
+      required:
+        - api_version
+        - results
+        - metadata
+        - timestamp
+        - tool_metadata
+      properties:
+        api_version:
+          type: string
+          description: API version
+          example: "1.0.0"
+        results:
+          type: object
+          description: Search results organized by collection
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/IntelligentSearchResult'
+        metadata:
+          type: object
+          required:
+            - collections_searched
+            - total_queries
+            - total_results_found
+            - results_after_dedup
+            - processing_time_ms
+          properties:
+            collections_searched:
+              type: integer
+              description: Number of collections searched
+            total_queries:
+              type: integer
+              description: Total number of queries executed
+            total_results_found:
+              type: integer
+              description: Total results found before context filtering
+            results_after_dedup:
+              type: integer
+              description: Results after context filtering and reranking
+            processing_time_ms:
+              type: number
+              description: Total processing time in milliseconds
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        tool_metadata:
+          type: object
+          required:
+            - tool_name
+          properties:
+            tool_name:
+              type: string
+              description: Name of the tool used
+              example: "contextual_search"
+            additional_info:
+              type: string
+              description: Additional tool-specific information
+
+    IntelligentSearchResult:
+      type: object
+      required:
+        - id
+        - score
+        - content
+        - metadata
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the result
+        score:
+          type: number
+          description: Relevance score (0.0 to 1.0)
+        content:
+          type: string
+          description: The actual text content of the result
+        metadata:
+          type: object
+          description: Additional metadata about the result
+          properties:
+            file_path:
+              type: string
+              description: Path to the source file
+            file_extension:
+              type: string
+              description: File extension
+            line_number:
+              type: integer
+              description: Line number in the source file
+            chunk_index:
+              type: integer
+              description: Index of the chunk within the document
+            author:
+              type: string
+              description: Author of the content
+            version:
+              type: string
+              description: Version information
+            created_at:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            updated_at:
+              type: string
+              format: date-time
+              description: Last update timestamp
+
   securitySchemes:
     apiKey:
       type: apiKey
@@ -1245,6 +1807,8 @@ tags:
     description: Vector operations (insert, list, delete)
   - name: Search
     description: Search operations
+  - name: Intelligent Search
+    description: Advanced intelligent search operations with AI-powered query expansion, semantic reranking, and contextual filtering
   - name: Batch Operations
     description: Batch processing operations
   - name: Embedding

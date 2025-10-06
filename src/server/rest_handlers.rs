@@ -672,3 +672,210 @@ pub async fn batch_delete_vectors(
         "count": ids.len()
     })))
 }
+
+// Intelligent search REST handlers
+
+pub async fn intelligent_search(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    use crate::intelligent_search::rest_api::{RESTAPIHandler, IntelligentSearchRequest};
+    
+    let handler = RESTAPIHandler::new();
+    
+    // Extract parameters from JSON payload
+    let query = payload.get("query")
+        .and_then(|q| q.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let collections = payload.get("collections")
+        .and_then(|c| c.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect::<Vec<_>>());
+    
+    let max_results = payload.get("max_results")
+        .and_then(|m| m.as_u64())
+        .map(|m| m as usize);
+    
+    let domain_expansion = payload.get("domain_expansion")
+        .and_then(|d| d.as_bool());
+    
+    let technical_focus = payload.get("technical_focus")
+        .and_then(|t| t.as_bool());
+    
+    let mmr_enabled = payload.get("mmr_enabled")
+        .and_then(|m| m.as_bool());
+    
+    let mmr_lambda = payload.get("mmr_lambda")
+        .and_then(|l| l.as_f64())
+        .map(|l| l as f32);
+    
+    // Create intelligent search request
+    let request = IntelligentSearchRequest {
+        query: query.to_string(),
+        collections,
+        max_results,
+        domain_expansion,
+        technical_focus,
+        mmr_enabled,
+        mmr_lambda,
+    };
+    
+    match handler.handle_intelligent_search(request).await {
+        Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
+        Err(e) => {
+            error!("Intelligent search error: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn multi_collection_search(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    use crate::intelligent_search::rest_api::{RESTAPIHandler, MultiCollectionSearchRequest};
+    
+    let handler = RESTAPIHandler::new();
+    
+    let query = payload.get("query")
+        .and_then(|q| q.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let collections = payload.get("collections")
+        .and_then(|c| c.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    
+    let max_per_collection = payload.get("max_per_collection")
+        .and_then(|m| m.as_u64())
+        .map(|m| m as usize);
+    
+    let max_total_results = payload.get("max_total_results")
+        .and_then(|m| m.as_u64())
+        .map(|m| m as usize);
+    
+    let cross_collection_reranking = payload.get("cross_collection_reranking")
+        .and_then(|c| c.as_bool());
+    
+    let request = MultiCollectionSearchRequest {
+        query: query.to_string(),
+        collections,
+        max_per_collection,
+        max_total_results,
+        cross_collection_reranking,
+    };
+    
+    match handler.handle_multi_collection_search(request).await {
+        Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
+        Err(e) => {
+            error!("Multi collection search error: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn semantic_search(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    use crate::intelligent_search::rest_api::{RESTAPIHandler, SemanticSearchRequest};
+    
+    let handler = RESTAPIHandler::new();
+    
+    let query = payload.get("query")
+        .and_then(|q| q.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let collection = payload.get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let max_results = payload.get("max_results")
+        .and_then(|m| m.as_u64())
+        .map(|m| m as usize);
+    
+    let semantic_reranking = payload.get("semantic_reranking")
+        .and_then(|s| s.as_bool());
+    
+    let cross_encoder_reranking = payload.get("cross_encoder_reranking")
+        .and_then(|c| c.as_bool());
+    
+    let similarity_threshold = payload.get("similarity_threshold")
+        .and_then(|s| s.as_f64())
+        .map(|s| s as f32);
+    
+    let request = SemanticSearchRequest {
+        query: query.to_string(),
+        collection: collection.to_string(),
+        max_results,
+        semantic_reranking,
+        cross_encoder_reranking,
+        similarity_threshold,
+    };
+    
+    match handler.handle_semantic_search(request).await {
+        Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
+        Err(e) => {
+            error!("Semantic search error: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn contextual_search(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    use crate::intelligent_search::rest_api::{RESTAPIHandler, ContextualSearchRequest};
+    
+    let handler = RESTAPIHandler::new();
+    
+    let query = payload.get("query")
+        .and_then(|q| q.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let collection = payload.get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let context_filters = payload.get("context_filters")
+        .and_then(|f| f.as_object())
+        .map(|obj| {
+            let mut map = std::collections::HashMap::new();
+            for (k, v) in obj {
+                map.insert(k.clone(), v.clone());
+            }
+            map
+        });
+    
+    let context_weight = payload.get("context_weight")
+        .and_then(|w| w.as_f64())
+        .map(|w| w as f32);
+    
+    let context_reranking = payload.get("context_reranking")
+        .and_then(|r| r.as_bool());
+    
+    let max_results = payload.get("max_results")
+        .and_then(|m| m.as_u64())
+        .map(|m| m as usize);
+    
+    let request = ContextualSearchRequest {
+        query: query.to_string(),
+        collection: collection.to_string(),
+        context_filters,
+        context_weight,
+        context_reranking,
+        max_results,
+    };
+    
+    match handler.handle_contextual_search(request).await {
+        Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
+        Err(e) => {
+            error!("Contextual search error: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}

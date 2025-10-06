@@ -18,6 +18,7 @@ pub mod evaluation;
 #[cfg(feature = "wgpu-gpu")]
 pub mod gpu;
 pub mod hybrid_search;
+pub mod intelligent_search;
 pub mod models;
 pub mod parallel;
 #[path = "persistence/mod.rs"]

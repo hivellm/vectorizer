@@ -174,6 +174,12 @@ impl VectorizerServer {
             .route("/batch_update", post(rest_handlers::batch_update_vectors))
             .route("/batch_delete", post(rest_handlers::batch_delete_vectors))
             
+            // Intelligent search routes
+            .route("/intelligent_search", post(rest_handlers::intelligent_search))
+            .route("/multi_collection_search", post(rest_handlers::multi_collection_search))
+            .route("/semantic_search", post(rest_handlers::semantic_search))
+            .route("/contextual_search", post(rest_handlers::contextual_search))
+            
             // Dashboard - serve static files
             .nest_service("/dashboard", ServeDir::new("dashboard"))
             .fallback_service(ServeDir::new("dashboard"))

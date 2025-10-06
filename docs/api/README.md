@@ -2,9 +2,14 @@
 
 This directory contains the complete API documentation for Vectorizer, including the OpenAPI 3.0.3 schema.
 
+**Version:** 0.3.1  
+**Status:** ✅ Production Ready  
+**Last Updated:** 2025-01-06
+
 ## 📁 Files
 
 - **`openapi.yaml`** - Complete OpenAPI 3.0.3 schema for Vectorizer API
+- **`openapi.json`** - JSON format of the OpenAPI schema
 - **`README.md`** - This file with usage instructions
 
 ## 🚀 How to Use
@@ -98,6 +103,12 @@ swagger-cli bundle vectorizer/docs/api/openapi.yaml -o vectorizer/docs/api/opena
 - `POST /collections/{name}/search` - Search vectors
 - `POST /collections/{name}/search/text` - Search by text
 
+### 🧠 Intelligent Search (New in v0.3.1)
+- `POST /intelligent_search` - Advanced intelligent search with multi-query generation
+- `POST /semantic_search` - High-precision semantic search with reranking
+- `POST /multi_collection_search` - Cross-collection search with intelligent reranking
+- `POST /contextual_search` - Context-aware search with metadata filtering
+
 ### 📦 Batch Operations
 - `POST /collections/{name}/batch/insert` - Batch insertion
 - `POST /collections/{name}/batch/update` - Batch update
@@ -155,6 +166,59 @@ curl -X POST "http://localhost:15002/collections/my-collection/search" \
   }'
 ```
 
+### Intelligent Search (New in v0.3.1)
+```bash
+# Advanced intelligent search with domain expansion
+curl -X POST "http://localhost:15002/intelligent_search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "CMMV framework architecture",
+    "collections": ["cmmv-core-docs"],
+    "max_results": 10,
+    "domain_expansion": true,
+    "technical_focus": true,
+    "mmr_enabled": true,
+    "mmr_lambda": 0.7
+  }'
+
+# High-precision semantic search
+curl -X POST "http://localhost:15002/semantic_search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication system",
+    "collection": "cmmv-core-docs",
+    "similarity_threshold": 0.15,
+    "semantic_reranking": true,
+    "max_results": 10
+  }'
+
+# Multi-collection search
+curl -X POST "http://localhost:15002/multi_collection_search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "API documentation",
+    "collections": ["cmmv-core-docs", "vectorizer-docs"],
+    "max_per_collection": 5,
+    "max_total_results": 15,
+    "cross_collection_reranking": true
+  }'
+
+# Context-aware search
+curl -X POST "http://localhost:15002/contextual_search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "database integration",
+    "collection": "cmmv-core-docs",
+    "context_filters": {
+      "file_extension": ".md",
+      "chunk_index": 0
+    },
+    "context_reranking": true,
+    "context_weight": 0.3,
+    "max_results": 10
+  }'
+```
+
 ### Health Check
 ```bash
 curl "http://localhost:15002/health"
@@ -165,7 +229,7 @@ curl "http://localhost:15002/health"
 ### Local Server
 - **Base URL**: `http://localhost:15002`
 - **Port**: 15002
-- **Version**: 0.3.0
+- **Version**: 0.3.1
 
 ### Authentication
 Currently no authentication is implemented. For production, consider implementing:

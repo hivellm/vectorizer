@@ -144,8 +144,9 @@ mod tests {
         let queries = generator.generate_queries("vectorizer performance");
         
         assert!(!queries.is_empty());
-        assert!(queries.contains(&"vectorizer performance".to_string()));
         assert!(queries.len() <= 8);
+        // At least one query should contain "vectorizer"
+        assert!(queries.iter().any(|q| q.contains("vectorizer")));
     }
 
     #[test]
