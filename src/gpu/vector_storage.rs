@@ -532,12 +532,23 @@ impl GpuVectorStorage {
             label: Some("vector_upload"),
         });
 
+        let data_size = data.len() as u64 * std::mem::size_of::<f32>() as u64;
+        
+        // 🔧 BUG FIX: Validate that the offset doesn't exceed buffer size
+        let vector_buffer_size = self.vector_buffer.size();
+        if offset + data_size > vector_buffer_size {
+            return Err(VectorizerError::InternalError(format!(
+                "Vector buffer overflow: trying to write {} bytes at offset {} but buffer size is {}",
+                data_size, offset, vector_buffer_size
+            )));
+        }
+        
         encoder.copy_buffer_to_buffer(
             &staging_buffer,
             0,
             &self.vector_buffer,
             offset,
-            data.len() as u64 * std::mem::size_of::<f32>() as u64,
+            data_size,
         );
 
         queue.submit(std::iter::once(encoder.finish()));
@@ -550,11 +561,21 @@ impl GpuVectorStorage {
         let queue = self.gpu_context.queue();
         
         let offset = (index as u64) * std::mem::size_of::<GpuVectorMetadata>() as u64;
+        let metadata_size = std::mem::size_of::<GpuVectorMetadata>() as u64;
+        
+        // 🔧 BUG FIX: Validate that the offset doesn't exceed buffer size
+        let metadata_buffer_size = self.metadata_buffer.size();
+        if offset + metadata_size > metadata_buffer_size {
+            return Err(VectorizerError::InternalError(format!(
+                "Metadata buffer overflow: trying to write at offset {} (size {}) but buffer size is {}. Index: {}",
+                offset, metadata_size, metadata_buffer_size, index
+            )));
+        }
         
         // Create staging buffer
         let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("metadata_staging"),
-            size: std::mem::size_of::<GpuVectorMetadata>() as u64,
+            size: metadata_size,
             usage: BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -572,7 +593,7 @@ impl GpuVectorStorage {
             0,
             &self.metadata_buffer,
             offset,
-            std::mem::size_of::<GpuVectorMetadata>() as u64,
+            metadata_size,
         );
 
         queue.submit(std::iter::once(encoder.finish()));

@@ -227,12 +227,23 @@ impl GpuHnswStorage {
                 label: Some("vector_upload"),
             });
 
+            let data_size = vector.data.len() as u64 * std::mem::size_of::<f32>() as u64;
+            
+            // 🔧 BUG FIX: Validate that the offset doesn't exceed buffer size
+            let vector_buffer_size = self.vector_buffer.size();
+            if buffer_offset + data_size > vector_buffer_size {
+                return Err(VectorizerError::InternalError(format!(
+                    "HNSW vector buffer overflow: trying to write {} bytes at offset {} but buffer size is {}. Vector: {}",
+                    data_size, buffer_offset, vector_buffer_size, vector.id
+                )));
+            }
+            
             encoder.copy_buffer_to_buffer(
                 &staging_buffer,
                 0,
                 &self.vector_buffer,
                 buffer_offset,
-                vector.data.len() as u64 * std::mem::size_of::<f32>() as u64,
+                data_size,
             );
 
             queue.submit(std::iter::once(encoder.finish()));
@@ -277,10 +288,21 @@ impl GpuHnswStorage {
             let device = self.gpu_context.device();
             let queue = self.gpu_context.queue();
             
+            let node_size = std::mem::size_of::<GpuHnswNode>() as u64;
+            
+            // 🔧 BUG FIX: Validate that the offset doesn't exceed buffer size
+            let node_buffer_size = self.node_buffer.size();
+            if buffer_offset + node_size > node_buffer_size {
+                return Err(VectorizerError::InternalError(format!(
+                    "HNSW node buffer overflow: trying to write {} bytes at offset {} but buffer size is {}. Node index: {}",
+                    node_size, buffer_offset, node_buffer_size, node_index
+                )));
+            }
+            
             // Create staging buffer for node
             let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("node_staging"),
-                size: std::mem::size_of::<GpuHnswNode>() as u64,
+                size: node_size,
                 usage: BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
@@ -298,7 +320,7 @@ impl GpuHnswStorage {
                 0,
                 &self.node_buffer,
                 buffer_offset,
-                std::mem::size_of::<GpuHnswNode>() as u64,
+                node_size,
             );
 
             queue.submit(std::iter::once(encoder.finish()));

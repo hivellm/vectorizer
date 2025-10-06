@@ -28,7 +28,7 @@ impl GpuBackendType {
             Self::Metal => 0,       // Best for Apple Silicon
             Self::Vulkan => 1,      // Universal, AMD optimized
             Self::DirectX12 => 2,   // Windows native
-            Self::CudaNative => 3,  // NVIDIA specific
+            Self::GpuNative => 3,   // NVIDIA specific
             Self::Cpu => 255,       // Last resort
         }
     }
@@ -39,7 +39,7 @@ impl GpuBackendType {
             Self::Metal => cfg!(all(target_os = "macos", target_arch = "aarch64")),
             Self::Vulkan => true, // Universal (try on all platforms)
             Self::DirectX12 => cfg!(target_os = "windows"),
-            Self::CudaNative => cfg!(feature = "cuda"),
+            Self::GpuNative => cfg!(feature = "cuda"),
             Self::Cpu => true, // Always available
         }
     }
@@ -50,7 +50,7 @@ impl GpuBackendType {
             Self::Metal => "Metal",
             Self::Vulkan => "Vulkan",
             Self::DirectX12 => "DirectX 12",
-            Self::CudaNative => "CUDA",
+            Self::GpuNative => "CUDA",
             Self::Cpu => "CPU",
         }
     }
@@ -61,7 +61,7 @@ impl GpuBackendType {
             Self::Metal => "🍎",
             Self::Vulkan => "🔥",
             Self::DirectX12 => "🪟",
-            Self::CudaNative => "⚡",
+            Self::GpuNative => "⚡",
             Self::Cpu => "💻",
         }
     }
@@ -120,7 +120,7 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
         debug!("Checking CUDA availability...");
         if try_detect_cuda() {
             info!("✅ CUDA backend available");
-            available.push(GpuBackendType::CudaNative);
+            available.push(GpuBackendType::GpuNative);
         } else {
             debug!("❌ CUDA backend not available");
         }
@@ -237,8 +237,8 @@ mod tests {
     fn test_backend_priority() {
         assert!(GpuBackendType::Metal.priority() < GpuBackendType::Vulkan.priority());
         assert!(GpuBackendType::Vulkan.priority() < GpuBackendType::DirectX12.priority());
-        assert!(GpuBackendType::DirectX12.priority() < GpuBackendType::CudaNative.priority());
-        assert!(GpuBackendType::CudaNative.priority() < GpuBackendType::Cpu.priority());
+        assert!(GpuBackendType::DirectX12.priority() < GpuBackendType::GpuNative.priority());
+        assert!(GpuBackendType::GpuNative.priority() < GpuBackendType::Cpu.priority());
     }
     
     #[test]
