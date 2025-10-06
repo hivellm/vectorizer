@@ -242,6 +242,120 @@ fn test_full_indexing_workflow() {
 }
 ```
 
+## Search Optimization Patterns
+
+### Intelligent Search Configuration
+When implementing search functionality, use these optimization patterns:
+
+#### Fast Search Configuration (Recommended for most cases)
+```rust
+// Optimized intelligent search parameters
+let search_config = IntelligentSearchConfig {
+    query: "search query".to_string(),
+    max_results: 5,           // Reduced from default 15 for speed
+    mmr_enabled: false,       // Disable MMR for faster processing
+    domain_expansion: false,   // Disable domain expansion for speed
+    technical_focus: true,     // Keep for technical relevance
+    mmr_lambda: 0.7,          // Not used when MMR disabled
+};
+```
+
+#### Performance Comparison Guidelines
+- **Standard Config**: 100% time, High quality (complex research)
+- **Optimized Config**: ~30-40% time, Good quality (quick queries)
+- **Minimal Config**: ~20% time, Medium quality (simple searches)
+
+#### Alternative Search Methods
+```rust
+// For single-collection deep research
+let semantic_results = semantic_search(
+    collection_name,
+    query,
+    SemanticSearchConfig {
+        max_results: 5,
+        semantic_reranking: false,  // Disable for speed
+        similarity_threshold: 0.3,
+    }
+).await?;
+
+// For maximum speed with basic relevance
+let basic_results = search_vectors(
+    collection_name,
+    query,
+    SearchConfig { limit: 5 }
+).await?;
+
+// For cross-domain research
+let cross_results = multi_collection_search(
+    collections,
+    query,
+    MultiCollectionConfig {
+        max_total_results: 15,
+        cross_collection_reranking: false,  // Disable for speed
+        max_per_collection: 5,
+    }
+).await?;
+```
+
+#### Search Strategy Guidelines
+- **Use intelligent_search optimized** for quick technical queries
+- **Use semantic_search** for single-collection deep research
+- **Use search_vectors** for maximum speed with basic relevance
+- **Use multi_collection_search** for cross-domain research
+
+#### Query Optimization Tips
+- Be specific with technical terms for better relevance
+- Use domain-specific vocabulary when available
+- Combine multiple search methods for comprehensive results
+- Cache frequent queries when possible
+- Implement query preprocessing for better performance
+
+### Search Implementation Patterns
+```rust
+// Search service with optimization levels
+pub struct SearchService {
+    config: SearchConfig,
+}
+
+impl SearchService {
+    /// Fast search for quick queries
+    pub async fn fast_search(
+        &self,
+        query: &str,
+        collection: &str,
+    ) -> Result<Vec<SearchResult>, VectorizerError> {
+        let config = IntelligentSearchConfig {
+            query: query.to_string(),
+            max_results: 5,
+            mmr_enabled: false,
+            domain_expansion: false,
+            technical_focus: true,
+            mmr_lambda: 0.7,
+        };
+        
+        self.intelligent_search(collection, config).await
+    }
+    
+    /// Deep search for comprehensive research
+    pub async fn deep_search(
+        &self,
+        query: &str,
+        collection: &str,
+    ) -> Result<Vec<SearchResult>, VectorizerError> {
+        let config = IntelligentSearchConfig {
+            query: query.to_string(),
+            max_results: 15,
+            mmr_enabled: true,
+            domain_expansion: true,
+            technical_focus: true,
+            mmr_lambda: 0.7,
+        };
+        
+        self.intelligent_search(collection, config).await
+    }
+}
+```
+
 ## Performance Optimizations
 
 ### Memory Efficiency
