@@ -85,14 +85,14 @@ cargo run --bin vectorizer
 
 2. **What happens on startup:**
    - ✅ Checks for BitNet model file
-   - 🚀 Starts BitNet FastAPI server (Python with venv)
-   - 🔗 Connects to Vectorizer via MCP (SSE)
+   - 🚀 Starts BitNet FastAPI server (Python with venv) on port 15003
+   - 🔗 Connects to Vectorizer via MCP (SSE) on port 15002
    - 📁 Creates knowledge collection
    - 📚 Adds sample knowledge documents
-   - 🌐 Starts Express.js web server
+   - 🌐 Starts Express.js web server on port 15004
 
 3. **Open your browser:**
-   Navigate to `http://localhost:3000`
+   Navigate to `http://localhost:15004`
 
 4. **Start chatting:**
    - Ask questions about BitNet, Vectorizer, or MCP
@@ -107,13 +107,14 @@ cargo run --bin vectorizer
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Web Browser   │    │   Express.js    │    │   Vectorizer    │
 │                 │◄──►│   Chat Server   │◄──►│   (MCP Mode)    │
-│   index.html    │    │   server.js     │    │   Port: 15002   │
+│   index.html    │    │   Port: 15004   │    │   Port: 15002   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │
                                 ▼
                        ┌─────────────────┐
                        │    BitNet       │
-                       │   Model (GGUF)  │
+                       │   FastAPI       │
+                       │   Port: 15003   │
                        └─────────────────┘
 ```
 

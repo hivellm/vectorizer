@@ -50,19 +50,28 @@ Our comprehensive benchmarks revealed **game-changing results**:
    - Authentication & authorization
    - **Essential for quantization success**
 
+3. **[Intelligent Search Implementation](./INTELLIGENT_SEARCH_IMPLEMENTATION.md)** - **🔴 P0** ⬆️⬆️, 5 weeks
+   - **Cursor-level search intelligence** with multi-query generation
+   - **Semantic reranking** with advanced scoring algorithms
+   - **4 enhanced MCP tools**: intelligent_search, semantic_search, contextual_search, multi_collection_search
+   - **Domain-specific knowledge** for better context understanding
+   - **Eliminates client-side complexity** - 80% code reduction
+   - **Strategic advantage**: Match Cursor's search quality
+   - **📋 Related Docs**: [Documentation Index](./INTELLIGENT_SEARCH_DOCUMENTATION_INDEX.md) | [Executive Summary](./INTELLIGENT_SEARCH_EXECUTIVE_SUMMARY.md) | [Architecture](./INTELLIGENT_SEARCH_ARCHITECTURE.md) | [MCP Tools Spec](./MCP_INTELLIGENT_TOOLS_SPEC.md) | [Roadmap](./INTELLIGENT_SEARCH_ROADMAP.md) | [Cursor Comparison](./CURSOR_COMPARISON_ANALYSIS.md)
+
 ### 🟡 High Priority (P1) - **SYSTEM STABILITY**
 
-3. **[Persistence System](./PERSISTENCE_SPEC.md)** - **🟡 P1** ⬇️, 3 weeks
+4. **[Persistence System](./PERSISTENCE_SPEC.md)** - **🟡 P1** ⬇️, 3 weeks
    - WAL-based persistence for dynamic collections
    - Read-only workspace collections
    - **Performance already excellent** - can wait
 
-4. **[File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md)** - **🟡 P1** ⬇️, 2-3 weeks
+5. **[File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md)** - **🟡 P1** ⬇️, 2-3 weeks
    - Detect new files, deleted files
    - Full CRUD file operations
    - **System works well** - optimizations can wait
 
-5. **[Workspace Manager UI](./WORKSPACE_MANAGER_UI.md)** - **🟡 P1**, 4-5 weeks
+6. **[Workspace Manager UI](./WORKSPACE_MANAGER_UI.md)** - **🟡 P1**, 4-5 weeks
    - Visual workspace management
    - No more manual YAML editing
    - AI-powered suggestions
@@ -70,27 +79,27 @@ Our comprehensive benchmarks revealed **game-changing results**:
 
 ### 🟢 Medium Priority (P2) - **NICE TO HAVE**
 
-6. **[Backup/Restore System](./BACKUP_RESTORE_SYSTEM.md)** - **🟢 P2** ⬇️, 3 weeks
+7. **[Backup/Restore System](./BACKUP_RESTORE_SYSTEM.md)** - **🟢 P2** ⬇️, 3 weeks
    - One-command backup/restore
    - **Manual backup sufficient** for now
 
-7. **[Collection Organization](./COLLECTION_ORGANIZATION.md)** - **🟢 P2**, 2 weeks
+8. **[Collection Organization](./COLLECTION_ORGANIZATION.md)** - **🟢 P2**, 2 weeks
    - Hierarchical namespaces
    - Tags and categories
    - **Nice to have** - can wait
 
-8. **[Workspace Simplification](./WORKSPACE_SIMPLIFICATION.md)** - **🟢 P2**, 3-4 weeks
+9. **[Workspace Simplification](./WORKSPACE_SIMPLIFICATION.md)** - **🟢 P2**, 3-4 weeks
    - Template system
    - 70% fewer lines in config
    - **Nice to have** - can wait
 
-9. **[Comprehensive Benchmarks](./COMPREHENSIVE_BENCHMARKS.md)** - **🟢 P2**, 2-3 weeks
-   - Complete performance tracking
-   - **Already have excellent benchmarks** - expansion only
+10. **[Comprehensive Benchmarks](./COMPREHENSIVE_BENCHMARKS.md)** - **🟢 P2**, 2-3 weeks
+    - Complete performance tracking
+    - **Already have excellent benchmarks** - expansion only
 
 ### 🔵 Experimental (Post v1.0)
 
-10. **[Distributed Sharding & Clustering](./DISTRIBUTED_SHARDING_CLUSTERING.md)** - P3, 24 weeks
+11. **[Distributed Sharding & Clustering](./DISTRIBUTED_SHARDING_CLUSTERING.md)** - P3, 24 weeks
     - SWIM protocol for membership & failure detection
     - Raft consensus for metadata
     - Consistent hashing + gossip replication

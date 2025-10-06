@@ -2,11 +2,14 @@ const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
-const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js');
+const http = require('http');
+const https = require('https');
+const WebSocket = require('ws');
 
 const app = express();
-const PORT = 3000;
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+const PORT = 15004;
 
 // Middleware
 app.use(express.json());
@@ -20,6 +23,7 @@ let vectorizerProcess = null;
 let bitnetProcess = null;
 let isVectorizerReady = false;
 let isBitNetReady = false;
+let mcpChannel = null; // Our custom MCP-like channel
 let mcpClient = null;
 
 // Vectorizer MCP configuration
@@ -32,56 +36,274 @@ const VECTORIZER_CONFIG = {
 // BitNet FastAPI configuration
 const BITNET_CONFIG = {
     host: 'localhost',
-    port: 8000
+    port: 15003
 };
 
 /**
- * Connect to Vectorizer via MCP (SSE)
+ * Custom MCP-like Channel for Vectorizer communication
  */
-async function connectToVectorizerMCP() {
-    console.log('🔗 Connecting to Vectorizer via MCP (SSE)...');
+class MCPChannel {
+    constructor() {
+        this.tools = {
+            'list_collections': this.listCollections.bind(this),
+            'search_vectors': this.searchVectors.bind(this),
+            'get_collection_info': this.getCollectionInfo.bind(this),
+            'insert_text': this.insertText.bind(this),
+            'delete_vectors': this.deleteVectors.bind(this)
+        };
+    }
+
+    async callTool(toolName, args) {
+        if (!this.tools[toolName]) {
+            throw new Error(`Unknown tool: ${toolName}`);
+        }
+
+        try {
+            const result = await this.tools[toolName](args);
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async listCollections(args = {}) {
+        const response = await makeHttpRequest('GET', '/collections');
+        
+        // Handle different response formats
+        const collections = Array.isArray(response) ? response : 
+                           response.collections || 
+                           (response.data ? response.data.collections : []);
+        
+        return {
+            content: [{
+                type: 'text',
+                text: JSON.stringify(collections)
+            }]
+        };
+    }
+
+    async searchVectors(args) {
+        const { collection, query, limit = 3, min_score = 0.1 } = args; // Reduced limit to 3
+        
+        try {
+            // Use the correct endpoint that actually works
+            const response = await makeHttpRequest('GET', `/collections/${collection}/vectors`);
+
+            // Handle different response formats
+            let searchResults = [];
+            if (Array.isArray(response)) {
+                searchResults = response;
+            } else if (response.vectors && Array.isArray(response.vectors)) {
+                searchResults = response.vectors;
+            } else if (response.results && Array.isArray(response.results)) {
+                searchResults = response.results;
+            } else if (response.data && Array.isArray(response.data)) {
+                searchResults = response.data;
+            } else {
+                console.warn(`⚠️ Unexpected vectors response format for ${collection}`);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify([])
+                    }]
+                };
+            }
+
+            // Limit results to prevent memory issues
+            const limitedResults = searchResults.slice(0, limit);
+
+            // Format results for better context with content truncation
+            const formattedResults = limitedResults.map(result => {
+                let content = '';
+                let metadata = {};
+                
+                if (typeof result === 'object' && result.payload && result.payload.content) {
+                    content = result.payload.content;
+                    metadata = result.payload.metadata || {};
+                } else if (typeof result === 'object' && result.content) {
+                    content = result.content;
+                    metadata = result.metadata || {};
+                } else {
+                    content = JSON.stringify(result);
+                }
+
+                // Truncate content to prevent memory issues (max 1000 chars)
+                if (content && content.length > 1000) {
+                    content = content.substring(0, 1000) + '...';
+                }
+
+                return {
+                    content: content,
+                    score: result.score || 0.5,
+                    metadata: metadata
+                };
+            });
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify(formattedResults)
+                }]
+            };
+
+        } catch (error) {
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify([])
+                }]
+            };
+        }
+    }
+
+    async getCollectionInfo(args) {
+        const { collection } = args;
+        
+        const response = await makeHttpRequest('GET', `/collections/${collection}`);
+        
+        return {
+            content: [{
+                type: 'text',
+                text: JSON.stringify(response)
+            }]
+        };
+    }
+
+    async insertText(args) {
+        const { collection, text, metadata = {} } = args;
+        
+        const response = await makeHttpRequest('POST', `/collections/${collection}/insert`, {
+            text: text,
+            metadata: metadata
+        });
+
+        return {
+            content: [{
+                type: 'text',
+                text: JSON.stringify(response)
+            }]
+        };
+    }
+
+    async deleteVectors(args) {
+        const { collection, vector_ids } = args;
+        
+        const response = await makeHttpRequest('DELETE', `/collections/${collection}/vectors`, {
+            vector_ids: vector_ids
+        });
+
+        return {
+            content: [{
+                type: 'text',
+                text: JSON.stringify(response)
+            }]
+        };
+    }
+}
+
+/**
+ * Make HTTP request to Vectorizer
+ */
+function makeHttpRequest(method, path, data = null) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: VECTORIZER_CONFIG.host,
+            port: VECTORIZER_CONFIG.port,
+            path: path,
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        };
+
+        if (data) {
+            const jsonData = JSON.stringify(data);
+            options.headers['Content-Length'] = Buffer.byteLength(jsonData);
+        }
+
+        const req = http.request(options, (res) => {
+            let responseData = '';
+
+            // Log response status
+            console.log(`📡 HTTP ${method} ${path} -> ${res.statusCode} ${res.statusMessage}`);
+
+            res.on('data', (chunk) => {
+                responseData += chunk;
+            });
+
+            res.on('end', () => {
+                console.log(`📄 Raw response data: "${responseData}"`);
+                
+                // Handle empty response
+                if (!responseData || responseData.trim() === '') {
+                    console.warn(`⚠️ Empty response for ${method} ${path}`);
+                    resolve([]);
+                    return;
+                }
+
+                try {
+                    const jsonResponse = JSON.parse(responseData);
+                    resolve(jsonResponse);
+                } catch (error) {
+                    console.error(`❌ JSON parse error for ${method} ${path}:`, error);
+                    console.error(`Raw data: "${responseData}"`);
+                    
+                    // If it's not JSON, try to return as string or empty array
+                    if (responseData.trim() === '""' || responseData.trim() === '') {
+                        resolve([]);
+                    } else {
+                        resolve(responseData);
+                    }
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            console.error(`❌ HTTP request error for ${method} ${path}:`, error);
+            reject(error);
+        });
+
+        // Set timeout
+        req.setTimeout(10000, () => {
+            req.destroy();
+            reject(new Error('Request timeout'));
+        });
+
+        if (data) {
+            req.write(JSON.stringify(data));
+        }
+
+        req.end();
+    });
+}
+
+/**
+ * Connect to Vectorizer via HTTP
+ */
+async function connectToVectorizerHTTP() {
+    console.log('🔗 Connecting to Vectorizer via HTTP...');
     
     try {
-        // Connect to Vectorizer MCP server via SSE
-        const transport = new SSEClientTransport({
-            url: `http://${VECTORIZER_CONFIG.host}:${VECTORIZER_CONFIG.port}/mcp/sse`
-        });
-
-        mcpClient = new Client({
-            name: 'bitnet-chat-client',
-            version: '1.0.0'
-        }, {
-            capabilities: {
-                resources: {},
-                tools: {}
-            }
-        });
-
-        await mcpClient.connect(transport);
+        // Test connection to Vectorizer REST API
+        const response = await makeHttpRequest('GET', '/health');
         
-        // Initialize the connection
-        const initResult = await mcpClient.request({
-            method: 'initialize',
-            params: {
-                protocolVersion: '2024-11-05',
-                capabilities: {
-                    resources: {},
-                    tools: {}
-                },
-                clientInfo: {
-                    name: 'bitnet-chat-client',
-                    version: '1.0.0'
-                }
-            }
-        }, {});
-
-        console.log('✅ Connected to Vectorizer via MCP (SSE)!');
-        console.log('📋 Server capabilities:', initResult.capabilities);
-        
-        isVectorizerReady = true;
+        if (response.status === 'healthy') {
+            console.log('✅ Connected to Vectorizer HTTP successfully!');
+            console.log('📋 Server status:', response);
+            
+            // Initialize MCP Channel
+            mcpChannel = new MCPChannel();
+            console.log('🔧 MCP Channel initialized with tools:', Object.keys(mcpChannel.tools));
+            
+            isVectorizerReady = true;
+            return true;
+        } else {
+            throw new Error('Vectorizer health check failed');
+        }
         
     } catch (error) {
-        console.error('❌ Failed to connect to Vectorizer MCP:', error);
+        console.error('❌ Failed to connect to Vectorizer HTTP:', error.message);
         throw error;
     }
 }
@@ -95,10 +317,6 @@ async function startBitNetServer() {
     return new Promise((resolve, reject) => {
         // Check if we're on Windows or Unix-like system
         const isWindows = process.platform === 'win32';
-        const pythonCmd = isWindows ? 'python' : 'python3';
-        const venvActivate = isWindows ? 
-            path.join(__dirname, 'venv', 'Scripts', 'activate.bat') :
-            path.join(__dirname, 'venv', 'bin', 'activate');
         
         // Check if virtual environment exists
         if (!fs.existsSync(path.join(__dirname, 'venv'))) {
@@ -110,14 +328,18 @@ async function startBitNetServer() {
         let command, args;
         
         if (isWindows) {
-            // Windows: use cmd to activate venv and run python
-            command = 'cmd';
-            args = ['/c', `${venvActivate} && ${pythonCmd} bitnet_server.py`];
+            // Windows: use the Python executable from venv directly
+            const venvPython = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
+            command = venvPython;
+            args = ['bitnet_server.py'];
         } else {
-            // Unix-like: use bash to activate venv and run python
-            command = 'bash';
-            args = ['-c', `source ${venvActivate} && ${pythonCmd} bitnet_server.py`];
+            // Unix-like: use the Python executable from venv directly
+            const venvPython = path.join(__dirname, 'venv', 'bin', 'python');
+            command = venvPython;
+            args = ['bitnet_server.py'];
         }
+        
+        console.log(`🐍 Using Python: ${command}`);
         
         // Start BitNet FastAPI server
         bitnetProcess = spawn(command, args, {
@@ -129,8 +351,8 @@ async function startBitNetServer() {
             const output = data.toString();
             console.log(`[BitNet] ${output}`);
             
-            // Check if server is ready
-            if (output.includes('Uvicorn running on') || output.includes('Application startup complete')) {
+            // Check if server is ready - simplified detection
+            if (output.includes('Uvicorn running on')) {
                 isBitNetReady = true;
                 console.log('✅ BitNet FastAPI server is ready!');
                 resolve();
@@ -138,7 +360,15 @@ async function startBitNetServer() {
         });
 
         bitnetProcess.stderr.on('data', (data) => {
-            console.error(`[BitNet Error] ${data.toString()}`);
+            const output = data.toString();
+            console.error(`[BitNet Error] ${output}`);
+            
+            // Check if server is ready - also check stderr for Uvicorn message
+            if (output.includes('Uvicorn running on')) {
+                isBitNetReady = true;
+                console.log('✅ BitNet FastAPI server is ready!');
+                resolve();
+            }
         });
 
         bitnetProcess.on('close', (code) => {
@@ -151,12 +381,12 @@ async function startBitNetServer() {
             reject(error);
         });
 
-        // Timeout after 60 seconds (BitNet takes longer to load)
+        // Timeout after 90 seconds (BitNet takes longer to load)
         setTimeout(() => {
             if (!isBitNetReady) {
                 reject(new Error('BitNet startup timeout'));
             }
-        }, 60000);
+        }, 90000);
     });
 }
 
@@ -171,39 +401,31 @@ function checkBitNetModel() {
 }
 
 /**
- * Create collection in Vectorizer if it doesn't exist (via MCP)
+ * Create collection in Vectorizer if it doesn't exist (via HTTP)
  */
 async function ensureCollectionExists() {
     try {
-        if (!mcpClient) {
-            throw new Error('MCP client not connected');
+        if (!isVectorizerReady) {
+            throw new Error('Vectorizer not connected');
         }
 
-        // List collections using MCP
-        const listResult = await mcpClient.request({
-            method: 'tools/call',
-            params: {
-                name: 'list_collections'
-            }
-        }, {});
-
-        const collections = listResult.content?.[0]?.text ? JSON.parse(listResult.content[0].text) : [];
+        // List collections using HTTP
+        const collectionsResponse = await makeHttpRequest('GET', '/collections');
+        
+        // Handle different response formats
+        const collections = Array.isArray(collectionsResponse) ? collectionsResponse : 
+                           collectionsResponse.collections || 
+                           (collectionsResponse.data ? collectionsResponse.data.collections : []);
         
         if (!collections.find(col => col.name === VECTORIZER_CONFIG.collection)) {
             console.log(`📁 Creating collection: ${VECTORIZER_CONFIG.collection}`);
             
-            // Create collection using MCP
-            const createResult = await mcpClient.request({
-                method: 'tools/call',
-                params: {
-                    name: 'create_collection',
-                    arguments: {
-                        name: VECTORIZER_CONFIG.collection,
-                        dimension: 512,
-                        metric: 'cosine'
-                    }
-                }
-            }, {});
+            // Create collection using HTTP
+            await makeHttpRequest('POST', '/collections', {
+                name: VECTORIZER_CONFIG.collection,
+                dimension: 512,
+                metric: 'cosine'
+            });
 
             console.log(`✅ Collection created: ${VECTORIZER_CONFIG.collection}`);
         } else {
@@ -216,31 +438,114 @@ async function ensureCollectionExists() {
 }
 
 /**
- * Search in Vectorizer knowledge base (via MCP)
+ * Search in Vectorizer knowledge base (via MCP Channel)
  */
-async function searchKnowledgeBase(query) {
+async function searchKnowledgeBase(query, collection = null, limit = 10) {
     try {
-        if (!mcpClient) {
-            throw new Error('MCP client not connected');
+        if (!mcpChannel) {
+            throw new Error('MCP Channel not initialized');
         }
 
-        // Search using MCP
-        const searchResult = await mcpClient.request({
-            method: 'tools/call',
-            params: {
-                name: 'search_vectors',
-                arguments: {
-                    collection: VECTORIZER_CONFIG.collection,
-                    query: query,
-                    limit: 3
-                }
-            }
-        }, {});
+        // Use multiple collections for broader context
+        const collections = collection ? [collection] : [
+            VECTORIZER_CONFIG.collection,
+            'cmmv-core-docs',
+            'cmmv-docs-en-content',
+            'vectorizer-docs',
+            'gov-bips'
+        ];
 
-        // Parse the search results
-        const results = searchResult.content?.[0]?.text ? JSON.parse(searchResult.content[0].text) : [];
-        return results || [];
-        
+        let allResults = [];
+
+        // Search each collection
+        for (const coll of collections) {
+            try {
+                console.log(`🔍 Searching collection: ${coll} for query: "${query}"`);
+
+                const result = await mcpChannel.callTool('search_vectors', {
+                    collection: coll,
+                    query: query,
+                    limit: 2, // Reduced to 2 per collection to minimize data
+                    min_score: 0.1 // Higher threshold for better results
+                });
+
+                // Parse the result
+                const results = JSON.parse(result.content[0].text);
+                if (results && Array.isArray(results)) {
+                    // Sanitize results to include only metadata and payload, no vectors
+                    const sanitizedResults = results.map(r => {
+                        // Extract only safe data for BitNet context
+                        let content = r.content || '';
+                        // Truncate content to reduce payload size
+                        if (content.length > 300) {
+                            content = content.substring(0, 300) + '...';
+                        }
+
+                        const sanitized = {
+                            content: content,
+                            score: r.score || 0.5,
+                            metadata: r.metadata || {},
+                            collection: coll,
+                            source: coll
+                        };
+
+                        // Remove any vector data that might be present
+                        if (r.vector) delete sanitized.vector;
+                        if (r.vectors) delete sanitized.vectors;
+                        if (r.embedding) delete sanitized.embedding;
+                        if (r.embeddings) delete sanitized.embeddings;
+                        if (r.payload && r.payload.vector) delete r.payload.vector;
+                        if (r.payload && r.payload.vectors) delete r.payload.vectors;
+                        if (r.payload && r.payload.embedding) delete r.payload.embedding;
+                        if (r.payload && r.payload.embeddings) delete r.payload.embeddings;
+
+                        // Also remove any other potential vector fields
+                        const vectorFields = ['vector_data', 'embedding_data', 'vec', 'emb'];
+                        vectorFields.forEach(field => {
+                            if (r[field]) delete sanitized[field];
+                            if (r.payload && r.payload[field]) delete r.payload[field];
+                        });
+
+                        // Remove any field that looks like a vector (array of numbers)
+                        const isVectorArray = (arr) => Array.isArray(arr) && arr.length > 10 &&
+                            arr.every(item => typeof item === 'number' && item >= -1 && item <= 1);
+
+                        Object.keys(sanitized).forEach(key => {
+                            if (isVectorArray(sanitized[key])) {
+                                console.log(`Removing vector field: ${key}`);
+                                delete sanitized[key];
+                            }
+                        });
+
+                        if (sanitized.payload) {
+                            Object.keys(sanitized.payload).forEach(key => {
+                                if (isVectorArray(sanitized.payload[key])) {
+                                    console.log(`Removing vector field from payload: ${key}`);
+                                    delete sanitized.payload[key];
+                                }
+                            });
+                        }
+
+                        return sanitized;
+                    });
+
+                    allResults = allResults.concat(sanitizedResults);
+                    console.log(`✅ Found ${results.length} results in ${coll}`);
+                }
+            } catch (collError) {
+                console.warn(`⚠️ Collection ${coll} search failed:`, collError.message);
+                // Continue with other collections
+            }
+        }
+
+        // Sort by score and limit total results to prevent memory issues
+        allResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+        const limitedResults = allResults.slice(0, Math.min(limit, 6)); // Max 6 total results
+
+        console.log(`📊 Total search results: ${limitedResults.length} from ${collections.length} collections`);
+
+        return limitedResults || [];
+
     } catch (error) {
         console.error('Knowledge base search error:', error);
         return [];
@@ -266,7 +571,8 @@ async function generateBitNetResponse(messages, context = '') {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(120000) // 2 minutes timeout
         });
 
         if (!response.ok) {
@@ -294,7 +600,7 @@ async function generateBitNetResponse(messages, context = '') {
 }
 
 /**
- * Add sample knowledge to Vectorizer (via MCP)
+ * Add sample knowledge to Vectorizer (via HTTP)
  */
 async function addSampleKnowledge() {
     const sampleDocuments = [
@@ -316,26 +622,19 @@ async function addSampleKnowledge() {
         }
     ];
 
-    console.log('📚 Adding sample knowledge to Vectorizer via MCP...');
+    console.log('📚 Adding sample knowledge to Vectorizer via HTTP...');
     
     for (const doc of sampleDocuments) {
         try {
-            if (!mcpClient) {
-                throw new Error('MCP client not connected');
+            if (!isVectorizerReady) {
+                throw new Error('Vectorizer not connected');
             }
 
-            // Insert document using MCP
-            const insertResult = await mcpClient.request({
-                method: 'tools/call',
-                params: {
-                    name: 'insert_text',
-                    arguments: {
-                        collection: VECTORIZER_CONFIG.collection,
-                        text: doc.text,
-                        metadata: doc.metadata
-                    }
-                }
-            }, {});
+            // Insert document using HTTP
+            await makeHttpRequest('POST', '/collections/' + VECTORIZER_CONFIG.collection + '/insert', {
+                text: doc.text,
+                metadata: doc.metadata
+            });
 
             console.log(`✅ Added document: ${doc.metadata.source}`);
             
@@ -344,7 +643,7 @@ async function addSampleKnowledge() {
         }
     }
     
-    console.log('✅ Sample knowledge added to Vectorizer via MCP');
+    console.log('✅ Sample knowledge added to Vectorizer via HTTP');
 }
 
 // Routes
@@ -354,7 +653,7 @@ async function addSampleKnowledge() {
  */
 app.get('/api/health', async (req, res) => {
     let bitnetStatus = false;
-    let mcpStatus = false;
+    let vectorizerStatus = false;
     
     // Check if BitNet server is responding
     try {
@@ -367,26 +666,21 @@ app.get('/api/health', async (req, res) => {
         bitnetStatus = false;
     }
     
-    // Check if MCP client is connected
+    // Check if Vectorizer is responding
     try {
-        if (mcpClient) {
-            // Try to list collections to test MCP connection
-            await mcpClient.request({
-                method: 'tools/call',
-                params: {
-                    name: 'list_collections'
-                }
-            }, {});
-            mcpStatus = true;
-        }
+        // Try to get health status from Vectorizer directly
+        const vectorizerResponse = await fetch(`http://${VECTORIZER_CONFIG.host}:${VECTORIZER_CONFIG.port}/health`, {
+            method: 'GET',
+            timeout: 5000
+        });
+        vectorizerStatus = vectorizerResponse.ok;
     } catch (error) {
-        mcpStatus = false;
+        vectorizerStatus = false;
     }
     
     res.json({ 
         status: 'healthy', 
-        vectorizer: isVectorizerReady,
-        mcp: mcpStatus,
+        vectorizer: vectorizerStatus,
         bitnet: bitnetStatus,
         model: fs.existsSync(MODEL_PATH)
     });
@@ -403,13 +697,28 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // Search knowledge base for relevant context
-        const searchResults = await searchKnowledgeBase(message);
-        
-        // Generate context from search results
-        const context = searchResults.length > 0 
-            ? searchResults.map(result => result.content).join('\n')
-            : '';
+        // Search knowledge base for relevant context (more collections, more results)
+        const searchResults = await searchKnowledgeBase(message, null, 15);
+
+        // Create rich context with technical details
+        let context = '';
+        if (searchResults.length > 0) {
+            console.log(`📚 Building context from ${searchResults.length} search results`);
+
+            const contextParts = searchResults.map((result, index) => {
+                const collection = result.collection || 'unknown';
+                const score = result.score ? result.score.toFixed(3) : '0.000';
+                const content = result.content || '';
+
+                // Include more technical details in context
+                return `[${collection}] (score: ${score})\n${content}`;
+            });
+
+            context = contextParts.join('\n\n---\n\n');
+            console.log(`📝 Context length: ${context.length} characters`);
+        } else {
+            console.warn('⚠️ No search results found for context');
+        }
 
         // Generate response using BitNet
         const response = await generateBitNetResponse(history || [], context);
@@ -458,6 +767,231 @@ app.post('/api/search', async (req, res) => {
 });
 
 /**
+ * WebSocket endpoint for streaming chat
+ */
+wss.on('connection', (ws) => {
+    console.log('🔌 New WebSocket connection established');
+
+    ws.on('message', async (data) => {
+        try {
+            const message = JSON.parse(data.toString());
+            console.log('📨 WebSocket message received:', message.type);
+
+            if (message.type === 'chat') {
+                const { message: userMessage, history = [] } = message;
+
+                // Send initial acknowledgment
+                ws.send(JSON.stringify({
+                    type: 'status',
+                    status: 'searching',
+                    message: 'Searching knowledge base...'
+                }));
+
+                try {
+                    // Search knowledge base for relevant context
+                    const searchResults = await searchKnowledgeBase(userMessage, null, 15);
+
+                    ws.send(JSON.stringify({
+                        type: 'status',
+                        status: 'generating',
+                        message: `Found ${searchResults.length} relevant results, generating response...`
+                    }));
+
+                    // Create rich context with technical details
+                    let context = '';
+                    if (searchResults.length > 0) {
+                        console.log(`📚 Building context from ${searchResults.length} search results`);
+
+                        const contextParts = searchResults.map((result, index) => {
+                            const collection = result.collection || 'unknown';
+                            const score = result.score ? result.score.toFixed(3) : '0.000';
+                            const content = result.content || '';
+
+                            // Include more technical details in context
+                            return `[${collection}] (score: ${score})\n${content}`;
+                        });
+
+                        context = contextParts.join('\n\n---\n\n');
+                        console.log(`📝 Context length: ${context.length} characters`);
+                    }
+
+                    // Stream the BitNet response (long-running operation)
+                    await streamBitNetResponse(ws, history, context);
+
+                } catch (error) {
+                    console.error('WebSocket chat error:', error);
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        error: error.message
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('WebSocket message error:', error);
+            ws.send(JSON.stringify({
+                type: 'error',
+                error: 'Invalid message format'
+            }));
+        }
+    });
+
+    ws.on('close', () => {
+        console.log('🔌 WebSocket connection closed');
+    });
+
+    ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+    });
+});
+
+/**
+ * Stream BitNet response via WebSocket
+ */
+async function streamBitNetResponse(ws, messages, context = '') {
+    try {
+        console.log('🚀 Starting BitNet response streaming...');
+
+        // Prepare the request for BitNet
+        const requestBody = {
+            messages: messages,
+            context: context,
+            max_tokens: 512,
+            temperature: 0.7,
+            top_p: 0.9
+        };
+
+        // Use longer timeout for WebSocket streaming
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+
+        const response = await fetch(`http://${BITNET_CONFIG.host}:${BITNET_CONFIG.port}/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+            timeout: 300000 // 5 minutes for headers
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error(`BitNet API error: ${response.status}`);
+        }
+
+        let responseData;
+
+        try {
+            responseData = await response.json();
+        } catch (jsonError) {
+            // If response is not valid JSON, treat it as plain text and send to chat for debugging
+            console.warn('⚠️ BitNet returned non-JSON response, sending as debug to chat');
+            const textResponse = await response.text();
+            ws.send(JSON.stringify({
+                type: 'response',
+                response: `🔍 DEBUG: BitNet returned non-JSON response:\n\n${textResponse}`,
+                timestamp: new Date().toISOString()
+            }));
+            console.log('✅ BitNet non-JSON response sent to chat for debugging');
+            return;
+        }
+
+        // Send the complete response
+        ws.send(JSON.stringify({
+            type: 'response',
+            response: responseData.response || responseData,
+            timestamp: new Date().toISOString()
+        }));
+
+        console.log('✅ BitNet response streaming completed');
+
+    } catch (error) {
+        console.error('BitNet streaming error:', error);
+
+        if (error.name === 'AbortError') {
+            ws.send(JSON.stringify({
+                type: 'error',
+                error: 'Response generation timed out after 5 minutes'
+            }));
+        } else {
+            ws.send(JSON.stringify({
+                type: 'error',
+                error: `Generation failed: ${error.message}`
+            }));
+        }
+    }
+}
+
+/**
+ * MCP Channel endpoint for BitNet to access Vectorizer tools
+ */
+app.post('/api/mcp', async (req, res) => {
+    try {
+        const { tool, args } = req.body;
+        
+        if (!tool) {
+            return res.status(400).json({ error: 'Tool name is required' });
+        }
+
+        if (!mcpChannel) {
+            return res.status(503).json({ error: 'MCP Channel not initialized' });
+        }
+
+        console.log(`🔧 BitNet MCP Request: ${tool}`, args);
+        
+        const result = await mcpChannel.callTool(tool, args || {});
+        
+        res.json({
+            tool: tool,
+            args: args,
+            result: result,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('MCP Channel error:', error);
+        res.status(500).json({ 
+            error: 'MCP Channel error',
+            message: error.message 
+        });
+    }
+});
+
+/**
+ * Get available MCP tools
+ */
+app.get('/api/mcp/tools', (req, res) => {
+    if (!mcpChannel) {
+        return res.status(503).json({ error: 'MCP Channel not initialized' });
+    }
+
+    const tools = Object.keys(mcpChannel.tools).map(tool => ({
+        name: tool,
+        description: getToolDescription(tool)
+    }));
+
+    res.json({
+        tools: tools,
+        timestamp: new Date().toISOString()
+    });
+});
+
+/**
+ * Get tool descriptions
+ */
+function getToolDescription(tool) {
+    const descriptions = {
+        'list_collections': 'List all available collections in the Vectorizer',
+        'search_vectors': 'Search for vectors in a collection using semantic similarity',
+        'get_collection_info': 'Get detailed information about a specific collection',
+        'insert_text': 'Insert new text into a collection for indexing',
+        'delete_vectors': 'Delete specific vectors from a collection'
+    };
+    return descriptions[tool] || 'No description available';
+}
+
+/**
  * Serve the main HTML file
  */
 app.get('/', (req, res) => {
@@ -473,29 +1007,48 @@ async function initialize() {
         
         // Check BitNet model
         checkBitNetModel();
+
+        // Try to start BitNet FastAPI server (optional)
+        try {
+            await startBitNetServer();
+        // Wait longer for BitNet to be fully ready (it takes time to load)
+        console.log('⏳ Waiting for BitNet to be ready...');
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Increased to 10 seconds
+        } catch (error) {
+            console.warn('⚠️ BitNet server failed to start:', error.message);
+        }
         
-        // Start BitNet FastAPI server
-        await startBitNetServer();
+        // Connect to Vectorizer via HTTP (assuming it's already running)
+        // Try to connect to Vectorizer (optional)
+        try {
+            await connectToVectorizerHTTP();
+        } catch (error) {
+            console.warn('⚠️ Vectorizer not available:', error.message);
+        }
+
+        // Try to ensure collection exists (optional)
+        try {
+            await ensureCollectionExists();
+        } catch (error) {
+            console.warn('⚠️ Could not ensure collection exists:', error.message);
+        }
+
+        // Try to add sample knowledge (optional)
+        try {
+            await addSampleKnowledge();
+        } catch (error) {
+            console.warn('⚠️ Could not add sample knowledge:', error.message);
+        }
         
-        // Connect to Vectorizer via MCP (assuming it's already running)
-        await connectToVectorizerMCP();
-        
-        // Wait a bit for services to be fully ready
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Ensure collection exists
-        await ensureCollectionExists();
-        
-        // Add sample knowledge
-        await addSampleKnowledge();
-        
-        // Start Express server
-        app.listen(PORT, () => {
-            console.log(`🌐 Chat server running on http://localhost:${PORT}`);
+        // Start HTTP server with WebSocket support
+        server.listen(PORT, '0.0.0.0', () => {
+            console.log(`🌐 Chat server with WebSocket running on http://localhost:${PORT}`);
+            console.log(`🔌 WebSocket endpoint available at ws://localhost:${PORT}`);
             console.log(`📁 Model path: ${MODEL_PATH}`);
-            console.log(`🔗 Vectorizer MCP: http://localhost:${VECTORIZER_CONFIG.port}/mcp/sse`);
+            console.log(`🔗 Vectorizer HTTP: http://localhost:${VECTORIZER_CONFIG.port}`);
             console.log(`🤖 BitNet FastAPI: http://localhost:${BITNET_CONFIG.port}`);
             console.log(`📚 Collection: ${VECTORIZER_CONFIG.collection}`);
+            console.log(`🚀 All services ready! Open http://localhost:${PORT} to start chatting.`);
         });
 
     } catch (error) {
@@ -515,14 +1068,7 @@ process.on('SIGINT', async () => {
         bitnetProcess.kill();
     }
     
-    if (mcpClient) {
-        console.log('🛑 Closing MCP connection...');
-        try {
-            await mcpClient.close();
-        } catch (error) {
-            console.error('Error closing MCP connection:', error);
-        }
-    }
+    // HTTP connections don't need explicit closing
     
     process.exit(0);
 });
@@ -535,14 +1081,7 @@ process.on('SIGTERM', async () => {
         bitnetProcess.kill();
     }
     
-    if (mcpClient) {
-        console.log('🛑 Closing MCP connection...');
-        try {
-            await mcpClient.close();
-        } catch (error) {
-            console.error('Error closing MCP connection:', error);
-        }
-    }
+    // HTTP connections don't need explicit closing
     
     process.exit(0);
 });

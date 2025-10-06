@@ -5,3 +5,4 @@ transformers>=4.35.0
 accelerate>=0.24.0
 pydantic>=2.0.0
 python-multipart>=0.0.6
+httpx>=0.25.0
