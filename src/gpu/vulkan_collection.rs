@@ -60,7 +60,39 @@ impl VulkanCollection {
         let gpu_info = gpu_context.info();
         info!("✅ Vulkan GPU initialized: {} for collection '{}'", gpu_info.name, name);
         
-        // Create GPU HNSW storage configuration
+        // Get GPU limits from adapter (real hardware limits)
+        let gpu_limits = &gpu_context.info().limits;
+        let gpu_info = &gpu_context.info();
+        
+        // Use REAL GPU buffer limits instead of name-based estimation
+        // Use 10% of max buffer size for safety (prevents overflow)
+        let max_buffer_size = (gpu_limits.max_buffer_size as f64 * 0.10) as u64;
+        let vector_size_bytes = config.dimension * std::mem::size_of::<f32>();
+        
+        // Calculate safe capacities based on actual GPU limits
+        let safe_initial_capacity = (max_buffer_size / vector_size_bytes as u64)
+            .min(10_000) as usize; // Cap at 10k for initial allocation
+        
+        let safe_max_capacity = (max_buffer_size / vector_size_bytes as u64)
+            .min(100_000) as usize; // Cap at 100k total
+        
+        let hnsw_memory_limit = (max_buffer_size / 2).min(512 * 1024 * 1024); // 512MB max
+        let vector_memory_limit = (max_buffer_size / 2).min(512 * 1024 * 1024); // 512MB max
+        
+        info!("🔧 Vulkan GPU Memory Configuration (Real Hardware Limits):");
+        info!("  - GPU Name: {}", gpu_info.name);
+        info!("  - Device Type: {}", gpu_info.device_type);
+        info!("  - Backend: {:?}", gpu_info.backend);
+        info!("  - Max buffer size (hardware): {:.2} GB", gpu_limits.max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Max buffer binding size: {:.2} GB", gpu_limits.max_storage_buffer_binding_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!("  - Using 10% of max buffer: {:.2} MB (safe allocation)", max_buffer_size as f64 / (1024.0 * 1024.0));
+        info!("  - Vector size: {} bytes ({} dimensions)", vector_size_bytes, config.dimension);
+        info!("  - Initial capacity: {} vectors", safe_initial_capacity);
+        info!("  - Max capacity: {} vectors", safe_max_capacity);
+        info!("  - HNSW memory limit: {:.2} MB", hnsw_memory_limit as f64 / (1024.0 * 1024.0));
+        info!("  - Vector memory limit: {:.2} MB", vector_memory_limit as f64 / (1024.0 * 1024.0));
+        
+        // Create GPU HNSW storage configuration with dynamic limits
         let hnsw_storage_config = GpuHnswStorageConfig {
             max_connections: config.hnsw_config.m,
             max_connections_0: config.hnsw_config.m * 2,
@@ -68,48 +100,19 @@ impl VulkanCollection {
             ef_search: config.hnsw_config.ef_search,
             dimension: config.dimension,
             metric: config.metric.clone(),
-            initial_node_capacity: 100_000,
-            initial_vector_capacity: 100_000,
-            gpu_memory_limit: 4 * 1024 * 1024 * 1024, // 4GB for Vulkan
-        };
-
-        // Calculate safe initial capacity based on GPU buffer limits
-        let gpu_limits = &gpu_context.info().limits;
-        let gpu_info = &gpu_context.info();
-        
-        // Estimate total VRAM based on GPU name and max buffer size
-        let estimated_vram = if gpu_info.name.contains("RTX 4090") || gpu_info.name.contains("RTX 4080") || gpu_info.name.contains("RTX 3090") {
-            24 * 1024 * 1024 * 1024 // 24GB for high-end GPUs
-        } else if gpu_info.name.contains("RTX 4070") || gpu_info.name.contains("RTX 3070") {
-            12 * 1024 * 1024 * 1024 // 12GB for mid-range GPUs
-        } else if gpu_info.name.contains("RTX 4060") || gpu_info.name.contains("RTX 3060") {
-            8 * 1024 * 1024 * 1024 // 8GB for entry-level GPUs
-        } else {
-            // Fallback: use max_buffer_size as conservative estimate
-            gpu_limits.max_buffer_size
+            initial_node_capacity: 1_000.min(safe_initial_capacity),
+            initial_vector_capacity: 1_000.min(safe_initial_capacity),
+            gpu_memory_limit: hnsw_memory_limit,
         };
         
-        let max_buffer_size = (estimated_vram as f64 * 0.8) as u64; // 80% of estimated VRAM
-        let vector_size_bytes = config.dimension * std::mem::size_of::<f32>();
-        let safe_initial_capacity = (max_buffer_size / vector_size_bytes as u64).min(1_000_000) as usize; // Increased max capacity
-        
-        info!("🔧 Vulkan GPU Buffer Configuration:");
-        info!("  - GPU Name: {}", gpu_info.name);
-        info!("  - Max buffer binding size: {:.2} GB", gpu_limits.max_storage_buffer_binding_size as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Max buffer size: {:.2} GB", gpu_limits.max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Estimated total VRAM: {:.2} GB", estimated_vram as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Using 80% of estimated VRAM: {:.2} GB", max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Vector size: {} bytes", vector_size_bytes);
-        info!("  - Calculated initial capacity: {} vectors", safe_initial_capacity);
-        
-        // Create GPU vector storage configuration
+        // Create GPU vector storage configuration with dynamic limits
         let vector_storage_config = GpuVectorStorageConfig {
             dimension: config.dimension,
             initial_capacity: safe_initial_capacity,
-            max_capacity: 1_000_000,
-            gpu_memory_limit: 4 * 1024 * 1024 * 1024, // 4GB for Vulkan
-            enable_compression: false,
-            compression_ratio: 0.5,
+            max_capacity: safe_max_capacity,
+            gpu_memory_limit: vector_memory_limit,
+            enable_compression: true, // Enable compression for better memory efficiency
+            compression_ratio: 0.25,  // Aggressive compression
         };
 
         // Initialize GPU storage managers
