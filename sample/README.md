@@ -18,38 +18,86 @@ This is a simple chat application that demonstrates how to use BitNet (Microsoft
 
 ## 🛠️ Installation
 
-1. **Install Node.js dependencies:**
+### **Quick Setup (Recommended)**
+
+**Linux/macOS:**
+```bash
+cd sample
+./setup.sh
+```
+
+**Windows:**
+```cmd
+cd sample
+setup.bat
+```
+
+### **Manual Setup**
+
+1. **Create Python virtual environment:**
    ```bash
    cd sample
+   python -m venv venv
+   source venv/bin/activate  # Linux/macOS
+   # OR
+   venv\Scripts\activate     # Windows
+   ```
+
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Install Node.js dependencies:**
+   ```bash
    npm install
    ```
 
-2. **Ensure BitNet model is available:**
+4. **Ensure BitNet model is available:**
    The model file should be at:
    ```
    sample/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
    ```
 
-3. **Make sure Vectorizer is built:**
+5. **Make sure Vectorizer is built and running:**
    ```bash
    cd ..
    cargo build --release
+   cargo run --bin vectorizer
    ```
 
 ## 🚀 Usage
 
+### **Prerequisites**
+Make sure Vectorizer is running:
+```bash
+# In the main vectorizer directory
+cargo run --bin vectorizer
+```
+
+### **Starting the Chat**
+
 1. **Start the chat server:**
    ```bash
+   cd sample
    npm start
    ```
 
-2. **Open your browser:**
+2. **What happens on startup:**
+   - ✅ Checks for BitNet model file
+   - 🚀 Starts BitNet FastAPI server (Python with venv)
+   - 🔗 Connects to Vectorizer via MCP (SSE)
+   - 📁 Creates knowledge collection
+   - 📚 Adds sample knowledge documents
+   - 🌐 Starts Express.js web server
+
+3. **Open your browser:**
    Navigate to `http://localhost:3000`
 
-3. **Start chatting:**
-   - The server will automatically start Vectorizer as MCP
-   - It will create a knowledge collection and add sample data
-   - You can ask questions and the system will search for relevant context
+4. **Start chatting:**
+   - Ask questions about BitNet, Vectorizer, or MCP
+   - The system will search the knowledge base for context
+   - BitNet will generate responses based on the context
 
 ## 🔧 How It Works
 
@@ -193,16 +241,31 @@ Search the knowledge base directly.
 1. **"Model not found" error:**
    - Ensure the BitNet model file is in the correct location
    - Check the file path in `server.js`
+   - Download the model from: [microsoft/bitnet-b1.58-2B-4T-gguf](https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf)
 
-2. **"Vectorizer connection failed":**
-   - Make sure Vectorizer is built: `cargo build --release`
+2. **"Virtual environment not found":**
+   - Run the setup script: `./setup.sh` (Linux/macOS) or `setup.bat` (Windows)
+   - Or manually create: `python -m venv venv`
+
+3. **"Python not found" or "spawn python ENOENT":**
+   - Make sure Python is installed and in PATH
+   - The server now automatically activates the virtual environment
+   - Try running: `python --version` to verify Python installation
+
+4. **"Vectorizer connection failed":**
+   - Make sure Vectorizer is running: `cargo run --bin vectorizer`
    - Check if port 15002 is available
-   - Verify the Vectorizer binary exists
+   - Verify MCP endpoint: `http://localhost:15002/mcp/sse`
 
-3. **"Server startup timeout":**
-   - Vectorizer might be taking longer to start
-   - Check the console output for Vectorizer logs
-   - Try increasing the timeout in `server.js`
+5. **"BitNet startup timeout":**
+   - BitNet model loading takes time (up to 60 seconds)
+   - Check Python dependencies: `pip install -r requirements.txt`
+   - Ensure sufficient RAM (model needs ~2GB)
+
+6. **"MCP connection failed":**
+   - Verify Vectorizer is running with MCP support
+   - Check SSE endpoint accessibility
+   - Review Vectorizer logs for MCP startup messages
 
 ### Debug Mode
 

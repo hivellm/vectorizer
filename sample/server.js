@@ -93,8 +93,34 @@ async function startBitNetServer() {
     console.log('🚀 Starting BitNet FastAPI server...');
     
     return new Promise((resolve, reject) => {
+        // Check if we're on Windows or Unix-like system
+        const isWindows = process.platform === 'win32';
+        const pythonCmd = isWindows ? 'python' : 'python3';
+        const venvActivate = isWindows ? 
+            path.join(__dirname, 'venv', 'Scripts', 'activate.bat') :
+            path.join(__dirname, 'venv', 'bin', 'activate');
+        
+        // Check if virtual environment exists
+        if (!fs.existsSync(path.join(__dirname, 'venv'))) {
+            console.log('📦 Virtual environment not found. Please run: python -m venv venv && source venv/bin/activate && pip install -r requirements.txt');
+            reject(new Error('Virtual environment not found'));
+            return;
+        }
+        
+        let command, args;
+        
+        if (isWindows) {
+            // Windows: use cmd to activate venv and run python
+            command = 'cmd';
+            args = ['/c', `${venvActivate} && ${pythonCmd} bitnet_server.py`];
+        } else {
+            // Unix-like: use bash to activate venv and run python
+            command = 'bash';
+            args = ['-c', `source ${venvActivate} && ${pythonCmd} bitnet_server.py`];
+        }
+        
         // Start BitNet FastAPI server
-        bitnetProcess = spawn('python', ['bitnet_server.py'], {
+        bitnetProcess = spawn(command, args, {
             cwd: __dirname,
             stdio: ['pipe', 'pipe', 'pipe']
         });
