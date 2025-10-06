@@ -681,7 +681,8 @@ pub async fn intelligent_search(
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{RESTAPIHandler, IntelligentSearchRequest};
     
-    let handler = RESTAPIHandler::new();
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
     
     // Extract parameters from JSON payload
     let query = payload.get("query")
@@ -735,7 +736,8 @@ pub async fn multi_collection_search(
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{RESTAPIHandler, MultiCollectionSearchRequest};
     
-    let handler = RESTAPIHandler::new();
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
     
     let query = payload.get("query")
         .and_then(|q| q.as_str())
@@ -783,7 +785,8 @@ pub async fn semantic_search(
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{RESTAPIHandler, SemanticSearchRequest};
     
-    let handler = RESTAPIHandler::new();
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
     
     let query = payload.get("query")
         .and_then(|q| q.as_str())
@@ -831,7 +834,8 @@ pub async fn contextual_search(
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{RESTAPIHandler, ContextualSearchRequest};
     
-    let handler = RESTAPIHandler::new();
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
     
     let query = payload.get("query")
         .and_then(|q| q.as_str())

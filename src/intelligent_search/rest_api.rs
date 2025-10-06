@@ -123,6 +123,13 @@ impl RESTAPIHandler {
         }
     }
 
+    /// Create a new REST API handler with existing VectorStore
+    pub fn new_with_store(store: std::sync::Arc<crate::VectorStore>) -> Self {
+        Self {
+            mcp_handler: MCPToolHandler::new_with_store(store),
+        }
+    }
+
     /// Handle intelligent search request
     pub async fn handle_intelligent_search(
         &self,

@@ -44,8 +44,8 @@ model = None
 tokenizer = None
 model_loaded = False
 
-# MCP Client configuration
-MCP_SERVER_URL = "http://localhost:15004/api/mcp"
+# MCP Client configuration - Updated to use Vectorizer's unified server
+MCP_SERVER_URL = "http://localhost:15002"
 
 class MCPClient:
     """Client for communicating with the MCP Channel"""
@@ -57,51 +57,153 @@ class MCPClient:
     async def call_tool(self, tool: str, args: Dict[str, Any] = None) -> Dict[str, Any]:
         """Call an MCP tool"""
         try:
+            # Use the correct MCP endpoint
+            mcp_url = f"{self.base_url}/mcp"
             response = await self.client.post(
-                self.base_url,
+                mcp_url,
                 json={"tool": tool, "args": args or {}}
             )
             response.raise_for_status()
             return response.json()
         except Exception as e:
+            logger.warning(f"MCP call failed: {e}")
             return {"error": str(e)}
     
     async def list_collections(self) -> List[Dict[str, Any]]:
-        """List all collections"""
-        result = await self.call_tool("list_collections")
-        if "result" in result and "content" in result["result"]:
-            try:
-                collections = json.loads(result["result"]["content"][0]["text"])
-                return collections
-            except:
-                return []
-        return []
+        """List all collections using REST API"""
+        try:
+            response = await self.client.get(f"{self.base_url}/collections")
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"📚 Available collections: {result}")
+            return result if isinstance(result, list) else []
+        except Exception as e:
+            logger.warning(f"Failed to list collections: {e}")
+            return []
     
-    async def search_vectors(self, collection: str, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Search vectors in a collection"""
-        result = await self.call_tool("search_vectors", {
-            "collection": collection,
-            "query": query,
-            "limit": limit
-        })
-        if "result" in result and "content" in result["result"]:
-            try:
-                search_results = json.loads(result["result"]["content"][0]["text"])
-                # Extract only text content, not vectors
+    async def intelligent_search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        """Perform intelligent search using REST API with fallback to simple search"""
+        try:
+            # Get available collections first
+            collections_response = await self.client.get(f"{self.base_url}/collections")
+            collections_data = collections_response.json()
+            collection_names = [col["name"] for col in collections_data.get("collections", []) if col.get("document_count", 0) > 0]
+            
+            # Use REST API endpoint directly with collections
+            response = await self.client.post(
+                f"{self.base_url}/intelligent_search",
+                json={
+                    "query": query,
+                    "collections": collection_names[:10],  # Limit to first 10 collections for speed
+                    "max_results": max_results,
+                    "mmr_enabled": False,        # Disable for speed
+                    "domain_expansion": False,    # Disable for speed
+                    "technical_focus": True,      # Keep for technical relevance
+                    "mmr_lambda": 0.7            # Not used when MMR disabled
+                }
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Debug: Log the full response to understand the structure
+            logger.info(f"🔍 REST API Response: {json.dumps(result, indent=2)}")
+            
+            # Extract results from REST API response according to OpenAPI spec
+            if "results" in result:
                 processed_results = []
-                for item in search_results:
-                    if isinstance(item, dict):
-                        # Extract only text content and metadata, skip vectors
-                        processed_item = {
-                            "content": item.get("payload", {}).get("content", ""),
-                            "score": item.get("score", 0.0),
-                            "metadata": item.get("payload", {}).get("metadata", {})
-                        }
-                        processed_results.append(processed_item)
+                
+                # Handle both formats: list (actual) and dict (documented)
+                if isinstance(result["results"], list):
+                    # Actual format: results is a list
+                    for item in result["results"]:
+                        if isinstance(item, dict):
+                            processed_item = {
+                                "content": item.get("content", ""),
+                                "score": item.get("score", 0.0),
+                                "metadata": item.get("metadata", {}),
+                                "collection": item.get("collection", "unknown")
+                            }
+                            processed_results.append(processed_item)
+                    logger.info(f"📊 Processed {len(processed_results)} results from list format")
+                    
+                elif isinstance(result["results"], dict):
+                    # Documented format: results organized by collection
+                    for collection_name, items in result["results"].items():
+                        if isinstance(items, list):
+                            for item in items:
+                                if isinstance(item, dict):
+                                    processed_item = {
+                                        "content": item.get("content", ""),
+                                        "score": item.get("score", 0.0),
+                                        "metadata": item.get("metadata", {}),
+                                        "collection": collection_name
+                                    }
+                                    processed_results.append(processed_item)
+                    logger.info(f"📊 Processed {len(processed_results)} results from {len(result['results'])} collections")
+                
+                # If intelligent search returns no results, try simple search as fallback
+                if not processed_results and collection_names:
+                    logger.info("🔄 Intelligent search returned no results, trying simple search fallback")
+                    return await self._fallback_simple_search(query, collection_names[:3], max_results)
+                
                 return processed_results
-            except:
+            else:
+                logger.warning(f"⚠️ No 'results' key in REST API response. Keys: {list(result.keys())}")
+                # Try simple search fallback
+                if collection_names:
+                    return await self._fallback_simple_search(query, collection_names[:3], max_results)
                 return []
-        return []
+            
+        except Exception as e:
+            logger.warning(f"REST API intelligent search failed: {e}")
+            # Try simple search fallback
+            try:
+                collections_response = await self.client.get(f"{self.base_url}/collections")
+                collections_data = collections_response.json()
+                collection_names = [col["name"] for col in collections_data.get("collections", []) if col.get("document_count", 0) > 0]
+                if collection_names:
+                    return await self._fallback_simple_search(query, collection_names[:3], max_results)
+            except:
+                pass
+            return []
+    
+    async def _fallback_simple_search(self, query: str, collections: List[str], max_results: int) -> List[Dict[str, Any]]:
+        """Fallback to simple search when intelligent search fails"""
+        processed_results = []
+        
+        for collection in collections:
+            try:
+                response = await self.client.post(
+                    f"{self.base_url}/collections/{collection}/search/text",
+                    json={
+                        "query": query,
+                        "limit": max_results // len(collections) + 1  # Distribute results across collections
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                if "results" in result:
+                    for item in result["results"]:
+                        if isinstance(item, dict):
+                            # Extract text from payload
+                            payload = item.get("payload", {})
+                            content = payload.get("text", "")
+                            
+                            processed_item = {
+                                "content": content,
+                                "score": item.get("score", 0.0),
+                                "metadata": payload,
+                                "collection": collection
+                            }
+                            processed_results.append(processed_item)
+                            
+            except Exception as e:
+                logger.warning(f"Simple search failed for collection {collection}: {e}")
+                continue
+        
+        logger.info(f"🔄 Fallback simple search returned {len(processed_results)} results from {len(collections)} collections")
+        return processed_results
     
     async def get_collection_info(self, collection: str) -> Dict[str, Any]:
         """Get collection information"""
@@ -312,215 +414,73 @@ Answer the question directly and clearly based on the context above."""
     return prompt
 
 async def perform_intelligent_search(query: str, base_context: str) -> str:
-    """Perform intelligent iterative search with reranking like Cursor"""
+    """Perform intelligent search using optimized Vectorizer configuration"""
     global mcp_client
     
     if not mcp_client:
-        return base_context
+        logger.warning("⚠️ MCP client not available")
+        return ""  # Return empty instead of old context
     
     try:
-        # Step 1: Get all collections
+        logger.info(f"🔍 Performing intelligent search for: '{query}'")
+        
+        # First check available collections
         collections = await mcp_client.list_collections()
-        logger.info(f"📋 Found {len(collections)} collections")
+        if not collections:
+            logger.warning("⚠️ No collections available for search")
+            return ""
         
-        # Step 2: Extract key terms from query for better search
-        query_terms = extract_search_terms(query)
-        logger.info(f"🔍 Extracted terms: {query_terms}")
+        # Try a simple search first to test if there's any data
+        try:
+            simple_search_response = await mcp_client.client.post(
+                f"{mcp_client.base_url}/search",
+                json={
+                    "query": query,
+                    "limit": 3
+                }
+            )
+            simple_result = simple_search_response.json()
+            logger.info(f"🔍 Simple search test: {json.dumps(simple_result, indent=2)}")
+        except Exception as e:
+            logger.warning(f"Simple search test failed: {e}")
         
-        # Step 3: Multi-query search strategy (like Cursor)
-        all_results = []
+        # Use the optimized intelligent search
+        search_results = await mcp_client.intelligent_search(query, max_results=5)
         
-        # Generate multiple search queries for better coverage
-        search_queries = generate_search_queries(query, query_terms)
-        logger.info(f"🔍 Generated {len(search_queries)} search queries: {search_queries}")
-        
-        # SMART SEARCH: Prioritize collections that match query terms
-        relevant_collections = []
-        other_collections = []
-        
-        for collection in collections:
-            if isinstance(collection, dict) and 'name' in collection:
-                collection_name = collection['name'].lower()
-                # Check if collection name contains any query term
-                if any(term in collection_name for term in query_terms):
-                    relevant_collections.append(collection)
-                else:
-                    other_collections.append(collection)
-        
-        # Search relevant collections first (higher priority)
-        collections_to_search = relevant_collections[:10] + other_collections[:10]  # Max 20 collections
-        
-        logger.info(f"🎯 Prioritized {len(relevant_collections[:10])} relevant collections, {len(other_collections[:10])} others")
-        
-        for search_query in search_queries:
-            for collection in collections_to_search:
-                if isinstance(collection, dict) and 'name' in collection:
-                    collection_name = collection['name']
-                    
-                    search_results = await mcp_client.search_vectors(
-                        collection_name, search_query, limit=2, min_score=0.2  # Higher threshold, more results per collection
-                    )
-                    
-                    if search_results:
-                        for result in search_results:
-                            if isinstance(result, dict) and 'content' in result:
-                                content = result['content']
-                                score = result.get('score', 0.0)  # Default to 0.0 instead of 0.5
-                                
-                                # Only add if score is meaningful
-                                if score >= 0.2:
-                                    logger.info(f"🔍 Found result: score={score:.3f}, collection={collection_name}")
-                                    
-                                    # Add metadata for reranking
-                                    all_results.append({
-                                        'content': content,
-                                        'score': score,
-                                        'collection': collection_name,
-                                        'query': search_query,
-                                        'relevance': calculate_relevance(content, query_terms)
-                                    })
-        
-        # Step 4: Rerank results by combined score (like Cursor)
-        reranked_results = rerank_results(all_results, query_terms)
-        
-        # Step 5: Select top 3 best results
-        selected_results = select_diverse_results(reranked_results, max_results=3)
-        
-        # Step 6: Format context with relevant information
-        if selected_results:
-            logger.info(f"✅ Found {len(selected_results)} relevant results")
+        if search_results:
+            logger.info(f"✅ Found {len(search_results)} relevant results")
             context_parts = []
-            for result in selected_results:
-                content = result['content']
-                
-                # Extract relevant lines (max 5 lines per result)
-                relevant_lines = []
-                for line in content.split('\n'):
-                    line = line.strip()
-                    if line and any(term in line.lower() for term in query_terms):
-                        relevant_lines.append(line)
-                        if len(relevant_lines) >= 5:
-                            break
-                
-                # Use relevant lines or first 400 chars
-                if relevant_lines:
-                    content = '\n'.join(relevant_lines[:5])
-                else:
-                    content = content[:400] + "..." if len(content) > 400 else content
-                
-                collection_name = result['collection']
-                score = result.get('combined_score', 0)
-                formatted_content = f"[{collection_name}] (score: {score:.3f})\n{content}"
-                context_parts.append(formatted_content)
             
-            enhanced_context = f"{base_context}\n\nRelevant Context:\n" + "\n\n".join(context_parts)
-            logger.info(f"📝 Context created: {len(enhanced_context)} chars from {len(selected_results)} sources")
-            return enhanced_context
+            for result in search_results:
+                content = result.get('content', '')
+                score = result.get('score', 0.0)
+                collection = result.get('collection', 'unknown')
+                
+                # Only include results with meaningful scores
+                if score >= 0.3:  # Higher threshold for better quality
+                    # Truncate content to avoid overwhelming the model
+                    if len(content) > 500:
+                        content = content[:500] + "..."
+                    
+                    formatted_content = f"[{collection}] (score: {score:.3f})\n{content}"
+                    context_parts.append(formatted_content)
+            
+            if context_parts:
+                enhanced_context = f"{base_context}\n\nRelevant Context:\n" + "\n\n".join(context_parts)
+                logger.info(f"📝 Context created: {len(enhanced_context)} chars from {len(context_parts)} sources")
+                return enhanced_context
+            else:
+                logger.warning("⚠️ No high-quality results found")
+                return ""  # Return empty instead of old context
         else:
             logger.warning("⚠️ No results found for context enhancement")
-            return base_context
+            return ""  # Return empty instead of old context
             
     except Exception as e:
-        return base_context
+        logger.warning(f"Intelligent search failed: {e}")
+        return ""  # Return empty instead of old context
 
-def generate_search_queries(query: str, query_terms: List[str]) -> List[str]:
-    """Generate focused search query - just use the original query"""
-    # SIMPLIFIED: Only use the original query to avoid irrelevant results
-    return [query]
-
-def calculate_relevance(content: str, query_terms: List[str]) -> float:
-    """Calculate relevance score based on term frequency and position"""
-    if not query_terms:
-        return 0.5
-    
-    content_lower = content.lower()
-    relevance_score = 0.0
-    
-    for term in query_terms:
-        term_lower = term.lower()
-        
-        # Count occurrences
-        count = content_lower.count(term_lower)
-        if count > 0:
-            relevance_score += count * 0.1
-            
-            # Bonus for early occurrence
-            position = content_lower.find(term_lower)
-            if position < 100:
-                relevance_score += 0.2
-            elif position < 300:
-                relevance_score += 0.1
-    
-    return min(relevance_score, 1.0)  # Cap at 1.0
-
-def rerank_results(results: List[Dict], query_terms: List[str]) -> List[Dict]:
-    """Rerank results by combined score like Cursor does"""
-    for result in results:
-        # Combine semantic score with relevance score
-        semantic_score = result['score']
-        relevance_score = result['relevance']
-        
-        # Weighted combination (like Cursor's reranking)
-        combined_score = (semantic_score * 0.6) + (relevance_score * 0.4)
-        result['combined_score'] = combined_score
-    
-    # Sort by combined score (highest first)
-    return sorted(results, key=lambda x: x['combined_score'], reverse=True)
-
-def select_diverse_results(results: List[Dict], max_results: int = 3) -> List[Dict]:
-    """Select the most relevant results"""
-    selected = []
-    used_collections = set()
-    
-    for result in results:
-        if len(selected) >= max_results:
-            break
-            
-        collection = result['collection']
-        
-        # Select results with any positive score
-        if result.get('combined_score', 0) > 0:
-            # Prefer results from different collections
-            if collection not in used_collections or len(selected) < 2:
-                selected.append(result)
-                used_collections.add(collection)
-    
-    return selected
-
-def extract_search_terms(query: str) -> List[str]:
-    """Extract key terms from query for better search"""
-    import re
-    
-    # Remove common words and extract meaningful terms
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'me', 'you', 'he', 'she', 'it', 'we', 'they', 'about', 'what', 'how', 'when', 'where', 'why'}
-    
-    # Extract words (alphanumeric + some special chars)
-    words = re.findall(r'\b\w+\b', query.lower())
-    
-    # Filter out stop words and short words
-    terms = [word for word in words if len(word) > 2 and word not in stop_words]
-    
-    return terms[:5]  # Return top 5 terms
-
-def is_relevant_content(content: str, search_terms: List[str]) -> bool:
-    """Check if content is relevant to search terms"""
-    if not search_terms:
-        return True
-    
-    content_lower = content.lower()
-    
-    # Check if any search term appears in content
-    for term in search_terms:
-        if term in content_lower:
-            return True
-    
-    # Additional relevance checks
-    relevance_keywords = ['cmmv', 'content', 'management', 'media', 'vault', 'api', 'documentation', 'example', 'usage', 'implementation']
-    for keyword in relevance_keywords:
-        if keyword in content_lower:
-            return True
-    
-    return False
+# Removed helper functions - now handled by Vectorizer's optimized intelligent_search
 
 def extract_context_request(response: str) -> Dict[str, Any]:
     """Extract context request from BitNet response"""
@@ -556,79 +516,31 @@ def extract_context_request(response: str) -> Dict[str, Any]:
     
     return None
 
-async def handle_context_request(request: Dict[str, Any]) -> str:
-    """Handle context request from BitNet"""
+# Simplified context handling - now uses intelligent_search directly
+async def get_additional_context(query: str, collections: List[str] = None) -> str:
+    """Get additional context using optimized intelligent search"""
     global mcp_client
     
     if not mcp_client:
         return ""
     
     try:
-        query = request.get("query", "")
-        collections = request.get("collections", [])
+        # Use intelligent search for better results
+        search_results = await mcp_client.intelligent_search(query, max_results=3)
         
-        if not query:
-            return ""
-        
-        # If specific collections requested, search only in those
-        if collections:
-            search_collections = collections
-        else:
-            # Get all collections if none specified
-            all_collections = await mcp_client.list_collections()
-            search_collections = [col.get('name', '') for col in all_collections if isinstance(col, dict)]
-        
-        # Search in requested collections
-        results = []
-        for collection_name in search_collections[:5]:  # Limit to 5 collections
-            if collection_name:
-                search_results = await mcp_client.search_vectors(
-                    collection_name, query, limit=2
-                )
+        if search_results:
+            context_parts = []
+            for result in search_results:
+                content = result.get('content', '')
+                score = result.get('score', 0.0)
+                collection = result.get('collection', 'unknown')
                 
-                if search_results:
-                    for result in search_results:
-                        if isinstance(result, dict) and 'content' in result:
-                            content = result['content']
-                            if len(content) > 500:
-                                content = content[:500] + "..."
-                            results.append(f"[{collection_name}] {content}")
+                if score >= 0.3:  # Only high-quality results
+                    context_parts.append(f"[{collection} (score: {score:.3f})] {content[:300]}")
+            
+            return "\n".join(context_parts)
         
-        return " | ".join(results) if results else ""
-        
-    except Exception as e:
         return ""
-
-async def get_additional_context(query: str, collections: List[str]) -> str:
-    """Get additional context from specific collections"""
-    global mcp_client
-    
-    if not mcp_client:
-        return ""
-    
-    try:
-        context_parts = []
-        
-        # If no specific collections, search all available
-        if not collections:
-            all_collections = await mcp_client.list_collections()
-            collections = [col.get('name', '') for col in all_collections if isinstance(col, dict)]
-        
-        # Search in specified collections
-        for collection_name in collections[:5]:  # Limit to 5 collections
-            if collection_name:
-                search_results = await mcp_client.search_vectors(
-                    collection_name, query, limit=2
-                )
-                
-                if search_results:
-                    for result in search_results:
-                        if isinstance(result, dict) and 'content' in result:
-                            content = result['content']
-                            score = result.get('score', 0.0)
-                            context_parts.append(f"[{collection_name} (score: {score:.3f})] {content[:300]}")
-        
-        return "\n".join(context_parts)
         
     except Exception as e:
         logger.warning(f"Failed to get additional context: {e}")
