@@ -36,6 +36,15 @@ import {
   GetSummaryResponse,
   ListSummariesResponse,
   ListSummariesQuery,
+  // Intelligent search models
+  IntelligentSearchRequest,
+  IntelligentSearchResponse,
+  SemanticSearchRequest,
+  SemanticSearchResponse,
+  ContextualSearchRequest,
+  ContextualSearchResponse,
+  MultiCollectionSearchRequest,
+  MultiCollectionSearchResponse,
 } from './models';
 
 
@@ -322,6 +331,81 @@ export class VectorizerClient {
       return response;
     } catch (error) {
       this.logger.error('Failed to search text', { collectionName, request, error });
+      throw error;
+    }
+  }
+
+  // ===== INTELLIGENT SEARCH OPERATIONS =====
+
+  /**
+   * Advanced intelligent search with multi-query expansion and semantic reranking.
+   */
+  public async intelligentSearch(request: IntelligentSearchRequest): Promise<IntelligentSearchResponse> {
+    try {
+      const response = await this.httpClient.post<IntelligentSearchResponse>('/intelligent_search', request);
+      this.logger.debug('Intelligent search completed', { 
+        query: request.query, 
+        resultCount: response.results?.length || 0,
+        collections: request.collections 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform intelligent search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Semantic search with advanced reranking and similarity thresholds.
+   */
+  public async semanticSearch(request: SemanticSearchRequest): Promise<SemanticSearchResponse> {
+    try {
+      const response = await this.httpClient.post<SemanticSearchResponse>('/semantic_search', request);
+      this.logger.debug('Semantic search completed', { 
+        query: request.query, 
+        collection: request.collection,
+        resultCount: response.results?.length || 0 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform semantic search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Context-aware search with metadata filtering and contextual reranking.
+   */
+  public async contextualSearch(request: ContextualSearchRequest): Promise<ContextualSearchResponse> {
+    try {
+      const response = await this.httpClient.post<ContextualSearchResponse>('/contextual_search', request);
+      this.logger.debug('Contextual search completed', { 
+        query: request.query, 
+        collection: request.collection,
+        resultCount: response.results?.length || 0,
+        contextFilters: request.context_filters 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform contextual search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Multi-collection search with cross-collection reranking and aggregation.
+   */
+  public async multiCollectionSearch(request: MultiCollectionSearchRequest): Promise<MultiCollectionSearchResponse> {
+    try {
+      const response = await this.httpClient.post<MultiCollectionSearchResponse>('/multi_collection_search', request);
+      this.logger.debug('Multi-collection search completed', { 
+        query: request.query, 
+        collections: request.collections,
+        resultCount: response.results?.length || 0 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform multi-collection search', { request, error });
       throw error;
     }
   }

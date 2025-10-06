@@ -46,7 +46,17 @@ from models import (
     SummarizeContextResponse,
     GetSummaryResponse,
     SummaryInfo,
-    ListSummariesResponse
+    ListSummariesResponse,
+    # Intelligent search models
+    IntelligentSearchRequest,
+    IntelligentSearchResponse,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
+    ContextualSearchRequest,
+    ContextualSearchResponse,
+    MultiCollectionSearchRequest,
+    MultiCollectionSearchResponse,
+    IntelligentSearchResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -408,6 +418,132 @@ class VectorizerClient:
                     raise ServerError(f"Failed to search vectors: {response.status}")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to search vectors: {e}")
+    
+    # ===== INTELLIGENT SEARCH OPERATIONS =====
+    
+    async def intelligent_search(self, request: IntelligentSearchRequest) -> IntelligentSearchResponse:
+        """
+        Advanced intelligent search with multi-query expansion and semantic reranking.
+        
+        Args:
+            request: Intelligent search request
+            
+        Returns:
+            Intelligent search response
+            
+        Raises:
+            ValidationError: If parameters are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._session.post(
+                f"{self.base_url}/intelligent_search",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return IntelligentSearchResponse(**data)
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to perform intelligent search: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to perform intelligent search: {e}")
+    
+    async def semantic_search(self, request: SemanticSearchRequest) -> SemanticSearchResponse:
+        """
+        Semantic search with advanced reranking and similarity thresholds.
+        
+        Args:
+            request: Semantic search request
+            
+        Returns:
+            Semantic search response
+            
+        Raises:
+            ValidationError: If parameters are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._session.post(
+                f"{self.base_url}/semantic_search",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return SemanticSearchResponse(**data)
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to perform semantic search: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to perform semantic search: {e}")
+    
+    async def contextual_search(self, request: ContextualSearchRequest) -> ContextualSearchResponse:
+        """
+        Context-aware search with metadata filtering and contextual reranking.
+        
+        Args:
+            request: Contextual search request
+            
+        Returns:
+            Contextual search response
+            
+        Raises:
+            ValidationError: If parameters are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._session.post(
+                f"{self.base_url}/contextual_search",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return ContextualSearchResponse(**data)
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to perform contextual search: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to perform contextual search: {e}")
+    
+    async def multi_collection_search(self, request: MultiCollectionSearchRequest) -> MultiCollectionSearchResponse:
+        """
+        Multi-collection search with cross-collection reranking and aggregation.
+        
+        Args:
+            request: Multi-collection search request
+            
+        Returns:
+            Multi-collection search response
+            
+        Raises:
+            ValidationError: If parameters are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._session.post(
+                f"{self.base_url}/multi_collection_search",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return MultiCollectionSearchResponse(**data)
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to perform multi-collection search: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to perform multi-collection search: {e}")
             
     async def get_vector(self, collection: str, vector_id: str) -> Vector:
         """

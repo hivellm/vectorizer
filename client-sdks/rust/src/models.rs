@@ -520,3 +520,156 @@ pub struct CollectionProgress {
     /// Last updated timestamp
     pub last_updated: String,
 }
+
+// ===== INTELLIGENT SEARCH MODELS =====
+
+/// Intelligent search request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntelligentSearchRequest {
+    /// Search query
+    pub query: String,
+    /// Collections to search (optional - searches all if not specified)
+    pub collections: Option<Vec<String>>,
+    /// Maximum number of results
+    pub max_results: Option<usize>,
+    /// Enable domain expansion
+    pub domain_expansion: Option<bool>,
+    /// Enable technical focus
+    pub technical_focus: Option<bool>,
+    /// Enable MMR diversification
+    pub mmr_enabled: Option<bool>,
+    /// MMR balance parameter (0.0-1.0)
+    pub mmr_lambda: Option<f32>,
+}
+
+/// Semantic search request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticSearchRequest {
+    /// Search query
+    pub query: String,
+    /// Collection to search
+    pub collection: String,
+    /// Maximum number of results
+    pub max_results: Option<usize>,
+    /// Enable semantic reranking
+    pub semantic_reranking: Option<bool>,
+    /// Enable cross-encoder reranking
+    pub cross_encoder_reranking: Option<bool>,
+    /// Minimum similarity threshold
+    pub similarity_threshold: Option<f32>,
+}
+
+/// Contextual search request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextualSearchRequest {
+    /// Search query
+    pub query: String,
+    /// Collection to search
+    pub collection: String,
+    /// Metadata-based context filters
+    pub context_filters: Option<HashMap<String, serde_json::Value>>,
+    /// Maximum number of results
+    pub max_results: Option<usize>,
+    /// Enable context-aware reranking
+    pub context_reranking: Option<bool>,
+    /// Weight of context factors (0.0-1.0)
+    pub context_weight: Option<f32>,
+}
+
+/// Multi-collection search request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiCollectionSearchRequest {
+    /// Search query
+    pub query: String,
+    /// Collections to search
+    pub collections: Vec<String>,
+    /// Maximum results per collection
+    pub max_per_collection: Option<usize>,
+    /// Maximum total results
+    pub max_total_results: Option<usize>,
+    /// Enable cross-collection reranking
+    pub cross_collection_reranking: Option<bool>,
+}
+
+/// Intelligent search result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntelligentSearchResult {
+    /// Result ID
+    pub id: String,
+    /// Similarity score
+    pub score: f32,
+    /// Result content
+    pub content: String,
+    /// Metadata
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+    /// Collection name
+    pub collection: Option<String>,
+    /// Query used for this result
+    pub query_used: Option<String>,
+}
+
+/// Intelligent search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntelligentSearchResponse {
+    /// Search results
+    pub results: Vec<IntelligentSearchResult>,
+    /// Total number of results found
+    pub total_results: usize,
+    /// Search duration in milliseconds
+    pub duration_ms: u64,
+    /// Queries generated
+    pub queries_generated: Option<Vec<String>>,
+    /// Collections searched
+    pub collections_searched: Option<Vec<String>>,
+    /// Search metadata
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Semantic search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticSearchResponse {
+    /// Search results
+    pub results: Vec<IntelligentSearchResult>,
+    /// Total number of results found
+    pub total_results: usize,
+    /// Search duration in milliseconds
+    pub duration_ms: u64,
+    /// Collection searched
+    pub collection: String,
+    /// Search metadata
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Contextual search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextualSearchResponse {
+    /// Search results
+    pub results: Vec<IntelligentSearchResult>,
+    /// Total number of results found
+    pub total_results: usize,
+    /// Search duration in milliseconds
+    pub duration_ms: u64,
+    /// Collection searched
+    pub collection: String,
+    /// Context filters applied
+    pub context_filters: Option<HashMap<String, serde_json::Value>>,
+    /// Search metadata
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Multi-collection search response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiCollectionSearchResponse {
+    /// Search results
+    pub results: Vec<IntelligentSearchResult>,
+    /// Total number of results found
+    pub total_results: usize,
+    /// Search duration in milliseconds
+    pub duration_ms: u64,
+    /// Collections searched
+    pub collections_searched: Vec<String>,
+    /// Results per collection
+    pub results_per_collection: Option<HashMap<String, usize>>,
+    /// Search metadata
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
+}

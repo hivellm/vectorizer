@@ -36,6 +36,58 @@ async fn main() -> Result<()> {
     let results = client.search_vectors("gov-bips", "bitcoin", Some(5), None).await?;
     println!("Found {} search results", results.results.len());
 
+    // Intelligent search with multi-query expansion
+    let intelligent_request = IntelligentSearchRequest {
+        query: "machine learning algorithms".to_string(),
+        collections: Some(vec!["gov-bips".to_string(), "research".to_string()]),
+        max_results: Some(15),
+        domain_expansion: Some(true),
+        technical_focus: Some(true),
+        mmr_enabled: Some(true),
+        mmr_lambda: Some(0.7),
+    };
+    let intelligent_results = client.intelligent_search(intelligent_request).await?;
+    println!("Intelligent search found {} results", intelligent_results.results.len());
+
+    // Semantic search with reranking
+    let semantic_request = SemanticSearchRequest {
+        query: "neural networks".to_string(),
+        collection: "gov-bips".to_string(),
+        max_results: Some(10),
+        semantic_reranking: Some(true),
+        cross_encoder_reranking: Some(false),
+        similarity_threshold: Some(0.6),
+    };
+    let semantic_results = client.semantic_search(semantic_request).await?;
+    println!("Semantic search found {} results", semantic_results.results.len());
+
+    // Contextual search with metadata filtering
+    let mut context_filters = std::collections::HashMap::new();
+    context_filters.insert("category".to_string(), serde_json::Value::String("AI".to_string()));
+    context_filters.insert("year".to_string(), serde_json::Value::Number(2023.into()));
+    
+    let contextual_request = ContextualSearchRequest {
+        query: "deep learning".to_string(),
+        collection: "gov-bips".to_string(),
+        context_filters: Some(context_filters),
+        max_results: Some(10),
+        context_reranking: Some(true),
+        context_weight: Some(0.4),
+    };
+    let contextual_results = client.contextual_search(contextual_request).await?;
+    println!("Contextual search found {} results", contextual_results.results.len());
+
+    // Multi-collection search
+    let multi_request = MultiCollectionSearchRequest {
+        query: "artificial intelligence".to_string(),
+        collections: vec!["gov-bips".to_string(), "research".to_string(), "tutorials".to_string()],
+        max_per_collection: Some(5),
+        max_total_results: Some(20),
+        cross_collection_reranking: Some(true),
+    };
+    let multi_results = client.multi_collection_search(multi_request).await?;
+    println!("Multi-collection search found {} results", multi_results.results.len());
+
     Ok(())
 }
 ```
@@ -45,6 +97,9 @@ async fn main() -> Result<()> {
 - 🚀 **High Performance**: Optimized async HTTP client
 - 🔄 **Async/Await**: Full async/await support with Tokio
 - 🔍 **Semantic Search**: Vector similarity search with multiple metrics
+- 🧠 **Intelligent Search**: Advanced multi-query search with domain expansion
+- 🎯 **Contextual Search**: Context-aware search with metadata filtering
+- 🔗 **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - 📦 **Batch Operations**: Efficient bulk text insertion
 - 🛡️ **Type Safety**: Strongly typed API with comprehensive error handling
 - 🔧 **Easy Setup**: Simple client creation with sensible defaults

@@ -224,6 +224,110 @@ export class VectorizerClient {
       return false;
     }
   }
+
+  // ===== INTELLIGENT SEARCH METHODS =====
+
+  /**
+   * Perform intelligent search with multi-query expansion
+   */
+  async intelligentSearch(
+    query: string,
+    collections?: string[],
+    maxResults: number = 10,
+    domainExpansion: boolean = true,
+    technicalFocus: boolean = true,
+    mmrEnabled: boolean = true,
+    mmrLambda: number = 0.7
+  ): Promise<any[]> {
+    const data: any = {
+      query,
+      max_results: maxResults,
+      domain_expansion: domainExpansion,
+      technical_focus: technicalFocus,
+      mmr_enabled: mmrEnabled,
+      mmr_lambda: mmrLambda
+    };
+
+    if (collections) {
+      data.collections = collections;
+    }
+
+    const response = await this.makeRequest("POST", "/intelligent_search", data);
+    return response.results || [];
+  }
+
+  /**
+   * Perform semantic search with advanced reranking
+   */
+  async semanticSearch(
+    query: string,
+    collection: string,
+    maxResults: number = 10,
+    semanticReranking: boolean = true,
+    crossEncoderReranking: boolean = false,
+    similarityThreshold: number = 0.5
+  ): Promise<any[]> {
+    const data = {
+      query,
+      collection,
+      max_results: maxResults,
+      semantic_reranking: semanticReranking,
+      cross_encoder_reranking: crossEncoderReranking,
+      similarity_threshold: similarityThreshold
+    };
+
+    const response = await this.makeRequest("POST", "/semantic_search", data);
+    return response.results || [];
+  }
+
+  /**
+   * Perform context-aware search with metadata filtering
+   */
+  async contextualSearch(
+    query: string,
+    collection: string,
+    contextFilters?: Record<string, any>,
+    maxResults: number = 10,
+    contextReranking: boolean = true,
+    contextWeight: number = 0.3
+  ): Promise<any[]> {
+    const data: any = {
+      query,
+      collection,
+      max_results: maxResults,
+      context_reranking: contextReranking,
+      context_weight: contextWeight
+    };
+
+    if (contextFilters) {
+      data.context_filters = contextFilters;
+    }
+
+    const response = await this.makeRequest("POST", "/contextual_search", data);
+    return response.results || [];
+  }
+
+  /**
+   * Perform multi-collection search with cross-collection reranking
+   */
+  async multiCollectionSearch(
+    query: string,
+    collections: string[],
+    maxPerCollection: number = 5,
+    maxTotalResults: number = 20,
+    crossCollectionReranking: boolean = true
+  ): Promise<any[]> {
+    const data = {
+      query,
+      collections,
+      max_per_collection: maxPerCollection,
+      max_total_results: maxTotalResults,
+      cross_collection_reranking: crossCollectionReranking
+    };
+
+    const response = await this.makeRequest("POST", "/multi_collection_search", data);
+    return response.results || [];
+  }
 }
 
 /**
@@ -327,6 +431,96 @@ export class VectorizerStore extends VectorStore {
    */
   async delete(ids: string[]): Promise<boolean> {
     return await this.client.deleteVectors(ids);
+  }
+
+  // ===== INTELLIGENT SEARCH METHODS =====
+
+  /**
+   * Perform intelligent search with multi-query expansion
+   */
+  async intelligentSearch(
+    query: string,
+    collections?: string[],
+    maxResults: number = 10,
+    domainExpansion: boolean = true,
+    technicalFocus: boolean = true,
+    mmrEnabled: boolean = true,
+    mmrLambda: number = 0.7
+  ): Promise<Document[]> {
+    const results = await this.client.intelligentSearch(
+      query, collections, maxResults, domainExpansion,
+      technicalFocus, mmrEnabled, mmrLambda
+    );
+
+    return results.map(result => new Document({
+      pageContent: result.content || "",
+      metadata: result.metadata || {}
+    }));
+  }
+
+  /**
+   * Perform semantic search with advanced reranking
+   */
+  async semanticSearch(
+    query: string,
+    collection: string,
+    maxResults: number = 10,
+    semanticReranking: boolean = true,
+    crossEncoderReranking: boolean = false,
+    similarityThreshold: number = 0.5
+  ): Promise<Document[]> {
+    const results = await this.client.semanticSearch(
+      query, collection, maxResults, semanticReranking,
+      crossEncoderReranking, similarityThreshold
+    );
+
+    return results.map(result => new Document({
+      pageContent: result.content || "",
+      metadata: result.metadata || {}
+    }));
+  }
+
+  /**
+   * Perform context-aware search with metadata filtering
+   */
+  async contextualSearch(
+    query: string,
+    collection: string,
+    contextFilters?: Record<string, any>,
+    maxResults: number = 10,
+    contextReranking: boolean = true,
+    contextWeight: number = 0.3
+  ): Promise<Document[]> {
+    const results = await this.client.contextualSearch(
+      query, collection, contextFilters, maxResults,
+      contextReranking, contextWeight
+    );
+
+    return results.map(result => new Document({
+      pageContent: result.content || "",
+      metadata: result.metadata || {}
+    }));
+  }
+
+  /**
+   * Perform multi-collection search with cross-collection reranking
+   */
+  async multiCollectionSearch(
+    query: string,
+    collections: string[],
+    maxPerCollection: number = 5,
+    maxTotalResults: number = 20,
+    crossCollectionReranking: boolean = true
+  ): Promise<Document[]> {
+    const results = await this.client.multiCollectionSearch(
+      query, collections, maxPerCollection,
+      maxTotalResults, crossCollectionReranking
+    );
+
+    return results.map(result => new Document({
+      pageContent: result.content || "",
+      metadata: result.metadata || {}
+    }));
   }
 
   /**

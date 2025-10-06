@@ -112,6 +112,40 @@ impl VectorizerClient {
         Ok(search_response)
     }
 
+    // ===== INTELLIGENT SEARCH OPERATIONS =====
+
+    /// Intelligent search with multi-query expansion and semantic reranking
+    pub async fn intelligent_search(&self, request: IntelligentSearchRequest) -> Result<IntelligentSearchResponse> {
+        let response = self.make_request("POST", "/intelligent_search", Some(serde_json::to_value(request).unwrap())).await?;
+        let search_response: IntelligentSearchResponse = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse intelligent search response: {}", e)))?;
+        Ok(search_response)
+    }
+
+    /// Semantic search with advanced reranking and similarity thresholds
+    pub async fn semantic_search(&self, request: SemanticSearchRequest) -> Result<SemanticSearchResponse> {
+        let response = self.make_request("POST", "/semantic_search", Some(serde_json::to_value(request).unwrap())).await?;
+        let search_response: SemanticSearchResponse = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse semantic search response: {}", e)))?;
+        Ok(search_response)
+    }
+
+    /// Context-aware search with metadata filtering and contextual reranking
+    pub async fn contextual_search(&self, request: ContextualSearchRequest) -> Result<ContextualSearchResponse> {
+        let response = self.make_request("POST", "/contextual_search", Some(serde_json::to_value(request).unwrap())).await?;
+        let search_response: ContextualSearchResponse = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse contextual search response: {}", e)))?;
+        Ok(search_response)
+    }
+
+    /// Multi-collection search with cross-collection reranking and aggregation
+    pub async fn multi_collection_search(&self, request: MultiCollectionSearchRequest) -> Result<MultiCollectionSearchResponse> {
+        let response = self.make_request("POST", "/multi_collection_search", Some(serde_json::to_value(request).unwrap())).await?;
+        let search_response: MultiCollectionSearchResponse = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse multi-collection search response: {}", e)))?;
+        Ok(search_response)
+    }
+
     /// Create collection
     pub async fn create_collection(
         &self,

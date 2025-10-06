@@ -6,31 +6,84 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 
 ### 🟦 TypeScript SDK ✅
 - **Package**: `@hivellm/vectorizer-client-ts`
-- **Status**: Published on npm (v0.1.0)
-- **Features**: Full TypeScript support, async/await, comprehensive type safety
+- **Status**: Published on npm (v0.3.1)
+- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search
 - **Installation**: `npm install @hivellm/vectorizer-client-ts`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
 
 ### 🟨 JavaScript SDK ✅
 - **Package**: `@hivellm/vectorizer-client-js`
-- **Status**: Published on npm (v0.1.0)
-- **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD)
+- **Status**: Published on npm (v0.3.1)
+- **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search
 - **Installation**: `npm install @hivellm/vectorizer-client-js`
 - **Documentation**: [JavaScript SDK README](./javascript/README.md)
 
 ### 🦀 Rust SDK ✅
 - **Package**: `vectorizer-rust-sdk`
-- **Status**: Published on crates.io (v0.1.0)
-- **Features**: High performance, async/await, MCP support, type safety
-- **Installation**: Add to `Cargo.toml`: `vectorizer-rust-sdk = "0.1.0"`
+- **Status**: Published on crates.io (v0.3.1)
+- **Features**: High performance, async/await, MCP support, type safety, intelligent search
+- **Installation**: Add to `Cargo.toml`: `vectorizer-rust-sdk = "0.3.1"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
-### 🐍 Python SDK 🚧
+### 🐍 Python SDK ✅
 - **Package**: `hivellm-vectorizer-client`
-- **Status**: In development - PyPI publishing in progress
-- **Features**: Async/await support, comprehensive testing, CLI interface
-- **Installation**: Coming soon - `pip install hivellm-vectorizer-client`
+- **Status**: Published on PyPI (v0.3.1)
+- **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search
+- **Installation**: `pip install hivellm-vectorizer-client`
 - **Documentation**: [Python SDK README](./python/README.md)
+
+## 🧠 Intelligent Search Features (v0.3.1)
+
+All SDKs now support advanced intelligent search capabilities:
+
+### 🔍 Intelligent Search
+- **Multi-query expansion**: Automatically generates multiple search queries
+- **Domain knowledge**: Technology-specific term expansion
+- **MMR diversification**: Ensures diverse, high-quality results
+- **Technical focus**: Prioritizes technical content and API documentation
+
+### 🎯 Semantic Search
+- **Advanced reranking**: Multi-factor scoring system
+- **Similarity thresholds**: Configurable relevance filtering
+- **Cross-encoder support**: Optional neural reranking
+
+### 🎪 Contextual Search
+- **Metadata filtering**: Search within specific contexts
+- **Context-aware reranking**: Considers metadata relevance
+- **Weighted scoring**: Balance between semantic and contextual factors
+
+### 🔗 Multi-Collection Search
+- **Cross-collection search**: Search across multiple collections simultaneously
+- **Intelligent aggregation**: Unified ranking across collections
+- **Collection-specific limits**: Control results per collection
+
+### Example Usage
+
+```typescript
+// Intelligent search with domain expansion
+const results = await client.intelligentSearch({
+  query: "machine learning algorithms",
+  collections: ["docs", "research"],
+  max_results: 15,
+  domain_expansion: true,
+  technical_focus: true,
+  mmr_enabled: true,
+  mmr_lambda: 0.7
+});
+
+// Contextual search with metadata filtering
+const contextualResults = await client.contextualSearch({
+  query: "deep learning",
+  collection: "docs",
+  context_filters: {
+    category: "AI",
+    language: "en",
+    year: 2023
+  },
+  max_results: 10,
+  context_weight: 0.4
+});
+```
 
 ## Quick Start
 

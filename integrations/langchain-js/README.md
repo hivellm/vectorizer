@@ -1,10 +1,14 @@
-# LangChain.js Integration for Vectorizer v0.3.0
+# LangChain.js Integration for Vectorizer v0.3.1
 
 This integration provides a complete implementation of LangChain.js's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
 
 ## 🚀 Features
 
 - ✅ **Full Compatibility**: Implements LangChain.js's VectorStore interface
+- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
+- ✅ **Semantic Search**: Advanced reranking and similarity thresholds
+- ✅ **Contextual Search**: Context-aware search with metadata filtering
+- ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **TypeScript**: Complete TypeScript support with defined types
 - ✅ **Batch Operations**: Support for efficient batch operations
 - ✅ **Metadata Filtering**: Search with metadata filters
@@ -148,6 +152,40 @@ const results = await store.similaritySearch('artificial intelligence', 5);
 results.forEach(doc => {
   console.log(`Relevant chunk: ${doc.pageContent.substring(0, 100)}...`);
 });
+
+// Intelligent search with multi-query expansion
+const intelligentResults = await store.intelligentSearch(
+  'machine learning algorithms',
+  ['document_chunks'],
+  10,
+  true, // domainExpansion
+  true, // technicalFocus
+  true, // mmrEnabled
+  0.7   // mmrLambda
+);
+console.log(`Intelligent search found ${intelligentResults.length} results`);
+
+// Semantic search with reranking
+const semanticResults = await store.semanticSearch(
+  'neural networks',
+  'document_chunks',
+  5,
+  true,  // semanticReranking
+  false, // crossEncoderReranking
+  0.6    // similarityThreshold
+);
+console.log(`Semantic search found ${semanticResults.length} results`);
+
+// Contextual search with metadata filtering
+const contextualResults = await store.contextualSearch(
+  'deep learning',
+  'document_chunks',
+  { source: 'document.txt' }, // contextFilters
+  5,
+  true, // contextReranking
+  0.4   // contextWeight
+);
+console.log(`Contextual search found ${contextualResults.length} results`);
 ```
 
 ### Search with Filters
@@ -206,6 +244,10 @@ resultsWithScores.forEach(([doc, score]) => {
 - `addTexts(texts: string[], metadatas?: Record<string, any>[])` - Add texts
 - `similaritySearch(query: string, k?: number, filter?: Record<string, any>)` - Similarity search
 - `similaritySearchWithScore(query: string, k?: number, filter?: Record<string, any>)` - Search with scores
+- `intelligentSearch(query: string, collections?: string[], maxResults?: number, domainExpansion?: boolean, technicalFocus?: boolean, mmrEnabled?: boolean, mmrLambda?: number)` - Intelligent search with multi-query expansion
+- `semanticSearch(query: string, collection: string, maxResults?: number, semanticReranking?: boolean, crossEncoderReranking?: boolean, similarityThreshold?: number)` - Semantic search with advanced reranking
+- `contextualSearch(query: string, collection: string, contextFilters?: Record<string, any>, maxResults?: number, contextReranking?: boolean, contextWeight?: number)` - Context-aware search with metadata filtering
+- `multiCollectionSearch(query: string, collections: string[], maxPerCollection?: number, maxTotalResults?: number, crossCollectionReranking?: boolean)` - Multi-collection search with cross-collection reranking
 - `delete(ids: string[])` - Delete vectors by IDs
 - `fromTexts(texts: string[], metadatas?: Record<string, any>[], embeddings?: Embeddings, config?: VectorizerConfig)` - Create store from texts
 - `fromDocuments(documents: Document[], embeddings?: Embeddings, config?: VectorizerConfig)` - Create store from documents

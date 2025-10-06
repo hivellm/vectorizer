@@ -1,10 +1,14 @@
-# LangChain Integration for Vectorizer v0.3.0
+# LangChain Integration for Vectorizer v0.3.1
 
 This integration provides a complete implementation of LangChain's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
 
 ## 🚀 Features
 
 - ✅ **Full Compatibility**: Implements LangChain's VectorStore interface
+- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
+- ✅ **Semantic Search**: Advanced reranking and similarity thresholds
+- ✅ **Contextual Search**: Context-aware search with metadata filtering
+- ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **Batch Operations**: Support for efficient batch operations
 - ✅ **Metadata Filtering**: Search with metadata filters
 - ✅ **Flexible Configuration**: Customizable configuration for different environments
@@ -125,6 +129,38 @@ store.add_texts(texts, metadatas)
 results = store.similarity_search("specific information", k=5)
 for doc in results:
     print(f"Relevant chunk: {doc.page_content[:100]}...")
+
+# Intelligent search with multi-query expansion
+intelligent_results = store.intelligent_search(
+    query="machine learning algorithms",
+    collections=["document_chunks"],
+    max_results=10,
+    domain_expansion=True,
+    technical_focus=True,
+    mmr_enabled=True,
+    mmr_lambda=0.7
+)
+print(f"Intelligent search found {len(intelligent_results)} results")
+
+# Semantic search with reranking
+semantic_results = store.semantic_search(
+    query="neural networks",
+    collection="document_chunks",
+    max_results=5,
+    semantic_reranking=True,
+    similarity_threshold=0.6
+)
+print(f"Semantic search found {len(semantic_results)} results")
+
+# Contextual search with metadata filtering
+contextual_results = store.contextual_search(
+    query="deep learning",
+    collection="document_chunks",
+    context_filters={"source": "document.txt"},
+    max_results=5,
+    context_weight=0.4
+)
+print(f"Contextual search found {len(contextual_results)} results")
 ```
 
 ### Search with Filters
@@ -182,6 +218,10 @@ for doc, score in results_with_scores:
 - `add_texts(texts, metadatas=None, **kwargs)` - Add texts
 - `similarity_search(query, k=4, filter=None, **kwargs)` - Similarity search
 - `similarity_search_with_score(query, k=4, filter=None, **kwargs)` - Search with scores
+- `intelligent_search(query, collections=None, max_results=10, domain_expansion=True, technical_focus=True, mmr_enabled=True, mmr_lambda=0.7, **kwargs)` - Intelligent search with multi-query expansion
+- `semantic_search(query, collection, max_results=10, semantic_reranking=True, cross_encoder_reranking=False, similarity_threshold=0.5, **kwargs)` - Semantic search with advanced reranking
+- `contextual_search(query, collection, context_filters=None, max_results=10, context_reranking=True, context_weight=0.3, **kwargs)` - Context-aware search with metadata filtering
+- `multi_collection_search(query, collections, max_per_collection=5, max_total_results=20, cross_collection_reranking=True, **kwargs)` - Multi-collection search with cross-collection reranking
 - `delete(ids, **kwargs)` - Delete vectors by IDs
 - `from_texts(texts, embedding=None, metadatas=None, config=None, **kwargs)` - Create store from texts
 - `from_documents(documents, embedding=None, config=None, **kwargs)` - Create store from documents

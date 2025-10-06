@@ -307,6 +307,113 @@ export class VectorizerClient {
     }
   }
 
+  // ===== INTELLIGENT SEARCH OPERATIONS =====
+
+  /**
+   * Advanced intelligent search with multi-query expansion and semantic reranking.
+   * @param {Object} request - Intelligent search request
+   * @param {string} request.query - Search query
+   * @param {string[]} [request.collections] - Collections to search (optional)
+   * @param {number} [request.max_results=10] - Maximum number of results
+   * @param {boolean} [request.domain_expansion=true] - Enable domain expansion
+   * @param {boolean} [request.technical_focus=true] - Enable technical focus
+   * @param {boolean} [request.mmr_enabled=true] - Enable MMR diversification
+   * @param {number} [request.mmr_lambda=0.7] - MMR balance parameter (0.0-1.0)
+   * @returns {Promise<Object>} Intelligent search response
+   */
+  async intelligentSearch(request) {
+    try {
+      const response = await this.httpClient.post('/intelligent_search', request);
+      this.logger.debug('Intelligent search completed', { 
+        query: request.query, 
+        resultCount: response.results?.length || 0,
+        collections: request.collections 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform intelligent search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Semantic search with advanced reranking and similarity thresholds.
+   * @param {Object} request - Semantic search request
+   * @param {string} request.query - Search query
+   * @param {string} request.collection - Collection to search
+   * @param {number} [request.max_results=10] - Maximum number of results
+   * @param {boolean} [request.semantic_reranking=true] - Enable semantic reranking
+   * @param {boolean} [request.cross_encoder_reranking=false] - Enable cross-encoder reranking
+   * @param {number} [request.similarity_threshold=0.5] - Minimum similarity threshold
+   * @returns {Promise<Object>} Semantic search response
+   */
+  async semanticSearch(request) {
+    try {
+      const response = await this.httpClient.post('/semantic_search', request);
+      this.logger.debug('Semantic search completed', { 
+        query: request.query, 
+        collection: request.collection,
+        resultCount: response.results?.length || 0 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform semantic search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Context-aware search with metadata filtering and contextual reranking.
+   * @param {Object} request - Contextual search request
+   * @param {string} request.query - Search query
+   * @param {string} request.collection - Collection to search
+   * @param {Object} [request.context_filters] - Metadata-based context filters
+   * @param {number} [request.max_results=10] - Maximum number of results
+   * @param {boolean} [request.context_reranking=true] - Enable context-aware reranking
+   * @param {number} [request.context_weight=0.3] - Weight of context factors (0.0-1.0)
+   * @returns {Promise<Object>} Contextual search response
+   */
+  async contextualSearch(request) {
+    try {
+      const response = await this.httpClient.post('/contextual_search', request);
+      this.logger.debug('Contextual search completed', { 
+        query: request.query, 
+        collection: request.collection,
+        resultCount: response.results?.length || 0,
+        contextFilters: request.context_filters 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform contextual search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Multi-collection search with cross-collection reranking and aggregation.
+   * @param {Object} request - Multi-collection search request
+   * @param {string} request.query - Search query
+   * @param {string[]} request.collections - Collections to search
+   * @param {number} [request.max_per_collection=5] - Maximum results per collection
+   * @param {number} [request.max_total_results=20] - Maximum total results
+   * @param {boolean} [request.cross_collection_reranking=true] - Enable cross-collection reranking
+   * @returns {Promise<Object>} Multi-collection search response
+   */
+  async multiCollectionSearch(request) {
+    try {
+      const response = await this.httpClient.post('/multi_collection_search', request);
+      this.logger.debug('Multi-collection search completed', { 
+        query: request.query, 
+        collections: request.collections,
+        resultCount: response.results?.length || 0 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform multi-collection search', { request, error });
+      throw error;
+    }
+  }
+
   // ===== EMBEDDING OPERATIONS =====
 
   /**

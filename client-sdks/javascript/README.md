@@ -13,6 +13,9 @@ High-performance JavaScript client for the Hive Vectorizer vector database.
 - ✅ **Collection Management**: CRUD operations for collections
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
+- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
+- ✅ **Contextual Search**: Context-aware search with metadata filtering
+- ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **Embedding Generation**: Text embedding support
 - ✅ **Multiple Build Formats**: CommonJS, ES Modules, UMD
 - ✅ **100% Test Coverage**: Comprehensive test suite with all tests passing
@@ -63,6 +66,48 @@ const results = await client.searchVectors('documents', {
 const textResults = await client.searchText('documents', {
   query: 'machine learning algorithms',
   limit: 5
+});
+
+// Intelligent search with multi-query expansion
+const intelligentResults = await client.intelligentSearch({
+  query: 'machine learning algorithms',
+  collections: ['documents', 'research'],
+  max_results: 15,
+  domain_expansion: true,
+  technical_focus: true,
+  mmr_enabled: true,
+  mmr_lambda: 0.7
+});
+
+// Semantic search with reranking
+const semanticResults = await client.semanticSearch({
+  query: 'neural networks',
+  collection: 'documents',
+  max_results: 10,
+  semantic_reranking: true,
+  similarity_threshold: 0.6
+});
+
+// Contextual search with metadata filtering
+const contextualResults = await client.contextualSearch({
+  query: 'deep learning',
+  collection: 'documents',
+  context_filters: {
+    category: 'AI',
+    language: 'en',
+    year: 2023
+  },
+  max_results: 10,
+  context_weight: 0.4
+});
+
+// Multi-collection search
+const multiResults = await client.multiCollectionSearch({
+  query: 'artificial intelligence',
+  collections: ['documents', 'research', 'tutorials'],
+  max_per_collection: 5,
+  max_total_results: 20,
+  cross_collection_reranking: true
 });
 
 // Generate embeddings
