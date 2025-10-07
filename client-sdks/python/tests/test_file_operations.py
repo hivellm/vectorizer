@@ -43,7 +43,7 @@ class TestFileOperations(unittest.IsolatedAsyncioTestCase):
             await self.client.health_check()
             self.__class__.server_available = True
         except Exception as e:
-            print(f'⚠️  Vectorizer server not available at {self.base_url}')
+            print(f'WARNING: Vectorizer server not available at {self.base_url}')
             print('   Integration tests will be skipped. Start server with: cargo run --release')
             self.__class__.server_available = False
     

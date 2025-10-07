@@ -568,10 +568,14 @@ class IntelligentSearchResponse:
     
     results: List[IntelligentSearchResult]
     total_results: int
-    duration_ms: int
+    duration_ms: int = 0
     queries_generated: Optional[List[str]] = None
     collections_searched: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        pass
 
 
 @dataclass
@@ -580,9 +584,13 @@ class SemanticSearchResponse:
     
     results: List[IntelligentSearchResult]
     total_results: int
-    duration_ms: int
-    collection: str
+    duration_ms: int = 0
+    collection: str = ""
     metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        pass
 
 
 @dataclass
@@ -591,10 +599,14 @@ class ContextualSearchResponse:
     
     results: List[IntelligentSearchResult]
     total_results: int
-    duration_ms: int
-    collection: str
+    duration_ms: int = 0
+    collection: str = ""
     context_filters: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        pass
 
 
 @dataclass
@@ -603,7 +615,12 @@ class MultiCollectionSearchResponse:
     
     results: List[IntelligentSearchResult]
     total_results: int
-    duration_ms: int
-    collections_searched: List[str]
+    duration_ms: int = 0
+    collections_searched: List[str] = None
     results_per_collection: Optional[Dict[str, int]] = None
     metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        if self.collections_searched is None:
+            self.collections_searched = []

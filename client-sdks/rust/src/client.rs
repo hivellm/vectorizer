@@ -251,6 +251,18 @@ impl VectorizerClient {
         broad_k: Option<usize>,
         focus_k: Option<usize>,
     ) -> Result<serde_json::Value> {
+        // Validate query
+        if query.trim().is_empty() {
+            return Err(VectorizerError::validation("Query cannot be empty"));
+        }
+        
+        // Validate max_bullets
+        if let Some(max) = max_bullets {
+            if max == 0 {
+                return Err(VectorizerError::validation("max_bullets must be greater than 0"));
+            }
+        }
+        
         let mut payload = serde_json::Map::new();
         payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
         
@@ -283,6 +295,11 @@ impl VectorizerClient {
         include: Option<Vec<String>>,
         exclude: Option<Vec<String>>,
     ) -> Result<serde_json::Value> {
+        // Validate query
+        if query.trim().is_empty() {
+            return Err(VectorizerError::validation("Query cannot be empty"));
+        }
+        
         let mut payload = serde_json::Map::new();
         payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
         
@@ -307,6 +324,23 @@ impl VectorizerClient {
         term_boost_weight: Option<f32>,
         signal_boost_weight: Option<f32>,
     ) -> Result<serde_json::Value> {
+        // Validate weights (must be between 0.0 and 1.0)
+        if let Some(w) = name_match_weight {
+            if w < 0.0 || w > 1.0 {
+                return Err(VectorizerError::validation("name_match_weight must be between 0.0 and 1.0"));
+            }
+        }
+        if let Some(w) = term_boost_weight {
+            if w < 0.0 || w > 1.0 {
+                return Err(VectorizerError::validation("term_boost_weight must be between 0.0 and 1.0"));
+            }
+        }
+        if let Some(w) = signal_boost_weight {
+            if w < 0.0 || w > 1.0 {
+                return Err(VectorizerError::validation("signal_boost_weight must be between 0.0 and 1.0"));
+            }
+        }
+        
         let mut payload = serde_json::Map::new();
         payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
         
@@ -532,6 +566,11 @@ impl VectorizerClient {
         limit: Option<usize>,
         return_full_files: Option<bool>,
     ) -> Result<serde_json::Value> {
+        // Validate file_types is not empty
+        if file_types.is_empty() {
+            return Err(VectorizerError::validation("file_types cannot be empty"));
+        }
+        
         let mut payload = serde_json::Map::new();
         payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
         payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));

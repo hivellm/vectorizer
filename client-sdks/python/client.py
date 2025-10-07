@@ -443,7 +443,16 @@ class VectorizerClient:
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return IntelligentSearchResponse(**data)
+                    # Filter only known fields
+                    filtered_data = {
+                        'results': data.get('results', []),
+                        'total_results': data.get('total_results', 0),
+                        'duration_ms': data.get('duration_ms', 0),
+                        'queries_generated': data.get('queries_generated'),
+                        'collections_searched': data.get('collections_searched'),
+                        'metadata': data.get('metadata'),
+                    }
+                    return IntelligentSearchResponse(**{k: v for k, v in filtered_data.items() if v is not None or k in ['results', 'total_results', 'duration_ms']})
                 elif response.status == 400:
                     error_data = await response.json()
                     raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
@@ -474,7 +483,15 @@ class VectorizerClient:
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return SemanticSearchResponse(**data)
+                    # Filter only known fields
+                    filtered_data = {
+                        'results': data.get('results', []),
+                        'total_results': data.get('total_results', 0),
+                        'duration_ms': data.get('duration_ms', 0),
+                        'collection': data.get('collection', ''),
+                        'metadata': data.get('metadata'),
+                    }
+                    return SemanticSearchResponse(**{k: v for k, v in filtered_data.items() if v is not None or k in ['results', 'total_results', 'duration_ms', 'collection']})
                 elif response.status == 400:
                     error_data = await response.json()
                     raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
@@ -505,7 +522,16 @@ class VectorizerClient:
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return ContextualSearchResponse(**data)
+                    # Filter only known fields
+                    filtered_data = {
+                        'results': data.get('results', []),
+                        'total_results': data.get('total_results', 0),
+                        'duration_ms': data.get('duration_ms', 0),
+                        'collection': data.get('collection', ''),
+                        'context_filters': data.get('context_filters'),
+                        'metadata': data.get('metadata'),
+                    }
+                    return ContextualSearchResponse(**{k: v for k, v in filtered_data.items() if v is not None or k in ['results', 'total_results', 'duration_ms', 'collection']})
                 elif response.status == 400:
                     error_data = await response.json()
                     raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
@@ -536,7 +562,16 @@ class VectorizerClient:
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return MultiCollectionSearchResponse(**data)
+                    # Filter only known fields
+                    filtered_data = {
+                        'results': data.get('results', []),
+                        'total_results': data.get('total_results', 0),
+                        'duration_ms': data.get('duration_ms', 0),
+                        'collections_searched': data.get('collections_searched', []),
+                        'results_per_collection': data.get('results_per_collection'),
+                        'metadata': data.get('metadata'),
+                    }
+                    return MultiCollectionSearchResponse(**{k: v for k, v in filtered_data.items() if v is not None or k in ['results', 'total_results', 'duration_ms', 'collections_searched']})
                 elif response.status == 400:
                     error_data = await response.json()
                     raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")

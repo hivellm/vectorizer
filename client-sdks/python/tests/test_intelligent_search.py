@@ -46,7 +46,7 @@ class TestIntelligentSearchOperations(unittest.IsolatedAsyncioTestCase):
             await self.client.health_check()
             self.__class__.server_available = True
         except Exception as e:
-            print(f'⚠️  Vectorizer server not available at {self.base_url}')
+            print(f'WARNING: Vectorizer server not available at {self.base_url}')
             print('   Integration tests will be skipped. Start server with: cargo run --release')
             self.__class__.server_available = False
     
@@ -333,54 +333,46 @@ class TestIntelligentSearchOperations(unittest.IsolatedAsyncioTestCase):
         """Test that empty query in intelligent search raises error."""
         self.skip_if_server_unavailable()
         
-        request = IntelligentSearchRequest(
-            query='',
-            max_results=10
-        )
-        
-        with self.assertRaises(Exception):
-            await self.client.intelligent_search(request)
+        with self.assertRaises(ValueError):
+            request = IntelligentSearchRequest(
+                query='',
+                max_results=10
+            )
     
     async def test_invalid_collection_in_semantic_search(self):
         """Test that invalid collection in semantic search raises error."""
         self.skip_if_server_unavailable()
         
-        request = SemanticSearchRequest(
-            query='test',
-            collection='',
-            max_results=10
-        )
-        
-        with self.assertRaises(Exception):
-            await self.client.semantic_search(request)
+        with self.assertRaises(ValueError):
+            request = SemanticSearchRequest(
+                query='test',
+                collection='',
+                max_results=10
+            )
     
     async def test_invalid_similarity_threshold(self):
         """Test that invalid similarity threshold raises error."""
         self.skip_if_server_unavailable()
         
-        request = SemanticSearchRequest(
-            query='test',
-            collection='test-collection',
-            max_results=10,
-            similarity_threshold=1.5  # Invalid: > 1.0
-        )
-        
-        with self.assertRaises(Exception):
-            await self.client.semantic_search(request)
+        with self.assertRaises(ValueError):
+            request = SemanticSearchRequest(
+                query='test',
+                collection='test-collection',
+                max_results=10,
+                similarity_threshold=1.5  # Invalid: > 1.0
+            )
     
     async def test_empty_collections_array(self):
         """Test that empty collections array raises error."""
         self.skip_if_server_unavailable()
         
-        request = MultiCollectionSearchRequest(
-            query='test',
-            collections=[],
-            max_per_collection=5,
-            max_total_results=10
-        )
-        
-        with self.assertRaises(Exception):
-            await self.client.multi_collection_search(request)
+        with self.assertRaises(ValueError):
+            request = MultiCollectionSearchRequest(
+                query='test',
+                collections=[],
+                max_per_collection=5,
+                max_total_results=10
+            )
     
     # ==================== PERFORMANCE TESTS ====================
     
