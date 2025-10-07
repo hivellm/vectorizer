@@ -1,6 +1,6 @@
-# Vectorizer Integrations v0.3.0
+# Vectorizer Integrations v0.3.1
 
-This directory contains integrations with external frameworks and libraries for Vectorizer v0.3.0.
+This directory contains integrations with external frameworks and libraries for Vectorizer v0.3.1.
 
 ## 📁 Structure
 
@@ -18,27 +18,35 @@ integrations/
 - **Location**: `integrations/langchain/`
 - **Language**: Python
 - **Description**: Complete VectorStore implementation for LangChain
-- **Status**: ✅ Complete (v0.3.0)
+- **Status**: ✅ Complete (v0.3.1)
 - **Features**: 
   - Complete VectorStore interface
+  - Intelligent search with multi-query expansion
+  - Semantic search with advanced reranking
+  - Contextual search with metadata filtering
+  - Multi-collection search with cross-collection reranking
   - Batch operations
   - Metadata filtering
   - Robust error handling
   - Comprehensive tests
-  - Updated for v0.3.0 API (port 15002, new routes)
+  - Updated for v0.3.1 API with intelligent search features
 
 ### LangChain.js Integration (JavaScript/TypeScript)
 - **Location**: `integrations/langchain-js/`
 - **Language**: JavaScript/TypeScript
 - **Description**: Complete VectorStore implementation for LangChain.js
-- **Status**: ✅ Complete (v0.3.0)
+- **Status**: ✅ Complete (v0.3.1)
 - **Features**:
   - Full TypeScript support
   - Complete VectorStore interface
+  - Intelligent search with multi-query expansion
+  - Semantic search with advanced reranking
+  - Contextual search with metadata filtering
+  - Multi-collection search with cross-collection reranking
   - Async operations
   - Flexible configuration
   - Jest tests
-  - Updated for v0.3.0 API (port 15002, new routes)
+  - Updated for v0.3.1 API with intelligent search features
 
 ### PyTorch Integration
 - **Location**: `integrations/pytorch/`
@@ -114,6 +122,35 @@ store.add_documents(documents)
 
 # Search for similar documents
 results = store.similarity_search("query", k=5)
+
+# Intelligent search with multi-query expansion
+intelligent_results = store.intelligent_search(
+    query="machine learning algorithms",
+    collections=["my_documents"],
+    max_results=10,
+    domain_expansion=True,
+    technical_focus=True,
+    mmr_enabled=True,
+    mmr_lambda=0.7
+)
+
+# Semantic search with reranking
+semantic_results = store.semantic_search(
+    query="neural networks",
+    collection="my_documents",
+    max_results=5,
+    semantic_reranking=True,
+    similarity_threshold=0.6
+)
+
+# Contextual search with metadata filtering
+contextual_results = store.contextual_search(
+    query="deep learning",
+    collection="my_documents",
+    context_filters={"category": "AI"},
+    max_results=5,
+    context_weight=0.4
+)
 ```
 
 ### Usage Example - LangChain.js
@@ -140,6 +177,37 @@ await store.addTexts(texts, metadatas);
 
 // Search for similar documents
 const results = await store.similaritySearch('query', 5);
+
+// Intelligent search with multi-query expansion
+const intelligentResults = await store.intelligentSearch(
+  'machine learning algorithms',
+  ['my_documents'],
+  10,
+  true, // domainExpansion
+  true, // technicalFocus
+  true, // mmrEnabled
+  0.7   // mmrLambda
+);
+
+// Semantic search with reranking
+const semanticResults = await store.semanticSearch(
+  'neural networks',
+  'my_documents',
+  5,
+  true,  // semanticReranking
+  false, // crossEncoderReranking
+  0.6    // similarityThreshold
+);
+
+// Contextual search with metadata filtering
+const contextualResults = await store.contextualSearch(
+  'deep learning',
+  'my_documents',
+  { category: 'AI' }, // contextFilters
+  5,
+  true, // contextReranking
+  0.4   // contextWeight
+);
 ```
 
 ### Usage Example - PyTorch

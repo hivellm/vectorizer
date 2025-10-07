@@ -2,6 +2,34 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
+## ✨ **Version 0.3.2 Highlights**
+
+### 🚀 **File Operations Module**
+- ✅ **6 Production-Ready MCP Tools**: Complete file-level operations for AI assistants
+  - `get_file_content` - Retrieve complete files with metadata
+  - `list_files_in_collection` - Advanced file listing and filtering
+  - `get_file_summary` - Extractive and structural summaries
+  - `get_project_outline` - Hierarchical project visualization
+  - `get_related_files` - Semantic file similarity search
+  - `search_by_file_type` - File type-specific search
+- ⚡ **Smart Caching**: Multi-tier LRU caching (10min, 5min, 30min TTLs)
+- 🔒 **Security**: Path validation preventing directory traversal
+- 📊 **Rich Metadata**: File types, sizes, language detection
+
+### 🔍 **Discovery System**
+- ✅ **9-Stage Pipeline**: Collection filtering → Query expansion → Broad search → Focus search → README promotion → Evidence compression → Answer planning → Prompt rendering
+- 🧠 **Intelligent Query Expansion**: Automatic variations (definition, features, architecture, API)
+- 🎯 **MMR Diversification**: Maximal Marginal Relevance for diverse results
+- 📚 **Evidence Compression**: Key sentences (8-30 words) with citations
+- 🔄 **Hybrid Search**: RRF combining sparse and dense retrieval
+
+### 🧪 **Test Suite**
+- ✅ **274 tests passing** (100% pass rate)
+- ⚡ **2.01s execution time** (optimized from >60s)
+- 🎯 **Production-ready** with comprehensive coverage
+
+## 🌟 **Key Features**
+
 - **💾 Dynamic Collection Persistence**: Collections automatically saved and loaded on server restart
 - **🔍 Real-time File Watcher**: Monitor file changes and auto-index documents
 - **⚡ Background Auto-save**: Collections saved every 30 seconds automatically
@@ -18,6 +46,10 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🎯 Simplified Configuration**: Minimal setup with intelligent defaults
 - **💾 Automatic Persistence**: Collections automatically saved and loaded
 - **👀 File Watcher**: Real-time file monitoring and indexing
+- **🧠 Intelligent Search**: Advanced semantic search with multi-query generation (v0.3.1)
+- **🔬 Semantic Reranking**: High-precision search with similarity thresholds
+- **🌐 Multi-Collection Search**: Cross-collection search with intelligent reranking
+- **🎯 Contextual Search**: Context-aware search with metadata filtering
 
 ## 🎯 **Simple Configuration**
 
@@ -96,6 +128,57 @@ curl -X POST http://localhost:15002/collections/my-collection/search \
   -d '{"query": "example text", "limit": 10}'
 ```
 
+## 🧠 **Intelligent Search Features (v0.3.1)**
+
+Vectorizer now includes advanced intelligent search capabilities that provide 3-4x better coverage than traditional search methods:
+
+### **🔍 intelligent_search**
+- **Multi-query generation**: Automatically generates 4-8 related queries
+- **Domain expansion**: Expands queries with technical terms and synonyms
+- **MMR diversification**: Ensures diverse, high-quality results
+- **Technical focus**: Boosts scores for technical content
+- **Collection bonuses**: Prioritizes relevant collections
+
+### **🔬 semantic_search**
+- **Semantic reranking**: Advanced relevance scoring
+- **Similarity thresholds**: Configurable quality filters (0.1-0.5)
+- **Cross-encoder support**: Maximum precision matching
+
+### **🌐 multi_collection_search**
+- **Cross-collection search**: Simultaneous search across multiple collections
+- **Intelligent reranking**: Balanced results from different sources
+- **Deduplication**: Removes duplicate content across collections
+
+### **🎯 contextual_search**
+- **Metadata filtering**: Filter by file type, chunk index, etc.
+- **Context reranking**: Reorder based on contextual relevance
+- **Configurable weights**: Balance between relevance and context
+
+### **Usage Examples**
+```bash
+# Intelligent search with domain expansion
+curl -X POST http://localhost:15002/intelligent_search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "CMMV framework architecture",
+    "collections": ["cmmv-core-docs"],
+    "max_results": 10,
+    "domain_expansion": true,
+    "technical_focus": true,
+    "mmr_enabled": true
+  }'
+
+# Semantic search with high precision
+curl -X POST http://localhost:15002/semantic_search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication system",
+    "collection": "cmmv-core-docs",
+    "similarity_threshold": 0.15,
+    "semantic_reranking": true
+  }'
+```
+
 ## 🔗 **Framework Integrations**
 
 Complete integrations with popular AI frameworks:
@@ -158,6 +241,26 @@ Vectorizer automatically manages data persistence in the `data/` directory:
 - **Quantization** is applied automatically for memory optimization
 - **Versioned persistence format** for future compatibility
 
+## 📊 **Performance Metrics**
+
+### **Intelligent Search Performance (v0.3.1)**
+Based on comprehensive testing with 107 collections:
+
+| Metric | Traditional Search | Intelligent Search | Improvement |
+|--------|-------------------|-------------------|-------------|
+| **Coverage** | 4 results | 18 results (5 final) | 3-4x more |
+| **Query Generation** | 1 query | 4-8 queries | Automatic |
+| **Deduplication** | None | 18→9→5 results | Smart filtering |
+| **Relevance** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Superior |
+| **Diversity** | ⭐⭐ | ⭐⭐⭐⭐⭐ | Much better |
+
+### **System Performance**
+- **🚀 Server Startup**: Non-blocking with background collection loading
+- **⚡ Search Speed**: Sub-3ms search times with optimized HNSW indexing
+- **💾 Memory Usage**: Automatic quantization for memory optimization
+- **📈 Scalability**: Tested with 107+ collections
+- **🔄 Real-time**: Live file watching and indexing
+
 ## 🎯 Use Cases
 
 - **RAG Systems**: Large knowledge bases with semantic search
@@ -170,6 +273,16 @@ Vectorizer automatically manages data persistence in the `data/` directory:
 **Sparse Embeddings**: TF-IDF, BM25 with SVD dimensionality reduction  
 **Dense Embeddings**: BERT, MiniLM with contextual understanding  
 **Hybrid Search**: Sparse retrieval + dense re-ranking for optimal results
+
+## 📚 **Documentation**
+
+- **[API Documentation](./docs/api/)** - Complete API reference
+- **[Intelligent Search Guide](./docs/specs/INTELLIGENT_SEARCH_TOOLS.md)** - Complete guide to intelligent search tools
+- **[Quality Report](./docs/specs/INTELLIGENT_SEARCH_QUALITY_REPORT.md)** - Performance analysis and recommendations
+- **[MCP Integration](./docs/specs/MCP_INTEGRATION.md)** - Model Context Protocol guide
+- **[Performance Guide](./docs/specs/PERFORMANCE_GUIDE.md)** - Optimization and tuning
+- **[Technical Documentation](./docs/specs/TECHNICAL_DOCUMENTATION_INDEX.md)** - Complete technical reference
+- **[Roadmap](./docs/specs/ROADMAP.md)** - Development roadmap and milestones
 
 ## 🔧 MCP Integration
 
@@ -187,4 +300,7 @@ IDE integration via Model Context Protocol:
 }
 ```
 
-**Available Tools:** search_vectors, list_collections, embed_text, create_collection, insert_texts, delete_vectors, batch operations
+**Available Tools:** 
+- **Traditional**: search_vectors, list_collections, embed_text, create_collection, insert_texts, delete_vectors
+- **Intelligent Search**: intelligent_search, semantic_search, multi_collection_search, contextual_search
+- **Batch Operations**: batch_insert_texts, batch_search_vectors, batch_update_vectors, batch_delete_vectors

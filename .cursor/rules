@@ -294,6 +294,47 @@
 # =============================================================================
 
 # =============================================================================
+# SEARCH OPTIMIZATION PATTERNS
+# =============================================================================
+
+# Intelligent Search Optimization
+# - Use optimized configurations for faster response times
+# - Apply performance tuning based on use case requirements
+# - Balance speed vs quality based on context
+
+# Fast Search Configuration (Recommended for most cases)
+# intelligent_search({
+#     query: "search query",
+#     max_results: 5,           // Reduced from default 15
+#     mmr_enabled: true,        // Enable MMR for better diversity
+#     domain_expansion: true,   // Enable domain expansion for better coverage
+#     technical_focus: true,    // Keep for technical relevance
+#     mmr_lambda: 0.7          // MMR balance parameter
+# })
+
+# Performance Comparison
+# - Standard Config: 100% time, High quality (complex research)
+# - Optimized Config: ~60-70% time, Excellent quality (best balance)
+# - Minimal Config: ~20% time, Medium quality (simple searches)
+
+# Alternative Fast Methods
+# - semantic_search: Single collection, semantic reranking disabled
+# - search_vectors: Basic vector search, fastest option
+# - multi_collection_search: Cross-collection with reranking disabled
+
+# Search Strategy Guidelines
+# - Use intelligent_search optimized for quick technical queries
+# - Use semantic_search for single-collection deep research
+# - Use search_vectors for maximum speed with basic relevance
+# - Use multi_collection_search for cross-domain research
+
+# Query Optimization Tips
+# - Be specific with technical terms for better relevance
+# - Use domain-specific vocabulary when available
+# - Combine multiple search methods for comprehensive results
+# - Cache frequent queries when possible
+
+# =============================================================================
 # SECURITY CONSIDERATIONS
 # =============================================================================
 

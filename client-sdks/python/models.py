@@ -460,3 +460,167 @@ class ListSummariesResponse:
     summaries: List[SummaryInfo]
     total_count: int
     status: str
+
+
+# ===== INTELLIGENT SEARCH MODELS =====
+
+@dataclass
+class IntelligentSearchRequest:
+    """Request for intelligent search."""
+    
+    query: str
+    collections: Optional[List[str]] = None
+    max_results: int = 10
+    domain_expansion: bool = True
+    technical_focus: bool = True
+    mmr_enabled: bool = True
+    mmr_lambda: float = 0.7
+    
+    def __post_init__(self):
+        if not self.query or not isinstance(self.query, str):
+            raise ValueError("Query must be a non-empty string")
+        if self.max_results <= 0:
+            raise ValueError("Max results must be positive")
+        if not (0.0 <= self.mmr_lambda <= 1.0):
+            raise ValueError("MMR lambda must be between 0.0 and 1.0")
+
+
+@dataclass
+class SemanticSearchRequest:
+    """Request for semantic search."""
+    
+    query: str
+    collection: str
+    max_results: int = 10
+    semantic_reranking: bool = True
+    cross_encoder_reranking: bool = False
+    similarity_threshold: float = 0.5
+    
+    def __post_init__(self):
+        if not self.query or not isinstance(self.query, str):
+            raise ValueError("Query must be a non-empty string")
+        if not self.collection or not isinstance(self.collection, str):
+            raise ValueError("Collection must be a non-empty string")
+        if self.max_results <= 0:
+            raise ValueError("Max results must be positive")
+        if not (0.0 <= self.similarity_threshold <= 1.0):
+            raise ValueError("Similarity threshold must be between 0.0 and 1.0")
+
+
+@dataclass
+class ContextualSearchRequest:
+    """Request for contextual search."""
+    
+    query: str
+    collection: str
+    context_filters: Optional[Dict[str, Any]] = None
+    max_results: int = 10
+    context_reranking: bool = True
+    context_weight: float = 0.3
+    
+    def __post_init__(self):
+        if not self.query or not isinstance(self.query, str):
+            raise ValueError("Query must be a non-empty string")
+        if not self.collection or not isinstance(self.collection, str):
+            raise ValueError("Collection must be a non-empty string")
+        if self.max_results <= 0:
+            raise ValueError("Max results must be positive")
+        if not (0.0 <= self.context_weight <= 1.0):
+            raise ValueError("Context weight must be between 0.0 and 1.0")
+
+
+@dataclass
+class MultiCollectionSearchRequest:
+    """Request for multi-collection search."""
+    
+    query: str
+    collections: List[str]
+    max_per_collection: int = 5
+    max_total_results: int = 20
+    cross_collection_reranking: bool = True
+    
+    def __post_init__(self):
+        if not self.query or not isinstance(self.query, str):
+            raise ValueError("Query must be a non-empty string")
+        if not self.collections or not isinstance(self.collections, list):
+            raise ValueError("Collections must be a non-empty list")
+        if self.max_per_collection <= 0:
+            raise ValueError("Max per collection must be positive")
+        if self.max_total_results <= 0:
+            raise ValueError("Max total results must be positive")
+
+
+@dataclass
+class IntelligentSearchResult:
+    """Result from intelligent search."""
+    
+    id: str
+    score: float
+    content: str
+    metadata: Optional[Dict[str, Any]] = None
+    collection: Optional[str] = None
+    query_used: Optional[str] = None
+
+
+@dataclass
+class IntelligentSearchResponse:
+    """Response from intelligent search."""
+    
+    results: List[IntelligentSearchResult]
+    total_results: int
+    duration_ms: int = 0
+    queries_generated: Optional[List[str]] = None
+    collections_searched: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        pass
+
+
+@dataclass
+class SemanticSearchResponse:
+    """Response from semantic search."""
+    
+    results: List[IntelligentSearchResult]
+    total_results: int
+    duration_ms: int = 0
+    collection: str = ""
+    metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        pass
+
+
+@dataclass
+class ContextualSearchResponse:
+    """Response from contextual search."""
+    
+    results: List[IntelligentSearchResult]
+    total_results: int
+    duration_ms: int = 0
+    collection: str = ""
+    context_filters: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        pass
+
+
+@dataclass
+class MultiCollectionSearchResponse:
+    """Response from multi-collection search."""
+    
+    results: List[IntelligentSearchResult]
+    total_results: int
+    duration_ms: int = 0
+    collections_searched: List[str] = None
+    results_per_collection: Optional[Dict[str, int]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Allow extra fields from server."""
+        if self.collections_searched is None:
+            self.collections_searched = []

@@ -7,6 +7,9 @@ A comprehensive Python client library for the Hive Vectorizer service.
 - **Vector Operations**: Insert, search, and manage vectors
 - **Collection Management**: Create, delete, and monitor collections  
 - **Semantic Search**: Find similar content using embeddings
+- **Intelligent Search**: Advanced multi-query search with domain expansion
+- **Contextual Search**: Context-aware search with metadata filtering
+- **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - **Batch Operations**: Efficient bulk operations
 - **Error Handling**: Comprehensive exception handling
 - **Async Support**: Full async/await support for high performance
@@ -51,6 +54,56 @@ async def main():
             collection="my_collection",
             query="greeting",
             limit=5
+        )
+        
+        # Intelligent search with multi-query expansion
+        from models import IntelligentSearchRequest
+        intelligent_results = await client.intelligent_search(
+            IntelligentSearchRequest(
+                query="machine learning algorithms",
+                collections=["my_collection", "research"],
+                max_results=15,
+                domain_expansion=True,
+                technical_focus=True,
+                mmr_enabled=True,
+                mmr_lambda=0.7
+            )
+        )
+        
+        # Semantic search with reranking
+        from models import SemanticSearchRequest
+        semantic_results = await client.semantic_search(
+            SemanticSearchRequest(
+                query="neural networks",
+                collection="my_collection",
+                max_results=10,
+                semantic_reranking=True,
+                similarity_threshold=0.6
+            )
+        )
+        
+        # Contextual search with metadata filtering
+        from models import ContextualSearchRequest
+        contextual_results = await client.contextual_search(
+            ContextualSearchRequest(
+                query="deep learning",
+                collection="my_collection",
+                context_filters={"category": "AI", "year": 2023},
+                max_results=10,
+                context_weight=0.4
+            )
+        )
+        
+        # Multi-collection search
+        from models import MultiCollectionSearchRequest
+        multi_results = await client.multi_collection_search(
+            MultiCollectionSearchRequest(
+                query="artificial intelligence",
+                collections=["my_collection", "research", "tutorials"],
+                max_per_collection=5,
+                max_total_results=20,
+                cross_collection_reranking=True
+            )
         )
         
         print(f"Found {len(results)} similar vectors")
