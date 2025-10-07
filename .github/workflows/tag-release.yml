@@ -110,20 +110,16 @@ jobs:
 
       - name: Build all binaries
         run: |
+          cargo build --release --bin vectorizer --target ${{ matrix.target }} --features full
           cargo build --release --bin vectorizer-cli --target ${{ matrix.target }} --features full
-          cargo build --release --bin vectorizer-server --target ${{ matrix.target }} --features full
-          cargo build --release --bin vzr --target ${{ matrix.target }} --features full
-          cargo build --release --bin vectorizer-mcp-server --target ${{ matrix.target }} --features full
 
       - name: Create artifacts directory
         run: mkdir -p artifacts/${{ matrix.artifact_name }}
 
       - name: Copy binaries
         run: |
+          cp target/${{ matrix.target }}/release/vectorizer${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
           cp target/${{ matrix.target }}/release/vectorizer-cli${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vectorizer-server${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vzr${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vectorizer-mcp-server${{ matrix.executable_extension }} artifacts/${{ matrix.artifact_name }}/
 
       - name: Copy configuration files
         run: |
@@ -131,6 +127,11 @@ jobs:
           cp vectorize-workspace.yml artifacts/${{ matrix.artifact_name }}/
           cp README.md artifacts/${{ matrix.artifact_name }}/
           cp LICENSE artifacts/${{ matrix.artifact_name }}/
+
+      - name: Copy dashboard files
+        run: |
+          mkdir -p artifacts/${{ matrix.artifact_name }}/dashboard
+          cp -r dashboard/* artifacts/${{ matrix.artifact_name }}/dashboard/
 
       - name: Create installation script (Linux/macOS)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
@@ -144,23 +145,21 @@ jobs:
           sudo mkdir -p /etc/vectorizer
           
           # Copy binaries
+          sudo cp vectorizer /usr/local/bin/
           sudo cp vectorizer-cli /usr/local/bin/
-          sudo cp vectorizer-server /usr/local/bin/
-          sudo cp vzr /usr/local/bin/
-          sudo cp vectorizer-mcp-server /usr/local/bin/
           
           # Copy config
           sudo cp config.yml /etc/vectorizer/
           
           # Set permissions
-          sudo chmod +x /usr/local/bin/vectorizer-*
+          sudo chmod +x /usr/local/bin/vectorizer*
           
           echo "✅ Vectorizer ${{ github.ref_name }} installed successfully!"
           echo "📁 Binary location: /usr/local/bin/"
           echo "📁 Config location: /etc/vectorizer/"
           echo ""
           echo "🚀 Start Vectorizer:"
-          echo "  ./scripts/start.sh --workspace vectorize-workspace.yml"
+          echo "  vectorizer --config /etc/vectorizer/config.yml"
           echo ""
           echo "🔧 Use the CLI:"
           echo "  vectorizer-cli --help"
@@ -179,10 +178,8 @@ jobs:
           if not exist "C:\ProgramData\Vectorizer" mkdir "C:\ProgramData\Vectorizer"
           
           REM Copy binaries
+          copy "vectorizer.exe" "C:\Program Files\Vectorizer\"
           copy "vectorizer-cli.exe" "C:\Program Files\Vectorizer\"
-          copy "vectorizer-server.exe" "C:\Program Files\Vectorizer\"
-          copy "vzr.exe" "C:\Program Files\Vectorizer\"
-          copy "vectorizer-mcp-server.exe" "C:\Program Files\Vectorizer\"
           
           REM Copy config
           copy "config.yml" "C:\ProgramData\Vectorizer\"
@@ -195,7 +192,7 @@ jobs:
           echo 📁 Config location: C:\ProgramData\Vectorizer\
           echo.
           echo 🚀 Start Vectorizer:
-          echo   .\scripts\start.sh --workspace vectorize-workspace.yml
+          echo   vectorizer --config "C:\ProgramData\Vectorizer\config.yml"
           echo.
           echo 🔧 Use the CLI:
           echo   vectorizer-cli --help
@@ -279,7 +276,7 @@ jobs:
           sudo ./install.sh
           
           # Or run directly
-          ./vectorizer-server --config config.yml
+          ./vectorizer --config config.yml
           ```
           
           ### Windows
@@ -293,14 +290,14 @@ jobs:
           install.bat
           
           REM Or run directly
-          vectorizer-server.exe --config config.yml
+          vectorizer.exe --config config.yml
           ```
           
           ## 🚀 Quick Start
           
           1. **Start the server:**
              ```bash
-             vectorizer-server --config config.yml
+             vectorizer --config config.yml
              ```
           
           2. **Create a collection:**

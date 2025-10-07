@@ -1,4 +1,4 @@
-# DevOps Configuration for Vectorizer v0.20.0
+# DevOps Configuration for Vectorizer v0.3.2
 
 This directory contains all DevOps configurations for Vectorizer, including Docker and Kubernetes deployments.
 
@@ -8,9 +8,7 @@ This directory contains all DevOps configurations for Vectorizer, including Dock
 devops/
 ├── docker/                    # Docker configurations
 │   ├── Dockerfile            # CPU-only production image
-│   ├── Dockerfile.gpu      # GPU production image
-│   ├── Dockerfile.dev       # CPU-only development image
-│   ├── Dockerfile.dev.gpu  # GPU development image
+│   ├── Dockerfile.dev       # Development image
 │   ├── docker-compose.yml   # Multi-profile compose file
 │   ├── build.sh             # Build script for all images
 │   └── run.sh               # Run script for different profiles
@@ -35,71 +33,80 @@ Vectorizer provides multiple Docker configurations to suit different needs:
 - **Size**: Smaller image size
 - **Performance**: CPU-optimized operations
 
-#### CUDA Production (`Dockerfile.cuda`)
-- **Base**: `nvidia/cuda:12.6-devel-ubuntu22.04` → `nvidia/cuda:12.6-runtime-ubuntu22.04`
-- **Features**: REST API Architecture, CUDA GPU Acceleration, Automatic Summarization, Batch Operations
-- **Dependencies**: [CUHNSW](https://github.com/js1010/cuhnsw) - CUDA implementation of HNSW algorithm
-- **Use Case**: Maximum performance with GPU acceleration
-- **Size**: Larger image size
-- **Performance**: 3-5x faster with GPU
-
 ### Development Images
 
-#### CPU-Only Development (`Dockerfile.dev`)
+#### Development (`Dockerfile.dev`)
 - **Base**: `rust:1.82-slim`
 - **Features**: Development tools, hot reload, debugging support
-- **Use Case**: Development without GPU requirements
+- **Use Case**: Development and testing
 
-#### CUDA Development (`Dockerfile.dev.cuda`)
-- **Base**: `nvidia/cuda:12.6-devel-ubuntu22.04`
-- **Features**: Development tools, hot reload, debugging support, CUDA acceleration
-- **Dependencies**: [CUHNSW](https://github.com/js1010/cuhnsw) - CUDA implementation of HNSW algorithm
-- **Use Case**: Development with GPU testing
+## 🎮 GPU Acceleration
 
-## 🔧 CUHNSW Integration
+Vectorizer implements cross-platform GPU acceleration through **wgpu**, providing support for:
 
-Vectorizer uses [CUHNSW](https://github.com/js1010/cuhnsw) for CUDA-accelerated HNSW operations. CUHNSW is automatically cloned and built during Docker image creation.
+### Supported Platforms
+- **Vulkan** (Linux, Windows, Android)
+- **DirectX 12** (Windows)
+- **Metal** (macOS, iOS)
 
-### CUHNSW Features
-- **CUDA Implementation**: Efficient GPU implementation of HNSW algorithm
-- **Performance**: 8-9x faster build time, 3-4x faster search time
-- **Compatibility**: Compatible with hnswlib model format
-- **Quality**: Deterministic results matching CPU implementations
+### GPU Features
 
-### Automatic Installation
-CUHNSW is automatically installed in CUDA Docker images:
+#### WebGPU/wgpu (`wgpu-gpu`)
+- **Backend**: Cross-platform GPU via wgpu
+- **Technology**: WebGPU standard implementation
+- **Support**: Vulkan, DirectX 12, Metal
+- **Performance**: Significant acceleration in vector operations
+- **Compatibility**: Works across multiple platforms without specific drivers
 
-```dockerfile
-# Clone and build CUHNSW dependency
-RUN git clone https://github.com/js1010/cuhnsw.git /tmp/cuhnsw && \
-    cd /tmp/cuhnsw && \
-    git submodule update --init && \
-    pip3 install -r requirements.txt && \
-    python3 -m grpc_tools.protoc --python_out cuhnsw/ --proto_path cuhnsw/proto/ config.proto && \
-    python3 setup.py install && \
-    cd / && rm -rf /tmp/cuhnsw
-```
+### Enabling GPU
 
-### Manual Installation (Development)
-For local development without Docker:
+To enable GPU support, compile with the appropriate features:
 
 ```bash
-# Clone CUHNSW repository
-git clone https://github.com/js1010/cuhnsw.git
-cd cuhnsw
+# Feature wgpu-gpu (Vulkan, DirectX, Metal)
+cargo build --release --features wgpu-gpu
 
-# Initialize submodules
-git submodule update --init
+# Feature metal (macOS/iOS specific)
+cargo build --release --features metal
 
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Generate protobuf files
-python -m grpc_tools.protoc --python_out cuhnsw/ --proto_path cuhnsw/proto/ config.proto
-
-# Install CUHNSW
-python setup.py install
+# Feature gpu-accel (alias for wgpu-gpu)
+cargo build --release --features gpu-accel
 ```
+
+### Available Features in Cargo.toml
+
+```toml
+[features]
+default = ["gpu_real"]
+gpu = []
+gpu_real = ["gpu"]
+metal = ["wgpu", "pollster", "bytemuck", "futures"]
+wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
+gpu-accel = ["wgpu-gpu"]
+```
+
+### GPU Dependencies
+
+```toml
+# WebGPU/Metal dependencies (cross-platform GPU acceleration)
+wgpu = { version = "27.0", features = ["wgsl"], optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1.22", features = ["derive"], optional = true }
+futures = { version = "0.3", optional = true }
+```
+
+## 📝 Note about CUDA
+
+**Status**: CUDA has been temporarily removed from the project.
+
+The CUDA implementation (including CUHNSW) was temporarily removed in favor of a cross-platform solution using wgpu. This decision enables:
+
+- Better cross-platform compatibility (Linux, Windows, macOS)
+- Reduced dependency complexity
+- Support for multiple GPU backends without vendor lock-in
+- Easier development and deployment
+
+CUDA support may return in future versions if there is specific demand.
 
 ## 🚀 Quick Start
 
@@ -108,9 +115,7 @@ python setup.py install
 ```bash
 # Build specific image
 ./devops/docker/build.sh cpu        # CPU-only production
-./devops/docker/build.sh cuda       # CUDA production
-./devops/docker/build.sh dev-cpu    # CPU-only development
-./devops/docker/build.sh dev-cuda   # CUDA development
+./devops/docker/build.sh dev        # Development image
 ./devops/docker/build.sh all        # All images
 ```
 
@@ -119,9 +124,7 @@ python setup.py install
 ```bash
 # Start specific environment
 ./devops/docker/run.sh cpu          # CPU-only production
-./devops/docker/run.sh cuda         # CUDA production
-./devops/docker/run.sh dev-cpu      # CPU-only development
-./devops/docker/run.sh dev-cuda     # CUDA development
+./devops/docker/run.sh dev          # Development
 ./devops/docker/run.sh stop         # Stop all services
 ./devops/docker/run.sh status       # Show status
 ```
@@ -132,14 +135,8 @@ python setup.py install
 # CPU-only production
 docker-compose --profile cpu-only up -d
 
-# CUDA production
-docker-compose --profile cuda up -d
-
-# CPU-only development
-docker-compose --profile dev-cpu up -d
-
-# CUDA development
-docker-compose --profile dev-cuda up -d
+# Development
+docker-compose --profile dev up -d
 ```
 
 ## 🔧 Configuration
@@ -151,14 +148,14 @@ docker-compose --profile dev-cuda up -d
 | `RUST_LOG` | Log level | `info` (prod), `debug` (dev) |
 | `RUST_BACKTRACE` | Enable backtraces | `1` |
 | `VECTORIZER_ENV` | Environment | `production` or `development` |
-| `CUDA_ENABLED` | CUDA support | `true` (CUDA images), `false` (CPU images) |
+| `WGPU_BACKEND` | GPU backend | `auto` (Vulkan, DirectX, Metal) |
+| `WGPU_POWER_PREF` | GPU power preference | `high-performance` or `low-power` |
 
 ### Ports
 
 | Port | Service | Description |
 |------|---------|-------------|
-| 15001 | REST API | HTTP API endpoint |
-| 15002 | MCP Server | Model Context Protocol |
+| 15002 | Unified Server | REST API + MCP (Model Context Protocol) |
 
 ### Volumes
 
@@ -200,13 +197,10 @@ kubectl apply -f devops/kubernetes/service.yaml
 
 ```bash
 # Port forward for local access
-kubectl port-forward -n vectorizer svc/vectorizer-service 15001:15001
 kubectl port-forward -n vectorizer svc/vectorizer-service 15002:15002
-kubectl port-forward -n vectorizer svc/vectorizer-service 15003:15003
 
 # Access via NodePort (if enabled)
-# REST API: http://<node-ip>:30001
-# MCP Server: http://<node-ip>:30002
+# Unified Server: http://<node-ip>:30002
 ```
 
 ## 🔍 Monitoring
@@ -229,7 +223,7 @@ kubectl describe pod <pod-name> -n vectorizer
 ```bash
 # Docker logs
 docker logs vectorizer-cpu-prod
-docker logs vectorizer-cuda-prod
+docker logs vectorizer-dev
 
 # Kubernetes logs
 kubectl logs -n vectorizer deployment/vectorizer
@@ -240,30 +234,32 @@ kubectl logs -n vectorizer deployment/vectorizer -f  # Follow logs
 
 ### Common Issues
 
-#### CUDA Issues
+#### GPU Issues
 ```bash
-# Check NVIDIA Docker runtime
-docker run --rm --gpus all nvidia/cuda:12.6-base-ubuntu22.04 nvidia-smi
+# Check wgpu backend availability
+RUST_LOG=debug cargo run --features wgpu-gpu
 
-# Check CUDA in container
-docker exec -it vectorizer-cuda-prod nvidia-smi
+# Test GPU compute
+cargo test --features wgpu-gpu gpu_tests
 
-# Check CUHNSW installation
-docker exec -it vectorizer-cuda-prod python3 -c "import cuhnsw; print('CUHNSW installed successfully')"
+# Vulkan on Linux - check drivers
+vulkaninfo
 
-# Rebuild CUDA image if CUHNSW fails
-docker build -f devops/docker/Dockerfile.cuda -t vectorizer:cuda-latest .
+# DirectX on Windows - check support
+dxdiag
+
+# Metal on macOS - check support
+system_profiler SPDisplaysDataType
 ```
 
 #### Port Conflicts
 ```bash
 # Check port usage
-netstat -tulpn | grep :15001
-lsof -i :15001
+netstat -tulpn | grep :15002
+lsof -i :15002
 
 # Use different ports
-docker-compose --profile cpu-only up -d --scale vectorizer-cpu=0
-docker run -p 16001:15001 vectorizer:cpu-latest
+docker run -p 16002:15002 vectorizer:v0.29.0
 ```
 
 #### Permission Issues
@@ -279,7 +275,7 @@ docker-compose --profile cpu-only up -d
 | Environment | CPU Usage | Memory Usage | GPU Usage | Performance |
 |-------------|-----------|--------------|-----------|-------------|
 | CPU-Only | High | Medium | None | Baseline |
-| CUDA | Low | High | High | 3-5x faster |
+| wgpu-gpu (Vulkan/DirectX/Metal) | Low | Medium-High | Medium-High | 2-4x faster |
 
 ## 🔒 Security
 
@@ -300,10 +296,11 @@ docker-compose --profile cpu-only up -d
 
 ## 📝 Notes
 
-- CUDA images require NVIDIA Docker runtime and [CUHNSW](https://github.com/js1010/cuhnsw) dependency
 - CPU images work on any Docker installation
 - Development images include debugging tools
 - Production images are optimized for size and security
 - All images support REST API architecture
 - Automatic summarization works in all variants
-- CUHNSW provides 8-9x faster build and 3-4x faster search performance
+- GPU acceleration via wgpu supports Vulkan, DirectX 12, and Metal
+- Cross-platform GPU support without vendor lock-in
+- CUDA support was temporarily removed in favor of wgpu cross-platform solution

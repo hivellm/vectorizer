@@ -61,17 +61,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
+          sudo apt-get install -y build-essential libssl-dev pkg-config
 
       - name: Install system dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install protobuf
+          echo "No additional dependencies required for macOS"
 
       - name: Install system dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          choco install protoc
+          echo "No additional dependencies required for Windows"
 
       - name: Cache cargo
         uses: actions/cache@v3
@@ -98,43 +98,33 @@ jobs:
       - name: Run integration tests (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          cargo test --test api_comprehensive_tests --verbose --target ${{ matrix.target }}
-          cargo test --test mcp_tests --verbose --target ${{ matrix.target }}
-          cargo test --test integration_tests --verbose --target ${{ matrix.target }}
+          cargo test --test '*' --verbose --target ${{ matrix.target }}
 
       - name: Run integration tests (Windows)
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
-          cargo test --test api_comprehensive_tests --verbose --target %TARGET%
-          cargo test --test mcp_tests --verbose --target %TARGET%
-          cargo test --test integration_tests --verbose --target %TARGET%
+          cargo test --test * --verbose --target %TARGET%
         env:
           TARGET: ${{ matrix.target }}
 
       - name: Build all binaries
         run: |
           cargo build --release --bin vectorizer-cli --target ${{ matrix.target }} --features full
-          cargo build --release --bin vectorizer-server --target ${{ matrix.target }} --features full
-          cargo build --release --bin vzr --target ${{ matrix.target }} --features full
-          cargo build --release --bin vectorizer-mcp-server --target ${{ matrix.target }} --features full
+          cargo build --release --bin vectorizer --target ${{ matrix.target }} --features full
 
       - name: Verify binaries (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
           ls -la target/${{ matrix.target }}/release/vectorizer-cli
-          ls -la target/${{ matrix.target }}/release/vectorizer-server
-          ls -la target/${{ matrix.target }}/release/vzr
-          ls -la target/${{ matrix.target }}/release/vectorizer-mcp-server
+          ls -la target/${{ matrix.target }}/release/vectorizer
 
       - name: Verify binaries (Windows)
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
           dir target\%TARGET%\release\vectorizer-cli.exe
-          dir target\%TARGET%\release\vectorizer-server.exe
-          dir target\%TARGET%\release\vzr.exe
-          dir target\%TARGET%\release\vectorizer-mcp-server.exe
+          dir target\%TARGET%\release\vectorizer.exe
         env:
           TARGET: ${{ matrix.target }}
 
@@ -144,13 +134,11 @@ jobs:
       - name: Copy binaries
         run: |
           cp target/${{ matrix.target }}/release/vectorizer-cli${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vectorizer-server${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vzr${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
-          cp target/${{ matrix.target }}/release/vectorizer-mcp-server${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
+          cp target/${{ matrix.target }}/release/vectorizer${{ matrix.executable_extension }} release/${{ matrix.artifact_name }}/
 
       - name: Copy configuration files
         run: |
-          cp config.example.yml release/${{ matrix.artifact_name }}/config.yml
+          cp config.yml release/${{ matrix.artifact_name }}/
           cp vectorize-workspace.yml release/${{ matrix.artifact_name }}/
           cp README.md release/${{ matrix.artifact_name }}/
           cp LICENSE release/${{ matrix.artifact_name }}/
@@ -168,22 +156,21 @@ jobs:
           
           # Copy binaries
           sudo cp vectorizer-cli /usr/local/bin/
-          sudo cp vectorizer-server /usr/local/bin/
-          sudo cp vzr /usr/local/bin/
-          sudo cp vectorizer-mcp-server /usr/local/bin/
+          sudo cp vectorizer /usr/local/bin/
           
           # Copy config
           sudo cp config.yml /etc/vectorizer/
           
           # Set permissions
-          sudo chmod +x /usr/local/bin/vectorizer-*
+          sudo chmod +x /usr/local/bin/vectorizer-cli
+          sudo chmod +x /usr/local/bin/vectorizer
           
           echo "✅ Vectorizer installed successfully!"
           echo "📁 Binary location: /usr/local/bin/"
           echo "📁 Config location: /etc/vectorizer/"
           echo ""
           echo "🚀 Start Vectorizer:"
-          echo "  ./scripts/start.sh --workspace vectorize-workspace.yml"
+          echo "  vectorizer"
           echo ""
           echo "🔧 Use the CLI:"
           echo "  vectorizer-cli --help"
@@ -203,9 +190,7 @@ jobs:
           
           REM Copy binaries
           copy "vectorizer-cli.exe" "C:\Program Files\Vectorizer\"
-          copy "vectorizer-server.exe" "C:\Program Files\Vectorizer\"
-          copy "vzr.exe" "C:\Program Files\Vectorizer\"
-          copy "vectorizer-mcp-server.exe" "C:\Program Files\Vectorizer\"
+          copy "vectorizer.exe" "C:\Program Files\Vectorizer\"
           
           REM Copy config
           copy "config.yml" "C:\ProgramData\Vectorizer\"
@@ -218,7 +203,7 @@ jobs:
           echo 📁 Config location: C:\ProgramData\Vectorizer\
           echo.
           echo 🚀 Start Vectorizer:
-          echo   .\scripts\start.sh --workspace vectorize-workspace.yml
+          echo   vectorizer
           echo.
           echo 🔧 Use the CLI:
           echo   vectorizer-cli --help
@@ -267,7 +252,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev pkg-config protobuf-compiler
+          sudo apt-get install -y build-essential libssl-dev pkg-config
 
       - name: Cache cargo
         uses: actions/cache@v3
@@ -287,10 +272,8 @@ jobs:
           mkdir -p release
           
           # Copy binaries
-          cp target/release/vectorizer-server release/
+          cp target/release/vectorizer release/
           cp target/release/vectorizer-cli release/
-          cp target/release/vzr release/
-          cp target/release/vectorizer-mcp-server release/
           
           # Copy configuration files
           cp vectorize-workspace.yml release/
@@ -317,18 +300,16 @@ jobs:
             ### Installation
             1. Download the appropriate binary for your platform
             2. Extract the archive
-            3. Run: `./scripts/start.sh --workspace vectorize-workspace.yml`
+            3. Run: `./vectorizer`
             
             ### What's New
-            - Latest Vectorizer server and CLI
-            - MCP server integration
+            - Latest Vectorizer server with integrated MCP support
+            - Unified architecture (REST API + MCP in single binary)
             - Cross-platform support
             
             ### Files Included
-            - `vectorizer-server` - Main server binary
+            - `vectorizer` - Main server binary (includes REST API + MCP server)
             - `vectorizer-cli` - Command-line interface
-            - `vzr` - Quick CLI tool
-            - `vectorizer-mcp-server` - MCP server
             - `vectorize-workspace.yml` - Configuration file
             - `LICENSE` - License file
           files: |
