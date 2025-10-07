@@ -5,6 +5,10 @@ use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
 use serde_json::json;
 use crate::{VectorStore, embedding::EmbeddingManager};
 use crate::intelligent_search::mcp_tools::*;
+use crate::discovery::{Discovery, DiscoveryConfig, filter_collections, expand_queries_baseline, ExpansionConfig, CollectionRef};
+use crate::file_operations::{FileOperations, FileListFilter, SummaryType, SortBy};
+use super::discovery_handlers::*;
+use super::file_operations_handlers::*;
 
 /// Helper function to create an embedding manager for a specific collection
 fn create_embedding_manager_for_collection(embedding_type: &str, dimension: usize) -> Result<EmbeddingManager, String> {
@@ -85,6 +89,25 @@ pub async fn handle_mcp_tool(
         "multi_collection_search" => handle_multi_collection_search(request, store, embedding_manager).await,
         "semantic_search" => handle_semantic_search(request, store, embedding_manager).await,
         "contextual_search" => handle_contextual_search(request, store, embedding_manager).await,
+        // Discovery Tools (9 functions + 1 full pipeline)
+        "discover" => handle_discover(request, store, embedding_manager).await,
+        "filter_collections" => handle_filter_collections(request, store).await,
+        "score_collections" => handle_score_collections(request, store).await,
+        "expand_queries" => handle_expand_queries(request).await,
+        "broad_discovery" => handle_broad_discovery(request, store, embedding_manager).await,
+        "semantic_focus" => handle_semantic_focus(request, store, embedding_manager).await,
+        "promote_readme" => handle_promote_readme(request).await,
+        "compress_evidence" => handle_compress_evidence(request).await,
+        "build_answer_plan" => handle_build_answer_plan(request).await,
+        "render_llm_prompt" => handle_render_llm_prompt(request).await,
+        // File Operations Tools
+        "get_file_content" => handle_get_file_content(request, store).await,
+        "list_files_in_collection" => handle_list_files_in_collection(request, store).await,
+        "get_file_summary" => handle_get_file_summary(request, store).await,
+        "get_file_chunks_ordered" => handle_get_file_chunks_ordered(request, store).await,
+        "get_project_outline" => handle_get_project_outline(request, store).await,
+        "get_related_files" => handle_get_related_files(request, store, embedding_manager).await,
+        "search_by_file_type" => handle_search_by_file_type(request, store, embedding_manager).await,
         _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
@@ -863,3 +886,184 @@ async fn handle_contextual_search(
     
     Ok(CallToolResult::success(vec![Content::text(json_response.to_string())]))
 }
+
+// =========================
+// File Operations Handlers
+// =========================
+
+async fn handle_get_file_content(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let file_path = args.get("file_path")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing file_path", None))?;
+    
+    let max_size_kb = args.get("max_size_kb")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(500) as usize;
+    
+    // Initialize FileOperations WITH STORE
+    let file_ops = FileOperations::with_store(store);
+    
+    // Get file content
+    let result = file_ops.get_file_content(collection, file_path, max_size_kb)
+        .await
+        .map_err(|e| ErrorData::internal_error(format!("Failed to get file content: {}", e), None))?;
+    
+    let response = json!({
+        "file_path": result.file_path,
+        "content": result.content,
+        "metadata": {
+            "file_type": result.metadata.file_type,
+            "size_kb": result.metadata.size_kb,
+            "chunk_count": result.metadata.chunk_count,
+            "last_indexed": result.metadata.last_indexed,
+            "language": result.metadata.language,
+        },
+        "chunks_available": result.chunks_available,
+        "collection": result.collection,
+        "from_cache": result.from_cache,
+    });
+    
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_list_files_in_collection(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    // Parse filter parameters
+    let filter_by_type = args.get("filter_by_type")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect());
+    
+    let min_chunks = args.get("min_chunks")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize);
+    
+    let max_results = args.get("max_results")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize);
+    
+    let sort_by = args.get("sort_by")
+        .and_then(|v| v.as_str())
+        .and_then(|s| match s {
+            "name" => Some(SortBy::Name),
+            "size" => Some(SortBy::Size),
+            "chunks" => Some(SortBy::Chunks),
+            "recent" => Some(SortBy::Recent),
+            _ => None,
+        })
+        .unwrap_or(SortBy::Name);
+    
+    let filter = FileListFilter {
+        filter_by_type,
+        min_chunks,
+        max_results,
+        sort_by,
+    };
+    
+    // Initialize FileOperations WITH STORE
+    let file_ops = FileOperations::with_store(store);
+    
+    // List files
+    let result = file_ops.list_files_in_collection(collection, filter)
+        .await
+        .map_err(|e| ErrorData::internal_error(format!("Failed to list files: {}", e), None))?;
+    
+    let response = json!({
+        "collection": result.collection,
+        "total_files": result.total_files,
+        "total_chunks": result.total_chunks,
+        "files": result.files.iter().map(|f| json!({
+            "path": f.path,
+            "file_type": f.file_type,
+            "chunk_count": f.chunk_count,
+            "size_estimate_kb": f.size_estimate_kb,
+            "last_indexed": f.last_indexed,
+            "has_summary": f.has_summary,
+        })).collect::<Vec<_>>(),
+    });
+    
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+
+async fn handle_get_file_summary(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+    
+    let collection = args.get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+    
+    let file_path = args.get("file_path")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing file_path", None))?;
+    
+    let summary_type = args.get("summary_type")
+        .and_then(|v| v.as_str())
+        .and_then(|s| match s {
+            "extractive" => Some(SummaryType::Extractive),
+            "structural" => Some(SummaryType::Structural),
+            "both" => Some(SummaryType::Both),
+            _ => None,
+        })
+        .unwrap_or(SummaryType::Both);
+    
+    let max_sentences = args.get("max_sentences")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(5) as usize;
+    
+    // Initialize FileOperations WITH STORE
+    let file_ops = FileOperations::with_store(store);
+    
+    // Get summary
+    let result = file_ops.get_file_summary(collection, file_path, summary_type, max_sentences)
+        .await
+        .map_err(|e| ErrorData::internal_error(format!("Failed to get file summary: {}", e), None))?;
+    
+    let mut response = json!({
+        "file_path": result.file_path,
+        "metadata": {
+            "chunk_count": result.metadata.chunk_count,
+            "file_type": result.metadata.file_type,
+            "summary_method": result.metadata.summary_method,
+        },
+        "generated_at": result.generated_at,
+    });
+    
+    if let Some(extractive) = result.extractive_summary {
+        response["extractive_summary"] = json!(extractive);
+    }
+    
+    if let Some(structural) = result.structural_summary {
+        response["structural_summary"] = json!({
+            "outline": structural.outline,
+            "key_sections": structural.key_sections,
+            "key_points": structural.key_points,
+        });
+    }
+    
+    Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
+}
+

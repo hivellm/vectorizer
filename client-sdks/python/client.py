@@ -969,3 +969,462 @@ class VectorizerClient:
                     raise ServerError(f"Failed to get indexing progress: {response.status}")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to get indexing progress: {e}")
+    
+    # =============================================================================
+    # DISCOVERY OPERATIONS
+    # =============================================================================
+    
+    async def discover(
+        self,
+        query: str,
+        include_collections: Optional[List[str]] = None,
+        exclude_collections: Optional[List[str]] = None,
+        max_bullets: int = 20,
+        broad_k: int = 50,
+        focus_k: int = 15
+    ) -> Dict[str, Any]:
+        """
+        Complete discovery pipeline with intelligent search and prompt generation.
+        
+        Args:
+            query: User question or search query
+            include_collections: Collections to include (glob patterns)
+            exclude_collections: Collections to exclude
+            max_bullets: Maximum evidence bullets
+            broad_k: Broad search results
+            focus_k: Focus search results per collection
+            
+        Returns:
+            Discovery response with LLM-ready prompt
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        payload = {"query": query}
+        if include_collections:
+            payload["include_collections"] = include_collections
+        if exclude_collections:
+            payload["exclude_collections"] = exclude_collections
+        payload["max_bullets"] = max_bullets
+        payload["broad_k"] = broad_k
+        payload["focus_k"] = focus_k
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/discover",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to discover: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to discover: {e}")
+    
+    async def filter_collections(
+        self,
+        query: str,
+        include: Optional[List[str]] = None,
+        exclude: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Pre-filter collections by name patterns.
+        
+        Args:
+            query: Search query for filtering
+            include: Include patterns
+            exclude: Exclude patterns
+            
+        Returns:
+            Filtered collections
+        """
+        payload = {"query": query}
+        if include:
+            payload["include"] = include
+        if exclude:
+            payload["exclude"] = exclude
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/discovery/filter_collections",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to filter collections: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to filter collections: {e}")
+    
+    async def score_collections(
+        self,
+        query: str,
+        name_match_weight: float = 0.4,
+        term_boost_weight: float = 0.3,
+        signal_boost_weight: float = 0.3
+    ) -> Dict[str, Any]:
+        """
+        Rank collections by relevance.
+        
+        Args:
+            query: Search query for scoring
+            name_match_weight: Weight for name matching
+            term_boost_weight: Weight for term boost
+            signal_boost_weight: Weight for signals
+            
+        Returns:
+            Scored collections
+        """
+        payload = {
+            "query": query,
+            "name_match_weight": name_match_weight,
+            "term_boost_weight": term_boost_weight,
+            "signal_boost_weight": signal_boost_weight
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/discovery/score_collections",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to score collections: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to score collections: {e}")
+    
+    async def expand_queries(
+        self,
+        query: str,
+        max_expansions: int = 8,
+        include_definition: bool = True,
+        include_features: bool = True,
+        include_architecture: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Generate query variations.
+        
+        Args:
+            query: Original query to expand
+            max_expansions: Maximum expansions
+            include_definition: Include definition queries
+            include_features: Include features queries
+            include_architecture: Include architecture queries
+            
+        Returns:
+            Expanded queries
+        """
+        payload = {
+            "query": query,
+            "max_expansions": max_expansions,
+            "include_definition": include_definition,
+            "include_features": include_features,
+            "include_architecture": include_architecture
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/discovery/expand_queries",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to expand queries: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to expand queries: {e}")
+    
+    # =============================================================================
+    # FILE OPERATIONS
+    # =============================================================================
+    
+    async def get_file_content(
+        self,
+        collection: str,
+        file_path: str,
+        max_size_kb: int = 500
+    ) -> Dict[str, Any]:
+        """
+        Retrieve complete file content from a collection.
+        
+        Args:
+            collection: Collection name
+            file_path: Relative file path within collection
+            max_size_kb: Maximum file size in KB
+            
+        Returns:
+            File content and metadata
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+            ValidationError: If request is invalid
+        """
+        payload = {
+            "collection": collection,
+            "file_path": file_path,
+            "max_size_kb": max_size_kb
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/content",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to get file content: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get file content: {e}")
+    
+    async def list_files_in_collection(
+        self,
+        collection: str,
+        filter_by_type: Optional[List[str]] = None,
+        min_chunks: Optional[int] = None,
+        max_results: int = 100,
+        sort_by: str = "name"
+    ) -> Dict[str, Any]:
+        """
+        List all indexed files in a collection.
+        
+        Args:
+            collection: Collection name
+            filter_by_type: Filter by file types
+            min_chunks: Minimum number of chunks
+            max_results: Maximum number of results
+            sort_by: Sort order (name, size, chunks, recent)
+            
+        Returns:
+            List of files with metadata
+        """
+        payload = {
+            "collection": collection,
+            "max_results": max_results,
+            "sort_by": sort_by
+        }
+        if filter_by_type:
+            payload["filter_by_type"] = filter_by_type
+        if min_chunks:
+            payload["min_chunks"] = min_chunks
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/list",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to list files: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list files: {e}")
+    
+    async def get_file_summary(
+        self,
+        collection: str,
+        file_path: str,
+        summary_type: str = "both",
+        max_sentences: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Get extractive or structural summary of an indexed file.
+        
+        Args:
+            collection: Collection name
+            file_path: Relative file path within collection
+            summary_type: Type of summary (extractive, structural, both)
+            max_sentences: Maximum sentences for extractive summary
+            
+        Returns:
+            File summary
+        """
+        payload = {
+            "collection": collection,
+            "file_path": file_path,
+            "summary_type": summary_type,
+            "max_sentences": max_sentences
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/summary",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to get file summary: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get file summary: {e}")
+    
+    async def get_file_chunks_ordered(
+        self,
+        collection: str,
+        file_path: str,
+        start_chunk: int = 0,
+        limit: int = 10,
+        include_context: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Retrieve chunks in original file order for progressive reading.
+        
+        Args:
+            collection: Collection name
+            file_path: Relative file path within collection
+            start_chunk: Starting chunk index
+            limit: Number of chunks to retrieve
+            include_context: Include prev/next chunk hints
+            
+        Returns:
+            File chunks
+        """
+        payload = {
+            "collection": collection,
+            "file_path": file_path,
+            "start_chunk": start_chunk,
+            "limit": limit,
+            "include_context": include_context
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/chunks",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to get file chunks: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get file chunks: {e}")
+    
+    async def get_project_outline(
+        self,
+        collection: str,
+        max_depth: int = 5,
+        include_summaries: bool = False,
+        highlight_key_files: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Generate hierarchical project structure overview.
+        
+        Args:
+            collection: Collection name
+            max_depth: Maximum directory depth
+            include_summaries: Include file summaries in outline
+            highlight_key_files: Highlight important files like README
+            
+        Returns:
+            Project outline
+        """
+        payload = {
+            "collection": collection,
+            "max_depth": max_depth,
+            "include_summaries": include_summaries,
+            "highlight_key_files": highlight_key_files
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/outline",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to get project outline: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get project outline: {e}")
+    
+    async def get_related_files(
+        self,
+        collection: str,
+        file_path: str,
+        limit: int = 5,
+        similarity_threshold: float = 0.6,
+        include_reason: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Find semantically related files using vector similarity.
+        
+        Args:
+            collection: Collection name
+            file_path: Reference file path
+            limit: Maximum number of related files
+            similarity_threshold: Minimum similarity score 0.0-1.0
+            include_reason: Include explanation of why files are related
+            
+        Returns:
+            Related files
+        """
+        payload = {
+            "collection": collection,
+            "file_path": file_path,
+            "limit": limit,
+            "similarity_threshold": similarity_threshold,
+            "include_reason": include_reason
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/related",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to get related files: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get related files: {e}")
+    
+    async def search_by_file_type(
+        self,
+        collection: str,
+        query: str,
+        file_types: List[str],
+        limit: int = 10,
+        return_full_files: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Semantic search filtered by file type.
+        
+        Args:
+            collection: Collection name
+            query: Search query
+            file_types: File extensions to search
+            limit: Maximum results
+            return_full_files: Return complete file content
+            
+        Returns:
+            Search results
+        """
+        payload = {
+            "collection": collection,
+            "query": query,
+            "file_types": file_types,
+            "limit": limit,
+            "return_full_files": return_full_files
+        }
+        
+        try:
+            async with self._session.post(
+                f"{self.base_url}/file/search_by_type",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to search by file type: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to search by file type: {e}")

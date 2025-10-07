@@ -1,0 +1,67 @@
+# Discovery System Dependencies
+
+# Core dependencies
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+log = "0.4"
+futures = "0.3"
+
+# Full-text search and BM25 scoring
+# Used for: Collection filtering, scoring, tokenization, stopwords
+# Also used for hybrid search (BM25 + our HNSW)
+tantivy = "0.22"
+
+# NOTE: We do NOT use qdrant-client - vectorizer is our own vector database!
+# Hybrid search is implemented internally using:
+# - Our existing HNSW index (src/hnsw/) for dense vectors
+# - Tantivy (above) for BM25/sparse search
+# - Custom RRF (Reciprocal Rank Fusion) implementation
+
+# Neural reranking with ONNX models
+# Used for: Cross-encoder reranking in semantic focus
+onnxruntime = { version = "0.0.14", features = ["default"] }
+tokenizers = "0.19"  # For model tokenization
+ndarray = "0.15"     # For tensor operations
+
+# Text processing and extraction
+# Used for: Keyword extraction (TextRank/YAKE)
+keyword_extraction = "0.1"
+
+# Sentence segmentation
+# Used for: Proper sentence boundary detection
+unicode-segmentation = "1.11"
+
+# Pattern matching
+# Used for: Collection name filtering
+glob = "0.3"
+
+# Optional: Alternative implementations
+# tfidf-text-summarizer = "0.1"  # Custom TF-IDF summarization
+
+[dev-dependencies]
+tokio-test = "0.4"
+criterion = "0.5"
+
+[[bench]]
+name = "discovery_bench"
+harness = false
+
+[features]
+default = ["tantivy-integration"]
+
+# Feature flags for optional integrations
+tantivy-integration = ["tantivy"]
+onnx-reranking = ["onnxruntime", "tokenizers", "ndarray"]
+advanced-extraction = ["keyword_extraction", "unicode-segmentation"]
+
+# All features enabled
+full = [
+    "tantivy-integration",
+    "onnx-reranking",
+    "advanced-extraction"
+]
+

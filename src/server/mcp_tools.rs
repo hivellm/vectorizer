@@ -508,5 +508,433 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
+        // Discovery System Tools (9 functions + full pipeline)
+        Tool {
+            name: Cow::Borrowed("discover"),
+            title: Some("Discovery Pipeline".to_string()),
+            description: Some(Cow::Borrowed("Complete discovery pipeline that chains filtering, scoring, expansion, search, ranking, compression, and prompt generation. Returns a structured LLM-ready prompt with evidence.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "User question or search query"},
+                    "include_collections": {"type": "array", "items": {"type": "string"}, "description": "Collections to include (glob patterns like 'vectorizer*')"},
+                    "exclude_collections": {"type": "array", "items": {"type": "string"}, "description": "Collections to exclude"},
+                    "max_bullets": {"type": "integer", "default": 20, "description": "Maximum evidence bullets"},
+                    "broad_k": {"type": "integer", "default": 50, "description": "Broad search results"},
+                    "focus_k": {"type": "integer", "default": 15, "description": "Focus search results per collection"}
+                },
+                "required": ["query"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("filter_collections"),
+            title: Some("Filter Collections".to_string()),
+            description: Some(Cow::Borrowed("Pre-filter collections by name patterns with stopword removal from query")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query for filtering"},
+                    "include": {"type": "array", "items": {"type": "string"}, "description": "Include patterns (e.g., ['vectorizer*', '*-docs'])"},
+                    "exclude": {"type": "array", "items": {"type": "string"}, "description": "Exclude patterns (e.g., ['*-test'])"}
+                },
+                "required": ["query"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("score_collections"),
+            title: Some("Score Collections".to_string()),
+            description: Some(Cow::Borrowed("Rank collections by relevance using name match, term boost, and signal boost (size, recency, tags)")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query for scoring"},
+                    "name_match_weight": {"type": "number", "default": 0.4, "description": "Weight for name matching"},
+                    "term_boost_weight": {"type": "number", "default": 0.3, "description": "Weight for term boost"},
+                    "signal_boost_weight": {"type": "number", "default": 0.3, "description": "Weight for signals"}
+                },
+                "required": ["query"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("expand_queries"),
+            title: Some("Expand Queries".to_string()),
+            description: Some(Cow::Borrowed("Generate query variations (definition, features, architecture, API, performance, use cases)")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Original query to expand"},
+                    "max_expansions": {"type": "integer", "default": 8, "description": "Maximum expansions"},
+                    "include_definition": {"type": "boolean", "default": true},
+                    "include_features": {"type": "boolean", "default": true},
+                    "include_architecture": {"type": "boolean", "default": true}
+                },
+                "required": ["query"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("broad_discovery"),
+            title: Some("Broad Discovery".to_string()),
+            description: Some(Cow::Borrowed("Multi-query broad search with MMR diversification and deduplication")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "queries": {"type": "array", "items": {"type": "string"}, "description": "Array of search queries"},
+                    "k": {"type": "integer", "default": 50, "description": "Maximum results"}
+                },
+                "required": ["queries"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("semantic_focus"),
+            title: Some("Semantic Focus".to_string()),
+            description: Some(Cow::Borrowed("Deep semantic search in specific collection with reranking and context window")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {"type": "string", "description": "Target collection name"},
+                    "queries": {"type": "array", "items": {"type": "string"}, "description": "Array of search queries"},
+                    "k": {"type": "integer", "default": 15, "description": "Maximum results"}
+                },
+                "required": ["collection", "queries"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("promote_readme"),
+            title: Some("Promote README".to_string()),
+            description: Some(Cow::Borrowed("Boost README files to the top of search results")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "chunks": {"type": "array", "description": "Array of scored chunks to promote"}
+                },
+                "required": ["chunks"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("compress_evidence"),
+            title: Some("Compress Evidence".to_string()),
+            description: Some(Cow::Borrowed("Extract key sentences (8-30 words) with citations from chunks")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "chunks": {"type": "array", "description": "Array of scored chunks"},
+                    "max_bullets": {"type": "integer", "default": 20, "description": "Max bullets to extract"},
+                    "max_per_doc": {"type": "integer", "default": 3, "description": "Max bullets per document"}
+                },
+                "required": ["chunks"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("build_answer_plan"),
+            title: Some("Build Answer Plan".to_string()),
+            description: Some(Cow::Borrowed("Organize bullets into structured sections (Definition, Features, Architecture, Performance, Integrations, Use Cases)")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "bullets": {"type": "array", "description": "Array of evidence bullets"}
+                },
+                "required": ["bullets"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("render_llm_prompt"),
+            title: Some("Render LLM Prompt".to_string()),
+            description: Some(Cow::Borrowed("Generate compact, structured prompt for LLM with instructions, evidence, and citations")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "plan": {"type": "object", "description": "Answer plan with sections and bullets"}
+                },
+                "required": ["plan"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        // File Operations Tools (Priority 1)
+        Tool {
+            name: Cow::Borrowed("get_file_content"),
+            title: Some("Get File Content".to_string()),
+            description: Some(Cow::Borrowed("Retrieve complete file content from a collection. Use this instead of read_file for indexed files. Faster and provides metadata.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name (e.g., 'vectorizer-source', 'vectorizer-docs')"
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "description": "Relative file path within collection (e.g., 'src/main.rs', 'README.md')"
+                    },
+                    "max_size_kb": {
+                        "type": "integer",
+                        "description": "Maximum file size in KB (default: 500, max: 5000)",
+                        "default": 500,
+                        "minimum": 1,
+                        "maximum": 5000
+                    }
+                },
+                "required": ["collection", "file_path"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("list_files_in_collection"),
+            title: Some("List Files in Collection".to_string()),
+            description: Some(Cow::Borrowed("List all indexed files in a collection with metadata. Use this to explore project structure and discover available files.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "filter_by_type": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by file types (e.g., ['rs', 'md', 'toml'])"
+                    },
+                    "min_chunks": {
+                        "type": "integer",
+                        "description": "Minimum number of chunks (filters out small files)"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results (default: 100)",
+                        "default": 100
+                    },
+                    "sort_by": {
+                        "type": "string",
+                        "enum": ["name", "size", "chunks", "recent"],
+                        "description": "Sort order (default: 'name')",
+                        "default": "name"
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("get_file_summary"),
+            title: Some("Get File Summary".to_string()),
+            description: Some(Cow::Borrowed("Get extractive or structural summary of an indexed file. More efficient than reading the entire file. Provides key points and outline.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "description": "Relative file path within collection"
+                    },
+                    "summary_type": {
+                        "type": "string",
+                        "enum": ["extractive", "structural", "both"],
+                        "description": "Type of summary (default: 'both')",
+                        "default": "both"
+                    },
+                    "max_sentences": {
+                        "type": "integer",
+                        "description": "Maximum sentences for extractive summary (default: 5)",
+                        "default": 5,
+                        "minimum": 1,
+                        "maximum": 20
+                    }
+                },
+                "required": ["collection", "file_path"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("get_file_chunks_ordered"),
+            title: Some("Get File Chunks Ordered".to_string()),
+            description: Some(Cow::Borrowed("Retrieve chunks in original file order for progressive reading. Useful for streaming large files without loading everything at once.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "description": "Relative file path within collection"
+                    },
+                    "start_chunk": {
+                        "type": "integer",
+                        "description": "Starting chunk index (default: 0)",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of chunks to retrieve (default: 10)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "include_context": {
+                        "type": "boolean",
+                        "description": "Include prev/next chunk hints (default: false)",
+                        "default": false
+                    }
+                },
+                "required": ["collection", "file_path"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("get_project_outline"),
+            title: Some("Get Project Outline".to_string()),
+            description: Some(Cow::Borrowed("Generate hierarchical project structure overview. Shows directory tree, key files, and statistics. Perfect for understanding codebase organization.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "max_depth": {
+                        "type": "integer",
+                        "description": "Maximum directory depth (default: 5)",
+                        "default": 5,
+                        "minimum": 1,
+                        "maximum": 10
+                    },
+                    "include_summaries": {
+                        "type": "boolean",
+                        "description": "Include file summaries in outline (default: false)",
+                        "default": false
+                    },
+                    "highlight_key_files": {
+                        "type": "boolean",
+                        "description": "Highlight important files like README (default: true)",
+                        "default": true
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("get_related_files"),
+            title: Some("Get Related Files".to_string()),
+            description: Some(Cow::Borrowed("Find semantically related files using vector similarity. Navigate codebase by discovering related modules, dependencies, and similar implementations.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "description": "Reference file path"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of related files (default: 5)",
+                        "default": 5,
+                        "minimum": 1,
+                        "maximum": 20
+                    },
+                    "similarity_threshold": {
+                        "type": "number",
+                        "description": "Minimum similarity score 0.0-1.0 (default: 0.6)",
+                        "default": 0.6,
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    },
+                    "include_reason": {
+                        "type": "boolean",
+                        "description": "Include explanation of why files are related (default: true)",
+                        "default": true
+                    }
+                },
+                "required": ["collection", "file_path"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+        Tool {
+            name: Cow::Borrowed("search_by_file_type"),
+            title: Some("Search by File Type".to_string()),
+            description: Some(Cow::Borrowed("Semantic search filtered by file type. Find configuration files, documentation, or code by specific extensions. Optionally return full file contents.")),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "file_types": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "File extensions to search (e.g., ['yaml', 'toml', 'json'])"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum results (default: 10)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "return_full_files": {
+                        "type": "boolean",
+                        "description": "Return complete file content (default: false)",
+                        "default": false
+                    }
+                },
+                "required": ["collection", "query", "file_types"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
     ]
 }

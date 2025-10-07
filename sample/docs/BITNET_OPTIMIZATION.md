@@ -153,6 +153,68 @@ This ensures reliable results even when the intelligent search has issues.
 - Same processing time (0ms)
 - Same content and scores
 
+### Additional Bug Fix Applied
+**Problem**: The `list_collections()` function was returning the full API response instead of just the collections list, causing "No collections available for search" error.
+
+**Root Cause**: The function returned `result` (full API response) instead of extracting `result["collections"]`.
+
+**Solution**: Modified `list_collections()` to properly extract and filter collections:
+```python
+# Extract collections from the API response
+if isinstance(result, dict) and "collections" in result:
+    collections = result["collections"]
+    # Filter collections with data
+    collections_with_data = [col for col in collections if col.get("document_count", 0) > 0]
+    return collections_with_data
+```
+
+**Result**: Now correctly identifies 104 collections with data out of 108 total collections.
+
+### Score Threshold Fix Applied
+**Problem**: The context enhancement was filtering out all results due to an overly high score threshold (0.3), causing "No high-quality results found" despite finding relevant content.
+
+**Root Cause**: BM25 scores can be negative (typically -0.1 to 0.1), but the threshold was set to 0.3, filtering out all valid results.
+
+**Solution**: Lowered the score threshold from 0.3 to -0.1 to accommodate BM25 scoring:
+```python
+# Before: if score >= 0.3:  # Too high for BM25
+# After:  if score >= -0.1:  # Appropriate for BM25 scores
+```
+
+**Result**: Now includes all relevant results in context enhancement, providing meaningful context to the BitNet model.
+
+### Intelligent Collection Prioritization Added
+**Problem**: The `intelligent_search` was searching all 108 collections and returning irrelevant results (e.g., CMMV docs when asking about "vectorizer").
+
+**Root Cause**: No prioritization logic - searches were performed across all collections without considering query relevance.
+
+**Solution**: Added intelligent collection prioritization using semantic search:
+```python
+async def _prioritize_collections(self, query: str, collections: List[str]) -> List[str]:
+    # 1. Use intelligent search to find most relevant collections
+    semantic_query = f"{query} collections: {', '.join(collections[:20])}"
+    
+    # 2. Test collections with semantic search using MMR and domain expansion
+    response = await client.post("/intelligent_search", json={
+        "query": semantic_query,
+        "collections": collections[:20],
+        "mmr_enabled": True,         # Enable MMR for better diversity
+        "domain_expansion": True,     # Enable domain expansion for better coverage
+        "technical_focus": True,
+        "mmr_lambda": 0.7
+    })
+    
+    # 3. Sort by relevance score and return prioritized list
+    return sorted_collections_by_score
+```
+
+**Result**: 
+- Query "me fale sobre o vectorizer" now finds `vectorizer-source` (score: 0.439) and other relevant collections
+- Returns relevant Vectorizer documentation instead of random CMMV content
+- Works for any project - no hardcoded mappings needed
+- Much more accurate and contextual results
+- Uses MMR for better diversity and domain expansion for better coverage
+
 ### What Stayed the Same
 1. **API endpoints**: No changes to REST API
 2. **Request/Response models**: Same interface

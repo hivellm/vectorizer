@@ -675,6 +675,471 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /discover:
+    post:
+      summary: Discovery Pipeline
+      description: Complete discovery pipeline that chains filtering, scoring, expansion, search, ranking, compression, and prompt generation
+      operationId: discover
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverRequest'
+      responses:
+        '200':
+          description: Discovery results with LLM-ready prompt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /discovery/filter_collections:
+    post:
+      summary: Filter Collections
+      description: Pre-filter collections by name patterns with stopword removal from query
+      operationId: filterCollections
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Search query for filtering
+                include:
+                  type: array
+                  items:
+                    type: string
+                  description: Include patterns (e.g., ['vectorizer*', '*-docs'])
+                exclude:
+                  type: array
+                  items:
+                    type: string
+                  description: Exclude patterns (e.g., ['*-test'])
+      responses:
+        '200':
+          description: Filtered collections
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/score_collections:
+    post:
+      summary: Score Collections
+      description: Rank collections by relevance using name match, term boost, and signal boost
+      operationId: scoreCollections
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                name_match_weight:
+                  type: number
+                  default: 0.4
+                term_boost_weight:
+                  type: number
+                  default: 0.3
+                signal_boost_weight:
+                  type: number
+                  default: 0.3
+      responses:
+        '200':
+          description: Scored collections
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/expand_queries:
+    post:
+      summary: Expand Queries
+      description: Generate query variations (definition, features, architecture, API, performance, use cases)
+      operationId: expandQueries
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                max_expansions:
+                  type: integer
+                  default: 8
+                include_definition:
+                  type: boolean
+                  default: true
+                include_features:
+                  type: boolean
+                  default: true
+                include_architecture:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Expanded queries
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/broad_discovery:
+    post:
+      summary: Broad Discovery
+      description: Multi-query broad search with MMR diversification and deduplication
+      operationId: broadDiscovery
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - queries
+              properties:
+                queries:
+                  type: array
+                  items:
+                    type: string
+                k:
+                  type: integer
+                  default: 50
+      responses:
+        '200':
+          description: Broad discovery results
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/semantic_focus:
+    post:
+      summary: Semantic Focus
+      description: Deep semantic search in specific collection with reranking and context window
+      operationId: semanticFocus
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - collection
+                - queries
+              properties:
+                collection:
+                  type: string
+                queries:
+                  type: array
+                  items:
+                    type: string
+                k:
+                  type: integer
+                  default: 15
+      responses:
+        '200':
+          description: Semantic focus results
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/promote_readme:
+    post:
+      summary: Promote README
+      description: Boost README files to the top of search results
+      operationId: promoteReadme
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chunks
+              properties:
+                chunks:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Promoted chunks
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/compress_evidence:
+    post:
+      summary: Compress Evidence
+      description: Extract key sentences (8-30 words) with citations from chunks
+      operationId: compressEvidence
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chunks
+              properties:
+                chunks:
+                  type: array
+                  items:
+                    type: object
+                max_bullets:
+                  type: integer
+                  default: 20
+                max_per_doc:
+                  type: integer
+                  default: 3
+      responses:
+        '200':
+          description: Compressed evidence bullets
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/build_answer_plan:
+    post:
+      summary: Build Answer Plan
+      description: Organize bullets into structured sections
+      operationId: buildAnswerPlan
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bullets
+              properties:
+                bullets:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Structured answer plan
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /discovery/render_llm_prompt:
+    post:
+      summary: Render LLM Prompt
+      description: Generate compact, structured prompt for LLM with instructions, evidence, and citations
+      operationId: renderLlmPrompt
+      tags:
+        - Discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - plan
+              properties:
+                plan:
+                  type: object
+      responses:
+        '200':
+          description: LLM-ready prompt
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /file/content:
+    post:
+      summary: Get File Content
+      description: Retrieve complete file content from a collection
+      operationId: getFileContent
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetFileContentRequest'
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContentResponse'
+
+  /file/list:
+    post:
+      summary: List Files in Collection
+      description: List all indexed files in a collection with metadata
+      operationId: listFilesInCollection
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListFilesRequest'
+      responses:
+        '200':
+          description: List of files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListFilesResponse'
+
+  /file/summary:
+    post:
+      summary: Get File Summary
+      description: Get extractive or structural summary of an indexed file
+      operationId: getFileSummary
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetFileSummaryRequest'
+      responses:
+        '200':
+          description: File summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSummaryResponse'
+
+  /file/chunks:
+    post:
+      summary: Get File Chunks Ordered
+      description: Retrieve chunks in original file order for progressive reading
+      operationId: getFileChunksOrdered
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetFileChunksRequest'
+      responses:
+        '200':
+          description: File chunks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileChunksResponse'
+
+  /file/outline:
+    post:
+      summary: Get Project Outline
+      description: Generate hierarchical project structure overview
+      operationId: getProjectOutline
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetProjectOutlineRequest'
+      responses:
+        '200':
+          description: Project outline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOutlineResponse'
+
+  /file/related:
+    post:
+      summary: Get Related Files
+      description: Find semantically related files using vector similarity
+      operationId: getRelatedFiles
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetRelatedFilesRequest'
+      responses:
+        '200':
+          description: Related files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelatedFilesResponse'
+
+  /file/search_by_type:
+    post:
+      summary: Search by File Type
+      description: Semantic search filtered by file type
+      operationId: searchByFileType
+      tags:
+        - File Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchByFileTypeRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchByFileTypeResponse'
+
 components:
   schemas:
     HealthResponse:
@@ -1391,7 +1856,7 @@ components:
           minimum: 0
           maximum: 1
           default: 0.7
-          description: MMR balance parameter: 0.0 = maximum diversity, 1.0 = maximum relevance. Controls the trade-off between relevance and diversity
+          description: MMR balance parameter 0.0 = maximum diversity, 1.0 = maximum relevance. Controls the trade-off between relevance and diversity
 
     IntelligentSearchResponse:
       type: object
@@ -1791,6 +2256,340 @@ components:
               format: date-time
               description: Last update timestamp
 
+    # Discovery Schemas
+    DiscoverRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: User question or search query
+        include_collections:
+          type: array
+          items:
+            type: string
+          description: Collections to include (glob patterns)
+        exclude_collections:
+          type: array
+          items:
+            type: string
+          description: Collections to exclude
+        max_bullets:
+          type: integer
+          default: 20
+          description: Maximum evidence bullets
+        broad_k:
+          type: integer
+          default: 50
+          description: Broad search results
+        focus_k:
+          type: integer
+          default: 15
+          description: Focus search results per collection
+
+    DiscoverResponse:
+      type: object
+      properties:
+        answer_prompt:
+          type: string
+          description: LLM-ready prompt
+        sections:
+          type: integer
+          description: Number of sections
+        bullets:
+          type: integer
+          description: Number of bullets
+        chunks:
+          type: integer
+          description: Number of chunks
+        metrics:
+          type: object
+          description: Discovery metrics
+
+    # File Operations Schemas
+    GetFileContentRequest:
+      type: object
+      required:
+        - collection
+        - file_path
+      properties:
+        collection:
+          type: string
+          description: Collection name
+        file_path:
+          type: string
+          description: Relative file path within collection
+        max_size_kb:
+          type: integer
+          default: 500
+          minimum: 1
+          maximum: 5000
+          description: Maximum file size in KB
+
+    FileContentResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        file_path:
+          type: string
+        content:
+          type: string
+        size_bytes:
+          type: integer
+        file_type:
+          type: string
+        chunks_count:
+          type: integer
+
+    ListFilesRequest:
+      type: object
+      required:
+        - collection
+      properties:
+        collection:
+          type: string
+          description: Collection name
+        filter_by_type:
+          type: array
+          items:
+            type: string
+          description: Filter by file types
+        min_chunks:
+          type: integer
+          description: Minimum number of chunks
+        max_results:
+          type: integer
+          default: 100
+          description: Maximum number of results
+        sort_by:
+          type: string
+          enum: [name, size, chunks, recent]
+          default: name
+          description: Sort order
+
+    ListFilesResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+              file_type:
+                type: string
+              size_bytes:
+                type: integer
+              chunks_count:
+                type: integer
+        total_files:
+          type: integer
+
+    GetFileSummaryRequest:
+      type: object
+      required:
+        - collection
+        - file_path
+      properties:
+        collection:
+          type: string
+        file_path:
+          type: string
+        summary_type:
+          type: string
+          enum: [extractive, structural, both]
+          default: both
+        max_sentences:
+          type: integer
+          default: 5
+          minimum: 1
+          maximum: 20
+
+    FileSummaryResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        file_path:
+          type: string
+        summary_type:
+          type: string
+        extractive_summary:
+          type: string
+        structural_summary:
+          type: object
+
+    GetFileChunksRequest:
+      type: object
+      required:
+        - collection
+        - file_path
+      properties:
+        collection:
+          type: string
+        file_path:
+          type: string
+        start_chunk:
+          type: integer
+          default: 0
+          minimum: 0
+        limit:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 50
+        include_context:
+          type: boolean
+          default: false
+
+    FileChunksResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        file_path:
+          type: string
+        chunks:
+          type: array
+          items:
+            type: object
+            properties:
+              chunk_index:
+                type: integer
+              content:
+                type: string
+              start_line:
+                type: integer
+              end_line:
+                type: integer
+        total_chunks:
+          type: integer
+
+    GetProjectOutlineRequest:
+      type: object
+      required:
+        - collection
+      properties:
+        collection:
+          type: string
+        max_depth:
+          type: integer
+          default: 5
+          minimum: 1
+          maximum: 10
+        include_summaries:
+          type: boolean
+          default: false
+        highlight_key_files:
+          type: boolean
+          default: true
+
+    ProjectOutlineResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        outline:
+          type: object
+        total_files:
+          type: integer
+        total_directories:
+          type: integer
+
+    GetRelatedFilesRequest:
+      type: object
+      required:
+        - collection
+        - file_path
+      properties:
+        collection:
+          type: string
+        file_path:
+          type: string
+        limit:
+          type: integer
+          default: 5
+          minimum: 1
+          maximum: 20
+        similarity_threshold:
+          type: number
+          default: 0.6
+          minimum: 0.0
+          maximum: 1.0
+        include_reason:
+          type: boolean
+          default: true
+
+    RelatedFilesResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        reference_file:
+          type: string
+        related_files:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+              similarity_score:
+                type: number
+              reason:
+                type: string
+
+    SearchByFileTypeRequest:
+      type: object
+      required:
+        - collection
+        - query
+        - file_types
+      properties:
+        collection:
+          type: string
+        query:
+          type: string
+        file_types:
+          type: array
+          items:
+            type: string
+          description: File extensions to search
+        limit:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 50
+        return_full_files:
+          type: boolean
+          default: false
+
+    SearchByFileTypeResponse:
+      type: object
+      properties:
+        collection:
+          type: string
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+              file_type:
+                type: string
+              score:
+                type: number
+              content:
+                type: string
+
   securitySchemes:
     apiKey:
       type: apiKey
@@ -1817,6 +2616,10 @@ tags:
     description: Indexing progress and status
   - name: Summarization
     description: Text summarization operations
+  - name: Discovery
+    description: Discovery pipeline and components for intelligent information extraction
+  - name: File Operations
+    description: File content retrieval and analysis operations
 
 externalDocs:
   description: Vectorizer Documentation

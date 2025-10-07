@@ -158,9 +158,24 @@ impl MCPToolHandler {
         tool: IntelligentSearchTool,
     ) -> Result<MCPToolResponse, String> {
         let max_results = tool.max_results.unwrap_or(10);
-        let collections = tool.collections.unwrap_or_else(|| {
+        let all_collections = tool.collections.unwrap_or_else(|| {
             self.store.list_collections()
         });
+
+        // Intelligently prioritize collections based on semantic similarity
+        let collections = if all_collections.len() > 10 {
+            // If we have many collections, use semantic prioritization
+            match self.prioritize_collections_semantically(&tool.query, &all_collections, 20).await {
+                Ok(prioritized) => prioritized,
+                Err(e) => {
+                    tracing::warn!("Semantic prioritization failed: {}, using all collections", e);
+                    all_collections.clone()
+                }
+            }
+        } else {
+            // If we have few collections, use all of them
+            all_collections.clone()
+        };
 
         let mut all_results = Vec::new();
         let mut total_queries = 0;
@@ -169,7 +184,7 @@ impl MCPToolHandler {
         let queries = self.generate_intelligent_queries(&tool.query, tool.domain_expansion.unwrap_or(true));
         total_queries = queries.len();
 
-        // Search each collection with each query
+        // Search each prioritized collection with each query
         for collection in &collections {
             // Create embedding manager specific to this collection
             let collection_embedding_manager = match self.create_embedding_manager_for_collection(collection) {
@@ -244,6 +259,9 @@ impl MCPToolHandler {
         tool_metadata.insert("query_generated".to_string(), serde_json::Value::Bool(true));
         tool_metadata.insert("deduplication_applied".to_string(), serde_json::Value::Bool(true));
         tool_metadata.insert("mmr_applied".to_string(), serde_json::Value::Bool(tool.mmr_enabled.unwrap_or(true)));
+        tool_metadata.insert("semantic_prioritization_applied".to_string(), serde_json::Value::Bool(all_collections.len() > 10));
+        tool_metadata.insert("total_collections_available".to_string(), serde_json::Value::Number(serde_json::Number::from(all_collections.len())));
+        tool_metadata.insert("collections_prioritized".to_string(), serde_json::Value::Number(serde_json::Number::from(collections.len())));
 
         Ok(MCPToolResponse {
             results: final_results,
@@ -528,6 +546,92 @@ impl MCPToolHandler {
                 additional_info: tool_metadata,
             }),
         })
+    }
+
+    /// Intelligently prioritize collections based on semantic similarity to query
+    pub async fn prioritize_collections_semantically(
+        &self,
+        query: &str,
+        collections: &[String],
+        max_collections: usize,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+        if collections.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Extract key terms from query
+        let query_terms: Vec<&str> = query
+            .split_whitespace()
+            .filter(|term| term.len() > 2)
+            .collect();
+
+        if query_terms.is_empty() {
+            return Ok(collections.to_vec());
+        }
+
+        // Use semantic search to find most relevant collections
+        let mut collection_scores = std::collections::HashMap::new();
+        
+        // Test each collection with a quick semantic search
+        for collection in collections.iter().take(max_collections) {
+            // Create embedding manager for this collection
+            let embedding_manager = match self.create_embedding_manager_for_collection(collection) {
+                Ok(manager) => manager,
+                Err(_) => continue,
+            };
+            
+            // Convert query text to vector
+            let query_vector = match embedding_manager.embed(query) {
+                Ok(vec) => vec,
+                Err(_) => continue,
+            };
+            
+            // Perform search
+            match self.store.search(collection, &query_vector, 1) {
+                Ok(results) => {
+                    if let Some(top_result) = results.first() {
+                        collection_scores.insert(collection.clone(), top_result.score);
+                    } else {
+                        collection_scores.insert(collection.clone(), -1.0);
+                    }
+                }
+                Err(_) => {
+                    collection_scores.insert(collection.clone(), -1.0);
+                }
+            }
+        }
+
+        // Sort collections by semantic relevance score
+        let mut sorted_collections: Vec<(String, f32)> = collection_scores.iter()
+            .map(|(k, v)| (k.clone(), *v))
+            .collect();
+        sorted_collections.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Extract collection names, filtering out those with no relevant results
+        let prioritized: Vec<String> = sorted_collections
+            .into_iter()
+            .filter(|(_, score)| *score > -0.5)
+            .map(|(name, _)| name)
+            .collect();
+
+        // Add remaining collections that weren't tested
+        let remaining: Vec<String> = collections
+            .iter()
+            .filter(|col| !collection_scores.contains_key(*col))
+            .cloned()
+            .collect();
+
+        let prioritized_len = prioritized.len();
+        let remaining_len = remaining.len();
+        let result = [prioritized, remaining].concat();
+        
+        tracing::info!(
+            "Semantic collection prioritization: {} relevant, {} remaining",
+            prioritized_len,
+            remaining_len
+        );
+
+        Ok(result)
     }
 
     /// Generate intelligent queries for better search coverage

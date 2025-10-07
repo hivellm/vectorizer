@@ -693,4 +693,160 @@ export class VectorizerClient {
   public async close(): Promise<void> {
     this.logger.info('VectorizerClient closed');
   }
+
+  // =============================================================================
+  // DISCOVERY OPERATIONS
+  // =============================================================================
+
+  /**
+   * Complete discovery pipeline with intelligent search and prompt generation.
+   */
+  public async discover(params: {
+    query: string;
+    include_collections?: string[];
+    exclude_collections?: string[];
+    max_bullets?: number;
+    broad_k?: number;
+    focus_k?: number;
+  }): Promise<any> {
+    this.logger.debug('Running discovery pipeline', params);
+    return this.httpClient.post('/discover', params);
+  }
+
+  /**
+   * Pre-filter collections by name patterns.
+   */
+  public async filterCollections(params: {
+    query: string;
+    include?: string[];
+    exclude?: string[];
+  }): Promise<any> {
+    this.logger.debug('Filtering collections', params);
+    return this.httpClient.post('/discovery/filter_collections', params);
+  }
+
+  /**
+   * Rank collections by relevance.
+   */
+  public async scoreCollections(params: {
+    query: string;
+    name_match_weight?: number;
+    term_boost_weight?: number;
+    signal_boost_weight?: number;
+  }): Promise<any> {
+    this.logger.debug('Scoring collections', params);
+    return this.httpClient.post('/discovery/score_collections', params);
+  }
+
+  /**
+   * Generate query variations.
+   */
+  public async expandQueries(params: {
+    query: string;
+    max_expansions?: number;
+    include_definition?: boolean;
+    include_features?: boolean;
+    include_architecture?: boolean;
+  }): Promise<any> {
+    this.logger.debug('Expanding queries', params);
+    return this.httpClient.post('/discovery/expand_queries', params);
+  }
+
+  // =============================================================================
+  // FILE OPERATIONS
+  // =============================================================================
+
+  /**
+   * Retrieve complete file content from a collection.
+   */
+  public async getFileContent(params: {
+    collection: string;
+    file_path: string;
+    max_size_kb?: number;
+  }): Promise<any> {
+    this.logger.debug('Getting file content', params);
+    return this.httpClient.post('/file/content', params);
+  }
+
+  /**
+   * List all indexed files in a collection.
+   */
+  public async listFilesInCollection(params: {
+    collection: string;
+    filter_by_type?: string[];
+    min_chunks?: number;
+    max_results?: number;
+    sort_by?: 'name' | 'size' | 'chunks' | 'recent';
+  }): Promise<any> {
+    this.logger.debug('Listing files in collection', params);
+    return this.httpClient.post('/file/list', params);
+  }
+
+  /**
+   * Get extractive or structural summary of an indexed file.
+   */
+  public async getFileSummary(params: {
+    collection: string;
+    file_path: string;
+    summary_type?: 'extractive' | 'structural' | 'both';
+    max_sentences?: number;
+  }): Promise<any> {
+    this.logger.debug('Getting file summary', params);
+    return this.httpClient.post('/file/summary', params);
+  }
+
+  /**
+   * Retrieve chunks in original file order for progressive reading.
+   */
+  public async getFileChunksOrdered(params: {
+    collection: string;
+    file_path: string;
+    start_chunk?: number;
+    limit?: number;
+    include_context?: boolean;
+  }): Promise<any> {
+    this.logger.debug('Getting file chunks', params);
+    return this.httpClient.post('/file/chunks', params);
+  }
+
+  /**
+   * Generate hierarchical project structure overview.
+   */
+  public async getProjectOutline(params: {
+    collection: string;
+    max_depth?: number;
+    include_summaries?: boolean;
+    highlight_key_files?: boolean;
+  }): Promise<any> {
+    this.logger.debug('Getting project outline', params);
+    return this.httpClient.post('/file/outline', params);
+  }
+
+  /**
+   * Find semantically related files using vector similarity.
+   */
+  public async getRelatedFiles(params: {
+    collection: string;
+    file_path: string;
+    limit?: number;
+    similarity_threshold?: number;
+    include_reason?: boolean;
+  }): Promise<any> {
+    this.logger.debug('Getting related files', params);
+    return this.httpClient.post('/file/related', params);
+  }
+
+  /**
+   * Semantic search filtered by file type.
+   */
+  public async searchByFileType(params: {
+    collection: string;
+    query: string;
+    file_types: string[];
+    limit?: number;
+    return_full_files?: boolean;
+  }): Promise<any> {
+    this.logger.debug('Searching by file type', params);
+    return this.httpClient.post('/file/search_by_type', params);
+  }
 }

@@ -10,8 +10,9 @@ import sys
 import os
 import time
 
-# Adicionar o diretório atual ao path
-sys.path.append(os.path.dirname(__file__))
+# Adicionar o diretório pai ao path para importar os módulos do SDK
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
 
 
 class TestRunner:
@@ -125,6 +126,8 @@ class TestRunner:
         print("\nTesting Syntax")
         print("-" * 40)
         
+        # Buscar arquivos Python no diretório pai (raiz do SDK)
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         python_files = [
             '__init__.py',
             'models.py',
@@ -138,9 +141,10 @@ class TestRunner:
         syntax_results = {}
         
         for filename in python_files:
-            if os.path.exists(filename):
+            filepath = os.path.join(parent_dir, filename)
+            if os.path.exists(filepath):
                 try:
-                    with open(filename, 'r', encoding='utf-8') as f:
+                    with open(filepath, 'r', encoding='utf-8') as f:
                         code = f.read()
                     
                     compile(code, filename, 'exec')

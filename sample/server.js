@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const PORT = 15004;
+const PORT = 15004; // Keep this port for the Node.js server
 
 // Middleware
 app.use(express.json());
@@ -33,10 +33,10 @@ const VECTORIZER_CONFIG = {
     collection: 'chat_knowledge'
 };
 
-// BitNet FastAPI configuration
+// BitNet FastAPI configuration (Nova versão)
 const BITNET_CONFIG = {
     host: 'localhost',
-    port: 15003
+    port: 15006
 };
 
 /**
@@ -318,24 +318,15 @@ async function startBitNetServer() {
         // Check if we're on Windows or Unix-like system
         const isWindows = process.platform === 'win32';
         
-        // Check if virtual environment exists
-        if (!fs.existsSync(path.join(__dirname, 'venv'))) {
-            console.log('📦 Virtual environment not found. Please run: python -m venv venv && source venv/bin/activate && pip install -r requirements.txt');
-            reject(new Error('Virtual environment not found'));
-            return;
-        }
-        
         let command, args;
         
         if (isWindows) {
-            // Windows: use the Python executable from venv directly
-            const venvPython = path.join(__dirname, 'venv', 'Scripts', 'python.exe');
-            command = venvPython;
+            // Windows: use system Python directly
+            command = 'python';
             args = ['bitnet_server.py'];
         } else {
-            // Unix-like: use the Python executable from venv directly
-            const venvPython = path.join(__dirname, 'venv', 'bin', 'python');
-            command = venvPython;
+            // Unix-like: use system Python directly
+            command = 'python3';
             args = ['bitnet_server.py'];
         }
         
@@ -557,21 +548,25 @@ async function searchKnowledgeBase(query, collection = null, limit = 10) {
  */
 async function generateBitNetResponse(messages, context = '') {
     try {
-        // Prepare the request for BitNet
-        const requestBody = {
-            messages: messages,
-            context: context,
-            max_tokens: 512,
-            temperature: 0.7,
-            top_p: 0.9
-        };
+        // Ensure messages is an array and has at least one element
+        if (!Array.isArray(messages) || messages.length === 0) {
+            messages = [{ content: 'Hello' }];
+        }
+        
+        // Get the last message safely
+        const lastMessage = messages[messages.length - 1];
+        const messageText = lastMessage?.content || lastMessage || 'Hello';
 
         const response = await fetch(`http://${BITNET_CONFIG.host}:${BITNET_CONFIG.port}/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody),
+            body: JSON.stringify({
+                messages: [{ role: "user", content: messageText }],
+                context: context,
+                max_tokens: 500
+            }),
             signal: AbortSignal.timeout(120000) // 2 minutes timeout
         });
 
@@ -580,14 +575,14 @@ async function generateBitNetResponse(messages, context = '') {
         }
 
         const data = await response.json();
-        return data.response || data.text || 'Sorry, I could not generate a response.';
+        return data.response || 'Sorry, I could not generate a response.';
 
     } catch (error) {
         console.error('BitNet generation error:', error);
         
         // Fallback to simple responses if BitNet is not available
         const lastMessage = messages[messages.length - 1];
-        const userQuery = lastMessage.content.toLowerCase();
+        const userQuery = (lastMessage?.content || lastMessage || '').toLowerCase();
         
         if (userQuery.includes('hello') || userQuery.includes('hi')) {
             return "Hello! I'm BitNet, but I'm having trouble connecting to my model right now. Please make sure the BitNet FastAPI server is running.";
@@ -721,7 +716,8 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Generate response using BitNet
-        const response = await generateBitNetResponse(history || [], context);
+        const messages = history || [{ content: message }];
+        const response = await generateBitNetResponse(messages, context);
 
         res.json({
             response: response,
@@ -816,7 +812,8 @@ wss.on('connection', (ws) => {
                     }
 
                     // Stream the BitNet response (long-running operation)
-                    await streamBitNetResponse(ws, history, context);
+                    const messages = history || [{ content: userMessage }];
+                    await streamBitNetResponse(ws, messages, context);
 
                 } catch (error) {
                     console.error('WebSocket chat error:', error);
@@ -851,14 +848,7 @@ async function streamBitNetResponse(ws, messages, context = '') {
     try {
         console.log('🚀 Starting BitNet response streaming...');
 
-        // Prepare the request for BitNet
-        const requestBody = {
-            messages: messages,
-            context: context,
-            max_tokens: 512,
-            temperature: 0.7,
-            top_p: 0.9
-        };
+        // Prepare the request for BitNet (nova versão usa formato diferente)
 
         // Use longer timeout for WebSocket streaming
         const controller = new AbortController();
@@ -869,7 +859,11 @@ async function streamBitNetResponse(ws, messages, context = '') {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody),
+            body: JSON.stringify({
+                messages: [{ role: "user", content: messages[messages.length - 1]?.content || messages[messages.length - 1] || '' }],
+                context: context,
+                max_tokens: 500
+            }),
             signal: controller.signal,
             timeout: 300000 // 5 minutes for headers
         });
@@ -897,7 +891,7 @@ async function streamBitNetResponse(ws, messages, context = '') {
             return;
         }
 
-        // Send the complete response
+        // Send the complete response (nova versão retorna data.response)
         ws.send(JSON.stringify({
             type: 'response',
             response: responseData.response || responseData,
@@ -1008,14 +1002,13 @@ async function initialize() {
         // Check BitNet model
         checkBitNetModel();
 
-        // Try to start BitNet FastAPI server (optional)
+        // Start BitNet FastAPI server
         try {
             await startBitNetServer();
-        // Wait longer for BitNet to be fully ready (it takes time to load)
-        console.log('⏳ Waiting for BitNet to be ready...');
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Increased to 10 seconds
+            console.log('✅ BitNet FastAPI server started successfully!');
         } catch (error) {
-            console.warn('⚠️ BitNet server failed to start:', error.message);
+            console.error('❌ Failed to start BitNet server:', error.message);
+            console.log('⚠️ Continuing without BitNet server...');
         }
         
         // Connect to Vectorizer via HTTP (assuming it's already running)
@@ -1046,7 +1039,7 @@ async function initialize() {
             console.log(`🔌 WebSocket endpoint available at ws://localhost:${PORT}`);
             console.log(`📁 Model path: ${MODEL_PATH}`);
             console.log(`🔗 Vectorizer HTTP: http://localhost:${VECTORIZER_CONFIG.port}`);
-            console.log(`🤖 BitNet FastAPI: http://localhost:${BITNET_CONFIG.port}`);
+            console.log(`🤖 BitNet FastAPI (Nova): http://localhost:${BITNET_CONFIG.port}`);
             console.log(`📚 Collection: ${VECTORIZER_CONFIG.collection}`);
             console.log(`🚀 All services ready! Open http://localhost:${PORT} to start chatting.`);
         });

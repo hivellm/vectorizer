@@ -1,13 +1,13 @@
-//! Unified Vectorizer Server - MCP + REST API
-//!
-//! This server implements MCP as the primary server using SSE transport,
-//! with REST API routes layered on top. This provides a unified implementation
-//! for all vector operations.
-
-mod mcp_tools;
-mod mcp_handlers;
+pub mod mcp_tools;
+pub mod mcp_handlers;
+mod discovery_handlers;
 pub mod rest_handlers;
+pub mod file_operations_handlers;
 
+pub use mcp_tools::get_mcp_tools;
+pub use mcp_handlers::handle_mcp_tool;
+
+// Re-export main server types from the original implementation
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use axum::{
@@ -130,7 +130,7 @@ impl VectorizerServer {
             start_time: std::time::Instant::now(),
         })
     }
-
+    
     /// Start the server
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
@@ -180,6 +180,27 @@ impl VectorizerServer {
             .route("/semantic_search", post(rest_handlers::semantic_search))
             .route("/contextual_search", post(rest_handlers::contextual_search))
             
+            // Discovery routes
+            .route("/discover", post(rest_handlers::discover))
+            .route("/discovery/filter_collections", post(rest_handlers::filter_collections))
+            .route("/discovery/score_collections", post(rest_handlers::score_collections))
+            .route("/discovery/expand_queries", post(rest_handlers::expand_queries))
+            .route("/discovery/broad_discovery", post(rest_handlers::broad_discovery))
+            .route("/discovery/semantic_focus", post(rest_handlers::semantic_focus))
+            .route("/discovery/promote_readme", post(rest_handlers::promote_readme))
+            .route("/discovery/compress_evidence", post(rest_handlers::compress_evidence))
+            .route("/discovery/build_answer_plan", post(rest_handlers::build_answer_plan))
+            .route("/discovery/render_llm_prompt", post(rest_handlers::render_llm_prompt))
+            
+            // File Operations routes
+            .route("/file/content", post(rest_handlers::get_file_content))
+            .route("/file/list", post(rest_handlers::list_files_in_collection))
+            .route("/file/summary", post(rest_handlers::get_file_summary))
+            .route("/file/chunks", post(rest_handlers::get_file_chunks_ordered))
+            .route("/file/outline", post(rest_handlers::get_project_outline))
+            .route("/file/related", post(rest_handlers::get_related_files))
+            .route("/file/search_by_type", post(rest_handlers::search_by_file_type))
+            
             // Dashboard - serve static files
             .nest_service("/dashboard", ServeDir::new("dashboard"))
             .fallback_service(ServeDir::new("dashboard"))
@@ -206,7 +227,6 @@ impl VectorizerServer {
         info!("✅ Server stopped gracefully");
         Ok(())
     }
-
 
     /// Create MCP router with SSE transport
     async fn create_mcp_router(&self) -> Router {

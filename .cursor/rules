@@ -306,15 +306,15 @@
 # intelligent_search({
 #     query: "search query",
 #     max_results: 5,           // Reduced from default 15
-#     mmr_enabled: false,        // Disable for speed
-#     domain_expansion: false,   // Disable for speed  
-#     technical_focus: true,     // Keep for technical relevance
-#     mmr_lambda: 0.7           // Not used when MMR disabled
+#     mmr_enabled: true,        // Enable MMR for better diversity
+#     domain_expansion: true,   // Enable domain expansion for better coverage
+#     technical_focus: true,    // Keep for technical relevance
+#     mmr_lambda: 0.7          // MMR balance parameter
 # })
 
 # Performance Comparison
 # - Standard Config: 100% time, High quality (complex research)
-# - Optimized Config: ~30-40% time, Good quality (quick queries)
+# - Optimized Config: ~60-70% time, Excellent quality (best balance)
 # - Minimal Config: ~20% time, Medium quality (simple searches)
 
 # Alternative Fast Methods

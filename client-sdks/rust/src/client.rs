@@ -237,6 +237,319 @@ impl VectorizerClient {
         Ok(embedding_response)
     }
 
+    // =============================================================================
+    // DISCOVERY OPERATIONS
+    // =============================================================================
+
+    /// Complete discovery pipeline with intelligent search and prompt generation
+    pub async fn discover(
+        &self,
+        query: &str,
+        include_collections: Option<Vec<String>>,
+        exclude_collections: Option<Vec<String>>,
+        max_bullets: Option<usize>,
+        broad_k: Option<usize>,
+        focus_k: Option<usize>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
+        
+        if let Some(inc) = include_collections {
+            payload.insert("include_collections".to_string(), serde_json::to_value(inc).unwrap());
+        }
+        if let Some(exc) = exclude_collections {
+            payload.insert("exclude_collections".to_string(), serde_json::to_value(exc).unwrap());
+        }
+        if let Some(max) = max_bullets {
+            payload.insert("max_bullets".to_string(), serde_json::Value::Number(max.into()));
+        }
+        if let Some(k) = broad_k {
+            payload.insert("broad_k".to_string(), serde_json::Value::Number(k.into()));
+        }
+        if let Some(k) = focus_k {
+            payload.insert("focus_k".to_string(), serde_json::Value::Number(k.into()));
+        }
+
+        let response = self.make_request("POST", "/discover", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse discover response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Pre-filter collections by name patterns
+    pub async fn filter_collections(
+        &self,
+        query: &str,
+        include: Option<Vec<String>>,
+        exclude: Option<Vec<String>>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
+        
+        if let Some(inc) = include {
+            payload.insert("include".to_string(), serde_json::to_value(inc).unwrap());
+        }
+        if let Some(exc) = exclude {
+            payload.insert("exclude".to_string(), serde_json::to_value(exc).unwrap());
+        }
+
+        let response = self.make_request("POST", "/discovery/filter_collections", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse filter response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Rank collections by relevance
+    pub async fn score_collections(
+        &self,
+        query: &str,
+        name_match_weight: Option<f32>,
+        term_boost_weight: Option<f32>,
+        signal_boost_weight: Option<f32>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
+        
+        if let Some(w) = name_match_weight {
+            payload.insert("name_match_weight".to_string(), serde_json::json!(w));
+        }
+        if let Some(w) = term_boost_weight {
+            payload.insert("term_boost_weight".to_string(), serde_json::json!(w));
+        }
+        if let Some(w) = signal_boost_weight {
+            payload.insert("signal_boost_weight".to_string(), serde_json::json!(w));
+        }
+
+        let response = self.make_request("POST", "/discovery/score_collections", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse score response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Generate query variations
+    pub async fn expand_queries(
+        &self,
+        query: &str,
+        max_expansions: Option<usize>,
+        include_definition: Option<bool>,
+        include_features: Option<bool>,
+        include_architecture: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
+        
+        if let Some(max) = max_expansions {
+            payload.insert("max_expansions".to_string(), serde_json::Value::Number(max.into()));
+        }
+        if let Some(def) = include_definition {
+            payload.insert("include_definition".to_string(), serde_json::Value::Bool(def));
+        }
+        if let Some(feat) = include_features {
+            payload.insert("include_features".to_string(), serde_json::Value::Bool(feat));
+        }
+        if let Some(arch) = include_architecture {
+            payload.insert("include_architecture".to_string(), serde_json::Value::Bool(arch));
+        }
+
+        let response = self.make_request("POST", "/discovery/expand_queries", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse expand response: {}", e)))?;
+        Ok(result)
+    }
+
+    // =============================================================================
+    // FILE OPERATIONS
+    // =============================================================================
+
+    /// Retrieve complete file content from a collection
+    pub async fn get_file_content(
+        &self,
+        collection: &str,
+        file_path: &str,
+        max_size_kb: Option<usize>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
+        
+        if let Some(max) = max_size_kb {
+            payload.insert("max_size_kb".to_string(), serde_json::Value::Number(max.into()));
+        }
+
+        let response = self.make_request("POST", "/file/content", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse file content response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// List all indexed files in a collection
+    pub async fn list_files_in_collection(
+        &self,
+        collection: &str,
+        filter_by_type: Option<Vec<String>>,
+        min_chunks: Option<usize>,
+        max_results: Option<usize>,
+        sort_by: Option<&str>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        
+        if let Some(types) = filter_by_type {
+            payload.insert("filter_by_type".to_string(), serde_json::to_value(types).unwrap());
+        }
+        if let Some(min) = min_chunks {
+            payload.insert("min_chunks".to_string(), serde_json::Value::Number(min.into()));
+        }
+        if let Some(max) = max_results {
+            payload.insert("max_results".to_string(), serde_json::Value::Number(max.into()));
+        }
+        if let Some(sort) = sort_by {
+            payload.insert("sort_by".to_string(), serde_json::Value::String(sort.to_string()));
+        }
+
+        let response = self.make_request("POST", "/file/list", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse list files response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Get extractive or structural summary of an indexed file
+    pub async fn get_file_summary(
+        &self,
+        collection: &str,
+        file_path: &str,
+        summary_type: Option<&str>,
+        max_sentences: Option<usize>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
+        
+        if let Some(stype) = summary_type {
+            payload.insert("summary_type".to_string(), serde_json::Value::String(stype.to_string()));
+        }
+        if let Some(max) = max_sentences {
+            payload.insert("max_sentences".to_string(), serde_json::Value::Number(max.into()));
+        }
+
+        let response = self.make_request("POST", "/file/summary", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse file summary response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Retrieve chunks in original file order for progressive reading
+    pub async fn get_file_chunks_ordered(
+        &self,
+        collection: &str,
+        file_path: &str,
+        start_chunk: Option<usize>,
+        limit: Option<usize>,
+        include_context: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
+        
+        if let Some(start) = start_chunk {
+            payload.insert("start_chunk".to_string(), serde_json::Value::Number(start.into()));
+        }
+        if let Some(lim) = limit {
+            payload.insert("limit".to_string(), serde_json::Value::Number(lim.into()));
+        }
+        if let Some(ctx) = include_context {
+            payload.insert("include_context".to_string(), serde_json::Value::Bool(ctx));
+        }
+
+        let response = self.make_request("POST", "/file/chunks", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse chunks response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Generate hierarchical project structure overview
+    pub async fn get_project_outline(
+        &self,
+        collection: &str,
+        max_depth: Option<usize>,
+        include_summaries: Option<bool>,
+        highlight_key_files: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        
+        if let Some(depth) = max_depth {
+            payload.insert("max_depth".to_string(), serde_json::Value::Number(depth.into()));
+        }
+        if let Some(summ) = include_summaries {
+            payload.insert("include_summaries".to_string(), serde_json::Value::Bool(summ));
+        }
+        if let Some(highlight) = highlight_key_files {
+            payload.insert("highlight_key_files".to_string(), serde_json::Value::Bool(highlight));
+        }
+
+        let response = self.make_request("POST", "/file/outline", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse outline response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Find semantically related files using vector similarity
+    pub async fn get_related_files(
+        &self,
+        collection: &str,
+        file_path: &str,
+        limit: Option<usize>,
+        similarity_threshold: Option<f32>,
+        include_reason: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
+        
+        if let Some(lim) = limit {
+            payload.insert("limit".to_string(), serde_json::Value::Number(lim.into()));
+        }
+        if let Some(thresh) = similarity_threshold {
+            payload.insert("similarity_threshold".to_string(), serde_json::json!(thresh));
+        }
+        if let Some(reason) = include_reason {
+            payload.insert("include_reason".to_string(), serde_json::Value::Bool(reason));
+        }
+
+        let response = self.make_request("POST", "/file/related", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse related files response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Semantic search filtered by file type
+    pub async fn search_by_file_type(
+        &self,
+        collection: &str,
+        query: &str,
+        file_types: Vec<String>,
+        limit: Option<usize>,
+        return_full_files: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let mut payload = serde_json::Map::new();
+        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
+        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
+        payload.insert("file_types".to_string(), serde_json::to_value(file_types).unwrap());
+        
+        if let Some(lim) = limit {
+            payload.insert("limit".to_string(), serde_json::Value::Number(lim.into()));
+        }
+        if let Some(full) = return_full_files {
+            payload.insert("return_full_files".to_string(), serde_json::Value::Bool(full));
+        }
+
+        let response = self.make_request("POST", "/file/search_by_type", Some(serde_json::Value::Object(payload))).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse search by type response: {}", e)))?;
+        Ok(result)
+    }
+
     /// Make HTTP request
     async fn make_request(
         &self,

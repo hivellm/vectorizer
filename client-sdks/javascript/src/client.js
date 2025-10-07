@@ -709,4 +709,171 @@ export class VectorizerClient {
   async close() {
     this.logger.info('VectorizerClient closed');
   }
+
+  // =============================================================================
+  // DISCOVERY OPERATIONS
+  // =============================================================================
+
+  /**
+   * Complete discovery pipeline with intelligent search and prompt generation.
+   * @param {Object} params - Discovery parameters
+   * @param {string} params.query - User question or search query
+   * @param {string[]} [params.include_collections] - Collections to include
+   * @param {string[]} [params.exclude_collections] - Collections to exclude
+   * @param {number} [params.max_bullets] - Maximum evidence bullets
+   * @param {number} [params.broad_k] - Broad search results
+   * @param {number} [params.focus_k] - Focus search results per collection
+   * @returns {Promise<Object>} Discovery response with LLM-ready prompt
+   */
+  async discover(params) {
+    this.logger.debug('Running discovery pipeline', params);
+    return this.httpClient.post('/discover', params);
+  }
+
+  /**
+   * Pre-filter collections by name patterns.
+   * @param {Object} params - Filter parameters
+   * @param {string} params.query - Search query for filtering
+   * @param {string[]} [params.include] - Include patterns
+   * @param {string[]} [params.exclude] - Exclude patterns
+   * @returns {Promise<Object>} Filtered collections
+   */
+  async filterCollections(params) {
+    this.logger.debug('Filtering collections', params);
+    return this.httpClient.post('/discovery/filter_collections', params);
+  }
+
+  /**
+   * Rank collections by relevance.
+   * @param {Object} params - Scoring parameters
+   * @param {string} params.query - Search query for scoring
+   * @param {number} [params.name_match_weight] - Weight for name matching
+   * @param {number} [params.term_boost_weight] - Weight for term boost
+   * @param {number} [params.signal_boost_weight] - Weight for signals
+   * @returns {Promise<Object>} Scored collections
+   */
+  async scoreCollections(params) {
+    this.logger.debug('Scoring collections', params);
+    return this.httpClient.post('/discovery/score_collections', params);
+  }
+
+  /**
+   * Generate query variations.
+   * @param {Object} params - Expansion parameters
+   * @param {string} params.query - Original query to expand
+   * @param {number} [params.max_expansions] - Maximum expansions
+   * @param {boolean} [params.include_definition] - Include definition queries
+   * @param {boolean} [params.include_features] - Include features queries
+   * @param {boolean} [params.include_architecture] - Include architecture queries
+   * @returns {Promise<Object>} Expanded queries
+   */
+  async expandQueries(params) {
+    this.logger.debug('Expanding queries', params);
+    return this.httpClient.post('/discovery/expand_queries', params);
+  }
+
+  // =============================================================================
+  // FILE OPERATIONS
+  // =============================================================================
+
+  /**
+   * Retrieve complete file content from a collection.
+   * @param {Object} params - File content parameters
+   * @param {string} params.collection - Collection name
+   * @param {string} params.file_path - Relative file path within collection
+   * @param {number} [params.max_size_kb] - Maximum file size in KB
+   * @returns {Promise<Object>} File content and metadata
+   */
+  async getFileContent(params) {
+    this.logger.debug('Getting file content', params);
+    return this.httpClient.post('/file/content', params);
+  }
+
+  /**
+   * List all indexed files in a collection.
+   * @param {Object} params - List files parameters
+   * @param {string} params.collection - Collection name
+   * @param {string[]} [params.filter_by_type] - Filter by file types
+   * @param {number} [params.min_chunks] - Minimum number of chunks
+   * @param {number} [params.max_results] - Maximum number of results
+   * @param {string} [params.sort_by] - Sort order (name, size, chunks, recent)
+   * @returns {Promise<Object>} List of files with metadata
+   */
+  async listFilesInCollection(params) {
+    this.logger.debug('Listing files in collection', params);
+    return this.httpClient.post('/file/list', params);
+  }
+
+  /**
+   * Get extractive or structural summary of an indexed file.
+   * @param {Object} params - File summary parameters
+   * @param {string} params.collection - Collection name
+   * @param {string} params.file_path - Relative file path within collection
+   * @param {string} [params.summary_type] - Type of summary (extractive, structural, both)
+   * @param {number} [params.max_sentences] - Maximum sentences for extractive summary
+   * @returns {Promise<Object>} File summary
+   */
+  async getFileSummary(params) {
+    this.logger.debug('Getting file summary', params);
+    return this.httpClient.post('/file/summary', params);
+  }
+
+  /**
+   * Retrieve chunks in original file order for progressive reading.
+   * @param {Object} params - File chunks parameters
+   * @param {string} params.collection - Collection name
+   * @param {string} params.file_path - Relative file path within collection
+   * @param {number} [params.start_chunk] - Starting chunk index
+   * @param {number} [params.limit] - Number of chunks to retrieve
+   * @param {boolean} [params.include_context] - Include prev/next chunk hints
+   * @returns {Promise<Object>} File chunks
+   */
+  async getFileChunksOrdered(params) {
+    this.logger.debug('Getting file chunks', params);
+    return this.httpClient.post('/file/chunks', params);
+  }
+
+  /**
+   * Generate hierarchical project structure overview.
+   * @param {Object} params - Project outline parameters
+   * @param {string} params.collection - Collection name
+   * @param {number} [params.max_depth] - Maximum directory depth
+   * @param {boolean} [params.include_summaries] - Include file summaries in outline
+   * @param {boolean} [params.highlight_key_files] - Highlight important files like README
+   * @returns {Promise<Object>} Project outline
+   */
+  async getProjectOutline(params) {
+    this.logger.debug('Getting project outline', params);
+    return this.httpClient.post('/file/outline', params);
+  }
+
+  /**
+   * Find semantically related files using vector similarity.
+   * @param {Object} params - Related files parameters
+   * @param {string} params.collection - Collection name
+   * @param {string} params.file_path - Reference file path
+   * @param {number} [params.limit] - Maximum number of related files
+   * @param {number} [params.similarity_threshold] - Minimum similarity score 0.0-1.0
+   * @param {boolean} [params.include_reason] - Include explanation of why files are related
+   * @returns {Promise<Object>} Related files
+   */
+  async getRelatedFiles(params) {
+    this.logger.debug('Getting related files', params);
+    return this.httpClient.post('/file/related', params);
+  }
+
+  /**
+   * Semantic search filtered by file type.
+   * @param {Object} params - Search by file type parameters
+   * @param {string} params.collection - Collection name
+   * @param {string} params.query - Search query
+   * @param {string[]} params.file_types - File extensions to search
+   * @param {number} [params.limit] - Maximum results
+   * @param {boolean} [params.return_full_files] - Return complete file content
+   * @returns {Promise<Object>} Search results
+   */
+  async searchByFileType(params) {
+    this.logger.debug('Searching by file type', params);
+    return this.httpClient.post('/file/search_by_type', params);
+  }
 }
