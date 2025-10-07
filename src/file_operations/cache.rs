@@ -176,6 +176,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::file_operations::types;
 
     #[tokio::test]
     async fn test_cache_creation() {
@@ -201,7 +202,7 @@ mod tests {
             content: "fn main() {}".to_string(),
             chunks: vec!["chunk1".to_string()],
             summary: None,
-            metadata: super::types::FileMetadata {
+            metadata: types::FileMetadata {
                 file_type: "rs".to_string(),
                 size_kb: 1.0,
                 chunk_count: 1,
@@ -247,7 +248,7 @@ mod tests {
             content: "test".to_string(),
             chunks: vec![],
             summary: None,
-            metadata: super::types::FileMetadata {
+            metadata: types::FileMetadata {
                 file_type: "rs".to_string(),
                 size_kb: 1.0,
                 chunk_count: 1,
