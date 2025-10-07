@@ -37,16 +37,16 @@ def read_version():
 setup(
     name="hive-vectorizer",
     version=read_version(),
-    author="CMMV-Hive Team",
-    author_email="team@cmmv-hive.org",
+    author="HiveLLM Team",
+    author_email="team@hivellm.org",
     description="Python SDK for Hive Vectorizer - Semantic search and vector operations",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/cmmv-hive/vectorizer",
+    url="https://github.com/hivellm/vectorizer",
     project_urls={
-        "Bug Reports": "https://github.com/cmmv-hive/vectorizer/issues",
-        "Documentation": "https://docs.cmmv-hive.org/vectorizer",
-        "Source": "https://github.com/cmmv-hive/vectorizer",
+        "Bug Reports": "https://github.com/hivellm/vectorizer/issues",
+        "Documentation": "https://github.com/hivellm/vectorizer/docs",
+        "Source": "https://github.com/hivellm/vectorizer",
     },
     packages=find_packages(),
     classifiers=[
@@ -109,7 +109,6 @@ setup(
         "search",
         "vectors",
         "similarity",
-        "hive",
-        "cmmv",
+        "hivellm",
     ],
 )

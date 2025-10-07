@@ -5,8 +5,8 @@ A Python client library for the Hive Vectorizer service, providing
 high-level interfaces for vector operations, semantic search, and
 collection management.
 
-Author: CMMV-Hive Team
-Version: 1.0.0
+Author: HiveLLM Team
+Version: 0.3.2
 License: MIT
 """
 
@@ -28,9 +28,9 @@ from .models import (
     CollectionInfo
 )
 
-__version__ = "1.1.0"
-__author__ = "CMMV-Hive Team"
-__email__ = "team@cmmv-hive.org"
+__version__ = "0.3.2"
+__author__ = "HiveLLM Team"
+__email__ = "team@hivellm.org"
 
 __all__ = [
     "VectorizerClient",

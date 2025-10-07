@@ -331,6 +331,102 @@ class TestRunner:
 
             return False
 
+    def run_intelligent_search_tests(self):
+        """Run intelligent search tests."""
+        print("\nTesting Intelligent Search")
+        print("-" * 40)
+
+        try:
+            from test_intelligent_search import run_intelligent_search_tests
+            start_time = time.time()
+
+            success = run_intelligent_search_tests()
+            duration = time.time() - start_time
+
+            self.test_results['intelligent_search'] = {
+                'success': success,
+                'duration': duration,
+                'status': 'PASSED' if success else 'FAILED'
+            }
+
+            return success
+
+        except Exception as e:
+            print(f"ERROR: Error running intelligent search tests: {e}")
+
+            self.test_results['intelligent_search'] = {
+                'success': False,
+                'duration': 0,
+                'status': 'ERROR',
+                'error': str(e)
+            }
+
+            return False
+
+    def run_discovery_tests(self):
+        """Run discovery tests."""
+        print("\nTesting Discovery")
+        print("-" * 40)
+
+        try:
+            from test_discovery import run_discovery_tests
+            start_time = time.time()
+
+            success = run_discovery_tests()
+            duration = time.time() - start_time
+
+            self.test_results['discovery'] = {
+                'success': success,
+                'duration': duration,
+                'status': 'PASSED' if success else 'FAILED'
+            }
+
+            return success
+
+        except Exception as e:
+            print(f"ERROR: Error running discovery tests: {e}")
+
+            self.test_results['discovery'] = {
+                'success': False,
+                'duration': 0,
+                'status': 'ERROR',
+                'error': str(e)
+            }
+
+            return False
+
+    def run_file_operations_tests(self):
+        """Run file operations tests."""
+        print("\nTesting File Operations")
+        print("-" * 40)
+
+        try:
+            from test_file_operations import run_file_operations_tests
+            start_time = time.time()
+
+            success = run_file_operations_tests()
+            duration = time.time() - start_time
+
+            self.test_results['file_operations'] = {
+                'success': success,
+                'duration': duration,
+                'status': 'PASSED' if success else 'FAILED'
+            }
+
+            return success
+
+        except Exception as e:
+            print(f"ERROR: Error running file operations tests: {e}")
+
+            self.test_results['file_operations'] = {
+                'success': False,
+                'duration': 0,
+                'status': 'ERROR',
+                'error': str(e)
+            }
+
+            return False
+
     def run_all_tests(self):
         """Run all tests."""
         print("RUNNING ALL PYTHON SDK TESTS")
@@ -340,7 +436,7 @@ class TestRunner:
         
         # Run tests in order
         tests_passed = 0
-        total_tests = 9
+        total_tests = 12
         
         # 1. Syntax tests
         if self.run_syntax_tests():
@@ -374,7 +470,19 @@ class TestRunner:
         if self.run_integration_tests():
             tests_passed += 1
 
-        # 9. Comprehensive tests (optional)
+        # 9. Intelligent search tests
+        if self.run_intelligent_search_tests():
+            tests_passed += 1
+
+        # 10. Discovery tests
+        if self.run_discovery_tests():
+            tests_passed += 1
+
+        # 11. File operations tests
+        if self.run_file_operations_tests():
+            tests_passed += 1
+
+        # 12. Comprehensive tests (optional)
         try:
             if self.run_comprehensive_tests():
                 tests_passed += 1

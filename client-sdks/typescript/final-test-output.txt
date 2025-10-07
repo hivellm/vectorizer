@@ -1,0 +1,1120 @@
+
+> @hivellm/vectorizer-client@0.3.2 test
+> jest
+
+PASS tests/exceptions/vectorizer-error.test.ts
+  Exception Classes
+    VectorizerError
+      ÔêÜ should create error with message only (10 ms)
+      ÔêÜ should create error with message and error code
+      ÔêÜ should create error with message, error code, and details (1 ms)
+      ÔêÜ should return correct string representation with error code
+      ÔêÜ should return correct string representation without error code
+      ÔêÜ should be instance of Error
+    AuthenticationError
+      ÔêÜ should create authentication error with default message
+      ÔêÜ should create authentication error with custom message (1 ms)
+      ÔêÜ should create authentication error with details
+      ÔêÜ should be instance of VectorizerError
+    CollectionNotFoundError
+      ÔêÜ should create collection not found error with default message (1 ms)
+      ÔêÜ should create collection not found error with collection name
+      ÔêÜ should create collection not found error with details (1 ms)
+      ÔêÜ should be instance of VectorizerError
+    ValidationError
+      ÔêÜ should create validation error with default message
+      ÔêÜ should create validation error with custom message
+      ÔêÜ should be instance of VectorizerError
+    NetworkError
+      ÔêÜ should create network error with default message (1 ms)
+      ÔêÜ should create network error with custom message
+      ÔêÜ should be instance of VectorizerError
+    ServerError
+      ÔêÜ should create server error with default message (1 ms)
+      ÔêÜ should create server error with custom message
+      ÔêÜ should be instance of VectorizerError
+    TimeoutError
+      ÔêÜ should create timeout error with default message
+      ÔêÜ should create timeout error with custom message
+      ÔêÜ should be instance of VectorizerError
+    RateLimitError
+      ÔêÜ should create rate limit error with default message
+      ÔêÜ should create rate limit error with custom message
+      ÔêÜ should be instance of VectorizerError
+    ConfigurationError
+      ÔêÜ should create configuration error with default message (1 ms)
+      ÔêÜ should create configuration error with custom message
+      ÔêÜ should be instance of VectorizerError
+    EmbeddingError
+      ÔêÜ should create embedding error with default message
+      ÔêÜ should create embedding error with custom message (1 ms)
+      ÔêÜ should be instance of VectorizerError
+    SearchError
+      ÔêÜ should create search error with default message
+      ÔêÜ should create search error with custom message
+      ÔêÜ should be instance of VectorizerError
+    StorageError
+      ÔêÜ should create storage error with default message (1 ms)
+      ÔêÜ should create storage error with custom message
+      ÔêÜ should be instance of VectorizerError
+
+PASS tests/models/vector.test.ts
+  Vector Model Validation
+    validateVector
+      ÔêÜ should validate a correct vector (9 ms)
+      ÔêÜ should validate vector without metadata
+      ÔêÜ should throw error for missing ID (11 ms)
+      ÔêÜ should throw error for empty ID (1 ms)
+      ÔêÜ should throw error for non-string ID (2 ms)
+      ÔêÜ should throw error for missing data (1 ms)
+      ÔêÜ should throw error for empty data array (1 ms)
+      ÔêÜ should throw error for non-array data (1 ms)
+      ÔêÜ should throw error for invalid number in data (1 ms)
+      ÔêÜ should throw error for NaN in data (1 ms)
+      ÔêÜ should throw error for Infinity in data (1 ms)
+      ÔêÜ should validate large vector (1 ms)
+    validateCreateVectorRequest
+      ÔêÜ should validate a correct create vector request
+      ÔêÜ should validate request without metadata
+      ÔêÜ should throw error for missing data (1 ms)
+      ÔêÜ should throw error for empty data array (1 ms)
+      ÔêÜ should throw error for non-array data (1 ms)
+      ÔêÜ should throw error for invalid number in data
+      ÔêÜ should validate large vector request (1 ms)
+
+PASS tests/models/collection.test.ts
+  Collection Model Validation
+    validateCollection
+      ÔêÜ should validate a correct collection (5 ms)
+      ÔêÜ should validate collection without description (1 ms)
+      ÔêÜ should throw error for missing name (8 ms)
+      ÔêÜ should throw error for empty name
+      ÔêÜ should throw error for non-string name (1 ms)
+      ÔêÜ should throw error for missing dimension (2 ms)
+      ÔêÜ should throw error for zero dimension (1 ms)
+      ÔêÜ should throw error for negative dimension
+      ÔêÜ should throw error for non-number dimension (1 ms)
+      ÔêÜ should throw error for missing similarity metric (1 ms)
+      ÔêÜ should throw error for invalid similarity metric
+      ÔêÜ should validate all valid similarity metrics (1 ms)
+      ÔêÜ should validate large dimension
+    validateCreateCollectionRequest
+      ÔêÜ should validate a correct create collection request
+      ÔêÜ should validate request without optional fields
+      ÔêÜ should throw error for missing name (1 ms)
+      ÔêÜ should throw error for empty name
+      ÔêÜ should throw error for missing dimension (1 ms)
+      ÔêÜ should throw error for invalid dimension (1 ms)
+      ÔêÜ should throw error for invalid similarity metric
+      ÔêÜ should validate all valid similarity metrics (1 ms)
+
+  console.info
+    2025-10-07T14:43:24.599Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: false }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+PASS tests/models/search-result.test.ts
+  SearchResult Model Validation
+    validateSearchResult
+      ÔêÜ should validate a correct search result (9 ms)
+      ÔêÜ should validate search result without metadata
+      ÔêÜ should throw error for missing ID (13 ms)
+      ÔêÜ should throw error for empty ID (1 ms)
+      ÔêÜ should throw error for non-string ID (1 ms)
+      ÔêÜ should throw error for missing score
+      ÔêÜ should throw error for non-number score
+      ÔêÜ should throw error for NaN score (1 ms)
+      ÔêÜ should validate negative score
+      ÔêÜ should validate score greater than 1
+      ÔêÜ should throw error for missing data
+      ÔêÜ should throw error for empty data array (1 ms)
+      ÔêÜ should throw error for non-array data (1 ms)
+      ÔêÜ should throw error for invalid number in data
+      ÔêÜ should validate large search result (1 ms)
+    validateSearchResponse
+      ÔêÜ should validate a correct search response
+      ÔêÜ should validate empty search response
+      ÔêÜ should throw error for missing results (1 ms)
+      ÔêÜ should throw error for non-array results
+      ÔêÜ should throw error for missing total (2 ms)
+      ÔêÜ should throw error for negative total (1 ms)
+      ÔêÜ should throw error for non-number total (1 ms)
+      ÔêÜ should throw error for invalid result in results array
+      ÔêÜ should validate large search response (5 ms)
+
+PASS tests/utils/http-client.test.ts
+  HttpClient
+    constructor
+      ÔêÜ should create client with default config (5 ms)
+      ÔêÜ should create client with custom config
+    GET requests
+      ÔêÜ should make successful GET request (2 ms)
+      ÔêÜ should make GET request without API key
+      ÔêÜ should handle non-JSON response
+    POST requests
+      ÔêÜ should make successful POST request (1 ms)
+      ÔêÜ should make POST request without data (1 ms)
+    PUT requests
+      ÔêÜ should make successful PUT request
+    DELETE requests
+      ÔêÜ should make successful DELETE request (1 ms)
+    Error handling
+      ÔêÜ should handle 401 Unauthorized (12 ms)
+      ÔêÜ should handle 403 Forbidden (1 ms)
+      ÔêÜ should handle 404 Not Found (1 ms)
+      ÔêÜ should handle 429 Too Many Requests
+      ÔêÜ should handle 500 Internal Server Error (1 ms)
+      ÔêÜ should handle 502 Bad Gateway
+      ÔêÜ should handle 503 Service Unavailable
+      ÔêÜ should handle 504 Gateway Timeout
+      ÔêÜ should handle network error
+      ÔêÜ should handle timeout error (1 ms)
+      ÔêÜ should handle unknown error
+      ÔêÜ should handle non-JSON error response (1 ms)
+    URL handling
+      ÔêÜ should handle absolute URLs
+      ÔêÜ should handle relative URLs (1 ms)
+    Custom headers
+      ÔêÜ should include custom headers
+      ÔêÜ should override default headers with request headers (1 ms)
+    Timeout handling
+      ÔêÜ should use custom timeout
+      ÔêÜ should use request-specific timeout
+
+  console.info
+    2025-10-07T14:43:24.628Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: false }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.647Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.676Z [Vectorizer] [INFO] Collection created { collectionName: 'test-collection' }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.677Z [Vectorizer] [INFO] Vectors inserted { collectionName: 'test-collection', count: 2 }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.680Z [Vectorizer] [INFO] Collection deleted { collectionName: 'test-collection' }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.654Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.653Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: false }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.681Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+PASS tests/utils/validation.test.ts
+  Validation Utilities
+    validateNonEmptyString
+      ÔêÜ should validate non-empty string (5 ms)
+      ÔêÜ should throw error for empty string (14 ms)
+      ÔêÜ should throw error for whitespace-only string (1 ms)
+      ÔêÜ should throw error for non-string value (1 ms)
+      ÔêÜ should throw error for null (1 ms)
+      ÔêÜ should throw error for undefined (1 ms)
+    validatePositiveNumber
+      ÔêÜ should validate positive number
+      ÔêÜ should throw error for zero (1 ms)
+      ÔêÜ should throw error for negative number (1 ms)
+      ÔêÜ should throw error for NaN (1 ms)
+      ÔêÜ should throw error for non-number (1 ms)
+    validateNonNegativeNumber
+      ÔêÜ should validate non-negative number
+      ÔêÜ should throw error for negative number (1 ms)
+      ÔêÜ should throw error for NaN
+      ÔêÜ should throw error for non-number (1 ms)
+    validateNumberRange
+      ÔêÜ should validate number within range (1 ms)
+      ÔêÜ should throw error for number below range
+      ÔêÜ should throw error for number above range (1 ms)
+      ÔêÜ should throw error for invalid number (1 ms)
+    validateNumberArray
+      ÔêÜ should validate number array (1 ms)
+      ÔêÜ should throw error for empty array
+      ÔêÜ should throw error for non-array (3 ms)
+      ÔêÜ should throw error for array with invalid numbers (1 ms)
+      ÔêÜ should throw error for array with NaN
+      ÔêÜ should validate large array (1 ms)
+    validateBoolean
+      ÔêÜ should validate boolean values
+      ÔêÜ should throw error for non-boolean
+      ÔêÜ should throw error for number (1 ms)
+      ÔêÜ should throw error for null (1 ms)
+    validateObject
+      ÔêÜ should validate object
+      ÔêÜ should validate empty object
+      ÔêÜ should throw error for null
+      ÔêÜ should throw error for array (1 ms)
+      ÔêÜ should throw error for primitive
+    validateDate
+      ÔêÜ should validate Date object (1 ms)
+      ÔêÜ should validate date string
+      ÔêÜ should validate timestamp number
+      ÔêÜ should throw error for invalid date string (1 ms)
+      ÔêÜ should throw error for invalid timestamp
+      ÔêÜ should throw error for non-date value (1 ms)
+    validateEnum
+      ÔêÜ should validate valid enum value
+      ÔêÜ should throw error for invalid enum value
+      ÔêÜ should throw error for case-sensitive mismatch (1 ms)
+    validateUrl
+      ÔêÜ should validate valid URL
+      ÔêÜ should throw error for invalid URL (1 ms)
+      ÔêÜ should throw error for empty string
+      ÔêÜ should throw error for non-string (1 ms)
+    validateRequired
+      ÔêÜ should validate non-null, non-undefined values (2 ms)
+      ÔêÜ should throw error for null (1 ms)
+      ÔêÜ should throw error for undefined (1 ms)
+    validateOptional
+      ÔêÜ should return undefined for null
+      ÔêÜ should return undefined for undefined
+      ÔêÜ should validate non-null, non-undefined values
+      ÔêÜ should throw error for invalid non-null value (1 ms)
+
+FAIL tests/file-operations.test.ts
+  File Operations
+    getFileContent
+      ÔêÜ should retrieve complete file content (6 ms)
+      ÔêÜ should retrieve file content with size limit (1 ms)
+      ÔêÜ should include file metadata (1 ms)
+      ÔêÜ should handle non-existent file gracefully (9 ms)
+    listFilesInCollection
+      ÔêÜ should list all files in collection (8 ms)
+      ÔêÜ should filter by file type
+      ÔêÜ should filter by minimum chunks (1 ms)
+      ÔêÜ should limit results
+      ÔêÜ should sort by name
+      ÔêÜ should sort by size
+      ÔêÜ should sort by chunks
+    getFileSummary
+      ÔêÜ should get extractive summary (1 ms)
+      ÔêÜ should get structural summary (2 ms)
+      ÔêÜ should get both summary types
+    getFileChunksOrdered
+      ÔêÜ should get file chunks in order
+      ÔêÜ should start from specific chunk (1 ms)
+      ÔêÜ should include context hints
+      ÔêÜ should paginate through chunks
+    getProjectOutline
+      ÔêÜ should get project outline
+      ÔêÜ should limit depth
+      ÔêÜ should include file summaries (1 ms)
+      ÔêÜ should highlight key files
+    getRelatedFiles
+      ÔêÜ should find related files
+      ÔêÜ should limit results
+      ÔêÜ should filter by similarity threshold (1 ms)
+      ÔêÜ should include reason for relation
+    searchByFileType
+      ├ù should search by file type
+      ÔêÜ should limit results
+      ├ù should return full file content when requested
+      ÔêÜ should handle multiple file types
+    Error Handling
+      ÔêÜ should handle invalid collection
+      ├ù should handle invalid file path (1 ms)
+      ÔêÜ should handle invalid max_size_kb
+      ÔêÜ should handle empty file types array
+    Performance Tests
+      ÔêÜ should list files efficiently (1 ms)
+  console.info
+    2025-10-07T14:43:24.682Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: false }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+      ÔêÜ should retrieve file content quickly
+
+  ÔùÅ File Operations ÔÇ║ searchByFileType ÔÇ║ should search by file type
+
+    TypeError: Cannot read properties of undefined (reading 'endsWith')
+
+      452 |       if (response.results.length > 0) {
+      453 |         response.results.forEach((result: any) => {
+    > 454 |           expect(['yaml', 'json'].some(ext => result.file_path.endsWith(`.${ext}`))).toBe(true);
+          |                                                                ^
+      455 |         });
+      456 |       }
+      457 |     });
+
+      at tests/file-operations.test.ts:454:64
+          at Array.some (<anonymous>)
+      at tests/file-operations.test.ts:454:35
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (tests/file-operations.test.ts:453:26)
+
+  ÔùÅ File Operations ÔÇ║ searchByFileType ÔÇ║ should return full file content when requested
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      485 |       if (response.results.length > 0) {
+      486 |         response.results.forEach((result: any) => {
+    > 487 |           expect(result.full_content).toBeDefined();
+          |                                       ^
+      488 |         });
+      489 |       }
+      490 |     });
+
+      at tests/file-operations.test.ts:487:39
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (tests/file-operations.test.ts:486:26)
+
+  ÔùÅ File Operations ÔÇ║ Error Handling ÔÇ║ should handle invalid file path
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"content": "# Test File
+    This is a test file.", "file_path": "README.md", "metadata": {"file_type": "md", "size": 100}, "size_kb": 50}
+
+      520 |       };
+      521 |
+    > 522 |       await expect(client.getFileContent(params)).rejects.toThrow();
+          |             ^
+      523 |     });
+      524 |
+      525 |     it('should handle invalid max_size_kb', async () => {
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (tests/file-operations.test.ts:522:13)
+
+  console.info
+    2025-10-07T14:43:24.684Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.685Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://custom:8080', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.686Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.688Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.682Z [Vectorizer] [ERROR] Health check failed Error: Authentication failed
+        at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\integration\client-integration.test.ts:145:48)
+        at Promise.then.completed (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at _runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+        at run (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+        at jestAdapter (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+        at runTestInternal (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:367:16)
+        at runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:444:34)
+        at Object.worker (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\testWorker.js:106:12)
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.healthCheck (src/client.ts:112:19)
+      at Object.<anonymous> (tests/integration/client-integration.test.ts:147:7)
+
+  console.error
+    2025-10-07T14:43:24.690Z [Vectorizer] [ERROR] Failed to get collection info {
+      collectionName: 'nonexistent',
+      error: Error: Collection not found
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\integration\client-integration.test.ts:150:48)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.getCollection (src/client.ts:158:19)
+      at Object.<anonymous> (tests/integration/client-integration.test.ts:152:7)
+
+FAIL tests/discovery.test.ts
+  Discovery Operations
+    discover
+      ÔêÜ should perform complete discovery pipeline (5 ms)
+      ÔêÜ should discover with specific collections included
+      ÔêÜ should discover with collections excluded (1 ms)
+      ÔêÜ should generate LLM-ready prompt
+      ÔêÜ should include citations in evidence (1 ms)
+    filterCollections
+      ÔêÜ should filter collections by query
+      ÔêÜ should filter with include patterns (1 ms)
+      ÔêÜ should filter with exclude patterns
+      ÔêÜ should filter with both include and exclude
+    scoreCollections
+      ÔêÜ should score collections by relevance (1 ms)
+      ├ù should score with custom name match weight (1 ms)
+      ÔêÜ should score with custom term boost weight
+      ÔêÜ should score with custom signal boost weight
+      ÔêÜ should return collections sorted by score (1 ms)
+    expandQueries
+      ÔêÜ should expand query with default options
+      ÔêÜ should limit number of expansions (2 ms)
+      ÔêÜ should include definition queries
+      ÔêÜ should include features queries (1 ms)
+      ÔêÜ should include architecture queries
+      ÔêÜ should generate diverse query variations
+    Error Handling
+      ÔêÜ should handle empty query in discover (3 ms)
+      ÔêÜ should handle invalid max_bullets
+      ÔêÜ should handle empty query in filterCollections
+      ÔêÜ should handle invalid weights in scoreCollections (1 ms)
+    Integration Tests
+      ÔêÜ should chain filter and score operations
+      ÔêÜ should use expanded queries in discovery
+    Performance Tests
+      ÔêÜ should complete discovery within reasonable time (1 ms)
+      ÔêÜ should handle large collections efficiently
+
+  ÔùÅ Discovery Operations ÔÇ║ scoreCollections ÔÇ║ should score with custom name match weight
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+      178 |       if (response.scored_collections.length > 0) {
+      179 |         response.scored_collections.forEach((item: any) => {
+    > 180 |           expect(item.collection).toBeDefined();
+          |                                   ^
+      181 |           expect(item.score).toBeGreaterThanOrEqual(0);
+      182 |         });
+      183 |       }
+
+      at tests/discovery.test.ts:180:35
+          at Array.forEach (<anonymous>)
+      at Object.<anonymous> (tests/discovery.test.ts:179:37)
+
+  console.error
+    2025-10-07T14:43:24.689Z [Vectorizer] [ERROR] Health check failed Error: Connection failed
+        at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\client.test.ts:65:21)
+        at Promise.then.completed (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at _runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+        at run (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+        at jestAdapter (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+        at runTestInternal (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:367:16)
+        at runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:444:34)
+        at Object.worker (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\testWorker.js:106:12)
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.healthCheck (src/client.ts:112:19)
+      at Object.<anonymous> (tests/client.test.ts:68:7)
+
+  console.info
+    2025-10-07T14:43:24.697Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.691Z [Vectorizer] [ERROR] Failed to create collection {
+      request: { name: '', dimension: -1, similarity_metric: 'invalid' },
+      error: ValidationError: Collection name must be a non-empty string
+          at new ValidationError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\validation-error.ts:9:5)
+          at validateCreateCollectionRequest (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\models\collection.ts:71:11)
+          at VectorizerClient.createCollection (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:168:38)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\integration\client-integration.test.ts:155:27)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5) {
+        errorCode: 'VALIDATION_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.createCollection (src/client.ts:174:19)
+      at Object.<anonymous> (tests/integration/client-integration.test.ts:155:27)
+
+  console.info
+    2025-10-07T14:43:24.698Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.700Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.700Z [Vectorizer] [INFO] Collection created { collectionName: 'test-collection' }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.698Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.701Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.701Z [Vectorizer] [INFO] API key updated
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.702Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.702Z [Vectorizer] [INFO] VectorizerClient closed
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.703Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.704Z [Vectorizer] [ERROR] Health check failed Error: Network error
+        at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\integration\client-integration.test.ts:186:48)
+        at Promise.then.completed (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at _runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+        at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+        at run (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+        at jestAdapter (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+        at runTestInternal (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:367:16)
+        at runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:444:34)
+        at Object.worker (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\testWorker.js:106:12)
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.healthCheck (src/client.ts:112:19)
+      at Object.<anonymous> (tests/integration/client-integration.test.ts:187:7)
+
+  console.info
+    2025-10-07T14:43:24.705Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.705Z [Vectorizer] [INFO] Vectors inserted { collectionName: 'test-collection', count: 2 }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.706Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.709Z [Vectorizer] [INFO] Vectors inserted { collectionName: 'test-collection', count: 1 }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.702Z [Vectorizer] [ERROR] Failed to create collection {
+      request: { name: '', dimension: -1, similarity_metric: 'invalid' },
+      error: ValidationError: Collection name must be a non-empty string
+          at new ValidationError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\validation-error.ts:9:5)
+          at validateCreateCollectionRequest (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\models\collection.ts:71:11)
+          at VectorizerClient.createCollection (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:168:38)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\client.test.ts:129:27)
+          at Promise.then.completed (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:231:10)
+          at _callCircusTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at _runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:252:3)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:126:9)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+          at run (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:71:3)
+          at runAndTransformResultsToJestFormat (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+          at jestAdapter (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+          at runTestInternal (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:367:16)
+          at runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:444:34)
+          at Object.worker (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\testWorker.js:106:12) {
+        errorCode: 'VALIDATION_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.createCollection (src/client.ts:174:19)
+      at Object.<anonymous> (tests/client.test.ts:129:27)
+
+  console.info
+    2025-10-07T14:43:24.710Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.703Z [Vectorizer] [ERROR] Failed to perform intelligent search {
+      request: { query: '', max_results: 10 },
+      error: ServerError: HTTP 400: Bad Request
+          at new ServerError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\server-error.ts:9:5)
+          at HttpClient.handleError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:183:16)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at HttpClient.request (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:123:23)
+          at HttpClient.post (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:54:22)
+          at VectorizerClient.intelligentSearch (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:337:24)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\intelligent-search.test.ts:366:7) {
+        errorCode: 'SERVER_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.intelligentSearch (src/client.ts:345:19)
+      at Object.<anonymous> (tests/intelligent-search.test.ts:366:7)
+
+  console.info
+    2025-10-07T14:43:24.711Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.711Z [Vectorizer] [INFO] Vectors inserted { collectionName: 'test-collection', count: 2 }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.711Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.712Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.711Z [Vectorizer] [ERROR] Failed to perform semantic search {
+      request: { query: 'test', collection: '', max_results: 10 },
+      error: ServerError: HTTP 400: Bad Request
+          at new ServerError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\server-error.ts:9:5)
+          at HttpClient.handleError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:183:16)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at HttpClient.request (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:123:23)
+          at HttpClient.post (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:54:22)
+          at VectorizerClient.semanticSearch (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:355:24)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\intelligent-search.test.ts:376:7) {
+        errorCode: 'SERVER_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.semanticSearch (src/client.ts:363:19)
+      at Object.<anonymous> (tests/intelligent-search.test.ts:376:7)
+
+  console.info
+    2025-10-07T14:43:24.712Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.713Z [Vectorizer] [ERROR] Failed to perform semantic search {
+      request: {
+        query: 'test',
+        collection: 'test-collection',
+        max_results: 10,
+        similarity_threshold: 1.5
+      },
+      error: ServerError: HTTP 400: Bad Request
+          at new ServerError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\server-error.ts:9:5)
+          at HttpClient.handleError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:183:16)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at HttpClient.request (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:123:23)
+          at HttpClient.post (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:54:22)
+          at VectorizerClient.semanticSearch (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:355:24)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\intelligent-search.test.ts:387:7) {
+        errorCode: 'SERVER_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.semanticSearch (src/client.ts:363:19)
+      at Object.<anonymous> (tests/intelligent-search.test.ts:387:7)
+
+  console.error
+    2025-10-07T14:43:24.713Z [Vectorizer] [ERROR] Failed to insert vectors {
+      collectionName: 'test-collection',
+      count: 1,
+      error: ValidationError: Vector data must be a non-empty array
+          at new ValidationError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\validation-error.ts:9:5)
+          at validateCreateVectorRequest (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\models\vector.ts:58:11)
+          at Array.forEach (<anonymous>)
+          at VectorizerClient.insertVectors (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:214:15)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\client.test.ts:156:27)
+          at Promise.then.completed (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:231:10)
+          at _callCircusTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at _runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:252:3)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:126:9)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+          at run (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:71:3)
+          at runAndTransformResultsToJestFormat (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+          at jestAdapter (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+          at runTestInternal (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:367:16)
+          at runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:444:34)
+          at Object.worker (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\testWorker.js:106:12) {
+        errorCode: 'VALIDATION_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.insertVectors (src/client.ts:222:19)
+      at Object.<anonymous> (tests/client.test.ts:156:27)
+
+  console.error
+    2025-10-07T14:43:24.714Z [Vectorizer] [ERROR] Failed to perform multi-collection search {
+      request: {
+        query: 'test',
+        collections: [],
+        max_per_collection: 5,
+        max_total_results: 10
+      },
+      error: ServerError: HTTP 400: Bad Request
+          at new ServerError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\exceptions\server-error.ts:9:5)
+          at HttpClient.handleError (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:183:16)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at HttpClient.request (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:123:23)
+          at HttpClient.post (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\utils\http-client.ts:54:22)
+          at VectorizerClient.multiCollectionSearch (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:392:24)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\intelligent-search.test.ts:398:7) {
+        errorCode: 'SERVER_ERROR',
+        details: {}
+      }
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.multiCollectionSearch (src/client.ts:400:19)
+      at Object.<anonymous> (tests/intelligent-search.test.ts:398:7)
+
+PASS tests/integration/client-integration.test.ts
+  VectorizerClient Integration Tests
+    Complete Workflow
+      ÔêÜ should handle complete vector workflow (38 ms)
+      ÔêÜ should handle error scenarios gracefully (16 ms)
+      ÔêÜ should handle configuration updates (4 ms)
+      ÔêÜ should handle client cleanup (1 ms)
+    Error Recovery
+      ÔêÜ should recover from network errors (2 ms)
+      ÔêÜ should handle partial failures in batch operations (1 ms)
+    Performance Scenarios
+      ÔêÜ should handle large vector operations (3 ms)
+      ÔêÜ should handle multiple concurrent requests (2 ms)
+    Edge Cases
+      ÔêÜ should handle empty collections (1 ms)
+      ÔêÜ should handle empty search results (1 ms)
+
+  console.info
+    2025-10-07T14:43:24.715Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.716Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.error
+    2025-10-07T14:43:24.716Z [Vectorizer] [ERROR] Failed to search vectors {
+      collectionName: 'test-collection',
+      request: { query_vector: [], limit: -1 },
+      error: Error: Search request query vector must be a non-empty array
+          at validateSearchRequest (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\models\search-request.ts:41:11)
+          at VectorizerClient.searchVectors (F:\Node\hivellm\vectorizer\client-sdks\typescript\src\client.ts:297:28)
+          at Object.<anonymous> (F:\Node\hivellm\vectorizer\client-sdks\typescript\tests\client.test.ts:191:27)
+          at Promise.then.completed (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\utils.js:231:10)
+          at _callCircusTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:105:5)
+          at _runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:252:3)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:126:9)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+          at _runTestsForDescribeBlock (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:121:9)
+          at run (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\run.js:71:3)
+          at runAndTransformResultsToJestFormat (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+          at jestAdapter (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+          at runTestInternal (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:367:16)
+          at runTest (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\runTest.js:444:34)
+          at Object.worker (F:\Node\hivellm\vectorizer\client-sdks\typescript\node_modules\jest-runner\build\testWorker.js:106:12)
+    }
+
+      65 |   error(message: string, ...args: unknown[]): void {
+      66 |     if (this.shouldLog('error')) {
+    > 67 |       console.error(this.formatMessage('error', message), ...args);
+         |               ^
+      68 |     }
+      69 |   }
+      70 | }
+
+      at DefaultLogger.error (src/utils/logger.ts:67:15)
+      at VectorizerClient.searchVectors (src/client.ts:306:19)
+      at Object.<anonymous> (tests/client.test.ts:191:27)
+
+  console.info
+    2025-10-07T14:43:24.718Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.719Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+FAIL tests/intelligent-search.test.ts
+  Intelligent Search Operations
+    intelligentSearch
+      ÔêÜ should perform intelligent search with default options (4 ms)
+      ÔêÜ should perform intelligent search with specific collections
+      ÔêÜ should perform intelligent search with domain expansion enabled (1 ms)
+      ÔêÜ should perform intelligent search with MMR diversification
+      ÔêÜ should return queries generated (1 ms)
+    semanticSearch
+      ÔêÜ should perform semantic search with default options
+      ÔêÜ should perform semantic search with reranking enabled
+      ÔêÜ should perform semantic search with cross-encoder reranking (1 ms)
+      ├ù should filter by similarity threshold (1 ms)
+    contextualSearch
+      ÔêÜ should perform contextual search with default options (1 ms)
+      ÔêÜ should perform contextual search with metadata filters
+      ÔêÜ should perform contextual search with context reranking
+      ÔêÜ should perform contextual search with complex filters
+    multiCollectionSearch
+      ÔêÜ should search across multiple collections
+      ÔêÜ should perform multi-collection search with cross-collection reranking (1 ms)
+      ÔêÜ should return results per collection
+      ├ù should handle empty collections gracefully (2 ms)
+      ÔêÜ should respect max_total_results limit
+    Error Handling
+      ÔêÜ should handle empty query in intelligent search (9 ms)
+      ÔêÜ should handle invalid collection in semantic search (2 ms)
+      ÔêÜ should handle invalid similarity threshold (1 ms)
+      ÔêÜ should handle empty collections array
+    Performance Tests
+      ÔêÜ should complete intelligent search within reasonable time (1 ms)
+      ÔêÜ should handle large result sets efficiently
+
+  ÔùÅ Intelligent Search Operations ÔÇ║ semanticSearch ÔÇ║ should filter by similarity threshold
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0.7
+    Received: undefined
+
+      193 |       expect(response).toBeDefined();
+      194 |       expect(response.results).toBeInstanceOf(Array);
+    > 195 |       expect(response.metadata?.similarity_threshold).toBe(0.7);
+          |                                                       ^
+      196 |       
+      197 |       // All results should have scores >= threshold
+      198 |       response.results.forEach(result => {
+
+      at Object.<anonymous> (tests/intelligent-search.test.ts:195:55)
+
+  ÔùÅ Intelligent Search Operations ÔÇ║ multiCollectionSearch ÔÇ║ should handle empty collections gracefully
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 2
+
+      339 |       expect(response).toBeDefined();
+      340 |       expect(response.results).toBeInstanceOf(Array);
+    > 341 |       expect(response.total_results).toBe(0);
+          |                                      ^
+      342 |     });
+      343 |
+      344 |     it('should respect max_total_results limit', async () => {
+
+      at Object.<anonymous> (tests/intelligent-search.test.ts:341:38)
+
+  console.info
+    2025-10-07T14:43:24.720Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.721Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.722Z [Vectorizer] [INFO] API key updated
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.722Z [Vectorizer] [INFO] VectorizerClient initialized { baseURL: 'http://localhost:15002', hasApiKey: true }
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+  console.info
+    2025-10-07T14:43:24.723Z [Vectorizer] [INFO] VectorizerClient closed
+
+      at DefaultLogger.info (src/utils/logger.ts:55:15)
+
+PASS tests/client.test.ts
+  VectorizerClient
+    constructor
+      ÔêÜ should create client with default config (34 ms)
+      ÔêÜ should create client with custom config (2 ms)
+    healthCheck
+      ÔêÜ should return health status (2 ms)
+      ÔêÜ should handle errors (8 ms)
+    getDatabaseStats
+      ÔêÜ should return database statistics (2 ms)
+    listCollections
+      ÔêÜ should return list of collections (1 ms)
+    createCollection
+      ÔêÜ should create a new collection (2 ms)
+      ÔêÜ should validate collection request (9 ms)
+    insertVectors
+      ÔêÜ should insert vectors into collection (2 ms)
+      ÔêÜ should validate vector data (2 ms)
+    searchVectors
+      ÔêÜ should search for similar vectors (1 ms)
+      ÔêÜ should validate search request (2 ms)
+    searchText
+      ÔêÜ should search using text query
+    embedText
+      ÔêÜ should generate text embeddings (2 ms)
+    utility methods
+      ÔêÜ should get configuration (1 ms)
+      ÔêÜ should update API key (1 ms)
+      ÔêÜ should close client (1 ms)
+
+Test Suites: 3 failed, 8 passed, 11 total
+Tests:       6 failed, 295 passed, 301 total
+Snapshots:   0 total
+Time:        1.866 s, estimated 2 s
+Ran all test suites.

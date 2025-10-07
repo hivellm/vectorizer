@@ -28,14 +28,6 @@ import {
   BatchDeleteRequest,
   BatchResponse,
   BatchSearchResponse,
-  // Summarization models
-  SummarizeTextRequest,
-  SummarizeTextResponse,
-  SummarizeContextRequest,
-  SummarizeContextResponse,
-  GetSummaryResponse,
-  ListSummariesResponse,
-  ListSummariesQuery,
   // Intelligent search models
   IntelligentSearchRequest,
   IntelligentSearchResponse,
