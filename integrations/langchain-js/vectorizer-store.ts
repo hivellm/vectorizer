@@ -328,6 +328,284 @@ export class VectorizerClient {
     const response = await this.makeRequest("POST", "/multi_collection_search", data);
     return response.results || [];
   }
+
+  // ===== FILE OPERATIONS METHODS (v0.3.4+) =====
+
+  /**
+   * Retrieve complete file content from a collection
+   */
+  async getFileContent(
+    collection: string,
+    filePath: string,
+    maxSizeKb: number = 500
+  ): Promise<any> {
+    const data = {
+      collection,
+      file_path: filePath,
+      max_size_kb: maxSizeKb
+    };
+
+    return await this.makeRequest("POST", "/get_file_content", data);
+  }
+
+  /**
+   * List all indexed files in a collection with metadata
+   */
+  async listFilesInCollection(
+    collection: string,
+    filterByType?: string[],
+    minChunks?: number,
+    sortBy: string = "name",
+    maxResults: number = 100
+  ): Promise<any> {
+    const data: any = {
+      collection,
+      sort_by: sortBy,
+      max_results: maxResults
+    };
+
+    if (filterByType) {
+      data.filter_by_type = filterByType;
+    }
+    if (minChunks !== undefined) {
+      data.min_chunks = minChunks;
+    }
+
+    return await this.makeRequest("POST", "/list_files_in_collection", data);
+  }
+
+  /**
+   * Get extractive or structural summary of an indexed file
+   */
+  async getFileSummary(
+    collection: string,
+    filePath: string,
+    summaryType: "extractive" | "structural" | "both" = "both",
+    maxSentences: number = 5
+  ): Promise<any> {
+    const data = {
+      collection,
+      file_path: filePath,
+      summary_type: summaryType,
+      max_sentences: maxSentences
+    };
+
+    return await this.makeRequest("POST", "/get_file_summary", data);
+  }
+
+  /**
+   * Generate hierarchical project structure overview
+   */
+  async getProjectOutline(
+    collection: string,
+    maxDepth: number = 5,
+    highlightKeyFiles: boolean = true,
+    includeSummaries: boolean = false
+  ): Promise<any> {
+    const data = {
+      collection,
+      max_depth: maxDepth,
+      highlight_key_files: highlightKeyFiles,
+      include_summaries: includeSummaries
+    };
+
+    return await this.makeRequest("POST", "/get_project_outline", data);
+  }
+
+  /**
+   * Find semantically related files using vector similarity
+   */
+  async getRelatedFiles(
+    collection: string,
+    filePath: string,
+    limit: number = 5,
+    similarityThreshold: number = 0.6,
+    includeReason: boolean = true
+  ): Promise<any> {
+    const data = {
+      collection,
+      file_path: filePath,
+      limit,
+      similarity_threshold: similarityThreshold,
+      include_reason: includeReason
+    };
+
+    return await this.makeRequest("POST", "/get_related_files", data);
+  }
+
+  /**
+   * Semantic search filtered by file type
+   */
+  async searchByFileType(
+    collection: string,
+    query: string,
+    fileTypes: string[],
+    limit: number = 10,
+    returnFullFiles: boolean = false
+  ): Promise<any> {
+    const data = {
+      collection,
+      query,
+      file_types: fileTypes,
+      limit,
+      return_full_files: returnFullFiles
+    };
+
+    return await this.makeRequest("POST", "/search_by_file_type", data);
+  }
+
+  // ===== DISCOVERY SYSTEM METHODS (v0.3.4+) =====
+
+  /**
+   * Complete discovery pipeline with filtering, scoring, expansion, search, ranking,
+   * compression, and prompt generation
+   */
+  async discover(
+    query: string,
+    includeCollections?: string[],
+    excludeCollections?: string[],
+    broadK: number = 50,
+    focusK: number = 15,
+    maxBullets: number = 20
+  ): Promise<any> {
+    const data: any = {
+      query,
+      broad_k: broadK,
+      focus_k: focusK,
+      max_bullets: maxBullets
+    };
+
+    if (includeCollections) {
+      data.include_collections = includeCollections;
+    }
+    if (excludeCollections) {
+      data.exclude_collections = excludeCollections;
+    }
+
+    return await this.makeRequest("POST", "/discover", data);
+  }
+
+  /**
+   * Pre-filter collections by name patterns with stopword removal from query
+   */
+  async filterCollections(
+    query: string,
+    include?: string[],
+    exclude?: string[]
+  ): Promise<any> {
+    const data: any = { query };
+
+    if (include) {
+      data.include = include;
+    }
+    if (exclude) {
+      data.exclude = exclude;
+    }
+
+    return await this.makeRequest("POST", "/filter_collections", data);
+  }
+
+  /**
+   * Rank collections by relevance using name match, term boost, and signal boost
+   */
+  async scoreCollections(
+    query: string,
+    nameMatchWeight: number = 0.4,
+    termBoostWeight: number = 0.3,
+    signalBoostWeight: number = 0.3
+  ): Promise<any> {
+    const data = {
+      query,
+      name_match_weight: nameMatchWeight,
+      term_boost_weight: termBoostWeight,
+      signal_boost_weight: signalBoostWeight
+    };
+
+    return await this.makeRequest("POST", "/score_collections", data);
+  }
+
+  /**
+   * Generate query variations (definition, features, architecture, API, performance, use cases)
+   */
+  async expandQueries(
+    query: string,
+    maxExpansions: number = 8,
+    includeDefinition: boolean = true,
+    includeFeatures: boolean = true,
+    includeArchitecture: boolean = true
+  ): Promise<any> {
+    const data = {
+      query,
+      max_expansions: maxExpansions,
+      include_definition: includeDefinition,
+      include_features: includeFeatures,
+      include_architecture: includeArchitecture
+    };
+
+    return await this.makeRequest("POST", "/expand_queries", data);
+  }
+
+  /**
+   * Multi-query broad search with MMR diversification and deduplication
+   */
+  async broadDiscovery(
+    queries: string[],
+    k: number = 50
+  ): Promise<any> {
+    const data = { queries, k };
+    return await this.makeRequest("POST", "/broad_discovery", data);
+  }
+
+  /**
+   * Deep semantic search in specific collection with reranking and context window
+   */
+  async semanticFocus(
+    collection: string,
+    queries: string[],
+    k: number = 15
+  ): Promise<any> {
+    const data = {
+      collection,
+      queries,
+      k
+    };
+
+    return await this.makeRequest("POST", "/semantic_focus", data);
+  }
+
+  /**
+   * Extract key sentences (8-30 words) with citations from chunks
+   */
+  async compressEvidence(
+    chunks: any[],
+    maxBullets: number = 20,
+    maxPerDoc: number = 3
+  ): Promise<any> {
+    const data = {
+      chunks,
+      max_bullets: maxBullets,
+      max_per_doc: maxPerDoc
+    };
+
+    return await this.makeRequest("POST", "/compress_evidence", data);
+  }
+
+  /**
+   * Organize bullets into structured sections (Definition, Features, Architecture,
+   * Performance, Integrations, Use Cases)
+   */
+  async buildAnswerPlan(bullets: any[]): Promise<any> {
+    const data = { bullets };
+    return await this.makeRequest("POST", "/build_answer_plan", data);
+  }
+
+  /**
+   * Generate compact, structured prompt for LLM with instructions, evidence, and citations
+   */
+  async renderLlmPrompt(plan: any): Promise<any> {
+    const data = { plan };
+    return await this.makeRequest("POST", "/render_llm_prompt", data);
+  }
 }
 
 /**
