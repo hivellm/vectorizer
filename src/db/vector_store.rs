@@ -1373,11 +1373,35 @@ impl VectorStore {
     fn save_collection_metadata(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
+        use std::collections::HashSet;
+
+        // Extract unique file paths from vectors
+        let mut indexed_files: HashSet<String> = HashSet::new();
+        for pv in &persisted_collection.vectors {
+            // Convert to Vector to access payload
+            let v: Vector = pv.clone().into();
+            if let Some(payload) = &v.payload {
+                if let Some(metadata) = payload.data.get("metadata") {
+                    if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                        indexed_files.insert(file_path.to_string());
+                    }
+                }
+                // Also check direct file_path in payload
+                if let Some(file_path) = payload.data.get("file_path").and_then(|v| v.as_str()) {
+                    indexed_files.insert(file_path.to_string());
+                }
+            }
+        }
+
+        let mut files_vec: Vec<String> = indexed_files.into_iter().collect();
+        files_vec.sort();
 
         let metadata = serde_json::json!({
             "name": persisted_collection.name,
             "config": persisted_collection.config,
             "vector_count": persisted_collection.vectors.len(),
+            "indexed_files": files_vec,
+            "total_files": files_vec.len(),
             "created_at": chrono::Utc::now().to_rfc3339(),
         });
 
@@ -1385,7 +1409,7 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
+        debug!("Saved metadata for '{}' to {} ({} files indexed)", persisted_collection.name, path.display(), files_vec.len());
         Ok(())
     }
     
@@ -1437,11 +1461,35 @@ impl VectorStore {
     fn save_collection_metadata_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
+        use std::collections::HashSet;
+
+        // Extract unique file paths from vectors
+        let mut indexed_files: HashSet<String> = HashSet::new();
+        for pv in &persisted_collection.vectors {
+            // Convert to Vector to access payload
+            let v: Vector = pv.clone().into();
+            if let Some(payload) = &v.payload {
+                if let Some(metadata) = payload.data.get("metadata") {
+                    if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                        indexed_files.insert(file_path.to_string());
+                    }
+                }
+                // Also check direct file_path in payload
+                if let Some(file_path) = payload.data.get("file_path").and_then(|v| v.as_str()) {
+                    indexed_files.insert(file_path.to_string());
+                }
+            }
+        }
+
+        let mut files_vec: Vec<String> = indexed_files.into_iter().collect();
+        files_vec.sort();
 
         let metadata = serde_json::json!({
             "name": persisted_collection.name,
             "config": persisted_collection.config,
             "vector_count": persisted_collection.vectors.len(),
+            "indexed_files": files_vec,
+            "total_files": files_vec.len(),
             "created_at": chrono::Utc::now().to_rfc3339(),
         });
 
@@ -1449,7 +1497,7 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
+        debug!("Saved metadata for '{}' to {} ({} files indexed)", persisted_collection.name, path.display(), files_vec.len());
         Ok(())
     }
 

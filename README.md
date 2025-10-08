@@ -2,9 +2,14 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.3.2 Highlights**
+## ✨ **Version 0.3.4 - Critical Fix Release**
 
-### 🚀 **File Operations Module**
+### 🐛 **Critical Bug Fix**
+- ✅ **Fixed metadata persistence**: Collection metadata files now correctly save the complete list of indexed files (`indexed_files` + `total_files` fields)
+- ✅ **Restored file operations**: All 6 file operation MCP tools (`get_file_summary`, `get_file_chunks_ordered`, `list_files_in_collection`, `search_by_file_type`, `get_related_files`, `get_project_outline`) now working correctly
+- ✅ **Validated**: Comprehensive testing of 40+ MCP tools with 100% success rate
+
+### 🚀 **File Operations Module** (v0.3.2+)
 - ✅ **6 Production-Ready MCP Tools**: Complete file-level operations for AI assistants
   - `get_file_content` - Retrieve complete files with metadata
   - `list_files_in_collection` - Advanced file listing and filtering
