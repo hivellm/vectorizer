@@ -34,7 +34,7 @@ This directory contains detailed technical specifications for upcoming Vectorize
 | Spec | **NEW Priority** | Effort | Risk | **Benchmark Insight** |
 |------|------------------|--------|------|----------------------|
 | [Persistence System](./PERSISTENCE_SPEC.md) | **🟡 P1** ⬇️ | 3 weeks | Low | **Performance already excellent** |
-| [File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md) | **🟡 P1** ⬇️ | 2-3 weeks | Low | **System works, optimizations can wait** |
+| [File Watcher Technical Spec](./FILE_WATCHER_TECHNICAL_SPEC.md) | **✅ COMPLETE** | - | - | **File Watcher fully implemented and functional** |
 | [Workspace Manager UI](./WORKSPACE_MANAGER_UI.md) | **🟡 P1** | 4-5 weeks | Low | **Important but not critical** |
 
 ### 🟢 Medium Priority (P2) - **NICE TO HAVE**
@@ -91,7 +91,7 @@ This directory contains detailed technical specifications for upcoming Vectorize
 
 ---
 
-### 2. [File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md)
+### 2. [File Watcher Technical Specification](./FILE_WATCHER_TECHNICAL_SPEC.md)
 **Problem**: Missing new/deleted file detection  
 **Solution**: Enhanced file system events with full CRUD support  
 **Impact**: Complete workspace synchronization  

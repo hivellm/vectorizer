@@ -42,54 +42,97 @@ impl VectorizerServer {
         let vector_store = VectorStore::new_auto();
         let store_arc = Arc::new(vector_store);
         
+        info!("🔍 PRE_INIT: Creating embedding manager...");
         let mut embedding_manager = EmbeddingManager::new();
+        info!("🔍 PRE_INIT: Creating BM25 embedding...");
         let bm25 = crate::embedding::Bm25Embedding::new(512);
+        info!("🔍 PRE_INIT: Registering BM25 provider...");
         embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+        info!("🔍 PRE_INIT: Setting default provider...");
         embedding_manager.set_default_provider("bm25")?;
+        info!("✅ PRE_INIT: Embedding manager configured");
 
         info!("✅ Vectorizer Server initialized successfully - starting background collection loading");
+        info!("🔍 STEP 1: Server initialization completed, proceeding to file watcher setup");
+        info!("🔍 STEP 1.1: About to initialize file watcher embedding manager...");
 
         // Initialize file watcher if enabled
+        info!("🔍 STEP 2: Initializing file watcher embedding manager...");
         let mut embedding_manager_for_watcher = EmbeddingManager::new();
         let bm25_for_watcher = crate::embedding::Bm25Embedding::new(512);
         embedding_manager_for_watcher.register_provider("bm25".to_string(), Box::new(bm25_for_watcher));
         embedding_manager_for_watcher.set_default_provider("bm25")?;
+        info!("✅ STEP 2: File watcher embedding manager initialized");
         
+        info!("🔍 STEP 3: Creating Arc wrappers for file watcher components...");
         let embedding_manager_for_watcher_arc = Arc::new(RwLock::new(embedding_manager_for_watcher));
         let file_watcher_arc = embedding_manager_for_watcher_arc.clone();
         let store_for_watcher = store_arc.clone();
+        info!("✅ STEP 3: Arc wrappers created successfully");
+        
+        info!("🔍 STEP 4: About to spawn file watcher task...");
+        let watcher_system_arc = Arc::new(tokio::sync::Mutex::new(None::<crate::file_watcher::FileWatcherSystem>));
+        let watcher_system_for_task = watcher_system_arc.clone();
+        
         tokio::task::spawn(async move {
-            info!("🔍 Starting file watcher system...");
+            info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
+            info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
             let watcher_system = crate::file_watcher::FileWatcherSystem::new(
                 crate::file_watcher::FileWatcherConfig::default(),
                 store_for_watcher,
                 file_watcher_arc,
             );
+            info!("✅ STEP 5: FileWatcherSystem instance created");
             
-            if let Err(e) = watcher_system.start().await {
-                warn!("❌ Failed to start file watcher: {}", e);
+            // Store the watcher system for later use
+            {
+                let mut watcher_guard = watcher_system_for_task.lock().await;
+                *watcher_guard = Some(watcher_system);
+            }
+            
+            info!("🔍 STEP 6: Starting FileWatcherSystem...");
+            if let Err(e) = watcher_system_for_task.lock().await.as_ref().unwrap().start().await {
+                error!("❌ STEP 6: Failed to start file watcher: {}", e);
             } else {
-                info!("✅ File watcher started successfully");
+                info!("✅ STEP 6: File watcher started successfully");
             }
         });
 
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
+        let watcher_system_for_loading = watcher_system_arc.clone();
         tokio::task::spawn(async move {
             println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
             
             // Load all persisted collections in background
+            info!("🔍 COLLECTION_LOAD_STEP_1: Starting to load persisted collections...");
             let persisted_count = match store_for_loading.load_all_persisted_collections() {
                 Ok(count) => {
                     if count > 0 {
                         println!("✅ Background loading completed - {} collections loaded", count);
-                        info!("✅ Background loading completed - {} collections loaded", count);
+                        info!("✅ COLLECTION_LOAD_STEP_2: Background loading completed - {} collections loaded", count);
+                        
+                        // Update file watcher with loaded collections
+                        info!("🔍 COLLECTION_LOAD_STEP_3: Updating file watcher with loaded collections...");
+                        if let Some(watcher_system) = watcher_system_for_loading.lock().await.as_ref() {
+                            let collections = store_for_loading.list_collections();
+                            for collection_name in collections {
+                                if let Err(e) = watcher_system.update_with_collection(&collection_name).await {
+                                    warn!("⚠️ Failed to update file watcher with collection '{}': {}", collection_name, e);
+                                } else {
+                                    info!("✅ Updated file watcher with collection: {}", collection_name);
+                                }
+                            }
+                        } else {
+                            warn!("⚠️ File watcher not available for update");
+                        }
+                        
                         count
                     } else {
                         println!("ℹ️  Background loading completed - no persisted collections found");
-                        info!("ℹ️  Background loading completed - no persisted collections found");
+                        info!("✅ COLLECTION_LOAD_STEP_2: Background loading completed - no persisted collections found");
                         0
                     }
                 },

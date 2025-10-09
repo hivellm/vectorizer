@@ -22,7 +22,7 @@ This index organizes all Vectorizer documentation to facilitate navigation and u
 - [phase1/TECHNICAL_IMPLEMENTATION.md](phase1/TECHNICAL_IMPLEMENTATION.md) - Detailed technical implementation
 
 ### **Advanced Systems**
-- [FILE_WATCHER_SYSTEM.md](FILE_WATCHER_SYSTEM.md) - File monitoring system
+- [FILE_WATCHER_TECHNICAL_SPEC.md](../technical/FILE_WATCHER_TECHNICAL_SPEC.md) - File monitoring system (✅ COMPLETE)
 - [CACHE_AND_INCREMENTAL_INDEXING.md](CACHE_AND_INCREMENTAL_INDEXING.md) - Cache and incremental indexing
 - [WATCHER_SPECIFICATION.md](WATCHER_SPECIFICATION.md) - Monitoring system specification
 - [../WORKSPACE_SIMPLIFICATION.md](../WORKSPACE_SIMPLIFICATION.md) - **NEW v0.26.0**: Simplified workspace configuration

@@ -77,7 +77,7 @@ Our comprehensive benchmarks revealed **game-changing results**:
    - Read-only workspace collections
    - **Performance already excellent** - can wait
 
-5. **[File Watcher Improvements](./FILE_WATCHER_IMPROVEMENTS.md)** - **🟡 P1** ⬇️, 2-3 weeks
+5. **[File Watcher Technical Spec](../technical/FILE_WATCHER_TECHNICAL_SPEC.md)** - **✅ COMPLETE**
    - Detect new files, deleted files
    - Full CRUD file operations
    - **System works well** - optimizations can wait

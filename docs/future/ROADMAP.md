@@ -99,7 +99,7 @@ Q4 2025 (Oct-Dec)          Q1 2026 (Jan-Feb)
 - Recovery time < 2s for 1M vectors
 
 #### Week 13-15: File Watcher Improvements
-- [x] **Spec**: [FILE_WATCHER_IMPROVEMENTS.md](./FILE_WATCHER_IMPROVEMENTS.md)
+- [x] **Spec**: [FILE_WATCHER_TECHNICAL_SPEC.md](../technical/FILE_WATCHER_TECHNICAL_SPEC.md) ✅ **COMPLETE**
 - **Developer**: 1 mid-level Rust developer
 - **Tasks**:
   - Week 13: Full CRUD support (create, update, delete)

@@ -136,7 +136,7 @@ Created detailed, implementation-ready specs:
 | # | Document | Pages | Purpose |
 |---|----------|-------|---------|
 | 1 | [PERSISTENCE_SPEC.md](vectorizer/docs/future/PERSISTENCE_SPEC.md) | 399 lines | WAL-based persistence, read-only workspace collections |
-| 2 | [FILE_WATCHER_IMPROVEMENTS.md](vectorizer/docs/future/FILE_WATCHER_IMPROVEMENTS.md) | 409 lines | Detect new/deleted files, full CRUD support |
+| 2 | [FILE_WATCHER_TECHNICAL_SPEC.md](vectorizer/docs/technical/FILE_WATCHER_TECHNICAL_SPEC.md) | - | File Watcher fully implemented and functional |
 | 3 | [MEMORY_OPTIMIZATION_QUANTIZATION.md](vectorizer/docs/future/MEMORY_OPTIMIZATION_QUANTIZATION.md) | 673 lines | Quality-aware quantization, 50-75% memory reduction |
 | 4 | [WORKSPACE_SIMPLIFICATION.md](vectorizer/docs/future/WORKSPACE_SIMPLIFICATION.md) | ~350 lines | Template system, 70% fewer config lines |
 | 5 | [COMPREHENSIVE_BENCHMARKS.md](vectorizer/docs/future/COMPREHENSIVE_BENCHMARKS.md) | 440 lines | Complete performance tracking system |
@@ -236,7 +236,7 @@ vectorizer/docs/future/
 │
 ├── Technical Specifications:
 ├── PERSISTENCE_SPEC.md               ← P0 - Critical
-├── FILE_WATCHER_IMPROVEMENTS.md      ← P0 - Critical
+├── FILE_WATCHER_TECHNICAL_SPEC.md    ← ✅ COMPLETE
 ├── BACKUP_RESTORE_SYSTEM.md          ← P1 - High
 ├── DASHBOARD_IMPROVEMENTS.md         ← P1 - High
 ├── WORKSPACE_MANAGER_UI.md           ← P1 - High
