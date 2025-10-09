@@ -458,18 +458,14 @@ impl VectorStore {
     pub fn new_auto() -> Self {
         eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
 
-        // Try to load persisted collections first
+        // Create store without loading collections (will be loaded in background task)
         let mut store = Self::new();
-        if let Ok(collections_loaded) = store.load_all_persisted_collections() {
-            if collections_loaded > 0 {
-                eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-                info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-            }
-        }
         
         // Always enable auto-save for dynamic collections
         store.enable_auto_save();
         info!("🔄 Auto-save enabled for all collections (including dynamic ones)");
+        
+        eprintln!("✅ VectorStore created (collections will be loaded in background)");
         
         // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
         #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
@@ -509,17 +505,10 @@ impl VectorStore {
         //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
         info!("🔍 Starting universal GPU backend detection...");
         
-        // Try to load persisted collections first
+        // Create store without loading collections (will be loaded in background task)
         let mut store = Self::new();
-        if let Ok(collections_loaded) = store.load_all_persisted_collections() {
-            if collections_loaded > 0 {
-                eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-                info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-                // Enable auto-save after loading persisted collections
-                store.enable_auto_save();
-            return store;
-            }
-        }
+        store.enable_auto_save();
+        eprintln!("✅ VectorStore created (collections will be loaded in background)");
         
         // Detect all available backends
         let available = detect_available_backends();

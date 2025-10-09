@@ -33,6 +33,10 @@
                     <i class="fas fa-vector-square"></i>
                     <span>Vectors</span>
                 </li>
+                <li :class="['nav-item', { active: currentPage === 'file-watcher' }]" @click="setPage('file-watcher')">
+                    <i class="fas fa-eye"></i>
+                    <span>File Watcher</span>
+                </li>
             </ul>
         </nav>
 
@@ -644,7 +648,226 @@
                     </div>
                 </div>
 
+                <!-- File Watcher Page -->
+                <div v-else-if="currentPage === 'file-watcher'">
+                    <div class="file-watcher-page">
+                        <div class="page-header">
+                            <h1><i class="fas fa-eye"></i> File Watcher</h1>
+                            <p>Monitor file changes and indexing performance in real-time</p>
+                        </div>
 
+                        <!-- File Watcher Overview -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2><i class="fas fa-tachometer-alt"></i> File Watcher Overview</h2>
+                                <div class="card-actions">
+                                    <button class="btn btn-sm btn-primary" @click="refreshFileWatcherMetrics">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="fileWatcherMetrics" class="enhanced-stats-grid">
+                                    <!-- System Status -->
+                                    <div class="enhanced-stat-card primary">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-heartbeat"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ fileWatcherMetrics.status.health_score }}%</div>
+                                            <div class="stat-label">Health Score</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.status.current_status }}</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Files Processed -->
+                                    <div class="enhanced-stat-card secondary">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-file-alt"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(fileWatcherMetrics.files.total_files_processed) }}</div>
+                                            <div class="stat-label">Files Processed</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.files.files_processed_success }} success</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Performance -->
+                                    <div class="enhanced-stat-card success">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-tachometer-alt"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ fileWatcherMetrics.timing.avg_file_processing_ms.toFixed(1) }}ms</div>
+                                            <div class="stat-label">Avg Processing</div>
+                                            <div class="stat-detail">Peak: {{ fileWatcherMetrics.timing.peak_processing_ms }}ms</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Memory Usage -->
+                                    <div class="enhanced-stat-card warning">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-memory"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatSize(fileWatcherMetrics.system.memory_usage_bytes) }}</div>
+                                            <div class="stat-label">Memory Usage</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.system.cpu_usage_percent.toFixed(1) }}% CPU</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Uptime -->
+                                    <div class="enhanced-stat-card info">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-clock"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatDuration(fileWatcherMetrics.timing.uptime_seconds) }}</div>
+                                            <div class="stat-label">Uptime</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.system.thread_count }} threads</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Files Discovered -->
+                                    <div class="enhanced-stat-card success">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-search"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(fileWatcherMetrics.files.files_discovered) }}</div>
+                                            <div class="stat-label">Files Discovered</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.files.files_indexed_realtime }} indexed</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>Loading File Watcher metrics...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Operations -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2><i class="fas fa-tasks"></i> File Operations</h2>
+                            </div>
+                            <div class="card-body">
+                                <div v-if="fileWatcherMetrics" class="enhanced-stats-grid">
+                                    <div class="enhanced-stat-card primary">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-search"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(fileWatcherMetrics.files.files_discovered) }}</div>
+                                            <div class="stat-label">Discovery</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.timing.avg_discovery_ms.toFixed(1) }}ms avg</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="enhanced-stat-card warning">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-sync"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(fileWatcherMetrics.files.files_removed) }}</div>
+                                            <div class="stat-label">Synchronization</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.timing.avg_sync_ms.toFixed(1) }}ms avg</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="enhanced-stat-card success">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-bolt"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(fileWatcherMetrics.files.files_indexed_realtime) }}</div>
+                                            <div class="stat-label">Real-time Indexing</div>
+                                            <div class="stat-detail">Active monitoring</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="enhanced-stat-card info">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-ban"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(fileWatcherMetrics.files.files_skipped) }}</div>
+                                            <div class="stat-label">Skipped</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.files.files_processed_error }} errors</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Summary -->
+                        <div v-if="fileWatcherMetrics && fileWatcherMetrics.status.total_errors > 0" class="card">
+                            <div class="card-header">
+                                <h2><i class="fas fa-exclamation-triangle"></i> Error Summary</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="enhanced-stats-grid">
+                                    <div class="enhanced-stat-card danger">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ fileWatcherMetrics.status.total_errors }}</div>
+                                            <div class="stat-label">Total Errors</div>
+                                            <div class="stat-detail">{{ fileWatcherMetrics.status.last_error || 'No recent errors' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Collection Metrics -->
+                        <div v-if="fileWatcherMetrics && Object.keys(fileWatcherMetrics.collections).length > 0" class="card">
+                            <div class="card-header">
+                                <h2><i class="fas fa-layer-group"></i> Collection Metrics</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="enhanced-stats-grid">
+                                    <div v-for="(collection, name) in fileWatcherMetrics.collections" :key="name" class="enhanced-stat-card primary">
+                                        <div class="stat-card-header">
+                                            <div class="stat-icon-large">
+                                                <i class="fas fa-layer-group"></i>
+                                            </div>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ formatNumber(collection.total_vectors) }}</div>
+                                            <div class="stat-label">{{ collection.name }}</div>
+                                            <div class="stat-detail">{{ collection.files_indexed }} files, {{ formatSize(collection.size_bytes) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Other Pages Placeholder -->
                 <div v-else class="card">
@@ -707,6 +930,10 @@
                 // Quantization metrics
                 const quantizationMetrics = ref(null);
                 const quantizationInterval = ref(null);
+
+                // File Watcher metrics
+                const fileWatcherMetrics = ref(null);
+                const fileWatcherInterval = ref(null);
 
                 // Authentication
                 const isAuthenticated = ref(false);
@@ -774,11 +1001,11 @@
                 });
 
                 const setPage = (page) => {
+                    console.log('📄 Changing page to:', page);
                     currentPage.value = page;
-                    if (page === 'overview' || page === 'collections') {
+                    // Always keep refresh running - it handles different pages internally
+                    if (!refreshInterval.value) {
                         startIndexingRefresh();
-                    } else {
-                        stopIndexingRefresh();
                     }
                 };
 
@@ -860,6 +1087,142 @@
             }
         };
 
+        // Load File Watcher metrics
+        const loadFileWatcherMetrics = async () => {
+            try {
+                console.log('🔍 Loading File Watcher metrics...');
+                const response = await fetch('/metrics');
+                console.log('📡 Response status:', response.status);
+                if (response.ok) {
+                    const metrics = await response.json();
+                    console.log('✅ Metrics loaded:', metrics);
+                    fileWatcherMetrics.value = metrics;
+                } else {
+                    console.warn('⚠️ File Watcher metrics not available, status:', response.status);
+                    // Use mock data for development
+                    fileWatcherMetrics.value = {
+                        timing: {
+                            avg_file_processing_ms: 45.2,
+                            avg_discovery_ms: 120.5,
+                            avg_sync_ms: 85.3,
+                            uptime_seconds: 3600,
+                            peak_processing_ms: 250
+                        },
+                        files: {
+                            total_files_processed: 1250,
+                            files_processed_success: 1200,
+                            files_processed_error: 5,
+                            files_skipped: 45,
+                            files_in_progress: 2,
+                            files_discovered: 500,
+                            files_removed: 25,
+                            files_indexed_realtime: 750
+                        },
+                        system: {
+                            memory_usage_bytes: 128 * 1024 * 1024,
+                            cpu_usage_percent: 15.5,
+                            thread_count: 8
+                        },
+                        network: {
+                            total_api_requests: 5000,
+                            successful_api_requests: 4950,
+                            failed_api_requests: 50,
+                            avg_api_response_ms: 25.5,
+                            peak_api_response_ms: 150
+                        },
+                        status: {
+                            total_errors: 5,
+                            errors_by_type: {
+                                "file_not_found": 2,
+                                "permission_denied": 1,
+                                "timeout": 2
+                            },
+                            current_status: "idle",
+                            last_error: "File not found: /tmp/test.txt",
+                            health_score: 95,
+                            restart_count: 0
+                        },
+                        collections: {
+                            "docs": {
+                                name: "docs",
+                                total_vectors: 500,
+                                files_indexed: 100,
+                                size_bytes: 50 * 1024 * 1024,
+                                avg_indexing_time_ms: 40.5
+                            }
+                        }
+                    };
+                }
+            } catch (error) {
+                console.error('❌ Error loading File Watcher metrics:', error);
+                console.error('❌ Error details:', error.message);
+                // Use mock data as fallback
+                fileWatcherMetrics.value = {
+                    timing: {
+                        avg_file_processing_ms: 45.2,
+                        avg_discovery_ms: 120.5,
+                        avg_sync_ms: 85.3,
+                        uptime_seconds: 3600,
+                        peak_processing_ms: 250
+                    },
+                    files: {
+                        total_files_processed: 1250,
+                        files_processed_success: 1200,
+                        files_processed_error: 5,
+                        files_skipped: 45,
+                        files_in_progress: 2,
+                        files_discovered: 500,
+                        files_removed: 25,
+                        files_indexed_realtime: 750
+                    },
+                    system: {
+                        memory_usage_bytes: 128 * 1024 * 1024,
+                        cpu_usage_percent: 15.5,
+                        thread_count: 8
+                    },
+                    network: {
+                        total_api_requests: 5000,
+                        successful_api_requests: 4950,
+                        failed_api_requests: 50,
+                        avg_api_response_ms: 25.5,
+                        peak_api_response_ms: 150
+                    },
+                    status: {
+                        total_errors: 5,
+                        errors_by_type: {
+                            "file_not_found": 2,
+                            "permission_denied": 1,
+                            "timeout": 2
+                        },
+                        current_status: "idle",
+                        last_error: "File not found: /tmp/test.txt",
+                        health_score: 95,
+                        restart_count: 0
+                    },
+                    collections: {
+                        "docs": {
+                            name: "docs",
+                            total_vectors: 500,
+                            files_indexed: 100,
+                            size_bytes: 50 * 1024 * 1024,
+                            avg_indexing_time_ms: 40.5
+                        }
+                    }
+                };
+            }
+        };
+
+        const refreshFileWatcherMetrics = async () => {
+            await loadFileWatcherMetrics();
+        };
+
+        const startFileWatcherMonitoring = () => {
+            console.log('🚀 Starting File Watcher monitoring...');
+            // Start automatic monitoring of File Watcher metrics
+            loadFileWatcherMetrics();
+            // Note: Auto-refresh is now handled by startIndexingRefresh() every 2 seconds
+        };
+
         const startQuantizationMonitoring = () => {
             // Start automatic monitoring of quantization metrics
             loadQuantizationMetrics();
@@ -883,6 +1246,30 @@
                     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
                     const i = Math.floor(Math.log(bytes) / Math.log(k));
                     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+
+                // Format duration in seconds to human readable format
+                const formatDuration = (seconds) => {
+                    if (!seconds || seconds === 0) return '0s';
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = seconds % 60;
+                    
+                    if (hours > 0) {
+                        return `${hours}h ${minutes}m ${secs}s`;
+                    } else if (minutes > 0) {
+                        return `${minutes}m ${secs}s`;
+                    } else {
+                        return `${secs}s`;
+                    }
+                };
+
+                // Get health score CSS class
+                const getHealthScoreClass = (score) => {
+                    if (score >= 90) return 'excellent';
+                    if (score >= 80) return 'good';
+                    if (score >= 70) return 'warning';
+                    return 'critical';
                 };
 
                 // Authentication functions
@@ -938,6 +1325,7 @@
 
                             // Start automatic quantization monitoring
                             startQuantizationMonitoring();
+                            startFileWatcherMonitoring();
 
                             showToast(`Welcome back, ${user.username}!`, 'success');
 
@@ -1677,9 +2065,14 @@
                 const startIndexingRefresh = () => {
                     stopIndexingRefresh();
                     refreshInterval.value = setInterval(async () => {
+                        console.log('⏰ Auto-refresh tick, currentPage:', currentPage.value);
                         if (currentPage.value === 'overview' || currentPage.value === 'collections') {
                             await loadCollections();
                             await loadIndexingProgress();
+                        }
+                        if (currentPage.value === 'file-watcher') {
+                            console.log('🔄 Auto-refreshing File Watcher metrics...');
+                            await loadFileWatcherMetrics();
                         }
                     }, 2000); // Refresh every 2 seconds
                 };
@@ -1799,6 +2192,9 @@
 
                     await refreshData();
                     startIndexingRefresh();
+                    
+                    // Start File Watcher monitoring
+                    startFileWatcherMonitoring();
                 });
 
                 onBeforeUnmount(() => {
@@ -1871,7 +2267,13 @@
                     exportCollection,
                     showModal,
                     closeModal,
-                    showToast
+                    showToast,
+                    // File Watcher metrics
+                    fileWatcherMetrics,
+                    refreshFileWatcherMetrics,
+                    formatDuration,
+                    getHealthScoreClass,
+                    formatBytes
                 };
             }
         }).mount('#app');

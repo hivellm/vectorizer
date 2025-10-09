@@ -23,7 +23,7 @@ This technical documentation was created through complete analysis of the Vector
 - ✅ Comprehensive YAML configuration system (config.example.yml)
 - ✅ Implementation roadmap with prioritized phases (ROADMAP.md)
 - ✅ Task breakdown and tracking (IMPLEMENTATION_CHECKLIST.md)
-- ✅ File Watcher System specification (FILE_WATCHER_SYSTEM.md)
+- ✅ File Watcher Technical Specification (FILE_WATCHER_TECHNICAL_SPEC.md)
 - ✅ File Watcher System technical specification (WATCHER_SPECIFICATION.md)
 
 ### ✅ **Implementation Status**

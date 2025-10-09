@@ -13,10 +13,20 @@ use tokio::sync::RwLock;
 use axum::{
     Router,
     routing::{get, post, delete},
+    extract::State,
+    response::Json,
+    http::StatusCode,
 };
 use tower_http::services::ServeDir;
 use tower_http::cors::CorsLayer;
 use tracing::{info, error, warn};
+use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem};
+
+/// Global server state to share between endpoints
+#[derive(Clone)]
+pub struct ServerState {
+    pub file_watcher_system: Arc<tokio::sync::Mutex<Option<FileWatcherSystem>>>,
+}
 
 use crate::{
     VectorStore,
@@ -31,6 +41,7 @@ pub struct VectorizerServer {
     pub store: Arc<VectorStore>,
     pub embedding_manager: Arc<EmbeddingManager>,
     pub start_time: std::time::Instant,
+    pub file_watcher_system: Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
 }
 
 impl VectorizerServer {
@@ -42,54 +53,189 @@ impl VectorizerServer {
         let vector_store = VectorStore::new_auto();
         let store_arc = Arc::new(vector_store);
         
+        info!("🔍 PRE_INIT: Creating embedding manager...");
         let mut embedding_manager = EmbeddingManager::new();
+        info!("🔍 PRE_INIT: Creating BM25 embedding...");
         let bm25 = crate::embedding::Bm25Embedding::new(512);
+        info!("🔍 PRE_INIT: Registering BM25 provider...");
         embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+        info!("🔍 PRE_INIT: Setting default provider...");
         embedding_manager.set_default_provider("bm25")?;
+        info!("✅ PRE_INIT: Embedding manager configured");
 
         info!("✅ Vectorizer Server initialized successfully - starting background collection loading");
+        info!("🔍 STEP 1: Server initialization completed, proceeding to file watcher setup");
+        info!("🔍 STEP 1.1: About to initialize file watcher embedding manager...");
 
         // Initialize file watcher if enabled
+        info!("🔍 STEP 2: Initializing file watcher embedding manager...");
         let mut embedding_manager_for_watcher = EmbeddingManager::new();
         let bm25_for_watcher = crate::embedding::Bm25Embedding::new(512);
         embedding_manager_for_watcher.register_provider("bm25".to_string(), Box::new(bm25_for_watcher));
         embedding_manager_for_watcher.set_default_provider("bm25")?;
+        info!("✅ STEP 2: File watcher embedding manager initialized");
         
+        info!("🔍 STEP 3: Creating Arc wrappers for file watcher components...");
         let embedding_manager_for_watcher_arc = Arc::new(RwLock::new(embedding_manager_for_watcher));
         let file_watcher_arc = embedding_manager_for_watcher_arc.clone();
         let store_for_watcher = store_arc.clone();
+        info!("✅ STEP 3: Arc wrappers created successfully");
+        
+        info!("🔍 STEP 4: About to spawn file watcher task...");
+        let watcher_system_arc = Arc::new(tokio::sync::Mutex::new(None::<crate::file_watcher::FileWatcherSystem>));
+        let watcher_system_for_task = watcher_system_arc.clone();
+        let watcher_system_for_server = watcher_system_arc.clone();
+        
         tokio::task::spawn(async move {
-            info!("🔍 Starting file watcher system...");
-            let watcher_system = crate::file_watcher::FileWatcherSystem::new(
+            info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
+            info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
+            let mut watcher_system = crate::file_watcher::FileWatcherSystem::new(
                 crate::file_watcher::FileWatcherConfig::default(),
                 store_for_watcher,
                 file_watcher_arc,
             );
+            info!("✅ STEP 5: FileWatcherSystem instance created");
             
-            if let Err(e) = watcher_system.start().await {
-                warn!("❌ Failed to start file watcher: {}", e);
+            info!("🔍 STEP 5.1: Initializing file discovery system...");
+            if let Err(e) = watcher_system.initialize_discovery() {
+                error!("Failed to initialize file discovery system: {}", e);
             } else {
-                info!("✅ File watcher started successfully");
+                info!("✅ STEP 5.1: File discovery system initialized");
+            }
+            
+            // Store the watcher system for later use
+            {
+                let mut watcher_guard = watcher_system_for_task.lock().await;
+                *watcher_guard = Some(watcher_system);
+            }
+            
+            info!("🔍 STEP 6: Starting FileWatcherSystem...");
+            if let Err(e) = watcher_system_for_task.lock().await.as_ref().unwrap().start().await {
+                error!("❌ STEP 6: Failed to start file watcher: {}", e);
+            } else {
+                info!("✅ STEP 6: File watcher started successfully");
             }
         });
 
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
+        let watcher_system_for_loading = watcher_system_arc.clone();
         tokio::task::spawn(async move {
             println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
             
             // Load all persisted collections in background
+            info!("🔍 COLLECTION_LOAD_STEP_1: Starting to load persisted collections...");
             let persisted_count = match store_for_loading.load_all_persisted_collections() {
                 Ok(count) => {
                     if count > 0 {
                         println!("✅ Background loading completed - {} collections loaded", count);
-                        info!("✅ Background loading completed - {} collections loaded", count);
+                        info!("✅ COLLECTION_LOAD_STEP_2: Background loading completed - {} collections loaded", count);
+                        
+                        // Update file watcher with loaded collections
+                        info!("🔍 COLLECTION_LOAD_STEP_3: Updating file watcher with loaded collections...");
+                        if let Some(watcher_system) = watcher_system_for_loading.lock().await.as_ref() {
+                            let collections = store_for_loading.list_collections();
+                            for collection_name in collections {
+                                if let Err(e) = watcher_system.update_with_collection(&collection_name).await {
+                                    warn!("⚠️ Failed to update file watcher with collection '{}': {}", collection_name, e);
+                                } else {
+                                    info!("✅ Updated file watcher with collection: {}", collection_name);
+                                }
+                            }
+                            
+                            // Discover and index existing files after collections are loaded
+                            info!("🔍 COLLECTION_LOAD_STEP_4: Starting file discovery for existing files...");
+                            match watcher_system.discover_existing_files().await {
+                                Ok(result) => {
+                                    info!("✅ File discovery completed: {} files indexed, {} skipped, {} errors", 
+                                          result.stats.files_indexed, result.stats.files_skipped, result.stats.files_errors);
+                                }
+                                Err(e) => {
+                                    warn!("⚠️ File discovery failed: {}", e);
+                                }
+                            }
+                            
+                            // Sync with collections to remove orphaned files
+                            info!("🔍 COLLECTION_LOAD_STEP_5: Starting collection sync...");
+                            match watcher_system.sync_with_collections().await {
+                                Ok(result) => {
+                                    info!("✅ Collection sync completed: {} orphaned files removed", 
+                                          result.stats.orphaned_files_removed);
+                                }
+                                Err(e) => {
+                                    warn!("⚠️ Collection sync failed: {}", e);
+                                }
+                            }
+                        } else {
+                            warn!("⚠️ File watcher not available for update");
+                        }
+                        
                         count
                     } else {
                         println!("ℹ️  Background loading completed - no persisted collections found");
-                        info!("ℹ️  Background loading completed - no persisted collections found");
+                        info!("✅ COLLECTION_LOAD_STEP_2: Background loading completed - no persisted collections found");
+                        
+                        // Even with no persisted collections, try to discover existing files
+                        info!("🔍 COLLECTION_LOAD_STEP_3: No persisted collections, attempting conservative file discovery...");
+                        
+                        // Wait for file watcher to be available (with timeout)
+                        let mut attempts = 0;
+                        let max_attempts = 10; // Conservative timeout
+                        
+                        loop {
+                            if let Some(watcher_system) = watcher_system_for_loading.lock().await.as_ref() {
+                                info!("🔍 COLLECTION_LOAD_STEP_4: Starting conservative file discovery...");
+                                match watcher_system.discover_existing_files().await {
+                                    Ok(result) => {
+                                        info!("✅ File discovery completed: {} files indexed, {} skipped, {} errors", 
+                                              result.stats.files_indexed, result.stats.files_skipped, result.stats.files_errors);
+                                    }
+                                    Err(e) => {
+                                        warn!("⚠️ File discovery failed: {}", e);
+                                    }
+                                }
+                                
+                                // Perform comprehensive synchronization
+                                info!("🔍 COLLECTION_LOAD_STEP_5: Starting comprehensive synchronization...");
+                                let sync_start = std::time::Instant::now();
+                                match watcher_system.comprehensive_sync().await {
+                                    Ok((sync_result, unindexed_files)) => {
+                                        let sync_time_ms = sync_start.elapsed().as_millis() as u64;
+                                        
+                                        // Record sync metrics
+                                        watcher_system.record_sync(
+                                            sync_result.stats.orphaned_files_removed as u64,
+                                            unindexed_files.len() as u64,
+                                            sync_time_ms
+                                        ).await;
+                                        
+                                        info!("✅ Comprehensive sync completed: {} orphaned files removed, {} unindexed files detected", 
+                                              sync_result.stats.orphaned_files_removed, unindexed_files.len());
+                                        
+                                        if !unindexed_files.is_empty() {
+                                            info!("📄 Unindexed files detected: {:?}", unindexed_files);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("⚠️ Comprehensive sync failed: {}", e);
+                                        watcher_system.record_error("sync_error", &e.to_string()).await;
+                                    }
+                                }
+                                
+                                break;
+                            } else {
+                                attempts += 1;
+                                if attempts >= max_attempts {
+                                    warn!("⚠️ File watcher not available after {} seconds, skipping discovery", max_attempts);
+                                    break;
+                                }
+                                info!("⏳ Waiting for file watcher to be available... (attempt {}/{})", attempts, max_attempts);
+                                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                            }
+                        }
+                        
                         0
                     }
                 },
@@ -128,6 +274,7 @@ impl VectorizerServer {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
             start_time: std::time::Instant::now(),
+            file_watcher_system: watcher_system_for_server,
         })
     }
     
@@ -135,12 +282,21 @@ impl VectorizerServer {
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
+        // Create server state for metrics endpoint
+        let server_state = ServerState {
+            file_watcher_system: self.file_watcher_system.clone(),
+        };
+
         // Create MCP router (main server) using SSE transport
         info!("🔧 Creating MCP router with SSE transport...");
         let mcp_router = self.create_mcp_router().await;
         info!("✅ MCP router created");
 
         // Create REST API router to add to MCP
+        let metrics_router = Router::new()
+            .route("/metrics", get(get_file_watcher_metrics))
+            .with_state(Arc::new(server_state));
+        
         let rest_routes = Router::new()
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
@@ -208,8 +364,8 @@ impl VectorizerServer {
             .layer(CorsLayer::permissive())
             .with_state(self.clone());
 
-        // Merge REST routes into MCP router
-        let app = mcp_router.merge(rest_routes);
+        // Merge REST routes and metrics router into MCP router
+        let app = mcp_router.merge(rest_routes).merge(metrics_router);
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP SSE: http://{}:{}/mcp/sse", host, port);
@@ -259,6 +415,73 @@ impl VectorizerServer {
         router
     }
 }
+
+/// Get File Watcher metrics endpoint
+/// Get File Watcher metrics endpoint
+pub async fn get_file_watcher_metrics(
+    State(state): State<Arc<ServerState>>,
+) -> Result<Json<FileWatcherMetrics>, (StatusCode, String)> {
+    // Get the file watcher system from the state
+    let watcher_lock = state.file_watcher_system.lock().await;
+    
+    if let Some(watcher_system) = watcher_lock.as_ref() {
+        let metrics = watcher_system.get_metrics().await;
+        return Ok(Json(metrics));
+    }
+    
+    // Return empty/default metrics if File Watcher is not available
+    use crate::file_watcher::metrics::*;
+    use std::collections::HashMap;
+    
+    let default_metrics = FileWatcherMetrics {
+        timing: TimingMetrics {
+            avg_file_processing_ms: 0.0,
+            avg_discovery_ms: 0.0,
+            avg_sync_ms: 0.0,
+            uptime_seconds: 0,
+            last_activity: None,
+            peak_processing_ms: 0,
+        },
+        files: FileMetrics {
+            total_files_processed: 0,
+            files_processed_success: 0,
+            files_processed_error: 0,
+            files_skipped: 0,
+            files_in_progress: 0,
+            files_discovered: 0,
+            files_removed: 0,
+            files_indexed_realtime: 0,
+        },
+        system: SystemMetrics {
+            memory_usage_bytes: 0,
+            cpu_usage_percent: 0.0,
+            thread_count: 0,
+            active_file_handles: 0,
+            disk_io_ops_per_sec: 0,
+            network_io_bytes_per_sec: 0,
+        },
+        network: NetworkMetrics {
+            total_api_requests: 0,
+            successful_api_requests: 0,
+            failed_api_requests: 0,
+            avg_api_response_ms: 0.0,
+            peak_api_response_ms: 0,
+            active_connections: 0,
+        },
+        status: StatusMetrics {
+            total_errors: 0,
+            errors_by_type: HashMap::new(),
+            current_status: "initializing".to_string(),
+            last_error: None,
+            health_score: 0,
+            restart_count: 0,
+        },
+        collections: HashMap::new(),
+    };
+    
+    Ok(Json(default_metrics))
+}
+
 
 /// MCP Service implementation
 #[derive(Clone)]

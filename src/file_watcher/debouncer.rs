@@ -111,7 +111,7 @@ impl Debouncer {
                 };
 
                 let event_with_metadata = FileChangeEventWithMetadata {
-                    event: pending_event.event,
+                    event: pending_event.event.clone(),
                     timestamp: pending_event.timestamp,
                     content_hash,
                     file_size,
@@ -119,7 +119,11 @@ impl Debouncer {
 
                 // Call the event callback
                 if let Some(callback) = event_callback.read().await.as_ref() {
+                    tracing::info!("🔍 DEBOUNCER: Calling callback for event: {:?}", event_with_metadata.event);
                     callback(event_with_metadata);
+                    tracing::info!("✅ DEBOUNCER: Callback completed for event: {:?}", pending_event.event);
+                } else {
+                    tracing::warn!("⚠️ DEBOUNCER: No callback set for event: {:?}", pending_event.event);
                 }
             }
         });

@@ -2,12 +2,16 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.3.4 - Critical Fix Release**
+## ✨ **Version 0.4.0 - File Watcher System Release**
 
-### 🐛 **Critical Bug Fix**
-- ✅ **Fixed metadata persistence**: Collection metadata files now correctly save the complete list of indexed files (`indexed_files` + `total_files` fields)
-- ✅ **Restored file operations**: All 6 file operation MCP tools (`get_file_summary`, `get_file_chunks_ordered`, `list_files_in_collection`, `search_by_file_type`, `get_related_files`, `get_project_outline`) now working correctly
-- ✅ **Validated**: Comprehensive testing of 40+ MCP tools with 100% success rate
+### 🚀 **Major Feature: Real-time File Monitoring**
+- ✅ **Complete File Watcher System**: Real-time file monitoring with automatic indexing and reindexing
+- ✅ **File Discovery**: Automatic discovery and indexing of files in workspace directories
+- ✅ **Smart Debouncing**: Intelligent event debouncing to prevent excessive processing
+- ✅ **Hash Validation**: Content-based change detection using file hashing
+- ✅ **Pattern Filtering**: Configurable include/exclude patterns for file types and directories
+- ✅ **31 Comprehensive Tests**: Complete test suite with 100% success rate
+- ✅ **Zero External Dependencies**: Pure Rust implementation with no external tool dependencies
 
 ### 🚀 **File Operations Module** (v0.3.2+)
 - ✅ **6 Production-Ready MCP Tools**: Complete file-level operations for AI assistants
@@ -29,17 +33,20 @@ A high-performance vector database and search engine built in Rust, designed for
 - 🔄 **Hybrid Search**: RRF combining sparse and dense retrieval
 
 ### 🧪 **Test Suite**
-- ✅ **274 tests passing** (100% pass rate)
+- ✅ **282 tests passing** (100% pass rate)
 - ⚡ **2.01s execution time** (optimized from >60s)
 - 🎯 **Production-ready** with comprehensive coverage
+- ✅ **File Watcher Tests**: 31 dedicated tests for real-time monitoring system
 
 ## 🌟 **Key Features**
 
+- **🔍 Real-time File Watcher**: Complete file monitoring system with automatic discovery, indexing, and reindexing
+- **📁 File System Monitoring**: Live detection of file changes (create, modify, delete, move) with smart debouncing
+- **🎯 Pattern-based Filtering**: Configurable include/exclude patterns for file types and directories
+- **🔐 Hash Validation**: Content-based change detection using SHA-256 hashing to avoid unnecessary reindexing
 - **💾 Dynamic Collection Persistence**: Collections automatically saved and loaded on server restart
-- **🔍 Real-time File Watcher**: Monitor file changes and auto-index documents
 - **⚡ Background Auto-save**: Collections saved every 30 seconds automatically
 - **🔄 Seamless Restart**: All collections restored exactly as they were
-- **📁 File System Monitoring**: Real-time indexing of document changes
 - **🔍 Semantic Search**: Advanced vector similarity search with multiple distance metrics
 - **📚 Document Indexing**: Intelligent chunking and processing of various file types
 - **🧠 Multiple Embeddings**: Support for TF-IDF, BM25, BERT, MiniLM, and custom models

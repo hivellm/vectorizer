@@ -1,0 +1,219 @@
+# HiveLLM Ecosystem Workspace
+
+# Global file watcher configuration
+global_settings:
+  file_watcher:
+    watch_paths:
+      - "/home/kleberson/Projetos/Skynet/"
+    auto_discovery: true
+    enable_auto_update: true
+    hot_reload: true
+
+projects:
+  - name: "docs"
+    path: "../docs"
+    description: "Projeto Docs - Fonte única de verdade para documentação"
+    collections:
+      - name: "docs-architecture"
+        description: "Padrões arquiteturais e design patterns"
+        include_patterns:
+          - "architecture/**/*.md"
+          - "**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "docs-templates"
+        description: "Templates para documentação"
+        include_patterns:
+          - "templates/**/*.md"
+          - "**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "docs-processes"
+        description: "Processos de desenvolvimento"
+        include_patterns:
+          - "processes/**/*.md"
+          - "**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "docs-governance"
+        description: "Governança e regras organizacionais"
+        include_patterns:
+          - "governance/**/*.md"
+          - "**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "docs-navigation"
+        description: "Estrutura de navegação e organização"
+        include_patterns:
+          - "navigation/**/*.md"
+          - "**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "docs-testing"
+        description: "Estratégias de teste e qualidade"
+        include_patterns:
+          - "testing/**/*.md"
+          - "**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+  
+  - name: "vectorizer"
+    path: "."
+    description: "Vectorizer - Vector database and search engine"
+    collections:
+      - name: "vectorizer-docs"
+        description: "Vectorizer documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "node_modules/**"
+      - name: "vectorizer-source"
+        description: "Vectorizer Rust source code"
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+          - "**/*.json"
+          - "scripts/**/*"
+          - "build.rs"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "logs/**"
+      - name: "vectorizer-sdk-typescript"
+        description: "Vectorizer TypeScript/JavaScript SDK"
+        include_patterns:
+          - "client-sdks/**/*.ts"
+          - "client-sdks/**/*.js"
+          - "client-sdks/**/*.json"
+        exclude_patterns:
+          - "client-sdks/**/node_modules/**"
+          - "client-sdks/**/dist/**"
+          - "client-sdks/**/*.map"
+      - name: "vectorizer-sdk-python"
+        description: "Vectorizer Python SDK"
+        include_patterns:
+          - "client-sdks/**/*.py"
+          - "client-sdks/**/*.txt"
+          - "client-sdks/**/*.toml"
+        exclude_patterns:
+          - "client-sdks/**/__pycache__/**"
+          - "client-sdks/**/venv/**"
+          - "client-sdks/**/build/**"
+      - name: "vectorizer-sdk-rust"
+        description: "Vectorizer Rust SDK"
+        include_patterns:
+          - "client-sdks/**/*.rs"
+          - "client-sdks/**/*.toml"
+          - "client-sdks/**/*.json"
+        exclude_patterns:
+          - "client-sdks/**/target/**"
+          - "client-sdks/**/Cargo.lock"
+  
+  - name: "gov"
+    path: "../gov"
+    description: "HiveLLM Governance - Sistema de governança e decisões técnicas"
+    collections:
+      - name: "gov-bips"
+        description: "BIP System - Bitcoin Improvement Proposals para decisões técnicas"
+        include_patterns:
+          - "bips/**/*.md"
+          - "bips/**/*.json"
+          - "bips/**/*.txt"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-guidelines"
+        description: "Guidelines e políticas de desenvolvimento"
+        include_patterns:
+          - "guidelines/**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-proposals"
+        description: "Sistema de propostas aprovadas, rejeitadas e pendentes"
+        include_patterns:
+          - "proposals/**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-minutes"
+        description: "Atas de reuniões de governança e votação"
+        include_patterns:
+          - "minutes/**/*.md"
+          - "minutes/**/*.json"
+          - "minutes/**/*.sh"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-schemas"
+        description: "Esquemas JSON para validação de dados"
+        include_patterns:
+          - "schemas/**/*.json"
+          - "schemas/**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-teams"
+        description: "Estrutura de equipes e organização"
+        include_patterns:
+          - "teams/**/*.md"
+          - "teams/**/*.json"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-metrics"
+        description: "Métricas e avaliações de modelos de IA"
+        include_patterns:
+          - "metrics/**/*.json"
+          - "metrics/**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-issues"
+        description: "Templates de issues e estrutura de relatórios"
+        include_patterns:
+          - "issues/**/*.md"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-snapshot"
+        description: "Snapshots do estado do projeto e instruções"
+        include_patterns:
+          - "snapshot/**/*.md"
+          - "snapshot/**/*.log"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
+      - name: "gov-core"
+        description: "Documentos centrais de governança e manifesto"
+        include_patterns:
+          - "*.md"
+          - "*.json"
+        exclude_patterns:
+          - "**/.*"
+          - "**/node_modules/**"
+          - "**/target/**"
