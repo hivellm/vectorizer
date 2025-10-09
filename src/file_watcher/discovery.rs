@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use tokio::sync::RwLock;
 use tracing::{info, warn, debug, error};
 
-use crate::file_watcher::{FileWatcherConfig, VectorOperations};
+use crate::file_watcher::{FileWatcherConfig, VectorOperations, EmbeddingManager};
 use crate::VectorStore;
 
 /// File discovery system for initial scanning
@@ -576,9 +576,17 @@ mod tests {
         // Create test file
         fs::write(&test_file, "# Test").unwrap();
         
-        // Create mock config
+        // Create mock config without problematic exclude patterns
         let config = FileWatcherConfig {
             watch_paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include_patterns: vec!["*.md".to_string()],
+            exclude_patterns: vec![
+                "**/target/**".to_string(),
+                "**/node_modules/**".to_string(),
+                "**/.git/**".to_string(),
+                "**/*.tmp".to_string(),
+                "**/*.log".to_string(),
+            ],
             ..FileWatcherConfig::default()
         };
         
@@ -587,10 +595,10 @@ mod tests {
         let discovery = FileDiscovery {
             config: config.clone(),
             vector_operations: Arc::new(VectorOperations::new(
-                Arc::new(VectorStore::new_auto().await.unwrap()),
-                Arc::new(RwLock::new(EmbeddingManager::new("bm25").await.unwrap())),
+                Arc::new(VectorStore::new_auto()),
+                Arc::new(RwLock::new(EmbeddingManager::new())),
             )),
-            vector_store: Arc::new(VectorStore::new_auto().await.unwrap()),
+            vector_store: Arc::new(VectorStore::new_auto()),
         };
         
         let files = discovery.collect_files_recursive(temp_dir.path()).await.unwrap();
@@ -598,16 +606,16 @@ mod tests {
         assert_eq!(files[0], test_file);
     }
 
-    #[test]
-    fn test_directory_exclusion() {
+    #[tokio::test]
+    async fn test_directory_exclusion() {
         let config = FileWatcherConfig::default();
         let discovery = FileDiscovery {
             config: config.clone(),
             vector_operations: Arc::new(VectorOperations::new(
-                Arc::new(VectorStore::new_auto().await.unwrap()),
-                Arc::new(RwLock::new(EmbeddingManager::new("bm25").await.unwrap())),
+                Arc::new(VectorStore::new_auto()),
+                Arc::new(RwLock::new(EmbeddingManager::new())),
             )),
-            vector_store: Arc::new(VectorStore::new_auto().await.unwrap()),
+            vector_store: Arc::new(VectorStore::new_auto()),
         };
         
         // Test excluded directories

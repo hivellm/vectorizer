@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.3.4"
+version = "0.4.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -26,6 +26,7 @@ sha2 = "0.10"
 walkdir = "2.4"
 notify = "8.2"
 fastrand = "2.0"
+sysinfo = "0.32"
 
 # Index and vector operations
 hnsw_rs = "0.3"

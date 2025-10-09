@@ -11,6 +11,7 @@ pub mod file_index;
 pub mod enhanced_watcher;
 pub mod operations;
 pub mod discovery;
+pub mod metrics;
 
 #[cfg(test)]
 pub mod tests;
@@ -27,6 +28,7 @@ pub use operations::VectorOperations;
 pub use file_index::{FileIndex, FileIndexArc, CollectionVectorMapping, FileIndexStats};
 pub use enhanced_watcher::{EnhancedFileWatcher, FileSystemEvent, WorkspaceConfig, ProjectConfig, CollectionConfig};
 pub use discovery::{FileDiscovery, DiscoveryResult, DiscoveryStats, SyncResult, SyncStats};
+pub use metrics::{MetricsCollector, FileWatcherMetrics};
 
 // Re-export FileWatcherSystem for external use
 
@@ -123,6 +125,7 @@ pub struct FileWatcherSystem {
     debouncer: Arc<debouncer::Debouncer>,
     hash_validator: Arc<hash_validator::HashValidator>,
     discovery: Option<Arc<discovery::FileDiscovery>>,
+    metrics: Arc<MetricsCollector>,
 }
 
 impl FileWatcherSystem {
@@ -134,6 +137,7 @@ impl FileWatcherSystem {
     ) -> Self {
         let debouncer = Arc::new(debouncer::Debouncer::new(config.debounce_delay_ms));
         let hash_validator = Arc::new(hash_validator::HashValidator::new());
+        let metrics = Arc::new(MetricsCollector::new());
         
         // Create vector operations - we'll pass the Arc<RwLock<EmbeddingManager>> directly
         let vector_operations = Arc::new(operations::VectorOperations::new(
@@ -149,6 +153,7 @@ impl FileWatcherSystem {
             debouncer,
             hash_validator,
             discovery: None,
+            metrics,
         }
     }
 
@@ -160,10 +165,14 @@ impl FileWatcherSystem {
         // Set up event processing callback
         let vector_operations = self.vector_operations.clone();
         self.debouncer.set_event_callback(move |event| {
+            tracing::info!("🔍 CALLBACK: File change event received: {:?}", event.event);
             let vector_operations = vector_operations.clone();
             tokio::spawn(async move {
+                tracing::info!("🔍 CALLBACK: Processing file change event: {:?}", event.event);
                 if let Err(e) = vector_operations.process_file_change(&event).await {
-                    tracing::error!("Failed to process file change event: {:?}", e);
+                    tracing::error!("❌ CALLBACK: Failed to process file change event: {:?}", e);
+                } else {
+                    tracing::info!("✅ CALLBACK: Successfully processed file change event: {:?}", event.event);
                 }
             });
         }).await;
@@ -514,6 +523,48 @@ pub enum FileWatcherError {
     
     #[error("Sync error: {0}")]
     SyncError(String),
+}
+
+impl FileWatcherSystem {
+    /// Get current metrics
+    pub async fn get_metrics(&self) -> FileWatcherMetrics {
+        self.metrics.get_metrics().await
+    }
+
+    /// Get metrics summary for logging
+    pub async fn get_metrics_summary(&self) -> String {
+        self.metrics.get_summary().await
+    }
+
+    /// Record file processing metrics
+    pub async fn record_file_processing(&self, success: bool, processing_time_ms: u64) {
+        self.metrics.record_file_processing_complete(success, processing_time_ms).await;
+    }
+
+    /// Record discovery metrics
+    pub async fn record_discovery(&self, files_found: u64, discovery_time_ms: u64) {
+        self.metrics.record_discovery(files_found, discovery_time_ms).await;
+    }
+
+    /// Record sync metrics
+    pub async fn record_sync(&self, orphaned_removed: u64, unindexed_found: u64, sync_time_ms: u64) {
+        self.metrics.record_sync(orphaned_removed, unindexed_found, sync_time_ms).await;
+    }
+
+    /// Record error metrics
+    pub async fn record_error(&self, error_type: &str, error_message: &str) {
+        self.metrics.record_error(error_type, error_message).await;
+    }
+
+    /// Update collection metrics
+    pub async fn update_collection_metrics(&self, collection_name: &str, total_vectors: u64, size_bytes: u64) {
+        self.metrics.update_collection_metrics(collection_name, total_vectors, size_bytes).await;
+    }
+
+    /// Reset metrics
+    pub async fn reset_metrics(&self) {
+        self.metrics.reset().await;
+    }
 }
 
 pub type Result<T> = std::result::Result<T, FileWatcherError>;

@@ -24,17 +24,24 @@ impl VectorOperations {
 
     /// Process file change event
     pub async fn process_file_change(&self, event: &crate::file_watcher::FileChangeEventWithMetadata) -> Result<()> {
+        tracing::info!("🔍 PROCESS: Processing file change event: {:?}", event.event);
         match &event.event {
             crate::file_watcher::FileChangeEvent::Created(path) | crate::file_watcher::FileChangeEvent::Modified(path) => {
+                tracing::info!("🔍 PROCESS: Indexing file: {:?}", path);
                 self.index_file_from_path(path).await?;
+                tracing::info!("✅ PROCESS: Successfully indexed file: {:?}", path);
             }
             crate::file_watcher::FileChangeEvent::Deleted(path) => {
+                tracing::info!("🔍 PROCESS: Removing file: {:?}", path);
                 self.remove_file_from_path(path).await?;
+                tracing::info!("✅ PROCESS: Successfully removed file: {:?}", path);
             }
             crate::file_watcher::FileChangeEvent::Renamed(old_path, new_path) => {
+                tracing::info!("🔍 PROCESS: Renaming file from {:?} to {:?}", old_path, new_path);
                 // Remove from old path and add to new path
                 self.remove_file_from_path(old_path).await?;
                 self.index_file_from_path(new_path).await?;
+                tracing::info!("✅ PROCESS: Successfully renamed file from {:?} to {:?}", old_path, new_path);
             }
         }
         Ok(())

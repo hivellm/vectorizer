@@ -13,10 +13,20 @@ use tokio::sync::RwLock;
 use axum::{
     Router,
     routing::{get, post, delete},
+    extract::State,
+    response::Json,
+    http::StatusCode,
 };
 use tower_http::services::ServeDir;
 use tower_http::cors::CorsLayer;
 use tracing::{info, error, warn};
+use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem};
+
+/// Global server state to share between endpoints
+#[derive(Clone)]
+pub struct ServerState {
+    pub file_watcher_system: Arc<tokio::sync::Mutex<Option<FileWatcherSystem>>>,
+}
 
 use crate::{
     VectorStore,
@@ -31,6 +41,7 @@ pub struct VectorizerServer {
     pub store: Arc<VectorStore>,
     pub embedding_manager: Arc<EmbeddingManager>,
     pub start_time: std::time::Instant,
+    pub file_watcher_system: Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
 }
 
 impl VectorizerServer {
@@ -73,6 +84,7 @@ impl VectorizerServer {
         info!("🔍 STEP 4: About to spawn file watcher task...");
         let watcher_system_arc = Arc::new(tokio::sync::Mutex::new(None::<crate::file_watcher::FileWatcherSystem>));
         let watcher_system_for_task = watcher_system_arc.clone();
+        let watcher_system_for_server = watcher_system_arc.clone();
         
         tokio::task::spawn(async move {
             info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
@@ -187,8 +199,18 @@ impl VectorizerServer {
                                 
                                 // Perform comprehensive synchronization
                                 info!("🔍 COLLECTION_LOAD_STEP_5: Starting comprehensive synchronization...");
+                                let sync_start = std::time::Instant::now();
                                 match watcher_system.comprehensive_sync().await {
                                     Ok((sync_result, unindexed_files)) => {
+                                        let sync_time_ms = sync_start.elapsed().as_millis() as u64;
+                                        
+                                        // Record sync metrics
+                                        watcher_system.record_sync(
+                                            sync_result.stats.orphaned_files_removed as u64,
+                                            unindexed_files.len() as u64,
+                                            sync_time_ms
+                                        ).await;
+                                        
                                         info!("✅ Comprehensive sync completed: {} orphaned files removed, {} unindexed files detected", 
                                               sync_result.stats.orphaned_files_removed, unindexed_files.len());
                                         
@@ -198,6 +220,7 @@ impl VectorizerServer {
                                     }
                                     Err(e) => {
                                         warn!("⚠️ Comprehensive sync failed: {}", e);
+                                        watcher_system.record_error("sync_error", &e.to_string()).await;
                                     }
                                 }
                                 
@@ -251,6 +274,7 @@ impl VectorizerServer {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
             start_time: std::time::Instant::now(),
+            file_watcher_system: watcher_system_for_server,
         })
     }
     
@@ -258,12 +282,21 @@ impl VectorizerServer {
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
+        // Create server state for metrics endpoint
+        let server_state = ServerState {
+            file_watcher_system: self.file_watcher_system.clone(),
+        };
+
         // Create MCP router (main server) using SSE transport
         info!("🔧 Creating MCP router with SSE transport...");
         let mcp_router = self.create_mcp_router().await;
         info!("✅ MCP router created");
 
         // Create REST API router to add to MCP
+        let metrics_router = Router::new()
+            .route("/metrics", get(get_file_watcher_metrics))
+            .with_state(Arc::new(server_state));
+        
         let rest_routes = Router::new()
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
@@ -331,8 +364,8 @@ impl VectorizerServer {
             .layer(CorsLayer::permissive())
             .with_state(self.clone());
 
-        // Merge REST routes into MCP router
-        let app = mcp_router.merge(rest_routes);
+        // Merge REST routes and metrics router into MCP router
+        let app = mcp_router.merge(rest_routes).merge(metrics_router);
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP SSE: http://{}:{}/mcp/sse", host, port);
@@ -382,6 +415,73 @@ impl VectorizerServer {
         router
     }
 }
+
+/// Get File Watcher metrics endpoint
+/// Get File Watcher metrics endpoint
+pub async fn get_file_watcher_metrics(
+    State(state): State<Arc<ServerState>>,
+) -> Result<Json<FileWatcherMetrics>, (StatusCode, String)> {
+    // Get the file watcher system from the state
+    let watcher_lock = state.file_watcher_system.lock().await;
+    
+    if let Some(watcher_system) = watcher_lock.as_ref() {
+        let metrics = watcher_system.get_metrics().await;
+        return Ok(Json(metrics));
+    }
+    
+    // Return empty/default metrics if File Watcher is not available
+    use crate::file_watcher::metrics::*;
+    use std::collections::HashMap;
+    
+    let default_metrics = FileWatcherMetrics {
+        timing: TimingMetrics {
+            avg_file_processing_ms: 0.0,
+            avg_discovery_ms: 0.0,
+            avg_sync_ms: 0.0,
+            uptime_seconds: 0,
+            last_activity: None,
+            peak_processing_ms: 0,
+        },
+        files: FileMetrics {
+            total_files_processed: 0,
+            files_processed_success: 0,
+            files_processed_error: 0,
+            files_skipped: 0,
+            files_in_progress: 0,
+            files_discovered: 0,
+            files_removed: 0,
+            files_indexed_realtime: 0,
+        },
+        system: SystemMetrics {
+            memory_usage_bytes: 0,
+            cpu_usage_percent: 0.0,
+            thread_count: 0,
+            active_file_handles: 0,
+            disk_io_ops_per_sec: 0,
+            network_io_bytes_per_sec: 0,
+        },
+        network: NetworkMetrics {
+            total_api_requests: 0,
+            successful_api_requests: 0,
+            failed_api_requests: 0,
+            avg_api_response_ms: 0.0,
+            peak_api_response_ms: 0,
+            active_connections: 0,
+        },
+        status: StatusMetrics {
+            total_errors: 0,
+            errors_by_type: HashMap::new(),
+            current_status: "initializing".to_string(),
+            last_error: None,
+            health_score: 0,
+            restart_count: 0,
+        },
+        collections: HashMap::new(),
+    };
+    
+    Ok(Json(default_metrics))
+}
+
 
 /// MCP Service implementation
 #[derive(Clone)]

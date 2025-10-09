@@ -22,7 +22,10 @@ This index organizes all Vectorizer documentation to facilitate navigation and u
 - [phase1/TECHNICAL_IMPLEMENTATION.md](phase1/TECHNICAL_IMPLEMENTATION.md) - Detailed technical implementation
 
 ### **Advanced Systems**
-- [FILE_WATCHER_TECHNICAL_SPEC.md](../technical/FILE_WATCHER_TECHNICAL_SPEC.md) - File monitoring system (✅ COMPLETE)
+- [FILE_WATCHER_TECHNICAL_SPEC.md](../technical/FILE_WATCHER_TECHNICAL_SPEC.md) - **NEW v0.4.0**: Complete File Watcher System (✅ IMPLEMENTED)
+- [FILE_WATCHER_USER_GUIDE.md](../user-guide/FILE_WATCHER_USER_GUIDE.md) - **NEW v0.4.0**: File Watcher user guide
+- [FILE_WATCHER_IMPLEMENTATION_REPORT.md](../implementations/FILE_WATCHER_IMPLEMENTATION_REPORT.md) - **NEW v0.4.0**: Implementation report
+- [TESTING_MIGRATION.md](../TESTING_MIGRATION.md) - **NEW v0.4.0**: Migration from bash to Rust tests
 - [CACHE_AND_INCREMENTAL_INDEXING.md](CACHE_AND_INCREMENTAL_INDEXING.md) - Cache and incremental indexing
 - [WATCHER_SPECIFICATION.md](WATCHER_SPECIFICATION.md) - Monitoring system specification
 - [../WORKSPACE_SIMPLIFICATION.md](../WORKSPACE_SIMPLIFICATION.md) - **NEW v0.26.0**: Simplified workspace configuration
