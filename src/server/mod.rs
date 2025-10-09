@@ -77,12 +77,19 @@ impl VectorizerServer {
         tokio::task::spawn(async move {
             info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
             info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
-            let watcher_system = crate::file_watcher::FileWatcherSystem::new(
+            let mut watcher_system = crate::file_watcher::FileWatcherSystem::new(
                 crate::file_watcher::FileWatcherConfig::default(),
                 store_for_watcher,
                 file_watcher_arc,
             );
             info!("✅ STEP 5: FileWatcherSystem instance created");
+            
+            info!("🔍 STEP 5.1: Initializing file discovery system...");
+            if let Err(e) = watcher_system.initialize_discovery() {
+                error!("Failed to initialize file discovery system: {}", e);
+            } else {
+                info!("✅ STEP 5.1: File discovery system initialized");
+            }
             
             // Store the watcher system for later use
             {
@@ -125,6 +132,30 @@ impl VectorizerServer {
                                     info!("✅ Updated file watcher with collection: {}", collection_name);
                                 }
                             }
+                            
+                            // Discover and index existing files after collections are loaded
+                            info!("🔍 COLLECTION_LOAD_STEP_4: Starting file discovery for existing files...");
+                            match watcher_system.discover_existing_files().await {
+                                Ok(result) => {
+                                    info!("✅ File discovery completed: {} files indexed, {} skipped, {} errors", 
+                                          result.stats.files_indexed, result.stats.files_skipped, result.stats.files_errors);
+                                }
+                                Err(e) => {
+                                    warn!("⚠️ File discovery failed: {}", e);
+                                }
+                            }
+                            
+                            // Sync with collections to remove orphaned files
+                            info!("🔍 COLLECTION_LOAD_STEP_5: Starting collection sync...");
+                            match watcher_system.sync_with_collections().await {
+                                Ok(result) => {
+                                    info!("✅ Collection sync completed: {} orphaned files removed", 
+                                          result.stats.orphaned_files_removed);
+                                }
+                                Err(e) => {
+                                    warn!("⚠️ Collection sync failed: {}", e);
+                                }
+                            }
                         } else {
                             warn!("⚠️ File watcher not available for update");
                         }
@@ -133,6 +164,55 @@ impl VectorizerServer {
                     } else {
                         println!("ℹ️  Background loading completed - no persisted collections found");
                         info!("✅ COLLECTION_LOAD_STEP_2: Background loading completed - no persisted collections found");
+                        
+                        // Even with no persisted collections, try to discover existing files
+                        info!("🔍 COLLECTION_LOAD_STEP_3: No persisted collections, attempting conservative file discovery...");
+                        
+                        // Wait for file watcher to be available (with timeout)
+                        let mut attempts = 0;
+                        let max_attempts = 10; // Conservative timeout
+                        
+                        loop {
+                            if let Some(watcher_system) = watcher_system_for_loading.lock().await.as_ref() {
+                                info!("🔍 COLLECTION_LOAD_STEP_4: Starting conservative file discovery...");
+                                match watcher_system.discover_existing_files().await {
+                                    Ok(result) => {
+                                        info!("✅ File discovery completed: {} files indexed, {} skipped, {} errors", 
+                                              result.stats.files_indexed, result.stats.files_skipped, result.stats.files_errors);
+                                    }
+                                    Err(e) => {
+                                        warn!("⚠️ File discovery failed: {}", e);
+                                    }
+                                }
+                                
+                                // Perform comprehensive synchronization
+                                info!("🔍 COLLECTION_LOAD_STEP_5: Starting comprehensive synchronization...");
+                                match watcher_system.comprehensive_sync().await {
+                                    Ok((sync_result, unindexed_files)) => {
+                                        info!("✅ Comprehensive sync completed: {} orphaned files removed, {} unindexed files detected", 
+                                              sync_result.stats.orphaned_files_removed, unindexed_files.len());
+                                        
+                                        if !unindexed_files.is_empty() {
+                                            info!("📄 Unindexed files detected: {:?}", unindexed_files);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("⚠️ Comprehensive sync failed: {}", e);
+                                    }
+                                }
+                                
+                                break;
+                            } else {
+                                attempts += 1;
+                                if attempts >= max_attempts {
+                                    warn!("⚠️ File watcher not available after {} seconds, skipping discovery", max_attempts);
+                                    break;
+                                }
+                                info!("⏳ Waiting for file watcher to be available... (attempt {}/{})", attempts, max_attempts);
+                                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                            }
+                        }
+                        
                         0
                     }
                 },

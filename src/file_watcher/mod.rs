@@ -10,6 +10,7 @@ pub mod watcher;
 pub mod file_index;
 pub mod enhanced_watcher;
 pub mod operations;
+pub mod discovery;
 
 #[cfg(test)]
 pub mod tests;
@@ -25,6 +26,7 @@ pub use watcher::Watcher as FileWatcher;
 pub use operations::VectorOperations;
 pub use file_index::{FileIndex, FileIndexArc, CollectionVectorMapping, FileIndexStats};
 pub use enhanced_watcher::{EnhancedFileWatcher, FileSystemEvent, WorkspaceConfig, ProjectConfig, CollectionConfig};
+pub use discovery::{FileDiscovery, DiscoveryResult, DiscoveryStats, SyncResult, SyncStats};
 
 // Re-export FileWatcherSystem for external use
 
@@ -120,6 +122,7 @@ pub struct FileWatcherSystem {
     vector_operations: Arc<operations::VectorOperations>,
     debouncer: Arc<debouncer::Debouncer>,
     hash_validator: Arc<hash_validator::HashValidator>,
+    discovery: Option<Arc<discovery::FileDiscovery>>,
 }
 
 impl FileWatcherSystem {
@@ -145,6 +148,7 @@ impl FileWatcherSystem {
             vector_operations,
             debouncer,
             hash_validator,
+            discovery: None,
         }
     }
 
@@ -220,6 +224,89 @@ impl FileWatcherSystem {
         tracing::info!("✅ FW_STEP_7: File Watcher System started successfully");
 
         Ok(())
+    }
+
+    /// Initialize file discovery system
+    pub fn initialize_discovery(&mut self) -> Result<()> {
+        tracing::info!("🔍 Initializing file discovery system...");
+        
+        let discovery = Arc::new(discovery::FileDiscovery::new(
+            self.config.clone(),
+            self.vector_operations.clone(),
+            self.vector_store.clone(),
+        ));
+        
+        self.discovery = Some(discovery);
+        tracing::info!("✅ File discovery system initialized");
+        
+        Ok(())
+    }
+
+    /// Discover and index existing files in the workspace
+    pub async fn discover_existing_files(&self) -> Result<discovery::DiscoveryResult> {
+        if let Some(discovery) = &self.discovery {
+            tracing::info!("🔍 Starting discovery of existing files...");
+            
+            let result = discovery.discover_existing_files().await
+                .map_err(|e| FileWatcherError::DiscoveryError(e.to_string()))?;
+            
+            tracing::info!("✅ File discovery completed: {} files indexed, {} skipped, {} errors", 
+                          result.stats.files_indexed, result.stats.files_skipped, result.stats.files_errors);
+            
+            Ok(result)
+        } else {
+            Err(FileWatcherError::DiscoveryError("Discovery system not initialized".to_string()))
+        }
+    }
+
+    /// Sync with existing collections to remove orphaned files
+    pub async fn sync_with_collections(&self) -> Result<discovery::SyncResult> {
+        if let Some(discovery) = &self.discovery {
+            tracing::info!("🔄 Starting sync with existing collections...");
+            
+            let result = discovery.sync_with_existing_collections().await
+                .map_err(|e| FileWatcherError::SyncError(e.to_string()))?;
+            
+            tracing::info!("✅ Collection sync completed: {} orphaned files removed", 
+                          result.stats.orphaned_files_removed);
+            
+            Ok(result)
+        } else {
+            Err(FileWatcherError::SyncError("Discovery system not initialized".to_string()))
+        }
+    }
+
+    /// Detect files that exist in the filesystem but are not indexed
+    pub async fn detect_unindexed_files(&self) -> Result<Vec<std::path::PathBuf>> {
+        if let Some(discovery) = &self.discovery {
+            tracing::info!("🔍 Detecting unindexed files...");
+            
+            let unindexed_files = discovery.detect_unindexed_files().await
+                .map_err(|e| FileWatcherError::SyncError(e.to_string()))?;
+            
+            tracing::info!("✅ Unindexed files detection completed: {} files found", unindexed_files.len());
+            
+            Ok(unindexed_files)
+        } else {
+            Err(FileWatcherError::SyncError("Discovery system not initialized".to_string()))
+        }
+    }
+
+    /// Perform comprehensive synchronization (orphaned + unindexed)
+    pub async fn comprehensive_sync(&self) -> Result<(discovery::SyncResult, Vec<std::path::PathBuf>)> {
+        if let Some(discovery) = &self.discovery {
+            tracing::info!("🔄 Starting comprehensive synchronization...");
+            
+            let result = discovery.comprehensive_sync().await
+                .map_err(|e| FileWatcherError::SyncError(e.to_string()))?;
+            
+            tracing::info!("✅ Comprehensive sync completed: {} orphaned files removed, {} unindexed files detected", 
+                          result.0.stats.orphaned_files_removed, result.1.len());
+            
+            Ok(result)
+        } else {
+            Err(FileWatcherError::SyncError("Discovery system not initialized".to_string()))
+        }
     }
 
     /// Update file watcher with new indexed files (called after each collection is indexed)
@@ -421,6 +508,12 @@ pub enum FileWatcherError {
     
     #[error("Failed to stop watcher: {0}")]
     WatcherStopFailed(String),
+    
+    #[error("Discovery error: {0}")]
+    DiscoveryError(String),
+    
+    #[error("Sync error: {0}")]
+    SyncError(String),
 }
 
 pub type Result<T> = std::result::Result<T, FileWatcherError>;

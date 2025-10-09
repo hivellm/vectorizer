@@ -1,4 +1,13 @@
 # HiveLLM Ecosystem Workspace
+# Global file watcher configuration
+global_settings:
+  file_watcher:
+    watch_paths:
+      - "/home/kleberson/Projetos/Skynet/"
+    auto_discovery: true
+    enable_auto_update: true
+    hot_reload: true
+    
 projects:
   - name: "chat-hub"
     path: "../chat-hub"

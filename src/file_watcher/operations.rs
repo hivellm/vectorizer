@@ -105,7 +105,7 @@ impl VectorOperations {
     }
 
     /// Index file from path
-    async fn index_file_from_path(&self, path: &std::path::Path) -> Result<()> {
+    pub async fn index_file_from_path(&self, path: &std::path::Path) -> Result<()> {
         // Check if file should be processed
         if !self.should_process_file(path) {
             tracing::debug!("Skipping file (doesn't match patterns): {:?}", path);
