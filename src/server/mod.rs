@@ -89,8 +89,15 @@ impl VectorizerServer {
         tokio::task::spawn(async move {
             info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
             info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
+            
+            // Load file watcher configuration from workspace
+            let watcher_config = load_file_watcher_config().await.unwrap_or_else(|e| {
+                warn!("Failed to load file watcher config: {}, using defaults", e);
+                crate::file_watcher::FileWatcherConfig::default()
+            });
+            
             let mut watcher_system = crate::file_watcher::FileWatcherSystem::new(
-                crate::file_watcher::FileWatcherConfig::default(),
+                watcher_config,
                 store_for_watcher,
                 file_watcher_arc,
             );
@@ -103,17 +110,26 @@ impl VectorizerServer {
                 info!("✅ STEP 5.1: File discovery system initialized");
             }
             
-            // Store the watcher system for later use
+            info!("🔍 STEP 6: Starting FileWatcherSystem...");
+            if let Err(e) = watcher_system.start().await {
+                error!("❌ STEP 6: Failed to start file watcher: {}", e);
+            } else {
+                info!("✅ STEP 6: File watcher started successfully");
+            }
+            
+            // Store the watcher system for later use AFTER starting it
             {
                 let mut watcher_guard = watcher_system_for_task.lock().await;
                 *watcher_guard = Some(watcher_system);
             }
             
-            info!("🔍 STEP 6: Starting FileWatcherSystem...");
-            if let Err(e) = watcher_system_for_task.lock().await.as_ref().unwrap().start().await {
-                error!("❌ STEP 6: Failed to start file watcher: {}", e);
-            } else {
-                info!("✅ STEP 6: File watcher started successfully");
+            info!("🔍 STEP 7: File watcher system is now running in background...");
+            
+            // Keep the task alive by waiting indefinitely
+            // This ensures the file watcher continues running
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+                info!("🔍 File watcher is still running...");
             }
         });
 
@@ -377,8 +393,39 @@ impl VectorizerServer {
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
         info!("✅ MCP server with REST API listening on {}:{}", host, port);
         
-        // Serve the application
-        axum::serve(listener, app).await?;
+        // Set up graceful shutdown
+        let shutdown_signal = async {
+            tokio::signal::ctrl_c()
+                .await
+                .expect("Failed to install Ctrl+C handler");
+            info!("🛑 Received shutdown signal (Ctrl+C)");
+        };
+        
+        // Serve the application with graceful shutdown
+        let server_handle = axum::serve(listener, app);
+        
+        // Wait for either the server to complete or shutdown signal
+        tokio::select! {
+            result = server_handle => {
+                match result {
+                    Ok(_) => info!("✅ Server completed normally"),
+                    Err(e) => error!("❌ Server error: {}", e),
+                }
+            }
+            _ = shutdown_signal => {
+                info!("🛑 Shutdown signal received, stopping server...");
+            }
+        }
+        
+        // Graceful shutdown of file watcher
+        info!("🛑 Starting graceful shutdown of file watcher...");
+        if let Some(watcher_system) = self.file_watcher_system.lock().await.as_ref() {
+            if let Err(e) = watcher_system.stop().await {
+                error!("❌ Failed to stop file watcher gracefully: {}", e);
+            } else {
+                info!("✅ File watcher stopped gracefully");
+            }
+        }
         
         info!("✅ Server stopped gracefully");
         Ok(())
@@ -555,6 +602,146 @@ impl rmcp::ServerHandler for VectorizerMcpService {
         }
     }
 
+}
+
+/// Load file watcher configuration from vectorize-workspace.yml
+async fn load_file_watcher_config() -> anyhow::Result<crate::file_watcher::FileWatcherConfig> {
+    use std::path::Path;
+    
+    let workspace_file = Path::new("vectorize-workspace.yml");
+    if !workspace_file.exists() {
+        info!("No workspace configuration file found, using default file watcher config");
+        return Ok(crate::file_watcher::FileWatcherConfig::default());
+    }
+    
+    let content = tokio::fs::read_to_string(workspace_file).await?;
+    let workspace: serde_yaml::Value = serde_yaml::from_str(&content)?;
+    
+    // Extract file watcher configuration from global_settings
+    let mut config = crate::file_watcher::FileWatcherConfig::default();
+    
+    if let Some(global_settings) = workspace.get("global_settings") {
+        if let Some(file_watcher) = global_settings.get("file_watcher") {
+            // Extract watch paths
+            if let Some(paths) = file_watcher.get("watch_paths") {
+                if let Some(paths_array) = paths.as_sequence() {
+                    let mut watch_paths = Vec::new();
+                    for path in paths_array {
+                        if let Some(path_str) = path.as_str() {
+                            watch_paths.push(std::path::PathBuf::from(path_str));
+                        }
+                    }
+                    config.watch_paths = Some(watch_paths);
+                }
+            }
+            
+            // Extract debounce delay if specified
+            if let Some(debounce_delay) = file_watcher.get("debounce_delay_ms") {
+                if let Some(debounce_delay_num) = debounce_delay.as_u64() {
+                    config.debounce_delay_ms = debounce_delay_num;
+                }
+            }
+            
+            // Extract max file size if specified
+            if let Some(max_file_size) = file_watcher.get("max_file_size") {
+                if let Some(max_file_size_num) = max_file_size.as_u64() {
+                    config.max_file_size = max_file_size_num;
+                }
+            }
+            
+            // Extract enable realtime indexing if specified
+            if let Some(enable_realtime) = file_watcher.get("enable_realtime_indexing") {
+                if let Some(enable_realtime_bool) = enable_realtime.as_bool() {
+                    config.enable_realtime_indexing = enable_realtime_bool;
+                }
+            }
+            
+            // Extract recursive watching if specified
+            if let Some(recursive) = file_watcher.get("recursive") {
+                if let Some(recursive_bool) = recursive.as_bool() {
+                    config.recursive = recursive_bool;
+                }
+            }
+            
+            // Extract include patterns from projects
+            if let Some(projects) = workspace.get("projects") {
+                if let Some(projects_array) = projects.as_sequence() {
+                    let mut include_patterns = Vec::new();
+                    for project in projects_array {
+                        if let Some(collections) = project.get("collections") {
+                            if let Some(collections_array) = collections.as_sequence() {
+                                for collection in collections_array {
+                                    if let Some(patterns) = collection.get("include_patterns") {
+                                        if let Some(patterns_array) = patterns.as_sequence() {
+                                            for pattern in patterns_array {
+                                                if let Some(pattern_str) = pattern.as_str() {
+                                                    include_patterns.push(pattern_str.to_string());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !include_patterns.is_empty() {
+                        config.include_patterns = include_patterns;
+                    }
+                }
+            }
+            
+            // Extract global exclude patterns first
+            if let Some(global_exclude_patterns) = file_watcher.get("exclude_patterns") {
+                if let Some(patterns_array) = global_exclude_patterns.as_sequence() {
+                    let mut global_exclude = Vec::new();
+                    for pattern in patterns_array {
+                        if let Some(pattern_str) = pattern.as_str() {
+                            global_exclude.push(pattern_str.to_string());
+                        }
+                    }
+                    if !global_exclude.is_empty() {
+                        config.exclude_patterns = global_exclude;
+                    }
+                }
+            }
+            
+            // Extract exclude patterns from projects (merge with global)
+            if let Some(projects) = workspace.get("projects") {
+                if let Some(projects_array) = projects.as_sequence() {
+                    let mut project_exclude_patterns = Vec::new();
+                    for project in projects_array {
+                        if let Some(collections) = project.get("collections") {
+                            if let Some(collections_array) = collections.as_sequence() {
+                                for collection in collections_array {
+                                    if let Some(patterns) = collection.get("exclude_patterns") {
+                                        if let Some(patterns_array) = patterns.as_sequence() {
+                                            for pattern in patterns_array {
+                                                if let Some(pattern_str) = pattern.as_str() {
+                                                    project_exclude_patterns.push(pattern_str.to_string());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Merge project exclude patterns with global ones
+                    if !project_exclude_patterns.is_empty() {
+                        config.exclude_patterns.extend(project_exclude_patterns);
+                        // Remove duplicates
+                        config.exclude_patterns.sort();
+                        config.exclude_patterns.dedup();
+                    }
+                }
+            }
+        }
+    }
+    
+    info!("Loaded file watcher configuration: watch_paths={:?}, debounce_delay_ms={}, max_file_size={}, enable_realtime_indexing={}, recursive={}, include_patterns={:?}, exclude_patterns={:?}", 
+          config.watch_paths, config.debounce_delay_ms, config.max_file_size, config.enable_realtime_indexing, config.recursive, config.include_patterns, config.exclude_patterns);
+    
+    Ok(config)
 }
 
 /// Load workspace collections using the existing document_loader.rs

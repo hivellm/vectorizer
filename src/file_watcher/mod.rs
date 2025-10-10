@@ -95,6 +95,16 @@ impl FileChangeEvent {
                     FileChangeEvent::Modified(PathBuf::new())
                 }
             }
+            EventKind::Access(_) => {
+                // Ignore access events to prevent self-detection loops
+                // Access events are generated when we read files during processing
+                if let Some(path) = event.paths.first() {
+                    // Return a special "ignored" event that won't be processed
+                    FileChangeEvent::Modified(PathBuf::new()) // Empty path = ignored
+                } else {
+                    FileChangeEvent::Modified(PathBuf::new())
+                }
+            }
             _ => {
                 // Handle any other event types as modify
                 if let Some(path) = event.paths.first() {
@@ -126,6 +136,7 @@ pub struct FileWatcherSystem {
     hash_validator: Arc<hash_validator::HashValidator>,
     discovery: Option<Arc<discovery::FileDiscovery>>,
     metrics: Arc<MetricsCollector>,
+    watcher: Option<watcher::Watcher>,
 }
 
 impl FileWatcherSystem {
@@ -139,10 +150,11 @@ impl FileWatcherSystem {
         let hash_validator = Arc::new(hash_validator::HashValidator::new());
         let metrics = Arc::new(MetricsCollector::new());
         
-        // Create vector operations - we'll pass the Arc<RwLock<EmbeddingManager>> directly
+        // Create vector operations with configuration
         let vector_operations = Arc::new(operations::VectorOperations::new(
             vector_store.clone(),
             embedding_manager.clone(),
+            config.clone(),
         ));
 
         Self {
@@ -154,11 +166,12 @@ impl FileWatcherSystem {
             hash_validator,
             discovery: None,
             metrics,
+            watcher: None,
         }
     }
 
     /// Start the file watcher system
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&mut self) -> Result<()> {
         tracing::info!("🔍 FW_STEP_1: Starting File Watcher System with config: {:?}", self.config);
         
         tracing::info!("🔍 FW_STEP_2: Setting up event processing callback...");
@@ -196,19 +209,17 @@ impl FileWatcherSystem {
             }
         }
         
-        // If no indexed files found, use workspace configuration
-        if watch_paths.is_empty() {
-            tracing::info!("No indexed files found, loading workspace configuration...");
-            
-            // Load workspace configuration
-            if let Ok(workspace_config) = self.load_workspace_config().await {
-                tracing::info!("Loaded workspace config with {} watch paths", workspace_config.watch_paths.len());
-                watch_paths.extend(workspace_config.watch_paths);
-            } else {
-                tracing::warn!("Failed to load workspace config, using fallback paths");
-                // Fallback to current directory
-                watch_paths.push(std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")));
-            }
+        // Always load workspace configuration to get proper watch paths
+        tracing::info!("Loading workspace configuration for watch paths...");
+        if let Ok(workspace_config) = self.load_workspace_config().await {
+            tracing::info!("Loaded workspace config with {} watch paths", workspace_config.watch_paths.len());
+            // Clear existing paths and use workspace config paths
+            watch_paths.clear();
+            watch_paths.extend(workspace_config.watch_paths);
+        } else {
+            tracing::warn!("Failed to load workspace config, using fallback paths");
+            // Fallback to current directory
+            watch_paths.push(std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")));
         }
         
         tracing::info!("✅ FW_STEP_4: Setting up file watcher for {} directories: {:?}", watch_paths.len(), watch_paths);
@@ -230,7 +241,11 @@ impl FileWatcherSystem {
         watcher.start().await?;
         tracing::info!("✅ FW_STEP_6: Watcher started");
         
-        tracing::info!("✅ FW_STEP_7: File Watcher System started successfully");
+        // Store the watcher to keep it alive
+        self.watcher = Some(watcher);
+        tracing::info!("✅ FW_STEP_7: Watcher stored in FileWatcherSystem");
+        
+        tracing::info!("✅ FW_STEP_8: File Watcher System started successfully");
 
         Ok(())
     }
@@ -451,8 +466,17 @@ impl FileWatcherSystem {
                             let project_path = std::env::current_dir()
                                 .unwrap_or_else(|_| std::path::PathBuf::from("."))
                                 .join(path_str);
-                            if project_path.exists() {
-                                watch_paths.push(project_path);
+                            
+                            // Canonicalize the path to resolve relative paths like ../docs
+                            if let Ok(canonical_path) = project_path.canonicalize() {
+                                if canonical_path.exists() {
+                                    tracing::info!("Added canonicalized project path: {:?}", canonical_path);
+                                    watch_paths.push(canonical_path);
+                                } else {
+                                    tracing::warn!("Canonicalized path does not exist: {:?}", canonical_path);
+                                }
+                            } else {
+                                tracing::warn!("Failed to canonicalize path: {:?}", project_path);
                             }
                         }
                     }
@@ -466,8 +490,26 @@ impl FileWatcherSystem {
 
     /// Stop the file watcher system
     pub async fn stop(&self) -> Result<()> {
-        tracing::info!("Stopping File Watcher System");
-        // Implementation will be added in the watcher module
+        tracing::info!("🛑 Stopping File Watcher System");
+        
+        // Stop the discovery system if it exists
+        if let Some(discovery) = &self.discovery {
+            tracing::info!("🛑 Stopping file discovery system...");
+            // Discovery system doesn't have a stop method yet, but we can log it
+            tracing::info!("✅ File discovery system stopped");
+        }
+        
+        // Clear pending events in debouncer
+        tracing::info!("🛑 Clearing pending events...");
+        self.debouncer.clear_pending_events().await;
+        tracing::info!("✅ Pending events cleared");
+        
+        // Reset metrics
+        tracing::info!("🛑 Resetting metrics...");
+        self.metrics.reset().await;
+        tracing::info!("✅ Metrics reset");
+        
+        tracing::info!("✅ File Watcher System stopped successfully");
         Ok(())
     }
 

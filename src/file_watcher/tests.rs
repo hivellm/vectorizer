@@ -60,8 +60,9 @@ mod tests {
         
         // Create mock vector operations (without actual client)
         let vector_operations = Arc::new(VectorOperations::new(
-            Arc::new(crate::VectorStore::new_auto()),
-            Arc::new(RwLock::new(crate::embedding::EmbeddingManager::new())),
+            vector_store.clone(),
+            embedding_manager.clone(),
+            crate::file_watcher::FileWatcherConfig::default(),
         ));
         
         // Create enhanced watcher
@@ -323,8 +324,9 @@ mod tests {
         let hash_validator = Arc::new(HashValidator::new());
         let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
         let vector_operations = Arc::new(VectorOperations::new(
-            vector_store,
-            embedding_manager,
+            vector_store.clone(),
+            embedding_manager.clone(),
+            crate::file_watcher::FileWatcherConfig::default(),
         ));
         let file_index: FileIndexArc = Arc::new(RwLock::new(FileIndex::new()));
         
@@ -522,6 +524,7 @@ mod tests {
         let vector_operations = Arc::new(VectorOperations::new(
             vector_store.clone(),
             embedding_manager.clone(),
+            crate::file_watcher::FileWatcherConfig::default(),
         ));
         
         // Create enhanced watcher

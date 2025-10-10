@@ -231,6 +231,8 @@ pub struct DocumentLoader {
     pub cache_manager: Option<CacheManager>,
     /// Summarization manager
     summarization_manager: Option<SummarizationManager>,
+    /// Currently processing files to avoid duplicates
+    processing_files: std::sync::Mutex<HashMap<String, std::time::Instant>>,
 }
 
 impl DocumentLoader {
@@ -239,6 +241,34 @@ impl DocumentLoader {
         // Get the vectorizer root directory (where config.yml is located)
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         current_dir.join("data")
+    }
+
+    /// Check if a file is currently being processed to avoid duplicates
+    fn is_file_processing(&self, file_path: &str) -> bool {
+        if let Ok(processing_files) = self.processing_files.lock() {
+            if let Some(processing_time) = processing_files.get(file_path) {
+                // If file was processed less than 10 seconds ago, consider it still processing
+                if processing_time.elapsed() < std::time::Duration::from_secs(10) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Mark a file as being processed
+    fn mark_file_processing(&self, file_path: &str) {
+        if let Ok(mut processing_files) = self.processing_files.lock() {
+            processing_files.insert(file_path.to_string(), std::time::Instant::now());
+        }
+    }
+
+    /// Clear old processed files (older than 30 seconds)
+    fn clear_old_processed_files(&self) {
+        if let Ok(mut processing_files) = self.processing_files.lock() {
+            let cutoff = std::time::Instant::now() - std::time::Duration::from_secs(30);
+            processing_files.retain(|_, &mut timestamp| timestamp > cutoff);
+        }
     }
 
     /// Check if a file path matches the include/exclude patterns
@@ -350,6 +380,7 @@ impl DocumentLoader {
             processed_chunks,
             cache_manager: None,
             summarization_manager: None,
+            processing_files: std::sync::Mutex::new(HashMap::new()),
         }
     }
     
@@ -550,6 +581,18 @@ impl DocumentLoader {
 
     /// Performs a full indexing of the project.
     async fn full_project_indexing(&mut self, project_path: &str, store: &VectorStore, progress_callback: Option<&IndexingProgress>) -> CacheResult<(usize, bool)> {
+        // Check if this project path is already being processed to avoid duplicates
+        if self.is_file_processing(project_path) {
+            debug!("⏭️ Skipping duplicate processing for project path: {} (already processing)", project_path);
+            return Ok((0, false));
+        }
+
+        // Mark this project path as being processed
+        self.mark_file_processing(project_path);
+
+        // Clear old processed files to prevent memory buildup
+        self.clear_old_processed_files();
+
         // Update progress: Starting document collection (20%)
         if let Some(callback) = progress_callback {
             // callback.update(&self.config.collection_name, "processing", 20.0, 0, 0);
@@ -1157,16 +1200,20 @@ impl DocumentLoader {
             total_vectors
         );
         
-        // Apply quantization to all vectors if enabled
-        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
-            if matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-                info!("🔧 Applying quantization to {} vectors in collection '{}'", total_vectors, self.config.collection_name);
-                if let Err(e) = collection.requantize_existing_vectors() {
-                    warn!("Failed to quantize vectors in collection '{}': {}", self.config.collection_name, e);
-                } else {
-                    info!("✅ Successfully quantized {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+        // Apply quantization to all vectors if enabled (only if we have enough vectors)
+        if total_vectors >= 10 { // Minimum vectors needed for stable quantization
+            if let Ok(collection) = store.get_collection(&self.config.collection_name) {
+                if matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                    info!("🔧 Applying quantization to {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                    if let Err(e) = collection.requantize_existing_vectors() {
+                        warn!("Failed to quantize vectors in collection '{}': {}", self.config.collection_name, e);
+                    } else {
+                        info!("✅ Successfully quantized {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                    }
                 }
             }
+        } else {
+            info!("⏭️ Skipping quantization for collection '{}' - only {} vectors (minimum 10 required)", self.config.collection_name, total_vectors);
         }
         
         Ok(total_vectors)
@@ -1368,13 +1415,19 @@ impl DocumentLoader {
                 self.config.embedding_type, self.config.collection_name
             );
             
-            // Force apply quantization if enabled
+            // Force apply quantization if enabled (only if we have enough vectors)
             if quantization_enabled {
-                info!("🔧 Applying quantization to collection '{}'", self.config.collection_name);
-                if let Err(e) = collection.requantize_existing_vectors() {
-                    warn!("Failed to apply quantization to collection '{}': {}", self.config.collection_name, e);
+                // Check vector count before applying quantization
+                let vector_count = collection.vector_count();
+                if vector_count >= 10 {
+                    info!("🔧 Applying quantization to collection '{}' ({} vectors)", self.config.collection_name, vector_count);
+                    if let Err(e) = collection.requantize_existing_vectors() {
+                        warn!("Failed to apply quantization to collection '{}': {}", self.config.collection_name, e);
+                    } else {
+                        info!("✅ Successfully applied quantization to collection '{}'", self.config.collection_name);
+                    }
                 } else {
-                    info!("✅ Successfully applied quantization to collection '{}'", self.config.collection_name);
+                    info!("⏭️ Skipping quantization for collection '{}' - only {} vectors (minimum 10 required)", self.config.collection_name, vector_count);
                 }
             }
         }

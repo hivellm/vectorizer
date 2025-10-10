@@ -597,6 +597,7 @@ mod tests {
             vector_operations: Arc::new(VectorOperations::new(
                 Arc::new(VectorStore::new_auto()),
                 Arc::new(RwLock::new(EmbeddingManager::new())),
+                config.clone(),
             )),
             vector_store: Arc::new(VectorStore::new_auto()),
         };
@@ -614,6 +615,7 @@ mod tests {
             vector_operations: Arc::new(VectorOperations::new(
                 Arc::new(VectorStore::new_auto()),
                 Arc::new(RwLock::new(EmbeddingManager::new())),
+                config.clone(),
             )),
             vector_store: Arc::new(VectorStore::new_auto()),
         };
