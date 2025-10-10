@@ -128,24 +128,53 @@ impl VectorOperations {
             return Ok(());
         }
 
-        // Read file content
-        let content = match tokio::fs::read_to_string(path).await {
-            Ok(content) => content,
-            Err(e) => {
-                tracing::warn!("Failed to read file {:?}: {}", path, e);
-                return Ok(());
-            }
-        };
-
         // Determine collection name based on file path
         let collection_name = self.determine_collection_name(path);
 
-        // Index the file
-        self.index_file(
-            &path.to_string_lossy(),
-            &content,
-            &collection_name,
-        ).await?;
+        // For large/binary-safe handling, avoid read_to_string; copy file to temp dir
+        // and process via DocumentLoader
+        let temp_dir = std::env::temp_dir().join(format!("temp_single_{}", uuid::Uuid::new_v4()));
+        if let Err(e) = tokio::fs::create_dir_all(&temp_dir).await {
+            tracing::warn!("Failed to create temp dir {:?}: {}", temp_dir, e);
+            return Ok(());
+        }
+
+        // Destination file keeps original filename
+        let dest_file = temp_dir.join(path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("file")));
+        match tokio::fs::copy(path, &dest_file).await {
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!("Failed to copy file {:?} to temp {:?}: {}", path, dest_file, e);
+                let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+                return Ok(());
+            }
+        }
+
+        // Build loader config
+        let loader_config = LoaderConfig {
+            max_chunk_size: 2048,
+            chunk_overlap: 256,
+            allowed_extensions: vec![],
+            include_patterns: vec!["*".to_string()],
+            exclude_patterns: vec![],
+            embedding_dimension: 512,
+            embedding_type: "bm25".to_string(),
+            collection_name: collection_name.clone(),
+            max_file_size: self.config.max_file_size as usize,
+        };
+
+        let mut loader = DocumentLoader::new(loader_config);
+        match loader.load_project_async(&temp_dir.to_string_lossy(), &self.vector_store).await {
+            Ok(_) => {
+                tracing::info!("Successfully indexed file via temp copy: {:?}", path);
+            }
+            Err(e) => {
+                tracing::warn!("Failed to index file via temp copy {:?}: {}", path, e);
+            }
+        }
+
+        // Cleanup temp dir
+        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 
         Ok(())
     }

@@ -137,19 +137,24 @@ impl Debouncer {
                 // Get file metadata if available
                 let (content_hash, file_size) = if let Ok(metadata) = std::fs::metadata(&path) {
                     let file_size = Some(metadata.len());
-                    let content_hash = if metadata.is_file() {
-                        // Calculate content hash for files
-                        match std::fs::read(&path) {
-                            Ok(content) => {
+                    if metadata.is_file() {
+                        // Calculate content hash off the main task to avoid blocking
+                        let path_clone = path.clone();
+                        match tokio::task::spawn_blocking(move || {
+                            std::fs::read(&path_clone).ok().map(|content| {
                                 use sha2::Digest;
-                                Some(sha2::Sha256::digest(&content).iter().map(|b| format!("{:02x}", b)).collect::<String>())
-                            },
-                            Err(_) => None,
+                                sha2::Sha256::digest(&content)
+                                    .iter()
+                                    .map(|b| format!("{:02x}", b))
+                                    .collect::<String>()
+                            })
+                        }).await {
+                            Ok(Some(hash)) => (Some(hash), file_size),
+                            _ => (None, file_size),
                         }
                     } else {
-                        None
-                    };
-                    (content_hash, file_size)
+                        (None, file_size)
+                    }
                 } else {
                     (None, None)
                 };

@@ -62,39 +62,47 @@ impl Watcher {
             move |res: std::result::Result<Event, notify::Error>| {
                 match res {
                     Ok(event) => {
-                        // Filter out excluded files and directories BEFORE processing using config
-                        let should_process = event.paths.iter().all(|path| {
-                            // Use the configuration to check if file should be processed (silently)
-                            config_for_watcher.should_process_file_silent(path)
-                        });
-                        
-                        if !should_process {
+                        // Filter paths to only include relevant files BEFORE processing
+                        let relevant_paths: Vec<_> = event.paths.iter()
+                            .filter(|path| {
+                                // Use the configuration to check if file should be processed (silently)
+                                config_for_watcher.should_process_file_silent(path)
+                            })
+                            .collect();
+
+                        // If no relevant paths remain, skip the entire event
+                        if relevant_paths.is_empty() {
                             // Skip logging for .log files to avoid spam
                             return;
                         }
+
+                        // Create a new event with only the relevant paths
+                        let mut filtered_event = event.clone();
+                        filtered_event.paths = relevant_paths.into_iter().cloned().collect();
                         
-                        tracing::info!("🔍 NOTIFY: Raw event received: kind={:?}, paths={:?}", event.kind, event.paths);
-                        
+                        tracing::info!("🔍 NOTIFY: Raw event received: kind={:?}, paths={:?}", filtered_event.kind, filtered_event.paths);
+                        tracing::info!("🔍 NOTIFY: Filtered to relevant paths: {:?}", filtered_event.paths);
+
                         // Filter events to only process relevant ones
-                        match &event.kind {
+                        match &filtered_event.kind {
                             notify::EventKind::Create(_) => {
-                                tracing::info!("🔍 NOTIFY: CREATE event detected: {:?}", event.paths);
+                                tracing::info!("🔍 NOTIFY: CREATE event detected: {:?}", filtered_event.paths);
                             }
                             notify::EventKind::Modify(_) => {
-                                tracing::info!("🔍 NOTIFY: MODIFY event detected: {:?}", event.paths);
+                                tracing::info!("🔍 NOTIFY: MODIFY event detected: {:?}", filtered_event.paths);
                             }
                             notify::EventKind::Remove(_) => {
-                                tracing::info!("🔍 NOTIFY: REMOVE event detected: {:?}", event.paths);
+                                tracing::info!("🔍 NOTIFY: REMOVE event detected: {:?}", filtered_event.paths);
                             }
                             notify::EventKind::Access(_) => {
-                                tracing::info!("🔍 NOTIFY: ACCESS event detected: {:?}", event.paths);
+                                tracing::info!("🔍 NOTIFY: ACCESS event detected: {:?}", filtered_event.paths);
                             }
                             _ => {
-                                tracing::info!("🔍 NOTIFY: OTHER event detected: {:?}", event.paths);
+                                tracing::info!("🔍 NOTIFY: OTHER event detected: {:?}", filtered_event.paths);
                             }
                         }
-                        
-                        let file_event = FileChangeEvent::from_notify_event(event);
+
+                        let file_event = FileChangeEvent::from_notify_event(filtered_event);
                         tracing::info!("🔍 NOTIFY: Converted to FileChangeEvent: {:?}", file_event);
                         
                         // Try to send event to channel
@@ -183,6 +191,49 @@ impl Watcher {
                     FileChangeEvent::Renamed(_, new_path) => new_path,
                 };
                 
+                // Skip processing if content has not changed (for files)
+                // Only applies to Created/Modified events on existing files
+                let should_skip_due_to_hash = match &event {
+                    FileChangeEvent::Created(p) | FileChangeEvent::Modified(p) => {
+                        if p.exists() && p.is_file() {
+                            match hash_validator.has_content_changed(p).await {
+                                Ok(changed) => !changed,
+                                Err(e) => {
+                                    tracing::warn!("⚠️ HASH: Failed to check content change for {:?}: {}", p, e);
+                                    false
+                                }
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    FileChangeEvent::Deleted(p) => {
+                        // Ensure hash cache is cleaned up
+                        hash_validator.remove_hash(p).await;
+                        false
+                    }
+                    FileChangeEvent::Renamed(old_path, new_path) => {
+                        // Remove old hash and check new path change
+                        hash_validator.remove_hash(old_path).await;
+                        if new_path.exists() && new_path.is_file() {
+                            match hash_validator.has_content_changed(new_path).await {
+                                Ok(changed) => !changed,
+                                Err(e) => {
+                                    tracing::warn!("⚠️ HASH: Failed to check content change for {:?}: {}", new_path, e);
+                                    false
+                                }
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                };
+
+                if should_skip_due_to_hash {
+                    tracing::debug!("⏭️ HASH: Skipping event for {:?} due to unchanged content", path);
+                    continue;
+                }
+
                 if path.exists() {
                     if path.is_file() {
                         tracing::info!("🔍 FILE: Processing file event: {:?}", path);
@@ -223,11 +274,8 @@ impl Watcher {
         // Close event sender to stop the processing task
         self.event_sender = None;
         
-        // Stop the notify watcher
-        if let Some(mut watcher) = self.notify_watcher.take() {
-            watcher.unwatch(std::path::Path::new("."))
-                .map_err(|e| FileWatcherError::WatcherStopFailed(e.to_string()))?;
-        }
+        // Drop the notify watcher to stop watching all paths gracefully
+        self.notify_watcher = None;
 
         self.is_running.store(false, Ordering::Relaxed);
         tracing::info!("File watcher stopped");
