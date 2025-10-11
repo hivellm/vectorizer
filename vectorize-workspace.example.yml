@@ -280,6 +280,72 @@ projects:
         exclude_patterns:
           - "bindings/**/build/**"
           - "bindings/**/obj/**"
+      - name: "umicp-bindings-csharp"
+        description: "UMICP C# language bindings"
+        include_patterns:
+          - "bindings/csharp/**/*.cs"
+          - "bindings/csharp/**/*.csproj"
+          - "bindings/csharp/**/*.sln"
+          - "bindings/csharp/**/*.md"
+        exclude_patterns:
+          - "bindings/csharp/**/bin/**"
+          - "bindings/csharp/**/obj/**"
+          - "bindings/csharp/**/TestResults/**"
+      - name: "umicp-bindings-go"
+        description: "UMICP Go language bindings"
+        include_patterns:
+          - "bindings/go/**/*.go"
+          - "bindings/go/**/*.mod"
+          - "bindings/go/**/*.sum"
+          - "bindings/go/**/*.md"
+          - "bindings/go/Makefile"
+        exclude_patterns:
+          - "bindings/go/**/vendor/**"
+          - "bindings/go/**/*.out"
+      - name: "umicp-bindings-java"
+        description: "UMICP Java language bindings"
+        include_patterns:
+          - "bindings/java/**/*.java"
+          - "bindings/java/**/*.xml"
+          - "bindings/java/**/*.gradle*"
+          - "bindings/java/**/*.md"
+        exclude_patterns:
+          - "bindings/java/**/target/**"
+          - "bindings/java/**/build/**"
+          - "bindings/java/**/.gradle/**"
+      - name: "umicp-bindings-kotlin"
+        description: "UMICP Kotlin language bindings"
+        include_patterns:
+          - "bindings/kotlin/**/*.kt"
+          - "bindings/kotlin/**/*.gradle*"
+          - "bindings/kotlin/**/*.properties"
+          - "bindings/kotlin/**/*.md"
+        exclude_patterns:
+          - "bindings/kotlin/**/build/**"
+          - "bindings/kotlin/**/.gradle/**"
+      - name: "umicp-bindings-php"
+        description: "UMICP PHP language bindings"
+        include_patterns:
+          - "bindings/php/**/*.php"
+          - "bindings/php/**/*.json"
+          - "bindings/php/**/*.xml"
+          - "bindings/php/**/*.md"
+          - "bindings/php/**/*.sh"
+        exclude_patterns:
+          - "bindings/php/**/vendor/**"
+          - "bindings/php/**/*.lock"
+      - name: "umicp-bindings-python"
+        description: "UMICP Python language bindings"
+        include_patterns:
+          - "bindings/python/**/*.py"
+          - "bindings/python/**/*.toml"
+          - "bindings/python/**/*.txt"
+          - "bindings/python/**/*.md"
+          - "bindings/python/**/*.ini"
+        exclude_patterns:
+          - "bindings/python/**/__pycache__/**"
+          - "bindings/python/**/build/**"
+          - "bindings/python/**/*.egg-info/**"
 
   - name: "vectorizer"
     path: "."
@@ -411,6 +477,13 @@ projects:
           - "schemas/**/*.json"
         exclude_patterns:
           - "metrics/temp/**"
+      - name: "gov-manuals"
+        description: "AI integration manuals and best practices for multiple languages"
+        include_patterns:
+          - "manuals/**/*.md"
+          - "manuals/**/*.yml"
+        exclude_patterns:
+          - "manuals/draft/**"
 
   - name: "cmmv-core"
     path: "../../cmmv/cmmv"
