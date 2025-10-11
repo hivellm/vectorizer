@@ -20,7 +20,7 @@ use axum::{
 use tower_http::services::ServeDir;
 use tower_http::cors::CorsLayer;
 use tracing::{info, error, warn};
-use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem};
+use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem, MetricsCollector};
 
 /// Global server state to share between endpoints
 #[derive(Clone)]
@@ -42,6 +42,7 @@ pub struct VectorizerServer {
     pub embedding_manager: Arc<EmbeddingManager>,
     pub start_time: std::time::Instant,
     pub file_watcher_system: Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
+    pub metrics_collector: Arc<MetricsCollector>,
 }
 
 impl VectorizerServer {
@@ -291,6 +292,7 @@ impl VectorizerServer {
             embedding_manager: Arc::new(final_embedding_manager),
             start_time: std::time::Instant::now(),
             file_watcher_system: watcher_system_for_server,
+            metrics_collector: Arc::new(MetricsCollector::new()),
         })
     }
     
@@ -309,10 +311,33 @@ impl VectorizerServer {
         info!("✅ MCP router created");
 
         // Create REST API router to add to MCP
+        let metrics_collector_1 = self.metrics_collector.clone();
         let metrics_router = Router::new()
             .route("/metrics", get(get_file_watcher_metrics))
-            .with_state(Arc::new(server_state));
+            .with_state(Arc::new(server_state))
+            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let metrics = metrics_collector_1.clone();
+                async move {
+                    // Record connection opened
+                    metrics.record_connection_opened();
+                    
+                    // Record API request
+                    let start = std::time::Instant::now();
+                    let response = next.run(req).await;
+                    let duration = start.elapsed().as_millis() as f64;
+                    
+                    // Record API request metrics
+                    let is_success = response.status().is_success();
+                    metrics.record_api_request(is_success, duration);
+                    
+                    // Record connection closed
+                    metrics.record_connection_closed();
+                    
+                    response
+                }
+            }));
         
+        let metrics_collector_2 = self.metrics_collector.clone();
         let rest_routes = Router::new()
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
@@ -378,6 +403,27 @@ impl VectorizerServer {
             .fallback_service(ServeDir::new("dashboard"))
             
             .layer(CorsLayer::permissive())
+            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let metrics = metrics_collector_2.clone();
+                async move {
+                    // Record connection opened
+                    metrics.record_connection_opened();
+                    
+                    // Record API request
+                    let start = std::time::Instant::now();
+                    let response = next.run(req).await;
+                    let duration = start.elapsed().as_millis() as f64;
+                    
+                    // Record API request metrics
+                    let is_success = response.status().is_success();
+                    metrics.record_api_request(is_success, duration);
+                    
+                    // Record connection closed
+                    metrics.record_connection_closed();
+                    
+                    response
+                }
+            }))
             .with_state(self.clone());
 
         // Merge REST routes and metrics router into MCP router
@@ -606,142 +652,17 @@ impl rmcp::ServerHandler for VectorizerMcpService {
 
 /// Load file watcher configuration from vectorize-workspace.yml
 async fn load_file_watcher_config() -> anyhow::Result<crate::file_watcher::FileWatcherConfig> {
-    use std::path::Path;
-    
-    let workspace_file = Path::new("vectorize-workspace.yml");
-    if !workspace_file.exists() {
-        info!("No workspace configuration file found, using default file watcher config");
-        return Ok(crate::file_watcher::FileWatcherConfig::default());
-    }
-    
-    let content = tokio::fs::read_to_string(workspace_file).await?;
-    let workspace: serde_yaml::Value = serde_yaml::from_str(&content)?;
-    
-    // Extract file watcher configuration from global_settings
-    let mut config = crate::file_watcher::FileWatcherConfig::default();
-    
-    if let Some(global_settings) = workspace.get("global_settings") {
-        if let Some(file_watcher) = global_settings.get("file_watcher") {
-            // Extract watch paths
-            if let Some(paths) = file_watcher.get("watch_paths") {
-                if let Some(paths_array) = paths.as_sequence() {
-                    let mut watch_paths = Vec::new();
-                    for path in paths_array {
-                        if let Some(path_str) = path.as_str() {
-                            watch_paths.push(std::path::PathBuf::from(path_str));
-                        }
-                    }
-                    config.watch_paths = Some(watch_paths);
-                }
-            }
-            
-            // Extract debounce delay if specified
-            if let Some(debounce_delay) = file_watcher.get("debounce_delay_ms") {
-                if let Some(debounce_delay_num) = debounce_delay.as_u64() {
-                    config.debounce_delay_ms = debounce_delay_num;
-                }
-            }
-            
-            // Extract max file size if specified
-            if let Some(max_file_size) = file_watcher.get("max_file_size") {
-                if let Some(max_file_size_num) = max_file_size.as_u64() {
-                    config.max_file_size = max_file_size_num;
-                }
-            }
-            
-            // Extract enable realtime indexing if specified
-            if let Some(enable_realtime) = file_watcher.get("enable_realtime_indexing") {
-                if let Some(enable_realtime_bool) = enable_realtime.as_bool() {
-                    config.enable_realtime_indexing = enable_realtime_bool;
-                }
-            }
-            
-            // Extract recursive watching if specified
-            if let Some(recursive) = file_watcher.get("recursive") {
-                if let Some(recursive_bool) = recursive.as_bool() {
-                    config.recursive = recursive_bool;
-                }
-            }
-            
-            // Extract include patterns from projects
-            if let Some(projects) = workspace.get("projects") {
-                if let Some(projects_array) = projects.as_sequence() {
-                    let mut include_patterns = Vec::new();
-                    for project in projects_array {
-                        if let Some(collections) = project.get("collections") {
-                            if let Some(collections_array) = collections.as_sequence() {
-                                for collection in collections_array {
-                                    if let Some(patterns) = collection.get("include_patterns") {
-                                        if let Some(patterns_array) = patterns.as_sequence() {
-                                            for pattern in patterns_array {
-                                                if let Some(pattern_str) = pattern.as_str() {
-                                                    include_patterns.push(pattern_str.to_string());
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if !include_patterns.is_empty() {
-                        config.include_patterns = include_patterns;
-                    }
-                }
-            }
-            
-            // Extract global exclude patterns first
-            if let Some(global_exclude_patterns) = file_watcher.get("exclude_patterns") {
-                if let Some(patterns_array) = global_exclude_patterns.as_sequence() {
-                    let mut global_exclude = Vec::new();
-                    for pattern in patterns_array {
-                        if let Some(pattern_str) = pattern.as_str() {
-                            global_exclude.push(pattern_str.to_string());
-                        }
-                    }
-                    if !global_exclude.is_empty() {
-                        config.exclude_patterns = global_exclude;
-                    }
-                }
-            }
-            
-            // Extract exclude patterns from projects (merge with global)
-            if let Some(projects) = workspace.get("projects") {
-                if let Some(projects_array) = projects.as_sequence() {
-                    let mut project_exclude_patterns = Vec::new();
-                    for project in projects_array {
-                        if let Some(collections) = project.get("collections") {
-                            if let Some(collections_array) = collections.as_sequence() {
-                                for collection in collections_array {
-                                    if let Some(patterns) = collection.get("exclude_patterns") {
-                                        if let Some(patterns_array) = patterns.as_sequence() {
-                                            for pattern in patterns_array {
-                                                if let Some(pattern_str) = pattern.as_str() {
-                                                    project_exclude_patterns.push(pattern_str.to_string());
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Merge project exclude patterns with global ones
-                    if !project_exclude_patterns.is_empty() {
-                        config.exclude_patterns.extend(project_exclude_patterns);
-                        // Remove duplicates
-                        config.exclude_patterns.sort();
-                        config.exclude_patterns.dedup();
-                    }
-                }
-            }
+    match crate::file_watcher::FileWatcherConfig::from_workspace().await {
+        Ok(config) => {
+            info!("Loaded file watcher configuration from workspace: watch_paths={:?}, exclude_patterns={:?}", 
+                  config.watch_paths, config.exclude_patterns);
+            Ok(config)
+        }
+        Err(e) => {
+            info!("Failed to load workspace configuration: {}, using default file watcher config", e);
+            Ok(crate::file_watcher::FileWatcherConfig::default())
         }
     }
-    
-    info!("Loaded file watcher configuration: watch_paths={:?}, debounce_delay_ms={}, max_file_size={}, enable_realtime_indexing={}, recursive={}, include_patterns={:?}, exclude_patterns={:?}", 
-          config.watch_paths, config.debounce_delay_ms, config.max_file_size, config.enable_realtime_indexing, config.recursive, config.include_patterns, config.exclude_patterns);
-    
-    Ok(config)
 }
 
 /// Load workspace collections using the existing document_loader.rs

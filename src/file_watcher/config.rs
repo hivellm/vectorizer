@@ -60,34 +60,8 @@ impl Default for FileWatcherConfig {
     fn default() -> Self {
         Self {
             watch_paths: None, // Auto-discovered from indexed files
-            include_patterns: vec![
-                "*.md".to_string(),
-                "*.txt".to_string(),
-                "*.rs".to_string(),
-                "*.py".to_string(),
-                "*.js".to_string(),
-                "*.ts".to_string(),
-                "*.json".to_string(),
-                "*.yaml".to_string(),
-                "*.yml".to_string(),
-            ],
-            exclude_patterns: vec![
-                "**/target/**".to_string(),
-                "**/node_modules/**".to_string(),
-                "**/.git/**".to_string(),
-                "**/.*".to_string(),
-                "**/*.tmp".to_string(),
-                "**/*.log".to_string(),
-                "**/*.part".to_string(),
-                "**/*.lock".to_string(),
-                "**/~*".to_string(),
-                "**/.#*".to_string(),
-                "**/*.swp".to_string(),
-                "**/*.swo".to_string(),
-                "**/Cargo.lock".to_string(),
-                "**/.DS_Store".to_string(),
-                "**/Thumbs.db".to_string(),
-            ],
+            include_patterns: vec![], // Will be loaded from workspace config
+            exclude_patterns: vec![], // Will be loaded from workspace config
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB
             enable_hash_validation: true,
@@ -109,6 +83,125 @@ impl FileWatcherConfig {
     /// Create a new configuration with default values
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Load configuration from workspace file
+    pub async fn from_workspace() -> Result<Self, Box<dyn std::error::Error>> {
+        let workspace_file = std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join("vectorize-workspace.yml");
+        
+        if !workspace_file.exists() {
+            return Err(format!("Workspace file not found: {:?}", workspace_file).into());
+        }
+        
+        let content = tokio::fs::read_to_string(&workspace_file).await?;
+        let workspace: serde_yaml::Value = serde_yaml::from_str(&content)?;
+        
+        let mut config = Self::default();
+        
+        // Load global file watcher settings
+        if let Some(global_settings) = workspace.get("global_settings") {
+            if let Some(file_watcher) = global_settings.get("file_watcher") {
+                // Load watch paths
+                if let Some(paths) = file_watcher.get("watch_paths") {
+                    if let Some(paths_array) = paths.as_sequence() {
+                        config.watch_paths = Some(paths_array.iter()
+                            .filter_map(|p| p.as_str())
+                            .map(|p| PathBuf::from(p))
+                            .collect());
+                    }
+                }
+                
+                // Load include patterns
+                if let Some(patterns) = file_watcher.get("include_patterns") {
+                    if let Some(patterns_array) = patterns.as_sequence() {
+                        config.include_patterns = patterns_array.iter()
+                            .filter_map(|p| p.as_str())
+                            .map(|s| s.to_string())
+                            .collect();
+                    }
+                }
+                
+                // Load exclude patterns
+                if let Some(patterns) = file_watcher.get("exclude_patterns") {
+                    if let Some(patterns_array) = patterns.as_sequence() {
+                        config.exclude_patterns = patterns_array.iter()
+                            .filter_map(|p| p.as_str())
+                            .map(|s| s.to_string())
+                            .collect();
+                    }
+                }
+                
+                // Load other settings
+                if let Some(debounce) = file_watcher.get("debounce_delay_ms") {
+                    if let Some(debounce_val) = debounce.as_u64() {
+                        config.debounce_delay_ms = debounce_val;
+                    }
+                }
+                
+                if let Some(auto_discovery) = file_watcher.get("auto_discovery") {
+                    if let Some(auto_discovery_val) = auto_discovery.as_bool() {
+                        config.auto_discovery = auto_discovery_val;
+                    }
+                }
+                
+                if let Some(enable_auto_update) = file_watcher.get("enable_auto_update") {
+                    if let Some(enable_auto_update_val) = enable_auto_update.as_bool() {
+                        config.enable_auto_update = enable_auto_update_val;
+                    }
+                }
+                
+                if let Some(hot_reload) = file_watcher.get("hot_reload") {
+                    if let Some(hot_reload_val) = hot_reload.as_bool() {
+                        config.hot_reload = hot_reload_val;
+                    }
+                }
+            }
+        }
+        
+        // If no patterns were loaded, use sensible defaults
+        if config.include_patterns.is_empty() {
+            config.include_patterns = vec![
+                "*.md".to_string(),
+                "*.txt".to_string(),
+                "*.rs".to_string(),
+                "*.py".to_string(),
+                "*.js".to_string(),
+                "*.ts".to_string(),
+                "*.json".to_string(),
+                "*.yaml".to_string(),
+                "*.yml".to_string(),
+            ];
+        }
+        
+        if config.exclude_patterns.is_empty() {
+            config.exclude_patterns = vec![
+                "**/target/**".to_string(),
+                "**/node_modules/**".to_string(),
+                "**/.git/**".to_string(),
+                ".git".to_string(),
+                "**/.svn/**".to_string(),
+                "**/.hg/**".to_string(),
+                "**/.bzr/**".to_string(),
+                "**/.vscode/**".to_string(),
+                "**/.idea/**".to_string(),
+                "**/.vs/**".to_string(),
+                "**/*.tmp".to_string(),
+                "**/*.log".to_string(),
+                "**/*.part".to_string(),
+                "**/*.lock".to_string(),
+                "**/~*".to_string(),
+                "**/.#*".to_string(),
+                "**/*.swp".to_string(),
+                "**/*.swo".to_string(),
+                "**/Cargo.lock".to_string(),
+                "**/.DS_Store".to_string(),
+                "**/Thumbs.db".to_string(),
+            ];
+        }
+        
+        Ok(config)
     }
 
     /// Load configuration from YAML file
@@ -245,8 +338,9 @@ mod tests {
         let config = FileWatcherConfig::default();
         // watch_paths is now optional
         // assert!(!config.watch_paths.is_empty());
-        assert!(!config.include_patterns.is_empty());
-        assert!(!config.exclude_patterns.is_empty());
+        // Note: include_patterns and exclude_patterns are now loaded from workspace config
+        // assert!(!config.include_patterns.is_empty());
+        // assert!(!config.exclude_patterns.is_empty());
         assert!(config.debounce_delay_ms > 0);
         assert!(config.max_file_size > 0);
         assert!(!config.collection_name.is_empty());
@@ -279,7 +373,19 @@ mod tests {
 
     #[test]
     fn test_file_pattern_matching() {
-        let config = FileWatcherConfig::default();
+        let mut config = FileWatcherConfig::default();
+        
+        // Set up test patterns
+        config.include_patterns = vec![
+            "*.md".to_string(),
+            "*.rs".to_string(),
+            "*.py".to_string(),
+        ];
+        config.exclude_patterns = vec![
+            "**/target/**".to_string(),
+            "**/node_modules/**".to_string(),
+            "**/.git/**".to_string(),
+        ];
         
         // Test include patterns
         assert!(config.should_process_file(std::path::Path::new("test.md")));

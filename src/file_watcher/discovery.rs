@@ -609,7 +609,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_directory_exclusion() {
-        let config = FileWatcherConfig::default();
+        let mut config = FileWatcherConfig::default();
+        config.exclude_patterns = vec![
+            "**/target/**".to_string(),
+            "**/node_modules/**".to_string(),
+            "**/.git/**".to_string(),
+            ".git".to_string(),
+        ];
         let discovery = FileDiscovery {
             config: config.clone(),
             vector_operations: Arc::new(VectorOperations::new(

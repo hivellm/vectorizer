@@ -194,85 +194,91 @@ impl VectorOperations {
 
     /// Determine collection name based on file path
     pub fn determine_collection_name(&self, path: &std::path::Path) -> String {
-        // Extract meaningful parts from path for collection name
-        let path_str = path.to_string_lossy();
-        
-        // Try to match against known project patterns from vectorize-workspace.yml
-        if path_str.contains("/docs/") {
-            if path_str.contains("/architecture/") {
-                "docs-architecture".to_string()
-            } else if path_str.contains("/templates/") {
-                "docs-templates".to_string()
-            } else if path_str.contains("/processes/") {
-                "docs-processes".to_string()
-            } else if path_str.contains("/governance/") {
-                "docs-governance".to_string()
-            } else if path_str.contains("/navigation/") {
-                "docs-navigation".to_string()
-            } else if path_str.contains("/testing/") {
-                "docs-testing".to_string()
-            } else {
-                "docs-architecture".to_string() // Default docs collection
-            }
-        } else if path_str.contains("/vectorizer/") {
-            if path_str.contains("/docs/") {
-                "vectorizer-docs".to_string()
-            } else if path_str.contains("/src/") {
-                "vectorizer-source".to_string()
-            } else if path_str.contains("/client-sdks/") {
-                if path_str.contains(".ts") || path_str.contains(".js") {
-                    "vectorizer-sdk-typescript".to_string()
-                } else if path_str.contains(".py") {
-                    "vectorizer-sdk-python".to_string()
-                } else if path_str.contains(".rs") {
-                    "vectorizer-sdk-rust".to_string()
-                } else {
-                    "vectorizer-source".to_string()
-                }
-            } else {
-                "vectorizer-source".to_string()
-            }
-        } else if path_str.contains("/gov/") {
-            if path_str.contains("/bips/") {
-                "gov-bips".to_string()
-            } else if path_str.contains("/guidelines/") {
-                "gov-guidelines".to_string()
-            } else if path_str.contains("/proposals/") {
-                "gov-proposals".to_string()
-            } else if path_str.contains("/minutes/") {
-                "gov-minutes".to_string()
-            } else if path_str.contains("/schemas/") {
-                "gov-schemas".to_string()
-            } else if path_str.contains("/teams/") {
-                "gov-teams".to_string()
-            } else if path_str.contains("/metrics/") {
-                "gov-metrics".to_string()
-            } else if path_str.contains("/issues/") {
-                "gov-issues".to_string()
-            } else if path_str.contains("/snapshot/") {
-                "gov-snapshot".to_string()
-            } else {
-                "gov-core".to_string()
-            }
-        } else {
-            // Fallback: try to extract project/workspace name
-            if let Some(parent) = path.parent() {
-                let components: Vec<_> = parent.components().collect();
-                if components.len() >= 2 {
-                    // Use last two components as collection name
-                    let last_two: Vec<_> = components.iter().rev().take(2).collect();
-                    format!("{}-{}", 
-                        last_two[1].as_os_str().to_string_lossy(),
-                        last_two[0].as_os_str().to_string_lossy()
-                    )
-                } else if let Some(last) = components.last() {
-                    last.as_os_str().to_string_lossy().to_string()
-                } else {
-                    "default".to_string()
-                }
-            } else {
-                "default".to_string()
+        // Try to load workspace configuration to determine collection name
+        match self.load_workspace_collection_name(path) {
+            Some(collection_name) => collection_name,
+            None => {
+                // Fallback to default collection name from config
+                self.config.collection_name.clone()
             }
         }
+    }
+
+    /// Load collection name from workspace configuration
+    fn load_workspace_collection_name(&self, path: &std::path::Path) -> Option<String> {
+        let workspace_file = std::env::current_dir()
+            .ok()?
+            .join("vectorize-workspace.yml");
+        
+        if !workspace_file.exists() {
+            return None;
+        }
+        
+        let content = std::fs::read_to_string(&workspace_file).ok()?;
+        let workspace: serde_yaml::Value = serde_yaml::from_str(&content).ok()?;
+        
+        let path_str = path.to_string_lossy();
+        
+        // Check projects and their collections
+        if let Some(projects) = workspace.get("projects") {
+            if let Some(projects_array) = projects.as_sequence() {
+                for project in projects_array {
+                    if let Some(project_path) = project.get("path") {
+                        if let Some(project_path_str) = project_path.as_str() {
+                            if path_str.contains(project_path_str) {
+                                if let Some(collections) = project.get("collections") {
+                                    if let Some(collections_array) = collections.as_sequence() {
+                                        for collection in collections_array {
+                                            if let Some(collection_name) = collection.get("name") {
+                                                if let Some(collection_name_str) = collection_name.as_str() {
+                                                    // Check if file matches collection patterns
+                                                    if let Some(include_patterns) = collection.get("include_patterns") {
+                                                        if let Some(patterns_array) = include_patterns.as_sequence() {
+                                                            for pattern in patterns_array {
+                                                                if let Some(pattern_str) = pattern.as_str() {
+                                                                    if self.matches_pattern(&path_str, pattern_str) {
+                                                                        return Some(collection_name_str.to_string());
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+
+    /// Check if a path matches a glob pattern
+    fn matches_pattern(&self, path: &str, pattern: &str) -> bool {
+        // Simple pattern matching - in a real implementation, you'd use a proper glob library
+        if pattern.contains("**") {
+            let parts: Vec<&str> = pattern.split("**").collect();
+            if parts.len() == 2 {
+                let prefix = parts[0];
+                let suffix = parts[1];
+                return path.starts_with(prefix) && path.ends_with(suffix);
+            }
+        } else if pattern.contains("*") {
+            let parts: Vec<&str> = pattern.split("*").collect();
+            if parts.len() == 2 {
+                let prefix = parts[0];
+                let suffix = parts[1];
+                return path.starts_with(prefix) && path.ends_with(suffix);
+            }
+        } else {
+            return path.contains(pattern);
+        }
+        
+        false
     }
 }

@@ -64,8 +64,23 @@ async fn test_should_process_file() {
     let vector_store = Arc::new(VectorStore::new());
     let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
     
-    // Create vector operations
-    let operations = VectorOperations::new(vector_store, embedding_manager);
+    // Create vector operations with test config
+    let mut config = crate::file_watcher::FileWatcherConfig::default();
+    config.include_patterns = vec![
+        "*.md".to_string(),
+        "*.rs".to_string(),
+        "*.py".to_string(),
+        "*.js".to_string(),
+        "*.ts".to_string(),
+        "*.json".to_string(),
+        "*.yaml".to_string(),
+    ];
+    config.exclude_patterns = vec![
+        "*.exe".to_string(),
+        "*.bin".to_string(),
+    ];
+    
+    let operations = VectorOperations::new(vector_store, embedding_manager, config);
     
     // Test various file extensions
     assert!(operations.should_process_file(std::path::Path::new("test.md")));

@@ -47,6 +47,9 @@ mod tests {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "info".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         };
         
         // Create file index
@@ -57,6 +60,10 @@ mod tests {
         
         // Create hash validator
         let hash_validator = Arc::new(HashValidator::new());
+        
+        // Create mock vector store and embedding manager
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
         
         // Create mock vector operations (without actual client)
         let vector_operations = Arc::new(VectorOperations::new(
@@ -318,6 +325,9 @@ mod tests {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "info".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         };
         
         let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));
@@ -516,6 +526,9 @@ mod tests {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "debug ".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         };
         
         // Create components
