@@ -580,17 +580,17 @@ impl FileWatcherSystem {
 
     /// Record file processing metrics
     pub async fn record_file_processing(&self, success: bool, processing_time_ms: u64) {
-        self.metrics.record_file_processing_complete(success, processing_time_ms).await;
+        self.metrics.record_file_processing_complete(success, processing_time_ms as f64).await;
     }
 
     /// Record discovery metrics
     pub async fn record_discovery(&self, files_found: u64, discovery_time_ms: u64) {
-        self.metrics.record_discovery(files_found, discovery_time_ms).await;
+        self.metrics.record_discovery(files_found, discovery_time_ms as f64).await;
     }
 
     /// Record sync metrics
     pub async fn record_sync(&self, orphaned_removed: u64, unindexed_found: u64, sync_time_ms: u64) {
-        self.metrics.record_sync(orphaned_removed, unindexed_found, sync_time_ms).await;
+        self.metrics.record_sync(orphaned_removed, unindexed_found, sync_time_ms as f64).await;
     }
 
     /// Record error metrics
