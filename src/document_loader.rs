@@ -993,7 +993,9 @@ impl DocumentLoader {
                     match fs::read_to_string(&path) {
                         Ok(content) => {
                             debug!("Successfully read file: {} ({} bytes)", path.display(), content.len());
-                            documents.push((path, content));
+                            // Normalize line endings (CRLF -> LF) to ensure consistent content
+                            let normalized_content = content.replace("\r\n", "\n");
+                            documents.push((path, normalized_content));
                         }
                         Err(e) => {
                             warn!("Failed to read file {}: {}", path.display(), e);
@@ -1125,17 +1127,21 @@ impl DocumentLoader {
                                 return None;
                             }
                             
+                            // Create payload and normalize it (fixes line endings from cached/old data)
+                            let mut payload = Payload {
+                                data: serde_json::json!({
+                                    "content": chunk.content,
+                                    "file_path": chunk.file_path,
+                                    "chunk_index": chunk.chunk_index,
+                                    "metadata": chunk.metadata
+                                }),
+                            };
+                            payload.normalize();
+                            
                             let vector = Vector {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 data: embedding,
-                                payload: Some(Payload {
-                                    data: serde_json::json!({
-                                        "content": chunk.content,
-                                        "file_path": chunk.file_path,
-                                        "chunk_index": chunk.chunk_index,
-                                        "metadata": chunk.metadata
-                                    }),
-                                }),
+                                payload: Some(payload),
                             };
                             Some(vector)
                         }
@@ -1247,17 +1253,21 @@ impl DocumentLoader {
                                 return None;
                             }
                             
+                            // Create payload and normalize it (fixes line endings from cached/old data)
+                            let mut payload = Payload {
+                                data: serde_json::json!({
+                                    "content": chunk.content,
+                                    "file_path": chunk.file_path,
+                                    "chunk_index": chunk.chunk_index,
+                                    "metadata": chunk.metadata
+                                }),
+                            };
+                            payload.normalize();
+                            
                             let vector = Vector {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 data: embedding,
-                                payload: Some(Payload {
-                                    data: serde_json::json!({
-                                        "content": chunk.content,
-                                        "file_path": chunk.file_path,
-                                        "chunk_index": chunk.chunk_index,
-                                        "metadata": chunk.metadata
-                                    }),
-                                }),
+                                payload: Some(payload),
                             };
                             Some(vector)
                         }
@@ -1333,18 +1343,21 @@ impl DocumentLoader {
                 continue; // Skip zero vectors
             }
 
-            // Create vector data
+            // Create vector data with normalized payload
+            let mut payload = Payload {
+                data: serde_json::json!({
+                    "content": chunk.content,
+                    "file_path": chunk.file_path,
+                    "chunk_index": chunk.chunk_index,
+                    "metadata": chunk.metadata
+                }),
+            };
+            payload.normalize();
+            
             let vector = Vector {
                 id: uuid::Uuid::new_v4().to_string(),
                 data: embedding,
-                payload: Some(Payload {
-                    data: serde_json::json!({
-                        "content": chunk.content,
-                        "file_path": chunk.file_path,
-                        "chunk_index": chunk.chunk_index,
-                        "metadata": chunk.metadata
-                    }),
-                }),
+                payload: Some(payload),
             };
 
             vectors.push(vector);
@@ -1813,15 +1826,12 @@ impl DocumentLoader {
                     match self.embedding_manager.embed(&summary_result.summary) {
                         Ok(summary_embedding) => {
                             // Create summary vector with comprehensive metadata
-                            let summary_vector = Vector {
-                                id: format!("summary_file_{}", uuid::Uuid::new_v4()),
-                                data: summary_embedding,
-                                payload: Some(Payload {
-                                    data: serde_json::json!({
-                                        "content": summary_result.summary,
-                                        "source_file": file_path,
-                                        "original_collection": self.config.collection_name,
-                                        "summary_method": summary_result.method,
+                            let mut payload = Payload {
+                                data: serde_json::json!({
+                                    "content": summary_result.summary,
+                                    "source_file": file_path,
+                                    "original_collection": self.config.collection_name,
+                                    "summary_method": summary_result.method,
                                         "compression_ratio": summary_result.compression_ratio,
                                         "is_summary": true,
                                         "summary_type": "document_summary",
@@ -1831,7 +1841,13 @@ impl DocumentLoader {
                                         "created_at": chrono::Utc::now().to_rfc3339(),
                                         "file_extension": file_path.split('.').last().unwrap_or("unknown"),
                                     }),
-                                }),
+                                };
+                            payload.normalize();
+                            
+                            let summary_vector = Vector {
+                                id: format!("summary_file_{}", uuid::Uuid::new_v4()),
+                                data: summary_embedding,
+                                payload: Some(payload),
                             };
                             file_summary_vectors.push(summary_vector);
                         }
@@ -1869,10 +1885,8 @@ impl DocumentLoader {
                 if let Ok(cs) = chunk_summary_result {
                     match self.embedding_manager.embed(&cs.summary) {
                         Ok(embedding) => {
-                            let vector = Vector {
-                                id: format!("summary_chunk_{}_{}", uuid::Uuid::new_v4(), chunk.chunk_index),
-                                data: embedding,
-                                payload: Some(Payload { data: serde_json::json!({
+                            let mut payload = Payload { 
+                                data: serde_json::json!({
                                     "content": cs.summary,
                                     "source_file": file_path,
                                     "original_collection": self.config.collection_name,
@@ -1885,7 +1899,14 @@ impl DocumentLoader {
                                     "summary_length": cs.summary_length,
                                     "created_at": chrono::Utc::now().to_rfc3339(),
                                     "file_extension": file_path.split('.').last().unwrap_or("unknown"),
-                                })}),
+                                })
+                            };
+                            payload.normalize();
+                            
+                            let vector = Vector {
+                                id: format!("summary_chunk_{}_{}", uuid::Uuid::new_v4(), chunk.chunk_index),
+                                data: embedding,
+                                payload: Some(payload),
                             };
                             chunk_summary_vectors.push(vector);
                         }

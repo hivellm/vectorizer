@@ -63,14 +63,15 @@ impl NormalizationPipeline {
         // Detect content type
         let content_type = self.detector.detect(text, file_path);
 
-        // Try to get from cache first
-        if let Some(cache) = &self.cache {
-            let hash_calculator = ContentHashCalculator::new();
-            let content_hash = hash_calculator.hash(text);
+        // Normalize the text FIRST (before hashing for cache key)
+        // This ensures cache keys are based on normalized content, not raw text
+        let normalized = self.normalizer.normalize(text, Some(content_type.clone()));
 
-            // Check cache
+        // Try to get from cache using the normalized content hash
+        if let Some(cache) = &self.cache {
+            // Check cache using the hash of the NORMALIZED text
             let cache_read = cache.read();
-            if let Some(cached_text) = cache_read.get_normalized(&content_hash).await? {
+            if let Some(cached_text) = cache_read.get_normalized(&normalized.content_hash).await? {
                 drop(cache_read);
                 return Ok(ProcessedDocument {
                     normalized_text: cached_text,
@@ -79,16 +80,13 @@ impl NormalizationPipeline {
                     } else {
                         None
                     },
-                    content_hash: Some(content_hash),
+                    content_hash: Some(normalized.content_hash),
                     content_type: content_type.to_string(),
                     from_cache: true,
                 });
             }
             drop(cache_read);
         }
-
-        // Normalize the text
-        let normalized = self.normalizer.normalize(text, Some(content_type.clone()));
 
         // Store in cache if enabled
         if let Some(cache) = &self.cache {
