@@ -1,6 +1,6 @@
-# Text Normalization and Quantization - Technical Specification
+# Text Normalization - Technical Specification
 
-**Feature ID**: FEAT-NORM-001  
+**Feature ID**: FEAT-NORM-002  
 **Version**: 1.0.0  
 **Status**: Planning  
 **Created**: 2025-10-11  
@@ -10,13 +10,15 @@
 
 ## Executive Summary
 
-This specification defines a comprehensive text normalization and vector quantization system for the Vectorizer to significantly reduce storage footprint and memory usage while maintaining semantic search quality. The system will implement intelligent text preprocessing, efficient vector quantization (SQ-8), and sophisticated caching strategies.
+This specification defines an intelligent text normalization system for the Vectorizer to significantly reduce storage footprint and improve embedding consistency. The system will implement content-type-aware text preprocessing and sophisticated content hashing for deduplication.
+
+**Note**: Vector quantization (SQ-8bit) is already implemented in v0.7.0, achieving 4x compression + 8.9% quality improvement.
 
 **Expected Benefits**:
 - **Storage Reduction**: 30-50% reduction in text payload (depending on corpus quality)
-- **Memory Reduction**: 75% reduction in vector memory (float32 → SQ-8)
+- **Embedding Consistency**: Same semantic content → same embeddings (regardless of whitespace)
+- **Better Deduplication**: Content hashing eliminates duplicate processing
 - **Performance**: Faster I/O, better cache hit rates, lower latency
-- **Quality**: Maintained or improved search quality through consistent normalization
 
 ---
 
@@ -30,13 +32,7 @@ This specification defines a comprehensive text normalization and vector quantiz
    - Unicode variants cause duplicate semantic content
    - Invisible control characters waste space
 
-2. **Vector Storage Inefficiency**
-   - Float32 vectors (4 bytes × dim) consume massive memory
-   - HNSW index size grows linearly with vector count
-   - No compression or quantization strategy
-   - High memory pressure on large collections
-
-3. **Semantic Inconsistency**
+2. **Semantic Inconsistency**
    - Same content with different whitespace → different embeddings
    - Query normalization doesn't match document normalization
    - Case sensitivity issues in lexical search
@@ -60,8 +56,8 @@ This specification defines a comprehensive text normalization and vector quantiz
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  Raw Blob → Type Detection → Normalization → Chunking →         │
-│  Content Hash → Cache Lookup → Embedding → Quantization →       │
-│  HNSW Indexing                                                   │
+│  Content Hash → Cache Lookup → Embedding →                      │
+│  HNSW Indexing (with existing SQ-8 quantization)                │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -69,8 +65,8 @@ This specification defines a comprehensive text normalization and vector quantiz
 │                          Search Pipeline                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│  Query → Normalize (same policy) → Embed → Quantize →           │
-│  HNSW Search (SQ-8) → Re-rank (float16/32) → Results            │
+│  Query → Normalize (same policy) → Embed →                      │
+│  HNSW Search (existing SQ-8) → Re-rank → Results                │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -181,101 +177,31 @@ impl VectorKey {
 }
 ```
 
-#### 4. Vector Quantizer (SQ-8)
+#### 4. Cache Manager
 
-**Purpose**: Compress float32 vectors to uint8 (4x reduction)
-
-**Scalar Quantization (SQ-8)**:
-
-```
-For each dimension i:
-  code[i] = round((value[i] - zero_point[i]) / scale[i])
-  clamped to [0, 255]
-
-Dequantization:
-  value[i] ≈ code[i] * scale[i] + zero_point[i]
-```
-
-**Strategies**:
-
-**Per-Dimension (Global)**:
-- One scale/zero_point per dimension
-- Best for balanced datasets
-- 2 × D × 4 bytes metadata (D = embedding dim)
-
-**Per-Block**:
-- Divide dimensions into blocks of size B (e.g., 8, 16)
-- One scale/zero_point per block
-- Better adaptation to heterogeneous data
-- 2 × (D/B) × 4 bytes metadata
-
-**Implementation**:
-```rust
-struct QuantizationParams {
-    version: u32,
-    strategy: QuantStrategy,
-    scales: Vec<f32>,      // Per-dim or per-block
-    zero_points: Vec<i32>, // Per-dim or per-block
-}
-
-struct Quantizer {
-    params: QuantizationParams,
-    
-    fn quantize(&self, vector: &[f32]) -> Vec<u8> {
-        match self.params.strategy {
-            QuantStrategy::PerDim => self.quantize_per_dim(vector),
-            QuantStrategy::PerBlock(block_size) => {
-                self.quantize_per_block(vector, block_size)
-            }
-        }
-    }
-    
-    fn dequantize(&self, codes: &[u8]) -> Vec<f32> {
-        // Reverse process
-    }
-}
-```
-
-**Distance Computation (ADC)**:
-
-Asymmetric Distance Computation - query in float32, database in SQ-8:
-
-```rust
-fn adc_distance(
-    query: &[f32],
-    codes: &[u8],
-    params: &QuantizationParams,
-) -> f32 {
-    // Pre-compute lookup tables for efficiency
-    let mut distance = 0.0;
-    for i in 0..query.len() {
-        let dequant = codes[i] as f32 * params.scales[i] + params.zero_points[i] as f32;
-        distance += (query[i] - dequant).powi(2);
-    }
-    distance.sqrt()
-}
-```
-
-#### 5. Cache Manager
-
-**Purpose**: Multi-tier caching for embeddings and quantized vectors
+**Purpose**: Multi-tier caching for normalized text and content hashes
 
 **Cache Tiers**:
 
 **Tier 1 - Memory (Hot)**:
-- Recent embeddings (float16 compressed with LZ4)
+- Normalized text (recent documents)
+- Content hashes for deduplication
 - Size: Configurable (e.g., 10% of total)
 - Eviction: LFU (Least Frequently Used)
 
 **Tier 2 - Disk (Warm)**:
-- All quantized vectors (SQ-8)
+- Normalized text blobs (Zstd compressed)
+- Content hash → normalized text mapping
 - Persistent, memory-mapped
-- Size: Unlimited (compressed with Zstd)
+- Size: Unlimited
 
 **Tier 3 - Blob Store (Cold)**:
-- Raw and normalized text (Zstd)
+- Raw text (original, unmodified)
+- Normalized text (processed)
 - All metadata
-- Size: Unlimited
+- Size: Unlimited (compressed with Zstd)
+
+**Note**: Vector caching and quantization already implemented in existing system
 
 **Implementation**:
 ```rust
@@ -360,20 +286,7 @@ pub struct NormalizationMetadata {
 }
 ```
 
-### Quantization API
-
-```rust
-pub trait VectorQuantizer {
-    fn quantize(&self, vector: &[f32]) -> Result<QuantizedVector>;
-    fn dequantize(&self, codes: &[u8]) -> Vec<f32>;
-    fn compute_distance(&self, query: &[f32], codes: &[u8]) -> f32;
-}
-
-pub struct QuantizedVector {
-    pub codes: Vec<u8>,
-    pub params_ref: QuantParamsRef,  // Reference to shared params
-}
-```
+**Note**: Quantization API already exists in `src/quantization/` (v0.7.0)
 
 ---
 
@@ -403,30 +316,7 @@ pub struct QuantizedVector {
 - Unit tests (>95% coverage)
 - Benchmarks (throughput, compression ratio)
 
-### Phase 2: Vector Quantization (Week 3-4)
-
-**Tasks**:
-1. Implement SQ-8 quantizer
-   - Per-dimension strategy
-   - Per-block strategy
-   - Parameter optimization (grid search)
-
-2. Implement ADC distance computation
-   - Cosine similarity
-   - L2 distance
-   - SIMD optimization (AVX2/NEON)
-
-3. Quality evaluation
-   - Recall@K comparison (float32 vs SQ-8)
-   - Precision degradation analysis
-   - NDCG@K metrics
-
-**Deliverables**:
-- `src/quantization/` module
-- Quality report (Recall@10, NDCG@10)
-- Performance benchmarks (latency, throughput)
-
-### Phase 3: Cache System (Week 5)
+### Phase 2: Cache System Enhancement (Week 3)
 
 **Tasks**:
 1. Implement multi-tier cache
@@ -449,21 +339,22 @@ pub struct QuantizedVector {
 - Cache benchmarks (hit rate, latency)
 - Monitoring dashboard
 
-### Phase 4: Integration & Migration (Week 6)
+### Phase 3: Integration & Migration (Week 4)
 
 **Tasks**:
 1. Integrate into ingestion pipeline
-   - Replace raw text storage
-   - Enable quantization by default
+   - Apply normalization to all incoming text
+   - Store both raw and normalized versions
+   - Content hash-based deduplication
    - Migration tool for existing collections
 
 2. Integrate into search pipeline
-   - Query normalization
-   - ADC distance in HNSW
-   - Re-ranking with dequantized vectors
+   - Query normalization (same policy as documents)
+   - Consistent embedding generation
+   - Hash-based cache lookup
 
 3. Configuration
-   - Per-collection policies
+   - Per-collection normalization policies
    - Feature flags
    - Performance tuning
 
@@ -483,12 +374,6 @@ pub struct QuantizedVector {
 - Whitespace handling (tabs, multiple spaces, CRLF)
 - Code block preservation
 - HTML/Markdown parsing
-
-**Quantization**:
-- Round-trip accuracy (quantize → dequantize)
-- Distance computation correctness
-- Saturation handling (values outside [0,1])
-- Block alignment
 
 **Cache**:
 - Concurrent access safety
@@ -514,9 +399,9 @@ pub struct QuantizedVector {
 
 **Benchmarks**:
 - Normalization throughput (MB/s)
-- Quantization throughput (vectors/s)
-- Search latency (ms per query)
+- Content hashing throughput (docs/s)
 - Cache hit rate (%)
+- Storage reduction ratio (%)
 
 **Load Tests**:
 - Concurrent ingestion (100 threads)
@@ -531,23 +416,26 @@ pub struct QuantizedVector {
 ### Functional
 
 - ✅ Text normalization reduces storage by ≥30%
-- ✅ SQ-8 quantization reduces vector memory by ≥75%
 - ✅ Query normalization matches document normalization
 - ✅ Code/table content preserved correctly
-- ✅ Cache hit rate ≥80% for hot collections
+- ✅ Cache hit rate ≥80% for normalized text
+- ✅ Content hash deduplication working correctly
 
 ### Quality
 
-- ✅ Recall@10 degradation <2% (SQ-8 vs float32)
-- ✅ NDCG@10 degradation <1%
+- ✅ Embedding consistency improved (same content → same embedding)
+- ✅ Search quality maintained (≥96%)
 - ✅ No semantic errors in normalized text
+- ✅ Code/table structure preserved
 
 ### Performance
 
 - ✅ Normalization <5ms per document (avg)
-- ✅ Quantization <1ms per vector (avg)
-- ✅ Search latency increase <10% (ADC overhead)
+- ✅ Content hashing <1ms per document (avg)
 - ✅ Cache lookup <0.1ms
+- ✅ No search latency regression
+
+**Note**: Vector quantization performance already validated in v0.7.0 (SQ-8bit)
 
 ### Operational
 
@@ -564,8 +452,8 @@ pub struct QuantizedVector {
 
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
-| Quality degradation from quantization | Medium | High | Extensive A/B testing, adjustable precision |
-| Code normalization breaks semantics | Medium | High | Whitelist code extensions, preserve structure |
+| Code normalization breaks semantics | Medium | High | Content-type detection, preserve whitespace for code/tables |
+| Aggressive normalization loses information | Low | Medium | Multiple normalization levels, configurable policies |
 | Cache memory pressure | Low | Medium | Configurable limits, LFU eviction |
 | Migration data loss | Low | Critical | Backup requirement, rollback plan |
 
@@ -584,14 +472,10 @@ pub struct QuantizedVector {
 ### Metrics
 
 **Normalization**:
-- `norm_bytes_saved_total` - Total bytes saved
-- `norm_duration_seconds` - Normalization time
-- `norm_policy_version` - Current policy version
-
-**Quantization**:
-- `quant_vectors_compressed_total` - Vectors quantized
-- `quant_compression_ratio` - Storage reduction
-- `quant_distance_error` - ADC vs exact distance error
+- `norm_bytes_saved_total` - Total bytes saved through normalization
+- `norm_duration_seconds` - Normalization processing time
+- `norm_policy_version` - Current normalization policy version
+- `norm_content_hash_hits` - Content hash deduplication hits
 
 **Cache**:
 - `cache_hit_rate` - Hit rate by tier
@@ -605,10 +489,10 @@ pub struct QuantizedVector {
 
 ### Alerts
 
-- Recall@10 drops >2%
+- Search quality drops >1%
 - Cache hit rate <50%
-- Quantization errors spike
-- Memory usage >90%
+- Normalization errors spike
+- Storage growth exceeds expected rate
 
 ---
 
@@ -634,16 +518,17 @@ pub struct QuantizedVector {
 
 ### References
 
-- [Faiss SQ8 Documentation](https://github.com/facebookresearch/faiss/wiki/Faiss-indexes#scalar-quantizer)
 - [Unicode Normalization](https://unicode.org/reports/tr15/)
 - [BLAKE3 Specification](https://github.com/BLAKE3-team/BLAKE3-specs)
+- [Zstandard Compression](https://github.com/facebook/zstd)
 
 ### Glossary
 
-- **ADC**: Asymmetric Distance Computation
+- **NFC**: Unicode Normalization Form C (canonical composition)
 - **NFKC**: Unicode Normalization Form KC (compatibility composition)
-- **SQ-8**: Scalar Quantization to 8 bits
-- **HNSW**: Hierarchical Navigable Small World graph
+- **BLAKE3**: Fast cryptographic hash function
+- **LFU**: Least Frequently Used (cache eviction strategy)
+- **Content Hash**: Deterministic hash for deduplication
 
 ---
 
