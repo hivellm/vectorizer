@@ -75,5 +75,4 @@ cuhnsw
 data
 
 ./vectorize-workspace.yml
-
-*.idx
+vectorize-workspace.yml

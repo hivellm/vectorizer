@@ -717,6 +717,7 @@ pub async fn load_workspace_collections(
                 hnsw_config: crate::models::HnswConfig::default(),
                 quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
                 compression: crate::models::CompressionConfig::default(),
+                normalization: Some(crate::normalization::NormalizationConfig::moderate()),
             };
 
             // Create collection if it doesn't exist

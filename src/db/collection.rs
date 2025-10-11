@@ -246,10 +246,18 @@ impl Collection {
 
     /// Get a vector by ID
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
-        self.vectors.lock().unwrap()
+        let vector = self.vectors.lock().unwrap()
             .get(vector_id)
             .cloned()
-            .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))
+            .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
+        
+        // Normalize payload content (fix line endings from legacy data)
+        let mut normalized_vector = vector;
+        if let Some(ref mut payload) = normalized_vector.payload {
+            payload.normalize();
+        }
+        
+        Ok(normalized_vector)
     }
 
     /// Search for similar vectors
@@ -277,12 +285,14 @@ impl Collection {
         let mut results = Vec::with_capacity(neighbors.len());
         for (id, score) in neighbors {
             if let Some(vector) = self.vectors.lock().unwrap().get(&id) {
-                // Since we keep the original data for HNSW index, we can return it directly
+                // Normalize payload content (fix line endings from legacy data)
+                let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
+                
                 results.push(SearchResult {
                     id: id.clone(),
                     score,
                     vector: Some(vector.data.clone()),
-                    payload: vector.payload.clone(),
+                    payload: normalized_payload,
                 });
             }
         }

@@ -99,7 +99,10 @@ impl PersistedVector {
         let payload = match self.payload_json {
             Some(json_str) => {
                 let value: serde_json::Value = serde_json::from_str(&json_str)?;
-                Some(Payload::new(value))
+                let mut payload = Payload::new(value);
+                // Normalize payload content (fix line endings from legacy data)
+                payload.normalize();
+                Some(payload)
             }
             None => None,
         };
@@ -116,7 +119,10 @@ impl PersistedVector {
         let payload = match self.payload_json {
             Some(json_str) => {
                 let value: serde_json::Value = serde_json::from_str(&json_str)?;
-                Some(Payload::new(value))
+                let mut payload = Payload::new(value);
+                // Normalize payload content (fix line endings from legacy data)
+                payload.normalize();
+                Some(payload)
             }
             None => None,
         };

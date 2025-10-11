@@ -83,12 +83,6 @@ impl Watcher {
                         tracing::info!("🔍 NOTIFY: Raw event received: kind={:?}, paths={:?}", filtered_event.kind, filtered_event.paths);
                         tracing::info!("🔍 NOTIFY: Filtered to relevant paths: {:?}", filtered_event.paths);
 
-                        // Skip Access events entirely to prevent self-detection loops
-                        if matches!(filtered_event.kind, notify::EventKind::Access(_)) {
-                            tracing::debug!("🔍 NOTIFY: Skipping ACCESS event to prevent loops: {:?}", filtered_event.paths);
-                            return;
-                        }
-
                         // Filter events to only process relevant ones
                         match &filtered_event.kind {
                             notify::EventKind::Create(_) => {
@@ -99,6 +93,9 @@ impl Watcher {
                             }
                             notify::EventKind::Remove(_) => {
                                 tracing::info!("🔍 NOTIFY: REMOVE event detected: {:?}", filtered_event.paths);
+                            }
+                            notify::EventKind::Access(_) => {
+                                tracing::info!("🔍 NOTIFY: ACCESS event detected: {:?}", filtered_event.paths);
                             }
                             _ => {
                                 tracing::info!("🔍 NOTIFY: OTHER event detected: {:?}", filtered_event.paths);

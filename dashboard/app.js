@@ -275,6 +275,10 @@ class VectorizerDashboard {
                                     <span class="stat-value">${col.metric}</span>
                                 </div>
                                 <div class="stat-row">
+                                    <span class="stat-label">Normalization:</span>
+                                    <span class="stat-value ${this.getNormalizationClass(col)}">${this.getNormalizationStatus(col)}</span>
+                                </div>
+                                <div class="stat-row">
                                     <span class="stat-label">Status:</span>
                                     <span class="stat-value status-${col.indexing_status.status}">${this.formatStatus(col.indexing_status.status)}</span>
                                 </div>
@@ -842,6 +846,12 @@ class VectorizerDashboard {
                                 </div>
                             </div>
                         </div>
+                        <div class="detail-section">
+                            <h3>Text Normalization</h3>
+                            <div class="detail-list">
+                                ${this.renderNormalizationDetails(collection)}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1049,6 +1059,7 @@ class VectorizerDashboard {
                         <th>Vectors</th>
                         <th>Dimension</th>
                         <th>Metric</th>
+                        <th>Normalization</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
@@ -1061,6 +1072,7 @@ class VectorizerDashboard {
                             <td>${this.formatNumber(col.vector_count)}</td>
                             <td>${col.dimension}</td>
                             <td>${col.metric}</td>
+                            <td><span class="${this.getNormalizationClass(col)}">${this.getNormalizationStatus(col)}</span></td>
                             <td>${this.formatDate(col.created_at)}</td>
                             <td>
                                 <button class="btn btn-sm btn-secondary" onclick="dashboard.viewCollectionDetails('${col.name}')">
@@ -1376,6 +1388,104 @@ class VectorizerDashboard {
 
             collectionsGrid.innerHTML = newContent;
         }
+    }
+
+    getNormalizationStatus(col) {
+        if (!col.normalization) {
+            return 'Disabled';
+        }
+        if (!col.normalization.enabled) {
+            return 'Disabled';
+        }
+        const level = col.normalization.level || 'Unknown';
+        return `✓ ${level}`;
+    }
+
+    getNormalizationClass(col) {
+        if (!col.normalization || !col.normalization.enabled) {
+            return 'status-disabled';
+        }
+        const level = (col.normalization.level || '').toLowerCase();
+        if (level.includes('conservative')) {
+            return 'status-conservative';
+        } else if (level.includes('moderate')) {
+            return 'status-moderate';
+        } else if (level.includes('aggressive')) {
+            return 'status-aggressive';
+        }
+        return 'status-enabled';
+    }
+
+    renderNormalizationDetails(collection) {
+        const norm = collection.normalization;
+        
+        if (!norm || !norm.enabled) {
+            return `
+                <div class="detail-item">
+                    <span class="label">Status:</span>
+                    <span class="value status-disabled">
+                        <i class="fas fa-times-circle"></i> Disabled
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Info:</span>
+                    <span class="value" style="font-size: 12px; color: #9ca3af;">
+                        Text normalization is not enabled for this collection
+                    </span>
+                </div>
+            `;
+        }
+
+        const levelIcon = {
+            'Conservative': 'fa-shield-alt',
+            'Moderate': 'fa-check-circle',
+            'Aggressive': 'fa-compress-arrows-alt'
+        }[norm.level] || 'fa-check';
+
+        const levelColor = {
+            'Conservative': '#3b82f6',
+            'Moderate': '#10b981',
+            'Aggressive': '#f59e0b'
+        }[norm.level] || '#10b981';
+
+        return `
+            <div class="detail-item">
+                <span class="label">Status:</span>
+                <span class="value" style="color: ${levelColor};">
+                    <i class="fas fa-check-circle"></i> Enabled
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Level:</span>
+                <span class="value" style="color: ${levelColor};">
+                    <i class="fas ${levelIcon}"></i> ${norm.level}
+                </span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Preserve Case:</span>
+                <span class="value">${norm.preserve_case ? '✓ Yes' : '✗ No'}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Collapse Whitespace:</span>
+                <span class="value">${norm.collapse_whitespace ? '✓ Yes' : '✗ No'}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Remove HTML:</span>
+                <span class="value">${norm.remove_html ? '✓ Yes' : '✗ No'}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Cache:</span>
+                <span class="value">${norm.cache_enabled ? `✓ ${norm.cache_size_mb} MB` : '✗ Disabled'}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Query Normalization:</span>
+                <span class="value">${norm.normalize_queries ? '✓ Enabled' : '✗ Disabled'}</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Store Original:</span>
+                <span class="value">${norm.store_raw_text ? '✓ Yes' : '✗ No'}</span>
+            </div>
+        `;
     }
 
     formatJSON(obj) {

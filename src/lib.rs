@@ -21,6 +21,7 @@ pub mod gpu;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod models;
+pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;

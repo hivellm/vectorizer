@@ -22,6 +22,57 @@ pub struct Payload {
     pub data: serde_json::Value,
 }
 
+impl Payload {
+    /// Normalize text content in payload using proper normalization pipeline
+    /// This applies conservative normalization (CRLF->LF) to preserve structure
+    pub fn normalize(&mut self) {
+        Self::normalize_value(&mut self.data);
+    }
+
+    /// Recursively normalize text values in JSON
+    /// Normalizes line endings and collapses excessive whitespace
+    fn normalize_value(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::String(s) => {
+                // Step 1: Normalize all line endings to LF
+                *s = s.replace("\r\n", "\n").replace('\r', "\n");
+                
+                // Step 2: Collapse multiple consecutive newlines (more than 2) into 2
+                while s.contains("\n\n\n") {
+                    *s = s.replace("\n\n\n", "\n\n");
+                }
+                
+                // Step 3: Trim leading/trailing whitespace from each line
+                *s = s.lines()
+                    .map(|line| line.trim_end())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                
+                // Step 4: Remove leading/trailing empty lines
+                *s = s.trim().to_string();
+            }
+            serde_json::Value::Object(map) => {
+                for v in map.values_mut() {
+                    Self::normalize_value(v);
+                }
+            }
+            serde_json::Value::Array(arr) => {
+                for v in arr.iter_mut() {
+                    Self::normalize_value(v);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Create a normalized copy of this payload
+    pub fn normalized(&self) -> Self {
+        let mut copy = self.clone();
+        copy.normalize();
+        copy
+    }
+}
+
 /// Configuration for a collection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionConfig {
@@ -35,6 +86,9 @@ pub struct CollectionConfig {
     pub quantization: QuantizationConfig,
     /// Compression configuration
     pub compression: CompressionConfig,
+    /// Text normalization configuration (optional, disabled by default)
+    #[serde(default)]
+    pub normalization: Option<crate::normalization::NormalizationConfig>,
 }
 
 /// Distance metrics for vector similarity
@@ -91,6 +145,7 @@ impl Default for CollectionConfig {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
             compression: CompressionConfig::default(),
+            normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
         }
     }
 }
@@ -177,6 +232,29 @@ pub struct CollectionMetadata {
     pub document_count: usize,
     /// Collection configuration
     pub config: CollectionConfig,
+}
+
+impl CollectionMetadata {
+    /// Check if text normalization is enabled
+    pub fn is_normalization_enabled(&self) -> bool {
+        self.config.normalization
+            .as_ref()
+            .map(|n| n.enabled)
+            .unwrap_or(false)
+    }
+
+    /// Get normalization level if enabled
+    pub fn normalization_level(&self) -> Option<String> {
+        self.config.normalization
+            .as_ref()
+            .filter(|n| n.enabled)
+            .map(|n| format!("{:?}", n.policy.level))
+    }
+
+    /// Get normalization configuration details
+    pub fn normalization_config(&self) -> Option<&crate::normalization::NormalizationConfig> {
+        self.config.normalization.as_ref()
+    }
 }
 
 /// Vector normalization and similarity utilities

@@ -49,25 +49,25 @@ impl AuthMiddleware {
     /// Authenticate a request using JWT or API key
     async fn authenticate_request(auth_manager: &AuthManager, request: &Request) -> AuthState {
         // Try to get authorization header
-        if let Some(auth_header) = request.headers().get(AUTHORIZATION)
-            && let Ok(auth_str) = auth_header.to_str()
-        {
-            // Check for Bearer token (JWT)
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                if let Ok(claims) = auth_manager.validate_jwt(token) {
+        if let Some(auth_header) = request.headers().get(AUTHORIZATION) {
+            if let Ok(auth_str) = auth_header.to_str() {
+                // Check for Bearer token (JWT)
+                if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                    if let Ok(claims) = auth_manager.validate_jwt(token) {
+                        return AuthState {
+                            user_claims: claims,
+                            authenticated: true,
+                        };
+                    }
+                }
+
+                // Check for API key (direct token)
+                if let Ok(claims) = auth_manager.validate_api_key(auth_str).await {
                     return AuthState {
                         user_claims: claims,
                         authenticated: true,
                     };
                 }
-            }
-
-            // Check for API key (direct token)
-            if let Ok(claims) = auth_manager.validate_api_key(auth_str).await {
-                return AuthState {
-                    user_claims: claims,
-                    authenticated: true,
-                };
             }
         }
 
