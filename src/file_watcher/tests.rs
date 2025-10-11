@@ -70,6 +70,7 @@ mod tests {
             vector_store.clone(),
             embedding_manager.clone(),
             crate::file_watcher::FileWatcherConfig::default(),
+            Arc::new(crate::file_watcher::HashValidator::new()),
         ));
         
         // Create enhanced watcher

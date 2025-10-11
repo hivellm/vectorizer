@@ -168,6 +168,7 @@ impl FileWatcherSystem {
             vector_store.clone(),
             embedding_manager.clone(),
             config.clone(),
+            hash_validator.clone(),
         ));
 
         Self {

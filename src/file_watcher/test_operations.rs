@@ -23,7 +23,8 @@ async fn test_file_processing_basic() {
     let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
     
     // Create vector operations
-    let operations = VectorOperations::new(vector_store.clone(), embedding_manager, crate::file_watcher::FileWatcherConfig::default());
+    let hash_validator = Arc::new(crate::file_watcher::HashValidator::new());
+    let operations = VectorOperations::new(vector_store.clone(), embedding_manager, crate::file_watcher::FileWatcherConfig::default(), hash_validator);
     
     // Test file filtering logic
     assert!(operations.should_process_file(&test_file), "Text file should be processed");
@@ -46,7 +47,8 @@ async fn test_file_removal_basic() {
     let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
     
     // Create vector operations
-    let operations = VectorOperations::new(vector_store.clone(), embedding_manager, crate::file_watcher::FileWatcherConfig::default());
+    let hash_validator = Arc::new(crate::file_watcher::HashValidator::new());
+    let operations = VectorOperations::new(vector_store.clone(), embedding_manager, crate::file_watcher::FileWatcherConfig::default(), hash_validator);
     
     // Test file filtering for deletion
     assert!(operations.should_process_file(&test_file), "Text file should be processed");
@@ -80,7 +82,8 @@ async fn test_should_process_file() {
         "*.bin".to_string(),
     ];
     
-    let operations = VectorOperations::new(vector_store, embedding_manager, config);
+    let hash_validator = Arc::new(crate::file_watcher::HashValidator::new());
+    let operations = VectorOperations::new(vector_store, embedding_manager, config, hash_validator);
     
     // Test various file extensions
     assert!(operations.should_process_file(std::path::Path::new("test.md")));
