@@ -3967,6 +3967,32 @@ body {
     font-weight: 600;
 }
 
+/* Normalization status colors */
+.status-conservative {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.status-moderate {
+    color: #10b981;
+    font-weight: 500;
+}
+
+.status-aggressive {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.status-disabled {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.status-enabled {
+    color: #10b981;
+    font-weight: 500;
+}
+
 /* Responsive adjustments for File Watcher */
 @media (max-width: 768px) {
     .metrics-grid {
