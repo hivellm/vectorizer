@@ -114,12 +114,9 @@ impl FileChangeEvent {
             EventKind::Access(_) => {
                 // Ignore access events to prevent self-detection loops
                 // Access events are generated when we read files during processing
-                if let Some(path) = event.paths.first() {
-                    // Return a special "ignored" event that won't be processed
-                    FileChangeEvent::Modified(PathBuf::new()) // Empty path = ignored
-                } else {
-                    FileChangeEvent::Modified(PathBuf::new())
-                }
+                // We should not process these events at all
+                // Return a special "ignored" event that won't be processed
+                FileChangeEvent::Modified(PathBuf::new()) // Empty path = ignored
             }
             _ => {
                 // Handle any other event types as modify
