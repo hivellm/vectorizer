@@ -23,7 +23,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **📚 Document Indexing**: Intelligent chunking and processing of 10+ file types
 - **🧠 Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
-- **🏗️ Unified Architecture**: REST API + MCP Server + GRPC backend
+- **🏗️ Unified Architecture**: REST API + MCP Server
 - **💾 Automatic Persistence**: Collections auto-save every 30 seconds
 - **👀 File Watcher**: Real-time monitoring with smart debouncing
 - **🔒 Security**: JWT + API Key authentication with RBAC
