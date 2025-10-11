@@ -1,11 +1,19 @@
-//! File Watcher System for real-time file monitoring and incremental reindexing
+//! Enhanced File Watcher System for real-time file monitoring and incremental reindexing
 //!
-//! This module provides a cross-platform file monitoring system that tracks changes
-//! in indexed files and updates the vector database in real-time through vector operations.
+//! This module provides a comprehensive cross-platform file monitoring system that:
+//! - Tracks changes in indexed files and updates the vector database in real-time
+//! - Uses persistent SHA-256 hash validation for accurate change detection
+//! - Proactively invalidates cache and re-embeds files when changes are detected
+//! - Manages background work queues for re-embedding operations
+//! - Implements atomic cache updates with temp files
+//! - Provides comprehensive metrics and logging
+//! - Supports priority-based task scheduling and rate limiting
 
 pub mod config;
 pub mod debouncer;
 pub mod hash_validator;
+pub mod integrated_sync;
+pub mod usage_example;
 pub mod watcher;
 pub mod file_index;
 pub mod enhanced_watcher;
@@ -22,12 +30,20 @@ pub mod test_operations;
 #[cfg(test)]
 pub mod test_integration;
 
+#[cfg(test)]
+pub mod metrics_tests;
+
+#[cfg(test)]
+pub mod system_metrics_tests;
+
 pub use config::FileWatcherConfig;
 pub use watcher::Watcher as FileWatcher;
+pub use hash_validator::HashValidator;
+pub use integrated_sync::{IntegratedSyncManager, IntegratedSyncConfig, SyncStats};
 pub use operations::VectorOperations;
 pub use file_index::{FileIndex, FileIndexArc, CollectionVectorMapping, FileIndexStats};
 pub use enhanced_watcher::{EnhancedFileWatcher, FileSystemEvent, WorkspaceConfig, ProjectConfig, CollectionConfig};
-pub use discovery::{FileDiscovery, DiscoveryResult, DiscoveryStats, SyncResult, SyncStats};
+pub use discovery::{FileDiscovery, DiscoveryResult, DiscoveryStats, SyncResult, SyncStats as DiscoverySyncStats};
 pub use metrics::{MetricsCollector, FileWatcherMetrics};
 
 // Re-export FileWatcherSystem for external use
@@ -98,12 +114,9 @@ impl FileChangeEvent {
             EventKind::Access(_) => {
                 // Ignore access events to prevent self-detection loops
                 // Access events are generated when we read files during processing
-                if let Some(path) = event.paths.first() {
-                    // Return a special "ignored" event that won't be processed
-                    FileChangeEvent::Modified(PathBuf::new()) // Empty path = ignored
-                } else {
-                    FileChangeEvent::Modified(PathBuf::new())
-                }
+                // We should not process these events at all
+                // Return a special "ignored" event that won't be processed
+                FileChangeEvent::Modified(PathBuf::new()) // Empty path = ignored
             }
             _ => {
                 // Handle any other event types as modify
@@ -155,6 +168,7 @@ impl FileWatcherSystem {
             vector_store.clone(),
             embedding_manager.clone(),
             config.clone(),
+            hash_validator.clone(),
         ));
 
         Self {
@@ -168,6 +182,15 @@ impl FileWatcherSystem {
             metrics,
             watcher: None,
         }
+    }
+
+    /// Create a new File Watcher System from workspace configuration
+    pub async fn from_workspace(
+        vector_store: Arc<VectorStore>,
+        embedding_manager: Arc<RwLock<EmbeddingManager>>,
+    ) -> std::result::Result<Self, Box<dyn std::error::Error>> {
+        let config = FileWatcherConfig::from_workspace().await?;
+        Ok(Self::new(config, vector_store, embedding_manager))
     }
 
     /// Start the file watcher system
@@ -580,17 +603,17 @@ impl FileWatcherSystem {
 
     /// Record file processing metrics
     pub async fn record_file_processing(&self, success: bool, processing_time_ms: u64) {
-        self.metrics.record_file_processing_complete(success, processing_time_ms).await;
+        self.metrics.record_file_processing_complete(success, processing_time_ms as f64).await;
     }
 
     /// Record discovery metrics
     pub async fn record_discovery(&self, files_found: u64, discovery_time_ms: u64) {
-        self.metrics.record_discovery(files_found, discovery_time_ms).await;
+        self.metrics.record_discovery(files_found, discovery_time_ms as f64).await;
     }
 
     /// Record sync metrics
     pub async fn record_sync(&self, orphaned_removed: u64, unindexed_found: u64, sync_time_ms: u64) {
-        self.metrics.record_sync(orphaned_removed, unindexed_found, sync_time_ms).await;
+        self.metrics.record_sync(orphaned_removed, unindexed_found, sync_time_ms as f64).await;
     }
 
     /// Record error metrics

@@ -598,6 +598,7 @@ mod tests {
                 Arc::new(VectorStore::new_auto()),
                 Arc::new(RwLock::new(EmbeddingManager::new())),
                 config.clone(),
+                Arc::new(crate::file_watcher::HashValidator::new()),
             )),
             vector_store: Arc::new(VectorStore::new_auto()),
         };
@@ -609,13 +610,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_directory_exclusion() {
-        let config = FileWatcherConfig::default();
+        let mut config = FileWatcherConfig::default();
+        config.exclude_patterns = vec![
+            "**/target/**".to_string(),
+            "**/node_modules/**".to_string(),
+            "**/.git/**".to_string(),
+            ".git".to_string(),
+        ];
         let discovery = FileDiscovery {
             config: config.clone(),
             vector_operations: Arc::new(VectorOperations::new(
                 Arc::new(VectorStore::new_auto()),
                 Arc::new(RwLock::new(EmbeddingManager::new())),
                 config.clone(),
+                Arc::new(crate::file_watcher::HashValidator::new()),
             )),
             vector_store: Arc::new(VectorStore::new_auto()),
         };

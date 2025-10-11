@@ -10,6 +10,7 @@ pub struct VectorOperations {
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<RwLock<EmbeddingManager>>,
     config: crate::file_watcher::FileWatcherConfig,
+    hash_validator: Arc<crate::file_watcher::HashValidator>,
 }
 
 impl VectorOperations {
@@ -17,40 +18,51 @@ impl VectorOperations {
         vector_store: Arc<VectorStore>,
         embedding_manager: Arc<RwLock<EmbeddingManager>>,
         config: crate::file_watcher::FileWatcherConfig,
+        hash_validator: Arc<crate::file_watcher::HashValidator>,
     ) -> Self {
         Self {
             vector_store,
             embedding_manager,
             config,
+            hash_validator,
         }
     }
 
-    /// Process file change event
+    /// Process file change event with intelligent lifecycle management
     pub async fn process_file_change(&self, event: &crate::file_watcher::FileChangeEventWithMetadata) -> Result<()> {
         tracing::info!("🔍 PROCESS: Processing file change event: {:?}", event.event);
         match &event.event {
-            crate::file_watcher::FileChangeEvent::Created(path) | crate::file_watcher::FileChangeEvent::Modified(path) => {
+            crate::file_watcher::FileChangeEvent::Created(path) => {
                 // Skip events with empty paths (ignored events like Access)
                 if path.as_os_str().is_empty() || path.to_string_lossy().is_empty() {
                     tracing::debug!("⏭️ PROCESS: Skipping event with empty path (ignored event): {:?}", path);
                     return Ok(());
                 }
                 
-                tracing::info!("🔍 PROCESS: Indexing file: {:?}", path);
-                self.index_file_from_path(path).await?;
-                tracing::info!("✅ PROCESS: Successfully indexed file: {:?}", path);
+                tracing::info!("🔍 PROCESS: Processing CREATE event for file: {:?}", path);
+                self.handle_file_created(path).await?;
+                tracing::info!("✅ PROCESS: Successfully processed CREATE event for file: {:?}", path);
+            }
+            crate::file_watcher::FileChangeEvent::Modified(path) => {
+                // Skip events with empty paths (ignored events like Access)
+                if path.as_os_str().is_empty() || path.to_string_lossy().is_empty() {
+                    tracing::debug!("⏭️ PROCESS: Skipping event with empty path (ignored event): {:?}", path);
+                    return Ok(());
+                }
+                
+                tracing::info!("🔍 PROCESS: Processing MODIFY event for file: {:?}", path);
+                self.handle_file_modified(path).await?;
+                tracing::info!("✅ PROCESS: Successfully processed MODIFY event for file: {:?}", path);
             }
             crate::file_watcher::FileChangeEvent::Deleted(path) => {
-                tracing::info!("🔍 PROCESS: Removing file: {:?}", path);
-                self.remove_file_from_path(path).await?;
-                tracing::info!("✅ PROCESS: Successfully removed file: {:?}", path);
+                tracing::info!("🔍 PROCESS: Processing DELETE event for file: {:?}", path);
+                self.handle_file_deleted(path).await?;
+                tracing::info!("✅ PROCESS: Successfully processed DELETE event for file: {:?}", path);
             }
             crate::file_watcher::FileChangeEvent::Renamed(old_path, new_path) => {
-                tracing::info!("🔍 PROCESS: Renaming file from {:?} to {:?}", old_path, new_path);
-                // Remove from old path and add to new path
-                self.remove_file_from_path(old_path).await?;
-                self.index_file_from_path(new_path).await?;
-                tracing::info!("✅ PROCESS: Successfully renamed file from {:?} to {:?}", old_path, new_path);
+                tracing::info!("🔍 PROCESS: Processing RENAME event from {:?} to {:?}", old_path, new_path);
+                self.handle_file_renamed(old_path, new_path).await?;
+                tracing::info!("✅ PROCESS: Successfully processed RENAME event from {:?} to {:?}", old_path, new_path);
             }
         }
         Ok(())
@@ -179,6 +191,109 @@ impl VectorOperations {
         Ok(())
     }
 
+    /// Handle file created event
+    async fn handle_file_created(&self, path: &std::path::Path) -> Result<()> {
+        // Check if file should be processed
+        if !self.should_process_file(path) {
+            tracing::debug!("⏭️ CREATE: Skipping file (doesn't match patterns): {:?}", path);
+            return Ok(());
+        }
+        
+        // Check if file exists (sometimes CREATE events are sent for non-existent files)
+        if !path.exists() {
+            tracing::warn!("⚠️ CREATE: File does not exist, skipping: {:?}", path);
+            return Ok(());
+        }
+        
+        // Determine collection and index the file
+        let collection_name = self.determine_collection_name(path);
+        tracing::info!("🔍 CREATE: Indexing new file {:?} in collection '{}'", path, collection_name);
+        
+        self.index_file_from_path(path).await?;
+        
+        // Update hash after successful indexing
+        if let Err(e) = self.hash_validator.update_hash(path).await {
+            tracing::warn!("⚠️ CREATE: Failed to update hash for {:?}: {}", path, e);
+        }
+        
+        Ok(())
+    }
+    
+    /// Handle file modified event
+    async fn handle_file_modified(&self, path: &std::path::Path) -> Result<()> {
+        // Check if file should be processed
+        if !self.should_process_file(path) {
+            tracing::debug!("⏭️ MODIFY: Skipping file (doesn't match patterns): {:?}", path);
+            return Ok(());
+        }
+        
+        // Check if file exists
+        if !path.exists() {
+            tracing::warn!("⚠️ MODIFY: File does not exist, treating as DELETE: {:?}", path);
+            return self.handle_file_deleted(path).await;
+        }
+        
+        // Check if content has actually changed using hash comparison
+        match self.hash_validator.has_content_changed(path).await {
+            Ok(false) => {
+                tracing::debug!("⏭️ MODIFY: File content unchanged, skipping: {:?}", path);
+                return Ok(());
+            }
+            Ok(true) => {
+                tracing::info!("🔍 MODIFY: File content changed, updating: {:?}", path);
+            }
+            Err(e) => {
+                tracing::warn!("⚠️ MODIFY: Failed to check hash, proceeding with update: {:?} - {}", path, e);
+            }
+        }
+        
+        // Determine collection and update the file
+        let collection_name = self.determine_collection_name(path);
+        tracing::info!("🔍 MODIFY: Updating file {:?} in collection '{}'", path, collection_name);
+        
+        // Remove old version first, then add new version
+        self.remove_file(&path.to_string_lossy(), &collection_name).await?;
+        self.index_file_from_path(path).await?;
+        
+        // Update hash after successful indexing
+        if let Err(e) = self.hash_validator.update_hash(path).await {
+            tracing::warn!("⚠️ MODIFY: Failed to update hash for {:?}: {}", path, e);
+        }
+        
+        Ok(())
+    }
+    
+    /// Handle file deleted event
+    async fn handle_file_deleted(&self, path: &std::path::Path) -> Result<()> {
+        // Determine collection and remove the file
+        let collection_name = self.determine_collection_name(path);
+        tracing::info!("🔍 DELETE: Removing file {:?} from collection '{}'", path, collection_name);
+        
+        self.remove_file(&path.to_string_lossy(), &collection_name).await?;
+        
+        // Remove hash from cache
+        self.hash_validator.remove_hash(path).await;
+        
+        Ok(())
+    }
+    
+    /// Handle file renamed event
+    async fn handle_file_renamed(&self, old_path: &std::path::Path, new_path: &std::path::Path) -> Result<()> {
+        tracing::info!("🔍 RENAME: Renaming file from {:?} to {:?}", old_path, new_path);
+        
+        // Remove from old path
+        self.handle_file_deleted(old_path).await?;
+        
+        // Add to new path (if it exists)
+        if new_path.exists() {
+            self.handle_file_created(new_path).await?;
+        } else {
+            tracing::warn!("⚠️ RENAME: New path does not exist: {:?}", new_path);
+        }
+        
+        Ok(())
+    }
+
     /// Remove file from index by path
     async fn remove_file_from_path(&self, path: &std::path::Path) -> Result<()> {
         let collection_name = self.determine_collection_name(path);
@@ -194,85 +309,191 @@ impl VectorOperations {
 
     /// Determine collection name based on file path
     pub fn determine_collection_name(&self, path: &std::path::Path) -> String {
-        // Extract meaningful parts from path for collection name
-        let path_str = path.to_string_lossy();
-        
-        // Try to match against known project patterns from vectorize-workspace.yml
-        if path_str.contains("/docs/") {
-            if path_str.contains("/architecture/") {
-                "docs-architecture".to_string()
-            } else if path_str.contains("/templates/") {
-                "docs-templates".to_string()
-            } else if path_str.contains("/processes/") {
-                "docs-processes".to_string()
-            } else if path_str.contains("/governance/") {
-                "docs-governance".to_string()
-            } else if path_str.contains("/navigation/") {
-                "docs-navigation".to_string()
-            } else if path_str.contains("/testing/") {
-                "docs-testing".to_string()
-            } else {
-                "docs-architecture".to_string() // Default docs collection
-            }
-        } else if path_str.contains("/vectorizer/") {
-            if path_str.contains("/docs/") {
-                "vectorizer-docs".to_string()
-            } else if path_str.contains("/src/") {
-                "vectorizer-source".to_string()
-            } else if path_str.contains("/client-sdks/") {
-                if path_str.contains(".ts") || path_str.contains(".js") {
-                    "vectorizer-sdk-typescript".to_string()
-                } else if path_str.contains(".py") {
-                    "vectorizer-sdk-python".to_string()
-                } else if path_str.contains(".rs") {
-                    "vectorizer-sdk-rust".to_string()
-                } else {
-                    "vectorizer-source".to_string()
-                }
-            } else {
-                "vectorizer-source".to_string()
-            }
-        } else if path_str.contains("/gov/") {
-            if path_str.contains("/bips/") {
-                "gov-bips".to_string()
-            } else if path_str.contains("/guidelines/") {
-                "gov-guidelines".to_string()
-            } else if path_str.contains("/proposals/") {
-                "gov-proposals".to_string()
-            } else if path_str.contains("/minutes/") {
-                "gov-minutes".to_string()
-            } else if path_str.contains("/schemas/") {
-                "gov-schemas".to_string()
-            } else if path_str.contains("/teams/") {
-                "gov-teams".to_string()
-            } else if path_str.contains("/metrics/") {
-                "gov-metrics".to_string()
-            } else if path_str.contains("/issues/") {
-                "gov-issues".to_string()
-            } else if path_str.contains("/snapshot/") {
-                "gov-snapshot".to_string()
-            } else {
-                "gov-core".to_string()
-            }
-        } else {
-            // Fallback: try to extract project/workspace name
-            if let Some(parent) = path.parent() {
-                let components: Vec<_> = parent.components().collect();
-                if components.len() >= 2 {
-                    // Use last two components as collection name
-                    let last_two: Vec<_> = components.iter().rev().take(2).collect();
-                    format!("{}-{}", 
-                        last_two[1].as_os_str().to_string_lossy(),
-                        last_two[0].as_os_str().to_string_lossy()
-                    )
-                } else if let Some(last) = components.last() {
-                    last.as_os_str().to_string_lossy().to_string()
-                } else {
-                    "default".to_string()
-                }
-            } else {
-                "default".to_string()
+        tracing::debug!("🔍 DETERMINE_COLLECTION: Determining collection for path: {:?}", path);
+        // Try to load workspace configuration to determine collection name
+        match self.load_workspace_collection_name(path) {
+            Some(collection_name) => {
+                tracing::info!("✅ DETERMINE_COLLECTION: Found collection '{}' for path: {:?}", collection_name, path);
+                collection_name
+            },
+            None => {
+                // Fallback to default collection name from config
+                tracing::warn!("⚠️ DETERMINE_COLLECTION: No collection found, using fallback '{}' for path: {:?}", 
+                    self.config.collection_name, path);
+                self.config.collection_name.clone()
             }
         }
+    }
+
+    /// Load collection name from workspace configuration
+    fn load_workspace_collection_name(&self, path: &std::path::Path) -> Option<String> {
+        tracing::debug!("🔍 LOAD_WORKSPACE: Loading workspace config for path: {:?}", path);
+        
+        let workspace_file = std::env::current_dir()
+            .ok()?
+            .join("vectorize-workspace.yml");
+        
+        tracing::debug!("🔍 LOAD_WORKSPACE: Workspace file: {:?}", workspace_file);
+        
+        if !workspace_file.exists() {
+            tracing::warn!("⚠️ LOAD_WORKSPACE: Workspace file does not exist: {:?}", workspace_file);
+            return None;
+        }
+        
+        let content = std::fs::read_to_string(&workspace_file).ok()?;
+        let workspace: serde_yaml::Value = serde_yaml::from_str(&content).ok()?;
+        
+        let path_str = path.to_string_lossy();
+        tracing::debug!("🔍 LOAD_WORKSPACE: File path string: {}", path_str);
+        
+        // Check projects and their collections
+        if let Some(projects) = workspace.get("projects") {
+            if let Some(projects_array) = projects.as_sequence() {
+                for project in projects_array {
+                    if let Some(project_path) = project.get("path") {
+                        if let Some(project_path_str) = project_path.as_str() {
+                            // Resolve relative paths to absolute paths
+                            let absolute_project_path = if project_path_str.starts_with("..") || project_path_str.starts_with(".") {
+                                std::env::current_dir()
+                                    .ok()?
+                                    .join(project_path_str)
+                                    .canonicalize()
+                                    .ok()?
+                            } else {
+                                std::path::PathBuf::from(project_path_str)
+                            };
+                            
+                            let absolute_project_path_str = absolute_project_path.to_string_lossy();
+                            
+                            // Check if the file path starts with the project path
+                            if path_str.starts_with(absolute_project_path_str.as_ref()) {
+                                if let Some(collections) = project.get("collections") {
+                                    if let Some(collections_array) = collections.as_sequence() {
+                                        // Sort collections by specificity (more specific patterns first)
+                                        let mut sorted_collections = Vec::new();
+                                        for collection in collections_array {
+                                            if let Some(collection_name) = collection.get("name") {
+                                                if let Some(collection_name_str) = collection_name.as_str() {
+                                                    if let Some(include_patterns) = collection.get("include_patterns") {
+                                                        if let Some(patterns_array) = include_patterns.as_sequence() {
+                                                            for pattern in patterns_array {
+                                                                if let Some(pattern_str) = pattern.as_str() {
+                                                                    let specificity = self.calculate_pattern_specificity(pattern_str);
+                                                                    sorted_collections.push((specificity, collection_name_str, pattern_str));
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        // Sort by specificity (higher specificity first)
+                                        sorted_collections.sort_by(|a, b| b.0.cmp(&a.0));
+                                        
+                                        // Try patterns in order of specificity
+                                        for (_, collection_name_str, pattern_str) in sorted_collections {
+                                            // Get the relative path within the project
+                                            let relative_path = path_str.strip_prefix(absolute_project_path_str.as_ref())
+                                                .unwrap_or(&path_str)
+                                                .trim_start_matches('/');
+                                            
+                                            if self.matches_pattern(relative_path, pattern_str) {
+                                                tracing::info!("✅ COLLECTION: Matched file {:?} to collection {:?} with pattern {:?}", 
+                                                    path, collection_name_str, pattern_str);
+                                                return Some(collection_name_str.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        tracing::warn!("⚠️ LOAD_WORKSPACE: No collection found for path: {:?}", path);
+        None
+    }
+
+    /// Calculate pattern specificity (higher = more specific)
+    fn calculate_pattern_specificity(&self, pattern: &str) -> u32 {
+        let mut specificity = 0;
+        
+        // More specific patterns get higher scores
+        if pattern.contains("**") {
+            // Double wildcard is less specific
+            specificity += 10;
+        } else if pattern.contains("*") {
+            // Single wildcard is more specific
+            specificity += 20;
+        } else {
+            // Exact match is most specific
+            specificity += 50;
+        }
+        
+        // Count directory separators (more specific paths)
+        specificity += pattern.matches('/').count() as u32 * 5;
+        
+        // Count literal characters (more specific)
+        specificity += pattern.chars().filter(|c| !matches!(c, '*')).count() as u32;
+        
+        // Bonus for specific file extensions
+        if pattern.ends_with(".md") {
+            specificity += 10;
+        }
+        
+        specificity
+    }
+
+    /// Check if a path matches a glob pattern
+    fn matches_pattern(&self, path: &str, pattern: &str) -> bool {
+        tracing::debug!("🔍 PATTERN: Checking if '{}' matches pattern '{}'", path, pattern);
+        
+        // Handle ** patterns (recursive directory matching)
+        if pattern.contains("**") {
+            let parts: Vec<&str> = pattern.split("**").collect();
+            if parts.len() == 2 {
+                let prefix = parts[0];
+                let suffix = parts[1];
+                
+                // For ** patterns, check if path starts with prefix and ends with suffix
+                // and contains the directory structure in between
+                let matches = if prefix.is_empty() && suffix.is_empty() {
+                    true // ** matches everything
+                } else if prefix.is_empty() {
+                    path.ends_with(suffix) // **/suffix
+                } else if suffix.is_empty() {
+                    path.starts_with(prefix) // prefix/**
+                } else {
+                    // prefix/**/suffix - check if path starts with prefix and ends with suffix
+                    path.starts_with(prefix) && path.ends_with(suffix)
+                };
+                
+                tracing::debug!("🔍 PATTERN: ** pattern '{}' -> prefix: '{}', suffix: '{}', matches: {}", 
+                    pattern, prefix, suffix, matches);
+                return matches;
+            }
+        } else if pattern.contains("*") {
+            // Handle single * patterns
+            let parts: Vec<&str> = pattern.split("*").collect();
+            if parts.len() == 2 {
+                let prefix = parts[0];
+                let suffix = parts[1];
+                let matches = path.starts_with(prefix) && path.ends_with(suffix);
+                tracing::debug!("🔍 PATTERN: * pattern '{}' -> prefix: '{}', suffix: '{}', matches: {}", 
+                    pattern, prefix, suffix, matches);
+                return matches;
+            }
+        } else {
+            // Exact match or contains match
+            let matches = path.contains(pattern);
+            tracing::debug!("🔍 PATTERN: exact pattern '{}' matches: {}", pattern, matches);
+            return matches;
+        }
+        
+        tracing::debug!("🔍 PATTERN: no match for pattern '{}'", pattern);
+        false
     }
 }
