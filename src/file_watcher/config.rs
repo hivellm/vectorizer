@@ -61,7 +61,7 @@ impl Default for FileWatcherConfig {
         Self {
             watch_paths: None, // Auto-discovered from indexed files
             include_patterns: vec![], // Will be loaded from workspace config
-            exclude_patterns: vec![], // Will be loaded from workspace config
+            exclude_patterns: Self::get_hardcoded_exclude_patterns(), // Hardcoded patterns
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB
             enable_hash_validation: true,
@@ -83,6 +83,52 @@ impl FileWatcherConfig {
     /// Create a new configuration with default values
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Get hardcoded exclude patterns to prevent processing of system files
+    pub fn get_hardcoded_exclude_patterns() -> Vec<String> {
+        vec![
+            // Version control and build artifacts
+            "**/.git/**".to_string(),
+            "**/target/**".to_string(),
+            "**/node_modules/**".to_string(),
+            "**/.*".to_string(),
+            
+            // Temporary and cache files
+            "**/*.tmp".to_string(),
+            "**/*.log".to_string(),
+            "**/*.part".to_string(),
+            "**/*.lock".to_string(),
+            "**/~*".to_string(),
+            "**/.#*".to_string(),
+            "**/*.swp".to_string(),
+            "**/*.swo".to_string(),
+            "**/Cargo.lock".to_string(),
+            
+            // System files
+            "**/.DS_Store".to_string(),
+            "**/Thumbs.db".to_string(),
+            "**/.fingerprint/**".to_string(),
+            
+            // Vectorizer data files (CRITICAL - prevents loops)
+            "**/data/**".to_string(),
+            "**/*_metadata.json".to_string(),
+            "**/*_tokenizer.json".to_string(),
+            "**/*_vector_store.bin".to_string(),
+            
+            // Additional system patterns
+            "**/__pycache__/**".to_string(),
+            "**/*.pyc".to_string(),
+            "**/*.pyo".to_string(),
+            "**/venv/**".to_string(),
+            "**/env/**".to_string(),
+            "**/.env".to_string(),
+            "**/dist/**".to_string(),
+            "**/build/**".to_string(),
+            "**/out/**".to_string(),
+            "**/bin/**".to_string(),
+            "**/obj/**".to_string(),
+        ]
     }
 
     /// Load configuration from workspace file
@@ -123,15 +169,8 @@ impl FileWatcherConfig {
                     }
                 }
                 
-                // Load exclude patterns
-                if let Some(patterns) = file_watcher.get("exclude_patterns") {
-                    if let Some(patterns_array) = patterns.as_sequence() {
-                        config.exclude_patterns = patterns_array.iter()
-                            .filter_map(|p| p.as_str())
-                            .map(|s| s.to_string())
-                            .collect();
-                    }
-                }
+                // Exclude patterns are now hardcoded - ignore any from YAML
+                // config.exclude_patterns = Self::get_hardcoded_exclude_patterns();
                 
                 // Load other settings
                 if let Some(debounce) = file_watcher.get("debounce_delay_ms") {
@@ -175,31 +214,7 @@ impl FileWatcherConfig {
             ];
         }
         
-        if config.exclude_patterns.is_empty() {
-            config.exclude_patterns = vec![
-                "**/target/**".to_string(),
-                "**/node_modules/**".to_string(),
-                "**/.git/**".to_string(),
-                ".git".to_string(),
-                "**/.svn/**".to_string(),
-                "**/.hg/**".to_string(),
-                "**/.bzr/**".to_string(),
-                "**/.vscode/**".to_string(),
-                "**/.idea/**".to_string(),
-                "**/.vs/**".to_string(),
-                "**/*.tmp".to_string(),
-                "**/*.log".to_string(),
-                "**/*.part".to_string(),
-                "**/*.lock".to_string(),
-                "**/~*".to_string(),
-                "**/.#*".to_string(),
-                "**/*.swp".to_string(),
-                "**/*.swo".to_string(),
-                "**/Cargo.lock".to_string(),
-                "**/.DS_Store".to_string(),
-                "**/Thumbs.db".to_string(),
-            ];
-        }
+        // Exclude patterns are always hardcoded - no need to check if empty
         
         Ok(config)
     }
