@@ -259,7 +259,10 @@ pub async fn list_vectors(
 }
 
 pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Value> {
-    let collections = state.store.list_collections();
+    let mut collections = state.store.list_collections();
+    
+    // Sort alphabetically for consistent dashboard display
+    collections.sort();
     
     let collection_infos: Vec<Value> = collections.iter().map(|name| {
         match state.store.get_collection(name) {

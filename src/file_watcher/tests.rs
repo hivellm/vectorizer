@@ -91,7 +91,6 @@ mod tests {
         // Test adding mappings
         let file_path = PathBuf::from("test.rs");
         let collection_name = "test-collection".to_string();
-        let vector_ids = vec!["vec1".to_string(), "vec2".to_string()];
         let hash = "abc123".to_string();
         
         // Create a mutable reference for testing
@@ -99,7 +98,6 @@ mod tests {
         file_index.add_mapping(
             file_path.clone(),
             collection_name.clone(),
-            vector_ids.clone(),
             hash,
         );
         
@@ -155,14 +153,12 @@ mod tests {
         file_index.add_mapping(
             PathBuf::from("test1.rs"),
             "collection1".to_string(),
-            vec!["vec1".to_string()],
             "hash1".to_string(),
         );
         
         file_index.add_mapping(
             PathBuf::from("test2.py"),
             "collection2".to_string(),
-            vec!["vec2".to_string()],
             "hash2".to_string(),
         );
         
@@ -224,7 +220,6 @@ mod tests {
         file_index.add_mapping(
             test_file.clone(),
             "test-collection".to_string(),
-            vec!["vector_1".to_string()],
             hash1.clone(),
         );
         
@@ -415,7 +410,6 @@ mod tests {
             file_index.add_mapping(
                 file_path.clone(),
                 "test-collection ".to_string(),
-                vec![format!("vector_{} ", i)],
                 format!("hash_{} ", i),
             );
         }
@@ -592,7 +586,6 @@ mod tests {
             index.add_mapping(
                 test_file.clone(),
                 "dynamic-test-collection ".to_string(),
-                vec![vector_id.clone()],
                 content_hash.clone(),
             );
         }
@@ -652,7 +645,6 @@ mod tests {
             index.add_mapping(
                 new_file.clone(),
                 "dynamic-test-collection ".to_string(),
-                vec![new_vector_id.clone()],
                 new_file_hash,
             );
         }

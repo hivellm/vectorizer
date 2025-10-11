@@ -72,6 +72,8 @@ impl Default for FileWatcherConfig {
                 "*.yml".to_string(),
             ],
             exclude_patterns: vec![
+                "**/data/**".to_string(),              // CRITICAL: Never watch vectorizer data directory
+                "**/*.bin".to_string(),                // CRITICAL: Never watch binary files (causes memory issues)
                 "**/target/**".to_string(),
                 "**/node_modules/**".to_string(),
                 "**/.git/**".to_string(),
@@ -87,6 +89,9 @@ impl Default for FileWatcherConfig {
                 "**/Cargo.lock".to_string(),
                 "**/.DS_Store".to_string(),
                 "**/Thumbs.db".to_string(),
+                "**/*_metadata.json".to_string(),      // Vectorizer metadata files
+                "**/*_tokenizer.json".to_string(),     // Tokenizer files
+                "**/.fingerprint/**".to_string(),      // Build fingerprints
             ],
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB

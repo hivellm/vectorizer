@@ -8,10 +8,78 @@ use std::fmt;
 pub struct Vector {
     /// Unique identifier for the vector
     pub id: String,
-    /// The vector data
+    /// The vector data (always f32 for compatibility)
     pub data: Vec<f32>,
     /// Optional payload associated with the vector
     pub payload: Option<Payload>,
+}
+
+/// Internal storage format for quantized vectors (memory optimized)
+#[derive(Debug, Clone)]
+pub struct QuantizedVector {
+    /// Unique identifier for the vector
+    pub id: String,
+    /// Quantized vector data (1 byte per dimension instead of 4)
+    pub quantized_data: Vec<u8>,
+    /// Quantization parameters for reconstruction
+    pub min_val: f32,
+    pub max_val: f32,
+    /// Optional payload associated with the vector
+    pub payload: Option<Payload>,
+}
+
+impl QuantizedVector {
+    /// Create from full precision vector
+    pub fn from_vector(vector: Vector) -> Self {
+        let (quantized_data, min_val, max_val) = quantize_to_u8(&vector.data);
+        Self {
+            id: vector.id,
+            quantized_data,
+            min_val,
+            max_val,
+            payload: vector.payload,
+        }
+    }
+    
+    /// Convert back to full precision vector (for search/API responses)
+    pub fn to_vector(&self) -> Vector {
+        let data = dequantize_from_u8(&self.quantized_data, self.min_val, self.max_val);
+        Vector {
+            id: self.id.clone(),
+            data,
+            payload: self.payload.clone(),
+        }
+    }
+    
+    /// Get memory usage in bytes (1 byte per dimension + overhead)
+    pub fn memory_size(&self) -> usize {
+        self.quantized_data.len() + std::mem::size_of::<f32>() * 2 + self.id.len()
+    }
+}
+
+/// Quantize f32 vector to u8 (0-255 range)
+fn quantize_to_u8(data: &[f32]) -> (Vec<u8>, f32, f32) {
+    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let range = max_val - min_val;
+    
+    let quantized = if range > 0.0 {
+        data.iter()
+            .map(|&v| (((v - min_val) / range) * 255.0) as u8)
+            .collect()
+    } else {
+        vec![0u8; data.len()]
+    };
+    
+    (quantized, min_val, max_val)
+}
+
+/// Dequantize u8 vector back to f32
+fn dequantize_from_u8(quantized: &[u8], min_val: f32, max_val: f32) -> Vec<f32> {
+    let range = max_val - min_val;
+    quantized.iter()
+        .map(|&v| (v as f32 / 255.0) * range + min_val)
+        .collect()
 }
 
 /// Arbitrary JSON payload associated with a vector

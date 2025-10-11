@@ -6,8 +6,12 @@ use crate::{
     models::{CollectionConfig, Payload, Vector},
 };
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::fs::{self, File};
+use std::io::{Read, Write};
 use std::path::Path;
+use flate2::Compression;
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
 use tracing::{debug, error, info, warn};
 
 // New persistence system modules
@@ -189,12 +193,22 @@ impl VectorStore {
         };
 
         // Serialize with JSON (for better compatibility with serde_json::Value)
-        let json_data = serde_json::to_string_pretty(&persisted)?;
+        let json_data = serde_json::to_string(&persisted)?; // Use to_string instead of to_string_pretty for better compression
+        
+        // Compress with gzip for better storage efficiency
+        let file = File::create(path)?;
+        let mut encoder = GzEncoder::new(file, Compression::best());
+        encoder.write_all(json_data.as_bytes())?;
+        encoder.finish()?;
 
-        // Write to file
-        fs::write(path, json_data)?;
-
-        info!("Vector store saved successfully");
+        let original_size = json_data.len();
+        let compressed_size = fs::metadata(path)?.len();
+        let compression_ratio = (1.0 - (compressed_size as f64 / original_size as f64)) * 100.0;
+        
+        info!(
+            "Vector store saved successfully (Original: {} bytes, Compressed: {} bytes, Ratio: {:.1}%)",
+            original_size, compressed_size, compression_ratio
+        );
         Ok(())
     }
 
@@ -203,8 +217,27 @@ impl VectorStore {
         let path = path.as_ref();
         info!("Loading vector store from {:?}", path);
 
-        // Read file
-        let json_data = fs::read_to_string(path)?;
+        // Try to read as gzip compressed file first
+        let (json_data, was_compressed) = match File::open(path) {
+            Ok(file) => {
+                let mut decoder = GzDecoder::new(file);
+                let mut json_string = String::new();
+                
+                // Try to decompress - if it fails, try reading as plain text
+                match decoder.read_to_string(&mut json_string) {
+                    Ok(_) => {
+                        info!("Loaded compressed vector store");
+                        (json_string, true)
+                    }
+                    Err(_) => {
+                        // Not a gzip file, try reading as plain text (backward compatibility)
+                        warn!("Loaded uncompressed vector store - will auto-migrate to compressed format");
+                        (fs::read_to_string(path)?, false)
+                    }
+                }
+            }
+            Err(e) => return Err(VectorizerError::Other(format!("Failed to open file: {}", e))),
+        };
 
         // Deserialize with JSON (for better compatibility with serde_json::Value)
         let persisted: PersistedVectorStore = serde_json::from_str(&json_data)?;
@@ -232,6 +265,12 @@ impl VectorStore {
                 // Load vectors from cache (HNSW dump not implemented yet)
                 store.load_collection_from_cache(&collection.name, collection.vectors)?;
             }
+        }
+
+        // Note: Auto-migration removed to prevent memory duplication
+        // Uncompressed files will be saved compressed on next manual save
+        if !was_compressed {
+            info!("📦 Loaded uncompressed store - will be saved compressed on next save operation");
         }
 
         info!("Vector store loaded successfully");

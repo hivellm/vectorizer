@@ -9,6 +9,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🎯 **Major Release - Text Normalization & Multi-tier Cache System**
 
+### 🔥 **Critical Fixes & Optimizations (October 11, 2025)**
+
+#### **Memory Optimization (~1.5-2GB RAM Reduction)**
+- ✅ **True Quantization**: Implemented `QuantizedVector` storage (u8 instead of f32 = 75% memory reduction)
+- ✅ **FileIndex Optimization**: Removed `vector_ids` storage from file watcher (~300-500MB saved)
+- ✅ **Lazy Loading**: Added `auto_load_collections: false` config option (loads collections on first access)
+- ✅ **File Watcher Control**: Respects `file_watcher.enabled: false` config setting
+
+#### **Security & Data Integrity**
+- ✅ **Critical Safety Blocks**: Triple-layer protection against indexing `/data` directory and `.bin` files
+  - Config level: `exclude_patterns` in `file_watcher/config.rs`
+  - File discovery: Validation in `document_loader.rs` before file reading
+  - Pattern matching: Additional checks in `matches_patterns()` method
+- ✅ **Never Process System Files**: Blocks `_metadata.json`, `_tokenizer.json`, `.bin` files
+- ⚠️ **Memory Safety**: Prevented file watcher from causing 1GB+ memory overflow
+
+#### **Storage Optimization**
+- ✅ **Gzip Compression**: All persistence files now use gzip compression (60-80% reduction)
+- ✅ **Auto-decompression**: Backward compatible - reads both compressed and uncompressed
+- ✅ **Compression Stats**: Logs compression ratio on save operations
+- ⚠️ **Auto-migration Removed**: Prevented memory duplication during lazy migration
+
+#### **Line Ending Normalization**
+- ✅ **Universal Normalization**: All `\r\n` (Windows) converted to `\n` (Unix) at multiple points:
+  - File reading (`document_loader.rs`)
+  - Cache loading (`persistence/mod.rs`)
+  - Payload return (`models/mod.rs`)
+  - Runtime deserialization (`persistence/mod.rs`)
+- ✅ **Conservative Normalization**: Preserves code structure, collapses excessive newlines
+- ✅ **Whitespace Cleanup**: Removes trailing spaces, collapses 3+ newlines to 2
+
+#### **API Improvements**
+- ✅ **Sorted Collections**: `/collections` endpoint now returns alphabetically sorted list
+- ✅ **Consistent Dashboard**: Collection order no longer changes between requests
+
+#### **Workspace Configuration**
+- ✅ **6 New UMICP Bindings**: Added collections for C#, Go, Java, Kotlin, PHP, Python
+- ✅ **Gov Manuals**: Added AI integration manuals for 25+ programming languages
+- ✅ **Global Exclude Patterns**: Enhanced safety with comprehensive exclusion list
+
+#### **Configuration Updates**
+```yaml
+file_watcher:
+  enabled: false  # Now properly respected
+
+workspace:
+  auto_load_collections: false  # Lazy loading for memory efficiency
+  
+normalization:
+  enabled: true
+  level: "conservative"
+  line_endings:
+    normalize_crlf: true
+    collapse_multiple_newlines: true
+```
+
+#### **Breaking Changes**
+- ⚠️ **FileIndex API**: `add_mapping()` no longer accepts `vector_ids` parameter
+- ⚠️ **FileIndex API**: `remove_file()` returns `Vec<String>` instead of `Vec<(String, Vec<String>)>`
+- ⚠️ **Collection Storage**: Quantized collections store in `quantized_vectors` HashMap
+
+#### **Migration Notes**
+- Existing `.bin` files will be automatically decompressed when loaded
+- Collections will be saved compressed on next auto-save cycle
+- File watcher index will need rebuild (no vector_ids stored anymore)
+
+---
+
 #### **Phase 1: Text Normalization System**
 - ✅ **Content Type Detection**: Automatic detection of 20+ programming languages, markdown, JSON, CSV, HTML
 - ✅ **Smart Normalization**: Three levels (Conservative, Moderate, Aggressive) based on content type

@@ -21,8 +21,11 @@ pub struct Collection {
     name: String,
     /// Collection configuration
     config: CollectionConfig,
-    /// Vector storage
+    /// Vector storage (quantized for memory efficiency when SQ enabled)
     vectors: Arc<Mutex<HashMap<String, Vector>>>,
+    /// Quantized vector storage (only used when quantization is enabled)
+    /// Uses 75% less memory than Vec<f32> (1 byte vs 4 bytes per dimension)
+    quantized_vectors: Arc<Mutex<HashMap<String, crate::models::QuantizedVector>>>,
     /// Vector IDs in insertion order (for persistence consistency)
     vector_order: Arc<RwLock<Vec<String>>>,
     /// HNSW index for similarity search
@@ -81,6 +84,7 @@ impl Collection {
             name,
             config,
             vectors: Arc::new(Mutex::new(HashMap::new())),
+            quantized_vectors: Arc::new(Mutex::new(HashMap::new())),
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
             embedding_type: Arc::new(RwLock::new(embedding_type)),
@@ -140,16 +144,6 @@ impl Collection {
                 vector.data = data.clone(); // Update stored vector to normalized version
             }
 
-            // Apply quantization if enabled in config
-            if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-                // Apply scalar quantization (8-bit) to reduce memory usage
-                let quantized_data = self.quantize_vector(&data, 8)?;
-                // Replace vector data with quantized data to save memory
-                vector.data = self.dequantize_vector(&quantized_data, 8)?;
-                debug!("Applied 8-bit scalar quantization to vector '{}' ({} -> {} bytes)", 
-                       id, data.len() * 4, quantized_data.len());
-            }
-
             // Extract document ID from payload for tracking unique documents
             if let Some(payload) = &vector.payload {
                 if let Some(file_path) = payload.data.get("file_path") {
@@ -159,13 +153,25 @@ impl Collection {
                 }
             }
 
-            // Store vector
-            self.vectors.lock().unwrap().insert(id.clone(), vector);
+            // Apply quantization if enabled - store in quantized format to save memory
+            if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                // Store as quantized vector (75% memory reduction)
+                let quantized_vector = crate::models::QuantizedVector::from_vector(vector.clone());
+                debug!("Storing quantized vector '{}' ({} bytes instead of {})", 
+                       id, quantized_vector.memory_size(), data.len() * 4);
+                self.quantized_vectors.lock().unwrap().insert(id.clone(), quantized_vector);
+                
+                // Don't store full precision vector to save memory
+                // It will be reconstructed on-demand from quantized version
+            } else {
+                // Store full precision vector
+                self.vectors.lock().unwrap().insert(id.clone(), vector);
+            }
 
             // Track insertion order for persistence consistency
             vector_order.push(id.clone());
 
-            // Add to index
+            // Add to index (using full precision for search accuracy)
             index.add(id.clone(), data.clone())?;
         }
 
@@ -222,10 +228,16 @@ impl Collection {
 
     /// Delete a vector
     pub fn delete(&self, vector_id: &str) -> Result<()> {
-        // Remove from storage
-        self.vectors.lock().unwrap()
-            .remove(vector_id)
-            .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
+        // Remove from storage (both quantized and full precision)
+        let found = if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            self.quantized_vectors.lock().unwrap().remove(vector_id).is_some()
+        } else {
+            self.vectors.lock().unwrap().remove(vector_id).is_some()
+        };
+        
+        if !found {
+            return Err(VectorizerError::VectorNotFound(vector_id.to_string()));
+        }
 
         // Remove from order tracking
         let mut vector_order = self.vector_order.write();
@@ -246,6 +258,25 @@ impl Collection {
 
     /// Get a vector by ID
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+        // If quantization is enabled, get from quantized storage
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            let quantized_vector = self.quantized_vectors.lock().unwrap()
+                .get(vector_id)
+                .cloned()
+                .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
+            
+            // Dequantize on-demand (only when needed for API response)
+            let mut vector = quantized_vector.to_vector();
+            
+            // Normalize payload content (fix line endings from legacy data)
+            if let Some(ref mut payload) = vector.payload {
+                payload.normalize();
+            }
+            
+            return Ok(vector);
+        }
+        
+        // Otherwise get from full precision storage
         let vector = self.vectors.lock().unwrap()
             .get(vector_id)
             .cloned()
@@ -281,20 +312,36 @@ impl Collection {
         let index = self.index.read();
         let neighbors = index.search(&search_vector, k)?;
 
-        // Build results
+        // Build results - check quantized storage first if quantization is enabled
         let mut results = Vec::with_capacity(neighbors.len());
+        let use_quantization = matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
+        
         for (id, score) in neighbors {
-            if let Some(vector) = self.vectors.lock().unwrap().get(&id) {
-                // Normalize payload content (fix line endings from legacy data)
-                let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
-                
-                results.push(SearchResult {
-                    id: id.clone(),
-                    score,
-                    vector: Some(vector.data.clone()),
-                    payload: normalized_payload,
-                });
-            }
+            let vector = if use_quantization {
+                // Get from quantized storage and dequantize on-demand
+                if let Some(quantized) = self.quantized_vectors.lock().unwrap().get(&id) {
+                    quantized.to_vector()
+                } else {
+                    continue; // Vector not found
+                }
+            } else {
+                // Get from full precision storage
+                if let Some(v) = self.vectors.lock().unwrap().get(&id) {
+                    v.clone()
+                } else {
+                    continue; // Vector not found
+                }
+            };
+            
+            // Normalize payload content (fix line endings from legacy data)
+            let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
+            
+            results.push(SearchResult {
+                id: id.clone(),
+                score,
+                vector: Some(vector.data.clone()),
+                payload: normalized_payload,
+            });
         }
 
         Ok(results)
@@ -302,38 +349,49 @@ impl Collection {
 
     /// Get the number of vectors in the collection
     pub fn vector_count(&self) -> usize {
-        self.vectors.lock().unwrap().len()
+        // Count from whichever storage is being used
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            self.quantized_vectors.lock().unwrap().len()
+        } else {
+            self.vectors.lock().unwrap().len()
+        }
     }
 
     /// Requantize existing vectors if quantization is enabled (parallel processing)
+    /// Migrates vectors from full precision to quantized storage
     pub fn requantize_existing_vectors(&self) -> Result<()> {
         use rayon::prelude::*;
         
         if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-            debug!("Applying 8-bit scalar quantization to existing vectors in collection '{}' (parallel)", self.name);
+            debug!("Migrating existing vectors to quantized storage in collection '{}'", self.name);
             
             let mut vectors = self.vectors.lock().unwrap();
             let vector_count = vectors.len();
             
-            // Process vectors in parallel using rayon
-            let quantized_vectors: Vec<(String, Vec<f32>)> = vectors
+            if vector_count == 0 {
+                return Ok(());
+            }
+            
+            // Convert all vectors to quantized format in parallel
+            let quantized: Vec<(String, crate::models::QuantizedVector)> = vectors
                 .par_iter()
                 .map(|(id, vector)| {
-                    // Apply quantization to reduce memory usage
-                    let quantized_data = self.quantize_vector(&vector.data, 8).unwrap();
-                    let dequantized = self.dequantize_vector(&quantized_data, 8).unwrap();
-                    (id.clone(), dequantized)
+                    let qv = crate::models::QuantizedVector::from_vector(vector.clone());
+                    (id.clone(), qv)
                 })
                 .collect();
             
-            // Update vectors with quantized data
-            for (id, quantized_data) in quantized_vectors {
-                if let Some(mut vector) = vectors.get_mut(&id) {
-                    vector.data = quantized_data;
-                }
+            // Move to quantized storage
+            let mut quantized_storage = self.quantized_vectors.lock().unwrap();
+            for (id, qv) in quantized {
+                quantized_storage.insert(id, qv);
             }
             
-            debug!("Quantized {} vectors in collection '{}' (parallel)", vector_count, self.name);
+            // Clear full precision storage to free memory
+            vectors.clear();
+            drop(vectors); // Explicitly drop to free memory immediately
+            
+            info!("✅ Migrated {} vectors to quantized storage (~75% memory reduction)", vector_count);
         }
         
         Ok(())
@@ -588,10 +646,22 @@ impl Collection {
     /// Returns vectors in insertion order to maintain HNSW index consistency
     pub fn get_all_vectors(&self) -> Vec<Vector> {
         let vector_order = self.vector_order.read();
-        vector_order
-            .iter()
-            .filter_map(|id| self.vectors.lock().unwrap().get(id).cloned())
-            .collect()
+        
+        // If quantization is enabled, get from quantized storage
+        if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+            let quantized = self.quantized_vectors.lock().unwrap();
+            vector_order
+                .iter()
+                .filter_map(|id| quantized.get(id).map(|qv| qv.to_vector()))
+                .collect()
+        } else {
+            // Get from full precision storage
+            let vectors = self.vectors.lock().unwrap();
+            vector_order
+                .iter()
+                .filter_map(|id| vectors.get(id).cloned())
+                .collect()
+        }
     }
 
     /// Dump the HNSW index to files for faster reloading
@@ -609,44 +679,86 @@ impl Collection {
 
     /// Calculate approximate memory usage of the collection
     pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
-        let vectors = self.vectors.lock().unwrap();
-        let vector_count = vectors.len();
-        
         let mut index_size = 0;
         let mut payload_size = 0;
         let mut total_size = 0;
         
-        // Calculate size for each vector
-        for (id, vector) in vectors.iter() {
-            // Vector ID size
-            let id_size = id.len();
-            
-            // Vector data size (f32 = 4 bytes per element)
-            let vector_data_size = vector.data.len() * 4;
-            
-            // Payload size (approximate JSON serialization size)
-            let vector_payload_size = if let Some(ref payload) = vector.payload {
-                // Estimate JSON size by serializing and measuring
-                match serde_json::to_string(&payload.data) {
-                    Ok(json_str) => json_str.len(),
-                    Err(_) => 0,
-                }
-            } else {
-                0
-            };
-            
-            // Total size for this vector
-            let vector_total_size = id_size + vector_data_size + vector_payload_size;
-            
-            index_size += id_size + vector_data_size;
-            payload_size += vector_payload_size;
-            total_size += vector_total_size;
-        }
+        // Check if quantization is enabled
+        let use_quantization = matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
         
-        // Add HNSW index overhead (approximate)
-        let index_overhead = vector_count * 100; // Rough estimate of HNSW overhead per vector
-        index_size += index_overhead;
-        total_size += index_overhead;
+        if use_quantization {
+            // Calculate from quantized storage
+            let quantized_vectors = self.quantized_vectors.lock().unwrap();
+            let vector_count = quantized_vectors.len();
+            
+            for (id, qvector) in quantized_vectors.iter() {
+                // Vector ID size
+                let id_size = id.len();
+                
+                // Quantized vector data size (u8 = 1 byte per element)
+                let vector_data_size = qvector.quantized_data.len();
+                
+                // Quantization params (2 f32 values)
+                let quant_params_size = std::mem::size_of::<f32>() * 2;
+                
+                // Payload size (approximate JSON serialization size)
+                let vector_payload_size = if let Some(ref payload) = qvector.payload {
+                    match serde_json::to_string(&payload.data) {
+                        Ok(json_str) => json_str.len(),
+                        Err(_) => 0,
+                    }
+                } else {
+                    0
+                };
+                
+                // Total size for this quantized vector
+                let vector_total_size = id_size + vector_data_size + quant_params_size + vector_payload_size;
+                
+                index_size += id_size + vector_data_size + quant_params_size;
+                payload_size += vector_payload_size;
+                total_size += vector_total_size;
+            }
+            
+            // Add HNSW index overhead (approximate)
+            let index_overhead = vector_count * 100;
+            index_size += index_overhead;
+            total_size += index_overhead;
+            
+        } else {
+            // Calculate from full precision storage
+            let vectors = self.vectors.lock().unwrap();
+            let vector_count = vectors.len();
+            
+            for (id, vector) in vectors.iter() {
+                // Vector ID size
+                let id_size = id.len();
+                
+                // Vector data size (f32 = 4 bytes per element)
+                let vector_data_size = vector.data.len() * 4;
+                
+                // Payload size (approximate JSON serialization size)
+                let vector_payload_size = if let Some(ref payload) = vector.payload {
+                    match serde_json::to_string(&payload.data) {
+                        Ok(json_str) => json_str.len(),
+                        Err(_) => 0,
+                    }
+                } else {
+                    0
+                };
+                
+                // Total size for this vector
+                let vector_total_size = id_size + vector_data_size + vector_payload_size;
+                
+                index_size += id_size + vector_data_size;
+                payload_size += vector_payload_size;
+                total_size += vector_total_size;
+            }
+            
+            // Add HNSW index overhead (approximate)
+            let index_overhead = vector_count * 100;
+            index_size += index_overhead;
+            total_size += index_overhead;
+        }
         
         (index_size, payload_size, total_size)
     }

@@ -8,6 +8,28 @@ global_settings:
     auto_discovery: true
     enable_auto_update: true
     hot_reload: true
+    # CRITICAL: Global exclude patterns to prevent processing system/data files
+    exclude_patterns:
+      - "**/data/**"           # NEVER watch vectorizer data directory (causes memory issues)
+      - "**/*.bin"             # NEVER watch binary files (causes memory issues)
+      - "**/.git/**"
+      - "**/target/**"
+      - "**/node_modules/**"
+      - "**/.*"
+      - "**/*.tmp"
+      - "**/*.log"
+      - "**/*.part"
+      - "**/*.lock"
+      - "**/~*"
+      - "**/.#*"
+      - "**/*.swp"
+      - "**/*.swo"
+      - "**/Cargo.lock"
+      - "**/.DS_Store"
+      - "**/Thumbs.db"
+      - "**/.fingerprint/**"
+      - "**/*_metadata.json"
+      - "**/*_tokenizer.json"
     
 projects:
   - name: "chat-hub"

@@ -82,27 +82,41 @@ impl VectorizerServer {
         let store_for_watcher = store_arc.clone();
         info!("✅ STEP 3: Arc wrappers created successfully");
         
-        info!("🔍 STEP 4: About to spawn file watcher task...");
+        info!("🔍 STEP 4: Checking if file watcher is enabled...");
+        
+        // Check if file watcher is enabled in config before starting
+        let file_watcher_enabled = std::fs::read_to_string("config.yml")
+            .ok()
+            .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
+            .and_then(|config| {
+                config.get("file_watcher")
+                    .and_then(|fw| fw.get("enabled"))
+                    .and_then(|enabled| enabled.as_bool())
+            })
+            .unwrap_or(false); // Default to disabled if not found
+        
         let watcher_system_arc = Arc::new(tokio::sync::Mutex::new(None::<crate::file_watcher::FileWatcherSystem>));
         let watcher_system_for_task = watcher_system_arc.clone();
         let watcher_system_for_server = watcher_system_arc.clone();
         
-        tokio::task::spawn(async move {
-            info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
-            info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
-            
-            // Load file watcher configuration from workspace
-            let watcher_config = load_file_watcher_config().await.unwrap_or_else(|e| {
-                warn!("Failed to load file watcher config: {}, using defaults", e);
-                crate::file_watcher::FileWatcherConfig::default()
-            });
-            
-            let mut watcher_system = crate::file_watcher::FileWatcherSystem::new(
-                watcher_config,
-                store_for_watcher,
-                file_watcher_arc,
-            );
-            info!("✅ STEP 5: FileWatcherSystem instance created");
+        if file_watcher_enabled {
+            info!("✅ File watcher is ENABLED in config - starting...");
+            tokio::task::spawn(async move {
+                info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
+                info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
+                
+                // Load file watcher configuration from workspace
+                let watcher_config = load_file_watcher_config().await.unwrap_or_else(|e| {
+                    warn!("Failed to load file watcher config: {}, using defaults", e);
+                    crate::file_watcher::FileWatcherConfig::default()
+                });
+                
+                let mut watcher_system = crate::file_watcher::FileWatcherSystem::new(
+                    watcher_config,
+                    store_for_watcher,
+                    file_watcher_arc,
+                );
+                info!("✅ STEP 5: FileWatcherSystem instance created");
             
             info!("🔍 STEP 5.1: Initializing file discovery system...");
             if let Err(e) = watcher_system.initialize_discovery() {
@@ -132,7 +146,10 @@ impl VectorizerServer {
                 tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
                 info!("🔍 File watcher is still running...");
             }
-        });
+            });
+        } else {
+            info!("⏭️  File watcher is DISABLED in config - skipping initialization");
+        }
 
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
@@ -142,9 +159,21 @@ impl VectorizerServer {
             println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
             
-            // Load all persisted collections in background
-            info!("🔍 COLLECTION_LOAD_STEP_1: Starting to load persisted collections...");
-            let persisted_count = match store_for_loading.load_all_persisted_collections() {
+            // Check if auto-load is enabled in config
+            let auto_load_enabled = std::fs::read_to_string("config.yml")
+                .ok()
+                .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
+                .and_then(|config| {
+                    config.get("workspace")
+                        .and_then(|ws| ws.get("auto_load_collections"))
+                        .and_then(|enabled| enabled.as_bool())
+                })
+                .unwrap_or(false); // Default to disabled (lazy loading)
+            
+            // Load all persisted collections in background (if enabled)
+            let persisted_count = if auto_load_enabled {
+                info!("🔍 COLLECTION_LOAD_STEP_1: Auto-load ENABLED - loading all persisted collections...");
+                match store_for_loading.load_all_persisted_collections() {
                 Ok(count) => {
                     if count > 0 {
                         println!("✅ Background loading completed - {} collections loaded", count);
@@ -261,6 +290,11 @@ impl VectorizerServer {
                     warn!("⚠️  Failed to load persisted collections in background: {}", e);
                     0
                 }
+                }
+            } else {
+                println!("⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)");
+                info!("⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)");
+                0
             };
 
             // Check for workspace configuration and reindex if needed

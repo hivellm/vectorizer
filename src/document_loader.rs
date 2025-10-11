@@ -273,6 +273,29 @@ impl DocumentLoader {
 
     /// Check if a file path matches the include/exclude patterns
     fn matches_patterns(&self, file_path: &Path, project_root: &Path) -> bool {
+        // CRITICAL SAFETY CHECKS - NEVER process these files regardless of configuration
+        let path_str_full = file_path.to_string_lossy();
+        
+        // BLOCK 1: Never process binary files (.bin) - causes memory overflow
+        if file_path.extension().and_then(|e| e.to_str()) == Some("bin") {
+            //warn!("BLOCKED: Binary file detected and rejected: {}", path_str_full);
+            return false;
+        }
+        
+        // BLOCK 2: Never process files in /data directory - vectorizer storage
+        if path_str_full.contains("/data/") || path_str_full.contains("\\data\\") {
+            //warn!("BLOCKED: File in /data directory detected and rejected: {}", path_str_full);
+            return false;
+        }
+        
+        // BLOCK 3: Never process vectorizer metadata files
+        if path_str_full.ends_with("_metadata.json") || 
+           path_str_full.ends_with("_tokenizer.json") ||
+           path_str_full.ends_with("_vector_store.bin") {
+            warn!("BLOCKED: Vectorizer metadata file detected and rejected: {}", path_str_full);
+            return false;
+        }
+        
         // Convert to relative path from project root for pattern matching
         let relative_path = match file_path.strip_prefix(project_root) {
             Ok(rel) => rel,
@@ -724,9 +747,32 @@ impl DocumentLoader {
             return Err(crate::error::VectorizerError::Other(format!("Cache file does not exist: {}", path.display())).into());
         }
         
-        // 🔧 FIX: Load cache data directly without creating separate VectorStore
+        // 🔧 Load cache data with compression support and auto-migration
         info!("🔍 Loading cache data from {}", path.display());
-        let json_data = std::fs::read_to_string(path)?;
+        use std::io::Read;
+        use flate2::read::GzDecoder;
+        
+        let (json_data, was_compressed) = match std::fs::File::open(path) {
+            Ok(file) => {
+                let mut decoder = GzDecoder::new(file);
+                let mut json_string = String::new();
+                
+                // Try to decompress - if it fails, try reading as plain text
+                match decoder.read_to_string(&mut json_string) {
+                    Ok(_) => {
+                        debug!("📦 Loaded compressed cache");
+                        (json_string, true)
+                    }
+                    Err(_) => {
+                        // Not a gzip file, try reading as plain text (backward compatibility)
+                        warn!("📦 Loaded uncompressed cache - will auto-migrate to compressed format");
+                        (std::fs::read_to_string(path)?, false)
+                    }
+                }
+            }
+            Err(e) => return Err(crate::error::VectorizerError::Other(format!("Failed to open file: {}", e)).into()),
+        };
+        
         let persisted: crate::persistence::PersistedVectorStore = serde_json::from_str(&json_data)?;
         
         // Find the collection in the persisted data
@@ -756,6 +802,12 @@ impl DocumentLoader {
         let loaded_meta = app_store.get_collection(collection_name)?.metadata();
         info!("✅ Successfully loaded {} vectors (metadata shows {} vectors, {} documents)", 
               vector_count, loaded_meta.vector_count, loaded_meta.document_count);
+        
+        // Note: Auto-migration removed to prevent memory duplication
+        // Uncompressed files will be saved compressed on next auto-save cycle
+        if !was_compressed {
+            info!("📦 Loaded uncompressed cache - will be saved compressed on next auto-save");
+        }
         
         Ok(vector_count)
     }
@@ -942,9 +994,23 @@ impl DocumentLoader {
                     }
                 }
 
+                // CRITICAL SAFETY CHECK: Never process /data directory or .bin files
+                let path_str = path.to_string_lossy();
+                if path_str.contains("/data/") || path_str.contains("\\data\\") {
+                    //warn!("BLOCKED AT READ: File in /data directory: {}", path_str);
+                    continue;
+                }
+                
                 // Skip binary files by extension
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
                     let ext_lower = extension.to_lowercase();
+                    
+                    // CRITICAL: .bin files must be blocked first
+                    if ext_lower == "bin" {
+                        //warn!("BLOCKED AT READ: Binary (.bin) file: {}", path_str);
+                        continue;
+                    }
+                    
                     let binary_extensions = [
                         // Images
                         "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico",
@@ -955,7 +1021,7 @@ impl DocumentLoader {
                         // Databases
                         "db", "sqlite", "sqlite3",
                         // Binaries
-                        "exe", "dll", "so", "dylib", "bin",
+                        "exe", "dll", "so", "dylib",
                         // Archives
                         "zip", "tar", "gz", "rar", "7z", "bz2", "xz",
                         // Documents (binary formats)

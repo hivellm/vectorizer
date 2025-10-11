@@ -7,10 +7,12 @@ use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 
 /// Mapping between file and collection with vector information
+/// OPTIMIZED: Removed vector_ids storage to save memory (can query from store when needed)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionVectorMapping {
     pub collection_name: String,
-    pub vector_ids: Vec<String>,
+    // vector_ids removed - saves ~36 bytes per vector ID
+    // For 100k files with 100 chunks each = 360MB+ memory saved!
     pub last_hash: String,
     pub last_modified: chrono::DateTime<chrono::Utc>,
 }
@@ -35,12 +37,10 @@ impl FileIndex {
         &mut self,
         file_path: PathBuf,
         collection_name: String,
-        vector_ids: Vec<String>,
         last_hash: String,
     ) {
         let mapping = CollectionVectorMapping {
             collection_name: collection_name.clone(),
-            vector_ids,
             last_hash,
             last_modified: chrono::Utc::now(),
         };
@@ -78,7 +78,8 @@ impl FileIndex {
     }
 
     /// Remove all mappings for a file
-    pub fn remove_file(&mut self, file_path: &PathBuf) -> Vec<(String, Vec<String>)> {
+    /// Returns list of collection names that had this file
+    pub fn remove_file(&mut self, file_path: &PathBuf) -> Vec<String> {
         let mut removed_collections = Vec::new();
 
         if let Some(mappings) = self.file_to_collections.remove(file_path) {
@@ -91,7 +92,7 @@ impl FileIndex {
                     }
                 }
 
-                removed_collections.push((mapping.collection_name, mapping.vector_ids));
+                removed_collections.push(mapping.collection_name);
             }
         }
 
@@ -114,15 +115,15 @@ impl FileIndex {
             .unwrap_or_default()
     }
 
-    /// Get vector IDs for a file in a specific collection
-    pub fn get_vector_ids(&self, file_path: &PathBuf, collection_name: &str) -> Option<Vec<String>> {
+    /// Get last hash for a file in a specific collection
+    pub fn get_last_hash(&self, file_path: &PathBuf, collection_name: &str) -> Option<String> {
         self.file_to_collections
             .get(file_path)
             .and_then(|mappings| {
                 mappings
                     .iter()
                     .find(|m| m.collection_name == collection_name)
-                    .map(|m| m.vector_ids.clone())
+                    .map(|m| m.last_hash.clone())
             })
     }
 
@@ -206,7 +207,6 @@ mod tests {
         index.add_mapping(
             file_path.clone(),
             collection_name.clone(),
-            vec!["vec1".to_string(), "vec2".to_string()],
             "hash123".to_string(),
         );
 
@@ -218,11 +218,9 @@ mod tests {
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0], collection_name);
 
-        // Check vector IDs
-        let vector_ids = index.get_vector_ids(&file_path, &collection_name).unwrap();
-        assert_eq!(vector_ids.len(), 2);
-        assert_eq!(vector_ids[0], "vec1");
-        assert_eq!(vector_ids[1], "vec2");
+        // Check hash
+        let hash = index.get_last_hash(&file_path, &collection_name).unwrap();
+        assert_eq!(hash, "hash123");
 
         // Remove mapping
         index.remove_mapping(&file_path, &collection_name);
@@ -245,15 +243,13 @@ mod tests {
         index.add_mapping(
             file_path.clone(),
             collection_name.clone(),
-            vec!["vec1".to_string()],
             "hash123".to_string(),
         );
 
         // Remove file
         let removed = index.remove_file(&file_path);
         assert_eq!(removed.len(), 1);
-        assert_eq!(removed[0].0, collection_name);
-        assert_eq!(removed[0].1, vec!["vec1".to_string()]);
+        assert_eq!(removed[0], collection_name);
 
         assert!(!index.contains_file(&file_path));
     }
@@ -264,7 +260,6 @@ mod tests {
         index.add_mapping(
             PathBuf::from("test.rs"),
             "test-collection".to_string(),
-            vec!["vec1".to_string()],
             "hash123".to_string(),
         );
 

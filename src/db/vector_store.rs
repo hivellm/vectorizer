@@ -735,19 +735,65 @@ impl VectorStore {
     }
 
     /// Get a reference to a collection by name
+    /// Implements lazy loading: if collection is not in memory but exists on disk, loads it
     pub fn get_collection(&self, name: &str) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
-        self.collections
-            .get(name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
+        // Fast path: collection already loaded
+        if let Some(collection) = self.collections.get(name) {
+            return Ok(collection);
+        }
+        
+        // Slow path: try lazy loading from disk
+        let data_dir = Self::get_data_dir();
+        let collection_file = data_dir.join(format!("{}_vector_store.bin", name));
+        
+        if collection_file.exists() {
+            debug!("🔄 Lazy loading collection '{}' from disk", name);
+            
+            // Load collection from disk
+            if let Err(e) = self.load_persisted_collection(&collection_file, name) {
+                warn!("Failed to lazy load collection '{}': {}", name, e);
+                return Err(VectorizerError::CollectionNotFound(name.to_string()));
+            }
+            
+            // Try again now that it's loaded
+            return self.collections
+                .get(name)
+                .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()));
+        }
+        
+        // Collection doesn't exist
+        Err(VectorizerError::CollectionNotFound(name.to_string()))
     }
 
 
-    /// List all collections
+    /// List all collections (both loaded in memory and available on disk)
     pub fn list_collections(&self) -> Vec<String> {
-        self.collections
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
+        use std::collections::HashSet;
+        
+        let mut collection_names = HashSet::new();
+        
+        // Add collections already loaded in memory
+        for entry in self.collections.iter() {
+            collection_names.insert(entry.key().clone());
+        }
+        
+        // Add collections available on disk
+        let data_dir = Self::get_data_dir();
+        if data_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(data_dir) {
+                for entry in entries.flatten() {
+                    if let Some(filename) = entry.file_name().to_str() {
+                        if filename.ends_with("_vector_store.bin") {
+                            if let Some(name) = filename.strip_suffix("_vector_store.bin") {
+                                collection_names.insert(name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        collection_names.into_iter().collect()
     }
 
     /// Get collection metadata
@@ -1090,12 +1136,34 @@ impl VectorStore {
     /// Load a single persisted collection from file
     fn load_persisted_collection<P: AsRef<std::path::Path>>(&self, path: P, collection_name: &str) -> Result<()> {
         use crate::persistence::PersistedVectorStore;
+        use std::io::Read;
+        use flate2::read::GzDecoder;
 
         let path = path.as_ref();
         debug!("Loading persisted collection '{}' from {:?}", collection_name, path);
 
-        // Read and parse the JSON file
-        let json_data = std::fs::read_to_string(path)?;
+        // Read and parse the JSON file with compression support
+        let (json_data, was_compressed) = match std::fs::File::open(path) {
+            Ok(file) => {
+                let mut decoder = GzDecoder::new(file);
+                let mut json_string = String::new();
+                
+                // Try to decompress - if it fails, try reading as plain text
+                match decoder.read_to_string(&mut json_string) {
+                    Ok(_) => {
+                        debug!("📦 Loaded compressed collection cache");
+                        (json_string, true)
+                    }
+                    Err(_) => {
+                        // Not a gzip file, try reading as plain text (backward compatibility)
+                        debug!("📦 Loaded uncompressed collection cache");
+                        (std::fs::read_to_string(path)?, false)
+                    }
+                }
+            }
+            Err(e) => return Err(crate::error::VectorizerError::Other(format!("Failed to open file: {}", e))),
+        };
+        
         let persisted: PersistedVectorStore = serde_json::from_str(&json_data)?;
 
         // Check version
@@ -1123,6 +1191,12 @@ impl VectorStore {
         if !persisted_collection.vectors.is_empty() {
             debug!("Loading {} vectors into collection '{}'", persisted_collection.vectors.len(), collection_name);
             self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
+        }
+        
+        // Note: Auto-migration removed to prevent memory duplication
+        // Uncompressed files will be saved compressed on next auto-save cycle
+        if !was_compressed {
+            info!("📦 Loaded uncompressed cache for '{}' - will be saved compressed on next auto-save", collection_name);
         }
         
         Ok(())
