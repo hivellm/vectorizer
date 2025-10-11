@@ -28,10 +28,12 @@
 //! println!("Content hash: {:?}", normalized.content_hash);
 //! ```
 
+pub mod cache;
 pub mod detector;
 pub mod hasher;
 pub mod normalizer;
 
+pub use cache::{CacheConfig, CacheManager, CacheStats};
 pub use detector::{ContentType, ContentTypeDetector, TableFormat};
 pub use hasher::{ContentHash, ContentHashCalculator, VectorKey};
 pub use normalizer::{

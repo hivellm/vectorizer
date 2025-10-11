@@ -239,3 +239,8 @@ required-features = ["wgpu-gpu"]
 name = "normalization_benchmark"
 path = "benchmark/scripts/normalization_benchmark.rs"
 required-features = ["benchmarks"]
+
+[[bin]]
+name = "cache_benchmark"
+path = "benchmark/scripts/cache_benchmark.rs"
+required-features = ["benchmarks"]
