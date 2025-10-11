@@ -32,6 +32,7 @@ pub mod file_watcher;
 pub mod logging;
 pub mod server;
 pub mod file_operations;
+pub mod umicp;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};

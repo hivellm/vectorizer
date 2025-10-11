@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2025-10-11
 
-### 🎯 **Major Release - Text Normalization & Multi-tier Cache System**
+### 🎯 **Major Release - Text Normalization & UMICP Protocol Support**
+
+### 🔗 **UMICP Protocol Integration (NEW)**
+
+#### **Universal Model Interface Communication Protocol**
+- ✅ **Full UMICP Support**: Vectorizer now supports UMICP protocol alongside MCP and REST
+- ✅ **Streamable HTTP Transport**: High-performance envelope-based communication
+- ✅ **MCP Tool Wrapper**: All 38 MCP tools available via UMICP protocol
+- ✅ **Envelope Conversion**: Automatic conversion between UMICP Envelopes and MCP CallToolRequests
+- ✅ **Zero Duplication**: Reuses existing MCP handlers, no code duplication
+- ✅ **Production Ready**: Tested with `list_collections`, `search_vectors`, and all operations
+
+#### **UMICP Endpoints**
+- `POST /umicp` - Main UMICP endpoint (envelope-based communication)
+- `GET /umicp/health` - UMICP health check
+- `GET /umicp/example` - Example envelope format for testing
+
+#### **Supported Operations via UMICP**
+All MCP tools are available:
+- Collection Management: `list_collections`, `create_collection`, `get_collection_info`, `delete_collection`
+- Vector Operations: `search_vectors`, `insert_text`, `embed_text`, `get_vector`, `delete_vectors`, `update_vector`
+- Batch Operations: `batch_search_vectors`, `batch_insert_texts`, `batch_update_vectors`, `batch_delete_vectors`
+- Intelligent Search: `intelligent_search`, `multi_collection_search`, `semantic_search`, `contextual_search`
+- Discovery Pipeline: `discover`, `filter_collections`, `score_collections`, `expand_queries`, `broad_discovery`, `semantic_focus`
+- File Operations: `get_file_content`, `list_files_in_collection`, `get_file_summary`, `get_file_chunks_ordered`, `get_project_outline`, `get_related_files`, `search_by_file_type`
 
 ### 🔥 **Critical Fixes & Optimizations (October 11, 2025)**
 
