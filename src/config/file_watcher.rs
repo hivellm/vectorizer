@@ -71,6 +71,9 @@ impl FileWatcherYamlConfig {
             batch_size: 10,
             enable_monitoring: true,
             log_level: "info".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         }
     }
 }

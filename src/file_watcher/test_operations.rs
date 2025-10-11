@@ -23,7 +23,7 @@ async fn test_file_processing_basic() {
     let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
     
     // Create vector operations
-    let operations = VectorOperations::new(vector_store.clone(), embedding_manager);
+    let operations = VectorOperations::new(vector_store.clone(), embedding_manager, crate::file_watcher::FileWatcherConfig::default());
     
     // Test file filtering logic
     assert!(operations.should_process_file(&test_file), "Text file should be processed");
@@ -46,7 +46,7 @@ async fn test_file_removal_basic() {
     let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
     
     // Create vector operations
-    let operations = VectorOperations::new(vector_store.clone(), embedding_manager);
+    let operations = VectorOperations::new(vector_store.clone(), embedding_manager, crate::file_watcher::FileWatcherConfig::default());
     
     // Test file filtering for deletion
     assert!(operations.should_process_file(&test_file), "Text file should be processed");

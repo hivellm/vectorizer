@@ -16,6 +16,8 @@ pub struct Debouncer {
     pending_events: Arc<RwLock<HashMap<PathBuf, PendingEvent>>>,
     /// Event callback
     event_callback: Arc<RwLock<Option<Box<dyn Fn(FileChangeEventWithMetadata) + Send + Sync>>>>,
+    /// Currently processing files to avoid duplicates
+    processing_files: Arc<RwLock<HashMap<PathBuf, Instant>>>,
 }
 
 /// Pending event with metadata
@@ -35,6 +37,7 @@ impl Debouncer {
             delay_ms,
             pending_events: Arc::new(RwLock::new(HashMap::new())),
             event_callback: Arc::new(RwLock::new(None)),
+            processing_files: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -74,11 +77,52 @@ impl Debouncer {
         self.start_debounce_timer(path).await;
     }
 
+    /// Add a file change event with metadata for debouncing
+    pub async fn add_event_with_metadata(&self, event_with_metadata: FileChangeEventWithMetadata) {
+        let path = match &event_with_metadata.event {
+            FileChangeEvent::Created(path) => path.clone(),
+            FileChangeEvent::Modified(path) => path.clone(),
+            FileChangeEvent::Deleted(path) => path.clone(),
+            FileChangeEvent::Renamed(_, new_path) => new_path.clone(),
+        };
+
+        // Check if file is already being processed (avoid duplicates)
+        {
+            let processing_files = self.processing_files.read().await;
+            if let Some(processing_time) = processing_files.get(&path) {
+                // If file was processed less than 5 seconds ago, skip to avoid duplicates
+                if processing_time.elapsed() < Duration::from_secs(5) {
+                    tracing::debug!("⏭️ Skipping duplicate event for file: {:?} (processed {}ms ago)", 
+                        path, processing_time.elapsed().as_millis());
+                    return;
+                }
+            }
+        }
+
+        let pending_event = PendingEvent {
+            event: event_with_metadata.event.clone(),
+            timestamp: event_with_metadata.timestamp,
+            content_hash: event_with_metadata.content_hash,
+            file_size: event_with_metadata.file_size,
+            last_modified: Instant::now(),
+        };
+
+        // Store the pending event
+        {
+            let mut events = self.pending_events.write().await;
+            events.insert(path.clone(), pending_event);
+        }
+
+        // Start debounce timer for this event
+        self.start_debounce_timer(path).await;
+    }
+
     /// Start debounce timer for a specific path
     async fn start_debounce_timer(&self, path: PathBuf) {
         let delay = Duration::from_millis(self.delay_ms);
         let pending_events = Arc::clone(&self.pending_events);
         let event_callback = Arc::clone(&self.event_callback);
+        let processing_files = Arc::clone(&self.processing_files);
 
         tokio::spawn(async move {
             sleep(delay).await;
@@ -93,19 +137,24 @@ impl Debouncer {
                 // Get file metadata if available
                 let (content_hash, file_size) = if let Ok(metadata) = std::fs::metadata(&path) {
                     let file_size = Some(metadata.len());
-                    let content_hash = if metadata.is_file() {
-                        // Calculate content hash for files
-                        match std::fs::read(&path) {
-                            Ok(content) => {
+                    if metadata.is_file() {
+                        // Calculate content hash off the main task to avoid blocking
+                        let path_clone = path.clone();
+                        match tokio::task::spawn_blocking(move || {
+                            std::fs::read(&path_clone).ok().map(|content| {
                                 use sha2::Digest;
-                                Some(sha2::Sha256::digest(&content).iter().map(|b| format!("{:02x}", b)).collect::<String>())
-                            },
-                            Err(_) => None,
+                                sha2::Sha256::digest(&content)
+                                    .iter()
+                                    .map(|b| format!("{:02x}", b))
+                                    .collect::<String>()
+                            })
+                        }).await {
+                            Ok(Some(hash)) => (Some(hash), file_size),
+                            _ => (None, file_size),
                         }
                     } else {
-                        None
-                    };
-                    (content_hash, file_size)
+                        (None, file_size)
+                    }
                 } else {
                     (None, None)
                 };
@@ -122,6 +171,12 @@ impl Debouncer {
                     tracing::info!("🔍 DEBOUNCER: Calling callback for event: {:?}", event_with_metadata.event);
                     callback(event_with_metadata);
                     tracing::info!("✅ DEBOUNCER: Callback completed for event: {:?}", pending_event.event);
+                    
+                    // Mark file as processed to avoid duplicates
+                    {
+                        let mut processing = processing_files.write().await;
+                        processing.insert(path.clone(), Instant::now());
+                    }
                 } else {
                     tracing::warn!("⚠️ DEBOUNCER: No callback set for event: {:?}", pending_event.event);
                 }
@@ -139,6 +194,13 @@ impl Debouncer {
     pub async fn clear_pending_events(&self) {
         let mut events = self.pending_events.write().await;
         events.clear();
+    }
+
+    /// Clear old processed files (older than 30 seconds)
+    pub async fn clear_old_processed_files(&self) {
+        let mut processing = self.processing_files.write().await;
+        let cutoff = Instant::now() - Duration::from_secs(30);
+        processing.retain(|_, &mut timestamp| timestamp > cutoff);
     }
 
     /// Get debounce delay

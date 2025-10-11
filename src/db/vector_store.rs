@@ -1131,6 +1131,12 @@ impl VectorStore {
     /// Enable auto-save for all collections
     /// Call this after initialization is complete
     pub fn enable_auto_save(&self) {
+        // Check if auto-save is already enabled to avoid multiple tasks
+        if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+            info!("⏭️ Auto-save already enabled, skipping");
+            return;
+        }
+        
         self.auto_save_enabled.store(true, std::sync::atomic::Ordering::Relaxed);
         
         // Start background save task
