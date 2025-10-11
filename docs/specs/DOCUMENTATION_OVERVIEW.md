@@ -68,7 +68,13 @@
 **🔮 Planning** (6 docs): Future features and roadmaps  
 **📊 Reports** (4 docs): Audits and summaries
 
-**Total**: 31 active documentation files (after consolidation from 56)
+**Total**: 24 well-organized documentation files (57% reduction from 56 original files)
+
+**Consolidation Summary**:
+- Wave 1: 56 → 34 files (INTELLIGENT_SEARCH, MCP, FILE_OPS, etc.)
+- Wave 2: 34 → 24 files (API, CODE, DOCS indices, MEMORY, PERF, etc.)
+- Total Reduction: 32 files eliminated (57% fewer files)
+- Redundancy Removed: Estimated 10,000+ lines of duplicate content
 
 ---
 
