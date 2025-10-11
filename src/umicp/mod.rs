@@ -28,25 +28,3 @@ pub async fn health_check() -> Json<Value> {
         "vectorizer_version": env!("CARGO_PKG_VERSION")
     }))
 }
-
-/// Example UMICP envelope for testing
-pub async fn example_envelope() -> Json<Value> {
-    use umicp_core::{Envelope, OperationType, Capabilities};
-    
-    let mut caps = Capabilities::new();
-    caps.insert("operation".to_string(), "list_collections".to_string());
-    
-    let envelope = Envelope::builder()
-        .from("client-test")
-        .to("vectorizer")
-        .operation(OperationType::Data)
-        .message_id("msg-001")
-        .capabilities(caps)
-        .build()
-        .unwrap();
-    
-    let json_str = envelope.serialize().unwrap();
-    let json_value: Value = serde_json::from_str(&json_str).unwrap();
-    
-    Json(json_value)
-}

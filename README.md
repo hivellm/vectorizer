@@ -2,9 +2,10 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.5.0 - Text Normalization & Performance Release**
+## ✨ **Version 0.6.0 - UMICP Protocol Integration**
 
 ### 🎯 **Key Features**
+- **UMICP Protocol Support**: Full support for Universal Model Interface Communication Protocol (38 tools)
 - **Text Normalization System**: Content-aware normalization with 30-50% storage reduction
 - **Real-time File Watcher**: Automatic file monitoring and indexing
 - **Intelligent Search**: Advanced semantic search with multi-query generation
@@ -23,7 +24,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **📚 Document Indexing**: Intelligent chunking and processing of 10+ file types
 - **🧠 Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
-- **🏗️ Unified Architecture**: REST API + MCP Server
+- **🏗️ Unified Architecture**: REST API + MCP Server + UMICP Protocol
 - **💾 Automatic Persistence**: Collections auto-save every 30 seconds
 - **👀 File Watcher**: Real-time monitoring with smart debouncing
 - **🔒 Security**: JWT + API Key authentication with RBAC

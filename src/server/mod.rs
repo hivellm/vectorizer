@@ -470,7 +470,6 @@ impl VectorizerServer {
         let umicp_routes = Router::new()
             .route("/umicp", post(crate::umicp::transport::umicp_handler))
             .route("/umicp/health", get(crate::umicp::health_check))
-            .route("/umicp/example", get(crate::umicp::example_envelope))
             .with_state(umicp_state);
         
         // Merge all routes - UMICP first so it doesn't get masked
