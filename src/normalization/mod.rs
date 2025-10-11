@@ -29,13 +29,17 @@
 //! ```
 
 pub mod cache;
+pub mod config;
 pub mod detector;
 pub mod hasher;
+pub mod integration;
 pub mod normalizer;
 
 pub use cache::{CacheConfig, CacheManager, CacheStats};
+pub use config::NormalizationConfig;
 pub use detector::{ContentType, ContentTypeDetector, TableFormat};
 pub use hasher::{ContentHash, ContentHashCalculator, VectorKey};
+pub use integration::{NormalizationPipeline, ProcessedDocument};
 pub use normalizer::{
     NormalizationLevel, NormalizationMetadata, NormalizationPolicy, NormalizedContent,
     TextNormalizer,

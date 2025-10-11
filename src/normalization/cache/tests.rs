@@ -215,6 +215,7 @@ mod integration_tests {
     async fn test_cache_compression_effectiveness() {
         let dir = tempdir().unwrap();
         let config = CacheConfig {
+            hot_cache_size: 1024 * 1024, // 1 MB
             warm_store_path: dir.path().join("warm"),
             cold_store_path: dir.path().join("cold"),
             compression_level: 10, // High compression

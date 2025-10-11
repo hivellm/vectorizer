@@ -46,14 +46,18 @@ impl WarmStore {
         let index = self.index.read();
 
         if let Some((file_path, offset, length)) = index.get(hash) {
+            // Clone values before dropping the lock
+            let file_path = file_path.clone();
+            let offset = *offset;
+            let length = *length;
             drop(index);
 
             // Get or create mmap
-            let mmap = self.get_or_create_mmap(file_path)?;
+            let mmap = self.get_or_create_mmap(&file_path)?;
 
             // Read from mmap
-            let start = *offset as usize;
-            let end = start + *length as usize;
+            let start = offset as usize;
+            let end = start + length as usize;
 
             if end <= mmap.len() {
                 let data = &mmap[start..end];
@@ -247,7 +251,8 @@ mod tests {
             let hash = ContentHash::from_bytes(hash_bytes);
 
             let retrieved = store.get(&hash).await.unwrap();
-            assert_eq!(retrieved.as_deref(), Some(&format!("Text number {}", i)));
+            let expected = format!("Text number {}", i);
+            assert_eq!(retrieved.as_deref(), Some(expected.as_str()));
         }
     }
 

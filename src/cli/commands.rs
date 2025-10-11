@@ -358,6 +358,7 @@ pub async fn handle_collection_command(
                 hnsw_config: crate::models::HnswConfig::default(),
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: crate::models::CompressionConfig::default(),
+                normalization: Some(crate::normalization::NormalizationConfig::moderate()),
             };
 
             store.create_collection(&name, config)?;

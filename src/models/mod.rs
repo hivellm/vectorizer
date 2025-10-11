@@ -35,6 +35,9 @@ pub struct CollectionConfig {
     pub quantization: QuantizationConfig,
     /// Compression configuration
     pub compression: CompressionConfig,
+    /// Text normalization configuration (optional, disabled by default)
+    #[serde(default)]
+    pub normalization: Option<crate::normalization::NormalizationConfig>,
 }
 
 /// Distance metrics for vector similarity
@@ -91,6 +94,7 @@ impl Default for CollectionConfig {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
             compression: CompressionConfig::default(),
+            normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
         }
     }
 }
@@ -177,6 +181,29 @@ pub struct CollectionMetadata {
     pub document_count: usize,
     /// Collection configuration
     pub config: CollectionConfig,
+}
+
+impl CollectionMetadata {
+    /// Check if text normalization is enabled
+    pub fn is_normalization_enabled(&self) -> bool {
+        self.config.normalization
+            .as_ref()
+            .map(|n| n.enabled)
+            .unwrap_or(false)
+    }
+
+    /// Get normalization level if enabled
+    pub fn normalization_level(&self) -> Option<String> {
+        self.config.normalization
+            .as_ref()
+            .filter(|n| n.enabled)
+            .map(|n| format!("{:?}", n.policy.level))
+    }
+
+    /// Get normalization configuration details
+    pub fn normalization_config(&self) -> Option<&crate::normalization::NormalizationConfig> {
+        self.config.normalization.as_ref()
+    }
 }
 
 /// Vector normalization and similarity utilities

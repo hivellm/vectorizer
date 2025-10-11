@@ -206,6 +206,7 @@ async fn handle_create_collection(
             threshold_bytes: 1024,
             algorithm: crate::models::CompressionAlgorithm::Lz4,
         },
+        normalization: None,
     };
     
     store.create_collection(name, config)
@@ -234,11 +235,41 @@ async fn handle_get_collection_info(
     let collection = store.get_collection(name)
         .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
     
+    let metadata = collection.metadata();
+    let config = collection.config();
+    
+    // Build normalization info
+    let normalization_info = if let Some(norm_config) = &config.normalization {
+        json!({
+            "enabled": norm_config.enabled,
+            "level": format!("{:?}", norm_config.policy.level),
+            "preserve_case": norm_config.policy.preserve_case,
+            "collapse_whitespace": norm_config.policy.collapse_whitespace,
+            "cache_enabled": norm_config.cache_enabled,
+            "cache_size_mb": norm_config.hot_cache_size / (1024 * 1024),
+            "normalize_queries": norm_config.normalize_queries,
+            "store_raw_text": norm_config.store_raw_text,
+        })
+    } else {
+        json!({
+            "enabled": false,
+            "message": "Text normalization is disabled for this collection"
+        })
+    };
+    
     let response = json!({
         "name": name,
         "vector_count": collection.vector_count(),
-        "dimension": collection.config().dimension,
-        "metric": format!("{:?}", collection.config().metric)
+        "document_count": metadata.document_count,
+        "dimension": config.dimension,
+        "metric": format!("{:?}", config.metric),
+        "quantization": {
+            "type": format!("{:?}", config.quantization),
+            "enabled": !matches!(config.quantization, crate::models::QuantizationConfig::None)
+        },
+        "normalization": normalization_info,
+        "created_at": metadata.created_at.to_rfc3339(),
+        "updated_at": metadata.updated_at.to_rfc3339(),
     });
     Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
 }

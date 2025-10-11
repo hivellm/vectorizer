@@ -22,6 +22,25 @@ pub enum ContentType {
     Json,
 }
 
+impl std::fmt::Display for ContentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContentType::Code { language } => {
+                if let Some(lang) = language {
+                    write!(f, "code:{}", lang)
+                } else {
+                    write!(f, "code")
+                }
+            }
+            ContentType::Markdown => write!(f, "markdown"),
+            ContentType::Table { format } => write!(f, "table:{:?}", format),
+            ContentType::Html => write!(f, "html"),
+            ContentType::Plain => write!(f, "plain"),
+            ContentType::Json => write!(f, "json"),
+        }
+    }
+}
+
 /// Table format variants
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TableFormat {
@@ -253,11 +272,11 @@ impl ContentTypeDetector {
             *counts.entry(val).or_insert(0) += 1;
         }
 
-        *counts
+        counts
             .iter()
             .max_by_key(|(_, &count)| count)
             .map(|(&val, _)| val)
-            .unwrap_or(&0)
+            .unwrap_or(0)
     }
 }
 

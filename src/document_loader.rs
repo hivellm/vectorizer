@@ -1393,6 +1393,7 @@ impl DocumentLoader {
             },
             quantization: QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
+            normalization: None,
         };
 
         // Check if quantization is enabled before creating collection
@@ -1696,6 +1697,7 @@ impl DocumentLoader {
                 },
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
+                normalization: None,
             };
             
             // Check if quantization is enabled before creating collection
@@ -1734,6 +1736,7 @@ impl DocumentLoader {
                 },
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
+                normalization: None,
             };
             
             // Check if quantization is enabled before creating collection

@@ -45,6 +45,7 @@ fn test_deduplication_via_hash() {
 #[test]
 fn test_storage_reduction() {
     let normalizer = TextNormalizer::new(NormalizationPolicy {
+        version: 1,
         level: NormalizationLevel::Aggressive,
         preserve_case: true,
         collapse_whitespace: true,
@@ -74,6 +75,7 @@ fn test_query_document_consistency() {
 
     // When case-insensitive, should match
     let normalizer_case_insensitive = TextNormalizer::new(NormalizationPolicy {
+        version: 1,
         level: NormalizationLevel::Aggressive,
         preserve_case: false,
         collapse_whitespace: true,
@@ -90,20 +92,29 @@ fn test_query_document_consistency() {
 fn test_content_type_detection_accuracy() {
     let detector = ContentTypeDetector::new();
 
-    // Test various content types
-    let test_cases = vec![
-        ("fn main() {}", None, |ct: ContentType| matches!(ct, ContentType::Code { .. })),
-        ("# Markdown\n\n## Header", None, |ct: ContentType| ct == ContentType::Markdown),
-        (r#"{"key": "value"}"#, None, |ct: ContentType| ct == ContentType::Json),
-        ("a,b,c\n1,2,3", None, |ct: ContentType| matches!(ct, ContentType::Table { .. })),
-        ("<html><body>Test</body></html>", None, |ct: ContentType| ct == ContentType::Html),
-        ("Plain text.", None, |ct: ContentType| ct == ContentType::Plain),
-    ];
+    // Test code detection
+    let ct = detector.detect("fn main() {}", None);
+    assert!(matches!(ct, ContentType::Code { .. }));
 
-    for (content, path, check) in test_cases {
-        let detected = detector.detect(content, path);
-        assert!(check(detected), "Failed for content: {}", content);
-    }
+    // Test markdown detection
+    let ct = detector.detect("# Markdown\n\n## Header", None);
+    assert_eq!(ct, ContentType::Markdown);
+
+    // Test JSON detection
+    let ct = detector.detect(r#"{"key": "value"}"#, None);
+    assert_eq!(ct, ContentType::Json);
+
+    // Test table detection
+    let ct = detector.detect("a,b,c\n1,2,3", None);
+    assert!(matches!(ct, ContentType::Table { .. }));
+
+    // Test HTML detection
+    let ct = detector.detect("<html><body>Test</body></html>", None);
+    assert_eq!(ct, ContentType::Html);
+
+    // Test plain text detection
+    let ct = detector.detect("Plain text.", None);
+    assert_eq!(ct, ContentType::Plain);
 }
 
 #[test]
