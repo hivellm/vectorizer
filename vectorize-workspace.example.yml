@@ -8,28 +8,6 @@ global_settings:
     auto_discovery: true
     enable_auto_update: true
     hot_reload: true
-    # Global exclude patterns to prevent processing of system files
-    exclude_patterns:
-      - "**/.git/**"
-      - "**/target/**"
-      - "**/node_modules/**"
-      - "**/.*"
-      - "**/*.tmp"
-      - "**/*.log"
-      - "**/*.part"
-      - "**/*.lock"
-      - "**/~*"
-      - "**/.#*"
-      - "**/*.swp"
-      - "**/*.swo"
-      - "**/Cargo.lock"
-      - "**/.DS_Store"
-      - "**/Thumbs.db"
-      - "**/.fingerprint/**"
-      - "**/data/**"
-      - "**/*_metadata.json"
-      - "**/*_tokenizer.json"
-      - "**/*_vector_store.bin"
     
 projects:
   - name: "chat-hub"
