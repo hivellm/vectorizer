@@ -6,6 +6,7 @@
 use crate::intelligent_search::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{info, warn};
 
 /// MCP Tool: Intelligent Search
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,12 +98,20 @@ impl MCPToolHandler {
     
     /// Helper function to create an embedding manager for a specific collection
     fn create_embedding_manager_for_collection(&self, collection_name: &str) -> Result<crate::embedding::EmbeddingManager, String> {
+        info!("🔧 [MCP_TOOL_HANDLER] Creating embedding manager for collection '{}'", collection_name);
+
         let collection = self.store.get_collection(collection_name)
             .map_err(|e| format!("Collection not found: {}", e))?;
-        
+
         let embedding_type = collection.get_embedding_type();
         let dimension = collection.config().dimension;
-        
+
+        info!("🔧 [MCP_TOOL_HANDLER] Collection '{}' - embedding_type: '{}', dimension: {}", collection_name, embedding_type, dimension);
+
+        if embedding_type.is_empty() {
+            warn!("⚠️ [MCP_TOOL_HANDLER] Collection '{}' has empty embedding_type, will use BM25 default", collection_name);
+        }
+
         let mut manager = crate::embedding::EmbeddingManager::new();
         
         match embedding_type.as_str() {
@@ -196,8 +205,10 @@ impl MCPToolHandler {
             };
             
             for query in &queries {
+                info!("🔍 [MCP_TOOL_HANDLER] Embedding query '{}' for collection '{}'", query, collection);
                 match collection_embedding_manager.embed(query) {
                     Ok(embedding) => {
+                        info!("✅ [MCP_TOOL_HANDLER] Embedding created successfully - len: {}, collection: '{}'", embedding.len(), collection);
                         match self.store.search(collection, &embedding, max_results) {
                             Ok(search_results) => {
                                 for result in search_results {
@@ -286,7 +297,16 @@ impl MCPToolHandler {
         
         // Search each collection
         for collection in &tool.collections {
-            match self.embedding_manager.embed(&tool.query) {
+            // Create embedding manager specific to this collection
+            let collection_embedding_manager = match self.create_embedding_manager_for_collection(collection) {
+                Ok(manager) => manager,
+                Err(e) => {
+                    eprintln!("Error creating embedding manager for collection {}: {}", collection, e);
+                    continue;
+                }
+            };
+
+            match collection_embedding_manager.embed(&tool.query) {
                 Ok(embedding) => {
                     match self.store.search(collection, &embedding, max_per_collection) {
                         Ok(search_results) => {
@@ -373,14 +393,20 @@ impl MCPToolHandler {
         tool: SemanticSearchTool,
     ) -> Result<MCPToolResponse, String> {
         let max_results = tool.max_results.unwrap_or(10);
-        
+
         // Generate multiple queries for semantic search
         let queries = self.generate_intelligent_queries(&tool.query, true);
         let mut all_results = Vec::new();
-        
+
+        // Create embedding manager specific to this collection
+        let collection_embedding_manager = match self.create_embedding_manager_for_collection(&tool.collection) {
+            Ok(manager) => manager,
+            Err(e) => return Err(format!("Error creating embedding manager for collection {}: {}", tool.collection, e)),
+        };
+
         // Search with multiple queries
         for query in &queries {
-            match self.embedding_manager.embed(query) {
+            match collection_embedding_manager.embed(query) {
                 Ok(embedding) => {
                     match self.store.search(&tool.collection, &embedding, max_results) {
                         Ok(search_results) => {

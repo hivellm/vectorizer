@@ -226,7 +226,8 @@ impl MetalNativeCollection {
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
         // Log MCP-like search calls for debugging
-        info!("🔍 [MCP_SEARCH] MetalNativeCollection.search called - query_len={}, k={}", query.len(), k);
+        info!("🔍 [MCP_SEARCH] MetalNativeCollection.search called - query_len={}, k={}, collection_dim={}",
+              query.len(), k, self.dimension);
         // Use GPU-accelerated search that keeps data in VRAM
         self.search_gpu_accelerated(query, k)
     }

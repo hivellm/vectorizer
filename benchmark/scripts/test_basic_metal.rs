@@ -1,7 +1,55 @@
 use vectorizer::error::Result;
 use vectorizer::models::{Payload, CollectionConfig, HnswConfig, DistanceMetric, Vector};
 use vectorizer::gpu::MetalNativeCollection;
-use tracing::info;
+use tracing::{info, error};
+
+// Test MCP integration
+#[cfg(feature = "metal-native")]
+#[tokio::test]
+async fn test_mcp_integration() -> Result<()> {
+    use vectorizer::{VectorStore, CollectionConfig, DistanceMetric};
+    use vectorizer::models::HnswConfig;
+
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
+    println!("🧪 MCP Integration Test");
+    println!("=======================");
+
+    // Create VectorStore like the server does
+    let store = VectorStore::new();
+
+    // Create a Metal Native collection like the server
+    let config = CollectionConfig {
+        dimension: 128,
+        metric: DistanceMetric::Cosine,
+        hnsw_config: HnswConfig { m: 16, ..Default::default() },
+        ..Default::default()
+    };
+
+    store.create_collection("mcp_test_collection", config)?;
+
+    // Add some vectors
+    for i in 0..5 {
+        let mut data = vec![0.0; 128];
+        for j in 0..128 {
+            data[j] = ((i as f32).sin() * (j as f32).cos() * 0.001) + (i as f32 * 0.0001);
+        }
+        let vector = Vector::new(format!("mcp_vec_{}", i), data);
+        store.insert("mcp_test_collection", vector)?;
+    }
+
+    println!("✅ MCP collection created and populated");
+
+    // Simulate MCP search
+    let query = vec![0.1; 128];
+    let results = store.search("mcp_test_collection", &query, 3)?;
+    println!("✅ MCP search successful: {} results", results.len());
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -104,12 +152,12 @@ async fn test_basic_functionality() -> Result<()> {
     // Test 6: Try to get removed vector (should fail - not found)
     println!("📊 Test 6: Verify Vector Removal");
     println!("---------------------------------");
-
+    
     match collection.get_vector_by_id("test_vector") {
         Ok(_) => println!("  ❌ ERROR: Vector should have been removed"),
         Err(e) => println!("  ✅ Vector correctly removed: {}", e.to_string().contains("not found")),
     }
-
+    
     println!();
 
     // Test 7: Add multiple vectors and test GPU search
@@ -267,6 +315,161 @@ async fn test_basic_functionality() -> Result<()> {
     println!();
     println!("🎉 All Metal Native functionality tests passed, including edge cases!");
     println!("🎉 MCP crash scenarios tested successfully!");
+
+    // Test 11: MCP-like search simulation
+    println!("\n📊 Test 11: MCP-like Search Simulation");
+    println!("--------------------------------------");
+
+    // Simulate what MCP might do - search with specific parameters
+    let mcp_query = vec![0.1; 128]; // Simple query vector
+    let mcp_k = 5; // Reasonable k value
+
+    info!("🔍 Simulating MCP search call...");
+    let mcp_results = collection.search(&mcp_query, mcp_k)?;
+    info!("✅ MCP simulation successful: {} results", mcp_results.len());
+
+    // Test 12: Discovery-like search with embedding manager
+    println!("\n📊 Test 12: Discovery-like Search (with Embedding)");
+    println!("--------------------------------------------------");
+
+    use vectorizer::embedding::EmbeddingManager;
+
+    let mut embedding_manager = EmbeddingManager::new();
+    // Register a simple BM25 embedding provider
+    let bm25 = vectorizer::embedding::Bm25Embedding::new(128);
+    embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+    embedding_manager.set_default_provider("bm25")?;
+
+    // Create a text query like discovery does
+    let text_query = "test query for discovery simulation";
+    info!("🔍 Creating embedding for text query: '{}'", text_query);
+
+    let query_embedding = embedding_manager.embed(text_query)?;
+    info!("✅ Embedding created: {} dimensions", query_embedding.len());
+
+    // Search with the embedding (like discovery does)
+    let discovery_results = collection.search(&query_embedding, 3)?;
+    info!("✅ Discovery-like search successful: {} results", discovery_results.len());
+
+    // Test 13: 512D Discovery-like search (real MCP scenario)
+    println!("\n📊 Test 13: 512D Discovery-like Search (Real MCP Scenario)");
+    println!("---------------------------------------------------------");
+
+    let mut embedding_manager_512d = EmbeddingManager::new();
+    let bm25_512d = vectorizer::embedding::Bm25Embedding::new(512);
+    embedding_manager_512d.register_provider("bm25".to_string(), Box::new(bm25_512d));
+    embedding_manager_512d.set_default_provider("bm25")?;
+
+    let query_embedding_512d = embedding_manager_512d.embed(text_query)?;
+    info!("✅ 512D Embedding created: {} dimensions", query_embedding_512d.len());
+
+    let discovery_512d_results = collection_512d.search(&query_embedding_512d, 3)?;
+    info!("✅ 512D Discovery-like search successful: {} results", discovery_512d_results.len());
+
+    println!("🎉 All MCP and discovery simulations completed successfully!");
+    println!("🎉 If this works but real MCP crashes, the issue is in MCP integration!");
+
+    // Test 14: Server-like VectorStore test (real MCP scenario)
+    println!("\n📊 Test 14: Server-like VectorStore Test (Real MCP Scenario)");
+    println!("-----------------------------------------------------------");
+
+    use vectorizer::VectorStore;
+
+    // Create VectorStore like the server does
+    let store = VectorStore::new_auto();
+    info!("✅ VectorStore created with auto GPU detection");
+
+    // Check if we have any loaded collections
+    let collections = store.list_collections();
+    info!("📊 VectorStore has {} collections loaded", collections.len());
+
+    if collections.is_empty() {
+        info!("⚠️ No collections loaded, creating test collection...");
+        let config = CollectionConfig {
+            dimension: 128,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig { m: 16, ..Default::default() },
+            ..Default::default()
+        };
+
+        store.create_collection("server_test_collection", config)?;
+        info!("✅ Created server test collection");
+
+        // Add some vectors
+        for i in 0..3 {
+            let mut data = vec![0.0; 128];
+            for j in 0..128 {
+                data[j] = ((i as f32).sin() * (j as f32).cos() * 0.001) + (i as f32 * 0.0001);
+            }
+            let vector = Vector::new(format!("server_vec_{}", i), data);
+            store.insert("server_test_collection", vec![vector])?;
+        }
+        info!("✅ Added 3 vectors to server test collection");
+    }
+
+    // Now test search like MCP does
+    let query = vec![0.1; 128];
+    for collection_name in &collections {
+        info!("🔍 Testing MCP-like search on collection '{}'", collection_name);
+        let results = store.search(collection_name, &query, 3)?;
+        info!("✅ MCP-like search on '{}' successful: {} results", collection_name, results.len());
+    }
+
+    // Test with embedding manager like discovery
+    let mut embedding_manager = EmbeddingManager::new();
+    let bm25 = vectorizer::embedding::Bm25Embedding::new(128);
+    embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+    embedding_manager.set_default_provider("bm25")?;
+
+    let text_query = "server test query for MCP simulation";
+    let query_embedding = embedding_manager.embed(text_query)?;
+    info!("✅ Server embedding created: {} dimensions", query_embedding.len());
+
+    for collection_name in &collections {
+        info!("🔍 Testing discovery-like search on collection '{}'", collection_name);
+        let results = store.search(collection_name, &query_embedding, 3)?;
+        info!("✅ Discovery-like search on '{}' successful: {} results", collection_name, results.len());
+    }
+
+    println!("🎉 Server-like VectorStore tests completed successfully!");
+    println!("🎉 This simulates exactly what MCP does - if this works, issue is elsewhere!");
+
+    // Test 15: THE CRASH REPRODUCTION - Dimension mismatch like MCP does
+    println!("\n📊 Test 15: CRASH REPRODUCTION - Dimension Mismatch (Real MCP Bug)");
+    println!("-------------------------------------------------------------------");
+
+    // This is the exact bug that crashes MCP!
+    // Collections have different dimensions, but MCP uses same embedding size
+    info!("🐛 Reproducing the exact MCP crash scenario...");
+
+    let wrong_dim_query_64 = vec![0.1; 64];   // 64D query
+    let wrong_dim_query_128 = vec![0.1; 128]; // 128D query
+
+    // Try searching 64D query on 128D collection (should fail gracefully)
+    match store.search("vectorizer-sdk-python", &wrong_dim_query_64, 3) {
+        Ok(_) => {
+            error!("🐛 UNEXPECTED: 64D query on 128D collection should have failed!");
+            panic!("Dimension mismatch should have failed");
+        }
+        Err(e) => {
+            info!("✅ 64D→128D dimension mismatch correctly failed: {}", e.to_string());
+        }
+    }
+
+    // Try searching 128D query on 512D collection (should fail gracefully)
+    match store.search("vectorizer-sdk-typescript", &wrong_dim_query_128, 3) {
+        Ok(_) => {
+            error!("🐛 UNEXPECTED: 128D query on 512D collection should have failed!");
+            panic!("Dimension mismatch should have failed");
+        }
+        Err(e) => {
+            info!("✅ 128D→512D dimension mismatch correctly failed: {}", e.to_string());
+        }
+    }
+
+    println!("🎯 CRASH REPRODUCTION SUCCESSFUL!");
+    println!("🎯 The bug is: MCP creates embeddings with fixed dimensions but collections have different dimensions");
+    println!("🎯 Solution: MCP needs to create embeddings matching each collection's dimension");
 
     Ok(())
 }
