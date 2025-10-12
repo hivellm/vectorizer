@@ -50,12 +50,12 @@ pub use super::metal_buffer_pool::{MetalBufferPool, OptimizedMetalNativeCollecti
 pub use super::vram_monitor::{VramMonitor, VramValidator};
 
 use std::sync::Arc;
-use crate::error::Result;
+use crate::error::{Result, VectorizerError};
 use crate::models::{DistanceMetric, Vector, CollectionConfig};
 use tracing::{info, debug};
 
 // Import HNSW types for search
-use hnsw_graph::{HnswNode, SearchResult};
+use hnsw_graph::{HnswNode, SearchResult, GpuSearchQuery, GpuVectorMetadata, GpuSearchResult};
 
 // Public constants following SCREAMING_SNAKE_CASE convention
 /// Default VRAM limit for Metal Native collections (1GB)
@@ -225,28 +225,142 @@ impl MetalNativeCollection {
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
-        // Use GPU-accelerated search with Metal shaders
-        self.search_with_metal_shader(query, k)
+        // Use GPU-accelerated search that keeps data in VRAM
+        self.search_gpu_accelerated(query, k)
     }
 
-    /// GPU-accelerated search using Metal compute shaders
-    fn search_with_metal_shader(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
+    /// GPU-accelerated search that keeps all data in VRAM
+    fn search_gpu_accelerated(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
         if self.vector_count() == 0 {
             return Ok(Vec::new());
         }
 
-        // Collect all vector data into a contiguous buffer
         let vector_count = self.vector_count();
-        let mut vector_data = Vec::with_capacity(vector_count * self.dimension);
+        let k = k.min(vector_count);
 
+        // Validate query dimension
+        if query.len() != self.dimension {
+            return Err(VectorizerError::DimensionMismatch {
+                expected: self.dimension,
+                actual: query.len(),
+            });
+        }
+
+        debug!("🔍 GPU search: {} vectors, k={}, dim={}", vector_count, k, self.dimension);
+
+        let device = self.context.device();
+        let queue = self.context.command_queue();
+
+        // Create query buffer
+        let mut query_data = [0.0f32; 512];
+        let query_len = query.len().min(512);
+        query_data[..query_len].copy_from_slice(&query[..query_len]);
+
+        let gpu_query = GpuSearchQuery {
+            data: query_data,
+            dimension: query_len as u32,
+        };
+
+        let query_size = std::mem::size_of::<GpuSearchQuery>() as u64;
+        let query_buffer = device.new_buffer_with_data(
+            &gpu_query as *const GpuSearchQuery as *const std::ffi::c_void,
+            query_size,
+            MTLResourceOptions::StorageModeShared,
+        );
+
+        // Create metadata buffer for active vectors
+        let mut metadata = Vec::new();
         for i in 0..vector_count {
-            if let Ok(vector) = self.get_vector(i) {
-                vector_data.extend_from_slice(&vector.data);
+            let is_active = !self.vector_storage.removed_indices.contains(&i);
+            metadata.push(GpuVectorMetadata {
+                vector_id: i as u32,
+                is_active: if is_active { 1 } else { 0 },
+            });
+        }
+
+        let metadata_size = (metadata.len() * std::mem::size_of::<GpuVectorMetadata>()) as u64;
+        let metadata_buffer = device.new_buffer_with_data(
+            metadata.as_ptr() as *const std::ffi::c_void,
+            metadata_size,
+            MTLResourceOptions::StorageModePrivate,
+        );
+
+        // Create results buffer (one result per vector)
+        let results_buffer = device.new_buffer(
+            (vector_count * std::mem::size_of::<GpuSearchResult>()) as u64,
+            MTLResourceOptions::StorageModePrivate,
+        );
+
+        // Create final results buffer (top-k)
+        let final_results_buffer = device.new_buffer(
+            (k * std::mem::size_of::<GpuSearchResult>()) as u64,
+            MTLResourceOptions::StorageModeShared,
+        );
+
+        // Get search pipeline
+        let library = self.context.library();
+        let search_function = library.get_function("gpu_full_vector_search", None)
+            .map_err(|e| VectorizerError::Other(format!("Failed to get search function: {:?}", e)))?;
+
+        let search_pipeline = device.new_compute_pipeline_state_with_function(&search_function)
+            .map_err(|e| VectorizerError::Other(format!("Failed to create search pipeline: {:?}", e)))?;
+
+        // Get top-k pipeline
+        let topk_function = library.get_function("gpu_find_top_k_results", None)
+            .map_err(|e| VectorizerError::Other(format!("Failed to get top-k function: {:?}", e)))?;
+        let topk_pipeline = device.new_compute_pipeline_state_with_function(&topk_function)
+            .map_err(|e| VectorizerError::Other(format!("Failed to create top-k pipeline: {:?}", e)))?;
+
+        // Execute search kernel
+        let command_buffer = queue.new_command_buffer();
+        let encoder = command_buffer.new_compute_command_encoder();
+
+        encoder.set_compute_pipeline_state(&search_pipeline);
+        encoder.set_buffer(0, Some(&self.vector_storage.vectors_buffer), 0); // vectors
+        encoder.set_buffer(1, Some(&metadata_buffer), 0);                  // metadata
+        encoder.set_buffer(2, Some(&query_buffer), 0);                     // query
+        encoder.set_buffer(3, Some(&results_buffer), 0);                   // results
+        encoder.set_bytes(4, std::mem::size_of_val(&vector_count) as u64, &vector_count as *const usize as *const std::ffi::c_void); // vector_count
+        encoder.set_bytes(5, std::mem::size_of_val(&k) as u64, &k as *const usize as *const std::ffi::c_void); // k
+        encoder.set_bytes(6, std::mem::size_of_val(&self.dimension) as u64, &self.dimension as *const usize as *const std::ffi::c_void); // dimension
+
+        // Dispatch threads (one per vector)
+        let threadgroups = MTLSize::new(((vector_count + 1023) / 1024) as u64, 1, 1);
+        let threads_per_group = MTLSize::new(1024, 1, 1);
+        encoder.dispatch_thread_groups(threadgroups, threads_per_group);
+        encoder.end_encoding();
+
+        // Execute top-k kernel
+        let encoder2 = command_buffer.new_compute_command_encoder();
+        encoder2.set_compute_pipeline_state(&topk_pipeline);
+        encoder2.set_buffer(0, Some(&results_buffer), 0);        // all results
+        encoder2.set_buffer(1, Some(&final_results_buffer), 0);  // final results
+        encoder2.set_bytes(2, std::mem::size_of_val(&vector_count) as u64, &vector_count as *const usize as *const std::ffi::c_void); // total_vectors
+        encoder2.set_bytes(3, std::mem::size_of_val(&k) as u64, &k as *const usize as *const std::ffi::c_void); // k
+
+        let topk_threadgroups = MTLSize::new(k as u64, 1, 1);
+        let topk_threads_per_group = MTLSize::new(1, 1, 1);
+        encoder2.dispatch_thread_groups(topk_threadgroups, topk_threads_per_group);
+        encoder2.end_encoding();
+
+        command_buffer.commit();
+        command_buffer.wait_until_completed();
+
+        // Read final results
+        let results_ptr = final_results_buffer.contents() as *const GpuSearchResult;
+        let results_slice = unsafe { std::slice::from_raw_parts(results_ptr, k) };
+
+        let mut final_results = Vec::new();
+        for result in results_slice {
+            if result.vector_id != u32::MAX {
+                final_results.push((result.vector_id as usize, result.distance));
             }
         }
 
-        // Delegate to unified HNSW search with external vectors
-        self.hnsw_storage.search_with_external_vectors(query, &vector_data, vector_count, k)
+        final_results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        debug!("✅ GPU search completed: found {} results", final_results.len());
+        Ok(final_results)
     }
 
     pub fn build_hnsw_graph(&mut self, vectors: &[Vector]) -> Result<()> {

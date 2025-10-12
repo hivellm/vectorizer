@@ -25,7 +25,7 @@ pub struct VectorMetadata {
 #[derive(Debug)]
 pub struct MetalNativeVectorStorage {
     context: Arc<MetalNativeContext>,
-    vectors_buffer: MetalBuffer,
+    pub vectors_buffer: MetalBuffer,  // Made public for GPU search access
     metadata_buffer: MetalBuffer,
     vector_count: usize,
     buffer_capacity: usize, // Total capacity in vectors
@@ -33,7 +33,7 @@ pub struct MetalNativeVectorStorage {
     vector_id_map: HashMap<String, usize>,
     index_to_id: Vec<String>, // Maps index to original ID
     vector_metadata: HashMap<String, VectorMetadata>, // Maps ID to metadata
-    removed_indices: HashSet<usize>, // Tracks removed vector indices
+    pub removed_indices: HashSet<usize>, // Tracks removed vector indices - made public for GPU search
 }
 
 #[cfg(target_os = "macos")]

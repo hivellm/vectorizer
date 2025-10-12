@@ -861,17 +861,11 @@ impl MetalNativeHnswGraph {
     }
     
 
-    /// Public search method - uses GPU pipeline with internal graph data
+    /// Public search method - delegates to CPU implementation for now
+    /// GPU search will be implemented at MetalNativeCollection level
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
-        // Full GPU search - no data transfer to CPU
-        self.gpu_full_search(query, k)
-    }
-
-    /// Full GPU search implementation - all operations happen in VRAM
-    fn gpu_full_search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
-        // TEMPORARILY DISABLED: Fall back to CPU search to prevent crashes
-        // The GPU search implementation needs proper integration with vector storage
-        warn!("⚠️ GPU full search temporarily disabled - using CPU fallback");
+        // For now, delegate to CPU search until GPU integration is complete
+        // The HNSW graph search will be GPU-accelerated at the collection level
         self.search_with_external_vectors(query, &[], 0, k)
     }
 
