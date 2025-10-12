@@ -945,9 +945,24 @@ impl MetalNativeHnswGraph {
             .map_err(|e| VectorizerError::Other(format!("Failed to create top-k pipeline: {:?}", e)))?;
 
         // Execute search kernel
+        debug!("🚀 Executing GPU search kernels...");
         let command_buffer = queue.new_command_buffer();
         let encoder = command_buffer.new_compute_command_encoder();
 
+        debug!("📊 Search parameters: {} vectors, k={}, dim={}", self.node_count, k, self.dimension);
+
+        // Validate buffers before execution
+        if self.vectors_buffer.contents().is_null() {
+            return Err(VectorizerError::Other("Vectors buffer is invalid".to_string()));
+        }
+        if results_buffer.contents().is_null() {
+            return Err(VectorizerError::Other("Results buffer is invalid".to_string()));
+        }
+        if final_results_buffer.contents().is_null() {
+            return Err(VectorizerError::Other("Final results buffer is invalid".to_string()));
+        }
+
+        debug!("✅ All GPU buffers validated");
         encoder.set_compute_pipeline_state(&search_pipeline);
         encoder.set_buffer(0, Some(&self.vectors_buffer), 0);     // vectors
         encoder.set_buffer(1, Some(&metadata_buffer), 0);        // metadata
@@ -995,6 +1010,13 @@ impl MetalNativeHnswGraph {
         final_results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         debug!("✅ GPU search completed: found {} results", final_results.len());
+
+        // Validate results
+        if final_results.is_empty() {
+            warn!("⚠️  No results found in GPU search");
+        } else {
+            debug!("🎯 Best result: ID {}, distance {:.6}", final_results[0].0, final_results[0].1);
+        }
         Ok(final_results)
     }
 

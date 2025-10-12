@@ -193,6 +193,11 @@ name = "test_basic_metal"
 path = "benchmark/scripts/test_basic_metal.rs"
 required-features = ["metal-native"]
 
+[[bin]]
+name = "metal_native_search_benchmark"
+path = "benchmark/scripts/metal_native_search_benchmark.rs"
+required-features = ["metal-native"]
+
 [features]
 default = ["gpu_real"]
 gpu = []
