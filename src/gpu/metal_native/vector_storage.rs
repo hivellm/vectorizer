@@ -4,7 +4,7 @@
 //! All vector data is stored in VRAM for maximum efficiency.
 
 use metal::{Buffer as MetalBuffer, Device as MetalDevice, MTLResourceOptions, MTLStorageMode, MTLCPUCacheMode};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use crate::error::{Result, VectorizerError};
 use crate::models::Vector;
@@ -33,6 +33,7 @@ pub struct MetalNativeVectorStorage {
     vector_id_map: HashMap<String, usize>,
     index_to_id: Vec<String>, // Maps index to original ID
     vector_metadata: HashMap<String, VectorMetadata>, // Maps ID to metadata
+    removed_indices: HashSet<usize>, // Tracks removed vector indices
 }
 
 #[cfg(target_os = "macos")]
@@ -76,6 +77,7 @@ impl MetalNativeVectorStorage {
             vector_id_map: HashMap::new(),
             index_to_id: Vec::new(),
             vector_metadata: HashMap::new(),
+            removed_indices: HashSet::new(),
         })
     }
     
@@ -309,7 +311,7 @@ impl MetalNativeVectorStorage {
         })
     }
     
-    /// Get vector count
+    /// Get vector count (total allocated, including removed)
     pub fn vector_count(&self) -> usize {
         self.vector_count
     }
@@ -511,5 +513,51 @@ impl MetalNativeVectorStorage {
     /// Get all vector IDs
     pub fn get_all_vector_ids(&self) -> Vec<String> {
         self.index_to_id.clone()
+    }
+
+    /// Get vector by ID using the ID to index mapping
+    pub fn get_vector_by_id(&self, id: &str) -> Result<Vector> {
+        // Look up the index for this ID
+        let index = self.vector_id_map.get(id)
+            .ok_or_else(|| VectorizerError::Other(format!("Vector with ID '{}' not found", id)))?;
+
+        // Check if this vector was removed
+        if self.removed_indices.contains(index) {
+            return Err(VectorizerError::Other(format!("Vector with ID '{}' was removed", id)));
+        }
+
+        // Get the vector at that index
+        self.get_vector(*index)
+    }
+
+    /// Remove vector by ID (marks as removed, doesn't reorganize buffers)
+    pub fn remove_vector(&mut self, id: &str) -> Result<()> {
+        // Look up the index for this ID
+        let index = self.vector_id_map.get(id)
+            .ok_or_else(|| VectorizerError::Other(format!("Vector with ID '{}' not found", id)))?;
+
+        // Check if already removed
+        if self.removed_indices.contains(index) {
+            return Err(VectorizerError::Other(format!("Vector with ID '{}' already removed", id)));
+        }
+
+        // Mark as removed
+        self.removed_indices.insert(*index);
+
+        // Remove from mappings
+        self.vector_id_map.remove(id);
+        self.vector_metadata.remove(id);
+
+        // Note: We keep the vector data in GPU buffers for simplicity
+        // In a full implementation, we might want to compact the buffers
+        // when too many vectors are removed
+
+        debug!("✅ Vector '{}' removed (marked as removed, buffers not compacted)", id);
+        Ok(())
+    }
+
+    /// Get the actual count of active (non-removed) vectors
+    pub fn active_vector_count(&self) -> usize {
+        self.vector_count - self.removed_indices.len()
     }
 }

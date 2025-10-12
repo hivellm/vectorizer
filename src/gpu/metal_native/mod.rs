@@ -210,12 +210,9 @@ impl MetalNativeCollection {
     }
 
     pub fn get_vector_by_id(&self, id: &str) -> Result<Vector> {
-        // Use the vector storage to find vector by ID
-        // This method is not implemented yet in MetalNativeCollection
-        // TODO: Implement when vector ID mapping is added to MetalNativeCollection
-        Err(crate::error::VectorizerError::Other(
-            "get_vector_by_id not implemented for MetalNative - use get_vector(index) or implement ID mapping".to_string()
-        ))
+        // Use the vector storage ID mapping to find vector by ID
+        // The vector storage already maintains a HashMap<String, usize> for ID to index mapping
+        self.vector_storage.get_vector_by_id(id)
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
@@ -294,13 +291,16 @@ impl MetalNativeCollection {
         metadata
     }
 
-    pub fn remove_vector(&mut self, _id: String) -> Result<()> {
-        // NOTE: Vector removal not implemented yet for Metal Native
-        // This would require complex GPU buffer reorganization and HNSW graph updates
-        // TODO: Implement vector removal with GPU buffer compaction and graph repair
-        Err(crate::error::VectorizerError::Other(
-            "Vector removal not implemented for MetalNative - requires GPU buffer reorganization".to_string()
-        ))
+    pub fn remove_vector(&mut self, id: String) -> Result<()> {
+        // Remove from vector storage (marks as removed, doesn't reorganize buffers)
+        self.vector_storage.remove_vector(&id)?;
+
+        // Note: HNSW graph is not updated - this would require complex GPU operations
+        // For now, searches may return slightly worse results due to removed vectors
+        // TODO: Implement HNSW graph repair after vector removal
+
+        debug!("✅ Vector '{}' removed from MetalNativeCollection", id);
+        Ok(())
     }
 
     pub fn estimated_memory_usage(&self) -> usize {
