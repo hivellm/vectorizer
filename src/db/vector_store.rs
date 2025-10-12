@@ -312,41 +312,55 @@ impl VectorStore {
     /// Priority: Metal (Mac Silicon) > CUDA > CPU
     pub fn new_auto() -> Self {
         eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
+        info!("🔍 VectorStore::new_auto() called - starting GPU detection...");
 
         // Try to load persisted collections first
         let mut store = Self::new();
-        if let Ok(collections_loaded) = store.load_all_persisted_collections() {
-            if collections_loaded > 0 {
-                eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
-                info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+        match store.load_all_persisted_collections() {
+            Ok(collections_loaded) => {
+                if collections_loaded > 0 {
+                    eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                    info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                } else {
+                    eprintln!("ℹ️ No persisted collections found");
+                    info!("ℹ️ No persisted collections found");
+                }
+            }
+            Err(e) => {
+                eprintln!("⚠️ Failed to load persisted collections: {:?}", e);
+                warn!("⚠️ Failed to load persisted collections: {:?}", e);
+                // Continue anyway - collections can be created dynamically
             }
         }
         
         // Always enable auto-save for dynamic collections
         store.enable_auto_save();
         info!("🔄 Auto-save enabled for all collections (including dynamic ones)");
-        
-        // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
-        #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
+
+        // 1. Try Metal Native first (Mac Silicon with metal-native feature)
+        #[cfg(all(target_os = "macos", feature = "metal-native"))]
         {
-            eprintln!("🍎 Detecting Metal GPU on Mac Silicon...");
-            info!("🍎 Detecting Metal GPU on Mac Silicon...");
-            let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
-            if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
-                eprintln!("✅ Metal GPU detected and enabled!");
-                info!("✅ Metal GPU detected and enabled!");
-                let mut store = Self::new_with_metal_config(metal_config);
-                store.enable_auto_save();
+            eprintln!("🍎 Detecting Metal Native GPU on Mac Silicon...");
+            info!("🍎 Detecting Metal Native GPU on Mac Silicon...");
+
+            // Try to create a Metal Native context to verify Metal is available
+            if let Ok(_) = crate::gpu::MetalNativeContext::new() {
+                eprintln!("✅ Metal Native GPU detected and enabled!");
+                info!("✅ Metal Native GPU detected and enabled!");
+                // Note: We already loaded collections above, and new collections will auto-use Metal Native
+                eprintln!("📊 VectorStore ready with Metal Native acceleration for new collections");
+                info!("📊 VectorStore ready with Metal Native acceleration for new collections");
                 return store;
             } else {
-                eprintln!("⚠️ Metal GPU detection failed, falling back...");
-                warn!("⚠️ Metal GPU detection failed, falling back...");
+                eprintln!("⚠️ Metal Native GPU detection failed, falling back to CPU...");
+                warn!("⚠️ Metal Native GPU detection failed, falling back to CPU...");
             }
         }
-        
-        #[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu")))]
+
+        #[cfg(not(all(target_os = "macos", feature = "metal-native")))]
         {
-            eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
+            eprintln!("⚠️ Metal Native not available (not macOS or metal-native feature not compiled)");
+            info!("⚠️ Metal Native not available (not macOS or metal-native feature not compiled)");
         }
         
         // 2. Return the store with loaded collections and auto-save already enabled
