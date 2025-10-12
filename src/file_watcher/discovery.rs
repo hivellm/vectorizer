@@ -598,7 +598,6 @@ mod tests {
                 Arc::new(VectorStore::new_auto()),
                 Arc::new(RwLock::new(EmbeddingManager::new())),
                 config.clone(),
-                Arc::new(crate::file_watcher::HashValidator::new()),
             )),
             vector_store: Arc::new(VectorStore::new_auto()),
         };
@@ -623,7 +622,6 @@ mod tests {
                 Arc::new(VectorStore::new_auto()),
                 Arc::new(RwLock::new(EmbeddingManager::new())),
                 config.clone(),
-                Arc::new(crate::file_watcher::HashValidator::new()),
             )),
             vector_store: Arc::new(VectorStore::new_auto()),
         };

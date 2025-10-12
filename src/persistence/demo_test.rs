@@ -22,6 +22,7 @@ async fn test_persistence_demo() {
         quantization: QuantizationConfig::default(),
         hnsw_config: HnswConfig::default(),
         compression: CompressionConfig::default(),
+            normalization: None,
     };
     
     info!("✅ Configuração de coleção criada: dimensão={}, métrica={:?}", 

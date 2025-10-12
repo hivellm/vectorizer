@@ -19,7 +19,8 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "dev": "ts-node examples/basic-usage.ts"
+    "dev": "ts-node examples/basic-usage.ts",
+    "publish:wsl": "export BROWSER=wslview && npm publish"
   },
   "keywords": [
     "vector-database",

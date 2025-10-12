@@ -122,6 +122,7 @@ use tempfile::tempdir;
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::default(),
             compression: Default::default(),
+            normalization: None,
         };
         store.create_collection("compressed", config).unwrap();
 

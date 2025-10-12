@@ -406,6 +406,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         let metadata = store.create_collection(
@@ -434,6 +435,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Create dynamic collections
@@ -463,6 +465,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Create collection
@@ -484,6 +487,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Create collection
@@ -507,6 +511,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Create some collections

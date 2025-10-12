@@ -1608,6 +1608,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create collections
@@ -1631,6 +1632,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create collection
@@ -1654,6 +1656,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create and delete collection
@@ -1687,6 +1690,7 @@ mod tests {
             },
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         store.create_collection("test", config).unwrap();
@@ -1749,6 +1753,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Empty store stats
@@ -1783,6 +1788,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create collection from main thread
@@ -1833,6 +1839,7 @@ mod tests {
                 threshold_bytes: 2048,
                 algorithm: crate::models::CompressionAlgorithm::Lz4,
             },
+            normalization: None,
         };
 
         store
@@ -1864,6 +1871,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         store.create_collection("error_test", config).unwrap();

@@ -70,6 +70,7 @@ mod integration_tests {
             hnsw_config: crate::models::HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
+            normalization: None,
         };
 
         store.create_collection("concurrent", config).unwrap();
@@ -168,6 +169,7 @@ mod integration_tests {
                     },
                     quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
+                    normalization: None,
                 },
             ),
             (
@@ -187,6 +189,7 @@ mod integration_tests {
                         threshold_bytes: 2048,
                         algorithm: crate::models::CompressionAlgorithm::Lz4,
                     },
+                    normalization: None,
                 },
             ),
         ];

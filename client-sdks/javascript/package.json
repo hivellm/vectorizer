@@ -18,7 +18,8 @@
     "lint:fix": "eslint src/**/*.js --fix",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "dev": "node examples/basic-usage.js"
+    "dev": "node examples/basic-usage.js",
+    "publish:wsl": "export BROWSER=wslview && npm publish"
   },
   "keywords": [
     "vector-database",
