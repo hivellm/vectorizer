@@ -82,6 +82,26 @@ pub enum VectorizerError {
     #[error("Resource not found: {0}")]
     NotFound(String),
 
+    /// Insufficient GPU memory
+    #[error("Insufficient GPU memory: required {required} MB, available {available} MB. Suggestion: {suggestion}")]
+    InsufficientGpuMemory {
+        required: u64,
+        available: u64,
+        suggestion: String,
+    },
+
+    /// Unsupported GPU backend
+    #[error("Unsupported GPU backend: {0}")]
+    UnsupportedGpuBackend(String),
+
+    /// GPU allocation error
+    #[error("GPU allocation error: {0}")]
+    GpuAllocationError(String),
+
+    /// Invalid parameter
+    #[error("Invalid parameter: {0}")]
+    InvalidParameter(String),
+
     /// Other errors
     #[error("{0}")]
     Other(String),

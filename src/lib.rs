@@ -16,7 +16,7 @@ pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
-#[cfg(feature = "wgpu-gpu")]
+#[cfg(feature = "metal-native")]
 pub mod gpu;
 pub mod hybrid_search;
 pub mod intelligent_search;

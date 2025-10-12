@@ -160,8 +160,8 @@ run_tests() {
     
     cd "$PROJECT_ROOT"
     
-    echo -e "${BLUE}Running cargo test...${NC}"
-    if cargo test --release; then
+    echo -e "${BLUE}Running cargo test with Metal Native support...${NC}"
+    if cargo test --release --features metal-native; then
         echo -e "${GREEN}✅ All tests passed${NC}"
     else
         echo -e "${RED}❌ Tests failed${NC}"
@@ -201,7 +201,7 @@ build_linux() {
     
     for binary in "${binaries[@]}"; do
         echo -e "${BLUE}Building $binary...${NC}"
-        if cargo build --release --bin "$binary"; then
+        if cargo build --release --bin "$binary" --features metal-native; then
             echo -e "${GREEN}✅ $binary built successfully${NC}"
         else
             echo -e "${RED}❌ Failed to build $binary${NC}"
@@ -231,7 +231,7 @@ build_windows() {
     
     for binary in "${binaries[@]}"; do
         echo -e "${BLUE}Building $binary for Windows...${NC}"
-        if cargo build --release --bin "$binary" --target x86_64-pc-windows-gnu; then
+        if cargo build --release --bin "$binary" --target x86_64-pc-windows-gnu --features metal-native; then
             echo -e "${GREEN}✅ $binary (Windows) built successfully${NC}"
         else
             echo -e "${RED}❌ Failed to build $binary for Windows${NC}"

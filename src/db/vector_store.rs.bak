@@ -50,19 +50,13 @@ impl CollectionType {
     pub fn config(&self) -> &CollectionConfig {
         match self {
             CollectionType::Cpu(c) => c.config(),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => c.config(),
         }
     }
 
     /// Add a vector to the collection
-    pub fn add_vector(&mut self, _id: String, vector: Vector) -> Result<()> {
+    pub fn add_vector(&self, _id: String, vector: Vector) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.insert(vector),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => {
-                c.add_vector(vector).map(|_| ())
-            }
         }
     }
 
@@ -70,17 +64,6 @@ impl CollectionType {
     pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
         match self {
             CollectionType::Cpu(c) => c.search(query, limit),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => {
-                // Convert MetalNative results to SearchResult format
-                let results = c.search(query, limit)?;
-                Ok(results.into_iter().map(|(idx, sim)| SearchResult {
-                    id: c.get_vector_id(idx).unwrap_or(&format!("vector_{}", idx)).to_string(),
-                    score: sim,
-                    vector: None, // TODO: Add vector retrieval if needed
-                    payload: None,
-                }).collect())
-            }
         }
     }
 
@@ -88,30 +71,13 @@ impl CollectionType {
     pub fn metadata(&self) -> CollectionMetadata {
         match self {
             CollectionType::Cpu(c) => c.metadata(),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => {
-                use chrono::Utc;
-                CollectionMetadata {
-                    name: c.name().to_string(),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    vector_count: c.vector_count(),
-                    document_count: c.vector_count(), // MetalNative doesn't track documents separately
-                    config: c.config().clone(),
-                }
-            }
         }
     }
 
     /// Delete a vector from the collection
-    pub fn delete_vector(&mut self, id: &str) -> Result<()> {
+    pub fn delete_vector(&self, id: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.delete(id),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => {
-                // MetalNative doesn't support vector deletion yet
-                Err(crate::error::VectorizerError::Other("Vector deletion not implemented for MetalNative".to_string()))
-            }
         }
     }
 
@@ -119,18 +85,6 @@ impl CollectionType {
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_vector(vector_id),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => {
-                // Try to get vector by ID first, if not available, try to parse as index
-                c.get_vector_by_id(vector_id).or_else(|_| {
-                    // Try to parse as index
-                    if let Ok(index) = vector_id.parse::<usize>() {
-                        c.get_vector(index)
-                    } else {
-                        Err(crate::error::VectorizerError::Other("Vector ID not found in MetalNative collection".to_string()))
-                    }
-                })
-            }
         }
     }
 
@@ -138,8 +92,6 @@ impl CollectionType {
     pub fn vector_count(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.vector_count(),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => c.vector_count(),
         }
     }
 
@@ -147,8 +99,6 @@ impl CollectionType {
     pub fn estimated_memory_usage(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.estimated_memory_usage(),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => c.estimated_memory_usage(),
         }
     }
 
@@ -156,8 +106,6 @@ impl CollectionType {
     pub fn get_all_vectors(&self) -> Vec<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_all_vectors(),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => c.get_all_vectors().unwrap_or_default(),
         }
     }
 
@@ -165,8 +113,6 @@ impl CollectionType {
     pub fn get_embedding_type(&self) -> String {
         match self {
             CollectionType::Cpu(c) => c.get_embedding_type(),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => "metal-native".to_string(),
         }
     }
 
@@ -216,18 +162,21 @@ impl CollectionType {
                 let total_size = format_bytes(total);
                 (index_size, payload_size, total_size)
             }
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
         }
     }
 
     /// Set embedding type
-    pub fn set_embedding_type(&mut self, embedding_type: String) {
+    pub fn set_embedding_type(&self, embedding_type: String) {
         match self {
             CollectionType::Cpu(c) => c.set_embedding_type(embedding_type),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => {
-                // MetalNative doesn't need to track embedding types
-                debug!("MetalNative collections don't track embedding types: {}", embedding_type);
-            }
         }
     }
 
@@ -235,10 +184,14 @@ impl CollectionType {
     pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_hnsw_index_from_dump(path, basename),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => {
-                warn!("MetalNative collections don't support HNSW dump loading yet");
-                Ok(())
+                warn!("Metal collections don't support HNSW dump loading yet");
+                Ok(()) // No-op for now
+            }
+                warn!("Vulkan collections don\'t support HNSW dump loading yet");
+                Ok(()) // No-op for now
+            }
+                warn!("DirectX 12 collections don\'t support HNSW dump loading yet");
+                Ok(()) // No-op for now
             }
         }
     }
@@ -247,26 +200,30 @@ impl CollectionType {
     pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_vectors_into_memory(vectors),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => {
-                warn!("MetalNative collections don't support vector loading into memory yet");
-                Ok(())
+                warn!("Metal collections don't support vector loading into memory yet");
+                Ok(()) // No-op for now
+            }
+                warn!("Vulkan collections don\'t support vector loading into memory yet");
+                Ok(()) // No-op for now
+            }
+                warn!("DirectX 12 collections don\'t support vector loading into memory yet");
+                Ok(()) // No-op for now
             }
         }
     }
 
     /// Fast load vectors
-    pub fn fast_load_vectors(&mut self, vectors: Vec<Vector>) -> Result<()> {
+    pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.fast_load_vectors(vectors),
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(c) => {
-                warn!("MetalNative collections don't support fast vector loading yet");
-                // For now, add vectors individually
-                for vector in vectors {
-                    c.add_vector(vector)?;
-                }
-                Ok(())
+                warn!("Metal collections don't support fast vector loading yet");
+                Ok(()) // No-op for now
+            }
+                warn!("Vulkan collections don\'t support fast vector loading yet");
+                Ok(()) // No-op for now
+            }
+                warn!("DirectX 12 collections don\'t support fast vector loading yet");
+                Ok(()) // No-op for now
             }
         }
     }
@@ -308,6 +265,27 @@ impl VectorStore {
         }
     }
     
+    /// Create a new vector store with Metal GPU configuration
+        info!("Creating new VectorStore with Metal GPU config: enabled={}", metal_config.enabled);
+        Self {
+            collections: Arc::new(DashMap::new()),
+            gpu_config: GpuConfig { enabled: false, ..Default::default() },
+            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+    
+    /// Create a new vector store with Vulkan GPU configuration
+        info!("Creating new VectorStore with Vulkan GPU config: enabled={}", vulkan_config.enabled);
+        Self {
+            collections: Arc::new(DashMap::new()),
+            gpu_config: GpuConfig { enabled: false, ..Default::default() },
+            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
     
     /// Create a new vector store with automatic GPU detection
     /// Priority: Metal (Mac Silicon) > CUDA > CPU
@@ -355,6 +333,115 @@ impl VectorStore {
         info!("💻 Using CPU-only mode with loaded collections");
         store
     }
+    
+    /// Universal GPU detection across all backends (Vulkan, DirectX, CUDA, Metal)
+    /// Priority: Metal (macOS) > Vulkan (AMD/Universal) > DirectX12 (Windows) > CUDA (NVIDIA) > CPU
+    pub fn new_auto_universal() -> Self {
+        use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
+        
+        //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
+        info!("🔍 Starting universal GPU backend detection...");
+        
+        // Try to load persisted collections first
+        let mut store = Self::new();
+        if let Ok(collections_loaded) = store.load_all_persisted_collections() {
+            if collections_loaded > 0 {
+                eprintln!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                info!("✅ Loaded {} persisted collections from data directory", collections_loaded);
+                // Enable auto-save after loading persisted collections
+                store.enable_auto_save();
+            return store;
+            }
+        }
+        
+        // Detect all available backends
+        let available = detect_available_backends();
+        
+        if available.is_empty() {
+            eprintln!("❌ No GPU backends detected - using CPU");
+            warn!("No GPU backends available");
+            let mut store = Self::new();
+            store.enable_auto_save();
+            return store;
+        }
+        
+        // Select best backend
+        let best = select_best_backend(&available);
+        eprintln!("🎯 Selected: {}", best);
+        info!("Selected backend: {}", best);
+        
+        // Initialize VectorStore with the selected backend
+        match best {
+            GpuBackendType::Metal => {
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                {
+                    eprintln!("🍎 Initializing Metal GPU backend...");
+                    let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
+                    if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
+                        eprintln!("✅ Metal GPU initialized successfully!");
+                        info!("✅ Metal GPU initialized successfully!");
+                        let mut store = Self::new_with_metal_config(metal_config);
+                        store.enable_auto_save();
+                        return store;
+                    } else {
+                        eprintln!("⚠️ Metal initialization failed - falling back");
+                        warn!("Metal GPU initialization failed");
+                    }
+                }
+            }
+            
+            GpuBackendType::Vulkan => {
+                {
+                    eprintln!("🔥 Initializing Vulkan GPU backend...");
+                    info!("Initializing Vulkan GPU backend...");
+                    let vulkan_config = crate::gpu::GpuConfig::default();
+                    eprintln!("✅ Vulkan GPU initialized!");
+                    info!("✅ Vulkan GPU initialized!");
+                    let mut store = Self::new_with_vulkan_config(vulkan_config);
+                    store.enable_auto_save();
+                    return store;
+                }
+                
+                #[cfg(not(feature = "wgpu-gpu"))]
+                {
+                    eprintln!("⚠️ Vulkan requires wgpu-gpu feature");
+                    warn!("Vulkan selected but wgpu-gpu feature not enabled");
+                }
+            }
+            
+            GpuBackendType::DirectX12 => {
+                eprintln!("🪟 DirectX 12 detected but integration pending...");
+                info!("DirectX 12 backend detected but not yet integrated");
+                // TODO: Implement DirectX12Collection (FASE 3)
+            }
+            
+            GpuBackendType::CudaNative => {
+                #[cfg(feature = "cuda")]
+                {
+                    eprintln!("⚡ Initializing CUDA GPU backend...");
+                    info!("Initializing CUDA GPU backend...");
+                    let cuda_config = CudaConfig { enabled: true, ..Default::default() };
+                    eprintln!("✅ CUDA GPU initialized!");
+                    info!("✅ CUDA GPU initialized!");
+                    let mut store = Self::new_with_cuda_config(cuda_config);
+                    store.enable_auto_save();
+                    return store;
+                }
+            }
+            
+            GpuBackendType::Cpu => {
+                eprintln!("💻 Using CPU backend");
+                info!("Using CPU backend");
+            }
+        }
+        
+        // Fallback to CPU if GPU initialization failed
+        eprintln!("💻 Falling back to CPU backend");
+        warn!("GPU initialization failed, using CPU fallback");
+        let mut store = Self::new();
+        store.enable_auto_save();
+        store
+    }
 
     /// Create a new collection
     pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
@@ -364,26 +451,48 @@ impl VectorStore {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        // Try Metal Native first (macOS with metal-native feature)
-        #[cfg(all(target_os = "macos", feature = "metal-native"))]
-        {
-            info!("Creating Metal Native collection '{}'", name);
-            match crate::gpu::MetalNativeCollection::new(config.dimension, config.metric) {
-                Ok(metal_collection) => {
-                    self.collections.insert(name.to_string(), CollectionType::MetalNative(metal_collection));
-                    info!("Collection '{}' created successfully with Metal Native", name);
-                    return Ok(());
-                }
-                Err(e) => {
-                    warn!("Metal Native collection creation failed: {:?}, falling back to CPU", e);
-                }
+        // Prioridade: Metal > Vulkan > DirectX12 > CUDA > CPU
+        if let Some(ref metal_cfg) = self.metal_config {
+            if metal_cfg.enabled {
+                info!("Creating Metal GPU-accelerated collection '{}'", name);
+                let metal_collection = pollster::block_on(
+                    crate::gpu::MetalCollection::new(name.to_string(), config, metal_cfg.clone())
+                )?;
+                self.collections.insert(name.to_string(), collection);
+                info!("Collection '{}' created successfully with Metal GPU", name);
+                return Ok(());
             }
         }
 
-        // Fallback to CPU collection
+        if let Some(ref vulkan_cfg) = self.vulkan_config {
+            if vulkan_cfg.enabled {
+                info!("Creating Vulkan GPU-accelerated collection '{}'", name);
+                let vulkan_collection = pollster::block_on(
+                    crate::gpu::VulkanCollection::new(name.to_string(), config, vulkan_cfg.clone())
+                )?;
+                self.collections.insert(name.to_string(), collection);
+                info!("Collection '{}' created successfully with Vulkan GPU", name);
+                return Ok(());
+            }
+        }
+
+        if let Some(ref dx12_cfg) = self.dx12_config {
+            if dx12_cfg.enabled {
+                info!("Creating DirectX 12 GPU-accelerated collection '{}'", name);
+                let dx12_collection = pollster::block_on(
+                    crate::gpu::DirectX12Collection::new(name.to_string(), config, dx12_cfg.clone())
+                )?;
+                self.collections.insert(name.to_string(), collection);
+                info!("Collection '{}' created successfully with DirectX 12 GPU", name);
+                return Ok(());
+            }
+        }
+
+        // Fallback to CPU
         debug!("Creating CPU-based collection '{}'", name);
-        let collection = Collection::new(name.to_string(), config);
-        self.collections.insert(name.to_string(), CollectionType::Cpu(collection));
+        let collection = CollectionType::Cpu(Collection::new(name.to_string(), config));
+
+        self.collections.insert(name.to_string(), collection);
 
         info!("Collection '{}' created successfully", name);
         Ok(())
@@ -422,7 +531,7 @@ impl VectorStore {
                     self.create_collection(name, config)?;
                     
                     // Get the new collection
-                    let mut new_collection = self.get_collection_mut(name)?;
+                    let new_collection = self.get_collection(name)?;
                     
                     // Apply quantization to existing vectors
                     for vector in existing_vectors {
@@ -469,12 +578,6 @@ impl VectorStore {
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
     }
 
-    /// Get a mutable reference to a collection
-    pub fn get_collection_mut(&self, name: &str) -> Result<impl std::ops::DerefMut<Target = CollectionType> + '_> {
-        self.collections
-            .get_mut(name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
-    }
 
     /// List all collections
     pub fn list_collections(&self) -> Vec<String> {
@@ -498,22 +601,21 @@ impl VectorStore {
             collection_name
         );
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
+        let collection_ref = self.get_collection(collection_name)?;
 
-        // Check if this is a GPU collection that needs special handling
+        // Check if this is a GPU collection that needs async handling
         match collection_ref.deref() {
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => {
-                // For Metal Native collections, use sequential insertion
+                // For GPU collections, use sequential insertion to avoid async issues
                 for vector in vectors {
                     collection_ref.add_vector(vector.id.clone(), vector)?;
                 }
             },
             _ => {
-                // For CPU collections, use sequential iteration (can't use parallel with RefMut)
-                for vector in vectors {
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
+                // For CPU collections, use parallel iteration for better performance
+                use rayon::prelude::*;
+                vectors.into_par_iter().try_for_each(|vector| {
+                    collection_ref.add_vector(vector.id.clone(), vector)
+                })?;
             }
         }
 
@@ -530,7 +632,7 @@ impl VectorStore {
             vector.id, collection_name
         );
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
+        let collection_ref = self.get_collection(collection_name)?;
         // For update, we delete and re-add (TODO: Add direct update method to CollectionType)
         collection_ref.delete_vector(&vector.id)?;
         collection_ref.add_vector(vector.id.clone(), vector)?;
@@ -548,7 +650,7 @@ impl VectorStore {
             vector_id, collection_name
         );
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
+        let collection_ref = self.get_collection(collection_name)?;
         collection_ref.delete_vector(vector_id)?;
 
         // Mark collection for auto-save
@@ -585,19 +687,33 @@ impl VectorStore {
 
         debug!("Fast loading collection '{}' from cache with {} vectors", collection_name, persisted_vectors.len());
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
+        let collection_ref = self.get_collection(collection_name)?;
 
-        // TODO: Implement load_from_cache for MetalNativeCollection
+        // TODO: Implement load_from_cache for CudaCollection and Metal
         match &*collection_ref {
             CollectionType::Cpu(c) => {
                 c.load_from_cache(persisted_vectors)?;
                 // Requantize existing vectors if quantization is enabled
                 c.requantize_existing_vectors()?;
             },
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => {
-                warn!("MetalNative collections don't support cache loading yet - falling back to manual insertion");
-                // For now, manually insert vectors for MetalNative collections
+                warn!("Metal collections don't support cache loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for Metal collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+                warn!("Vulkan collections don't support cache loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for Vulkan collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+                warn!("DirectX 12 collections don't support cache loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for DirectX 12 collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();
@@ -615,15 +731,29 @@ impl VectorStore {
 
         debug!("Loading collection '{}' from cache with {} vectors (HNSW dump: {})", collection_name, persisted_vectors.len(), hnsw_basename.is_some());
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
+        let collection_ref = self.get_collection(collection_name)?;
 
-        // TODO: Implement load_from_cache_with_hnsw_dump for MetalNativeCollection
+        // TODO: Implement load_from_cache_with_hnsw_dump for CudaCollection and Metal
         match &*collection_ref {
             CollectionType::Cpu(c) => c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?,
-            #[cfg(feature = "metal-native")]
-            CollectionType::MetalNative(_) => {
-                warn!("MetalNative collections don't support HNSW dump loading yet - falling back to manual insertion");
-                // For now, manually insert vectors for MetalNative collections
+                warn!("Metal collections don't support HNSW dump loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for Metal collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+                warn!("Vulkan collections don't support HNSW dump loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for Vulkan collections
+                for pv in persisted_vectors {
+                    // Convert PersistedVector back to Vector
+                    let vector: Vector = pv.into();
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
+            }
+                warn!("DirectX 12 collections don't support HNSW dump loading yet - falling back to manual insertion");
+                // For now, manually insert vectors for DirectX 12 collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();

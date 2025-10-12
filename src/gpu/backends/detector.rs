@@ -6,17 +6,13 @@
 use crate::error::Result;
 use tracing::{info, debug, warn};
 
-/// Supported GPU backend types
+/// Supported native GPU backend types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GpuBackendType {
-    /// Apple Metal (M1/M2/M3/M4 Silicon)
+    /// Apple Metal Native (macOS Apple Silicon)
     Metal,
-    /// Vulkan (AMD/NVIDIA/Intel/Universal)
-    Vulkan,
-    /// DirectX 12 (Windows)
-    DirectX12,
-    /// GPU (NVIDIA native, not via wgpu)
-    GpuNative,
+    /// CUDA (NVIDIA GPUs on Linux/Windows)
+    Cuda,
     /// CPU-only (no GPU acceleration)
     Cpu,
 }
@@ -26,42 +22,34 @@ impl GpuBackendType {
     pub fn priority(&self) -> u8 {
         match self {
             Self::Metal => 0,       // Best for Apple Silicon
-            Self::Vulkan => 1,      // Universal, AMD optimized
-            Self::DirectX12 => 2,   // Windows native
-            Self::CudaNative => 3,  // NVIDIA specific
+            Self::Cuda => 1,        // NVIDIA specific, high performance
             Self::Cpu => 255,       // Last resort
         }
     }
-    
+
     /// Check if backend is theoretically available on current platform
     pub fn is_platform_compatible(&self) -> bool {
         match self {
-            Self::Metal => cfg!(all(target_os = "macos", target_arch = "aarch64")),
-            Self::Vulkan => true, // Universal (try on all platforms)
-            Self::DirectX12 => cfg!(target_os = "windows"),
-            Self::CudaNative => cfg!(feature = "cuda"),
+            Self::Metal => cfg!(target_os = "macos"),
+            Self::Cuda => cfg!(feature = "cuda"),
             Self::Cpu => true, // Always available
         }
     }
-    
+
     /// Get human-readable name
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Metal => "Metal",
-            Self::Vulkan => "Vulkan",
-            Self::DirectX12 => "DirectX 12",
-            Self::CudaNative => "CUDA",
+            Self::Metal => "Metal Native",
+            Self::Cuda => "CUDA",
             Self::Cpu => "CPU",
         }
     }
-    
+
     /// Get emoji icon for backend
     pub fn icon(&self) -> &'static str {
         match self {
             Self::Metal => "🍎",
-            Self::Vulkan => "🔥",
-            Self::DirectX12 => "🪟",
-            Self::CudaNative => "⚡",
+            Self::Cuda => "🔴",
             Self::Cpu => "💻",
         }
     }
@@ -73,62 +61,38 @@ impl std::fmt::Display for GpuBackendType {
     }
 }
 
-/// Detect all available GPU backends on the current system
+/// Detect all available native GPU backends on the current system
 pub fn detect_available_backends() -> Vec<GpuBackendType> {
-    info!("🔍 Detecting available GPU backends...");
+    info!("🔍 Detecting available native GPU backends...");
     let mut available = Vec::new();
-    
-    // Check Metal (macOS Apple Silicon only)
-    #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
+
+    // Check Metal Native (macOS only)
+    #[cfg(target_os = "macos")]
     {
-        debug!("Checking Metal availability...");
-        if try_detect_metal() {
-            info!("✅ Metal backend available");
+        debug!("Checking Metal Native availability...");
+        if try_detect_metal_native() {
+            info!("✅ Metal Native backend available");
             available.push(GpuBackendType::Metal);
         } else {
-            debug!("❌ Metal backend not available");
+            debug!("❌ Metal Native backend not available");
         }
     }
-    
-    // Check Vulkan (universal)
-    #[cfg(feature = "wgpu-gpu")]
-    {
-        debug!("Checking Vulkan availability...");
-        if try_detect_vulkan() {
-            info!("✅ Vulkan backend available");
-            available.push(GpuBackendType::Vulkan);
-        } else {
-            debug!("❌ Vulkan backend not available");
-        }
-    }
-    
-    // Check DirectX 12 (Windows only)
-    #[cfg(all(target_os = "windows", feature = "wgpu-gpu"))]
-    {
-        debug!("Checking DirectX 12 availability...");
-        if try_detect_dx12() {
-            info!("✅ DirectX 12 backend available");
-            available.push(GpuBackendType::DirectX12);
-        } else {
-            debug!("❌ DirectX 12 backend not available");
-        }
-    }
-    
+
     // Check CUDA (if feature enabled)
     #[cfg(feature = "cuda")]
     {
         debug!("Checking CUDA availability...");
         if try_detect_cuda() {
             info!("✅ CUDA backend available");
-            available.push(GpuBackendType::CudaNative);
+            available.push(GpuBackendType::Cuda);
         } else {
             debug!("❌ CUDA backend not available");
         }
     }
-    
+
     // CPU always available as fallback
     available.push(GpuBackendType::Cpu);
-    
+
     info!("📊 Available backends: {:?}", available);
     available
 }
@@ -149,83 +113,29 @@ pub fn select_best_backend(available: &[GpuBackendType]) -> GpuBackendType {
     best
 }
 
-/// Try to detect Metal backend (macOS Apple Silicon)
-#[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
-fn try_detect_metal() -> bool {
-    use wgpu::{Instance, Backends, RequestAdapterOptions};
-    
-    let instance = Instance::new(&wgpu::InstanceDescriptor {
-        backends: Backends::METAL,
-        ..Default::default()
-    });
-    
-    match pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: None,
-        force_fallback_adapter: false,
-    })) {
-        Ok(adapter) => {
-            let info = adapter.get_info();
-            debug!("Metal adapter found: {} ({:?})", info.name, info.device_type);
+/// Try to detect Metal Native backend (macOS only)
+#[cfg(target_os = "macos")]
+fn try_detect_metal_native() -> bool {
+    // Try to create Metal Native context directly
+    match crate::gpu::metal_native::MetalNativeContext::new() {
+        Ok(context) => {
+            let device_name = context.device_name();
+            debug!("Metal Native device found: {}", device_name);
             true
         }
-        Err(_) => false,
-    }
-}
-
-/// Try to detect Vulkan backend
-#[cfg(feature = "wgpu-gpu")]
-fn try_detect_vulkan() -> bool {
-    use wgpu::{Instance, Backends, RequestAdapterOptions};
-    
-    let instance = Instance::new(&wgpu::InstanceDescriptor {
-        backends: Backends::VULKAN,
-        ..Default::default()
-    });
-    
-    match pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: None,
-        force_fallback_adapter: false,
-    })) {
-        Ok(adapter) => {
-            let info = adapter.get_info();
-            debug!("Vulkan adapter found: {} ({:?})", info.name, info.device_type);
-            true
+        Err(e) => {
+            debug!("Metal Native not available: {:?}", e);
+            false
         }
-        Err(_) => false,
-    }
-}
-
-/// Try to detect DirectX 12 backend (Windows)
-#[cfg(all(target_os = "windows", feature = "wgpu-gpu"))]
-fn try_detect_dx12() -> bool {
-    use wgpu::{Instance, Backends, RequestAdapterOptions};
-    
-    let instance = Instance::new(&wgpu::InstanceDescriptor {
-        backends: Backends::DX12,
-        ..Default::default()
-    });
-    
-    match pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: None,
-        force_fallback_adapter: false,
-    })) {
-        Ok(adapter) => {
-            let info = adapter.get_info();
-            debug!("DirectX 12 adapter found: {} ({:?})", info.name, info.device_type);
-            true
-        }
-        Err(_) => false,
     }
 }
 
 /// Try to detect CUDA backend
 #[cfg(feature = "cuda")]
 fn try_detect_cuda() -> bool {
-    // For now, just check if CUDA feature is enabled
-    // TODO: Actually check for CUDA runtime availability
+    // TODO: Implement proper CUDA detection
+    // For now, assume CUDA is available if feature is enabled
+    debug!("CUDA feature enabled, assuming availability");
     true
 }
 
@@ -237,8 +147,8 @@ mod tests {
     fn test_backend_priority() {
         assert!(GpuBackendType::Metal.priority() < GpuBackendType::Vulkan.priority());
         assert!(GpuBackendType::Vulkan.priority() < GpuBackendType::DirectX12.priority());
-        assert!(GpuBackendType::DirectX12.priority() < GpuBackendType::CudaNative.priority());
-        assert!(GpuBackendType::CudaNative.priority() < GpuBackendType::Cpu.priority());
+        assert!(GpuBackendType::DirectX12.priority() < GpuBackendType::GpuNative.priority());
+        assert!(GpuBackendType::GpuNative.priority() < GpuBackendType::Cpu.priority());
     }
     
     #[test]

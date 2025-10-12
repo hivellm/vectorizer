@@ -19,9 +19,9 @@ esac
 
 echo "🖥️  Operating System: $OS"
 
-# Build release binaries
-echo "Building release binaries..."
-rustup run nightly cargo build --release
+# Build release binaries with Metal Native support
+echo "Building release binaries with Metal Native support..."
+rustup run nightly cargo build --release --features metal-native
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"

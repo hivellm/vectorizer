@@ -43,11 +43,12 @@ ndarray = "0.16"
 cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
 cc = { version = "1.0", features = ["parallel"] }
 
-# WebGPU/Metal dependencies (cross-platform GPU acceleration)
-wgpu = { version = "27.0", features = ["wgsl"], optional = true }
-pollster = { version = "0.4", optional = true }
-bytemuck = { version = "1.22", features = ["derive"], optional = true }
-futures = { version = "0.3", optional = true }
+# Native GPU dependencies (removed wgpu for pure native implementations)
+
+# Native Metal bindings (macOS only, for synchronous buffer read)
+[target.'cfg(target_os = "macos")'.dependencies]
+metal = { version = "0.29", optional = true }
+objc = { version = "0.2", optional = true }
 
 # Parallel processing
 rayon = "1.10"
@@ -91,12 +92,12 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 jsonwebtoken = "9.3"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 rand = "0.9"
+lazy_static = "1.4"
 
 # CLI utilities
 sys-info = "0.9"
 
 # MCP (Model Context Protocol) dependencies
-futures-util = "0.3"
 tokio-tungstenite = "0.28"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
@@ -191,9 +192,11 @@ path = "src/bin/vectorizer.rs"
 default = ["gpu_real"]
 gpu = []
 gpu_real = ["gpu"]
-metal = ["wgpu", "pollster", "bytemuck", "futures"]
-wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
-gpu-accel = ["wgpu-gpu"]
+# Pure Metal Native implementation (no wgpu dependencies)
+metal-native = ["dep:metal", "dep:objc", "ctrlc"]
+# CUDA native implementation
+cuda = ["cudarc"]
+gpu-accel = ["metal-native"]
 benchmarks = []
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
@@ -223,7 +226,60 @@ full = ["real-models", "onnx-models", "arrow", "parquet"]
 
 
 
+
 [[bin]]
-name = "gpu_scale_benchmark"
-path = "benchmark/scripts/gpu_scale_benchmark.rs"
-required-features = ["wgpu-gpu"]
+name = "metal_native_test"
+path = "benchmark/scripts/metal_native_test.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "metal_native_pure_benchmark"
+path = "benchmark/scripts/metal_native_pure_benchmark.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "metal_native_hnsw_benchmark"
+path = "benchmark/scripts/metal_native_hnsw_benchmark.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "metal_native_comprehensive_benchmark"
+path = "benchmark/scripts/metal_native_comprehensive_benchmark.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "test_10k_limit"
+path = "benchmark/scripts/test_10k_limit.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "optimized_metal_benchmark"
+path = "benchmark/scripts/optimized_metal_benchmark.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "vram_validation_benchmark"
+path = "benchmark/scripts/vram_validation_benchmark.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "scale_512d_benchmark"
+path = "benchmark/scripts/scale_512d_benchmark.rs"
+required-features = ["metal-native"]
+
+[[bin]]
+name = "quick_benchmark"
+path = "benchmark/scripts/quick_benchmark.rs"
+
+[[bin]]
+name = "minimal_benchmark"
+path = "benchmark/scripts/minimal_benchmark.rs"
+
+[[bin]]
+name = "simple_metal_test"
+path = "benchmark/scripts/simple_metal_test.rs"
+
+[[bin]]
+name = "metal_hnsw_search_benchmark"
+path = "benchmark/scripts/metal_hnsw_search_benchmark.rs"
+

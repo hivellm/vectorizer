@@ -1,25 +1,54 @@
-//! Aceleração GPU usando wgpu (Metal, Vulkan, DX12, OpenGL)
-//! 
-//! Este módulo fornece aceleração GPU cross-platform para operações vetoriais
-//! usando wgpu, que suporta Metal (macOS/iOS), Vulkan, DirectX 12 e OpenGL.
+//! Aceleração GPU usando Implementações Nativas (Metal, CUDA)
+//!
+//! Este módulo fornece aceleração GPU usando implementações nativas puras
+//! sem dependências de wgpu para máxima performance e eficiência.
+//!
+//! ## Implementações Suportadas
+//!
+//! - **Metal Native**: macOS com Apple Silicon (M1/M2/M3/M4)
+//! - **CUDA**: Linux/Windows com GPUs NVIDIA
 //!
 //! ## Operações Suportadas
-//! 
+//!
 //! - Similaridade Coseno (Cosine Similarity)
 //! - Distância Euclidiana (Euclidean Distance)
 //! - Produto Escalar (Dot Product)
 //! - Busca em Lote (Batch Search)
 //! - Top-K Selection
+//! - HNSW (Hierarchical Navigable Small World) para busca aproximada
 //!
 //! ## Uso
 //!
-//! ```rust,no_run
-//! use vectorizer::gpu::{GpuContext, GpuConfig, GpuOperations};
+//! ## Metal Native Example (macOS)
 //!
+//! ```rust
+//! use vectorizer::gpu::MetalNativeCollection;
+//! use vectorizer::models::DistanceMetric;
+//!
+//! // Criar coleção Metal Native
+//! let mut collection = MetalNativeCollection::new(512, DistanceMetric::Cosine).unwrap();
+//!
+//! // Adicionar vetores
+//! let vector1 = vectorizer::models::Vector::new("vec1".to_string(), vec![1.0; 512]);
+//! let vector2 = vectorizer::models::Vector::new("vec2".to_string(), vec![0.0; 512]);
+//! collection.add_vector(vector1).unwrap();
+//! collection.add_vector(vector2).unwrap();
+//!
+//! // Buscar similaridades
+//! let query = vec![1.0; 512];
+//! let results = collection.search(&query, 10).unwrap();
+//! ```
+//!
+//! ## CUDA Example (Linux/Windows)
+//!
+//! ```rust,no_run
+//! # #[cfg(feature = "cuda")]
+//! use vectorizer::gpu::cuda::{CudaContext, CudaVectorOps};
+//!
+//! # #[cfg(feature = "cuda")]
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Criar contexto GPU
-//! let config = GpuConfig::default();
-//! let gpu = GpuContext::new(config).await?;
+//! // Criar contexto CUDA
+//! let context = CudaContext::new()?;
 //!
 //! // Realizar operações vetoriais
 //! let query = vec![1.0, 2.0, 3.0];
@@ -29,143 +58,39 @@
 //!     vec![0.0, 0.0, 1.0],
 //! ];
 //!
-//! let similarities = gpu.cosine_similarity(&query, &vectors).await?;
+//! let similarities = context.cosine_similarity(&query, &vectors)?;
 //! # Ok(())
 //! # }
 //! ```
 
-pub mod config;
-pub mod context;
-pub mod operations;
-pub mod shaders;
-pub mod buffers;
-pub mod utils;
-pub mod metal_collection;
-pub mod vulkan_collection;
-pub mod dx12_collection;
+// Native GPU implementations only (no wgpu dependencies)
+
+// Metal Native implementation (macOS only)
+pub mod metal_native;
+pub use metal_native::MetalNativeCollection;
+
+// Metal Native HNSW implementation
+pub mod metal_native_hnsw;
+pub use metal_native_hnsw::{MetalNativeHnswGraph, MetalNativeContext};
+
+// Metal buffer pool for optimized memory management
+pub mod metal_buffer_pool;
+pub use metal_buffer_pool::{MetalBufferPool, OptimizedMetalNativeCollection, BufferPoolStats, CollectionMemoryStats};
+
+// VRAM monitoring and validation
+pub mod vram_monitor;
+pub use vram_monitor::{VramMonitor, VramValidator, VramStats, VramBufferInfo, VramBenchmarkResult};
+
+// Native Metal helpers for synchronous buffer operations (macOS only)
+#[cfg(target_os = "macos")]
+pub mod metal_helpers;
+#[cfg(target_os = "macos")]
+pub use metal_helpers::{MetalBufferReader, create_system_metal_device};
+
+// CUDA implementation (Linux/Windows)
+#[cfg(feature = "cuda")]
+pub mod cuda;
+
+// Unified backend detection for native implementations
 pub mod backends;
-pub mod hnsw_gpu;
-pub mod hnsw_storage;
-pub mod hnsw_navigation;
-pub mod vector_storage;
-
-pub use config::{GpuConfig, GpuBackend};
-pub use context::GpuContext;
-pub use operations::GpuOperations;
-pub use metal_collection::{MetalCollection, MetalGpuMemoryStats};
-pub use vulkan_collection::{VulkanCollection, VulkanGpuMemoryStats};
-pub use dx12_collection::{DirectX12Collection, DirectX12GpuMemoryStats};
 pub use backends::{GpuBackendType, detect_available_backends, select_best_backend};
-pub use hnsw_gpu::{GpuHnswSearch, GpuHnswConfig, GpuSearchCandidate};
-pub use hnsw_storage::{GpuHnswStorage, GpuHnswStorageConfig, GpuHnswNode, GpuHnswMemoryStats};
-pub use hnsw_navigation::{GpuHnswNavigation, GpuHnswNavigationParams, GpuHnswSearchResult};
-pub use vector_storage::{GpuVectorStorage, GpuVectorStorageConfig, GpuVectorStorageStats};
-
-use crate::error::{Result, VectorizerError};
-use crate::models::DistanceMetric;
-
-#[cfg(feature = "wgpu-gpu")]
-use wgpu;
-
-/// Verifica se a GPU está disponível e qual backend será usado
-pub async fn check_gpu_availability() -> Result<GpuBackend> {
-    #[cfg(not(feature = "wgpu-gpu"))]
-    {
-        return Err(VectorizerError::Other(
-            "Feature 'wgpu-gpu' não está habilitada. Compile com --features wgpu-gpu".to_string()
-        ));
-    }
-
-    #[cfg(feature = "wgpu-gpu")]
-    {
-        use wgpu::Instance;
-        
-        let instance = Instance::default();
-        
-        // Tentar detectar o melhor adapter disponível
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-            .await;
-
-        match adapter {
-            Ok(adapter) => {
-                let info = adapter.get_info();
-                let backend = match info.backend {
-                    wgpu::Backend::Metal => GpuBackend::Metal,
-                    wgpu::Backend::Vulkan => GpuBackend::Vulkan,
-                    wgpu::Backend::Dx12 => GpuBackend::DirectX12,
-                    wgpu::Backend::Gl => GpuBackend::OpenGL,
-                    _ => GpuBackend::None,
-                };
-                
-                tracing::info!(
-                    "GPU detectada: {} ({:?}) - Backend: {:?}",
-                    info.name,
-                    info.device_type,
-                    info.backend
-                );
-                
-                Ok(backend)
-            }
-            Err(_) => {
-                tracing::warn!("Nenhum adapter GPU encontrado");
-                Ok(GpuBackend::None)
-            }
-        }
-    }
-}
-
-/// Informações sobre a GPU disponível
-#[derive(Debug, Clone)]
-pub struct GpuInfo {
-    pub name: String,
-    pub backend: GpuBackend,
-    pub device_type: String,
-    pub max_compute_workgroup_size_x: u32,
-    pub max_compute_workgroup_size_y: u32,
-    pub max_compute_workgroup_size_z: u32,
-    pub max_compute_invocations_per_workgroup: u32,
-    pub limits: GpuLimits,
-}
-
-#[derive(Debug, Clone)]
-pub struct GpuLimits {
-    pub max_buffer_size: u64,
-    pub max_storage_buffer_binding_size: u32,
-    pub max_compute_workgroups_per_dimension: u32,
-}
-
-impl Default for GpuInfo {
-    fn default() -> Self {
-        Self {
-            name: "CPU Fallback".to_string(),
-            backend: GpuBackend::None,
-            device_type: "Cpu".to_string(),
-            max_compute_workgroup_size_x: 256,
-            max_compute_workgroup_size_y: 256,
-            max_compute_workgroup_size_z: 64,
-            max_compute_invocations_per_workgroup: 256,
-            limits: GpuLimits {
-                max_buffer_size: 1 << 30, // 1GB
-                max_storage_buffer_binding_size: 1 << 28, // 256MB
-                max_compute_workgroups_per_dimension: 65535,
-            },
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_gpu_availability() {
-        let result = check_gpu_availability().await;
-        println!("GPU disponível: {:?}", result);
-        assert!(result.is_ok());
-    }
-}
