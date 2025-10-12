@@ -5,8 +5,9 @@ High-performance JavaScript client for the Hive Vectorizer vector database.
 ## Features
 
 - ✅ **Modern JavaScript**: ES2020+ support with async/await
-- ✅ **REST-Only Architecture**: Pure HTTP REST API communication
+- ✅ **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
 - ✅ **HTTP Client**: Native fetch-based HTTP client with robust error handling
+- ✅ **UMICP Protocol**: High-performance protocol using @hivellm/umicp SDK
 - ✅ **Comprehensive Validation**: Input validation with `isFinite()` checks for Infinity/NaN
 - ✅ **12 Custom Exceptions**: Robust error management with consistent error codes
 - ✅ **Logging**: Configurable logging system
@@ -118,9 +119,11 @@ const embedding = await client.embedText({
 
 ## Configuration
 
+### HTTP Configuration (Default)
+
 ```javascript
 const client = new VectorizerClient({
-  baseURL: 'http://localhost:15001',     // API base URL
+  baseURL: 'http://localhost:15002',     // API base URL
   apiKey: 'your-api-key',                // API key for authentication
   timeout: 30000,                        // Request timeout in ms
   headers: {                             // Custom headers
@@ -132,6 +135,54 @@ const client = new VectorizerClient({
   }
 });
 ```
+
+### UMICP Configuration (High Performance)
+
+[UMICP (Universal Messaging and Inter-process Communication Protocol)](https://www.npmjs.com/package/@hivellm/umicp) provides performance benefits using the StreamableHTTP transport from the official SDK.
+
+#### Using Connection String
+
+```javascript
+const client = new VectorizerClient({
+  connectionString: 'umicp://localhost:15003',
+  apiKey: 'your-api-key'
+});
+```
+
+#### Using Explicit Configuration
+
+```javascript
+const client = new VectorizerClient({
+  protocol: 'umicp',
+  apiKey: 'your-api-key',
+  umicp: {
+    host: 'localhost',
+    port: 15003,
+    timeout: 60000
+  }
+});
+```
+
+#### When to Use UMICP
+
+Use UMICP when:
+- **Large Payloads**: Inserting or searching large batches of vectors
+- **High Throughput**: Need maximum performance for production workloads
+- **Low Latency**: Need minimal protocol overhead
+
+Use HTTP when:
+- **Development**: Quick testing and debugging
+- **Firewall Restrictions**: Only HTTP/HTTPS allowed
+- **Simple Deployments**: No need for custom protocol setup
+
+#### Protocol Comparison
+
+| Feature | HTTP/HTTPS | UMICP |
+|---------|-----------|-------|
+| Transport | Standard fetch API | StreamableHTTP (from @hivellm/umicp) |
+| Performance | Standard | Optimized for large payloads |
+| Firewall | Widely supported | May require configuration |
+| Debugging | Easy (browser tools) | Requires UMICP tools |
 
 ## API Reference
 

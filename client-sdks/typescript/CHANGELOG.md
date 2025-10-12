@@ -1,12 +1,12 @@
 # Changelog
 
-All notable changes to the Hive Vectorizer JavaScript Client SDK will be documented in this file.
+All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
 ## [0.4.0] - 2025-10-12
 
 ### Added
 - **UMICP Protocol Support**: Added support for the UMICP (Universal Messaging and Inter-process Communication Protocol)
-  - New `UMICPClient` using official `@hivellm/umicp` SDK
+  - New `UMICPClient` for high-performance communication
   - Transport abstraction layer supporting multiple protocols (HTTP/HTTPS and UMICP)
   - Connection string support for easy protocol switching (e.g., `umicp://localhost:15003`)
   - `TransportFactory` for creating protocol-specific clients
@@ -14,11 +14,11 @@ All notable changes to the Hive Vectorizer JavaScript Client SDK will be documen
 
 ### Changed
 - Refactored `VectorizerClient` to use transport abstraction instead of direct HTTP client
-- Updated `VectorizerClient` constructor to support multiple protocols:
+- Updated `VectorizerClientConfig` to support multiple protocols:
   - Added `protocol` field to specify transport protocol
   - Added `connectionString` field for URI-based configuration
   - Added `umicp` field for UMICP-specific options
-- All HTTP requests now go through transport layer for protocol flexibility
+- Updated `setApiKey()` method to reinitialize transport with new API key
 
 ### New API
 - `client.getProtocol()`: Get the current transport protocol being used
@@ -33,15 +33,16 @@ All notable changes to the Hive Vectorizer JavaScript Client SDK will be documen
 - Updated README with UMICP configuration examples
 - Added protocol comparison table
 - Added examples for using UMICP transport
-- Created `examples/umicp-usage.js` demonstrating UMICP usage
+- Created `examples/umicp-usage.ts` demonstrating UMICP usage
 
 ### Technical
-- Implemented transport abstraction for protocol independence
+- Implemented `ITransport` interface for protocol abstraction
 - Created separate transport implementations:
   - `HttpClient` for HTTP/HTTPS
-  - `UMICPClient` wrapper around `StreamableHTTPClient` from @hivellm/umicp
+  - `UMICPClient` for UMICP protocol
 - Added comprehensive error handling for both protocols
 - Maintained backward compatibility with existing HTTP-only configurations
 
 ## [0.3.4] - Previous Version
 - (Previous changes...)
+

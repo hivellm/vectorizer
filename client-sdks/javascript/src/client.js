@@ -5,7 +5,7 @@
  * and collection management.
  */
 
-import { HttpClient } from './utils/http-client.js';
+import { TransportFactory, parseConnectionString } from './utils/transport.js';
 import { createLogger } from './utils/logger.js';
 
 import {
@@ -63,19 +63,63 @@ export class VectorizerClient {
 
     this.logger = createLogger(this.config.logger);
 
-    // Initialize HTTP client
-    const httpConfig = {
-      baseURL: this.config.baseURL,
-      timeout: this.config.timeout,
-      apiKey: this.config.apiKey,
-      headers: this.config.headers,
-    };
-    this.httpClient = new HttpClient(httpConfig);
+    // Determine protocol and create transport
+    if (this.config.connectionString) {
+      // Use connection string
+      const transportConfig = parseConnectionString(this.config.connectionString, this.config.apiKey);
+      this.transport = TransportFactory.create(transportConfig);
+      this.protocol = transportConfig.protocol;
+      
+      this.logger.info('VectorizerClient initialized from connection string', {
+        protocol: this.protocol,
+        connectionString: this.config.connectionString,
+        hasApiKey: !!this.config.apiKey,
+      });
+    } else {
+      // Use explicit configuration
+      this.protocol = this.config.protocol || 'http';
+      
+      if (this.protocol === 'http') {
+        const httpConfig = {
+          baseURL: this.config.baseURL,
+          ...(this.config.timeout && { timeout: this.config.timeout }),
+          ...(this.config.headers && { headers: this.config.headers }),
+          ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+        };
+        this.transport = TransportFactory.create({ protocol: 'http', http: httpConfig });
+        
+        this.logger.info('VectorizerClient initialized with HTTP', {
+          baseURL: this.config.baseURL,
+          hasApiKey: !!this.config.apiKey,
+        });
+      } else if (this.protocol === 'umicp') {
+        if (!this.config.umicp) {
+          throw new Error('UMICP configuration is required when using UMICP protocol');
+        }
+        
+        const umicpConfig = {
+          host: this.config.umicp.host || 'localhost',
+          port: this.config.umicp.port || 15003,
+          ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+          ...(this.config.timeout && { timeout: this.config.timeout }),
+          ...this.config.umicp,
+        };
+        this.transport = TransportFactory.create({ protocol: 'umicp', umicp: umicpConfig });
+        
+        this.logger.info('VectorizerClient initialized with UMICP', {
+          host: umicpConfig.host,
+          port: umicpConfig.port,
+          hasApiKey: !!this.config.apiKey,
+        });
+      }
+    }
+  }
 
-    this.logger.info('VectorizerClient initialized', {
-      baseURL: this.config.baseURL,
-      hasApiKey: !!this.config.apiKey,
-    });
+  /**
+   * Get the current transport protocol being used.
+   */
+  getProtocol() {
+    return this.protocol;
   }
 
   // ===== HEALTH & STATUS =====
@@ -85,7 +129,7 @@ export class VectorizerClient {
    */
   async healthCheck() {
     try {
-      const response = await this.httpClient.get('/health');
+      const response = await this.transport.get('/health');
       this.logger.debug('Health check successful', response);
       return response;
     } catch (error) {
@@ -99,7 +143,7 @@ export class VectorizerClient {
    */
   async getDatabaseStats() {
     try {
-      const response = await this.httpClient.get('/stats');
+      const response = await this.transport.get('/stats');
       validateDatabaseStats(response);
       this.logger.debug('Database stats retrieved', response);
       return response;
@@ -116,7 +160,7 @@ export class VectorizerClient {
    */
   async listCollections() {
     try {
-      const response = await this.httpClient.get('/collections');
+      const response = await this.transport.get('/collections');
       this.logger.debug('Collections listed', { count: response.length });
       return response;
     } catch (error) {
@@ -130,7 +174,7 @@ export class VectorizerClient {
    */
   async getCollection(collectionName) {
     try {
-      const response = await this.httpClient.get(`/collections/${collectionName}`);
+      const response = await this.transport.get(`/collections/${collectionName}`);
       validateCollectionInfo(response);
       this.logger.debug('Collection info retrieved', { collectionName });
       return response;
@@ -146,7 +190,7 @@ export class VectorizerClient {
   async createCollection(request) {
     try {
       validateCreateCollectionRequest(request);
-      const response = await this.httpClient.post('/collections', request);
+      const response = await this.transport.post('/collections', request);
       validateCollection(response);
       this.logger.info('Collection created', { collectionName: request.name });
       return response;
@@ -161,7 +205,7 @@ export class VectorizerClient {
    */
   async updateCollection(collectionName, request) {
     try {
-      const response = await this.httpClient.put(`/collections/${collectionName}`, request);
+      const response = await this.transport.put(`/collections/${collectionName}`, request);
       validateCollection(response);
       this.logger.info('Collection updated', { collectionName });
       return response;
@@ -176,7 +220,7 @@ export class VectorizerClient {
    */
   async deleteCollection(collectionName) {
     try {
-      await this.httpClient.delete(`/collections/${collectionName}`);
+      await this.transport.delete(`/collections/${collectionName}`);
       this.logger.info('Collection deleted', { collectionName });
     } catch (error) {
       this.logger.error('Failed to delete collection', { collectionName, error });
@@ -192,7 +236,7 @@ export class VectorizerClient {
   async insertVectors(collectionName, vectors) {
     try {
       vectors.forEach(validateCreateVectorRequest);
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/collections/${collectionName}/vectors`,
         { vectors }
       );
@@ -209,7 +253,7 @@ export class VectorizerClient {
    */
   async getVector(collectionName, vectorId) {
     try {
-      const response = await this.httpClient.get(`/collections/${collectionName}/vectors/${vectorId}`);
+      const response = await this.transport.get(`/collections/${collectionName}/vectors/${vectorId}`);
       validateVector(response);
       this.logger.debug('Vector retrieved', { collectionName, vectorId });
       return response;
@@ -224,7 +268,7 @@ export class VectorizerClient {
    */
   async updateVector(collectionName, vectorId, request) {
     try {
-      const response = await this.httpClient.put(
+      const response = await this.transport.put(
         `/collections/${collectionName}/vectors/${vectorId}`,
         request
       );
@@ -242,7 +286,7 @@ export class VectorizerClient {
    */
   async deleteVector(collectionName, vectorId) {
     try {
-      await this.httpClient.delete(`/collections/${collectionName}/vectors/${vectorId}`);
+      await this.transport.delete(`/collections/${collectionName}/vectors/${vectorId}`);
       this.logger.info('Vector deleted', { collectionName, vectorId });
     } catch (error) {
       this.logger.error('Failed to delete vector', { collectionName, vectorId, error });
@@ -255,7 +299,7 @@ export class VectorizerClient {
    */
   async deleteVectors(collectionName, vectorIds) {
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/collections/${collectionName}/vectors/delete`,
         { vector_ids: vectorIds }
       );
@@ -275,7 +319,7 @@ export class VectorizerClient {
   async searchVectors(collectionName, request) {
     try {
       validateSearchRequest(request);
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/collections/${collectionName}/search`,
         request
       );
@@ -294,7 +338,7 @@ export class VectorizerClient {
   async searchText(collectionName, request) {
     try {
       validateTextSearchRequest(request);
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/collections/${collectionName}/search/text`,
         request
       );
@@ -323,7 +367,7 @@ export class VectorizerClient {
    */
   async intelligentSearch(request) {
     try {
-      const response = await this.httpClient.post('/intelligent_search', request);
+      const response = await this.transport.post('/intelligent_search', request);
       this.logger.debug('Intelligent search completed', { 
         query: request.query, 
         resultCount: response.results?.length || 0,
@@ -349,7 +393,7 @@ export class VectorizerClient {
    */
   async semanticSearch(request) {
     try {
-      const response = await this.httpClient.post('/semantic_search', request);
+      const response = await this.transport.post('/semantic_search', request);
       this.logger.debug('Semantic search completed', { 
         query: request.query, 
         collection: request.collection,
@@ -375,7 +419,7 @@ export class VectorizerClient {
    */
   async contextualSearch(request) {
     try {
-      const response = await this.httpClient.post('/contextual_search', request);
+      const response = await this.transport.post('/contextual_search', request);
       this.logger.debug('Contextual search completed', { 
         query: request.query, 
         collection: request.collection,
@@ -401,7 +445,7 @@ export class VectorizerClient {
    */
   async multiCollectionSearch(request) {
     try {
-      const response = await this.httpClient.post('/multi_collection_search', request);
+      const response = await this.transport.post('/multi_collection_search', request);
       this.logger.debug('Multi-collection search completed', { 
         query: request.query, 
         collections: request.collections,
@@ -422,7 +466,7 @@ export class VectorizerClient {
   async embedText(request) {
     try {
       validateEmbeddingRequest(request);
-      const response = await this.httpClient.post('/embed', request);
+      const response = await this.transport.post('/embed', request);
       validateEmbeddingResponse(response);
       this.logger.debug('Text embedding generated', { text: request.text, model: response.model });
       return response;
@@ -470,7 +514,7 @@ export class VectorizerClient {
     this.logger.debug('Batch inserting texts', { collection, count: request.texts.length });
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/batch_insert`,
         request.toJSON()
       );
@@ -499,7 +543,7 @@ export class VectorizerClient {
     this.logger.debug('Batch searching vectors', { collection, queries: request.queries.length });
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/batch_search`,
         request.toJSON()
       );
@@ -528,7 +572,7 @@ export class VectorizerClient {
     this.logger.debug('Batch updating vectors', { collection, count: request.updates.length });
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/batch_update`,
         request.toJSON()
       );
@@ -557,7 +601,7 @@ export class VectorizerClient {
     this.logger.debug('Batch deleting vectors', { collection, count: request.vector_ids.length });
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         `/batch_delete`,
         request.toJSON()
       );
@@ -594,7 +638,7 @@ export class VectorizerClient {
     this.logger.debug('Summarizing text', { method: request.method, textLength: request.text.length });
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         '/summarize/text',
         request.toJSON()
       );
@@ -624,7 +668,7 @@ export class VectorizerClient {
     this.logger.debug('Summarizing context', { method: request.method, contextLength: request.context.length });
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.transport.post(
         '/summarize/context',
         request.toJSON()
       );
@@ -654,7 +698,7 @@ export class VectorizerClient {
     this.logger.debug('Getting summary', { summaryId });
 
     try {
-      const response = await this.httpClient.get(
+      const response = await this.transport.get(
         `/summaries/${summaryId}`
       );
 
@@ -685,7 +729,7 @@ export class VectorizerClient {
     this.logger.debug('Listing summaries', { query });
 
     try {
-      const response = await this.httpClient.get(
+      const response = await this.transport.get(
         '/summaries',
         { params: query }
       );
@@ -727,7 +771,7 @@ export class VectorizerClient {
    */
   async discover(params) {
     this.logger.debug('Running discovery pipeline', params);
-    return this.httpClient.post('/discover', params);
+    return this.transport.post('/discover', params);
   }
 
   /**
@@ -740,7 +784,7 @@ export class VectorizerClient {
    */
   async filterCollections(params) {
     this.logger.debug('Filtering collections', params);
-    return this.httpClient.post('/discovery/filter_collections', params);
+    return this.transport.post('/discovery/filter_collections', params);
   }
 
   /**
@@ -754,7 +798,7 @@ export class VectorizerClient {
    */
   async scoreCollections(params) {
     this.logger.debug('Scoring collections', params);
-    return this.httpClient.post('/discovery/score_collections', params);
+    return this.transport.post('/discovery/score_collections', params);
   }
 
   /**
@@ -769,7 +813,7 @@ export class VectorizerClient {
    */
   async expandQueries(params) {
     this.logger.debug('Expanding queries', params);
-    return this.httpClient.post('/discovery/expand_queries', params);
+    return this.transport.post('/discovery/expand_queries', params);
   }
 
   // =============================================================================
@@ -786,7 +830,7 @@ export class VectorizerClient {
    */
   async getFileContent(params) {
     this.logger.debug('Getting file content', params);
-    return this.httpClient.post('/file/content', params);
+    return this.transport.post('/file/content', params);
   }
 
   /**
@@ -801,7 +845,7 @@ export class VectorizerClient {
    */
   async listFilesInCollection(params) {
     this.logger.debug('Listing files in collection', params);
-    return this.httpClient.post('/file/list', params);
+    return this.transport.post('/file/list', params);
   }
 
   /**
@@ -815,7 +859,7 @@ export class VectorizerClient {
    */
   async getFileSummary(params) {
     this.logger.debug('Getting file summary', params);
-    return this.httpClient.post('/file/summary', params);
+    return this.transport.post('/file/summary', params);
   }
 
   /**
@@ -830,7 +874,7 @@ export class VectorizerClient {
    */
   async getFileChunksOrdered(params) {
     this.logger.debug('Getting file chunks', params);
-    return this.httpClient.post('/file/chunks', params);
+    return this.transport.post('/file/chunks', params);
   }
 
   /**
@@ -844,7 +888,7 @@ export class VectorizerClient {
    */
   async getProjectOutline(params) {
     this.logger.debug('Getting project outline', params);
-    return this.httpClient.post('/file/outline', params);
+    return this.transport.post('/file/outline', params);
   }
 
   /**
@@ -859,7 +903,7 @@ export class VectorizerClient {
    */
   async getRelatedFiles(params) {
     this.logger.debug('Getting related files', params);
-    return this.httpClient.post('/file/related', params);
+    return this.transport.post('/file/related', params);
   }
 
   /**
@@ -874,6 +918,6 @@ export class VectorizerClient {
    */
   async searchByFileType(params) {
     this.logger.debug('Searching by file type', params);
-    return this.httpClient.post('/file/search_by_type', params);
+    return this.transport.post('/file/search_by_type', params);
   }
 }
