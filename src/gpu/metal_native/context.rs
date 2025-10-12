@@ -3,7 +3,7 @@
 //! Unified Metal context for all Metal Native operations.
 //! This module provides a single source of truth for Metal device and command queue management.
 
-use metal::{Device as MetalDevice, CommandQueue, MTLGPUFamily, MTLSize};
+use metal::{Device as MetalDevice, CommandQueue, MTLGPUFamily, MTLSize, Library};
 use std::sync::Arc;
 use crate::error::VectorizerError;
 use tracing::{info, debug};
@@ -14,6 +14,7 @@ use tracing::{info, debug};
 pub struct MetalNativeContext {
     device: MetalDevice,
     command_queue: CommandQueue,
+    library: Library,
 }
 
 #[cfg(target_os = "macos")]
@@ -22,14 +23,18 @@ impl MetalNativeContext {
     pub fn new() -> Result<Self, VectorizerError> {
         let device = MetalDevice::system_default()
             .ok_or_else(|| VectorizerError::Other("No Metal device available".to_string()))?;
-        
+
         let command_queue = device.new_command_queue();
-        
+
+        // Load Metal library with HNSW shaders
+        let library = Self::load_metal_library(&device)?;
+
         debug!("✅ Metal native context created: {}", device.name());
-        
+
         Ok(Self {
             device,
             command_queue,
+            library,
         })
     }
     
@@ -65,5 +70,23 @@ impl MetalNativeContext {
         // Most Metal devices support very large buffers
         // Return a conservative limit of 1GB
         1024 * 1024 * 1024
+    }
+
+    /// Get Metal library
+    pub fn library(&self) -> &Library {
+        &self.library
+    }
+
+    /// Load Metal library with HNSW shaders
+    fn load_metal_library(device: &MetalDevice) -> Result<Library, VectorizerError> {
+        // Load the Metal shader source
+        let shader_source = include_str!("../shaders/metal_hnsw.metal");
+
+        let options = metal::CompileOptions::new();
+        let library = device.new_library_with_source(shader_source, &options)
+            .map_err(|e| VectorizerError::Other(format!("Failed to compile Metal shaders: {:?}", e)))?;
+
+        debug!("✅ Metal library loaded with {} functions", library.function_names().len());
+        Ok(library)
     }
 }

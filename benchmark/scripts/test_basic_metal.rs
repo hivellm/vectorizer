@@ -1,4 +1,6 @@
 use vectorizer::error::Result;
+use vectorizer::models::Payload;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -101,14 +103,59 @@ async fn test_basic_functionality() -> Result<()> {
     // Test 6: Try to get removed vector (should fail - not found)
     println!("📊 Test 6: Verify Vector Removal");
     println!("---------------------------------");
-    
+
     match collection.get_vector_by_id("test_vector") {
         Ok(_) => println!("  ❌ ERROR: Vector should have been removed"),
         Err(e) => println!("  ✅ Vector correctly removed: {}", e.to_string().contains("not found")),
     }
-    
+
     println!();
-    println!("🎉 All basic Metal Native functionality tests passed!");
+
+    // Test 7: Add multiple vectors and test GPU search
+    println!("📊 Test 7: GPU Search with Multiple Vectors");
+    println!("-------------------------------------------");
+
+    // Add several vectors for meaningful search test
+    let mut test_vectors = Vec::new();
+    for i in 0..10 {
+        let mut data = vec![0.0; 128];
+        // Create distinct vectors
+        for j in 0..128 {
+            data[j] = (i as f32 * 0.1) + (j as f32 * 0.01);
+        }
+        let vector = Vector::with_payload(
+            format!("search_test_{}", i),
+            data,
+            Payload::new(serde_json::json!({"index": i})),
+        );
+        test_vectors.push(vector);
+    }
+
+    let start = Instant::now();
+    for vector in &test_vectors {
+        collection.add_vector(vector.clone())?;
+    }
+    let elapsed = start.elapsed();
+    info!("  ✅ Added {} vectors for search test: {:?}", test_vectors.len(), elapsed);
+
+    // Test GPU search - search for the first vector
+    println!("📊 Test 8: GPU Full Search");
+    println!("--------------------------");
+
+    let query_vector = &test_vectors[0].data;
+    let start = Instant::now();
+    let search_results = collection.search(query_vector, 3)?;
+    let elapsed = start.elapsed();
+
+    info!("  ✅ GPU search completed: {} results in {:?}", search_results.len(), elapsed);
+    info!("  Best match distance: {:.6}", search_results[0].1);
+
+    // The first result should be very close (exact match)
+    assert!(search_results[0].1 < 0.001, "First result should be exact match");
+    info!("  ✅ Search accuracy verified");
+
+    println!();
+    println!("🎉 All Metal Native functionality tests passed, including GPU search!");
     
     Ok(())
 }

@@ -43,6 +43,24 @@ struct LayerNavigationResult {
     bool found_better;
 };
 
+// Full GPU search structures
+struct GpuSearchQuery {
+    float data[512];           // Query vector (max 512 dimensions)
+    uint dimension;            // Actual dimension
+};
+
+struct GpuSearchResult {
+    uint vector_id;            // ID of the matched vector
+    float distance;            // Distance to query
+    uint vector_index;         // Index in vectors buffer
+};
+
+// Vector metadata for GPU processing
+struct GpuVectorMetadata {
+    uint vector_id;            // Original vector ID
+    uint is_active;            // 1 if vector is active, 0 if removed
+};
+
 // Distance calculation function with robust numerical handling
 float calculate_cosine_distance(device const float* vector_a, device const float* vector_b, uint dimension) {
     float dot_product = 0.0;
@@ -617,4 +635,96 @@ kernel void hnsw_build_connections(
     // This is a simplified version - in practice, we'd need atomic operations
     // and a more sophisticated selection algorithm
     // For now, this kernel is a placeholder for future connection building
+}
+
+// ============================================================================
+// FULL GPU VECTOR SEARCH - Maintains all data in VRAM
+// ============================================================================
+
+// Full GPU search kernel - searches all vectors entirely on GPU
+kernel void gpu_full_vector_search(
+    device const float* vectors [[buffer(0)]],                    // All vector data (flattened)
+    device const GpuVectorMetadata* metadata [[buffer(1)]],       // Vector metadata
+    device const GpuSearchQuery* query [[buffer(2)]],             // Search query
+    device GpuSearchResult* results [[buffer(3)]],                // Search results buffer
+    constant uint& vector_count [[buffer(4)]],                   // Total number of vectors
+    constant uint& k [[buffer(5)]],                              // Number of results to return
+    constant uint& dimension [[buffer(6)]],                      // Vector dimension
+    uint tid [[thread_position_in_grid]]                         // Thread ID
+) {
+    // Each thread processes one vector
+    if (tid >= vector_count) return;
+
+    // Check if vector is active (not removed)
+    if (metadata[tid].is_active == 0) return;
+
+    // Get vector data pointer
+    device const float* vector_data = &vectors[tid * dimension];
+
+    // Get query data
+    device const float* query_data = query->data;
+
+    // Calculate cosine distance
+    float distance = calculate_cosine_distance(query_data, vector_data, dimension);
+
+    // Store result for this vector
+    results[tid].vector_id = metadata[tid].vector_id;
+    results[tid].distance = distance;
+    results[tid].vector_index = tid;
+}
+
+// Parallel reduction kernel to find top-k results
+kernel void gpu_find_top_k_results(
+    device const GpuSearchResult* all_results [[buffer(0)]],     // All search results
+    device GpuSearchResult* final_results [[buffer(1)]],         // Final top-k results
+    constant uint& total_vectors [[buffer(2)]],                  // Total number of vectors
+    constant uint& k [[buffer(3)]],                              // Number of results to return
+    uint tid [[thread_position_in_grid]]                         // Thread ID
+) {
+    // This is a simplified implementation
+    // In practice, we'd use parallel reduction or prefix sum algorithms
+    // For now, we'll do a simple bubble sort approach (not optimal)
+
+    if (tid >= k) return;
+
+    // Initialize with worst possible result
+    GpuSearchResult best = { UINT_MAX, FLT_MAX, UINT_MAX };
+
+    // Find the tid-th best result
+    for (uint i = 0; i < total_vectors; i++) {
+        GpuSearchResult current = all_results[i];
+
+        // Skip invalid results
+        if (current.vector_id == UINT_MAX) continue;
+
+        // Check if this result is better than current best for this position
+        bool better = false;
+        if (current.distance < best.distance) {
+            better = true;
+        } else if (current.distance == best.distance && current.vector_id < best.vector_id) {
+            better = true;
+        }
+
+        if (better) {
+            // Count how many results are better than this one
+            uint better_count = 0;
+            for (uint j = 0; j < total_vectors; j++) {
+                if (i == j) continue;
+                GpuSearchResult other = all_results[j];
+                if (other.vector_id == UINT_MAX) continue;
+
+                if (other.distance < current.distance ||
+                   (other.distance == current.distance && other.vector_id < current.vector_id)) {
+                    better_count++;
+                }
+            }
+
+            // If this is the right position for us, use it
+            if (better_count == tid) {
+                best = current;
+            }
+        }
+    }
+
+    final_results[tid] = best;
 }
