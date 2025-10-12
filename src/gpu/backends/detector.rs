@@ -145,24 +145,23 @@ mod tests {
     
     #[test]
     fn test_backend_priority() {
-        assert!(GpuBackendType::Metal.priority() < GpuBackendType::Vulkan.priority());
-        assert!(GpuBackendType::Vulkan.priority() < GpuBackendType::DirectX12.priority());
-        assert!(GpuBackendType::DirectX12.priority() < GpuBackendType::GpuNative.priority());
-        assert!(GpuBackendType::GpuNative.priority() < GpuBackendType::Cpu.priority());
+        // Metal has highest priority (lowest number)
+        assert!(GpuBackendType::Metal.priority() < GpuBackendType::Cuda.priority());
+        assert!(GpuBackendType::Cuda.priority() < GpuBackendType::Cpu.priority());
     }
     
     #[test]
     fn test_backend_display() {
-        assert_eq!(GpuBackendType::Metal.to_string(), "🍎 Metal");
-        assert_eq!(GpuBackendType::Vulkan.to_string(), "🔥 Vulkan");
-        assert_eq!(GpuBackendType::DirectX12.to_string(), "🪟 DirectX 12");
+        assert_eq!(GpuBackendType::Metal.to_string(), "🍎 Metal Native");
+        assert_eq!(GpuBackendType::Cuda.to_string(), "🔴 CUDA");
+        assert_eq!(GpuBackendType::Cpu.to_string(), "💻 CPU");
     }
     
     #[test]
     fn test_select_best_backend() {
         let backends = vec![
             GpuBackendType::Cpu,
-            GpuBackendType::Vulkan,
+            GpuBackendType::Cuda,
             GpuBackendType::Metal,
         ];
         

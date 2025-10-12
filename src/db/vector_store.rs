@@ -109,8 +109,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.delete(id),
             #[cfg(feature = "metal-native")]
             CollectionType::MetalNative(c) => {
-                // MetalNative doesn't support vector deletion yet
-                Err(crate::error::VectorizerError::Other("Vector deletion not implemented for MetalNative".to_string()))
+                c.remove_vector(id.to_string())
             }
         }
     }
@@ -127,7 +126,7 @@ impl CollectionType {
                     if let Ok(index) = vector_id.parse::<usize>() {
                         c.get_vector(index)
                     } else {
-                        Err(crate::error::VectorizerError::Other("Vector ID not found in MetalNative collection".to_string()))
+                        Err(crate::error::VectorizerError::VectorNotFound(vector_id.to_string()))
                     }
                 })
             }
@@ -368,7 +367,7 @@ impl VectorStore {
         #[cfg(all(target_os = "macos", feature = "metal-native"))]
         {
             info!("Creating Metal Native collection '{}'", name);
-            match crate::gpu::MetalNativeCollection::new(config.dimension, config.metric) {
+            match crate::gpu::MetalNativeCollection::new_with_name_and_config(name, config.clone()) {
                 Ok(metal_collection) => {
                     self.collections.insert(name.to_string(), CollectionType::MetalNative(metal_collection));
                     info!("Collection '{}' created successfully with Metal Native", name);

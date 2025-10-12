@@ -188,6 +188,11 @@ path = "src/bin/vectorizer-cli.rs"
 name = "vectorizer"
 path = "src/bin/vectorizer.rs"
 
+[[bin]]
+name = "test_basic_metal"
+path = "benchmark/scripts/test_basic_metal.rs"
+required-features = ["metal-native"]
+
 [features]
 default = ["gpu_real"]
 gpu = []

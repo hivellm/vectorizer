@@ -168,6 +168,7 @@ use metal::{MTLResourceOptions, MTLSize, CompileOptions};
 #[cfg(target_os = "macos")]
 #[derive(Debug)]
 pub struct MetalNativeCollection {
+    name: String,
     context: Arc<MetalNativeContext>,
     vector_storage: MetalNativeVectorStorage,
     hnsw_storage: MetalNativeHnswGraph,
@@ -179,20 +180,28 @@ pub struct MetalNativeCollection {
 #[cfg(target_os = "macos")]
 impl MetalNativeCollection {
     pub fn new(dimension: usize, metric: DistanceMetric) -> Result<Self> {
+        let config = CollectionConfig {
+            dimension,
+            metric,
+            ..Default::default()
+        };
+        Self::new_with_name_and_config("MetalNativeCollection", config)
+    }
+
+    pub fn new_with_name_and_config(name: &str, config: CollectionConfig) -> Result<Self> {
         let context = Arc::new(MetalNativeContext::new()?);
-        let vector_storage = MetalNativeVectorStorage::new(context.clone(), dimension)?;
-        let hnsw_storage = MetalNativeHnswGraph::new(context.clone(), dimension, HnswConfig::default().max_connections)?; // Use default max_connections for now
+        let vector_storage = MetalNativeVectorStorage::new(context.clone(), config.dimension)?;
+        let hnsw_storage = MetalNativeHnswGraph::new(context.clone(), config.dimension, config.hnsw_config.m)?;
 
-        info!("✅ Metal native collection created: {}D, {:?}", dimension, metric);
-
-        let config = CollectionConfig::default();
+        info!("✅ Metal native collection '{}' created: {}D, {:?}", name, config.dimension, config.metric);
 
         Ok(Self {
+            name: name.to_string(),
             context,
             vector_storage,
             hnsw_storage,
-            dimension,
-            metric,
+            dimension: config.dimension,
+            metric: config.metric,
             config,
         })
     }
@@ -275,7 +284,7 @@ impl MetalNativeCollection {
     }
 
     pub fn name(&self) -> &str {
-        "MetalNativeCollection"
+        &self.name
     }
 
     pub fn config(&self) -> &CollectionConfig {

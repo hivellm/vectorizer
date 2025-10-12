@@ -519,7 +519,7 @@ impl MetalNativeVectorStorage {
     pub fn get_vector_by_id(&self, id: &str) -> Result<Vector> {
         // Look up the index for this ID
         let index = self.vector_id_map.get(id)
-            .ok_or_else(|| VectorizerError::Other(format!("Vector with ID '{}' not found", id)))?;
+            .ok_or_else(|| VectorizerError::VectorNotFound(id.to_string()))?;
 
         // Check if this vector was removed
         if self.removed_indices.contains(index) {
@@ -534,11 +534,11 @@ impl MetalNativeVectorStorage {
     pub fn remove_vector(&mut self, id: &str) -> Result<()> {
         // Look up the index for this ID
         let index = self.vector_id_map.get(id)
-            .ok_or_else(|| VectorizerError::Other(format!("Vector with ID '{}' not found", id)))?;
+            .ok_or_else(|| VectorizerError::VectorNotFound(id.to_string()))?;
 
         // Check if already removed
         if self.removed_indices.contains(index) {
-            return Err(VectorizerError::Other(format!("Vector with ID '{}' already removed", id)));
+            return Err(VectorizerError::VectorNotFound(id.to_string()));
         }
 
         // Mark as removed
