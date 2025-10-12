@@ -7,11 +7,18 @@ import aiohttp
 import asyncio
 import logging
 
-from ..exceptions import (
-    NetworkError,
-    ServerError,
-    AuthenticationError,
-)
+try:
+    from ..exceptions import (
+        NetworkError,
+        ServerError,
+        AuthenticationError,
+    )
+except ImportError:
+    from exceptions import (
+        NetworkError,
+        ServerError,
+        AuthenticationError,
+    )
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,10 @@ except ImportError:
     Envelope = None
     Priority = None
 
-from ..exceptions import NetworkError, ServerError, AuthenticationError
+try:
+    from ..exceptions import NetworkError, ServerError, AuthenticationError
+except ImportError:
+    from exceptions import NetworkError, ServerError, AuthenticationError
 
 
 class UMICPClient:
