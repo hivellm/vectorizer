@@ -52,7 +52,7 @@ pub use super::vram_monitor::{VramMonitor, VramValidator};
 use std::sync::Arc;
 use crate::error::{Result, VectorizerError};
 use crate::models::{DistanceMetric, Vector, CollectionConfig};
-use tracing::{info, debug};
+use tracing::{info, debug, error, warn};
 
 // Import HNSW types for search
 use hnsw_graph::{HnswNode, SearchResult, GpuSearchQuery, GpuVectorMetadata, GpuSearchResult};
@@ -225,33 +225,58 @@ impl MetalNativeCollection {
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
+        // Log MCP-like search calls for debugging
+        info!("🔍 [MCP_SEARCH] MetalNativeCollection.search called - query_len={}, k={}", query.len(), k);
         // Use GPU-accelerated search that keeps data in VRAM
         self.search_gpu_accelerated(query, k)
     }
 
     /// GPU-accelerated search that keeps all data in VRAM
     fn search_gpu_accelerated(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
+        info!("🔍 [GPU_SEARCH] ===== STARTING GPU SEARCH =====");
+        info!("🔍 [GPU_SEARCH] Input parameters: query_len={}, k={}, requested_k={}",
+              query.len(), k, k);
+
         if self.vector_count() == 0 {
+            info!("🔍 [GPU_SEARCH] Empty collection, returning empty results");
             return Ok(Vec::new());
         }
 
         let vector_count = self.vector_count();
         let k = k.min(vector_count);
 
+        info!("🔍 [GPU_SEARCH] Collection state: vector_count={}, active_vectors={}, removed_count={}",
+              vector_count, vector_count - self.vector_storage.removed_indices.len(), self.vector_storage.removed_indices.len());
+        info!("🔍 [GPU_SEARCH] Adjusted parameters: k={}, dimension={}", k, self.dimension);
+
         // Validate query dimension
         if query.len() != self.dimension {
+            error!("🔍 [GPU_SEARCH] CRITICAL ERROR: Dimension mismatch - expected {}, got {}", self.dimension, query.len());
             return Err(VectorizerError::DimensionMismatch {
                 expected: self.dimension,
                 actual: query.len(),
             });
         }
 
-        debug!("🔍 GPU search: {} vectors, k={}, dim={}", vector_count, k, self.dimension);
+        // Additional safety checks
+        if vector_count > 10000 {
+            warn!("🔍 [GPU_SEARCH] Large collection detected ({} vectors), this may cause issues", vector_count);
+        }
 
+        if k == 0 {
+            warn!("🔍 [GPU_SEARCH] k=0 requested, returning empty results");
+            return Ok(Vec::new());
+        }
+
+        info!("🔍 [GPU_SEARCH] All validations passed, proceeding with GPU search");
+
+        info!("🔍 [GPU_SEARCH] Getting Metal device and command queue");
         let device = self.context.device();
         let queue = self.context.command_queue();
+        info!("🔍 [GPU_SEARCH] Metal device and queue obtained successfully");
 
         // Create query buffer
+        info!("🔍 [GPU_SEARCH] Creating query buffer");
         let mut query_data = [0.0f32; 512];
         let query_len = query.len().min(512);
         query_data[..query_len].copy_from_slice(&query[..query_len]);
@@ -262,13 +287,16 @@ impl MetalNativeCollection {
         };
 
         let query_size = std::mem::size_of::<GpuSearchQuery>() as u64;
+        info!("🔍 [GPU_SEARCH] Creating query buffer - size={} bytes", query_size);
         let query_buffer = device.new_buffer_with_data(
             &gpu_query as *const GpuSearchQuery as *const std::ffi::c_void,
             query_size,
             MTLResourceOptions::StorageModeShared,
         );
+        info!("🔍 [GPU_SEARCH] Query buffer created successfully");
 
         // Create metadata buffer for active vectors
+        info!("🔍 [GPU_SEARCH] Creating metadata buffer for {} vectors", vector_count);
         let mut metadata = Vec::new();
         for i in 0..vector_count {
             let is_active = !self.vector_storage.removed_indices.contains(&i);
@@ -279,42 +307,62 @@ impl MetalNativeCollection {
         }
 
         let metadata_size = (metadata.len() * std::mem::size_of::<GpuVectorMetadata>()) as u64;
+        info!("🔍 [GPU_SEARCH] Creating metadata buffer - size={} bytes", metadata_size);
         let metadata_buffer = device.new_buffer_with_data(
             metadata.as_ptr() as *const std::ffi::c_void,
             metadata_size,
             MTLResourceOptions::StorageModePrivate,
         );
+        info!("🔍 [GPU_SEARCH] Metadata buffer created successfully");
 
         // Create results buffer (one result per vector)
+        let results_size = (vector_count * std::mem::size_of::<GpuSearchResult>()) as u64;
+        info!("🔍 [GPU_SEARCH] Creating results buffer - size={} bytes", results_size);
         let results_buffer = device.new_buffer(
-            (vector_count * std::mem::size_of::<GpuSearchResult>()) as u64,
+            results_size,
             MTLResourceOptions::StorageModePrivate,
         );
+        info!("🔍 [GPU_SEARCH] Results buffer created successfully");
 
         // Create final results buffer (top-k)
+        let final_results_size = (k * std::mem::size_of::<GpuSearchResult>()) as u64;
+        info!("🔍 [GPU_SEARCH] Creating final results buffer - size={} bytes", final_results_size);
         let final_results_buffer = device.new_buffer(
-            (k * std::mem::size_of::<GpuSearchResult>()) as u64,
+            final_results_size,
             MTLResourceOptions::StorageModeShared,
         );
+        info!("🔍 [GPU_SEARCH] Final results buffer created successfully");
 
         // Get search pipeline
+        info!("🔍 [GPU_SEARCH] Getting Metal library");
         let library = self.context.library();
+        info!("🔍 [GPU_SEARCH] Library obtained, getting search function");
+
         let search_function = library.get_function("gpu_full_vector_search", None)
             .map_err(|e| VectorizerError::Other(format!("Failed to get search function: {:?}", e)))?;
+        info!("🔍 [GPU_SEARCH] Search function obtained, creating pipeline");
 
         let search_pipeline = device.new_compute_pipeline_state_with_function(&search_function)
             .map_err(|e| VectorizerError::Other(format!("Failed to create search pipeline: {:?}", e)))?;
+        info!("🔍 [GPU_SEARCH] Search pipeline created successfully");
 
         // Get top-k pipeline
+        info!("🔍 [GPU_SEARCH] Getting top-k function");
         let topk_function = library.get_function("gpu_find_top_k_results", None)
             .map_err(|e| VectorizerError::Other(format!("Failed to get top-k function: {:?}", e)))?;
+        info!("🔍 [GPU_SEARCH] Top-k function obtained, creating pipeline");
+
         let topk_pipeline = device.new_compute_pipeline_state_with_function(&topk_function)
             .map_err(|e| VectorizerError::Other(format!("Failed to create top-k pipeline: {:?}", e)))?;
+        info!("🔍 [GPU_SEARCH] Top-k pipeline created successfully");
 
         // Execute search kernel
+        info!("🔍 [GPU_SEARCH] Creating command buffer and encoder");
         let command_buffer = queue.new_command_buffer();
         let encoder = command_buffer.new_compute_command_encoder();
+        info!("🔍 [GPU_SEARCH] Command buffer and encoder created");
 
+        info!("🔍 [GPU_SEARCH] Setting up search kernel encoder");
         encoder.set_compute_pipeline_state(&search_pipeline);
         encoder.set_buffer(0, Some(&self.vector_storage.vectors_buffer), 0); // vectors
         encoder.set_buffer(1, Some(&metadata_buffer), 0);                  // metadata
@@ -323,43 +371,79 @@ impl MetalNativeCollection {
         encoder.set_bytes(4, std::mem::size_of_val(&vector_count) as u64, &vector_count as *const usize as *const std::ffi::c_void); // vector_count
         encoder.set_bytes(5, std::mem::size_of_val(&k) as u64, &k as *const usize as *const std::ffi::c_void); // k
         encoder.set_bytes(6, std::mem::size_of_val(&self.dimension) as u64, &self.dimension as *const usize as *const std::ffi::c_void); // dimension
+        info!("🔍 [GPU_SEARCH] Search kernel encoder configured");
 
         // Dispatch threads (one per vector)
         let threadgroups = MTLSize::new(((vector_count + 1023) / 1024) as u64, 1, 1);
         let threads_per_group = MTLSize::new(1024, 1, 1);
+        info!("🔍 [GPU_SEARCH] Dispatching search kernel - threadgroups=({}, {}, {}), threads_per_group=({}, {}, {})",
+              threadgroups.width, threadgroups.height, threadgroups.depth,
+              threads_per_group.width, threads_per_group.height, threads_per_group.depth);
+
         encoder.dispatch_thread_groups(threadgroups, threads_per_group);
         encoder.end_encoding();
+        info!("🔍 [GPU_SEARCH] Search kernel dispatched successfully");
 
         // Execute top-k kernel
+        info!("🔍 [GPU_SEARCH] Creating second encoder for top-k kernel");
         let encoder2 = command_buffer.new_compute_command_encoder();
         encoder2.set_compute_pipeline_state(&topk_pipeline);
         encoder2.set_buffer(0, Some(&results_buffer), 0);        // all results
         encoder2.set_buffer(1, Some(&final_results_buffer), 0);  // final results
         encoder2.set_bytes(2, std::mem::size_of_val(&vector_count) as u64, &vector_count as *const usize as *const std::ffi::c_void); // total_vectors
         encoder2.set_bytes(3, std::mem::size_of_val(&k) as u64, &k as *const usize as *const std::ffi::c_void); // k
+        info!("🔍 [GPU_SEARCH] Top-k kernel encoder configured");
 
         let topk_threadgroups = MTLSize::new(k as u64, 1, 1);
         let topk_threads_per_group = MTLSize::new(1, 1, 1);
+        info!("🔍 [GPU_SEARCH] Dispatching top-k kernel - threadgroups=({}, {}, {}), threads_per_group=({}, {}, {})",
+              topk_threadgroups.width, topk_threadgroups.height, topk_threadgroups.depth,
+              topk_threads_per_group.width, topk_threads_per_group.height, topk_threads_per_group.depth);
+
         encoder2.dispatch_thread_groups(topk_threadgroups, topk_threads_per_group);
         encoder2.end_encoding();
+        info!("🔍 [GPU_SEARCH] Top-k kernel dispatched successfully");
 
+        info!("🔍 [GPU_SEARCH] Committing command buffer and waiting for completion");
         command_buffer.commit();
         command_buffer.wait_until_completed();
+        info!("🔍 [GPU_SEARCH] GPU kernels execution completed");
 
         // Read final results
+        info!("🔍 [GPU_SEARCH] Reading final results from GPU buffer");
         let results_ptr = final_results_buffer.contents() as *const GpuSearchResult;
+        info!("🔍 [GPU_SEARCH] Results pointer obtained: {:?}", results_ptr.is_null());
+
         let results_slice = unsafe { std::slice::from_raw_parts(results_ptr, k) };
+        info!("🔍 [GPU_SEARCH] Results slice created with {} elements", results_slice.len());
 
         let mut final_results = Vec::new();
-        for result in results_slice {
+        info!("🔍 [GPU_SEARCH] Processing {} result entries", results_slice.len());
+
+        for (i, result) in results_slice.iter().enumerate() {
             if result.vector_id != u32::MAX {
                 final_results.push((result.vector_id as usize, result.distance));
+                if i < 5 { // Log first 5 valid results
+                    debug!("🔍 [GPU_SEARCH] Result {}: vector_id={}, distance={}",
+                           i, result.vector_id, result.distance);
+                }
+            } else {
+                debug!("🔍 [GPU_SEARCH] Result {}: invalid (vector_id={})", i, result.vector_id);
             }
         }
 
         final_results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        debug!("✅ GPU search completed: found {} results", final_results.len());
+        info!("✅ GPU search completed: found {} valid results out of {} requested",
+              final_results.len(), k);
+
+        if final_results.is_empty() {
+            warn!("⚠️ [GPU_SEARCH] No valid results found");
+        } else {
+            debug!("🎯 [GPU_SEARCH] Best result: ID {}, distance {:.6}",
+                   final_results[0].0, final_results[0].1);
+        }
+
         Ok(final_results)
     }
 

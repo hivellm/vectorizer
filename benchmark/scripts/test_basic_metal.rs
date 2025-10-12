@@ -1,5 +1,6 @@
 use vectorizer::error::Result;
-use vectorizer::models::Payload;
+use vectorizer::models::{Payload, CollectionConfig, HnswConfig, DistanceMetric, Vector};
+use vectorizer::gpu::MetalNativeCollection;
 use tracing::info;
 
 #[tokio::main]
@@ -155,7 +156,117 @@ async fn test_basic_functionality() -> Result<()> {
     info!("  ✅ Search accuracy verified");
 
     println!();
-    println!("🎉 All Metal Native functionality tests passed, including GPU search!");
-    
+
+    // Test 9: Test with 512D vectors (like real MCP collections)
+    println!("📊 Test 9: GPU Search with 512D Vectors (MCP-like)");
+    println!("--------------------------------------------------");
+
+    let config_512d = CollectionConfig {
+        dimension: 512,
+        metric: DistanceMetric::Cosine,
+        hnsw_config: HnswConfig { m: 16, ..Default::default() },
+        ..Default::default()
+    };
+
+    let mut collection_512d = MetalNativeCollection::new_with_name_and_config(
+        "MetalNativeCollection512D",
+        config_512d
+    )?;
+    info!("  ✅ Created 512D collection");
+
+    // Add some 512D vectors
+    let mut test_vectors_512d = Vec::new();
+    for i in 0..5 {
+        let mut data = vec![0.0; 512];
+        // Create distinct vectors
+        for j in 0..512 {
+            data[j] = ((i as f32).sin() * (j as f32).cos() * 0.001) + (i as f32 * 0.0001);
+        }
+        let vector = Vector::new(format!("vec512_{}", i), data);
+        test_vectors_512d.push(vector);
+    }
+
+    for vector in &test_vectors_512d {
+        collection_512d.add_vector(vector.clone())?;
+    }
+    info!("  ✅ Added 5 vectors to 512D collection");
+
+    // Test GPU search with 512D
+    let query_512d = &test_vectors_512d[0].data;
+    let start = Instant::now();
+    let search_results_512d = collection_512d.search(query_512d, 3)?;
+    let elapsed = start.elapsed();
+
+    info!("  ✅ 512D GPU search completed: {} results in {:?}", search_results_512d.len(), elapsed);
+    if !search_results_512d.is_empty() {
+        info!("  🎯 Best distance: {:.6}", search_results_512d[0].1);
+    }
+
+    println!();
+
+    // Test 10: Test edge cases that might cause MCP crashes
+    println!("📊 Test 10: Edge Cases (Potential MCP Crash Scenarios)");
+    println!("-----------------------------------------------------");
+
+    // Test k=0
+    println!("Testing k=0...");
+    let empty_results = collection.search(query_vector, 0)?;
+    info!("  ✅ k=0 returned {} results (expected 0)", empty_results.len());
+    assert_eq!(empty_results.len(), 0);
+
+    // Test k > vector_count
+    println!("Testing k > vector_count...");
+    let large_k_results = collection.search(query_vector, 100)?;
+    let actual_vector_count = collection.vector_count();
+    info!("  ✅ k=100 returned {} results, collection has {} vectors", large_k_results.len(), actual_vector_count);
+    assert_eq!(large_k_results.len(), actual_vector_count);
+
+    // Test with invalid query dimensions (should fail gracefully)
+    println!("Testing dimension mismatch...");
+    let wrong_dim_query = vec![1.0; 64]; // 64D instead of 128D
+    match collection.search(&wrong_dim_query, 1) {
+        Ok(_) => panic!("Should have failed with dimension mismatch"),
+        Err(e) => info!("  ✅ Correctly failed with dimension mismatch: {}", e.to_string().contains("DimensionMismatch")),
+    }
+
+    // Test concurrent searches (simulate MCP load)
+    println!("Testing concurrent searches...");
+    use std::thread;
+    let mut handles = vec![];
+
+    for i in 0..3 {
+        let mut collection_clone = MetalNativeCollection::new_with_name_and_config(
+            &format!("concurrent_test_{}", i),
+            CollectionConfig {
+                dimension: 128,
+                metric: DistanceMetric::Cosine,
+                hnsw_config: HnswConfig { m: 16, ..Default::default() },
+                ..Default::default()
+            }
+        )?;
+
+        // Add vectors to concurrent collection
+        for vector in &test_vectors {
+            collection_clone.add_vector(vector.clone())?;
+        }
+
+        let value = test_vectors.clone();
+        let handle = thread::spawn(move || {
+            for _ in 0..5 {
+                let _ = collection_clone.search(&value[0].data, 3);
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    info!("  ✅ Concurrent searches completed without crashes");
+
+    println!();
+    println!("🎉 All Metal Native functionality tests passed, including edge cases!");
+    println!("🎉 MCP crash scenarios tested successfully!");
+
     Ok(())
 }
