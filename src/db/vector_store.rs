@@ -74,11 +74,29 @@ impl CollectionType {
             CollectionType::MetalNative(c) => {
                 // Convert MetalNative results to SearchResult format
                 let results = c.search(query, limit)?;
-                Ok(results.into_iter().map(|(idx, sim)| SearchResult {
-                    id: c.get_vector_id(idx).unwrap_or(&format!("vector_{}", idx)).to_string(),
-                    score: sim,
-                    vector: None, // TODO: Add vector retrieval if needed
-                    payload: None,
+                Ok(results.into_iter().filter_map(|(idx, sim)| {
+                    // Get vector ID
+                    let id = c.get_vector_id(idx).unwrap_or(&format!("vector_{}", idx)).to_string();
+                    
+                    // Get full vector with payload
+                    match c.get_vector_by_id(&id) {
+                        Ok(vector) => Some(SearchResult {
+                            id,
+                            score: sim,
+                            vector: Some(vector.data),
+                            payload: vector.payload,
+                        }),
+                        Err(e) => {
+                            tracing::warn!("Failed to get vector {} for search result: {}", id, e);
+                            // Return result without payload as fallback
+                            Some(SearchResult {
+                                id,
+                                score: sim,
+                                vector: None,
+                                payload: None,
+                            })
+                        }
+                    }
                 }).collect())
             }
         }
