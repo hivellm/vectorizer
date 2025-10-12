@@ -67,11 +67,11 @@
 
 // Metal Native implementation (macOS only)
 pub mod metal_native;
-pub use metal_native::MetalNativeCollection;
+pub use metal_native::{MetalNativeCollection, MetalNativeContext};
 
 // Metal Native HNSW implementation
 pub mod metal_native_hnsw;
-pub use metal_native_hnsw::{MetalNativeHnswGraph, MetalNativeContext};
+pub use metal_native_hnsw::MetalNativeHnswGraph;
 
 // Metal buffer pool for optimized memory management
 pub mod metal_buffer_pool;

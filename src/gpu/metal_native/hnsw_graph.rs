@@ -747,8 +747,8 @@ impl MetalNativeHnswGraph {
 
         // Flatten all layers into GPU format
         for node in &self.nodes {
-            // For now, store base layer connections offset
-            // TODO: Implement multi-layer GPU storage
+            // NOTE: Currently only stores base layer connections
+            // TODO: Implement full multi-layer GPU storage for hierarchical search
             let base_connections_offset = if node.level >= 0 && 0 < self.layers.len() {
                 self.layers[0].nodes
                     .iter()
@@ -824,8 +824,8 @@ impl MetalNativeHnswGraph {
 
     /// Public search method - uses GPU pipeline with internal graph data
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
-        // For now, this is a placeholder that delegates to external search
-        // TODO: Implement proper internal search using uploaded graph data
+        // NOTE: Internal search not implemented yet - use search_with_external_vectors
+        // TODO: Implement full GPU-accelerated HNSW search using internal graph data
         Err(VectorizerError::Other("Internal HNSW search not implemented yet".to_string()))
     }
 
@@ -1041,30 +1041,12 @@ impl MetalNativeHnswGraph {
     }
 }
 
-/// Safe Drop implementation to prevent null pointer dereference
+/// Safe Drop implementation - Metal handles buffer deallocation automatically
 #[cfg(target_os = "macos")]
 impl Drop for MetalNativeHnswGraph {
     fn drop(&mut self) {
-        debug!("🧹 Dropping MetalNativeHnswGraph...");
-        
-        // Use std::mem::forget to prevent double-free issues
-        // This is a workaround for the metal-rs null pointer issue
-        let _ = std::mem::replace(&mut self.nodes_buffer, unsafe {
-            // Create a dummy buffer to replace the problematic one
-            let device = self.context.device();
-            device.new_buffer(1024, MTLResourceOptions::StorageModePrivate)
-        });
-        
-        let _ = std::mem::replace(&mut self.connections_buffer, unsafe {
-            let device = self.context.device();
-            device.new_buffer(1024, MTLResourceOptions::StorageModePrivate)
-        });
-        
-        let _ = std::mem::replace(&mut self.vectors_buffer, unsafe {
-            let device = self.context.device();
-            device.new_buffer(1024, MTLResourceOptions::StorageModePrivate)
-        });
-        
-        debug!("✅ MetalNativeHnswGraph dropped safely");
+        // Metal buffers are automatically deallocated when they go out of scope
+        // No manual cleanup needed - this is safer and follows Metal best practices
+        debug!("🧹 Dropping MetalNativeHnswGraph - buffers auto-released by Metal");
     }
 }

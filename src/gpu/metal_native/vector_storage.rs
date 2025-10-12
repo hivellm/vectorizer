@@ -195,8 +195,7 @@ impl MetalNativeVectorStorage {
             .and_then(|x| x.checked_mul(std::mem::size_of::<f32>()))
             .ok_or_else(|| VectorizerError::Other("New buffer size calculation overflow".to_string()))?;
         
-        const VRAM_LIMIT_BYTES: usize = 1024 * 1024 * 1024; // 1GB
-        if new_size > VRAM_LIMIT_BYTES {
+        if new_size > super::DEFAULT_VRAM_LIMIT_BYTES {
             return Err(VectorizerError::Other("VRAM limit exceeded".to_string()));
         }
         
@@ -444,8 +443,7 @@ impl MetalNativeVectorStorage {
             .and_then(|x| x.checked_mul(std::mem::size_of::<f32>()))
             .ok_or_else(|| VectorizerError::Other("New buffer size calculation overflow".to_string()))?;
         
-        const VRAM_LIMIT_BYTES: usize = 1024 * 1024 * 1024; // 1GB
-        if new_size > VRAM_LIMIT_BYTES {
+        if new_size > super::DEFAULT_VRAM_LIMIT_BYTES {
             return Err(VectorizerError::Other("VRAM limit exceeded".to_string()));
         }
         

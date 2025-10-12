@@ -57,6 +57,22 @@ use tracing::{info, debug};
 // Import HNSW types for search
 use hnsw_graph::{HnswNode, SearchResult};
 
+// Public constants following SCREAMING_SNAKE_CASE convention
+/// Default VRAM limit for Metal Native collections (1GB)
+pub const DEFAULT_VRAM_LIMIT_BYTES: usize = 1024 * 1024 * 1024;
+
+/// Maximum buffer pool size for Metal Native
+pub const MAX_BUFFER_POOL_SIZE: usize = 100;
+
+/// Default growth factor for small buffers (< 1K vectors)
+pub const DEFAULT_GROWTH_FACTOR_SMALL: f32 = 2.0;
+
+/// Default growth factor for medium buffers (1K-10K vectors)
+pub const DEFAULT_GROWTH_FACTOR_MEDIUM: f32 = 1.5;
+
+/// Default growth factor for large buffers (> 10K vectors)
+pub const DEFAULT_GROWTH_FACTOR_LARGE: f32 = 1.2;
+
 // Global buffer pool for Metal Native collections
 #[cfg(target_os = "macos")]
 lazy_static::lazy_static! {
@@ -66,7 +82,7 @@ lazy_static::lazy_static! {
             device: Arc::new(MetalNativeContext::new().unwrap()),
             vector_buffers: Vec::new(),
             temp_buffers: Vec::new(),
-            max_pooled_buffers: 16,
+            max_pooled_buffers: MAX_BUFFER_POOL_SIZE,
         })
     };
 }
@@ -88,7 +104,7 @@ impl GpuBufferPool {
             device,
             vector_buffers: Vec::new(),
             temp_buffers: Vec::new(),
-            max_pooled_buffers: 8, // Keep up to 8 buffers pooled
+            max_pooled_buffers: MAX_BUFFER_POOL_SIZE,
         }
     }
 
@@ -131,14 +147,14 @@ impl GpuBufferPool {
     }
 
     fn return_vector_buffer(&mut self, buffer: metal::Buffer) {
-        if self.vector_buffers.len() < self.max_pooled_buffers {
+        if self.vector_buffers.len() < MAX_BUFFER_POOL_SIZE {
             self.vector_buffers.push(buffer);
             debug!("♻️ Returned vector buffer to pool (total: {})", self.vector_buffers.len());
         }
     }
 
     fn return_temp_buffer(&mut self, buffer: metal::Buffer) {
-        if self.temp_buffers.len() < self.max_pooled_buffers {
+        if self.temp_buffers.len() < MAX_BUFFER_POOL_SIZE {
             self.temp_buffers.push(buffer);
             debug!("♻️ Returned temp buffer to pool (total: {})", self.temp_buffers.len());
         }
@@ -194,8 +210,12 @@ impl MetalNativeCollection {
     }
 
     pub fn get_vector_by_id(&self, id: &str) -> Result<Vector> {
-        // TODO: Implement get_vector_by_id
-        Err(crate::error::VectorizerError::Other("get_vector_by_id not implemented for MetalNative".to_string()))
+        // Use the vector storage to find vector by ID
+        // This method is not implemented yet in MetalNativeCollection
+        // TODO: Implement when vector ID mapping is added to MetalNativeCollection
+        Err(crate::error::VectorizerError::Other(
+            "get_vector_by_id not implemented for MetalNative - use get_vector(index) or implement ID mapping".to_string()
+        ))
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(usize, f32)>> {
@@ -275,8 +295,12 @@ impl MetalNativeCollection {
     }
 
     pub fn remove_vector(&mut self, _id: String) -> Result<()> {
-        // TODO: Implement vector removal
-        Err(crate::error::VectorizerError::Other("Vector removal not implemented for MetalNative".to_string()))
+        // NOTE: Vector removal not implemented yet for Metal Native
+        // This would require complex GPU buffer reorganization and HNSW graph updates
+        // TODO: Implement vector removal with GPU buffer compaction and graph repair
+        Err(crate::error::VectorizerError::Other(
+            "Vector removal not implemented for MetalNative - requires GPU buffer reorganization".to_string()
+        ))
     }
 
     pub fn estimated_memory_usage(&self) -> usize {

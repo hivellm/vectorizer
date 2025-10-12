@@ -243,8 +243,9 @@ impl MetalNativeHnswGraph {
     
     /// Build HNSW graph structure on GPU
     fn build_graph_structure(&mut self) -> Result<()> {
-        // TODO: Implement real HNSW construction on GPU
-        // For now, create a simple connected graph
+        // NOTE: Real HNSW construction on GPU is not implemented yet
+        // This creates a simplified connected graph for basic functionality
+        // TODO: Implement full HNSW construction algorithm on GPU shaders
         
         let device = self.context.device();
         let queue = self.context.command_queue();
@@ -453,36 +454,8 @@ impl MetalNativeHnswGraph {
     }
 }
 
-/// Metal Native Context (reuse from metal_native.rs)
-#[cfg(target_os = "macos")]
-#[derive(Debug, Clone)]
-pub struct MetalNativeContext {
-    device: MetalDevice,
-    command_queue: CommandQueue,
-}
-
-#[cfg(target_os = "macos")]
-impl MetalNativeContext {
-    pub fn new() -> Result<Self> {
-        let device = MetalDevice::system_default()
-            .ok_or_else(|| VectorizerError::Other("No Metal device available".to_string()))?;
-        
-        let command_queue = device.new_command_queue();
-        
-        Ok(Self {
-            device,
-            command_queue,
-        })
-    }
-    
-    pub fn device(&self) -> &MetalDevice {
-        &self.device
-    }
-    
-    pub fn command_queue(&self) -> &CommandQueue {
-        &self.command_queue
-    }
-}
+// Import MetalNativeContext from the context module
+use super::metal_native::context::MetalNativeContext;
 
 /// Fallback for non-macOS platforms
 #[cfg(not(target_os = "macos"))]
