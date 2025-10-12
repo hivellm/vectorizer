@@ -4,6 +4,8 @@ A comprehensive Python client library for the Hive Vectorizer service.
 
 ## Features
 
+- **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
+- **UMICP Protocol**: High-performance protocol using umicp-python package
 - **Vector Operations**: Insert, search, and manage vectors
 - **Collection Management**: Create, delete, and monitor collections  
 - **Semantic Search**: Find similar content using embeddings
@@ -109,6 +111,82 @@ async def main():
         print(f"Found {len(results)} similar vectors")
 
 asyncio.run(main())
+```
+
+## Configuration
+
+### HTTP Configuration (Default)
+
+```python
+from vectorizer import VectorizerClient
+
+# Default HTTP configuration
+client = VectorizerClient(
+    base_url="http://localhost:15002",
+    api_key="your-api-key",
+    timeout=30
+)
+```
+
+### UMICP Configuration (High Performance)
+
+[UMICP (Universal Messaging and Inter-process Communication Protocol)](https://pypi.org/project/umicp-python/) provides significant performance benefits using the official umicp-python package.
+
+#### Using Connection String
+
+```python
+from vectorizer import VectorizerClient
+
+client = VectorizerClient(
+    connection_string="umicp://localhost:15003",
+    api_key="your-api-key"
+)
+
+print(f"Using protocol: {client.get_protocol()}")  # Output: umicp
+```
+
+#### Using Explicit Configuration
+
+```python
+from vectorizer import VectorizerClient
+
+client = VectorizerClient(
+    protocol="umicp",
+    api_key="your-api-key",
+    umicp={
+        "host": "localhost",
+        "port": 15003
+    },
+    timeout=60
+)
+```
+
+#### When to Use UMICP
+
+Use UMICP when:
+- **Large Payloads**: Inserting or searching large batches of vectors
+- **High Throughput**: Need maximum performance for production workloads
+- **Low Latency**: Need minimal protocol overhead
+
+Use HTTP when:
+- **Development**: Quick testing and debugging
+- **Firewall Restrictions**: Only HTTP/HTTPS allowed
+- **Simple Deployments**: No need for custom protocol setup
+
+#### Protocol Comparison
+
+| Feature | HTTP/HTTPS | UMICP |
+|---------|-----------|-------|
+| Transport | aiohttp (standard HTTP) | umicp-python package |
+| Performance | Standard | Optimized for large payloads |
+| Latency | Standard | Lower overhead |
+| Firewall | Widely supported | May require configuration |
+| Installation | Default | Requires umicp-python |
+
+#### Installing with UMICP Support
+
+```bash
+pip install hive-vectorizer umicp-python
 ```
 
 ## Testing

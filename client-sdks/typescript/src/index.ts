@@ -56,6 +56,16 @@ export type {
 } from './utils/http-client';
 
 export type {
+  UMICPClientConfig,
+} from './utils/umicp-client';
+
+export type {
+  TransportProtocol,
+  TransportConfig,
+  ITransport,
+} from './utils/transport';
+
+export type {
   Logger,
   LogLevel,
   LoggerConfig,

@@ -85,6 +85,10 @@ pub enum VectorizerError {
     /// Other errors
     #[error("{0}")]
     Other(String),
+    
+    /// UMICP protocol error
+    #[error("UMICP error: {0}")]
+    UmicpError(#[from] umicp_core::error::UmicpError),
 }
 
 /// Result type alias for Vectorizer operations

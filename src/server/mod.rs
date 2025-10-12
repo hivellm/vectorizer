@@ -460,13 +460,30 @@ impl VectorizerServer {
             }))
             .with_state(self.clone());
 
-        // Merge REST routes and metrics router into MCP router
-        let app = mcp_router.merge(rest_routes).merge(metrics_router);
+        // Create UMICP state
+        let umicp_state = crate::umicp::UmicpState {
+            store: self.store.clone(),
+            embedding_manager: self.embedding_manager.clone(),
+        };
+        
+        // Create UMICP routes (needs custom state)
+        let umicp_routes = Router::new()
+            .route("/umicp", post(crate::umicp::transport::umicp_handler))
+            .route("/umicp/health", get(crate::umicp::health_check))
+            .with_state(umicp_state);
+        
+        // Merge all routes - UMICP first so it doesn't get masked
+        let app = Router::new()
+            .merge(umicp_routes)
+            .merge(mcp_router)
+            .merge(rest_routes)
+            .merge(metrics_router);
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP SSE: http://{}:{}/mcp/sse", host, port);
         info!("   📬 MCP POST: http://{}:{}/mcp/message", host, port);
         info!("   🔌 REST API: http://{}:{}", host, port);
+        info!("   🔗 UMICP: http://{}:{}/umicp", host, port);
         info!("   📊 Dashboard: http://{}:{}/", host, port);
 
         // Bind and start the server

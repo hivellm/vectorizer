@@ -1,7 +1,7 @@
 """
-Configuração e execução de testes para o SDK Python.
+Configuração e execução de tests para o SDK Python.
 
-Este módulo fornece diferentes níveis de testes e configurações
+Este módulo fornece diferentes níveis de tests e configurações
 para validar o funcionamento do SDK Python do Hive Vectorizer.
 """
 
@@ -16,7 +16,7 @@ sys.path.insert(0, parent_dir)
 
 
 class TestRunner:
-    """Classe para executar diferentes tipos de testes."""
+    """Classe para executar diferentes tipos de tests."""
     
     def __init__(self):
         self.test_results = {}

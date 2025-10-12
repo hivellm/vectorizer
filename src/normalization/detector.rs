@@ -274,7 +274,7 @@ impl ContentTypeDetector {
 
         counts
             .iter()
-            .max_by_key(|(_, &count)| count)
+            .max_by_key(|&(_, &count)| count)
             .map(|(&val, _)| val)
             .unwrap_or(0)
     }

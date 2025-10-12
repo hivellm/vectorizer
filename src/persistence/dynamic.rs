@@ -619,6 +619,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         let metadata = persistence.create_collection(
@@ -643,6 +644,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Collection doesn't exist yet
@@ -669,6 +671,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Initially empty
@@ -694,6 +697,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         let metadata = persistence.create_collection(
@@ -727,6 +731,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Create collection
@@ -756,6 +761,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         // Create some collections

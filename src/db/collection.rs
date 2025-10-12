@@ -824,6 +824,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
+            normalization: None,
         };
         Collection::new("test".to_string(), config)
     }

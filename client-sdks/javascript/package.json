@@ -1,6 +1,6 @@
 {
   "name": "@hivellm/vectorizer-client-js",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "JavaScript client for Hive Vectorizer - High-performance vector database",
   "main": "dist/index.js",
   "files": [
@@ -18,7 +18,8 @@
     "lint:fix": "eslint src/**/*.js --fix",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "dev": "node examples/basic-usage.js"
+    "dev": "node examples/basic-usage.js",
+    "publish:wsl": "export BROWSER=wslview && npm publish"
   },
   "keywords": [
     "vector-database",
@@ -40,7 +41,9 @@
     "url": "https://github.com/hivellm/vectorizer/issues"
   },
   "homepage": "https://github.com/hivellm/vectorizer#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@hivellm/umicp": "^0.1.3"
+  },
   "devDependencies": {
     "@babel/core": "^7.24.7",
     "@babel/preset-env": "^7.24.7",

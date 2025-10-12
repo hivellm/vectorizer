@@ -94,6 +94,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
         
         assert_eq!(config.dimension, 128);
