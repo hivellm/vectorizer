@@ -197,7 +197,7 @@ build_linux() {
     echo -e "${BLUE}Building release binaries for Linux...${NC}"
     
     # Build main binaries
-    local binaries=("vzr" "vectorizer-server" "vectorizer-mcp-server")
+    local binaries=("vectorizer" "vectorizer-cli")
     
     for binary in "${binaries[@]}"; do
         echo -e "${BLUE}Building $binary...${NC}"
@@ -227,7 +227,7 @@ build_windows() {
     fi
     
     # Build main binaries for Windows
-    local binaries=("vzr" "vectorizer-server" "vectorizer-mcp-server")
+    local binaries=("vectorizer" "vectorizer-cli")
     
     for binary in "${binaries[@]}"; do
         echo -e "${BLUE}Building $binary for Windows...${NC}"
@@ -255,9 +255,8 @@ create_linux_package() {
     echo -e "${BLUE}Creating Linux package: $package_name${NC}"
     
     # Copy binaries
-    cp "$BUILD_DIR/vzr" "$package_dir/"
-    cp "$BUILD_DIR/vectorizer-server" "$package_dir/"
-    cp "$BUILD_DIR/vectorizer-mcp-server" "$package_dir/"
+    cp "$BUILD_DIR/vectorizer" "$package_dir/"
+    cp "$BUILD_DIR/vectorizer-cli" "$package_dir/"
     
     # Copy configuration files
     mkdir -p "$package_dir/config"
@@ -315,9 +314,8 @@ mkdir -p "$INSTALL_DIR"
 cp -r ./* "$INSTALL_DIR/"
 
 # Create symlinks for easy access
-ln -sf "$INSTALL_DIR/vzr" "$BIN_DIR/vzr"
-ln -sf "$INSTALL_DIR/vectorizer-server" "$BIN_DIR/vectorizer-server"
-ln -sf "$INSTALL_DIR/vectorizer-mcp-server" "$BIN_DIR/vectorizer-mcp-server"
+ln -sf "$INSTALL_DIR/vectorizer" "$BIN_DIR/vectorizer"
+ln -sf "$INSTALL_DIR/vectorizer-cli" "$BIN_DIR/vectorizer-cli"
 
 # Create systemd service
 cat > "$SYSTEMD_DIR/vectorizer.service" << 'SERVICE_EOF'
@@ -330,7 +328,7 @@ Type=simple
 User=vectorizer
 Group=vectorizer
 WorkingDirectory=/opt/vectorizer
-ExecStart=/opt/vectorizer/vzr start --workspace config/vectorize-workspace.yml
+ExecStart=/opt/vectorizer/vectorizer
 Restart=always
 RestartSec=5
 
@@ -358,7 +356,7 @@ echo "To check status:"
 echo "  sudo systemctl status vectorizer"
 echo ""
 echo "Manual start:"
-echo "  vzr start --workspace config/vectorize-workspace.yml"
+echo "  vectorizer"
 EOF
     
     chmod +x "$package_dir/install.sh"
@@ -382,13 +380,13 @@ EOF
 
 3. **Manual Start:**
    \`\`\`bash
-   ./scripts/start.sh --workspace config/vectorize-workspace.yml
+   ./vectorizer
    \`\`\`
 
 ## Services
 
-- **REST API**: http://localhost:15001
-- **MCP Server**: ws://localhost:15002/mcp
+- **REST API**: http://localhost:15002
+- **MCP Server**: http://localhost:15002/mcp/sse
 
 ## Configuration
 
@@ -424,9 +422,8 @@ create_windows_package() {
     echo -e "${BLUE}Creating Windows package: $package_name${NC}"
     
     # Copy Windows binaries
-    cp "$PROJECT_ROOT/target/x86_64-pc-windows-gnu/release/vzr.exe" "$package_dir/"
-    cp "$PROJECT_ROOT/target/x86_64-pc-windows-gnu/release/vectorizer-server.exe" "$package_dir/"
-    cp "$PROJECT_ROOT/target/x86_64-pc-windows-gnu/release/vectorizer-mcp-server.exe" "$package_dir/"
+    cp "$PROJECT_ROOT/target/x86_64-pc-windows-gnu/release/vectorizer.exe" "$package_dir/"
+    cp "$PROJECT_ROOT/target/x86_64-pc-windows-gnu/release/vectorizer-cli.exe" "$package_dir/"
     
     # Copy configuration files
     mkdir -p "$package_dir/config"
@@ -475,11 +472,11 @@ echo ✅ Vectorizer installed successfully!
 echo.
 echo To start manually:
 echo   cd "C:\Program Files\Vectorizer"
-echo   scripts\start.bat --workspace config\vectorize-workspace.yml
+echo   vectorizer.exe
 echo.
 echo Services:
-echo   REST API: http://localhost:15001
-echo   MCP Server: ws://localhost:15002/mcp
+echo   REST API: http://localhost:15002
+echo   MCP Server: http://localhost:15002/mcp/sse
 echo.
 pause
 EOF
@@ -496,18 +493,18 @@ EOF
 
 2. **Start Service:**
    \`\`\`cmd
-   scripts\\start.bat --workspace config\\vectorize-workspace.yml
+   vectorizer.exe
    \`\`\`
 
 3. **Development Mode:**
    \`\`\`cmd
-   scripts\\start-dev.bat --workspace config\\vectorize-workspace.yml
+   scripts\\start.bat
    \`\`\`
 
 ## Services
 
-- **REST API**: http://localhost:15001
-- **MCP Server**: ws://localhost:15002/mcp
+- **REST API**: http://localhost:15002
+- **MCP Server**: http://localhost:15002/mcp/sse
 
 ## Configuration
 
@@ -544,12 +541,12 @@ create_release_notes() {
 ### Linux (x86_64)
 - **File**: \`${PROJECT_NAME}-${VERSION}-linux-x86_64.tar.gz\`
 - **Installation**: Extract and run \`sudo ./install.sh\`
-- **Manual Start**: \`./scripts/start.sh --workspace config/vectorize-workspace.yml\`
+- **Manual Start**: \`./vectorizer\`
 
 ### Windows (x86_64)
 - **File**: \`${PROJECT_NAME}-${VERSION}-windows-x86_64.zip\`
 - **Installation**: Extract and run \`install.bat\` as Administrator
-- **Manual Start**: \`scripts\\start.bat --workspace config\\vectorize-workspace.yml\`
+- **Manual Start**: \`vectorizer.exe\`
 
 ## 🚀 Quick Start
 
@@ -560,8 +557,8 @@ create_release_notes() {
 
 ## 🔧 Services
 
-- **REST API**: http://localhost:15001
-- **MCP Server**: ws://localhost:15002/mcp  
+- **REST API**: http://localhost:15002
+- **MCP Server**: http://localhost:15002/mcp/sse  
 
 ## 📚 Documentation
 

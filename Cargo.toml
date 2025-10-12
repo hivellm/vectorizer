@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "vectorizer"
 version = "0.6.0"

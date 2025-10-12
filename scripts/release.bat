@@ -153,10 +153,10 @@ if errorlevel 1 (
 )
 
 REM Build main binaries for Windows
-set BINARIES=vzr vectorizer-server vectorizer-mcp-server
+set BINARIES=vectorizer vectorizer-cli
 for %%b in (%BINARIES%) do (
     echo Building %%b for Windows...
-    cargo build --release --bin %%b --target x86_64-pc-windows-gnu
+    cargo build --release --bin %%b
     if errorlevel 1 (
         echo ❌ Failed to build %%b for Windows
         exit /b 1
@@ -181,9 +181,8 @@ if not exist "%PACKAGE_DIR%" mkdir "%PACKAGE_DIR%"
 echo Creating Windows package: %PACKAGE_NAME%
 
 REM Copy Windows binaries
-copy "%PROJECT_ROOT%\target\x86_64-pc-windows-gnu\release\vzr.exe" "%PACKAGE_DIR%\"
-copy "%PROJECT_ROOT%\target\x86_64-pc-windows-gnu\release\vectorizer-server.exe" "%PACKAGE_DIR%\"
-copy "%PROJECT_ROOT%\target\x86_64-pc-windows-gnu\release\vectorizer-mcp-server.exe" "%PACKAGE_DIR%\"
+copy "%PROJECT_ROOT%\target\release\vectorizer.exe" "%PACKAGE_DIR%\"
+copy "%PROJECT_ROOT%\target\release\vectorizer-cli.exe" "%PACKAGE_DIR%\"
 
 REM Copy configuration files
 if not exist "%PACKAGE_DIR%\config" mkdir "%PACKAGE_DIR%\config"
@@ -229,11 +228,11 @@ echo echo ✅ Vectorizer installed successfully! >> "%PACKAGE_DIR%\install.bat"
 echo echo. >> "%PACKAGE_DIR%\install.bat"
 echo echo To start manually: >> "%PACKAGE_DIR%\install.bat"
 echo echo   cd "C:\Program Files\Vectorizer" >> "%PACKAGE_DIR%\install.bat"
-echo echo   scripts\start.bat --workspace config\vectorize-workspace.yml >> "%PACKAGE_DIR%\install.bat"
+echo echo   vectorizer.exe >> "%PACKAGE_DIR%\install.bat"
 echo echo. >> "%PACKAGE_DIR%\install.bat"
 echo echo Services: >> "%PACKAGE_DIR%\install.bat"
-echo echo   REST API: http://localhost:15001 >> "%PACKAGE_DIR%\install.bat"
-echo echo   MCP Server: ws://localhost:15002/mcp >> "%PACKAGE_DIR%\install.bat"
+echo echo   REST API: http://localhost:15002 >> "%PACKAGE_DIR%\install.bat"
+echo echo   MCP Server: http://localhost:15002/mcp/sse >> "%PACKAGE_DIR%\install.bat"
 echo echo. >> "%PACKAGE_DIR%\install.bat"
 echo pause >> "%PACKAGE_DIR%\install.bat"
 
@@ -248,18 +247,18 @@ echo    - Or manually copy files to desired location >> "%PACKAGE_DIR%\PACKAGE_R
 echo. >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo 2. **Start Service:** >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo    ```cmd >> "%PACKAGE_DIR%\PACKAGE_README.md"
-echo    scripts\start.bat --workspace config\vectorize-workspace.yml >> "%PACKAGE_DIR%\PACKAGE_README.md"
+echo    vectorizer.exe >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo    ``` >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo. >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo 3. **Development Mode:** >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo    ```cmd >> "%PACKAGE_DIR%\PACKAGE_README.md"
-echo    scripts\start-dev.bat --workspace config\vectorize-workspace.yml >> "%PACKAGE_DIR%\PACKAGE_README.md"
+echo    scripts\start.bat >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo    ``` >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo. >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo ## Services >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo. >> "%PACKAGE_DIR%\PACKAGE_README.md"
-echo - **REST API**: http://localhost:15001 >> "%PACKAGE_DIR%\PACKAGE_README.md"
-echo - **MCP Server**: ws://localhost:15002/mcp >> "%PACKAGE_DIR%\PACKAGE_README.md"
+echo - **REST API**: http://localhost:15002 >> "%PACKAGE_DIR%\PACKAGE_README.md"
+echo - **MCP Server**: http://localhost:15002/mcp/sse >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo. >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo ## Configuration >> "%PACKAGE_DIR%\PACKAGE_README.md"
 echo. >> "%PACKAGE_DIR%\PACKAGE_README.md"
@@ -295,7 +294,7 @@ echo. >> "%RELEASE_NOTES_FILE%"
 echo ### Windows (x86_64) >> "%RELEASE_NOTES_FILE%"
 echo - **File**: `%PROJECT_NAME%-%VERSION%-windows-x86_64.zip` >> "%RELEASE_NOTES_FILE%"
 echo - **Installation**: Extract and run `install.bat` as Administrator >> "%RELEASE_NOTES_FILE%"
-echo - **Manual Start**: `scripts\start.bat --workspace config\vectorize-workspace.yml` >> "%RELEASE_NOTES_FILE%"
+echo - **Manual Start**: `vectorizer.exe` >> "%RELEASE_NOTES_FILE%"
 echo. >> "%RELEASE_NOTES_FILE%"
 echo ## 🚀 Quick Start >> "%RELEASE_NOTES_FILE%"
 echo. >> "%RELEASE_NOTES_FILE%"
@@ -306,8 +305,8 @@ echo 4. **Start** the service >> "%RELEASE_NOTES_FILE%"
 echo. >> "%RELEASE_NOTES_FILE%"
 echo ## 🔧 Services >> "%RELEASE_NOTES_FILE%"
 echo. >> "%RELEASE_NOTES_FILE%"
-echo - **REST API**: http://localhost:15001 >> "%RELEASE_NOTES_FILE%"
-echo - **MCP Server**: ws://localhost:15002/mcp >> "%RELEASE_NOTES_FILE%"
+echo - **REST API**: http://localhost:15002 >> "%RELEASE_NOTES_FILE%"
+echo - **MCP Server**: http://localhost:15002/mcp/sse >> "%RELEASE_NOTES_FILE%"
 echo. >> "%RELEASE_NOTES_FILE%"
 echo ## 📚 Documentation >> "%RELEASE_NOTES_FILE%"
 echo. >> "%RELEASE_NOTES_FILE%"
