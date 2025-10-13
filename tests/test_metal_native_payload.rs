@@ -18,8 +18,21 @@ async fn test_metal_native_payload_retrieval() {
 
     println!("\n🧪 ===== TESTE: Metal Native Payload Retrieval =====\n");
 
-    // Create store and embedding manager
+    // Create store and a fresh test collection
     let store = Arc::new(VectorStore::new());
+    
+    // Create a fresh test collection with Metal Native
+    let test_collection = "test-metal-payload";
+    let config = vectorizer::models::CollectionConfig {
+        dimension: 512,
+        metric: vectorizer::models::DistanceMetric::Cosine,
+        hnsw_config: vectorizer::models::HnswConfig::default(),
+        quantization: vectorizer::models::QuantizationConfig::SQ { bits: 8 },
+        compression: vectorizer::models::CompressionConfig::default(),
+    };
+    
+    println!("🆕 Creating fresh test collection: {}", test_collection);
+    store.create_collection(test_collection, config).expect("Failed to create test collection");
     
     // Create embedding manager with BM25 (512 dimensions)
     let mut embedding_manager = EmbeddingManager::new();
@@ -28,45 +41,51 @@ async fn test_metal_native_payload_retrieval() {
     embedding_manager.set_default_provider("bm25").expect("Failed to set default provider");
     let embedding_manager = Arc::new(embedding_manager);
 
-    // List available collections
-    let collections = store.list_collections();
-    println!("📚 Available collections: {}", collections.len());
-    for collection in &collections {
-        if let Ok(coll) = store.get_collection(collection) {
-            let metadata = coll.metadata();
-            println!("  - {}: {} vectors", collection, metadata.vector_count);
-        }
+    // Add test vectors with payload
+    println!("📝 Adding test vectors with payload...");
+    let test_docs = vec![
+        ("doc1", "database schema design patterns"),
+        ("doc2", "API endpoint authentication methods"),
+        ("doc3", "Docker container orchestration guide"),
+    ];
+    
+    let mut test_vectors = Vec::new();
+    for (doc_id, content) in &test_docs {
+        let embedding = embedding_manager.embed(content).expect("Failed to embed");
+        let vector = vectorizer::models::Vector {
+            id: format!("test-{}", doc_id),
+            data: embedding,
+            payload: Some(vectorizer::models::Payload::new(serde_json::json!({
+                "content": content,
+                "doc_id": doc_id,
+                "file_path": format!("/test/{}.txt", doc_id),
+            }))),
+        };
+        test_vectors.push(vector);
     }
-
-    // Filter Mimir collections
-    let mimir_collections: Vec<String> = collections
-        .into_iter()
-        .filter(|name| name.starts_with("mimir-"))
-        .collect();
-
-    if mimir_collections.is_empty() {
-        println!("❌ No Mimir collections found!");
-        panic!("No collections to test");
-    }
-
-    println!("\n🎯 Testing with {} Mimir collections", mimir_collections.len());
+    
+    println!("💾 Inserting {} test vectors...", test_vectors.len());
+    store.insert(test_collection, test_vectors).expect("Failed to insert vectors");
+    
+    println!("✅ Test vectors inserted successfully");
+    println!("📊 Collection now has {} vectors", 
+        store.get_collection(test_collection).unwrap().metadata().vector_count);
 
     // Create MCP tool handler
     let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
 
-    // Test 1: Simple search on first collection
-    println!("\n📋 Test 1: Simple search on first collection");
-    let first_collection = &mimir_collections[0];
-    println!("   Collection: {}", first_collection);
+    // Test 1: Simple search on test collection
+    println!("\n📋 Test 1: Simple search on test collection");
+    println!("   Collection: {}", test_collection);
 
-    let query = "database schema";
+    let query = "database design";
     println!("   Query: '{}'", query);
 
     // Embed query
     let query_embedding = embedding_manager.embed(query).expect("Failed to embed query");
     
     // Direct search
-    let direct_results = store.search(first_collection, &query_embedding, 5)
+    let direct_results = store.search(test_collection, &query_embedding, 3)
         .expect("Search failed");
 
     println!("\n   Results: {} found", direct_results.len());
@@ -109,12 +128,12 @@ async fn test_metal_native_payload_retrieval() {
     println!("   ✅ Test 1 PASSED: All results have payload and content\n");
 
     // Test 2: Intelligent Search
-    println!("📋 Test 2: Intelligent Search (MCP Tool)");
+    println!("\n📋 Test 2: Intelligent Search (MCP Tool)");
     
     let intelligent_search_request = IntelligentSearchTool {
-        query: "authentication system".to_string(),
-        collections: Some(mimir_collections.clone()),
-        max_results: Some(5),
+        query: "authentication methods".to_string(),
+        collections: Some(vec![test_collection.to_string()]),
+        max_results: Some(3),
         domain_expansion: Some(false),
         technical_focus: Some(true),
         mmr_enabled: Some(false),
@@ -164,14 +183,14 @@ async fn test_metal_native_payload_retrieval() {
         }
     }
 
-    // Test 3: Multi-collection search
-    println!("📋 Test 3: Multi-Collection Search");
+    // Test 3: Multi-collection search (using single test collection)
+    println!("\n📋 Test 3: Multi-Collection Search");
     
     let multi_search_request = MultiCollectionSearchTool {
-        query: "docker configuration".to_string(),
-        collections: mimir_collections.clone(),
-        max_per_collection: Some(3),
-        max_total_results: Some(10),
+        query: "container orchestration".to_string(),
+        collections: vec![test_collection.to_string()],
+        max_per_collection: Some(2),
+        max_total_results: Some(3),
         cross_collection_reranking: Some(true),
     };
 
@@ -225,6 +244,17 @@ async fn test_payload_structure() {
     println!("\n🧪 ===== TESTE: Payload Structure Validation =====\n");
 
     let store = Arc::new(VectorStore::new());
+    
+    // Load persisted collections from data directory
+    println!("📂 Loading persisted collections...");
+    match store.load_all_persisted_collections() {
+        Ok(count) => {
+            println!("✅ Loaded {} collections from disk\n", count);
+        }
+        Err(e) => {
+            println!("⚠️  Failed to load collections: {}\n", e);
+        }
+    }
     
     let collections = store.list_collections();
     let mimir_collections: Vec<String> = collections

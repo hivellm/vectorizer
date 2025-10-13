@@ -34,6 +34,7 @@ pub struct MetalNativeVectorStorage {
     index_to_id: Vec<String>, // Maps index to original ID
     vector_metadata: HashMap<String, VectorMetadata>, // Maps ID to metadata
     pub removed_indices: HashSet<usize>, // Tracks removed vector indices - made public for GPU search
+    vector_payloads: HashMap<String, Option<crate::models::Payload>>, // Store payloads in CPU memory
 }
 
 #[cfg(target_os = "macos")]
@@ -78,6 +79,7 @@ impl MetalNativeVectorStorage {
             index_to_id: Vec::new(),
             vector_metadata: HashMap::new(),
             removed_indices: HashSet::new(),
+            vector_payloads: HashMap::new(),
         })
     }
     
@@ -168,9 +170,10 @@ impl MetalNativeVectorStorage {
         self.vector_id_map.insert(vector.id.clone(), index);
         self.index_to_id.push(vector.id.clone());
         self.vector_metadata.insert(vector.id.clone(), metadata);
+        self.vector_payloads.insert(vector.id.clone(), vector.payload.clone()); // Store payload
         self.vector_count += 1;
         
-        debug!("✅ Vector added to VRAM: {} (total: {})", vector.id, self.vector_count);
+        debug!("✅ Vector added to VRAM: {} (total: {}, has_payload: {})", vector.id, self.vector_count, vector.payload.is_some());
         Ok(index)
     }
     
@@ -304,10 +307,13 @@ impl MetalNativeVectorStorage {
             format!("vector_{}", index) // Fallback for invalid index
         };
         
+        // Get payload from storage
+        let payload = self.vector_payloads.get(&real_id).and_then(|p| p.clone());
+        
         Ok(Vector {
             id: real_id,
             data: safe_data,
-            payload: None,
+            payload,
         })
     }
     
@@ -414,11 +420,13 @@ impl MetalNativeVectorStorage {
             self.vector_id_map.insert(vector.id.clone(), index);
             self.index_to_id.push(vector.id.clone());
             self.vector_metadata.insert(vector.id.clone(), metadata);
+            self.vector_payloads.insert(vector.id.clone(), vector.payload.clone()); // Store payload
             indices.push(index);
         }
         self.vector_count += vectors.len();
         
-        debug!("✅ Added {} vectors in batch (total: {})", vectors.len(), self.vector_count);
+        let payloads_count = vectors.iter().filter(|v| v.payload.is_some()).count();
+        debug!("✅ Added {} vectors in batch (total: {}, with_payload: {})", vectors.len(), self.vector_count, payloads_count);
         Ok(indices)
     }
     
@@ -547,6 +555,7 @@ impl MetalNativeVectorStorage {
         // Remove from mappings
         self.vector_id_map.remove(id);
         self.vector_metadata.remove(id);
+        self.vector_payloads.remove(id); // Remove payload
 
         // Note: We keep the vector data in GPU buffers for simplicity
         // In a full implementation, we might want to compact the buffers
