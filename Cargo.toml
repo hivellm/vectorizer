@@ -34,7 +34,7 @@ hnsw_rs = "0.3"
 # Intelligent search dependencies
 tantivy = "0.24"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
-fastembed = "0.2" # Embeddings + cross-encoder reranking
+fastembed = "5.2" # Embeddings + cross-encoder reranking
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
