@@ -116,34 +116,13 @@ use tempfile::tempdir;
     fn test_persistence_with_compression() {
         let store = VectorStore::new();
 
-        // Skip test if Metal Native is being used (persistence not implemented for Metal Native)
-        #[cfg(all(target_os = "macos", feature = "metal-native"))]
-        {
-            // Check if Metal Native would be used for this config
-            let test_config = CollectionConfig {
-                dimension: 3,
-                metric: DistanceMetric::Euclidean,
-                hnsw_config: HnswConfig::default(),
-                quantization: crate::models::QuantizationConfig::default(),
-                compression: Default::default(),
-            };
-            match crate::gpu::MetalNativeCollection::new_with_name_and_config("test", test_config) {
-                Ok(_) => {
-                    println!("⚠️  Skipping persistence test - Metal Native collections don't support persistence yet");
-                    return;
-                }
-                Err(_) => {
-                    // Metal Native not available, proceed with test
-                }
-            }
-        }
-
         let config = CollectionConfig {
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::default(),
             compression: Default::default(),
+            normalization: None,
         };
         store.create_collection("compressed", config).unwrap();
 

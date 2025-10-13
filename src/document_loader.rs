@@ -231,6 +231,8 @@ pub struct DocumentLoader {
     pub cache_manager: Option<CacheManager>,
     /// Summarization manager
     summarization_manager: Option<SummarizationManager>,
+    /// Currently processing files to avoid duplicates
+    processing_files: std::sync::Mutex<HashMap<String, std::time::Instant>>,
 }
 
 impl DocumentLoader {
@@ -241,8 +243,59 @@ impl DocumentLoader {
         current_dir.join("data")
     }
 
+    /// Check if a file is currently being processed to avoid duplicates
+    fn is_file_processing(&self, file_path: &str) -> bool {
+        if let Ok(processing_files) = self.processing_files.lock() {
+            if let Some(processing_time) = processing_files.get(file_path) {
+                // If file was processed less than 10 seconds ago, consider it still processing
+                if processing_time.elapsed() < std::time::Duration::from_secs(10) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Mark a file as being processed
+    fn mark_file_processing(&self, file_path: &str) {
+        if let Ok(mut processing_files) = self.processing_files.lock() {
+            processing_files.insert(file_path.to_string(), std::time::Instant::now());
+        }
+    }
+
+    /// Clear old processed files (older than 30 seconds)
+    fn clear_old_processed_files(&self) {
+        if let Ok(mut processing_files) = self.processing_files.lock() {
+            let cutoff = std::time::Instant::now() - std::time::Duration::from_secs(30);
+            processing_files.retain(|_, &mut timestamp| timestamp > cutoff);
+        }
+    }
+
     /// Check if a file path matches the include/exclude patterns
     fn matches_patterns(&self, file_path: &Path, project_root: &Path) -> bool {
+        // CRITICAL SAFETY CHECKS - NEVER process these files regardless of configuration
+        let path_str_full = file_path.to_string_lossy();
+        
+        // BLOCK 1: Never process binary files (.bin) - causes memory overflow
+        if file_path.extension().and_then(|e| e.to_str()) == Some("bin") {
+            //warn!("BLOCKED: Binary file detected and rejected: {}", path_str_full);
+            return false;
+        }
+        
+        // BLOCK 2: Never process files in /data directory - vectorizer storage
+        if path_str_full.contains("/data/") || path_str_full.contains("\\data\\") {
+            //warn!("BLOCKED: File in /data directory detected and rejected: {}", path_str_full);
+            return false;
+        }
+        
+        // BLOCK 3: Never process vectorizer metadata files
+        if path_str_full.ends_with("_metadata.json") || 
+           path_str_full.ends_with("_tokenizer.json") ||
+           path_str_full.ends_with("_vector_store.bin") {
+            warn!("BLOCKED: Vectorizer metadata file detected and rejected: {}", path_str_full);
+            return false;
+        }
+        
         // Convert to relative path from project root for pattern matching
         let relative_path = match file_path.strip_prefix(project_root) {
             Ok(rel) => rel,
@@ -350,6 +403,7 @@ impl DocumentLoader {
             processed_chunks,
             cache_manager: None,
             summarization_manager: None,
+            processing_files: std::sync::Mutex::new(HashMap::new()),
         }
     }
     
@@ -550,6 +604,18 @@ impl DocumentLoader {
 
     /// Performs a full indexing of the project.
     async fn full_project_indexing(&mut self, project_path: &str, store: &VectorStore, progress_callback: Option<&IndexingProgress>) -> CacheResult<(usize, bool)> {
+        // Check if this project path is already being processed to avoid duplicates
+        if self.is_file_processing(project_path) {
+            debug!("⏭️ Skipping duplicate processing for project path: {} (already processing)", project_path);
+            return Ok((0, false));
+        }
+
+        // Mark this project path as being processed
+        self.mark_file_processing(project_path);
+
+        // Clear old processed files to prevent memory buildup
+        self.clear_old_processed_files();
+
         // Update progress: Starting document collection (20%)
         if let Some(callback) = progress_callback {
             // callback.update(&self.config.collection_name, "processing", 20.0, 0, 0);
@@ -681,9 +747,32 @@ impl DocumentLoader {
             return Err(crate::error::VectorizerError::Other(format!("Cache file does not exist: {}", path.display())).into());
         }
         
-        // 🔧 FIX: Load cache data directly without creating separate VectorStore
+        // 🔧 Load cache data with compression support and auto-migration
         info!("🔍 Loading cache data from {}", path.display());
-        let json_data = std::fs::read_to_string(path)?;
+        use std::io::Read;
+        use flate2::read::GzDecoder;
+        
+        let (json_data, was_compressed) = match std::fs::File::open(path) {
+            Ok(file) => {
+                let mut decoder = GzDecoder::new(file);
+                let mut json_string = String::new();
+                
+                // Try to decompress - if it fails, try reading as plain text
+                match decoder.read_to_string(&mut json_string) {
+                    Ok(_) => {
+                        debug!("📦 Loaded compressed cache");
+                        (json_string, true)
+                    }
+                    Err(_) => {
+                        // Not a gzip file, try reading as plain text (backward compatibility)
+                        warn!("📦 Loaded uncompressed cache - will auto-migrate to compressed format");
+                        (std::fs::read_to_string(path)?, false)
+                    }
+                }
+            }
+            Err(e) => return Err(crate::error::VectorizerError::Other(format!("Failed to open file: {}", e)).into()),
+        };
+        
         let persisted: crate::persistence::PersistedVectorStore = serde_json::from_str(&json_data)?;
         
         // Find the collection in the persisted data
@@ -713,6 +802,12 @@ impl DocumentLoader {
         let loaded_meta = app_store.get_collection(collection_name)?.metadata();
         info!("✅ Successfully loaded {} vectors (metadata shows {} vectors, {} documents)", 
               vector_count, loaded_meta.vector_count, loaded_meta.document_count);
+        
+        // Note: Auto-migration removed to prevent memory duplication
+        // Uncompressed files will be saved compressed on next auto-save cycle
+        if !was_compressed {
+            info!("📦 Loaded uncompressed cache - will be saved compressed on next auto-save");
+        }
         
         Ok(vector_count)
     }
@@ -899,9 +994,23 @@ impl DocumentLoader {
                     }
                 }
 
+                // CRITICAL SAFETY CHECK: Never process /data directory or .bin files
+                let path_str = path.to_string_lossy();
+                if path_str.contains("/data/") || path_str.contains("\\data\\") {
+                    //warn!("BLOCKED AT READ: File in /data directory: {}", path_str);
+                    continue;
+                }
+                
                 // Skip binary files by extension
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
                     let ext_lower = extension.to_lowercase();
+                    
+                    // CRITICAL: .bin files must be blocked first
+                    if ext_lower == "bin" {
+                        //warn!("BLOCKED AT READ: Binary (.bin) file: {}", path_str);
+                        continue;
+                    }
+                    
                     let binary_extensions = [
                         // Images
                         "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico",
@@ -912,7 +1021,7 @@ impl DocumentLoader {
                         // Databases
                         "db", "sqlite", "sqlite3",
                         // Binaries
-                        "exe", "dll", "so", "dylib", "bin",
+                        "exe", "dll", "so", "dylib",
                         // Archives
                         "zip", "tar", "gz", "rar", "7z", "bz2", "xz",
                         // Documents (binary formats)
@@ -950,7 +1059,9 @@ impl DocumentLoader {
                     match fs::read_to_string(&path) {
                         Ok(content) => {
                             debug!("Successfully read file: {} ({} bytes)", path.display(), content.len());
-                            documents.push((path, content));
+                            // Normalize line endings (CRLF -> LF) to ensure consistent content
+                            let normalized_content = content.replace("\r\n", "\n");
+                            documents.push((path, normalized_content));
                         }
                         Err(e) => {
                             warn!("Failed to read file {}: {}", path.display(), e);
@@ -1082,17 +1193,21 @@ impl DocumentLoader {
                                 return None;
                             }
                             
+                            // Create payload and normalize it (fixes line endings from cached/old data)
+                            let mut payload = Payload {
+                                data: serde_json::json!({
+                                    "content": chunk.content,
+                                    "file_path": chunk.file_path,
+                                    "chunk_index": chunk.chunk_index,
+                                    "metadata": chunk.metadata
+                                }),
+                            };
+                            payload.normalize();
+                            
                             let vector = Vector {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 data: embedding,
-                                payload: Some(Payload {
-                                    data: serde_json::json!({
-                                        "content": chunk.content,
-                                        "file_path": chunk.file_path,
-                                        "chunk_index": chunk.chunk_index,
-                                        "metadata": chunk.metadata
-                                    }),
-                                }),
+                                payload: Some(payload),
                             };
                             Some(vector)
                         }
@@ -1157,16 +1272,20 @@ impl DocumentLoader {
             total_vectors
         );
         
-        // Apply quantization to all vectors if enabled
-        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
-            if matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
-                info!("🔧 Applying quantization to {} vectors in collection '{}'", total_vectors, self.config.collection_name);
-                if let Err(e) = collection.requantize_existing_vectors() {
-                    warn!("Failed to quantize vectors in collection '{}': {}", self.config.collection_name, e);
-                } else {
-                    info!("✅ Successfully quantized {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+        // Apply quantization to all vectors if enabled (only if we have enough vectors)
+        if total_vectors >= 10 { // Minimum vectors needed for stable quantization
+            if let Ok(collection) = store.get_collection(&self.config.collection_name) {
+                if matches!(collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                    info!("🔧 Applying quantization to {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                    if let Err(e) = collection.requantize_existing_vectors() {
+                        warn!("Failed to quantize vectors in collection '{}': {}", self.config.collection_name, e);
+                    } else {
+                        info!("✅ Successfully quantized {} vectors in collection '{}'", total_vectors, self.config.collection_name);
+                    }
                 }
             }
+        } else {
+            info!("⏭️ Skipping quantization for collection '{}' - only {} vectors (minimum 10 required)", self.config.collection_name, total_vectors);
         }
         
         Ok(total_vectors)
@@ -1200,17 +1319,21 @@ impl DocumentLoader {
                                 return None;
                             }
                             
+                            // Create payload and normalize it (fixes line endings from cached/old data)
+                            let mut payload = Payload {
+                                data: serde_json::json!({
+                                    "content": chunk.content,
+                                    "file_path": chunk.file_path,
+                                    "chunk_index": chunk.chunk_index,
+                                    "metadata": chunk.metadata
+                                }),
+                            };
+                            payload.normalize();
+                            
                             let vector = Vector {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 data: embedding,
-                                payload: Some(Payload {
-                                    data: serde_json::json!({
-                                        "content": chunk.content,
-                                        "file_path": chunk.file_path,
-                                        "chunk_index": chunk.chunk_index,
-                                        "metadata": chunk.metadata
-                                    }),
-                                }),
+                                payload: Some(payload),
                             };
                             Some(vector)
                         }
@@ -1286,18 +1409,21 @@ impl DocumentLoader {
                 continue; // Skip zero vectors
             }
 
-            // Create vector data
+            // Create vector data with normalized payload
+            let mut payload = Payload {
+                data: serde_json::json!({
+                    "content": chunk.content,
+                    "file_path": chunk.file_path,
+                    "chunk_index": chunk.chunk_index,
+                    "metadata": chunk.metadata
+                }),
+            };
+            payload.normalize();
+            
             let vector = Vector {
                 id: uuid::Uuid::new_v4().to_string(),
                 data: embedding,
-                payload: Some(Payload {
-                    data: serde_json::json!({
-                        "content": chunk.content,
-                        "file_path": chunk.file_path,
-                        "chunk_index": chunk.chunk_index,
-                        "metadata": chunk.metadata
-                    }),
-                }),
+                payload: Some(payload),
             };
 
             vectors.push(vector);
@@ -1346,6 +1472,7 @@ impl DocumentLoader {
             },
             quantization: QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
+            normalization: None,
         };
 
         // Check if quantization is enabled before creating collection
@@ -1361,20 +1488,26 @@ impl DocumentLoader {
             })?;
 
         // Set the embedding type for this collection
-        if let Ok(mut collection) = store.get_collection_mut(&self.config.collection_name) {
+        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
             collection.set_embedding_type(self.config.embedding_type.clone());
             info!(
                 "Set embedding type '{}' for collection '{}'",
                 self.config.embedding_type, self.config.collection_name
             );
             
-            // Force apply quantization if enabled
+            // Force apply quantization if enabled (only if we have enough vectors)
             if quantization_enabled {
-                info!("🔧 Applying quantization to collection '{}'", self.config.collection_name);
-                if let Err(e) = collection.requantize_existing_vectors() {
-                    warn!("Failed to apply quantization to collection '{}': {}", self.config.collection_name, e);
+                // Check vector count before applying quantization
+                let vector_count = collection.vector_count();
+                if vector_count >= 10 {
+                    info!("🔧 Applying quantization to collection '{}' ({} vectors)", self.config.collection_name, vector_count);
+                    if let Err(e) = collection.requantize_existing_vectors() {
+                        warn!("Failed to apply quantization to collection '{}': {}", self.config.collection_name, e);
+                    } else {
+                        info!("✅ Successfully applied quantization to collection '{}'", self.config.collection_name);
+                    }
                 } else {
-                    info!("✅ Successfully applied quantization to collection '{}'", self.config.collection_name);
+                    info!("⏭️ Skipping quantization for collection '{}' - only {} vectors (minimum 10 required)", self.config.collection_name, vector_count);
                 }
             }
         }
@@ -1643,6 +1776,7 @@ impl DocumentLoader {
                 },
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
+                normalization: None,
             };
             
             // Check if quantization is enabled before creating collection
@@ -1650,7 +1784,7 @@ impl DocumentLoader {
             
             match store.create_collection_with_quantization(&summary_collection_name, config) {
                 Ok(_) => {
-                    if let Ok(mut c) = store.get_collection_mut(&summary_collection_name) {
+                    if let Ok(c) = store.get_collection(&summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
                         // Force apply quantization to summary collection
                         if quantization_enabled {
@@ -1681,6 +1815,7 @@ impl DocumentLoader {
                 },
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
+                normalization: None,
             };
             
             // Check if quantization is enabled before creating collection
@@ -1689,7 +1824,7 @@ impl DocumentLoader {
             match store.create_collection_with_quantization(&chunk_summary_collection_name, config) {
                 Ok(_) => {
                     println!("✅ Created chunk summary collection: {}", chunk_summary_collection_name);
-                    if let Ok(mut c) = store.get_collection_mut(&chunk_summary_collection_name) {
+                    if let Ok(c) = store.get_collection(&chunk_summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
                         // Force apply quantization to chunk summary collection
                         if quantization_enabled {
@@ -1757,15 +1892,12 @@ impl DocumentLoader {
                     match self.embedding_manager.embed(&summary_result.summary) {
                         Ok(summary_embedding) => {
                             // Create summary vector with comprehensive metadata
-                            let summary_vector = Vector {
-                                id: format!("summary_file_{}", uuid::Uuid::new_v4()),
-                                data: summary_embedding,
-                                payload: Some(Payload {
-                                    data: serde_json::json!({
-                                        "content": summary_result.summary,
-                                        "source_file": file_path,
-                                        "original_collection": self.config.collection_name,
-                                        "summary_method": summary_result.method,
+                            let mut payload = Payload {
+                                data: serde_json::json!({
+                                    "content": summary_result.summary,
+                                    "source_file": file_path,
+                                    "original_collection": self.config.collection_name,
+                                    "summary_method": summary_result.method,
                                         "compression_ratio": summary_result.compression_ratio,
                                         "is_summary": true,
                                         "summary_type": "document_summary",
@@ -1775,7 +1907,13 @@ impl DocumentLoader {
                                         "created_at": chrono::Utc::now().to_rfc3339(),
                                         "file_extension": file_path.split('.').last().unwrap_or("unknown"),
                                     }),
-                                }),
+                                };
+                            payload.normalize();
+                            
+                            let summary_vector = Vector {
+                                id: format!("summary_file_{}", uuid::Uuid::new_v4()),
+                                data: summary_embedding,
+                                payload: Some(payload),
                             };
                             file_summary_vectors.push(summary_vector);
                         }
@@ -1813,10 +1951,8 @@ impl DocumentLoader {
                 if let Ok(cs) = chunk_summary_result {
                     match self.embedding_manager.embed(&cs.summary) {
                         Ok(embedding) => {
-                            let vector = Vector {
-                                id: format!("summary_chunk_{}_{}", uuid::Uuid::new_v4(), chunk.chunk_index),
-                                data: embedding,
-                                payload: Some(Payload { data: serde_json::json!({
+                            let mut payload = Payload { 
+                                data: serde_json::json!({
                                     "content": cs.summary,
                                     "source_file": file_path,
                                     "original_collection": self.config.collection_name,
@@ -1829,7 +1965,14 @@ impl DocumentLoader {
                                     "summary_length": cs.summary_length,
                                     "created_at": chrono::Utc::now().to_rfc3339(),
                                     "file_extension": file_path.split('.').last().unwrap_or("unknown"),
-                                })}),
+                                })
+                            };
+                            payload.normalize();
+                            
+                            let vector = Vector {
+                                id: format!("summary_chunk_{}_{}", uuid::Uuid::new_v4(), chunk.chunk_index),
+                                data: embedding,
+                                payload: Some(payload),
                             };
                             chunk_summary_vectors.push(vector);
                         }

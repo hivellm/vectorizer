@@ -376,6 +376,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
 
         let metadata = EnhancedCollectionMetadata::new_workspace(
@@ -400,6 +401,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
 
         let metadata = EnhancedCollectionMetadata::new_dynamic(
@@ -424,6 +426,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
+            normalization: None,
         };
 
         let mut metadata = EnhancedCollectionMetadata::new_dynamic(

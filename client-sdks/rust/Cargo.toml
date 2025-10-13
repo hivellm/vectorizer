@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-rust-sdk"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "SDK Rust para Hive Vectorizer"
@@ -21,11 +21,15 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 # HTTP client
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
+# Async trait for transport abstraction
+async-trait = "0.1"
+
+# UMICP protocol support
+umicp-core = { version = "0.1", optional = true }
+
 [dev-dependencies]
 tokio-test = "0.4"
-tempfile = "3.8"
-mockito = "1.0"
-wiremock = "0.6"
 
 [features]
 default = []
+umicp = ["umicp-core"]

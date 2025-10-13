@@ -3,7 +3,6 @@
 use std::sync::Arc;
 use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
 use serde_json::json;
-use tracing::info;
 use crate::{VectorStore, embedding::EmbeddingManager};
 use crate::intelligent_search::mcp_tools::*;
 use crate::discovery::{Discovery, DiscoveryConfig, filter_collections, expand_queries_baseline, ExpansionConfig, CollectionRef};
@@ -13,9 +12,8 @@ use super::file_operations_handlers::*;
 
 /// Helper function to create an embedding manager for a specific collection
 fn create_embedding_manager_for_collection(embedding_type: &str, dimension: usize) -> Result<EmbeddingManager, String> {
-    info!("🔧 Creating embedding manager for collection - type: {}, dimension: {}", embedding_type, dimension);
     let mut manager = EmbeddingManager::new();
-
+    
     match embedding_type {
         "bm25" => {
             let bm25 = crate::embedding::Bm25Embedding::new(dimension);
@@ -208,6 +206,7 @@ async fn handle_create_collection(
             threshold_bytes: 1024,
             algorithm: crate::models::CompressionAlgorithm::Lz4,
         },
+        normalization: None,
     };
     
     store.create_collection(name, config)
@@ -236,11 +235,41 @@ async fn handle_get_collection_info(
     let collection = store.get_collection(name)
         .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
     
+    let metadata = collection.metadata();
+    let config = collection.config();
+    
+    // Build normalization info
+    let normalization_info = if let Some(norm_config) = &config.normalization {
+        json!({
+            "enabled": norm_config.enabled,
+            "level": format!("{:?}", norm_config.policy.level),
+            "preserve_case": norm_config.policy.preserve_case,
+            "collapse_whitespace": norm_config.policy.collapse_whitespace,
+            "cache_enabled": norm_config.cache_enabled,
+            "cache_size_mb": norm_config.hot_cache_size / (1024 * 1024),
+            "normalize_queries": norm_config.normalize_queries,
+            "store_raw_text": norm_config.store_raw_text,
+        })
+    } else {
+        json!({
+            "enabled": false,
+            "message": "Text normalization is disabled for this collection"
+        })
+    };
+    
     let response = json!({
         "name": name,
         "vector_count": collection.vector_count(),
-        "dimension": collection.config().dimension,
-        "metric": format!("{:?}", collection.config().metric)
+        "document_count": metadata.document_count,
+        "dimension": config.dimension,
+        "metric": format!("{:?}", config.metric),
+        "quantization": {
+            "type": format!("{:?}", config.quantization),
+            "enabled": !matches!(config.quantization, crate::models::QuantizationConfig::None)
+        },
+        "normalization": normalization_info,
+        "created_at": metadata.created_at.to_rfc3339(),
+        "updated_at": metadata.updated_at.to_rfc3339(),
     });
     Ok(CallToolResult::success(vec![Content::text(response.to_string())]))
 }
@@ -681,11 +710,9 @@ async fn handle_intelligent_search(
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
-    info!("🔍 [MCP_INTELLIGENT_SEARCH] Starting intelligent search request");
-
     let args = request.arguments.as_ref()
         .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
+    
     let query = args.get("query")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;

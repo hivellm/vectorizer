@@ -25,8 +25,8 @@ class TestBasicFunctionality(unittest.TestCase):
     """Testes básicos de funcionalidade."""
     
     def test_vector_creation_and_validation(self):
-        """Teste criação e validação de Vector."""
-        # Teste criação válida
+        """Test criação e validação de Vector."""
+        # Test criação válida
         vector = Vector(
             id="test_vector",
             data=[0.1, 0.2, 0.3, 0.4, 0.5],
@@ -37,21 +37,21 @@ class TestBasicFunctionality(unittest.TestCase):
         self.assertEqual(len(vector.data), 5)
         self.assertEqual(vector.metadata["text"], "test content")
         
-        # Teste validação de ID vazio
+        # Test validação de ID vazio
         with self.assertRaises(ValueError):
             Vector(id="", data=[0.1, 0.2, 0.3])
         
-        # Teste validação de data vazia
+        # Test validação de data vazia
         with self.assertRaises(ValueError):
             Vector(id="test", data=[])
         
-        # Teste validação de data inválida
+        # Test validação de data inválida
         with self.assertRaises(ValueError):
             Vector(id="test", data=["invalid", "data"])
     
     def test_collection_creation_and_validation(self):
-        """Teste criação e validação de Collection."""
-        # Teste criação válida
+        """Test criação e validação de Collection."""
+        # Test criação válida
         collection = Collection(
             name="test_collection",
             dimension=512,
@@ -63,20 +63,20 @@ class TestBasicFunctionality(unittest.TestCase):
         self.assertEqual(collection.dimension, 512)
         self.assertEqual(collection.similarity_metric, "cosine")
         
-        # Teste validação de nome vazio
+        # Test validação de nome vazio
         with self.assertRaises(ValueError):
             Collection(name="", dimension=512)
         
-        # Teste validação de dimensão negativa
+        # Test validação de dimensão negativa
         with self.assertRaises(ValueError):
             Collection(name="test", dimension=-1)
         
-        # Teste validação de métrica inválida
+        # Test validação de métrica inválida
         with self.assertRaises(ValueError):
             Collection(name="test", dimension=512, similarity_metric="invalid")
     
     def test_collection_info_creation(self):
-        """Teste criação de CollectionInfo."""
+        """Test criação de CollectionInfo."""
         info = CollectionInfo(
             name="test_collection",
             dimension=512,
@@ -92,7 +92,7 @@ class TestBasicFunctionality(unittest.TestCase):
         self.assertEqual(info.status, "ready")
     
     def test_search_result_creation(self):
-        """Teste criação de SearchResult."""
+        """Test criação de SearchResult."""
         result = SearchResult(
             id="doc1",
             score=0.95,
@@ -104,11 +104,11 @@ class TestBasicFunctionality(unittest.TestCase):
         self.assertEqual(result.score, 0.95)
         self.assertEqual(result.content, "test content")
         
-        # Teste validação de ID vazio
+        # Test validação de ID vazio
         with self.assertRaises(ValueError):
             SearchResult(id="", score=0.95)
         
-        # Teste validação de score inválido
+        # Test validação de score inválido
         with self.assertRaises(ValueError):
             SearchResult(id="test", score="invalid")
 
@@ -117,7 +117,7 @@ class TestExceptions(unittest.TestCase):
     """Testes para exceções customizadas."""
     
     def test_vectorizer_error_basic(self):
-        """Teste VectorizerError básico."""
+        """Test VectorizerError básico."""
         error = VectorizerError("Test error message")
         
         self.assertEqual(error.message, "Test error message")
@@ -126,7 +126,7 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(str(error), "Test error message")
     
     def test_vectorizer_error_with_code(self):
-        """Teste VectorizerError com código de erro."""
+        """Test VectorizerError com código de erro."""
         error = VectorizerError("Test error", "TEST_CODE")
         
         self.assertEqual(error.message, "Test error")
@@ -134,7 +134,7 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(str(error), "[TEST_CODE] Test error")
     
     def test_vectorizer_error_with_details(self):
-        """Teste VectorizerError com detalhes."""
+        """Test VectorizerError com detalhes."""
         error = VectorizerError("Test error", "TEST_CODE", {"detail": "test"})
         
         self.assertEqual(error.message, "Test error")
@@ -142,28 +142,28 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(error.details, {"detail": "test"})
     
     def test_specific_exceptions(self):
-        """Teste exceções específicas."""
-        # Teste ValidationError
+        """Test exceções específicas."""
+        # Test ValidationError
         error = ValidationError("Invalid input")
         self.assertEqual(error.error_code, "VALIDATION_ERROR")
         self.assertEqual(str(error), "[VALIDATION_ERROR] Invalid input")
         
-        # Teste CollectionNotFoundError
+        # Test CollectionNotFoundError
         error = CollectionNotFoundError("Collection not found")
         self.assertEqual(error.error_code, "COLLECTION_NOT_FOUND")
         self.assertEqual(str(error), "[COLLECTION_NOT_FOUND] Collection 'Collection not found' not found")
         
-        # Teste NetworkError
+        # Test NetworkError
         error = NetworkError("Network issue")
         self.assertEqual(error.error_code, "NETWORK_ERROR")
         self.assertEqual(str(error), "[NETWORK_ERROR] Network issue")
         
-        # Teste ServerError
+        # Test ServerError
         error = ServerError("Server issue")
         self.assertEqual(error.error_code, "SERVER_ERROR")
         self.assertEqual(str(error), "[SERVER_ERROR] Server issue")
         
-        # Teste AuthenticationError
+        # Test AuthenticationError
         error = AuthenticationError("Auth failed")
         self.assertEqual(error.error_code, "AUTH_ERROR")
         self.assertEqual(str(error), "[AUTH_ERROR] Auth failed")
@@ -173,7 +173,7 @@ class TestClientInitialization(unittest.TestCase):
     """Testes para inicialização do cliente."""
     
     def test_client_default_initialization(self):
-        """Teste inicialização padrão do cliente."""
+        """Test inicialização padrão do cliente."""
         client = VectorizerClient()
         
         self.assertEqual(client.base_url, "http://localhost:15002")
@@ -182,7 +182,7 @@ class TestClientInitialization(unittest.TestCase):
         self.assertEqual(client.max_retries, 3)
     
     def test_client_custom_initialization(self):
-        """Teste inicialização customizada do cliente."""
+        """Test inicialização customizada do cliente."""
         client = VectorizerClient(
             base_url="https://api.example.com",
             api_key="custom-key",
@@ -196,7 +196,7 @@ class TestClientInitialization(unittest.TestCase):
         self.assertEqual(client.max_retries, 5)
     
     def test_client_with_api_key(self):
-        """Teste inicialização com API key."""
+        """Test inicialização com API key."""
         client = VectorizerClient(api_key="test-api-key")
         
         self.assertEqual(client.api_key, "test-api-key")
@@ -207,35 +207,35 @@ class TestDataValidation(unittest.TestCase):
     """Testes para validação de dados."""
     
     def test_vector_data_types(self):
-        """Teste tipos de dados em Vector."""
-        # Teste com números inteiros
+        """Test tipos de dados em Vector."""
+        # Test com números inteiros
         vector_int = Vector(id="test1", data=[1, 2, 3])
         self.assertEqual(vector_int.data, [1, 2, 3])
         
-        # Teste com números float
+        # Test com números float
         vector_float = Vector(id="test2", data=[1.1, 2.2, 3.3])
         self.assertEqual(vector_float.data, [1.1, 2.2, 3.3])
         
-        # Teste com mistura de int e float
+        # Test com mistura de int e float
         vector_mixed = Vector(id="test3", data=[1, 2.5, 3])
         self.assertEqual(vector_mixed.data, [1, 2.5, 3])
     
     def test_collection_dimensions(self):
-        """Teste diferentes dimensões de coleção."""
-        # Teste dimensão pequena
+        """Test diferentes dimensões de coleção."""
+        # Test dimensão pequena
         collection_small = Collection(name="small", dimension=128)
         self.assertEqual(collection_small.dimension, 128)
         
-        # Teste dimensão média
+        # Test dimensão média
         collection_medium = Collection(name="medium", dimension=512)
         self.assertEqual(collection_medium.dimension, 512)
         
-        # Teste dimensão grande
+        # Test dimensão grande
         collection_large = Collection(name="large", dimension=1024)
         self.assertEqual(collection_large.dimension, 1024)
     
     def test_similarity_metrics(self):
-        """Teste diferentes métricas de similaridade."""
+        """Test diferentes métricas de similaridade."""
         metrics = ["cosine", "euclidean", "dot_product"]
         
         for metric in metrics:
@@ -247,7 +247,7 @@ class TestDataValidation(unittest.TestCase):
                 )
                 self.assertEqual(collection.similarity_metric, metric)
         
-        # Teste métrica inválida
+        # Test métrica inválida
         with self.assertRaises(ValueError):
             Collection(name="test", dimension=512, similarity_metric="invalid")
 
@@ -256,7 +256,7 @@ class TestEdgeCases(unittest.TestCase):
     """Testes para casos extremos."""
     
     def test_empty_metadata(self):
-        """Teste com metadata vazia."""
+        """Test com metadata vazia."""
         vector = Vector(id="test", data=[0.1, 0.2, 0.3], metadata={})
         self.assertEqual(vector.metadata, {})
         
@@ -264,13 +264,13 @@ class TestEdgeCases(unittest.TestCase):
         self.assertIsNone(vector_none.metadata)
     
     def test_large_vector(self):
-        """Teste com vetor grande."""
+        """Test com vetor grande."""
         large_data = [0.1] * 1000  # 1000 dimensões
         vector = Vector(id="large_vector", data=large_data)
         self.assertEqual(len(vector.data), 1000)
     
     def test_unicode_strings(self):
-        """Teste com strings Unicode."""
+        """Test com strings Unicode."""
         vector = Vector(
             id="unicode_test",
             data=[0.1, 0.2, 0.3],
@@ -280,7 +280,7 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(vector.metadata["emoji"], "🚀")
     
     def test_numeric_string_ids(self):
-        """Teste com IDs numéricos como string."""
+        """Test com IDs numéricos como string."""
         vector = Vector(id="123", data=[0.1, 0.2, 0.3])
         self.assertEqual(vector.id, "123")
         
@@ -289,14 +289,14 @@ class TestEdgeCases(unittest.TestCase):
 
 
 def run_simple_tests():
-    """Executa os testes simples."""
-    print("Executando testes simples do SDK Python")
+    """Run simple Python SDK tests."""
+    print("Running simple Python SDK tests")
     print("=" * 50)
     
-    # Criar suite de testes
+    # Create test suite
     test_suite = unittest.TestSuite()
     
-    # Adicionar testes
+    # Add tests
     test_classes = [
         TestBasicFunctionality,
         TestExceptions,
@@ -309,7 +309,7 @@ def run_simple_tests():
         tests = unittest.TestLoader().loadTestsFromTestCase(test_class)
         test_suite.addTests(tests)
     
-    # Executar testes
+    # Run tests
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(test_suite)
     
@@ -321,10 +321,10 @@ if __name__ == "__main__":
     
     print("=" * 50)
     if success:
-        print("TODOS OS TESTES SIMPLES PASSARAM!")
-        print("Funcionalidades básicas estão funcionando!")
+        print("ALL SIMPLE TESTS PASSED!")
+        print("Basic functionality is working!")
     else:
-        print("ALGUNS TESTES SIMPLES FALHARAM!")
-        print("Verifique os erros acima.")
+        print("SOME SIMPLE TESTS FAILED!")
+        print("Check the errors above.")
     
     print("=" * 50)

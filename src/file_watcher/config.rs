@@ -45,6 +45,15 @@ pub struct FileWatcherConfig {
     
     /// Log level for file watcher operations
     pub log_level: String,
+    
+    /// Enable auto-discovery of files
+    pub auto_discovery: bool,
+    
+    /// Enable auto-update of collections
+    pub enable_auto_update: bool,
+    
+    /// Enable hot reload
+    pub hot_reload: bool,
 }
 
 impl Default for FileWatcherConfig {
@@ -63,6 +72,8 @@ impl Default for FileWatcherConfig {
                 "*.yml".to_string(),
             ],
             exclude_patterns: vec![
+                "**/data/**".to_string(),              // CRITICAL: Never watch vectorizer data directory
+                "**/*.bin".to_string(),                // CRITICAL: Never watch binary files (causes memory issues)
                 "**/target/**".to_string(),
                 "**/node_modules/**".to_string(),
                 "**/.git/**".to_string(),
@@ -78,6 +89,9 @@ impl Default for FileWatcherConfig {
                 "**/Cargo.lock".to_string(),
                 "**/.DS_Store".to_string(),
                 "**/Thumbs.db".to_string(),
+                "**/*_metadata.json".to_string(),      // Vectorizer metadata files
+                "**/*_tokenizer.json".to_string(),     // Tokenizer files
+                "**/.fingerprint/**".to_string(),      // Build fingerprints
             ],
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB
@@ -89,6 +103,9 @@ impl Default for FileWatcherConfig {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "info".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         }
     }
 }
@@ -159,6 +176,41 @@ impl FileWatcherConfig {
 
     /// Check if a file should be processed based on patterns
     pub fn should_process_file(&self, file_path: &std::path::Path) -> bool {
+        let file_path_str = file_path.to_string_lossy();
+
+        // Check exclude patterns first
+        for pattern in &self.exclude_patterns {
+            if glob::Pattern::new(pattern)
+                .map(|p| p.matches(&file_path_str))
+                .unwrap_or(false)
+            {
+                tracing::info!("🚫 File excluded by pattern '{}': {:?}", pattern, file_path);
+                return false;
+            }
+        }
+
+        // Check include patterns
+        if self.include_patterns.is_empty() {
+            tracing::debug!("No include patterns, allowing file: {:?}", file_path);
+            return true; // No include patterns means include all
+        }
+
+        for pattern in &self.include_patterns {
+            if glob::Pattern::new(pattern)
+                .map(|p| p.matches(&file_path_str))
+                .unwrap_or(false)
+            {
+                tracing::info!("✅ File included by pattern '{}': {:?}", pattern, file_path);
+                return true;
+            }
+        }
+
+        tracing::info!("❌ File doesn't match any include patterns: {:?}", file_path);
+        false
+    }
+
+    /// Check if a file should be processed based on patterns (silent version - no logging)
+    pub fn should_process_file_silent(&self, file_path: &std::path::Path) -> bool {
         let file_path_str = file_path.to_string_lossy();
 
         // Check exclude patterns first

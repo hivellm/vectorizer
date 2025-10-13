@@ -259,19 +259,38 @@ pub async fn list_vectors(
 }
 
 pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Value> {
-    let collections = state.store.list_collections();
+    let mut collections = state.store.list_collections();
+    
+    // Sort alphabetically for consistent dashboard display
+    collections.sort();
     
     let collection_infos: Vec<Value> = collections.iter().map(|name| {
         match state.store.get_collection(name) {
             Ok(collection) => {
+                let metadata = collection.metadata();
                 let config = collection.config();
                 let (index_size, payload_size, total_size) = collection.get_size_info();
                 let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
                 
+                // Build normalization info
+                let normalization_enabled = config.normalization
+                    .as_ref()
+                    .map(|n| n.enabled)
+                    .unwrap_or(false);
+                
+                let normalization_level = if normalization_enabled {
+                    config.normalization
+                        .as_ref()
+                        .map(|n| format!("{:?}", n.policy.level))
+                        .unwrap_or_else(|| "None".to_string())
+                } else {
+                    "Disabled".to_string()
+                };
+                
                 json!({
                     "name": name,
                     "vector_count": collection.vector_count(),
-                    "document_count": collection.vector_count(), // Same as vector count for now
+                    "document_count": metadata.document_count,
                     "dimension": config.dimension,
                     "metric": format!("{:?}", config.metric),
                     "embedding_provider": "bm25",
@@ -288,7 +307,11 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
                         "type": format!("{:?}", config.quantization),
                         "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
                     },
-                    "created_at": chrono::Utc::now().to_rfc3339(),
+                    "normalization": {
+                        "enabled": normalization_enabled,
+                        "level": normalization_level
+                    },
+                    "created_at": metadata.created_at.to_rfc3339(),
                     "updated_at": chrono::Utc::now().to_rfc3339(),
                     "indexing_status": {
                         "status": "completed",
@@ -365,6 +388,7 @@ pub async fn create_collection(
         hnsw_config: crate::models::HnswConfig::default(),
         quantization: crate::models::QuantizationConfig::None,
         compression: crate::models::CompressionConfig::default(),
+        normalization: None,
     };
 
     // Actually create the collection in the store
@@ -391,15 +415,39 @@ pub async fn get_collection(
 ) -> Result<Json<Value>, StatusCode> {
     match state.store.get_collection(&name) {
         Ok(collection) => {
+            let metadata = collection.metadata();
             let config = collection.config();
             let (index_size, payload_size, total_size) = collection.get_size_info();
             let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
             
+            // Build normalization info
+            let normalization_info = if let Some(norm_config) = &config.normalization {
+                json!({
+                    "enabled": norm_config.enabled,
+                    "level": format!("{:?}", norm_config.policy.level),
+                    "preserve_case": norm_config.policy.preserve_case,
+                    "collapse_whitespace": norm_config.policy.collapse_whitespace,
+                    "remove_html": norm_config.policy.remove_html,
+                    "cache_enabled": norm_config.cache_enabled,
+                    "cache_size_mb": norm_config.hot_cache_size / (1024 * 1024),
+                    "normalize_queries": norm_config.normalize_queries,
+                    "store_raw_text": norm_config.store_raw_text,
+                })
+            } else {
+                json!({
+                    "enabled": false,
+                    "message": "Text normalization is disabled for this collection"
+                })
+            };
+            
             Ok(Json(json!({
                 "name": name,
                 "vector_count": collection.vector_count(),
+                "document_count": metadata.document_count,
                 "dimension": config.dimension,
                 "metric": format!("{:?}", config.metric),
+                "created_at": metadata.created_at.to_rfc3339(),
+                "updated_at": metadata.updated_at.to_rfc3339(),
                 "size": {
                     "total": total_size,
                     "total_bytes": total_bytes,
@@ -413,6 +461,7 @@ pub async fn get_collection(
                     "type": format!("{:?}", config.quantization),
                     "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
                 },
+                "normalization": normalization_info,
                 "status": "ready"
             })))
         },

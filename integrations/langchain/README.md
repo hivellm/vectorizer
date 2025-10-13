@@ -1,4 +1,4 @@
-# LangChain Integration for Vectorizer v0.3.1
+# LangChain Integration for Vectorizer v0.3.4
 
 This integration provides a complete implementation of LangChain's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
 
@@ -9,6 +9,23 @@ This integration provides a complete implementation of LangChain's VectorStore i
 - ✅ **Semantic Search**: Advanced reranking and similarity thresholds
 - ✅ **Contextual Search**: Context-aware search with metadata filtering
 - ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
+- ✅ **File Operations** (v0.3.4+): Complete file-level operations for indexed documents
+  - `get_file_content` - Retrieve complete files with metadata
+  - `list_files_in_collection` - Advanced file listing and filtering
+  - `get_file_summary` - Extractive and structural summaries
+  - `get_project_outline` - Hierarchical project visualization
+  - `get_related_files` - Semantic file similarity search
+  - `search_by_file_type` - File type-specific search
+- ✅ **Discovery System** (v0.3.4+): Advanced discovery pipeline
+  - `discover` - Complete 9-stage discovery pipeline
+  - `filter_collections` - Pre-filter collections by patterns
+  - `score_collections` - Rank collections by relevance
+  - `expand_queries` - Generate query variations
+  - `broad_discovery` - Multi-query broad search with MMR
+  - `semantic_focus` - Deep semantic search with reranking
+  - `compress_evidence` - Extract key sentences with citations
+  - `build_answer_plan` - Organize into structured sections
+  - `render_llm_prompt` - Generate LLM-ready prompts
 - ✅ **Batch Operations**: Support for efficient batch operations
 - ✅ **Metadata Filtering**: Search with metadata filters
 - ✅ **Flexible Configuration**: Customizable configuration for different environments

@@ -1,77 +1,163 @@
-//! Simplified client for Vectorizer
+//! Vectorizer client with transport abstraction
 
 use crate::error::{VectorizerError, Result};
 use crate::models::*;
-use reqwest::{Client, ClientBuilder, header::{HeaderMap, HeaderValue, CONTENT_TYPE}};
-use serde_json;
+use crate::transport::{Transport, Protocol};
+use crate::http_transport::HttpTransport;
 
-/// Simplified client for Vectorizer
+#[cfg(feature = "umicp")]
+use crate::umicp_transport::UmicpTransport;
+
+use serde_json;
+use std::sync::Arc;
+
+/// Configuration for VectorizerClient
+pub struct ClientConfig {
+    /// Base URL for HTTP transport
+    pub base_url: Option<String>,
+    /// Connection string (supports http://, https://, umicp://)
+    pub connection_string: Option<String>,
+    /// Protocol to use
+    pub protocol: Option<Protocol>,
+    /// API key for authentication
+    pub api_key: Option<String>,
+    /// Request timeout in seconds
+    pub timeout_secs: Option<u64>,
+    /// UMICP configuration
+    #[cfg(feature = "umicp")]
+    pub umicp: Option<UmicpConfig>,
+}
+
+#[cfg(feature = "umicp")]
+/// UMICP-specific configuration
+pub struct UmicpConfig {
+    pub host: String,
+    pub port: u16,
+}
+
+impl Default for ClientConfig {
+    fn default() -> Self {
+        Self {
+            base_url: Some("http://localhost:15002".to_string()),
+            connection_string: None,
+            protocol: None,
+            api_key: None,
+            timeout_secs: Some(30),
+            #[cfg(feature = "umicp")]
+            umicp: None,
+        }
+    }
+}
+
+/// Vectorizer client
 pub struct VectorizerClient {
-    http_client: Client,
+    transport: Arc<dyn Transport>,
+    protocol: Protocol,
     base_url: String,
-    api_key: Option<String>,
 }
 
 impl VectorizerClient {
-    /// Get the base URL
+    /// Get the base URL (for HTTP transport)
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
 
-    /// Create a new client
+    /// Create a new client with configuration
+    pub fn new(config: ClientConfig) -> Result<Self> {
+        let timeout_secs = config.timeout_secs.unwrap_or(30);
+
+        // Determine protocol and create transport
+        let (transport, protocol, base_url): (Arc<dyn Transport>, Protocol, String) = if let Some(conn_str) = config.connection_string {
+            // Use connection string
+            let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
+            
+            match proto {
+                Protocol::Http => {
+                    let transport = HttpTransport::new(&host, config.api_key.as_deref(), timeout_secs)?;
+                    (Arc::new(transport), Protocol::Http, host.clone())
+                },
+                #[cfg(feature = "umicp")]
+                Protocol::Umicp => {
+                    let port = port.unwrap_or(15003);
+                    let transport = UmicpTransport::new(&host, port, config.api_key.as_deref(), timeout_secs)?;
+                    let base_url = format!("umicp://{}:{}", host, port);
+                    (Arc::new(transport), Protocol::Umicp, base_url)
+                },
+            }
+        } else {
+            // Use explicit configuration
+            let proto = config.protocol.unwrap_or(Protocol::Http);
+            
+            match proto {
+                Protocol::Http => {
+                    let base_url = config.base_url.unwrap_or_else(|| "http://localhost:15002".to_string());
+                    let transport = HttpTransport::new(&base_url, config.api_key.as_deref(), timeout_secs)?;
+                    (Arc::new(transport), Protocol::Http, base_url.clone())
+                },
+                #[cfg(feature = "umicp")]
+                Protocol::Umicp => {
+                    #[cfg(feature = "umicp")]
+                    {
+                        let umicp_config = config.umicp.ok_or_else(|| {
+                            VectorizerError::configuration("UMICP configuration is required when using UMICP protocol")
+                        })?;
+                        
+                        let transport = UmicpTransport::new(
+                            &umicp_config.host,
+                            umicp_config.port,
+                            config.api_key.as_deref(),
+                            timeout_secs,
+                        )?;
+                        let base_url = format!("umicp://{}:{}", umicp_config.host, umicp_config.port);
+                        (Arc::new(transport), Protocol::Umicp, base_url)
+                    }
+                    #[cfg(not(feature = "umicp"))]
+                    {
+                        return Err(VectorizerError::configuration(
+                            "UMICP feature is not enabled. Enable it with --features umicp"
+                        ));
+                    }
+                },
+            }
+        };
+
+        Ok(Self { transport, protocol, base_url })
+    }
+
+    /// Create a new client with default configuration
     pub fn new_default() -> Result<Self> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-        let client = ClientBuilder::new()
-            .timeout(std::time::Duration::from_secs(30))
-            .default_headers(headers)
-            .build()
-            .map_err(|e| VectorizerError::configuration(format!("Failed to create HTTP client: {}", e)))?;
-
-        Ok(Self {
-            http_client: client,
-            base_url: "http://localhost:15002".to_string(),
-            api_key: None,
-        })
+        Self::new(ClientConfig::default())
     }
 
     /// Create client with custom URL
     pub fn new_with_url(base_url: &str) -> Result<Self> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-        let client = ClientBuilder::new()
-            .timeout(std::time::Duration::from_secs(30))
-            .default_headers(headers)
-            .build()
-            .map_err(|e| VectorizerError::configuration(format!("Failed to create HTTP client: {}", e)))?;
-
-        Ok(Self {
-            http_client: client,
-            base_url: base_url.to_string(),
-            api_key: None,
+        Self::new(ClientConfig {
+            base_url: Some(base_url.to_string()),
+            ..Default::default()
         })
     }
 
     /// Create client with API key
     pub fn new_with_api_key(base_url: &str, api_key: &str) -> Result<Self> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        headers.insert("Authorization", HeaderValue::from_str(&format!("Bearer {}", api_key))
-            .map_err(|e| VectorizerError::configuration(format!("Invalid API key: {}", e)))?);
-
-        let client = ClientBuilder::new()
-            .timeout(std::time::Duration::from_secs(30))
-            .default_headers(headers)
-            .build()
-            .map_err(|e| VectorizerError::configuration(format!("Failed to create HTTP client: {}", e)))?;
-
-        Ok(Self {
-            http_client: client,
-            base_url: base_url.to_string(),
+        Self::new(ClientConfig {
+            base_url: Some(base_url.to_string()),
             api_key: Some(api_key.to_string()),
+            ..Default::default()
         })
+    }
+
+    /// Create client from connection string
+    pub fn from_connection_string(connection_string: &str, api_key: Option<&str>) -> Result<Self> {
+        Self::new(ClientConfig {
+            connection_string: Some(connection_string.to_string()),
+            api_key: api_key.map(|s| s.to_string()),
+            ..Default::default()
+        })
+    }
+
+    /// Get the current protocol being used
+    pub fn protocol(&self) -> Protocol {
+        self.protocol
     }
 
     /// Health check
@@ -596,37 +682,12 @@ impl VectorizerClient {
         endpoint: &str,
         payload: Option<serde_json::Value>,
     ) -> Result<String> {
-        let url = format!("{}{}", self.base_url, endpoint);
-
-        let mut request = match method {
-            "GET" => self.http_client.get(&url),
-            "POST" => self.http_client.post(&url),
-            "PUT" => self.http_client.put(&url),
-            "DELETE" => self.http_client.delete(&url),
-            _ => return Err(VectorizerError::configuration(format!("Unsupported HTTP method: {}", method))),
-        };
-
-        if let Some(payload) = payload {
-            request = request.json(&payload);
+        match method {
+            "GET" => self.transport.get(endpoint).await,
+            "POST" => self.transport.post(endpoint, payload.as_ref()).await,
+            "PUT" => self.transport.put(endpoint, payload.as_ref()).await,
+            "DELETE" => self.transport.delete(endpoint).await,
+            _ => Err(VectorizerError::configuration(format!("Unsupported method: {}", method))),
         }
-
-        let response = request
-            .send()
-            .await
-            .map_err(|e| VectorizerError::network(format!("Request failed: {}", e)))?;
-
-        let status = response.status();
-
-        if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(VectorizerError::server(format!("HTTP {}: {}", status.as_u16(), error_text)));
-        }
-
-        let response_text = response
-            .text()
-            .await
-            .map_err(|e| VectorizerError::network(format!("Failed to read response: {}", e)))?;
-
-        Ok(response_text)
     }
 }

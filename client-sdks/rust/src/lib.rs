@@ -7,11 +7,25 @@ pub mod client;
 pub mod error;
 pub mod models;
 pub mod utils;
+pub mod transport;
+pub mod http_transport;
+
+#[cfg(feature = "umicp")]
+pub mod umicp_transport;
 
 // Re-export main types for convenience
-pub use client::VectorizerClient;
+pub use client::{VectorizerClient, ClientConfig};
+
+#[cfg(feature = "umicp")]
+pub use client::UmicpConfig;
+
 pub use error::{VectorizerError, Result};
 pub use models::*;
+pub use transport::{Transport, Protocol, parse_connection_string};
+pub use http_transport::HttpTransport;
+
+#[cfg(feature = "umicp")]
+pub use umicp_transport::UmicpTransport;
 
 /// SDK version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

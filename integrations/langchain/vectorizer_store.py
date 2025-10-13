@@ -270,6 +270,432 @@ class VectorizerClient:
         
         response = self._make_request("POST", "/multi_collection_search", json=data)
         return response.get("results", [])
+    
+    # ===== FILE OPERATIONS METHODS (v0.3.4+) =====
+    
+    def get_file_content(
+        self,
+        collection: str,
+        file_path: str,
+        max_size_kb: int = 500
+    ) -> Dict[str, Any]:
+        """
+        Retrieve complete file content from a collection.
+        
+        Args:
+            collection: Collection name
+            file_path: Relative file path within collection
+            max_size_kb: Maximum file size in KB (default: 500, max: 5000)
+            
+        Returns:
+            Dictionary with file content, metadata, and chunking info
+        """
+        data = {
+            "collection": collection,
+            "file_path": file_path,
+            "max_size_kb": max_size_kb
+        }
+        
+        response = self._make_request("POST", "/get_file_content", json=data)
+        return response
+    
+    def list_files_in_collection(
+        self,
+        collection: str,
+        filter_by_type: Optional[List[str]] = None,
+        min_chunks: Optional[int] = None,
+        sort_by: str = "name",
+        max_results: int = 100
+    ) -> Dict[str, Any]:
+        """
+        List all indexed files in a collection with metadata.
+        
+        Args:
+            collection: Collection name
+            filter_by_type: Filter by file types (e.g., ['rs', 'md', 'py'])
+            min_chunks: Minimum number of chunks (filters out small files)
+            sort_by: Sort order ('name', 'size', 'chunks', 'recent')
+            max_results: Maximum number of results (default: 100)
+            
+        Returns:
+            Dictionary with files list and statistics
+        """
+        data = {
+            "collection": collection,
+            "sort_by": sort_by,
+            "max_results": max_results
+        }
+        
+        if filter_by_type:
+            data["filter_by_type"] = filter_by_type
+        if min_chunks:
+            data["min_chunks"] = min_chunks
+        
+        response = self._make_request("POST", "/list_files_in_collection", json=data)
+        return response
+    
+    def get_file_summary(
+        self,
+        collection: str,
+        file_path: str,
+        summary_type: str = "both",
+        max_sentences: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Get extractive or structural summary of an indexed file.
+        
+        Args:
+            collection: Collection name
+            file_path: Relative file path within collection
+            summary_type: Type of summary ('extractive', 'structural', 'both')
+            max_sentences: Maximum sentences for extractive summary (default: 5)
+            
+        Returns:
+            Dictionary with summaries and metadata
+        """
+        data = {
+            "collection": collection,
+            "file_path": file_path,
+            "summary_type": summary_type,
+            "max_sentences": max_sentences
+        }
+        
+        response = self._make_request("POST", "/get_file_summary", json=data)
+        return response
+    
+    def get_project_outline(
+        self,
+        collection: str,
+        max_depth: int = 5,
+        highlight_key_files: bool = True,
+        include_summaries: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Generate hierarchical project structure overview.
+        
+        Args:
+            collection: Collection name
+            max_depth: Maximum directory depth (default: 5)
+            highlight_key_files: Highlight important files like README
+            include_summaries: Include file summaries in outline
+            
+        Returns:
+            Dictionary with project structure tree and statistics
+        """
+        data = {
+            "collection": collection,
+            "max_depth": max_depth,
+            "highlight_key_files": highlight_key_files,
+            "include_summaries": include_summaries
+        }
+        
+        response = self._make_request("POST", "/get_project_outline", json=data)
+        return response
+    
+    def get_related_files(
+        self,
+        collection: str,
+        file_path: str,
+        limit: int = 5,
+        similarity_threshold: float = 0.6,
+        include_reason: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Find semantically related files using vector similarity.
+        
+        Args:
+            collection: Collection name
+            file_path: Reference file path
+            limit: Maximum number of related files (default: 5)
+            similarity_threshold: Minimum similarity score 0.0-1.0
+            include_reason: Include explanation of why files are related
+            
+        Returns:
+            Dictionary with related files and similarity scores
+        """
+        data = {
+            "collection": collection,
+            "file_path": file_path,
+            "limit": limit,
+            "similarity_threshold": similarity_threshold,
+            "include_reason": include_reason
+        }
+        
+        response = self._make_request("POST", "/get_related_files", json=data)
+        return response
+    
+    def search_by_file_type(
+        self,
+        collection: str,
+        query: str,
+        file_types: List[str],
+        limit: int = 10,
+        return_full_files: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Semantic search filtered by file type.
+        
+        Args:
+            collection: Collection name
+            query: Search query
+            file_types: File extensions to search (e.g., ['yaml', 'toml', 'json'])
+            limit: Maximum results (default: 10)
+            return_full_files: Return complete file content
+            
+        Returns:
+            Dictionary with search results filtered by file type
+        """
+        data = {
+            "collection": collection,
+            "query": query,
+            "file_types": file_types,
+            "limit": limit,
+            "return_full_files": return_full_files
+        }
+        
+        response = self._make_request("POST", "/search_by_file_type", json=data)
+        return response
+    
+    # ===== DISCOVERY SYSTEM METHODS (v0.3.4+) =====
+    
+    def discover(
+        self,
+        query: str,
+        include_collections: Optional[List[str]] = None,
+        exclude_collections: Optional[List[str]] = None,
+        broad_k: int = 50,
+        focus_k: int = 15,
+        max_bullets: int = 20
+    ) -> Dict[str, Any]:
+        """
+        Complete discovery pipeline with filtering, scoring, expansion, search, ranking, 
+        compression, and prompt generation.
+        
+        Args:
+            query: User question or search query
+            include_collections: Collections to include (glob patterns like 'vectorizer*')
+            exclude_collections: Collections to exclude
+            broad_k: Broad search results
+            focus_k: Focus search results per collection
+            max_bullets: Maximum evidence bullets
+            
+        Returns:
+            Dictionary with answer_prompt, bullets, chunks, and metrics
+        """
+        data = {
+            "query": query,
+            "broad_k": broad_k,
+            "focus_k": focus_k,
+            "max_bullets": max_bullets
+        }
+        
+        if include_collections:
+            data["include_collections"] = include_collections
+        if exclude_collections:
+            data["exclude_collections"] = exclude_collections
+        
+        response = self._make_request("POST", "/discover", json=data)
+        return response
+    
+    def filter_collections(
+        self,
+        query: str,
+        include: Optional[List[str]] = None,
+        exclude: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Pre-filter collections by name patterns with stopword removal from query.
+        
+        Args:
+            query: Search query for filtering
+            include: Include patterns (e.g., ['vectorizer*', '*-docs'])
+            exclude: Exclude patterns (e.g., ['*-test'])
+            
+        Returns:
+            Dictionary with filtered collections list
+        """
+        data = {"query": query}
+        
+        if include:
+            data["include"] = include
+        if exclude:
+            data["exclude"] = exclude
+        
+        response = self._make_request("POST", "/filter_collections", json=data)
+        return response
+    
+    def score_collections(
+        self,
+        query: str,
+        name_match_weight: float = 0.4,
+        term_boost_weight: float = 0.3,
+        signal_boost_weight: float = 0.3
+    ) -> Dict[str, Any]:
+        """
+        Rank collections by relevance using name match, term boost, and signal boost.
+        
+        Args:
+            query: Search query for scoring
+            name_match_weight: Weight for name matching
+            term_boost_weight: Weight for term boost
+            signal_boost_weight: Weight for signals (size, recency, tags)
+            
+        Returns:
+            Dictionary with scored collections list
+        """
+        data = {
+            "query": query,
+            "name_match_weight": name_match_weight,
+            "term_boost_weight": term_boost_weight,
+            "signal_boost_weight": signal_boost_weight
+        }
+        
+        response = self._make_request("POST", "/score_collections", json=data)
+        return response
+    
+    def expand_queries(
+        self,
+        query: str,
+        max_expansions: int = 8,
+        include_definition: bool = True,
+        include_features: bool = True,
+        include_architecture: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Generate query variations (definition, features, architecture, API, performance, use cases).
+        
+        Args:
+            query: Original query to expand
+            max_expansions: Maximum expansions
+            include_definition: Include definition queries
+            include_features: Include features queries
+            include_architecture: Include architecture queries
+            
+        Returns:
+            Dictionary with expanded queries list
+        """
+        data = {
+            "query": query,
+            "max_expansions": max_expansions,
+            "include_definition": include_definition,
+            "include_features": include_features,
+            "include_architecture": include_architecture
+        }
+        
+        response = self._make_request("POST", "/expand_queries", json=data)
+        return response
+    
+    def broad_discovery(
+        self,
+        queries: List[str],
+        k: int = 50
+    ) -> Dict[str, Any]:
+        """
+        Multi-query broad search with MMR diversification and deduplication.
+        
+        Args:
+            queries: Array of search queries
+            k: Maximum results
+            
+        Returns:
+            Dictionary with broad search chunks
+        """
+        data = {
+            "queries": queries,
+            "k": k
+        }
+        
+        response = self._make_request("POST", "/broad_discovery", json=data)
+        return response
+    
+    def semantic_focus(
+        self,
+        collection: str,
+        queries: List[str],
+        k: int = 15
+    ) -> Dict[str, Any]:
+        """
+        Deep semantic search in specific collection with reranking and context window.
+        
+        Args:
+            collection: Target collection name
+            queries: Array of search queries
+            k: Maximum results
+            
+        Returns:
+            Dictionary with focused search chunks
+        """
+        data = {
+            "collection": collection,
+            "queries": queries,
+            "k": k
+        }
+        
+        response = self._make_request("POST", "/semantic_focus", json=data)
+        return response
+    
+    def compress_evidence(
+        self,
+        chunks: List[Dict[str, Any]],
+        max_bullets: int = 20,
+        max_per_doc: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Extract key sentences (8-30 words) with citations from chunks.
+        
+        Args:
+            chunks: Array of scored chunks to compress
+            max_bullets: Max bullets to extract
+            max_per_doc: Max bullets per document
+            
+        Returns:
+            Dictionary with compressed evidence bullets
+        """
+        data = {
+            "chunks": chunks,
+            "max_bullets": max_bullets,
+            "max_per_doc": max_per_doc
+        }
+        
+        response = self._make_request("POST", "/compress_evidence", json=data)
+        return response
+    
+    def build_answer_plan(
+        self,
+        bullets: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Organize bullets into structured sections (Definition, Features, Architecture, 
+        Performance, Integrations, Use Cases).
+        
+        Args:
+            bullets: Array of evidence bullets
+            
+        Returns:
+            Dictionary with structured answer plan
+        """
+        data = {"bullets": bullets}
+        
+        response = self._make_request("POST", "/build_answer_plan", json=data)
+        return response
+    
+    def render_llm_prompt(
+        self,
+        plan: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate compact, structured prompt for LLM with instructions, evidence, and citations.
+        
+        Args:
+            plan: Answer plan with sections and bullets
+            
+        Returns:
+            Dictionary with rendered LLM prompt
+        """
+        data = {"plan": plan}
+        
+        response = self._make_request("POST", "/render_llm_prompt", json=data)
+        return response
 
 
 class VectorizerError(Exception):

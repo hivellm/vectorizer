@@ -6,7 +6,7 @@ high-level interfaces for vector operations, semantic search, and
 collection management.
 
 Author: HiveLLM Team
-Version: 0.3.2
+Version: 0.3.4
 License: MIT
 """
 
@@ -28,7 +28,7 @@ from .models import (
     CollectionInfo
 )
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 

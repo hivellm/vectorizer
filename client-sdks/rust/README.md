@@ -94,8 +94,9 @@ async fn main() -> Result<()> {
 
 ## Features
 
-- 🚀 **High Performance**: Optimized async HTTP client
+- 🚀 **High Performance**: Optimized async transport layer
 - 🔄 **Async/Await**: Full async/await support with Tokio
+- 📡 **Multiple Protocols**: HTTP/HTTPS and UMICP support
 - 🔍 **Semantic Search**: Vector similarity search with multiple metrics
 - 🧠 **Intelligent Search**: Advanced multi-query search with domain expansion
 - 🎯 **Contextual Search**: Context-aware search with metadata filtering
@@ -107,14 +108,108 @@ async fn main() -> Result<()> {
 
 ## Installation
 
+### HTTP Transport (Default)
+
 Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-vectorizer-rust-sdk = "0.1.0"
+vectorizer-rust-sdk = "0.4.0"
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```
+
+### UMICP Transport (High Performance)
+
+Enable the UMICP feature for high-performance protocol support:
+
+```toml
+[dependencies]
+vectorizer-rust-sdk = { version = "0.4.0", features = ["umicp"] }
+tokio = { version = "1.35", features = ["full"] }
+serde_json = "1.0"
+```
+
+## Configuration
+
+### HTTP Configuration (Default)
+
+```rust
+use vectorizer_rust_sdk::{VectorizerClient, ClientConfig};
+
+// Default configuration
+let client = VectorizerClient::new_default()?;
+
+// Custom URL
+let client = VectorizerClient::new_with_url("http://localhost:15002")?;
+
+// With API key
+let client = VectorizerClient::new_with_api_key("http://localhost:15002", "your-api-key")?;
+
+// Advanced configuration
+let client = VectorizerClient::new(ClientConfig {
+    base_url: Some("http://localhost:15002".to_string()),
+    api_key: Some("your-api-key".to_string()),
+    timeout_secs: Some(60),
+    ..Default::default()
+})?;
+```
+
+### UMICP Configuration (High Performance)
+
+[UMICP (Universal Messaging and Inter-process Communication Protocol)](https://crates.io/crates/umicp-core) provides significant performance benefits.
+
+#### Using Connection String
+
+```rust
+use vectorizer_rust_sdk::VectorizerClient;
+
+let client = VectorizerClient::from_connection_string(
+    "umicp://localhost:15003",
+    Some("your-api-key")
+)?;
+
+println!("Using protocol: {}", client.protocol());
+```
+
+#### Using Explicit Configuration
+
+```rust
+use vectorizer_rust_sdk::{VectorizerClient, ClientConfig, Protocol, UmicpConfig};
+
+let client = VectorizerClient::new(ClientConfig {
+    protocol: Some(Protocol::Umicp),
+    api_key: Some("your-api-key".to_string()),
+    umicp: Some(UmicpConfig {
+        host: "localhost".to_string(),
+        port: 15003,
+    }),
+    timeout_secs: Some(60),
+    ..Default::default()
+})?;
+```
+
+#### When to Use UMICP
+
+Use UMICP when:
+- **Large Payloads**: Inserting or searching large batches of vectors
+- **High Throughput**: Need maximum performance for production workloads
+- **Low Latency**: Need minimal protocol overhead
+
+Use HTTP when:
+- **Development**: Quick testing and debugging
+- **Firewall Restrictions**: Only HTTP/HTTPS allowed
+- **Simple Deployments**: No need for custom protocol setup
+
+#### Protocol Comparison
+
+| Feature | HTTP/HTTPS | UMICP |
+|---------|-----------|-------|
+| Transport | reqwest (standard HTTP) | umicp-core crate |
+| Performance | Standard | Optimized for large payloads |
+| Latency | Standard | Lower overhead |
+| Firewall | Widely supported | May require configuration |
+| Build Time | Fast | Requires UMICP feature |
 
 ## API Endpoints
 
@@ -162,10 +257,48 @@ The SDK includes comprehensive tests that verify:
 
 ## Compatibility
 
-- **Rust**: 1.75+ (tested with nightly for Rust 2024 edition)
+- **Rust**: 1.90.0+ (Rust 2024 edition)
 - **Vectorizer Server**: v0.20.0+
-- **HTTP**: REST API with JSON payloads
+- **HTTP**: REST API with JSON payloads  
+- **UMICP**: Optional feature (enable with `--features umicp`)
 - **Async Runtime**: Tokio 1.35+
+
+## Building
+
+### HTTP Only (Default)
+
+```bash
+cargo build --release
+```
+
+### With UMICP Support
+
+```bash
+cargo build --release --features umicp
+```
+
+### Run Tests
+
+```bash
+# HTTP tests only
+cargo test
+
+# UMICP tests
+cargo test --features umicp
+
+# Specific test
+cargo test --test umicp_tests --features umicp
+```
+
+### Run Examples
+
+```bash
+# HTTP example
+cargo run --example basic_example
+
+# UMICP example (requires feature)
+cargo run --example umicp_usage --features umicp
+```
 
 ## Error Handling
 

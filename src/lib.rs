@@ -21,6 +21,7 @@ pub mod gpu;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod models;
+pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
@@ -31,6 +32,7 @@ pub mod file_watcher;
 pub mod logging;
 pub mod server;
 pub mod file_operations;
+pub mod umicp;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};
@@ -68,6 +70,7 @@ mod integration_tests {
             hnsw_config: crate::models::HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
+            normalization: None,
         };
 
         store.create_collection("concurrent", config).unwrap();
@@ -166,6 +169,7 @@ mod integration_tests {
                     },
                     quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
+                    normalization: None,
                 },
             ),
             (
@@ -185,6 +189,7 @@ mod integration_tests {
                         threshold_bytes: 2048,
                         algorithm: crate::models::CompressionAlgorithm::Lz4,
                     },
+                    normalization: None,
                 },
             ),
         ];

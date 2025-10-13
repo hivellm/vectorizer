@@ -3,6 +3,7 @@
 //! Provides utilities for processing items in parallel, chunking large inputs
 //! and managing concurrent execution for batch operations.
 
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;

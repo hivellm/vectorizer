@@ -47,6 +47,9 @@ mod tests {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "info".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         };
         
         // Create file index
@@ -58,10 +61,15 @@ mod tests {
         // Create hash validator
         let hash_validator = Arc::new(HashValidator::new());
         
+        // Create mock vector store and embedding manager
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
+        
         // Create mock vector operations (without actual client)
         let vector_operations = Arc::new(VectorOperations::new(
-            Arc::new(crate::VectorStore::new_auto()),
-            Arc::new(RwLock::new(crate::embedding::EmbeddingManager::new())),
+            vector_store.clone(),
+            embedding_manager.clone(),
+            crate::file_watcher::FileWatcherConfig::default(),
         ));
         
         // Create enhanced watcher
@@ -82,7 +90,6 @@ mod tests {
         // Test adding mappings
         let file_path = PathBuf::from("test.rs");
         let collection_name = "test-collection".to_string();
-        let vector_ids = vec!["vec1".to_string(), "vec2".to_string()];
         let hash = "abc123".to_string();
         
         // Create a mutable reference for testing
@@ -90,7 +97,6 @@ mod tests {
         file_index.add_mapping(
             file_path.clone(),
             collection_name.clone(),
-            vector_ids.clone(),
             hash,
         );
         
@@ -101,8 +107,9 @@ mod tests {
         assert_eq!(collections.len(), 1);
         assert_eq!(collections[0], collection_name);
         
-        let retrieved_ids = file_index.get_vector_ids(&file_path, &collection_name).unwrap();
-        assert_eq!(retrieved_ids, vector_ids);
+        // Note: get_vector_ids method has been removed
+        // let retrieved_ids = file_index.get_vector_ids(&file_path, &collection_name).unwrap();
+        // assert_eq!(retrieved_ids, vector_ids);
         
         // Test statistics
         let stats = file_index.get_stats();
@@ -146,14 +153,12 @@ mod tests {
         file_index.add_mapping(
             PathBuf::from("test1.rs"),
             "collection1".to_string(),
-            vec!["vec1".to_string()],
             "hash1".to_string(),
         );
         
         file_index.add_mapping(
             PathBuf::from("test2.py"),
             "collection2".to_string(),
-            vec!["vec2".to_string()],
             "hash2".to_string(),
         );
         
@@ -215,7 +220,6 @@ mod tests {
         file_index.add_mapping(
             test_file.clone(),
             "test-collection".to_string(),
-            vec!["vector_1".to_string()],
             hash1.clone(),
         );
         
@@ -235,8 +239,9 @@ mod tests {
         assert_eq!(collections[0], "test-collection", "Collection name should match");
         
         // Get vector IDs
-        let vector_ids = file_index.get_vector_ids(&test_file, "test-collection").unwrap();
-        assert_eq!(vector_ids, vec!["vector_1"], "Vector IDs should match");
+        // Note: get_vector_ids method has been removed
+        // let vector_ids = file_index.get_vector_ids(&test_file, "test-collection").unwrap();
+        // assert_eq!(vector_ids, vec!["vector_1"], "Vector IDs should match");
         
         println!("✅ File index operations work correctly");
         
@@ -273,6 +278,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             quantization: QuantizationConfig::None,
             compression: Default::default(),
+            normalization: None,
         };
         
         vector_store.create_collection("test-collection", collection_config).unwrap();
@@ -317,14 +323,18 @@ mod tests {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "info".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         };
         
         let debouncer = Arc::new(Debouncer::new(config.debounce_delay_ms));
         let hash_validator = Arc::new(HashValidator::new());
         let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
         let vector_operations = Arc::new(VectorOperations::new(
-            vector_store,
-            embedding_manager,
+            vector_store.clone(),
+            embedding_manager.clone(),
+            crate::file_watcher::FileWatcherConfig::default(),
         ));
         let file_index: FileIndexArc = Arc::new(RwLock::new(FileIndex::new()));
         
@@ -402,7 +412,6 @@ mod tests {
             file_index.add_mapping(
                 file_path.clone(),
                 "test-collection ".to_string(),
-                vec![format!("vector_{} ", i)],
                 format!("hash_{} ", i),
             );
         }
@@ -514,6 +523,9 @@ mod tests {
             batch_size: 100,
             enable_monitoring: true,
             log_level: "debug ".to_string(),
+            auto_discovery: true,
+            enable_auto_update: true,
+            hot_reload: true,
         };
         
         // Create components
@@ -522,6 +534,7 @@ mod tests {
         let vector_operations = Arc::new(VectorOperations::new(
             vector_store.clone(),
             embedding_manager.clone(),
+            crate::file_watcher::FileWatcherConfig::default(),
         ));
         
         // Create enhanced watcher
@@ -539,6 +552,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             quantization: QuantizationConfig::None,
             compression: Default::default(),
+            normalization: None,
         };
         
         match vector_store.create_collection("dynamic-test-collection ", collection_config) {
@@ -575,7 +589,6 @@ mod tests {
             index.add_mapping(
                 test_file.clone(),
                 "dynamic-test-collection ".to_string(),
-                vec![vector_id.clone()],
                 content_hash.clone(),
             );
         }
@@ -635,7 +648,6 @@ mod tests {
             index.add_mapping(
                 new_file.clone(),
                 "dynamic-test-collection ".to_string(),
-                vec![new_vector_id.clone()],
                 new_file_hash,
             );
         }

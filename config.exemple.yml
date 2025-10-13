@@ -80,6 +80,45 @@ collections:
         max_connections_0: 32 # Connections for layer 0
 
 # =============================================================================
+# TEXT NORMALIZATION CONFIGURATION
+# =============================================================================
+normalization:
+  # Enable/disable text normalization globally
+  enabled: true
+  
+  # Normalization level: conservative/moderate/aggressive
+  # - conservative: Only fixes line endings (CRLF -> LF), preserves structure
+  # - moderate: Collapses whitespace, normalizes unicode, fixes line endings
+  # - aggressive: All moderate + removes extra spaces, normalizes quotes
+  level: "conservative"
+  
+  # Line ending normalization
+  line_endings:
+    normalize_crlf: true          # Normalize CRLF to LF
+    normalize_cr: true            # Normalize CR to LF
+    collapse_multiple_newlines: true  # Collapse 3+ newlines to 2
+    trim_trailing_whitespace: true    # Remove trailing spaces from lines
+  
+  # Content-specific normalization
+  content_detection:
+    enabled: true                 # Auto-detect content type (code/text/markdown)
+    preserve_code_structure: true # Don't normalize indentation in code blocks
+    preserve_markdown_format: true # Preserve markdown formatting
+  
+  # Normalization cache
+  cache:
+    enabled: true                 # Enable normalization result caching
+    max_entries: 10000            # Maximum cache entries
+    ttl_seconds: 3600             # Cache entry TTL (1 hour)
+  
+  # Apply normalization at different stages
+  stages:
+    on_file_read: true            # Normalize when reading files
+    on_chunk_creation: true       # Normalize when creating chunks
+    on_payload_return: true       # Normalize when returning payloads
+    on_cache_load: true           # Normalize when loading from cache
+
+# =============================================================================
 # PERFORMANCE OPTIMIZATION CONFIGURATION
 # =============================================================================
 performance:

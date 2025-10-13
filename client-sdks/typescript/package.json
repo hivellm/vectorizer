@@ -1,6 +1,6 @@
 {
   "name": "@hivellm/vectorizer-client",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "TypeScript client for Hive Vectorizer - High-performance vector database",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,7 +19,8 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "dev": "ts-node examples/basic-usage.ts"
+    "dev": "ts-node examples/basic-usage.ts",
+    "publish:wsl": "export BROWSER=wslview && npm publish"
   },
   "keywords": [
     "vector-database",
@@ -41,7 +42,9 @@
     "url": "https://github.com/hivellm/vectorizer/issues"
   },
   "homepage": "https://github.com/hivellm/vectorizer#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@hivellm/umicp": "^0.1.3"
+  },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.10",

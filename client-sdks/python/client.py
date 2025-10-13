@@ -58,6 +58,8 @@ from models import (
     MultiCollectionSearchResponse,
     IntelligentSearchResult,
 )
+from utils.transport import TransportFactory, TransportProtocol, parse_connection_string
+from utils.http_client import HTTPClient
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +68,9 @@ class VectorizerClient:
     """
     Main client for interacting with the Hive Vectorizer service.
     
-    This client provides both HTTP/REST and WebSocket interfaces for
-    communicating with the vectorizer service.
+    This client supports multiple transport protocols:
+    - HTTP/HTTPS (default)
+    - UMICP (Universal Messaging and Inter-process Communication Protocol)
     """
     
     def __init__(
@@ -76,7 +79,10 @@ class VectorizerClient:
         ws_url: str = "ws://localhost:15002/ws",
         api_key: Optional[str] = None,
         timeout: int = 30,
-        max_retries: int = 3
+        max_retries: int = 3,
+        connection_string: Optional[str] = None,
+        protocol: Optional[str] = None,
+        umicp: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize the Vectorizer client.
@@ -87,6 +93,9 @@ class VectorizerClient:
             api_key: API key for authentication
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
+            connection_string: Connection string (supports http://, https://, umicp://)
+            protocol: Protocol to use ('http' or 'umicp')
+            umicp: UMICP-specific configuration dict
         """
         self.base_url = base_url.rstrip('/')
         self.ws_url = ws_url
@@ -95,6 +104,57 @@ class VectorizerClient:
         self.max_retries = max_retries
         self._session: Optional[aiohttp.ClientSession] = None
         self._ws_connection: Optional[websockets.WebSocketServerProtocol] = None
+        
+        # Determine protocol and create transport
+        if connection_string:
+            # Use connection string
+            proto, config = parse_connection_string(connection_string, api_key)
+            config['timeout'] = timeout
+            config['max_retries'] = max_retries
+            self._transport = TransportFactory.create(proto, config)
+            self._protocol = proto
+            logger.info(f"VectorizerClient initialized from connection string (protocol: {proto})")
+        elif protocol:
+            # Use explicit protocol
+            proto_enum = TransportProtocol(protocol.lower())
+            
+            if proto_enum == TransportProtocol.HTTP:
+                config = {
+                    "base_url": base_url,
+                    "api_key": api_key,
+                    "timeout": timeout,
+                    "max_retries": max_retries
+                }
+                self._transport = TransportFactory.create(proto_enum, config)
+                self._protocol = proto_enum
+            elif proto_enum == TransportProtocol.UMICP:
+                if not umicp:
+                    raise ValueError("UMICP configuration is required when using UMICP protocol")
+                
+                config = {
+                    "host": umicp.get("host", "localhost"),
+                    "port": umicp.get("port", 15003),
+                    "api_key": api_key,
+                    "timeout": timeout
+                }
+                self._transport = TransportFactory.create(proto_enum, config)
+                self._protocol = proto_enum
+                logger.info(f"VectorizerClient initialized with UMICP (host: {config['host']}, port: {config['port']})")
+        else:
+            # Use default HTTP transport
+            config = {
+                "base_url": base_url,
+                "api_key": api_key,
+                "timeout": timeout,
+                "max_retries": max_retries
+            }
+            self._transport = HTTPClient(**config)
+            self._protocol = TransportProtocol.HTTP
+            logger.info(f"VectorizerClient initialized with HTTP (base_url: {base_url})")
+    
+    def get_protocol(self) -> str:
+        """Get the current transport protocol being used."""
+        return self._protocol.value if hasattr(self._protocol, 'value') else str(self._protocol)
         
     async def __aenter__(self):
         """Async context manager entry."""
@@ -106,22 +166,35 @@ class VectorizerClient:
         await self.close()
         
     async def connect(self):
-        """Initialize HTTP session."""
-        if self._session is None or self._session.closed:
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-                
-            timeout = aiohttp.ClientTimeout(total=self.timeout)
-            self._session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=timeout
-            )
+        """Initialize transport session."""
+        if self._protocol == TransportProtocol.HTTP:
+            # For HTTP, ensure session is created
+            if self._session is None or self._session.closed:
+                headers = {}
+                if self.api_key:
+                    headers["Authorization"] = f"Bearer {self.api_key}"
+                    
+                timeout = aiohttp.ClientTimeout(total=self.timeout)
+                self._session = aiohttp.ClientSession(
+                    headers=headers,
+                    timeout=timeout
+                )
+        elif self._protocol == TransportProtocol.UMICP:
+            # For UMICP, connect via transport
+            if hasattr(self._transport, 'connect'):
+                await self._transport.connect()
             
     async def close(self):
-        """Close HTTP session and WebSocket connection."""
+        """Close transport session and WebSocket connection."""
+        # Close HTTP session if exists
         if self._session and not self._session.closed:
             await self._session.close()
+        
+        # Close transport
+        if hasattr(self._transport, 'close'):
+            await self._transport.close()
+        elif hasattr(self._transport, 'disconnect'):
+            await self._transport.disconnect()
             
         if self._ws_connection:
             await self._ws_connection.close()
@@ -138,7 +211,7 @@ class VectorizerClient:
             ServerError: If service reports unhealthy status
         """
         try:
-            async with self._session.get(f"{self.base_url}/health") as response:
+            async with self._transport.get(f"{self.base_url}/health") as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -160,7 +233,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.get(f"{self.base_url}/collections") as response:
+            async with self._transport.get(f"{self.base_url}/collections") as response:
                 if response.status == 200:
                     data = await response.json()
                     return [CollectionInfo(**collection) for collection in data.get("collections", [])]
@@ -185,7 +258,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.get(f"{self.base_url}/collections/{name}") as response:
+            async with self._transport.get(f"{self.base_url}/collections/{name}") as response:
                 if response.status == 200:
                     data = await response.json()
                     return CollectionInfo(**data)
@@ -236,7 +309,7 @@ class VectorizerClient:
             payload["description"] = description
             
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/collections",
                 json=payload
             ) as response:
@@ -267,7 +340,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.delete(f"{self.base_url}/collections/{name}") as response:
+            async with self._transport.delete(f"{self.base_url}/collections/{name}") as response:
                 if response.status == 200:
                     return True
                 elif response.status == 404:
@@ -300,7 +373,7 @@ class VectorizerClient:
         payload = {"text": text}
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/embed",
                 json=payload
             ) as response:
@@ -345,7 +418,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/collections/{collection}/vectors",
                 json=payload
             ) as response:
@@ -402,7 +475,7 @@ class VectorizerClient:
             payload["filter"] = filter
             
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/collections/{collection}/search",
                 json=payload
             ) as response:
@@ -437,7 +510,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/intelligent_search",
                 json=asdict(request)
             ) as response:
@@ -477,7 +550,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/semantic_search",
                 json=asdict(request)
             ) as response:
@@ -516,7 +589,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/contextual_search",
                 json=asdict(request)
             ) as response:
@@ -556,7 +629,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/multi_collection_search",
                 json=asdict(request)
             ) as response:
@@ -597,7 +670,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.get(
+            async with self._transport.get(
                 f"{self.base_url}/collections/{collection}/vectors/{vector_id}"
             ) as response:
                 if response.status == 200:
@@ -636,7 +709,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.delete(
+            async with self._transport.delete(
                 f"{self.base_url}/collections/{collection}/vectors",
                 json=payload
             ) as response:
@@ -677,7 +750,7 @@ class VectorizerClient:
         logger.debug(f"Batch inserting {len(request.texts)} texts into collection '{collection}'")
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/batch_insert",
                 json=asdict(request)
             ) as response:
@@ -718,7 +791,7 @@ class VectorizerClient:
         logger.debug(f"Batch searching with {len(request.queries)} queries in collection '{collection}'")
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/batch_search",
                 json=asdict(request)
             ) as response:
@@ -759,7 +832,7 @@ class VectorizerClient:
         logger.debug(f"Batch updating {len(request.updates)} vectors in collection '{collection}'")
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/batch_update",
                 json=asdict(request)
             ) as response:
@@ -800,7 +873,7 @@ class VectorizerClient:
         logger.debug(f"Batch deleting {len(request.vector_ids)} vectors from collection '{collection}'")
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/batch_delete",
                 json=asdict(request)
             ) as response:
@@ -847,7 +920,7 @@ class VectorizerClient:
         logger.debug(f"Summarizing text using method '{request.method}'")
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/summarize/text",
                 json=asdict(request)
             ) as response:
@@ -884,7 +957,7 @@ class VectorizerClient:
         logger.debug(f"Summarizing context using method '{request.method}'")
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/summarize/context",
                 json=asdict(request)
             ) as response:
@@ -921,7 +994,7 @@ class VectorizerClient:
         logger.debug(f"Getting summary '{summary_id}'")
         
         try:
-            async with self._session.get(
+            async with self._transport.get(
                 f"{self.base_url}/summaries/{summary_id}"
             ) as response:
                 if response.status == 200:
@@ -971,7 +1044,7 @@ class VectorizerClient:
             params['offset'] = offset
         
         try:
-            async with self._session.get(
+            async with self._transport.get(
                 f"{self.base_url}/summaries",
                 params=params
             ) as response:
@@ -997,7 +1070,7 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._session.get(f"{self.base_url}/indexing/progress") as response:
+            async with self._transport.get(f"{self.base_url}/indexing/progress") as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -1047,7 +1120,7 @@ class VectorizerClient:
         payload["focus_k"] = focus_k
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/discover",
                 json=payload
             ) as response:
@@ -1085,7 +1158,7 @@ class VectorizerClient:
             payload["exclude"] = exclude
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/discovery/filter_collections",
                 json=payload
             ) as response:
@@ -1123,7 +1196,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/discovery/score_collections",
                 json=payload
             ) as response:
@@ -1164,7 +1237,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/discovery/expand_queries",
                 json=payload
             ) as response:
@@ -1208,7 +1281,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/content",
                 json=payload
             ) as response:
@@ -1254,7 +1327,7 @@ class VectorizerClient:
             payload["min_chunks"] = min_chunks
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/list",
                 json=payload
             ) as response:
@@ -1292,7 +1365,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/summary",
                 json=payload
             ) as response:
@@ -1333,7 +1406,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/chunks",
                 json=payload
             ) as response:
@@ -1371,7 +1444,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/outline",
                 json=payload
             ) as response:
@@ -1412,7 +1485,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/related",
                 json=payload
             ) as response:
@@ -1453,7 +1526,7 @@ class VectorizerClient:
         }
         
         try:
-            async with self._session.post(
+            async with self._transport.post(
                 f"{self.base_url}/file/search_by_type",
                 json=payload
             ) as response:

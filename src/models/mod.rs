@@ -8,10 +8,78 @@ use std::fmt;
 pub struct Vector {
     /// Unique identifier for the vector
     pub id: String,
-    /// The vector data
+    /// The vector data (always f32 for compatibility)
     pub data: Vec<f32>,
     /// Optional payload associated with the vector
     pub payload: Option<Payload>,
+}
+
+/// Internal storage format for quantized vectors (memory optimized)
+#[derive(Debug, Clone)]
+pub struct QuantizedVector {
+    /// Unique identifier for the vector
+    pub id: String,
+    /// Quantized vector data (1 byte per dimension instead of 4)
+    pub quantized_data: Vec<u8>,
+    /// Quantization parameters for reconstruction
+    pub min_val: f32,
+    pub max_val: f32,
+    /// Optional payload associated with the vector
+    pub payload: Option<Payload>,
+}
+
+impl QuantizedVector {
+    /// Create from full precision vector
+    pub fn from_vector(vector: Vector) -> Self {
+        let (quantized_data, min_val, max_val) = quantize_to_u8(&vector.data);
+        Self {
+            id: vector.id,
+            quantized_data,
+            min_val,
+            max_val,
+            payload: vector.payload,
+        }
+    }
+    
+    /// Convert back to full precision vector (for search/API responses)
+    pub fn to_vector(&self) -> Vector {
+        let data = dequantize_from_u8(&self.quantized_data, self.min_val, self.max_val);
+        Vector {
+            id: self.id.clone(),
+            data,
+            payload: self.payload.clone(),
+        }
+    }
+    
+    /// Get memory usage in bytes (1 byte per dimension + overhead)
+    pub fn memory_size(&self) -> usize {
+        self.quantized_data.len() + std::mem::size_of::<f32>() * 2 + self.id.len()
+    }
+}
+
+/// Quantize f32 vector to u8 (0-255 range)
+fn quantize_to_u8(data: &[f32]) -> (Vec<u8>, f32, f32) {
+    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let range = max_val - min_val;
+    
+    let quantized = if range > 0.0 {
+        data.iter()
+            .map(|&v| (((v - min_val) / range) * 255.0) as u8)
+            .collect()
+    } else {
+        vec![0u8; data.len()]
+    };
+    
+    (quantized, min_val, max_val)
+}
+
+/// Dequantize u8 vector back to f32
+fn dequantize_from_u8(quantized: &[u8], min_val: f32, max_val: f32) -> Vec<f32> {
+    let range = max_val - min_val;
+    quantized.iter()
+        .map(|&v| (v as f32 / 255.0) * range + min_val)
+        .collect()
 }
 
 /// Arbitrary JSON payload associated with a vector
@@ -20,6 +88,57 @@ pub struct Payload {
     /// The payload data as a JSON value
     #[serde(flatten)]
     pub data: serde_json::Value,
+}
+
+impl Payload {
+    /// Normalize text content in payload using proper normalization pipeline
+    /// This applies conservative normalization (CRLF->LF) to preserve structure
+    pub fn normalize(&mut self) {
+        Self::normalize_value(&mut self.data);
+    }
+
+    /// Recursively normalize text values in JSON
+    /// Normalizes line endings and collapses excessive whitespace
+    fn normalize_value(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::String(s) => {
+                // Step 1: Normalize all line endings to LF
+                *s = s.replace("\r\n", "\n").replace('\r', "\n");
+                
+                // Step 2: Collapse multiple consecutive newlines (more than 2) into 2
+                while s.contains("\n\n\n") {
+                    *s = s.replace("\n\n\n", "\n\n");
+                }
+                
+                // Step 3: Trim leading/trailing whitespace from each line
+                *s = s.lines()
+                    .map(|line| line.trim_end())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                
+                // Step 4: Remove leading/trailing empty lines
+                *s = s.trim().to_string();
+            }
+            serde_json::Value::Object(map) => {
+                for v in map.values_mut() {
+                    Self::normalize_value(v);
+                }
+            }
+            serde_json::Value::Array(arr) => {
+                for v in arr.iter_mut() {
+                    Self::normalize_value(v);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Create a normalized copy of this payload
+    pub fn normalized(&self) -> Self {
+        let mut copy = self.clone();
+        copy.normalize();
+        copy
+    }
 }
 
 /// Configuration for a collection
@@ -35,6 +154,9 @@ pub struct CollectionConfig {
     pub quantization: QuantizationConfig,
     /// Compression configuration
     pub compression: CompressionConfig,
+    /// Text normalization configuration (optional, disabled by default)
+    #[serde(default)]
+    pub normalization: Option<crate::normalization::NormalizationConfig>,
 }
 
 /// Distance metrics for vector similarity
@@ -91,6 +213,7 @@ impl Default for CollectionConfig {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
             compression: CompressionConfig::default(),
+            normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
         }
     }
 }
@@ -177,6 +300,29 @@ pub struct CollectionMetadata {
     pub document_count: usize,
     /// Collection configuration
     pub config: CollectionConfig,
+}
+
+impl CollectionMetadata {
+    /// Check if text normalization is enabled
+    pub fn is_normalization_enabled(&self) -> bool {
+        self.config.normalization
+            .as_ref()
+            .map(|n| n.enabled)
+            .unwrap_or(false)
+    }
+
+    /// Get normalization level if enabled
+    pub fn normalization_level(&self) -> Option<String> {
+        self.config.normalization
+            .as_ref()
+            .filter(|n| n.enabled)
+            .map(|n| format!("{:?}", n.policy.level))
+    }
+
+    /// Get normalization configuration details
+    pub fn normalization_config(&self) -> Option<&crate::normalization::NormalizationConfig> {
+        self.config.normalization.as_ref()
+    }
 }
 
 /// Vector normalization and similarity utilities

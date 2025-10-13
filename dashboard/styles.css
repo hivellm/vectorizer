@@ -3679,4 +3679,333 @@ body {
     }
 }
 
+/* File Watcher Page Styles */
+.file-watcher-page {
+    padding: var(--space-6);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+    border-color: var(--border-light);
+    box-shadow: var(--shadow-md);
+}
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.metric-header i {
+    color: var(--primary);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-3);
+}
+
+.metric-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.stat-row span:first-child {
+    color: var(--text-secondary);
+}
+
+.stat-row span:last-child {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-badge.idle {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.status-badge.processing {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.status-badge.error {
+    background: var(--error-bg);
+    color: var(--error);
+}
+
+.health-score {
+    font-weight: 600;
+}
+
+.health-score.excellent {
+    color: var(--success);
+}
+
+.health-score.good {
+    color: var(--info);
+}
+
+.health-score.warning {
+    color: var(--warning);
+}
+
+.health-score.critical {
+    color: var(--error);
+}
+
+.operations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+}
+
+.operation-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+}
+
+.operation-card:hover {
+    border-color: var(--border-light);
+    background: var(--bg-hover);
+}
+
+.operation-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+.operation-info h4 {
+    margin: 0 0 var(--space-1) 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.operation-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.error-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--error-bg);
+    border: 1px solid var(--error);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+}
+
+.error-count {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.error-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--error);
+}
+
+.error-count span:last-child {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.last-error {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.error-types h4 {
+    margin: 0 0 var(--space-2) 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.error-type-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.error-type-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+.error-type {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.error-count {
+    color: var(--error);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.collections-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.collection-metric {
+    padding: var(--space-4);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.collection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+}
+
+.collection-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.collection-status {
+    padding: var(--space-1) var(--space-2);
+    background: var(--success-bg);
+    color: var(--success);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.collection-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--space-3);
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+/* Normalization status colors */
+.status-conservative {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.status-moderate {
+    color: #10b981;
+    font-weight: 500;
+}
+
+.status-aggressive {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.status-disabled {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.status-enabled {
+    color: #10b981;
+    font-weight: 500;
+}
+
+/* Responsive adjustments for File Watcher */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .operations-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .collection-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 

@@ -332,7 +332,7 @@ impl VectorStore {
         eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
         info!("🔍 VectorStore::new_auto() called - starting GPU detection...");
 
-        // Try to load persisted collections first
+        // Create store without loading collections (will be loaded in background task)
         let mut store = Self::new();
         match store.load_all_persisted_collections() {
             Ok(collections_loaded) => {
@@ -384,6 +384,110 @@ impl VectorStore {
         // 2. Return the store with loaded collections and auto-save already enabled
         eprintln!("💻 Using CPU-only mode with loaded collections");
         info!("💻 Using CPU-only mode with loaded collections");
+        store
+    }
+    
+    /// Universal GPU detection across all backends (Vulkan, DirectX, CUDA, Metal)
+    /// Priority: Metal (macOS) > Vulkan (AMD/Universal) > DirectX12 (Windows) > CUDA (NVIDIA) > CPU
+    #[cfg(feature = "wgpu-gpu")]
+    pub fn new_auto_universal() -> Self {
+        use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
+        
+        //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
+        info!("🔍 Starting universal GPU backend detection...");
+        
+        // Create store without loading collections (will be loaded in background task)
+        let mut store = Self::new();
+        store.enable_auto_save();
+        eprintln!("✅ VectorStore created (collections will be loaded in background)");
+        
+        // Detect all available backends
+        let available = detect_available_backends();
+        
+        if available.is_empty() {
+            eprintln!("❌ No GPU backends detected - using CPU");
+            warn!("No GPU backends available");
+            let mut store = Self::new();
+            store.enable_auto_save();
+            return store;
+        }
+        
+        // Select best backend
+        let best = select_best_backend(&available);
+        eprintln!("🎯 Selected: {}", best);
+        info!("Selected backend: {}", best);
+        
+        // Initialize VectorStore with the selected backend
+        match best {
+            GpuBackendType::Metal => {
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                {
+                    eprintln!("🍎 Initializing Metal GPU backend...");
+                    let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
+                    if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
+                        eprintln!("✅ Metal GPU initialized successfully!");
+                        info!("✅ Metal GPU initialized successfully!");
+                        let mut store = Self::new_with_metal_config(metal_config);
+                        store.enable_auto_save();
+                        return store;
+                    } else {
+                        eprintln!("⚠️ Metal initialization failed - falling back");
+                        warn!("Metal GPU initialization failed");
+                    }
+                }
+            }
+            
+            GpuBackendType::Vulkan => {
+                #[cfg(feature = "wgpu-gpu")]
+                {
+                    eprintln!("🔥 Initializing Vulkan GPU backend...");
+                    info!("Initializing Vulkan GPU backend...");
+                    let vulkan_config = crate::gpu::GpuConfig::default();
+                    eprintln!("✅ Vulkan GPU initialized!");
+                    info!("✅ Vulkan GPU initialized!");
+                    let mut store = Self::new_with_vulkan_config(vulkan_config);
+                    store.enable_auto_save();
+                    return store;
+                }
+                
+                #[cfg(not(feature = "wgpu-gpu"))]
+                {
+                    eprintln!("⚠️ Vulkan requires wgpu-gpu feature");
+                    warn!("Vulkan selected but wgpu-gpu feature not enabled");
+                }
+            }
+            
+            GpuBackendType::DirectX12 => {
+                eprintln!("🪟 DirectX 12 detected but integration pending...");
+                info!("DirectX 12 backend detected but not yet integrated");
+                // TODO: Implement DirectX12Collection (FASE 3)
+            }
+            
+            GpuBackendType::CudaNative => {
+                #[cfg(feature = "cuda")]
+                {
+                    eprintln!("⚡ Initializing CUDA GPU backend...");
+                    info!("Initializing CUDA GPU backend...");
+                    let cuda_config = CudaConfig { enabled: true, ..Default::default() };
+                    eprintln!("✅ CUDA GPU initialized!");
+                    info!("✅ CUDA GPU initialized!");
+                    let mut store = Self::new_with_cuda_config(cuda_config);
+                    store.enable_auto_save();
+                    return store;
+                }
+            }
+            
+            GpuBackendType::Cpu => {
+                eprintln!("💻 Using CPU backend");
+                info!("Using CPU backend");
+            }
+        }
+        
+        // Fallback to CPU if GPU initialization failed
+        eprintln!("💻 Falling back to CPU backend");
+        warn!("GPU initialization failed, using CPU fallback");
+        let mut store = Self::new();
+        store.enable_auto_save();
         store
     }
 
@@ -494,10 +598,34 @@ impl VectorStore {
     }
 
     /// Get a reference to a collection by name
+    /// Implements lazy loading: if collection is not in memory but exists on disk, loads it
     pub fn get_collection(&self, name: &str) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
-        self.collections
-            .get(name)
-            .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
+        // Fast path: collection already loaded
+        if let Some(collection) = self.collections.get(name) {
+            return Ok(collection);
+        }
+        
+        // Slow path: try lazy loading from disk
+        let data_dir = Self::get_data_dir();
+        let collection_file = data_dir.join(format!("{}_vector_store.bin", name));
+        
+        if collection_file.exists() {
+            debug!("🔄 Lazy loading collection '{}' from disk", name);
+            
+            // Load collection from disk
+            if let Err(e) = self.load_persisted_collection(&collection_file, name) {
+                warn!("Failed to lazy load collection '{}': {}", name, e);
+                return Err(VectorizerError::CollectionNotFound(name.to_string()));
+            }
+            
+            // Try again now that it's loaded
+            return self.collections
+                .get(name)
+                .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()));
+        }
+        
+        // Collection doesn't exist
+        Err(VectorizerError::CollectionNotFound(name.to_string()))
     }
 
     /// Get a mutable reference to a collection
@@ -507,12 +635,34 @@ impl VectorStore {
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
     }
 
-    /// List all collections
+    /// List all collections (both loaded in memory and available on disk)
     pub fn list_collections(&self) -> Vec<String> {
-        self.collections
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
+        use std::collections::HashSet;
+        
+        let mut collection_names = HashSet::new();
+        
+        // Add collections already loaded in memory
+        for entry in self.collections.iter() {
+            collection_names.insert(entry.key().clone());
+        }
+        
+        // Add collections available on disk
+        let data_dir = Self::get_data_dir();
+        if data_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(data_dir) {
+                for entry in entries.flatten() {
+                    if let Some(filename) = entry.file_name().to_str() {
+                        if filename.ends_with("_vector_store.bin") {
+                            if let Some(name) = filename.strip_suffix("_vector_store.bin") {
+                                collection_names.insert(name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        collection_names.into_iter().collect()
     }
 
     /// Get collection metadata
@@ -814,12 +964,34 @@ impl VectorStore {
     /// Load a single persisted collection from file
     fn load_persisted_collection<P: AsRef<std::path::Path>>(&self, path: P, collection_name: &str) -> Result<()> {
         use crate::persistence::PersistedVectorStore;
+        use std::io::Read;
+        use flate2::read::GzDecoder;
 
         let path = path.as_ref();
         debug!("Loading persisted collection '{}' from {:?}", collection_name, path);
 
-        // Read and parse the JSON file
-        let json_data = std::fs::read_to_string(path)?;
+        // Read and parse the JSON file with compression support
+        let (json_data, was_compressed) = match std::fs::File::open(path) {
+            Ok(file) => {
+                let mut decoder = GzDecoder::new(file);
+                let mut json_string = String::new();
+                
+                // Try to decompress - if it fails, try reading as plain text
+                match decoder.read_to_string(&mut json_string) {
+                    Ok(_) => {
+                        debug!("📦 Loaded compressed collection cache");
+                        (json_string, true)
+                    }
+                    Err(_) => {
+                        // Not a gzip file, try reading as plain text (backward compatibility)
+                        debug!("📦 Loaded uncompressed collection cache");
+                        (std::fs::read_to_string(path)?, false)
+                    }
+                }
+            }
+            Err(e) => return Err(crate::error::VectorizerError::Other(format!("Failed to open file: {}", e))),
+        };
+        
         let persisted: PersistedVectorStore = serde_json::from_str(&json_data)?;
 
         // Check version
@@ -849,12 +1021,24 @@ impl VectorStore {
             self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
         }
         
+        // Note: Auto-migration removed to prevent memory duplication
+        // Uncompressed files will be saved compressed on next auto-save cycle
+        if !was_compressed {
+            info!("📦 Loaded uncompressed cache for '{}' - will be saved compressed on next auto-save", collection_name);
+        }
+        
         Ok(())
     }
     
     /// Enable auto-save for all collections
     /// Call this after initialization is complete
     pub fn enable_auto_save(&self) {
+        // Check if auto-save is already enabled to avoid multiple tasks
+        if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+            info!("⏭️ Auto-save already enabled, skipping");
+            return;
+        }
+        
         self.auto_save_enabled.store(true, std::sync::atomic::Ordering::Relaxed);
         
         // Start background save task
@@ -1086,11 +1270,35 @@ impl VectorStore {
     fn save_collection_metadata(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
+        use std::collections::HashSet;
+
+        // Extract unique file paths from vectors
+        let mut indexed_files: HashSet<String> = HashSet::new();
+        for pv in &persisted_collection.vectors {
+            // Convert to Vector to access payload
+            let v: Vector = pv.clone().into();
+            if let Some(payload) = &v.payload {
+                if let Some(metadata) = payload.data.get("metadata") {
+                    if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                        indexed_files.insert(file_path.to_string());
+                    }
+                }
+                // Also check direct file_path in payload
+                if let Some(file_path) = payload.data.get("file_path").and_then(|v| v.as_str()) {
+                    indexed_files.insert(file_path.to_string());
+                }
+            }
+        }
+
+        let mut files_vec: Vec<String> = indexed_files.into_iter().collect();
+        files_vec.sort();
 
         let metadata = serde_json::json!({
             "name": persisted_collection.name,
             "config": persisted_collection.config,
             "vector_count": persisted_collection.vectors.len(),
+            "indexed_files": files_vec,
+            "total_files": files_vec.len(),
             "created_at": chrono::Utc::now().to_rfc3339(),
         });
 
@@ -1098,7 +1306,7 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
+        debug!("Saved metadata for '{}' to {} ({} files indexed)", persisted_collection.name, path.display(), files_vec.len());
         Ok(())
     }
     
@@ -1150,11 +1358,35 @@ impl VectorStore {
     fn save_collection_metadata_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
+        use std::collections::HashSet;
+
+        // Extract unique file paths from vectors
+        let mut indexed_files: HashSet<String> = HashSet::new();
+        for pv in &persisted_collection.vectors {
+            // Convert to Vector to access payload
+            let v: Vector = pv.clone().into();
+            if let Some(payload) = &v.payload {
+                if let Some(metadata) = payload.data.get("metadata") {
+                    if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                        indexed_files.insert(file_path.to_string());
+                    }
+                }
+                // Also check direct file_path in payload
+                if let Some(file_path) = payload.data.get("file_path").and_then(|v| v.as_str()) {
+                    indexed_files.insert(file_path.to_string());
+                }
+            }
+        }
+
+        let mut files_vec: Vec<String> = indexed_files.into_iter().collect();
+        files_vec.sort();
 
         let metadata = serde_json::json!({
             "name": persisted_collection.name,
             "config": persisted_collection.config,
             "vector_count": persisted_collection.vectors.len(),
+            "indexed_files": files_vec,
+            "total_files": files_vec.len(),
             "created_at": chrono::Utc::now().to_rfc3339(),
         });
 
@@ -1162,7 +1394,7 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved metadata for '{}' to {}", persisted_collection.name, path.display());
+        debug!("Saved metadata for '{}' to {} ({} files indexed)", persisted_collection.name, path.display(), files_vec.len());
         Ok(())
     }
 
@@ -1204,6 +1436,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create collections
@@ -1227,6 +1460,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create collection
@@ -1250,6 +1484,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create and delete collection
@@ -1283,6 +1518,7 @@ mod tests {
             },
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         store.create_collection("test", config).unwrap();
@@ -1345,6 +1581,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Empty store stats
@@ -1379,6 +1616,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         // Create collection from main thread
@@ -1429,6 +1667,7 @@ mod tests {
                 threshold_bytes: 2048,
                 algorithm: crate::models::CompressionAlgorithm::Lz4,
             },
+            normalization: None,
         };
 
         store
@@ -1460,6 +1699,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         store.create_collection("error_test", config).unwrap();

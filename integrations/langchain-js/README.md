@@ -1,4 +1,4 @@
-# LangChain.js Integration for Vectorizer v0.3.1
+# LangChain.js Integration for Vectorizer v0.3.4
 
 This integration provides a complete implementation of LangChain.js's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
 
@@ -9,6 +9,23 @@ This integration provides a complete implementation of LangChain.js's VectorStor
 - ✅ **Semantic Search**: Advanced reranking and similarity thresholds
 - ✅ **Contextual Search**: Context-aware search with metadata filtering
 - ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
+- ✅ **File Operations** (v0.3.4+): Complete file-level operations for indexed documents
+  - `getFileContent` - Retrieve complete files with metadata
+  - `listFilesInCollection` - Advanced file listing and filtering
+  - `getFileSummary` - Extractive and structural summaries
+  - `getProjectOutline` - Hierarchical project visualization
+  - `getRelatedFiles` - Semantic file similarity search
+  - `searchByFileType` - File type-specific search
+- ✅ **Discovery System** (v0.3.4+): Advanced discovery pipeline
+  - `discover` - Complete 9-stage discovery pipeline
+  - `filterCollections` - Pre-filter collections by patterns
+  - `scoreCollections` - Rank collections by relevance
+  - `expandQueries` - Generate query variations
+  - `broadDiscovery` - Multi-query broad search with MMR
+  - `semanticFocus` - Deep semantic search with reranking
+  - `compressEvidence` - Extract key sentences with citations
+  - `buildAnswerPlan` - Organize into structured sections
+  - `renderLlmPrompt` - Generate LLM-ready prompts
 - ✅ **TypeScript**: Complete TypeScript support with defined types
 - ✅ **Batch Operations**: Support for efficient batch operations
 - ✅ **Metadata Filtering**: Search with metadata filters

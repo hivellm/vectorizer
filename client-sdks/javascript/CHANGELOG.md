@@ -1,67 +1,47 @@
 # Changelog
 
-All notable changes to the Hive Vectorizer JavaScript SDK will be documented in this file.
+All notable changes to the Hive Vectorizer JavaScript Client SDK will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [1.0.0] - 2025-09-29
+## [0.4.0] - 2025-10-12
 
 ### Added
-- **REST-Only Architecture**: Complete removal of WebSocket functionality for REST-only API communication
-- **Complete Test Suite**: Full test coverage with 100% passing tests
-- **Enhanced Error Handling**: Improved exception classes with consistent error codes and messages
-- **Robust Data Validation**: Enhanced vector and data validation with `isFinite()` checks
-- **HTTP Client Improvements**: Better error handling and response parsing
+- **UMICP Protocol Support**: Added support for the UMICP (Universal Messaging and Inter-process Communication Protocol)
+  - New `UMICPClient` using official `@hivellm/umicp` SDK
+  - Transport abstraction layer supporting multiple protocols (HTTP/HTTPS and UMICP)
+  - Connection string support for easy protocol switching (e.g., `umicp://localhost:15003`)
+  - `TransportFactory` for creating protocol-specific clients
+  - `parseConnectionString` utility for parsing connection URIs
 
 ### Changed
-- **WebSocket Removal**: Eliminated all WebSocket dependencies and functionality
-- **Package Dependencies**: Removed `ws` dependency, updated dev dependencies
-- **Client Architecture**: Streamlined to REST-only operations
-- **Error Messages**: Standardized error messages across all exception types
+- Refactored `VectorizerClient` to use transport abstraction instead of direct HTTP client
+- Updated `VectorizerClient` constructor to support multiple protocols:
+  - Added `protocol` field to specify transport protocol
+  - Added `connectionString` field for URI-based configuration
+  - Added `umicp` field for UMICP-specific options
+- All HTTP requests now go through transport layer for protocol flexibility
 
-### Fixed
-- **Vector Validation**: Fixed `Infinity` and `NaN` handling using `isFinite()` instead of `!isNaN()`
-- **HTTP Error Handling**: Improved error response parsing and exception mapping
-- **Test Environment**: Fixed `RangeError: Maximum call stack size exceeded` in tests
-- **Exception Constructors**: Corrected optional parameter handling
-- **Validation Functions**: Enhanced number and array validation logic
+### New API
+- `client.getProtocol()`: Get the current transport protocol being used
+- Multiple transport options:
+  - HTTP/HTTPS (default)
+  - UMICP (via `@hivellm/umicp` package)
 
-### Technical Details
-- **Test Coverage**: All tests passing (100% success rate)
-- **Dependencies**: Removed WebSocket libraries, optimized package.json
-- **Error Handling**: 12 custom exception classes with consistent behavior
-- **Data Validation**: Robust validation for vectors, collections, and search parameters
+### Dependencies
+- Added `@hivellm/umicp@^0.1.3` as a dependency
 
-## [0.9.0] - 2025-09-25
+### Documentation
+- Updated README with UMICP configuration examples
+- Added protocol comparison table
+- Added examples for using UMICP transport
+- Created `examples/umicp-usage.js` demonstrating UMICP usage
 
-### Added
-- Initial release of Hive Vectorizer JavaScript SDK
-- Complete client implementation with REST API support
-- Collection management (create, delete, list, info)
-- Vector operations (insert, search, get, delete)
-- Text embedding generation
-- Comprehensive error handling with custom exceptions
-- Data validation and type checking
-- Command-line interface (CLI)
-- Basic test suite
-- Documentation and examples
+### Technical
+- Implemented transport abstraction for protocol independence
+- Created separate transport implementations:
+  - `HttpClient` for HTTP/HTTPS
+  - `UMICPClient` wrapper around `StreamableHTTPClient` from @hivellm/umicp
+- Added comprehensive error handling for both protocols
+- Maintained backward compatibility with existing HTTP-only configurations
 
-### Features
-- **VectorizerClient**: Main client class with full API coverage
-- **Data Models**: Vector, Collection, SearchResult, CollectionInfo
-- **Exception Handling**: Custom exceptions for all error scenarios
-- **Validation**: Input validation for all data types
-- **CLI Tool**: Command-line interface for all operations
-- **Type Safety**: JavaScript with JSDoc type annotations
-
-## [Unreleased]
-
-### Planned Features
-- Advanced search filters and aggregations
-- Vector similarity calculations
-- Performance optimizations
-- Additional data formats support
-- Enhanced error recovery mechanisms
-- Continuous integration testing pipeline
-- WebSocket support (future consideration)
+## [0.3.4] - Previous Version
+- (Previous changes...)

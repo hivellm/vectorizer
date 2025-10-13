@@ -1,8 +1,8 @@
 """
-Testes unitários para o SDK Python do Hive Vectorizer.
+Tests unitários para o SDK Python do Hive Vectorizer.
 
-Este módulo contém testes abrangentes para todos os componentes do SDK,
-incluindo testes unitários, de integração e de validação.
+Este módulo contém tests abrangentes para todos os componentes do SDK,
+incluindo tests unitários, de integração e de validação.
 """
 
 import unittest
@@ -31,10 +31,10 @@ from client import VectorizerClient
 
 
 class TestDataModels(unittest.TestCase):
-    """Testes para os modelos de dados."""
+    """Tests para os modelos de dados."""
     
     def test_vector_creation(self):
-        """Teste criação de Vector."""
+        """Test criação de Vector."""
         vector = Vector(
             id="test_vector",
             data=[0.1, 0.2, 0.3],
@@ -46,28 +46,28 @@ class TestDataModels(unittest.TestCase):
         self.assertEqual(vector.metadata, {"text": "test content"})
     
     def test_vector_validation_empty_id(self):
-        """Teste validação de Vector com ID vazio."""
+        """Test validação de Vector com ID vazio."""
         with self.assertRaises(ValueError) as context:
             Vector(id="", data=[0.1, 0.2, 0.3])
         
         self.assertIn("Vector ID cannot be empty", str(context.exception))
     
     def test_vector_validation_empty_data(self):
-        """Teste validação de Vector com data vazia."""
+        """Test validação de Vector com data vazia."""
         with self.assertRaises(ValueError) as context:
             Vector(id="test", data=[])
         
         self.assertIn("Vector data cannot be empty", str(context.exception))
     
     def test_vector_validation_invalid_data(self):
-        """Teste validação de Vector com data inválida."""
+        """Test validação de Vector com data inválida."""
         with self.assertRaises(ValueError) as context:
             Vector(id="test", data=["invalid", "data"])
         
         self.assertIn("Vector data must contain only numbers", str(context.exception))
     
     def test_collection_creation(self):
-        """Teste criação de Collection."""
+        """Test criação de Collection."""
         collection = Collection(
             name="test_collection",
             dimension=512,
@@ -81,28 +81,28 @@ class TestDataModels(unittest.TestCase):
         self.assertEqual(collection.description, "Test collection")
     
     def test_collection_validation_empty_name(self):
-        """Teste validação de Collection com nome vazio."""
+        """Test validação de Collection com nome vazio."""
         with self.assertRaises(ValueError) as context:
             Collection(name="", dimension=512)
         
         self.assertIn("Collection name cannot be empty", str(context.exception))
     
     def test_collection_validation_negative_dimension(self):
-        """Teste validação de Collection com dimensão negativa."""
+        """Test validação de Collection com dimensão negativa."""
         with self.assertRaises(ValueError) as context:
             Collection(name="test", dimension=-1)
         
         self.assertIn("Dimension must be positive", str(context.exception))
     
     def test_collection_validation_invalid_metric(self):
-        """Teste validação de Collection com métrica inválida."""
+        """Test validação de Collection com métrica inválida."""
         with self.assertRaises(ValueError) as context:
             Collection(name="test", dimension=512, similarity_metric="invalid")
         
         self.assertIn("Invalid similarity metric", str(context.exception))
     
     def test_collection_info_creation(self):
-        """Teste criação de CollectionInfo."""
+        """Test criação de CollectionInfo."""
         info = CollectionInfo(
             name="test_collection",
             dimension=512,
@@ -119,7 +119,7 @@ class TestDataModels(unittest.TestCase):
         self.assertEqual(info.status, "ready")
     
     def test_search_result_creation(self):
-        """Teste criação de SearchResult."""
+        """Test criação de SearchResult."""
         result = SearchResult(
             id="doc1",
             score=0.95,
@@ -133,14 +133,14 @@ class TestDataModels(unittest.TestCase):
         self.assertEqual(result.metadata, {"category": "test"})
     
     def test_search_result_validation_empty_id(self):
-        """Teste validação de SearchResult com ID vazio."""
+        """Test validação de SearchResult com ID vazio."""
         with self.assertRaises(ValueError) as context:
             SearchResult(id="", score=0.95)
         
         self.assertIn("SearchResult ID cannot be empty", str(context.exception))
     
     def test_search_result_validation_invalid_score(self):
-        """Teste validação de SearchResult com score inválido."""
+        """Test validação de SearchResult com score inválido."""
         with self.assertRaises(ValueError) as context:
             SearchResult(id="test", score="invalid")
         
@@ -148,10 +148,10 @@ class TestDataModels(unittest.TestCase):
 
 
 class TestExceptions(unittest.TestCase):
-    """Testes para as exceções customizadas."""
+    """Tests para as exceções customizadas."""
     
     def test_vectorizer_error_basic(self):
-        """Teste VectorizerError básico."""
+        """Test VectorizerError básico."""
         error = VectorizerError("Test error")
         
         self.assertEqual(error.message, "Test error")
@@ -160,7 +160,7 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(str(error), "Test error")
     
     def test_vectorizer_error_with_code(self):
-        """Teste VectorizerError com código."""
+        """Test VectorizerError com código."""
         error = VectorizerError("Test error", "TEST_CODE")
         
         self.assertEqual(error.message, "Test error")
@@ -168,7 +168,7 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(str(error), "[TEST_CODE] Test error")
     
     def test_vectorizer_error_with_details(self):
-        """Teste VectorizerError com detalhes."""
+        """Test VectorizerError com detalhes."""
         error = VectorizerError("Test error", "TEST_CODE", {"detail": "test"})
         
         self.assertEqual(error.message, "Test error")
@@ -176,7 +176,7 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(error.details, {"detail": "test"})
     
     def test_collection_not_found_error(self):
-        """Teste CollectionNotFoundError."""
+        """Test CollectionNotFoundError."""
         error = CollectionNotFoundError("test-collection")
 
         self.assertEqual(error.message, "Collection 'test-collection' not found")
@@ -184,104 +184,104 @@ class TestExceptions(unittest.TestCase):
         self.assertEqual(str(error), "[COLLECTION_NOT_FOUND] Collection 'test-collection' not found")
     
     def test_validation_error(self):
-        """Teste ValidationError."""
+        """Test ValidationError."""
         error = ValidationError("Invalid input")
         
         self.assertEqual(error.message, "Invalid input")
         self.assertEqual(error.error_code, "VALIDATION_ERROR")
     
     def test_network_error(self):
-        """Teste NetworkError."""
+        """Test NetworkError."""
         error = NetworkError("Network issue")
         
         self.assertEqual(error.message, "Network issue")
         self.assertEqual(error.error_code, "NETWORK_ERROR")
     
     def test_server_error(self):
-        """Teste ServerError."""
+        """Test ServerError."""
         error = ServerError("Server issue")
         
         self.assertEqual(error.message, "Server issue")
         self.assertEqual(error.error_code, "SERVER_ERROR")
     
     def test_rate_limit_error(self):
-        """Teste RateLimitError."""
+        """Test RateLimitError."""
         error = RateLimitError("Rate limit exceeded")
         
         self.assertEqual(error.message, "Rate limit exceeded")
         self.assertEqual(error.error_code, "RATE_LIMIT_ERROR")
     
     def test_timeout_error(self):
-        """Teste TimeoutError."""
+        """Test TimeoutError."""
         error = TimeoutError("Operation timed out")
         
         self.assertEqual(error.message, "Operation timed out")
         self.assertEqual(error.error_code, "TIMEOUT_ERROR")
     
     def test_vector_not_found_error(self):
-        """Teste VectorNotFoundError."""
+        """Test VectorNotFoundError."""
         error = VectorNotFoundError("Vector not found")
         
         self.assertEqual(error.message, "Vector not found")
         self.assertEqual(error.error_code, "VECTOR_NOT_FOUND")
     
     def test_embedding_error(self):
-        """Teste EmbeddingError."""
+        """Test EmbeddingError."""
         error = EmbeddingError("Embedding failed")
         
         self.assertEqual(error.message, "Embedding failed")
         self.assertEqual(error.error_code, "EMBEDDING_ERROR")
     
     def test_indexing_error(self):
-        """Teste IndexingError."""
+        """Test IndexingError."""
         error = IndexingError("Indexing failed")
         
         self.assertEqual(error.message, "Indexing failed")
         self.assertEqual(error.error_code, "INDEXING_ERROR")
     
     def test_configuration_error(self):
-        """Teste ConfigurationError."""
+        """Test ConfigurationError."""
         error = ConfigurationError("Configuration error")
         
         self.assertEqual(error.message, "Configuration error")
         self.assertEqual(error.error_code, "CONFIGURATION_ERROR")
     
     def test_batch_operation_error(self):
-        """Teste BatchOperationError."""
+        """Test BatchOperationError."""
         error = BatchOperationError("Batch operation failed")
         
         self.assertEqual(error.message, "Batch operation failed")
         self.assertEqual(error.error_code, "BATCH_OPERATION_ERROR")
     
     def test_map_http_error(self):
-        """Teste mapeamento de erros HTTP."""
-        # Teste erro 400
+        """Test mapeamento de erros HTTP."""
+        # Test erro 400
         error = map_http_error(400, "Bad request")
         self.assertIsInstance(error, ValidationError)
         
-        # Teste erro 401
+        # Test erro 401
         error = map_http_error(401, "Unauthorized")
         self.assertIsInstance(error, AuthenticationError)
         
-        # Teste erro 404
+        # Test erro 404
         error = map_http_error(404, "Not found")
         self.assertIsInstance(error, CollectionNotFoundError)
         
-        # Teste erro 429
+        # Test erro 429
         error = map_http_error(429, "Too many requests")
         self.assertIsInstance(error, RateLimitError)
         
-        # Teste erro 500
+        # Test erro 500
         error = map_http_error(500, "Internal server error")
         self.assertIsInstance(error, ServerError)
         
-        # Teste erro não mapeado
+        # Test erro não mapeado
         error = map_http_error(999, "Unknown error")
         self.assertIsInstance(error, ServerError)
 
 
 class TestVectorizerClient(unittest.TestCase):
-    """Testes para o VectorizerClient."""
+    """Tests para o VectorizerClient."""
     
     def setUp(self):
         """Configuração inicial para cada teste."""
@@ -292,14 +292,14 @@ class TestVectorizerClient(unittest.TestCase):
         )
     
     def test_client_initialization(self):
-        """Teste inicialização do cliente."""
+        """Test inicialização do cliente."""
         self.assertEqual(self.client.base_url, "http://localhost:15002")
         self.assertEqual(self.client.api_key, "test-key")
         self.assertEqual(self.client.timeout, 30)
         self.assertEqual(self.client.max_retries, 3)
     
     def test_client_default_initialization(self):
-        """Teste inicialização com valores padrão."""
+        """Test inicialização com valores padrão."""
         client = VectorizerClient()
         
         self.assertEqual(client.base_url, "http://localhost:15002")
@@ -308,7 +308,7 @@ class TestVectorizerClient(unittest.TestCase):
         self.assertEqual(client.max_retries, 3)
     
     def test_client_custom_initialization(self):
-        """Teste inicialização com valores customizados."""
+        """Test inicialização com valores customizados."""
         client = VectorizerClient(
             base_url="https://api.example.com",
             api_key="custom-key",
@@ -323,7 +323,7 @@ class TestVectorizerClient(unittest.TestCase):
 
 
 class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
-    """Testes assíncronos para o VectorizerClient."""
+    """Tests assíncronos para o VectorizerClient."""
     
     def setUp(self):
         """Configuração inicial para cada teste."""
@@ -334,7 +334,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         )
     
     async def test_health_check_success(self):
-        """Teste health check bem-sucedido."""
+        """Test health check bem-sucedido."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -353,7 +353,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result["version"], "1.0.0")
     
     async def test_health_check_failure(self):
-        """Teste health check com falha."""
+        """Test health check com falha."""
         mock_response = Mock()
         mock_response.status = 500
         
@@ -366,7 +366,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Health check failed", str(context.exception))
     
     async def test_list_collections_success(self):
-        """Teste listagem de coleções bem-sucedida."""
+        """Test listagem de coleções bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -393,7 +393,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(collections[0].vector_count, 100)
     
     async def test_create_collection_success(self):
-        """Teste criação de coleção bem-sucedida."""
+        """Test criação de collection bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 201
         mock_response.json = AsyncMock(return_value={
@@ -418,21 +418,21 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(collection.status, "ready")
     
     async def test_create_collection_validation_error(self):
-        """Teste criação de coleção com parâmetros inválidos."""
+        """Test criação de collection com parâmetros inválidos."""
         with self.assertRaises(ValidationError) as context:
             await self.client.create_collection(name="", dimension=512)
         
         self.assertIn("Collection name must be a non-empty string", str(context.exception))
     
     async def test_create_collection_negative_dimension(self):
-        """Teste criação de coleção com dimensão negativa."""
+        """Test criação de collection com dimensão negativa."""
         with self.assertRaises(ValidationError) as context:
             await self.client.create_collection(name="test", dimension=-1)
         
         self.assertIn("Dimension must be positive", str(context.exception))
     
     async def test_embed_text_success(self):
-        """Teste geração de embedding bem-sucedida."""
+        """Test geração de embedding bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -448,14 +448,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(embedding, [0.1, 0.2, 0.3, 0.4, 0.5])
     
     async def test_embed_text_validation_error(self):
-        """Teste geração de embedding com texto inválido."""
+        """Test geração de embedding com texto inválido."""
         with self.assertRaises(ValidationError) as context:
             await self.client.embed_text("")
         
         self.assertIn("Text must be a non-empty string", str(context.exception))
     
     async def test_insert_texts_success(self):
-        """Teste inserção de vetores bem-sucedida."""
+        """Test inserção de vectores bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 201
         mock_response.json = AsyncMock(return_value={
@@ -478,14 +478,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result["collection"], "test_collection")
     
     async def test_insert_texts_validation_error(self):
-        """Teste inserção de vetores com lista vazia."""
+        """Test inserção de vectores com lista vazia."""
         with self.assertRaises(ValidationError) as context:
             await self.client.insert_texts("test_collection", [])
         
         self.assertIn("Vectors list cannot be empty", str(context.exception))
     
     async def test_search_vectors_success(self):
-        """Teste busca de vetores bem-sucedida."""
+        """Test busca de vectores bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -514,7 +514,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(results[0].content, "test content")
     
     async def test_search_vectors_collection_not_found(self):
-        """Teste busca de vetores com coleção não encontrada."""
+        """Test busca de vectores com collection não encontrada."""
         mock_response = Mock()
         mock_response.status = 404
         
@@ -530,7 +530,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Collection 'nonexistent' not found", str(context.exception))
     
     async def test_search_vectors_validation_error(self):
-        """Teste busca de vetores com parâmetros inválidos."""
+        """Test busca de vectores com parâmetros inválidos."""
         with self.assertRaises(ValidationError) as context:
             await self.client.search_vectors(
                 collection="test_collection",
@@ -541,7 +541,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Query must be a non-empty string", str(context.exception))
     
     async def test_get_collection_info_success(self):
-        """Teste obtenção de informações da coleção bem-sucedida."""
+        """Test obtenção de informações da collection bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -564,7 +564,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(info.status, "ready")
     
     async def test_get_collection_info_not_found(self):
-        """Teste obtenção de informações de coleção não encontrada."""
+        """Test obtenção de informações de collection não encontrada."""
         mock_response = Mock()
         mock_response.status = 404
         
@@ -577,7 +577,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Collection 'nonexistent' not found", str(context.exception))
     
     async def test_delete_collection_success(self):
-        """Teste exclusão de coleção bem-sucedida."""
+        """Test exclusão de collection bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         
@@ -589,7 +589,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(result)
     
     async def test_delete_collection_not_found(self):
-        """Teste exclusão de coleção não encontrada."""
+        """Test exclusão de collection não encontrada."""
         mock_response = Mock()
         mock_response.status = 404
         
@@ -602,7 +602,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Collection 'nonexistent' not found", str(context.exception))
     
     async def test_get_vector_success(self):
-        """Teste obtenção de vetor específico bem-sucedida."""
+        """Test obtenção de vector específico bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -621,7 +621,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(vector.metadata, {"text": "test"})
     
     async def test_get_vector_not_found(self):
-        """Teste obtenção de vetor não encontrado."""
+        """Test obtenção de vector não encontrado."""
         mock_response = Mock()
         mock_response.status = 404
         
@@ -634,7 +634,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Vector 'nonexistent' not found", str(context.exception))
     
     async def test_delete_vectors_success(self):
-        """Teste exclusão de vetores bem-sucedida."""
+        """Test exclusão de vectores bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         
@@ -649,14 +649,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(result)
     
     async def test_delete_vectors_validation_error(self):
-        """Teste exclusão de vetores com lista vazia."""
+        """Test exclusão de vectores com lista vazia."""
         with self.assertRaises(ValidationError) as context:
             await self.client.delete_vectors("test_collection", [])
         
         self.assertIn("Vector IDs list cannot be empty", str(context.exception))
     
     async def test_get_indexing_progress_success(self):
-        """Teste obtenção de progresso de indexação bem-sucedida."""
+        """Test obtenção de progresso de indexação bem-sucedida."""
         mock_response = Mock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
@@ -675,7 +675,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(progress["collections"]), 2)
     
     async def test_network_error_handling(self):
-        """Teste tratamento de erro de rede."""
+        """Test tratamento de erro de rede."""
         with patch.object(self.client, '_session') as mock_session:
             mock_session.get.side_effect = Exception("Network error")
             
@@ -693,7 +693,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
 
 
 class TestIntegration(unittest.IsolatedAsyncioTestCase):
-    """Testes de integração (requerem serviço rodando)."""
+    """Tests de integração (requerem serviço rodando)."""
     
     def setUp(self):
         """Configuração inicial para cada teste."""
@@ -703,7 +703,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         )
     
     async def test_full_workflow_mock(self):
-        """Teste workflow completo com mocks."""
+        """Test workflow completo com mocks."""
         collection_name = "integration_test_collection"
         
         # Mock para health check
@@ -797,10 +797,10 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
 
 
 class TestUtilityFunctions(unittest.TestCase):
-    """Testes para funções utilitárias."""
+    """Tests para funções utilitárias."""
     
     def test_map_http_error_comprehensive(self):
-        """Teste abrangente do mapeamento de erros HTTP."""
+        """Test abrangente do mapeamento de erros HTTP."""
         test_cases = [
             (400, ValidationError),
             (401, AuthenticationError),
@@ -827,11 +827,11 @@ class TestUtilityFunctions(unittest.TestCase):
 
 
 def run_tests():
-    """Executa todos os testes."""
-    # Criar suite de testes
+    """Executa todos os tests."""
+    # Criar suite de tests
     test_suite = unittest.TestSuite()
     
-    # Adicionar testes
+    # Adicionar tests
     test_classes = [
         TestDataModels,
         TestExceptions,
@@ -845,7 +845,7 @@ def run_tests():
         tests = unittest.TestLoader().loadTestsFromTestCase(test_class)
         test_suite.addTests(tests)
     
-    # Executar testes
+    # Executar tests
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(test_suite)
     
@@ -853,7 +853,7 @@ def run_tests():
 
 
 if __name__ == "__main__":
-    print("🧪 Executando testes do SDK Python Hive Vectorizer")
+    print("🧪 Running tests do SDK Python Hive Vectorizer")
     print("=" * 60)
     
     success = run_tests()

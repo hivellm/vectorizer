@@ -6,8 +6,9 @@ High-performance TypeScript client for the Hive Vectorizer vector database.
 
 - ✅ **Complete TypeScript Support**: Full type safety and IntelliSense
 - ✅ **Async/Await**: Modern async programming patterns
-- ✅ **REST-Only Architecture**: Pure HTTP REST API communication
+- ✅ **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
 - ✅ **HTTP Client**: Native fetch-based HTTP client with robust error handling
+- ✅ **UMICP Protocol**: High-performance protocol with compression and encryption
 - ✅ **Comprehensive Validation**: Input validation and error handling
 - ✅ **12 Custom Exceptions**: Robust error management
 - ✅ **Logging**: Configurable logging system
@@ -72,9 +73,11 @@ const embedding = await client.embedText({
 
 ## Configuration
 
+### HTTP Configuration (Default)
+
 ```typescript
 const client = new VectorizerClient({
-  baseURL: 'http://localhost:15001',     // API base URL
+  baseURL: 'http://localhost:15002',     // API base URL
   apiKey: 'your-api-key',                // API key for authentication
   timeout: 30000,                        // Request timeout in ms
   headers: {                             // Custom headers
@@ -86,6 +89,63 @@ const client = new VectorizerClient({
   }
 });
 ```
+
+### UMICP Configuration (High Performance)
+
+[UMICP (Universal Messaging and Inter-process Communication Protocol)](https://www.npmjs.com/package/@hivellm/umicp) provides significant performance benefits:
+
+- **Automatic Compression**: GZIP, DEFLATE, or LZ4 compression for large payloads
+- **Built-in Encryption**: Optional encryption for secure communication
+- **Lower Latency**: Optimized binary protocol with checksums
+- **Request Validation**: Automatic request/response validation
+
+#### Using Connection String
+
+```typescript
+const client = new VectorizerClient({
+  connectionString: 'umicp://localhost:15003',
+  apiKey: 'your-api-key'
+});
+```
+
+#### Using Explicit Configuration
+
+```typescript
+const client = new VectorizerClient({
+  protocol: 'umicp',
+  apiKey: 'your-api-key',
+  umicp: {
+    host: 'localhost',
+    port: 15003,
+    compression: 'gzip',     // 'gzip', 'deflate', 'lz4', or 'none'
+    encryption: true,         // Enable encryption
+    priority: 'normal'        // 'low', 'normal', 'high'
+  }
+});
+```
+
+#### When to Use UMICP
+
+Use UMICP when:
+- **Large Payloads**: Inserting or searching large batches of vectors
+- **High Throughput**: Need maximum performance for production workloads
+- **Secure Communication**: Require encryption without TLS overhead
+- **Low Latency**: Need minimal protocol overhead
+
+Use HTTP when:
+- **Development**: Quick testing and debugging
+- **Firewall Restrictions**: Only HTTP/HTTPS allowed
+- **Simple Deployments**: No need for custom protocol setup
+
+#### Protocol Comparison
+
+| Feature | HTTP/HTTPS | UMICP |
+|---------|-----------|-------|
+| Compression | Manual (gzip header) | Automatic (GZIP/DEFLATE/LZ4) |
+| Encryption | TLS required | Built-in optional |
+| Latency | Standard | Lower |
+| Firewall | Widely supported | May require configuration |
+| Debugging | Easy (browser tools) | Requires UMICP tools |
 
 ## API Reference
 
