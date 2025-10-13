@@ -32,7 +32,7 @@ sysinfo = "0.33"
 hnsw_rs = "0.3"
 
 # Intelligent search dependencies
-tantivy = "0.24"  # BM25 full-text search engine
+tantivy = "0.25"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
 fastembed = "0.2" # Embeddings + cross-encoder reranking
 rust-tfidf = "1.1" # TF-IDF similarity fallback
