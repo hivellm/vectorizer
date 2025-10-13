@@ -16,6 +16,9 @@ pub struct VectorizerConfig {
     pub logging: LoggingConfig,
     /// Summarization configuration
     pub summarization: SummarizationConfig,
+    /// Transmutation configuration
+    #[serde(default)]
+    pub transmutation: TransmutationConfig,
     /// Projects configuration
     pub projects: Vec<ProjectConfig>,
 }
@@ -95,6 +98,46 @@ pub struct CollectionConfig {
     pub dimension: u32,
 }
 
+/// Transmutation configuration for document conversion
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransmutationConfig {
+    /// Enable transmutation document conversion
+    #[serde(default = "default_transmutation_enabled")]
+    pub enabled: bool,
+    /// Maximum file size in MB for conversion
+    #[serde(default = "default_max_file_size_mb")]
+    pub max_file_size_mb: usize,
+    /// Conversion timeout in seconds
+    #[serde(default = "default_conversion_timeout_secs")]
+    pub conversion_timeout_secs: u64,
+    /// Preserve images during conversion
+    #[serde(default)]
+    pub preserve_images: bool,
+}
+
+fn default_transmutation_enabled() -> bool {
+    cfg!(feature = "transmutation")
+}
+
+fn default_max_file_size_mb() -> usize {
+    50
+}
+
+fn default_conversion_timeout_secs() -> u64 {
+    300
+}
+
+impl Default for TransmutationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_transmutation_enabled(),
+            max_file_size_mb: default_max_file_size_mb(),
+            conversion_timeout_secs: default_conversion_timeout_secs(),
+            preserve_images: false,
+        }
+    }
+}
+
 impl Default for VectorizerConfig {
     fn default() -> Self {
         Self {
@@ -102,6 +145,7 @@ impl Default for VectorizerConfig {
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
             summarization: SummarizationConfig::default(),
+            transmutation: TransmutationConfig::default(),
             projects: Vec::new(),
         }
     }

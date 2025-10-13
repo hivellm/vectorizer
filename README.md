@@ -22,6 +22,7 @@ A high-performance vector database and search engine built in Rust, designed for
 
 - **🔍 Semantic Search**: Advanced vector similarity with multiple distance metrics (Cosine, Euclidean, Dot Product)
 - **📚 Document Indexing**: Intelligent chunking and processing of 10+ file types
+- **📄 Document Conversion**: Optional transmutation integration for PDF, DOCX, XLSX, PPTX, HTML, XML, and images
 - **🧠 Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
 - **🏗️ Unified Architecture**: REST API + MCP Server + UMICP Protocol
@@ -37,6 +38,9 @@ git clone https://github.com/hivellm/vectorizer.git
 cd vectorizer
 cargo build --release
 ./target/release/vectorizer
+
+# Build with transmutation support for document conversion
+cargo build --release --features transmutation
 
 # Or use the CLI
 ./target/release/vzr start --workspace vectorize-workspace.yml
@@ -103,6 +107,13 @@ normalization:
     normalize_crlf: true
     collapse_multiple_newlines: true
     trim_trailing_whitespace: true
+
+# Transmutation document conversion (optional feature)
+transmutation:
+  enabled: true
+  max_file_size_mb: 50
+  conversion_timeout_secs: 300
+  preserve_images: false
 
 # Multi-tier cache
 cache:

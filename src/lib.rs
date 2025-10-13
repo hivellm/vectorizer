@@ -33,6 +33,8 @@ pub mod logging;
 pub mod server;
 pub mod file_operations;
 pub mod umicp;
+#[cfg(feature = "transmutation")]
+pub mod transmutation_integration;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};

@@ -914,9 +914,26 @@ impl DocumentLoader {
 
     /// Collect all documents from the project directory
     pub fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
+        // Use tokio runtime to run async collection
+        let rt = tokio::runtime::Handle::try_current()
+            .or_else(|_| {
+                // Create a new runtime if we're not in an async context
+                tokio::runtime::Runtime::new()
+                    .map(|rt| {
+                        let handle = rt.handle().clone();
+                        std::mem::forget(rt); // Keep runtime alive
+                        handle
+                    })
+            })
+            .map_err(|e| anyhow::anyhow!("Failed to get tokio runtime: {}", e))?;
+        
+        rt.block_on(self.collect_documents_async(project_path))
+    }
+
+    pub async fn collect_documents_async(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
         let path = Path::new(project_path);
         let mut documents = Vec::new();
-        self.collect_documents_recursive(path, path, &mut documents)?;
+        self.collect_documents_recursive(path, path, &mut documents).await?;
         info!(
             "📁 Found {} documents in '{}' for collection '{}'",
             documents.len(),
@@ -928,7 +945,7 @@ impl DocumentLoader {
 
     /// Recursively collect documents from directory
     #[allow(dead_code)]
-    fn collect_documents_recursive(
+    async fn collect_documents_recursive(
         &self,
         dir: &Path,
         project_root: &Path,
@@ -970,7 +987,7 @@ impl DocumentLoader {
                     }
                 }
                 debug!("Recursively scanning subdirectory: {}", path.display());
-                self.collect_documents_recursive(&path, project_root, documents)?;
+                self.collect_documents_recursive(&path, project_root, documents).await?;
             } else if path.is_file() {
                 debug!("Found file: {}", path.display());
                 // Skip specific file names that should never be indexed
@@ -1001,7 +1018,17 @@ impl DocumentLoader {
                     continue;
                 }
                 
-                // Skip binary files by extension
+                // Check if transmutation can handle this file format
+                #[cfg(feature = "transmutation")]
+                let transmutation_supported = {
+                    use crate::transmutation_integration::TransmutationProcessor;
+                    TransmutationProcessor::is_supported_format(&path)
+                };
+                
+                #[cfg(not(feature = "transmutation"))]
+                let transmutation_supported = false;
+
+                // Skip binary files by extension (unless transmutation can handle them)
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
                     let ext_lower = extension.to_lowercase();
                     
@@ -1012,7 +1039,7 @@ impl DocumentLoader {
                     }
                     
                     let binary_extensions = [
-                        // Images
+                        // Images (can be processed by transmutation with OCR)
                         "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico",
                         // Videos
                         "mp4", "avi", "mov", "wmv", "flv", "webm", "mkv",
@@ -1024,11 +1051,11 @@ impl DocumentLoader {
                         "exe", "dll", "so", "dylib",
                         // Archives
                         "zip", "tar", "gz", "rar", "7z", "bz2", "xz",
-                        // Documents (binary formats)
+                        // Documents (binary formats - can be processed by transmutation)
                         "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
                     ];
                     
-                    if binary_extensions.contains(&ext_lower.as_str()) {
+                    if binary_extensions.contains(&ext_lower.as_str()) && !transmutation_supported {
                         continue;
                     }
                 }
@@ -1055,21 +1082,58 @@ impl DocumentLoader {
                         }
                     }
 
-                    // Read file content
-                    match fs::read_to_string(&path) {
+                    // Try transmutation conversion for supported formats, otherwise read as text
+                    let content_result = if transmutation_supported {
+                        #[cfg(feature = "transmutation")]
+                        {
+                            use crate::transmutation_integration::TransmutationProcessor;
+                            
+                            info!("🔄 Attempting transmutation conversion for: {}", path.display());
+                            
+                            match TransmutationProcessor::new() {
+                                Ok(processor) => {
+                                    match processor.convert_to_markdown(&path).await {
+                                        Ok(converted) => {
+                                            info!("✅ Successfully converted {} via transmutation ({} bytes)", 
+                                                  path.display(), converted.content.len());
+                                            Ok(converted.content)
+                                        }
+                                        Err(e) => {
+                                            warn!("⚠️ Transmutation conversion failed for {}: {}, skipping", 
+                                                  path.display(), e);
+                                            Err(anyhow::anyhow!("Transmutation failed: {}", e))
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("⚠️ Failed to initialize transmutation processor: {}, skipping {}", 
+                                          e, path.display());
+                                    Err(anyhow::anyhow!("Transmutation init failed: {}", e))
+                                }
+                            }
+                        }
+                        
+                        #[cfg(not(feature = "transmutation"))]
+                        {
+                            Err(anyhow::anyhow!("Transmutation feature not enabled"))
+                        }
+                    } else {
+                        // Read file content as text
+                        fs::read_to_string(&path)
+                            .map_err(|e| anyhow::anyhow!("Failed to read file: {}", e))
+                    };
+
+                    match content_result {
                         Ok(content) => {
-                            debug!("Successfully read file: {} ({} bytes)", path.display(), content.len());
+                            debug!("Successfully processed file: {} ({} bytes)", path.display(), content.len());
                             // Normalize line endings (CRLF -> LF) to ensure consistent content
                             let normalized_content = content.replace("\r\n", "\n");
                             documents.push((path, normalized_content));
                         }
                         Err(e) => {
-                            warn!("Failed to read file {}: {}", path.display(), e);
-                            return Err(anyhow::anyhow!(
-                                "Failed to read file {}: {}",
-                                path.display(),
-                                e
-                            ));
+                            warn!("Failed to process file {}: {}", path.display(), e);
+                            // Don't return error, just skip the file and continue
+                            continue;
                         }
                     }
                 } else {
@@ -1596,6 +1660,24 @@ impl DocumentLoader {
                     "chunk_size".to_string(),
                     serde_json::Value::Number(chunk_text.len().into()),
                 );
+                
+                // Add transmutation-related metadata if file was converted
+                #[cfg(feature = "transmutation")]
+                {
+                    use crate::transmutation_integration::TransmutationProcessor;
+                    if TransmutationProcessor::is_supported_format(file_path) {
+                        metadata.insert(
+                            "converted_via".to_string(),
+                            serde_json::Value::String("transmutation".to_string()),
+                        );
+                        if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+                            metadata.insert(
+                                "source_format".to_string(),
+                                serde_json::Value::String(ext.to_string()),
+                            );
+                        }
+                    }
+                }
 
                 let chunk_content = chunk_text.to_string();
                 chunks.push(DocumentChunk {

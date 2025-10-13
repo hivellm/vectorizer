@@ -89,6 +89,10 @@ pub enum VectorizerError {
     /// UMICP protocol error
     #[error("UMICP error: {0}")]
     UmicpError(#[from] umicp_core::error::UmicpError),
+    
+    /// Transmutation document conversion error
+    #[error("Transmutation error: {0}")]
+    TransmutationError(String),
 }
 
 /// Result type alias for Vectorizer operations
