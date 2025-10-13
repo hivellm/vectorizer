@@ -417,7 +417,7 @@ impl FileDiscovery {
             info!("🔍 Synchronizing collection: {}", collection_name);
             
             // Get all vectors in the collection
-            let collection = self.vector_store.get_collection(&collection_name)?;
+            let mut collection = self.vector_store.get_collection_mut(&collection_name)?;
             let vectors = collection.get_all_vectors();
             
             info!("📄 Checking {} vectors in collection '{}'", vectors.len(), collection_name);

@@ -29,6 +29,7 @@ async fn test_metal_native_payload_retrieval() {
         hnsw_config: vectorizer::models::HnswConfig::default(),
         quantization: vectorizer::models::QuantizationConfig::SQ { bits: 8 },
         compression: vectorizer::models::CompressionConfig::default(),
+        normalization: None,
     };
     
     println!("🆕 Creating fresh test collection: {}", test_collection);

@@ -1488,7 +1488,7 @@ impl DocumentLoader {
             })?;
 
         // Set the embedding type for this collection
-        if let Ok(collection) = store.get_collection(&self.config.collection_name) {
+        if let Ok(mut collection) = store.get_collection_mut(&self.config.collection_name) {
             collection.set_embedding_type(self.config.embedding_type.clone());
             info!(
                 "Set embedding type '{}' for collection '{}'",
@@ -1784,7 +1784,7 @@ impl DocumentLoader {
             
             match store.create_collection_with_quantization(&summary_collection_name, config) {
                 Ok(_) => {
-                    if let Ok(c) = store.get_collection(&summary_collection_name) {
+                    if let Ok(mut c) = store.get_collection_mut(&summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
                         // Force apply quantization to summary collection
                         if quantization_enabled {
@@ -1824,7 +1824,7 @@ impl DocumentLoader {
             match store.create_collection_with_quantization(&chunk_summary_collection_name, config) {
                 Ok(_) => {
                     println!("✅ Created chunk summary collection: {}", chunk_summary_collection_name);
-                    if let Ok(c) = store.get_collection(&chunk_summary_collection_name) {
+                    if let Ok(mut c) = store.get_collection_mut(&chunk_summary_collection_name) {
                         c.set_embedding_type(self.config.embedding_type.clone());
                         // Force apply quantization to chunk summary collection
                         if quantization_enabled {
