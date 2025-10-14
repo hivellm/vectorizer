@@ -809,12 +809,25 @@ pub async fn load_workspace_collections(
     let mut existing_in_vecdb = std::collections::HashSet::new();
     if using_vecdb {
         use crate::storage::StorageReader;
-        if let Ok(reader) = StorageReader::new(&data_dir) {
-            if let Ok(collections) = reader.list_collections() {
-                existing_in_vecdb = collections.into_iter().collect();
-                info!("📦 Found {} collections in .vecdb archive", existing_in_vecdb.len());
+        info!("🔍 .vecdb file exists at {}, attempting to read...", vecdb_path.display());
+        match StorageReader::new(&data_dir) {
+            Ok(reader) => {
+                match reader.list_collections() {
+                    Ok(collections) => {
+                        existing_in_vecdb = collections.iter().cloned().collect();
+                        info!("📦 Found {} collections in .vecdb archive: {:?}", existing_in_vecdb.len(), existing_in_vecdb);
+                    }
+                    Err(e) => {
+                        warn!("Failed to list collections from .vecdb: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to create StorageReader for .vecdb: {}", e);
             }
         }
+    } else {
+        info!("📦 .vecdb file does not exist, will create after indexing");
     }
     
     // Process each enabled project
