@@ -468,29 +468,56 @@ impl DocumentLoader {
         progress_callback: Option<&IndexingProgress>,
     ) -> CacheResult<(usize, bool)> {
         let collection_name = self.config.collection_name.clone();
-        let vector_store_path = Self::get_data_dir().join(format!("{}_vector_store.bin", collection_name));
+        let data_dir = Self::get_data_dir();
+        
+        // Check storage format - prioritize .vecdb (compact format)
+        use crate::storage::{detect_format, StorageFormat};
+        let format = detect_format(&data_dir);
+        
+        if format == StorageFormat::Compact {
+            // 🚀 FAST PATH: Load from .vecdb (compact format)
+            // The VectorStore itself handles loading from .vecdb automatically
+            // Just check if the collection already exists in the store
+            if let Ok(collection) = store.get_collection(&collection_name) {
+                let count = collection.vector_count();
+                if count > 0 {
+                    info!("✅ Collection '{}' already loaded with {} vectors from .vecdb", collection_name, count);
+                    if let Some(cache_manager) = &self.cache_manager {
+                        let _ = cache_manager.record_hit().await;
+                    }
+                    return Ok((count, true));
+                }
+            }
+            
+            // Collection not in store yet, but .vecdb exists - need to load workspace
+            info!("📊 Collection '{}' not in memory, will be loaded from .vecdb during indexing", collection_name);
+            // Continue to full indexing - it will use .vecdb format
+        } else {
+            // Legacy format - check for individual collection file
+            let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
 
-        // 🚀 FAST PATH: If vector store already exists, load it IMMEDIATELY
-        if vector_store_path.exists() {
-            info!("🚀 Loading cached vector store for '{}' from {}", collection_name, vector_store_path.display());
-            debug!("🔍 Checking if cache file exists: {}", vector_store_path.display());
-            match self.load_persisted_store(&vector_store_path, store, &collection_name) {
-                Ok(count) => {
-                    if count > 0 {
-                        info!("✅ Loaded {} vectors from cache for '{}'", count, collection_name);
-                        // Record cache hit if cache manager is available
-                        if let Some(cache_manager) = &self.cache_manager {
-                            let _ = cache_manager.record_hit().await;
+            // 🚀 FAST PATH: If legacy vector store already exists, load it IMMEDIATELY
+            if vector_store_path.exists() {
+                info!("🚀 Loading cached vector store for '{}' from {}", collection_name, vector_store_path.display());
+                debug!("🔍 Checking if cache file exists: {}", vector_store_path.display());
+                match self.load_persisted_store(&vector_store_path, store, &collection_name) {
+                    Ok(count) => {
+                        if count > 0 {
+                            info!("✅ Loaded {} vectors from legacy cache for '{}'", count, collection_name);
+                            // Record cache hit if cache manager is available
+                            if let Some(cache_manager) = &self.cache_manager {
+                                let _ = cache_manager.record_hit().await;
+                            }
+                            return Ok((count, true));
+                        } else {
+                            warn!("⚠️ Cache file exists but has 0 vectors for '{}', performing full indexing", collection_name);
+                            // Continue to full indexing
                         }
-                        return Ok((count, true));
-                    } else {
-                        warn!("⚠️ Cache file exists but has 0 vectors for '{}', performing full indexing", collection_name);
+                    }
+                    Err(e) => {
+                        warn!("❌ Failed to load cached vector store for '{}': {}, falling back to full indexing", collection_name, e);
                         // Continue to full indexing
                     }
-                }
-                Err(e) => {
-                    warn!("❌ Failed to load cached vector store for '{}': {}, falling back to full indexing", collection_name, e);
-                    // Continue to full indexing
                 }
             }
         }
