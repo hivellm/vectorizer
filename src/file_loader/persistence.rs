@@ -40,24 +40,43 @@ impl Persistence {
 
     /// Save collection using existing persistence module
     pub fn save_collection_legacy_temp(&self, store: &VectorStore, collection_name: &str) -> Result<()> {
-        // Use existing VectorStore save functionality
+        // Use existing VectorStore save functionality directly
         let collection = store.get_collection(collection_name)?;
         let vectors = collection.get_all_vectors();
         
         if vectors.is_empty() {
-            warn!("Collection '{}' has no vectors, skipping", collection_name);
+            warn!("Collection '{}' has no vectors, skipping temp save", collection_name);
             return Ok(());
         }
 
-        // Save using existing persistence (creates temporary _vector_store.bin)
-        let temp_path = self.data_dir.join(format!("{}_vector_store.bin", collection_name));
+        // Build PersistedCollection manually (NO new VectorStore - prevents memory loop)
+        use crate::persistence::{PersistedCollection, PersistedVector};
+        use std::fs::File;
+        use std::io::BufWriter;
         
-        let sub_store = VectorStore::new();
+        let temp_path = self.data_dir.join(format!("{}_vector_store.bin", collection_name));
         let meta = collection.metadata();
-        sub_store.create_collection(collection_name, meta.config.clone())?;
-        sub_store.insert(collection_name, vectors)?;
-        sub_store.save(&temp_path)?;
+        
+        // Convert vectors to PersistedVector format using From trait
+        let persisted_vectors: Vec<PersistedVector> = vectors.into_iter()
+            .map(|v| PersistedVector::from(v))
+            .collect();
+        
+        let persisted = PersistedCollection {
+            name: collection_name.to_string(),
+            config: meta.config.clone(),
+            vectors: persisted_vectors,
+            hnsw_dump_basename: None,
+        };
+        
+        let file = File::create(&temp_path)
+            .map_err(|e| crate::error::VectorizerError::Io(e))?;
+        let writer = BufWriter::new(file);
+        
+        bincode::serialize_into(writer, &persisted)
+            .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
 
+        info!("Saved temp collection '{}' to {}", collection_name, temp_path.display());
         Ok(())
     }
 
