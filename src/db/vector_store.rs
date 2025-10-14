@@ -856,6 +856,11 @@ impl VectorStore {
 
 
     /// List all collections (both loaded in memory and available on disk)
+    /// Check if collection exists in memory only (without lazy loading)
+    pub fn has_collection_in_memory(&self, name: &str) -> bool {
+        self.collections.contains_key(name)
+    }
+    
     pub fn list_collections(&self) -> Vec<String> {
         use std::collections::HashSet;
         

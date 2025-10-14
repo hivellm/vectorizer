@@ -43,7 +43,7 @@ pub struct VectorizerServer {
     pub start_time: std::time::Instant,
     pub file_watcher_system: Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
     pub metrics_collector: Arc<MetricsCollector>,
-    background_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    background_task: Arc<tokio::sync::Mutex<Option<(tokio::task::JoinHandle<()>, tokio::sync::watch::Sender<bool>)>>>,
 }
 
 impl VectorizerServer {
@@ -152,6 +152,9 @@ impl VectorizerServer {
             info!("⏭️  File watcher is DISABLED in config - skipping initialization");
         }
 
+        // Create cancellation token for background task
+        let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+        
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
@@ -159,6 +162,12 @@ impl VectorizerServer {
         let background_handle = tokio::task::spawn(async move {
             println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
+            
+            // Check for cancellation before starting
+            if *cancel_rx.borrow() {
+                info!("Background task cancelled before start");
+                return;
+            }
             
             // Check if auto-load is enabled in config
             let auto_load_enabled = std::fs::read_to_string("config.yml")
@@ -298,8 +307,14 @@ impl VectorizerServer {
                 0
             };
 
+            // Check for cancellation before workspace loading
+            if *cancel_rx.borrow() {
+                info!("Background task cancelled before workspace loading");
+                return;
+            }
+            
             // Check for workspace configuration and reindex if needed
-            match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading).await {
+            match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading, cancel_rx.clone()).await {
                 Ok(workspace_count) => {
                     if workspace_count > 0 {
                         println!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
@@ -378,7 +393,7 @@ impl VectorizerServer {
             start_time: std::time::Instant::now(),
             file_watcher_system: watcher_system_for_server,
             metrics_collector: Arc::new(MetricsCollector::new()),
-            background_task: Arc::new(tokio::sync::Mutex::new(Some(background_handle))),
+            background_task: Arc::new(tokio::sync::Mutex::new(Some((background_handle, cancel_tx)))),
         })
     }
     
@@ -566,9 +581,14 @@ impl VectorizerServer {
             }
         }
         
-        // Abort background collection loading task if still running
+        // Cancel and abort background collection loading task if still running
         info!("🛑 Stopping background collection loading task...");
-        if let Some(handle) = self.background_task.lock().await.take() {
+        if let Some((handle, cancel_tx)) = self.background_task.lock().await.take() {
+            // Send cancellation signal
+            let _ = cancel_tx.send(true);
+            info!("📤 Sent cancellation signal to background task");
+            
+            // Abort the task immediately
             handle.abort();
             info!("✅ Background task aborted");
         }
@@ -779,6 +799,7 @@ async fn load_file_watcher_config() -> anyhow::Result<crate::file_watcher::FileW
 pub async fn load_workspace_collections(
     store: &Arc<VectorStore>,
     embedding_manager: &Arc<EmbeddingManager>,
+    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) -> anyhow::Result<usize> {
     use std::path::Path;
     use crate::workspace::manager::WorkspaceManager;
@@ -825,9 +846,21 @@ pub async fn load_workspace_collections(
     
     // Process each enabled project
     for project in workspace_manager.enabled_projects() {
+        // Check for cancellation
+        if *cancel_rx.borrow() {
+            info!("🛑 Workspace loading cancelled by user");
+            break;
+        }
+        
         info!("Processing project: {}", project.name);
         
         for collection in &project.collections {
+            // Check for cancellation
+            if *cancel_rx.borrow() {
+                info!("🛑 Workspace loading cancelled by user");
+                break;
+            }
+            
             info!("Processing collection: {}", collection.name);
             
             // Check if collection already exists in .vecdb archive
@@ -837,8 +870,8 @@ pub async fn load_workspace_collections(
                 continue;
             }
             
-            // Check if collection already exists in store (memory)
-            if store.get_collection(&collection.name).is_ok() {
+            // Check if collection already exists in store memory (WITHOUT lazy loading)
+            if store.has_collection_in_memory(&collection.name) {
                 info!("Collection '{}' already exists in memory, skipping", collection.name);
                 continue;
             }
