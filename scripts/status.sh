@@ -42,18 +42,18 @@ fi
 echo ""
 
 # Check REST server
-REST_PIDS=$(pgrep -f "vectorizer-server" || true)
+REST_PIDS=$(pgrep -f "vectorizer" || true)
 if [ ! -z "$REST_PIDS" ]; then
-    echo "✅ REST API Server: RUNNING"
+    echo "✅ Vectorizer Server: RUNNING"
     echo "   PIDs: $REST_PIDS"
-    echo "   Port: 15001"
+    echo "   Port: 15002"
 
     # Test REST server health
-    if curl -s --max-time 2 http://127.0.0.1:15001/api/v1/health > /dev/null 2>&1; then
+    if curl -s --max-time 2 http://127.0.0.1:15002/health > /dev/null 2>&1; then
         echo "   Health: 🟢 OK"
 
         # Get collection stats
-        COLLECTIONS=$(curl -s --max-time 2 http://127.0.0.1:15001/api/v1/collections | jq -r '.collections | length' 2>/dev/null || echo "?")
+        COLLECTIONS=$(curl -s --max-time 2 http://127.0.0.1:15002/api/v1/collections | jq -r '.collections | length' 2>/dev/null || echo "?")
         echo "   Collections: $COLLECTIONS"
     else
         echo "   Health: 🟡 UNREACHABLE"

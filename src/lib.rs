@@ -34,6 +34,8 @@ pub mod logging;
 pub mod server;
 pub mod file_operations;
 pub mod umicp;
+#[cfg(feature = "transmutation")]
+pub mod transmutation_integration;
 
 // Re-export commonly used types
 pub use db::{Collection, VectorStore};
@@ -155,10 +157,13 @@ mod integration_tests {
     fn test_collection_management() {
         let store = VectorStore::new();
 
+        // Get initial collection count
+        let initial_count = store.list_collections().len();
+
         // Test creating multiple collections with different configurations
         let configs = vec![
             (
-                "small",
+                "small_test_mgmt_unique",
                 CollectionConfig {
                     dimension: 64,
                     metric: crate::models::DistanceMetric::Euclidean,
@@ -174,7 +179,7 @@ mod integration_tests {
                 },
             ),
             (
-                "large",
+                "large_test_mgmt_unique",
                 CollectionConfig {
                     dimension: 512,
                     metric: crate::models::DistanceMetric::Cosine,
@@ -202,13 +207,13 @@ mod integration_tests {
 
         // Verify collections exist
         let collections = store.list_collections();
-        assert_eq!(collections.len(), 2);
-        assert!(collections.contains(&"small".to_string()));
-        assert!(collections.contains(&"large".to_string()));
+        assert_eq!(collections.len(), initial_count + 2);
+        assert!(collections.contains(&"small_test_mgmt_unique".to_string()));
+        assert!(collections.contains(&"large_test_mgmt_unique".to_string()));
 
         // Test duplicate collection creation
         assert!(matches!(
-            store.create_collection("small", configs[0].1.clone()),
+            store.create_collection("small_test_mgmt_unique", configs[0].1.clone()),
             Err(VectorizerError::CollectionAlreadyExists(_))
         ));
 
@@ -223,12 +228,12 @@ mod integration_tests {
             Vector::new("large_2".to_string(), vec![0.2; 512]),
         ];
 
-        store.insert("small", small_vectors).unwrap();
-        store.insert("large", large_vectors).unwrap();
+        store.insert("small_test_mgmt_unique", small_vectors).unwrap();
+        store.insert("large_test_mgmt_unique", large_vectors).unwrap();
 
         // Verify collection metadata
-        let small_metadata = store.get_collection_metadata("small").unwrap();
-        let large_metadata = store.get_collection_metadata("large").unwrap();
+        let small_metadata = store.get_collection_metadata("small_test_mgmt_unique").unwrap();
+        let large_metadata = store.get_collection_metadata("large_test_mgmt_unique").unwrap();
 
         assert_eq!(small_metadata.vector_count, 2);
         assert_eq!(small_metadata.config.dimension, 64);
@@ -236,18 +241,18 @@ mod integration_tests {
         assert_eq!(large_metadata.config.dimension, 512);
 
         // Test search in different collections
-        let small_results = store.search("small", &vec![1.5; 64], 2).unwrap();
-        let large_results = store.search("large", &vec![0.15; 512], 2).unwrap();
+        let small_results = store.search("small_test_mgmt_unique", &vec![1.5; 64], 2).unwrap();
+        let large_results = store.search("large_test_mgmt_unique", &vec![0.15; 512], 2).unwrap();
 
         assert_eq!(small_results.len(), 2);
         assert_eq!(large_results.len(), 2);
 
         // Test deleting collections
-        store.delete_collection("small").unwrap();
-        assert_eq!(store.list_collections().len(), 1);
-        assert!(store.list_collections().contains(&"large".to_string()));
+        store.delete_collection("small_test_mgmt_unique").unwrap();
+        assert_eq!(store.list_collections().len(), initial_count + 1);
+        assert!(store.list_collections().contains(&"large_test_mgmt_unique".to_string()));
 
-        store.delete_collection("large").unwrap();
-        assert_eq!(store.list_collections().len(), 0);
+        store.delete_collection("large_test_mgmt_unique").unwrap();
+        assert_eq!(store.list_collections().len(), initial_count);
     }
 }

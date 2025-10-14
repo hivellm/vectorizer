@@ -29,7 +29,7 @@ Client → REST/MCP → Internal Server → Vector Store
 ```
 
 ### Services
-- **vectorizer-server** (Port 15002): REST API + MCP server (unified)
+- **vectorizer** (Port 15002): REST API + MCP server (unified)
 
 ## Usage
 
@@ -126,7 +126,7 @@ scripts\build.bat     # Windows
 ```
 
 ### Port conflicts
-Scripts automatically detect and kill processes using Vectorizer ports (15001, 15002, 15003).
+Scripts automatically detect and kill processes using Vectorizer port (15002).
 
 ### Service startup order
 Scripts ensure proper startup order:

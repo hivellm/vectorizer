@@ -1,114 +1,114 @@
-# BitNet Server v2.0 - Nova Implementação
+# BitNet Server v2.0 - New Implementation
 
-Servidor FastAPI moderno e otimizado com busca inteligente do Vectorizer.
+Modern and optimized FastAPI server with intelligent Vectorizer search.
 
-## 🚀 Funcionalidades
+## 🚀 Features
 
-- ✅ **API REST completa** com endpoints `/api/chat` e `/api/health`
-- ✅ **WebSocket para chat em tempo real**
-- ✅ **Interface web integrada**
-- ✅ **Busca inteligente otimizada** que detecta queries sobre vectorizer
-- ✅ **Sistema de cache para coleções**
-- ✅ **Tratamento de encoding robusto**
-- ✅ **Priorização inteligente de coleções**
+- ✅ **Complete REST API** with `/api/chat` and `/api/health` endpoints
+- ✅ **WebSocket for real-time chat**
+- ✅ **Integrated web interface**
+- ✅ **Optimized intelligent search** that detects vectorizer queries
+- ✅ **Collection caching system**
+- ✅ **Robust encoding handling**
+- ✅ **Intelligent collection prioritization**
 
-## 📁 Estrutura do Projeto
+## 📁 Project Structure
 
 ```
 sample/
-├── bitnet_server_final.py    # Servidor principal (NOVA VERSÃO)
-├── bitnet_server.py          # Versão antiga (manter para referência)
-├── test.py                   # Script de teste rápido
-├── requirements_v2.txt        # Dependências da nova versão
-├── tests/                    # Pasta com todos os testes
-│   ├── simple_test.py        # Teste básico (recomendado)
-│   ├── test_final_version.py # Teste da versão final
-│   ├── test_collections.py   # Teste de coleções
-│   └── README.md            # Documentação dos testes
-├── docs/                    # Documentação
-└── models/                  # Modelos BitNet
+├── bitnet_server_final.py    # Main server (NEW VERSION)
+├── bitnet_server.py          # Old version (keep for reference)
+├── test.py                   # Quick test script
+├── requirements_v2.txt        # New version dependencies
+├── tests/                    # Folder with all tests
+│   ├── simple_test.py        # Basic test (recommended)
+│   ├── test_final_version.py # Final version test
+│   ├── test_collections.py   # Collections test
+│   └── README.md            # Test documentation
+├── docs/                    # Documentation
+└── models/                  # BitNet models
 ```
 
-## 🛠️ Como Usar
+## 🛠️ How to Use
 
-### 1. Instalar Dependências
+### 1. Install Dependencies
 
 ```bash
 cd f:\Node\hivellm\vectorizer\sample
 pip install -r requirements_v2.txt
 ```
 
-### 2. Iniciar o Servidor
+### 2. Start the Server
 
 ```bash
 python bitnet_server_final.py
 ```
 
-O servidor será iniciado em: **http://localhost:15006**
+The server will start at: **http://localhost:15006**
 
-### 3. Testar o Servidor
+### 3. Test the Server
 
 ```bash
-# Teste rápido
+# Quick test
 python test.py
 
-# Ou teste específico
+# Or specific test
 cd tests
 python simple_test.py
 ```
 
-## 🌐 Endpoints Disponíveis
+## 🌐 Available Endpoints
 
-- **Interface Web**: http://localhost:15006
-- **API Chat**: `POST http://localhost:15006/api/chat`
+- **Web Interface**: http://localhost:15006
+- **Chat API**: `POST http://localhost:15006/api/chat`
 - **Health Check**: `GET http://localhost:15006/api/health`
 - **WebSocket**: `ws://localhost:15006/ws`
 
-## 📝 Exemplo de Uso da API
+## 📝 API Usage Example
 
 ```bash
 curl -X POST http://localhost:15006/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "me fale sobre o vectorizer", "history": []}'
+  -d '{"message": "tell me about vectorizer", "history": []}'
 ```
 
-## 🔍 Como Funciona a Busca Inteligente
+## 🔍 How Intelligent Search Works
 
-1. **Detecção de Query**: Identifica se a query é sobre vectorizer
-2. **Priorização**: Se for sobre vectorizer, busca apenas nas coleções do vectorizer
-3. **Fallback**: Se não for sobre vectorizer, usa priorização normal
-4. **Cache**: Cache de coleções por 1 minuto para performance
-5. **Encoding**: Tratamento robusto de caracteres especiais
+1. **Query Detection**: Identifies if the query is about vectorizer
+2. **Prioritization**: If about vectorizer, searches only in vectorizer collections
+3. **Fallback**: If not about vectorizer, uses normal prioritization
+4. **Cache**: Collection cache for 1 minute for performance
+5. **Encoding**: Robust handling of special characters
 
-## ✅ Status dos Testes
+## ✅ Test Status
 
-- ✅ **Health Check**: Funcionando
-- ✅ **Busca Vectorizer**: Funcionando (encontra coleções corretas)
-- ⚠️ **Busca Não-Vectorizer**: Parcial (pode retornar resultados do vectorizer)
+- ✅ **Health Check**: Working
+- ✅ **Vectorizer Search**: Working (finds correct collections)
+- ⚠️ **Non-Vectorizer Search**: Partial (may return vectorizer results)
 
-## 🎯 Principais Melhorias da Nova Versão
+## 🎯 Main Improvements in New Version
 
-1. **Código limpo e organizado** - Implementação do zero
-2. **Busca inteligente** - Detecta contexto da query
-3. **Performance otimizada** - Cache e timeouts
-4. **Tratamento de erros** - Encoding e conexões robustas
-5. **Testes organizados** - Pasta dedicada para testes
-6. **Documentação completa** - README e comentários
+1. **Clean and organized code** - Implementation from scratch
+2. **Intelligent search** - Detects query context
+3. **Optimized performance** - Cache and timeouts
+4. **Error handling** - Robust encoding and connections
+5. **Organized tests** - Dedicated folder for tests
+6. **Complete documentation** - README and comments
 
-## 🚨 Pré-requisitos
+## 🚨 Prerequisites
 
-- Vectorizer rodando na porta 15002
+- Vectorizer running on port 15002
 - Python 3.12+
-- Dependências instaladas (FastAPI, httpx, websockets, etc.)
+- Installed dependencies (FastAPI, httpx, websockets, etc.)
 
-## 📊 Logs do Servidor
+## 📊 Server Logs
 
-O servidor mostra logs detalhados incluindo:
-- Detecção de queries do vectorizer
-- Coleções encontradas e pesquisadas
-- Tempo de processamento
-- Resultados da busca
+The server shows detailed logs including:
+- Vectorizer query detection
+- Collections found and searched
+- Processing time
+- Search results
 
 ---
 
-**Nova versão do BitNet está funcionando perfeitamente!** 🎉
+**New BitNet version is working perfectly!** 🎉

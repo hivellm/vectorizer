@@ -80,6 +80,42 @@ collections:
         max_connections_0: 32 # Connections for layer 0
 
 # =============================================================================
+# TRANSMUTATION DOCUMENT CONVERSION (v0.8.0)
+# =============================================================================
+transmutation:
+  # Enable/disable transmutation document conversion
+  enabled: true
+  
+  # Maximum file size for conversion (in MB)
+  # Files larger than this will be skipped
+  max_file_size_mb: 50
+  
+  # Conversion timeout (in seconds)
+  # Conversions taking longer than this will be aborted
+  conversion_timeout_secs: 300
+  
+  # Preserve images during conversion
+  # Note: Requires additional dependencies (LibreOffice for DOCX images)
+  preserve_images: false
+
+# Supported formats when transmutation feature is enabled:
+# - PDF (with page metadata) - 98x faster than Docling
+# - DOCX (with page metadata) - Pure Rust
+# - XLSX (as Markdown tables) - 148 pages/sec
+# - PPTX (slides as pages) - 1639 pages/sec
+# - HTML/HTM (clean Markdown) - 2110 pages/sec
+# - XML (structured Markdown) - 2353 pages/sec
+# - Images (JPG, JPEG, PNG, TIFF, TIF, BMP, GIF, WEBP) - Requires Tesseract OCR
+
+# External dependencies (optional, for full format support):
+# - Linux: sudo apt-get install poppler-utils tesseract-ocr
+# - macOS: brew install poppler tesseract
+# - Windows: choco install poppler tesseract
+
+# Build with transmutation support:
+# cargo build --release --features transmutation
+
+# =============================================================================
 # TEXT NORMALIZATION CONFIGURATION
 # =============================================================================
 normalization:

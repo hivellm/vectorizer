@@ -914,9 +914,39 @@ impl DocumentLoader {
 
     /// Collect all documents from the project directory
     pub fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
+        // Check if we're already in a Tokio runtime context
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // We're already in an async context, spawn and wait
+            let path = project_path.to_string();
+            let path_clone = path.clone();
+            
+            // Use block_in_place to avoid runtime nesting issues
+            tokio::task::block_in_place(|| {
+                handle.block_on(async move {
+                    let path = Path::new(&path_clone);
+                    let mut documents = Vec::new();
+                    self.collect_documents_recursive(path, path, &mut documents).await?;
+                    info!(
+                        "📁 Found {} documents in '{}' for collection '{}'",
+                        documents.len(),
+                        path_clone,
+                        self.config.collection_name
+                    );
+                    Ok(documents)
+                })
+            })
+        } else {
+            // Not in async context, create a new runtime
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| anyhow::anyhow!("Failed to create tokio runtime: {}", e))?;
+            rt.block_on(self.collect_documents_async(project_path))
+        }
+    }
+
+    pub async fn collect_documents_async(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
         let path = Path::new(project_path);
         let mut documents = Vec::new();
-        self.collect_documents_recursive(path, path, &mut documents)?;
+        self.collect_documents_recursive(path, path, &mut documents).await?;
         info!(
             "📁 Found {} documents in '{}' for collection '{}'",
             documents.len(),
@@ -928,12 +958,13 @@ impl DocumentLoader {
 
     /// Recursively collect documents from directory
     #[allow(dead_code)]
-    fn collect_documents_recursive(
-        &self,
-        dir: &Path,
-        project_root: &Path,
-        documents: &mut Vec<(PathBuf, String)>,
-    ) -> Result<()> {
+    fn collect_documents_recursive<'a>(
+        &'a self,
+        dir: &'a Path,
+        project_root: &'a Path,
+        documents: &'a mut Vec<(PathBuf, String)>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
+        Box::pin(async move {
         debug!("Scanning directory: {}", dir.display());
         let entries = fs::read_dir(dir)
             .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
@@ -970,7 +1001,7 @@ impl DocumentLoader {
                     }
                 }
                 debug!("Recursively scanning subdirectory: {}", path.display());
-                self.collect_documents_recursive(&path, project_root, documents)?;
+                Box::pin(self.collect_documents_recursive(&path, project_root, documents)).await?;
             } else if path.is_file() {
                 debug!("Found file: {}", path.display());
                 // Skip specific file names that should never be indexed
@@ -1001,7 +1032,17 @@ impl DocumentLoader {
                     continue;
                 }
                 
-                // Skip binary files by extension
+                // Check if transmutation can handle this file format
+                #[cfg(feature = "transmutation")]
+                let transmutation_supported = {
+                    use crate::transmutation_integration::TransmutationProcessor;
+                    TransmutationProcessor::is_supported_format(&path)
+                };
+                
+                #[cfg(not(feature = "transmutation"))]
+                let transmutation_supported = false;
+
+                // Skip binary files by extension (unless transmutation can handle them)
                 if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
                     let ext_lower = extension.to_lowercase();
                     
@@ -1012,7 +1053,7 @@ impl DocumentLoader {
                     }
                     
                     let binary_extensions = [
-                        // Images
+                        // Images (can be processed by transmutation with OCR)
                         "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico",
                         // Videos
                         "mp4", "avi", "mov", "wmv", "flv", "webm", "mkv",
@@ -1024,11 +1065,11 @@ impl DocumentLoader {
                         "exe", "dll", "so", "dylib",
                         // Archives
                         "zip", "tar", "gz", "rar", "7z", "bz2", "xz",
-                        // Documents (binary formats)
+                        // Documents (binary formats - can be processed by transmutation)
                         "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
                     ];
                     
-                    if binary_extensions.contains(&ext_lower.as_str()) {
+                    if binary_extensions.contains(&ext_lower.as_str()) && !transmutation_supported {
                         continue;
                     }
                 }
@@ -1055,21 +1096,58 @@ impl DocumentLoader {
                         }
                     }
 
-                    // Read file content
-                    match fs::read_to_string(&path) {
+                    // Try transmutation conversion for supported formats, otherwise read as text
+                    let content_result = if transmutation_supported {
+                        #[cfg(feature = "transmutation")]
+                        {
+                            use crate::transmutation_integration::TransmutationProcessor;
+                            
+                            info!("🔄 Attempting transmutation conversion for: {}", path.display());
+                            
+                            match TransmutationProcessor::new() {
+                                Ok(processor) => {
+                                    match processor.convert_to_markdown(&path).await {
+                                        Ok(converted) => {
+                                            info!("✅ Successfully converted {} via transmutation ({} bytes)", 
+                                                  path.display(), converted.content.len());
+                                            Ok(converted.content)
+                                        }
+                                        Err(e) => {
+                                            warn!("⚠️ Transmutation conversion failed for {}: {}, skipping", 
+                                                  path.display(), e);
+                                            Err(anyhow::anyhow!("Transmutation failed: {}", e))
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("⚠️ Failed to initialize transmutation processor: {}, skipping {}", 
+                                          e, path.display());
+                                    Err(anyhow::anyhow!("Transmutation init failed: {}", e))
+                                }
+                            }
+                        }
+                        
+                        #[cfg(not(feature = "transmutation"))]
+                        {
+                            Err(anyhow::anyhow!("Transmutation feature not enabled"))
+                        }
+                    } else {
+                        // Read file content as text
+                        fs::read_to_string(&path)
+                            .map_err(|e| anyhow::anyhow!("Failed to read file: {}", e))
+                    };
+
+                    match content_result {
                         Ok(content) => {
-                            debug!("Successfully read file: {} ({} bytes)", path.display(), content.len());
+                            debug!("Successfully processed file: {} ({} bytes)", path.display(), content.len());
                             // Normalize line endings (CRLF -> LF) to ensure consistent content
                             let normalized_content = content.replace("\r\n", "\n");
                             documents.push((path, normalized_content));
                         }
                         Err(e) => {
-                            warn!("Failed to read file {}: {}", path.display(), e);
-                            return Err(anyhow::anyhow!(
-                                "Failed to read file {}: {}",
-                                path.display(),
-                                e
-                            ));
+                            warn!("Failed to process file {}: {}", path.display(), e);
+                            // Don't return error, just skip the file and continue
+                            continue;
                         }
                     }
                 } else {
@@ -1079,6 +1157,7 @@ impl DocumentLoader {
         }
 
         Ok(())
+        })
     }
 
     /// Build vocabulary from all documents
@@ -1596,6 +1675,24 @@ impl DocumentLoader {
                     "chunk_size".to_string(),
                     serde_json::Value::Number(chunk_text.len().into()),
                 );
+                
+                // Add transmutation-related metadata if file was converted
+                #[cfg(feature = "transmutation")]
+                {
+                    use crate::transmutation_integration::TransmutationProcessor;
+                    if TransmutationProcessor::is_supported_format(file_path) {
+                        metadata.insert(
+                            "converted_via".to_string(),
+                            serde_json::Value::String("transmutation".to_string()),
+                        );
+                        if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+                            metadata.insert(
+                                "source_format".to_string(),
+                                serde_json::Value::String(ext.to_string()),
+                            );
+                        }
+                    }
+                }
 
                 let chunk_content = chunk_text.to_string();
                 chunks.push(DocumentChunk {
@@ -2013,5 +2110,184 @@ impl DocumentLoader {
         }
         
         (Ok(()), summarization_manager)
+    }
+}
+
+// ========================================
+// Document Loader Tests from /tests
+// ========================================
+
+#[cfg(test)]
+mod document_loader_tests {
+    use super::*;
+
+    #[cfg(feature = "transmutation")]
+    #[test]
+    fn test_loader_config_with_transmutation_formats() {
+        let config = LoaderConfig {
+            collection_name: "test_collection".to_string(),
+            embedding_type: "bm25".to_string(),
+            include_patterns: vec![
+                "*.pdf".to_string(),
+                "*.docx".to_string(),
+                "*.html".to_string(),
+            ],
+            ..Default::default()
+        };
+
+        assert_eq!(config.collection_name, "test_collection");
+        assert_eq!(config.embedding_type, "bm25");
+        assert!(config.include_patterns.contains(&"*.pdf".to_string()));
+        assert!(config.include_patterns.contains(&"*.docx".to_string()));
+        assert!(config.include_patterns.contains(&"*.html".to_string()));
+    }
+
+    #[cfg(feature = "transmutation")]
+    #[tokio::test]
+    async fn test_document_loader_empty_directory() {
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let store = VectorStore::new();
+
+        let config = LoaderConfig {
+            collection_name: "empty_test".to_string(),
+            embedding_type: "bm25".to_string(),
+            ..Default::default()
+        };
+
+        let mut loader = DocumentLoader::new(config);
+        let result = loader.load_project_async(temp_dir.path().to_str().unwrap(), &store).await;
+
+        // Should succeed but with 0 documents
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[cfg(feature = "transmutation")]
+    #[tokio::test]
+    async fn test_document_loader_with_text_files() {
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let store = VectorStore::new();
+
+        // Create some text files
+        fs::write(temp_dir.path().join("test1.txt"), "This is test content 1").unwrap();
+        fs::write(temp_dir.path().join("test2.txt"), "This is test content 2").unwrap();
+
+        let config = LoaderConfig {
+            collection_name: "text_test".to_string(),
+            embedding_type: "bm25".to_string(),
+            include_patterns: vec!["*.txt".to_string()],
+            ..Default::default()
+        };
+
+        let mut loader = DocumentLoader::new(config);
+        let result = loader.load_project_async(temp_dir.path().to_str().unwrap(), &store).await;
+
+        assert!(result.is_ok());
+        let count = result.unwrap();
+        assert!(count > 0, "Should have indexed text files");
+    }
+
+    #[cfg(feature = "transmutation")]
+    #[test]
+    fn test_document_loader_format_detection() {
+        use crate::transmutation_integration::TransmutationProcessor;
+
+        // Test that DocumentLoader would recognize these formats
+        assert!(TransmutationProcessor::is_supported_format(&PathBuf::from("document.pdf")));
+        assert!(TransmutationProcessor::is_supported_format(&PathBuf::from("presentation.pptx")));
+        assert!(TransmutationProcessor::is_supported_format(&PathBuf::from("spreadsheet.xlsx")));
+        assert!(TransmutationProcessor::is_supported_format(&PathBuf::from("page.html")));
+    }
+
+    #[cfg(feature = "transmutation")]
+    #[tokio::test]
+    async fn test_document_loader_with_subdirectories() {
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let store = VectorStore::new();
+
+        // Create nested directory structure
+        let sub_dir = temp_dir.path().join("subdir");
+        fs::create_dir(&sub_dir).unwrap();
+
+        fs::write(temp_dir.path().join("root.txt"), "Root content").unwrap();
+        fs::write(sub_dir.join("nested.txt"), "Nested content").unwrap();
+
+        let config = LoaderConfig {
+            collection_name: "nested_test".to_string(),
+            embedding_type: "bm25".to_string(),
+            include_patterns: vec!["**/*.txt".to_string()],
+            ..Default::default()
+        };
+
+        let mut loader = DocumentLoader::new(config);
+        let result = loader.load_project_async(temp_dir.path().to_str().unwrap(), &store).await;
+
+        assert!(result.is_ok());
+        let count = result.unwrap();
+        assert!(count > 0, "Should have indexed files in subdirectories");
+    }
+
+    #[test]
+    fn test_document_loader_exclude_patterns() {
+        let config = LoaderConfig {
+            collection_name: "exclude_test".to_string(),
+            embedding_type: "bm25".to_string(),
+            include_patterns: vec!["*.txt".to_string()],
+            exclude_patterns: vec![
+                "**/data/**".to_string(),
+                "**/*.bin".to_string(),
+                "**/target/**".to_string(),
+            ],
+            ..Default::default()
+        };
+
+        // Verify exclude patterns are set
+        assert!(config.exclude_patterns.contains(&"**/data/**".to_string()));
+        assert!(config.exclude_patterns.contains(&"**/*.bin".to_string()));
+    }
+
+    #[test]
+    fn test_document_loader_max_file_size() {
+        let config = LoaderConfig {
+            collection_name: "size_test".to_string(),
+            embedding_type: "bm25".to_string(),
+            max_file_size: 1024 * 1024, // 1MB
+            ..Default::default()
+        };
+
+        assert_eq!(config.max_file_size, 1024 * 1024);
+    }
+
+    #[cfg(not(feature = "transmutation"))]
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "Test takes too long - run manually with --ignored if needed"]
+    async fn test_document_loader_without_transmutation() {
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let store = VectorStore::new();
+
+        // Create text files that should work without transmutation
+        fs::write(temp_dir.path().join("test.txt"), "Test content").unwrap();
+        fs::write(temp_dir.path().join("test.md"), "# Markdown content").unwrap();
+
+        let config = LoaderConfig {
+            collection_name: "no_trans_test".to_string(),
+            embedding_type: "bm25".to_string(),
+            include_patterns: vec!["*.txt".to_string(), "*.md".to_string()],
+            ..Default::default()
+        };
+
+        let mut loader = DocumentLoader::new(config);
+        let result = loader.load_project_async(temp_dir.path().to_str().unwrap(), &store).await;
+
+        // Should still work for text formats
+        assert!(result.is_ok());
     }
 }

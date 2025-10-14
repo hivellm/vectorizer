@@ -76,6 +76,8 @@ data
 
 !./vectorize-workspace.yml
 vectorize-workspace.yml
-
 #hive-gpu
 hive-gpu/
+/cache/
+cache
+cache/
