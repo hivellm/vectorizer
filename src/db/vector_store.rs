@@ -833,10 +833,55 @@ impl VectorStore {
         
         // Slow path: try lazy loading from disk
         let data_dir = Self::get_data_dir();
+        
+        // First, try to load from .vecdb archive (compact format)
+        use crate::storage::{detect_format, StorageFormat, StorageReader};
+        if detect_format(&data_dir) == StorageFormat::Compact {
+            debug!("📥 Lazy loading collection '{}' from .vecdb archive", name);
+            
+            match StorageReader::new(&data_dir) {
+                Ok(reader) => {
+                    // Read the _vector_store.bin file from the archive
+                    let vector_store_path = format!("{}_vector_store.bin", name);
+                    match reader.read_file(&vector_store_path) {
+                        Ok(data) => {
+                            // Deserialize PersistedCollection
+                            match bincode::deserialize::<crate::persistence::PersistedCollection>(&data) {
+                                Ok(persisted) => {
+                                    // Load collection into memory
+                                    if let Err(e) = self.load_persisted_collection_from_data(name, persisted) {
+                                        warn!("Failed to load collection '{}' from .vecdb: {}", name, e);
+                                        return Err(VectorizerError::CollectionNotFound(name.to_string()));
+                                    }
+                                    
+                                    info!("✅ Lazy loaded collection '{}' from .vecdb", name);
+                                    
+                                    // Try again now that it's loaded
+                                    return self.collections
+                                        .get(name)
+                                        .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()));
+                                }
+                                Err(e) => {
+                                    warn!("Failed to deserialize collection '{}' from .vecdb: {}", name, e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            debug!("Collection file '{}' not found in .vecdb: {}", vector_store_path, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to create StorageReader: {}", e);
+                }
+            }
+        }
+        
+        // Fallback: try loading from legacy _vector_store.bin file
         let collection_file = data_dir.join(format!("{}_vector_store.bin", name));
         
         if collection_file.exists() {
-            debug!("🔄 Lazy loading collection '{}' from disk", name);
+            debug!("📥 Lazy loading collection '{}' from legacy .bin file", name);
             
             // Load collection from disk
             if let Err(e) = self.load_persisted_collection(&collection_file, name) {
@@ -850,11 +895,41 @@ impl VectorStore {
                 .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()));
         }
         
-        // Collection doesn't exist
+        // Collection doesn't exist anywhere
         Err(VectorizerError::CollectionNotFound(name.to_string()))
     }
 
 
+    /// Load collection from PersistedCollection data
+    fn load_persisted_collection_from_data(&self, name: &str, persisted: crate::persistence::PersistedCollection) -> Result<()> {
+        use crate::models::Vector;
+        
+        let vector_count = persisted.vectors.len();
+        info!("Loading collection '{}' with {} vectors from .vecdb", name, vector_count);
+        
+        // Create collection if it doesn't exist
+        if !self.has_collection_in_memory(name) {
+            self.create_collection(name, persisted.config.clone())?;
+        }
+        
+        // Convert persisted vectors to runtime vectors
+        let vectors: Vec<Vector> = persisted.vectors
+            .into_iter()
+            .filter_map(|pv| pv.into_runtime().ok())
+            .collect();
+        
+        info!("Converted {} persisted vectors to runtime format", vectors.len());
+        
+        // Load vectors into the collection
+        let collection = self.collections.get(name)
+            .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))?;
+        
+        collection.load_vectors_into_memory(vectors)?;
+        
+        info!("✅ Collection '{}' loaded from .vecdb with {} vectors", name, vector_count);
+        Ok(())
+    }
+    
     /// List all collections (both loaded in memory and available on disk)
     /// Check if collection exists in memory only (without lazy loading)
     pub fn has_collection_in_memory(&self, name: &str) -> bool {
