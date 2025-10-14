@@ -83,7 +83,10 @@ impl StorageMigrator {
     /// Create backup of current data
     fn create_backup(&self) -> Result<PathBuf> {
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-        let backup_dir = self.data_dir.join(format!("backup_before_migration_{}", timestamp));
+        // Use shorter path to avoid "File name too long" errors
+        let backup_dir = self.data_dir.parent()
+            .unwrap_or(self.data_dir.as_path())
+            .join(format!("data.bak.{}", timestamp));
         
         // Create backup directory
         fs::create_dir_all(&backup_dir)
@@ -91,31 +94,16 @@ impl StorageMigrator {
         
         // Copy legacy data directory
         let legacy_data = self.find_legacy_data_dir()?;
-        let backup_data = backup_dir.join("data");
         
-        self.copy_dir_recursive(&legacy_data, &backup_data)?;
+        self.copy_dir_recursive(&legacy_data, &backup_dir)?;
         
         Ok(backup_dir)
     }
     
     /// Find the legacy data directory
     fn find_legacy_data_dir(&self) -> Result<PathBuf> {
-        // Try collections subdirectory first
-        let collections_dir = self.data_dir.join("collections");
-        if collections_dir.exists() {
-            return Ok(collections_dir);
-        }
-        
-        // Try parent data directory
-        let parent_data = self.data_dir.parent()
-            .unwrap_or(&self.data_dir)
-            .join("data");
-        
-        if parent_data.exists() {
-            return Ok(parent_data);
-        }
-        
-        // Use current directory
+        // Current structure: files directly in data/ directory
+        // Pattern: collection-name_vector_store.bin
         Ok(self.data_dir.clone())
     }
     
@@ -123,32 +111,71 @@ impl StorageMigrator {
     fn count_legacy_collections(&self) -> Result<usize> {
         let legacy_dir = self.find_legacy_data_dir()?;
         
-        let count = fs::read_dir(&legacy_dir)
-            .map_err(|e| VectorizerError::Io(e))?
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_dir())
-            .count();
+        // Count unique collection names (group by prefix before last _)
+        use std::collections::HashSet;
+        let mut collection_names = HashSet::new();
         
-        Ok(count)
+        for entry in fs::read_dir(&legacy_dir).map_err(|e| VectorizerError::Io(e))? {
+            let entry = entry.map_err(|e| VectorizerError::Io(e))?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.ends_with("_vector_store.bin") {
+                        if let Some(pos) = name.rfind('_') {
+                            collection_names.insert(name[..pos].to_string());
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(collection_names.len())
     }
     
-    /// Copy directory recursively
+    /// Copy directory recursively (with error tolerance for long file names)
     fn copy_dir_recursive(&self, src: &Path, dst: &Path) -> Result<()> {
         fs::create_dir_all(dst)
             .map_err(|e| VectorizerError::Io(e))?;
         
-        for entry in fs::read_dir(src).map_err(|e| VectorizerError::Io(e))? {
-            let entry = entry.map_err(|e| VectorizerError::Io(e))?;
+        let entries = match fs::read_dir(src) {
+            Ok(entries) => entries,
+            Err(e) => {
+                warn!("⚠️ Failed to read directory {:?}: {}", src, e);
+                return Ok(()); // Continue with migration even if we can't backup this directory
+            }
+        };
+        
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(e) => {
+                    warn!("⚠️ Failed to read directory entry: {}", e);
+                    continue;
+                }
+            };
+            
             let path = entry.path();
-            let file_name = path.file_name()
-                .ok_or_else(|| VectorizerError::Storage("Invalid file name".to_string()))?;
+            let file_name = match path.file_name() {
+                Some(name) => name,
+                None => {
+                    warn!("⚠️ Invalid file name for path: {:?}", path);
+                    continue;
+                }
+            };
+            
             let dest_path = dst.join(file_name);
             
             if path.is_dir() {
-                self.copy_dir_recursive(&path, &dest_path)?;
+                // Try to copy directory, but don't fail if it can't be copied
+                if let Err(e) = self.copy_dir_recursive(&path, &dest_path) {
+                    warn!("⚠️ Failed to backup directory {:?}: {}", path, e);
+                }
             } else {
-                fs::copy(&path, &dest_path)
-                    .map_err(|e| VectorizerError::Io(e))?;
+                // Try to copy file, but don't fail if it can't be copied
+                if let Err(e) = fs::copy(&path, &dest_path) {
+                    warn!("⚠️ Failed to backup file {:?}: {}", path, e);
+                }
             }
         }
         
