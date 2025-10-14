@@ -430,11 +430,32 @@ impl VectorStore {
     /// Check storage format and perform automatic migration if needed
     fn check_and_migrate_storage(&self) {
         use crate::storage::{detect_format, StorageFormat, StorageMigrator};
+        use std::fs;
         
         let data_dir = PathBuf::from("./data");
         
-        // Only check if data directory exists
+        // Create data directory if it doesn't exist
         if !data_dir.exists() {
+            if let Err(e) = fs::create_dir_all(&data_dir) {
+                warn!("Failed to create data directory: {}", e);
+                return;
+            }
+        }
+        
+        // Check if data directory is empty (no legacy files)
+        let is_empty = fs::read_dir(&data_dir)
+            .ok()
+            .map(|mut entries| entries.next().is_none())
+            .unwrap_or(false);
+        
+        if is_empty {
+            // Initialize with compact format for new installations
+            info!("📁 Empty data directory detected - initializing with .vecdb format");
+            if let Err(e) = self.initialize_compact_storage(&data_dir) {
+                warn!("Failed to initialize compact storage: {}", e);
+            } else {
+                info!("✅ Initialized with .vecdb compact storage format");
+            }
             return;
         }
         
@@ -452,6 +473,41 @@ impl VectorStore {
                 info!("✅ Using .vecdb compact storage format");
             }
         }
+    }
+    
+    /// Initialize compact storage format (create empty .vecdb and .vecidx files)
+    fn initialize_compact_storage(&self, data_dir: &PathBuf) -> Result<()> {
+        use crate::storage::{vecdb_path, vecidx_path, StorageIndex};
+        use std::fs::File;
+        
+        let vecdb_file = vecdb_path(data_dir);
+        let vecidx_file = vecidx_path(data_dir);
+        
+        // Create empty .vecdb file
+        File::create(&vecdb_file)
+            .map_err(|e| crate::error::VectorizerError::Io(e))?;
+        
+        // Create empty index
+        let now = chrono::Utc::now();
+        let empty_index = StorageIndex {
+            version: crate::storage::STORAGE_VERSION.to_string(),
+            created_at: now,
+            updated_at: now,
+            collections: Vec::new(),
+            total_size: 0,
+            compressed_size: 0,
+            compression_ratio: 0.0,
+        };
+        
+        // Save empty index
+        let index_json = serde_json::to_string_pretty(&empty_index)
+            .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
+        
+        std::fs::write(&vecidx_file, index_json)
+            .map_err(|e| crate::error::VectorizerError::Io(e))?;
+        
+        info!("Created empty .vecdb and .vecidx files");
+        Ok(())
     }
     
     /// Create a new vector store with Metal GPU configuration
