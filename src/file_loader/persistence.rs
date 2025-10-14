@@ -82,8 +82,9 @@ impl Persistence {
             .map_err(|e| crate::error::VectorizerError::Io(e))?;
         let writer = BufWriter::new(file);
         
+        // Use bincode with default configuration
         bincode::serialize_into(writer, &persisted)
-            .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
+            .map_err(|e| crate::error::VectorizerError::Serialization(format!("Bincode serialize error: {}", e)))?;
 
         // Verify file was created
         if temp_path.exists() {

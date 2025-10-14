@@ -845,7 +845,7 @@ impl VectorStore {
                     let vector_store_path = format!("{}_vector_store.bin", name);
                     match reader.read_file(&vector_store_path) {
                         Ok(data) => {
-                            // Deserialize PersistedCollection
+                            // Deserialize PersistedCollection with default config
                             match bincode::deserialize::<crate::persistence::PersistedCollection>(&data) {
                                 Ok(persisted) => {
                                     // Load collection into memory
