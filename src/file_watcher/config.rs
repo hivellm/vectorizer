@@ -58,19 +58,38 @@ pub struct FileWatcherConfig {
 
 impl Default for FileWatcherConfig {
     fn default() -> Self {
+        let mut include_patterns = vec![
+            "*.md".to_string(),
+            "*.txt".to_string(),
+            "*.rs".to_string(),
+            "*.py".to_string(),
+            "*.js".to_string(),
+            "*.ts".to_string(),
+            "*.json".to_string(),
+            "*.yaml".to_string(),
+            "*.yml".to_string(),
+        ];
+        
+        // Add transmutation-supported formats when feature is enabled
+        #[cfg(feature = "transmutation")]
+        {
+            include_patterns.extend(vec![
+                "*.pdf".to_string(),
+                "*.docx".to_string(),
+                "*.xlsx".to_string(),
+                "*.pptx".to_string(),
+                "*.html".to_string(),
+                "*.htm".to_string(),
+                "*.xml".to_string(),
+                "*.jpg".to_string(),
+                "*.jpeg".to_string(),
+                "*.png".to_string(),
+            ]);
+        }
+        
         Self {
             watch_paths: None, // Auto-discovered from indexed files
-            include_patterns: vec![
-                "*.md".to_string(),
-                "*.txt".to_string(),
-                "*.rs".to_string(),
-                "*.py".to_string(),
-                "*.js".to_string(),
-                "*.ts".to_string(),
-                "*.json".to_string(),
-                "*.yaml".to_string(),
-                "*.yml".to_string(),
-            ],
+            include_patterns,
             exclude_patterns: vec![
                 "**/data/**".to_string(),              // CRITICAL: Never watch vectorizer data directory
                 "**/*.bin".to_string(),                // CRITICAL: Never watch binary files (causes memory issues)

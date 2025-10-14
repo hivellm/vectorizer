@@ -46,18 +46,18 @@ if !errorlevel! equ 0 (
 echo.
 
 REM Check REST server
-tasklist /fi "imagename eq vectorizer-server.exe" 2>nul | find /i "vectorizer-server.exe" >nul
+tasklist /fi "imagename eq vectorizer.exe" 2>nul | find /i "vectorizer.exe" >nul
 if !errorlevel! equ 0 (
-    echo ✅ REST API Server: RUNNING
-    echo    Port: 15001
+    echo ✅ Vectorizer Server: RUNNING
+    echo    Port: 15002
     
     REM Test REST server health
-    curl -s --max-time 2 http://127.0.0.1:15001/api/v1/health >nul 2>&1
+    curl -s --max-time 2 http://127.0.0.1:15002/health >nul 2>&1
     if !errorlevel! equ 0 (
         echo    Health: 🟢 OK
         
         REM Get collection stats (if jq is available)
-        curl -s --max-time 2 http://127.0.0.1:15001/api/v1/collections > temp_collections.json 2>nul
+        curl -s --max-time 2 http://127.0.0.1:15002/api/v1/collections > temp_collections.json 2>nul
         if exist temp_collections.json (
             echo    Collections: Available
             del temp_collections.json
