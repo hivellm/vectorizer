@@ -32,7 +32,6 @@ use crate::{
     VectorStore,
     embedding::EmbeddingManager,
     workspace::{WorkspaceManager, WorkspaceConfig},
-    document_loader::{DocumentLoader, LoaderConfig},
 };
 
 /// Vectorizer server state
@@ -769,7 +768,7 @@ async fn load_file_watcher_config() -> anyhow::Result<crate::file_watcher::FileW
     }
 }
 
-/// Load workspace collections using the existing document_loader.rs
+/// Load workspace collections using the new file_loader module
 pub async fn load_workspace_collections(
     store: &Arc<VectorStore>,
     embedding_manager: &Arc<EmbeddingManager>,

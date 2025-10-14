@@ -12,6 +12,7 @@ pub use utils::*;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use tracing::warn;
 
 /// Vectorizer CLI - Administrative tools for the vector database
 #[derive(Parser)]
@@ -498,9 +499,14 @@ fn init_logging(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
 fn load_config(path: &PathBuf) -> Result<CliConfig, Box<dyn std::error::Error>> {
     if path.exists() {
         let content = std::fs::read_to_string(path)?;
-        let config: CliConfig = serde_yaml::from_str(&content)
-            .map_err(|e| crate::error::VectorizerError::YamlError(e))?;
-        Ok(config)
+        // Try to parse, but fall back to default if it fails
+        match serde_yaml::from_str::<CliConfig>(&content) {
+            Ok(config) => Ok(config),
+            Err(e) => {
+                warn!("Failed to parse config file, using defaults: {}", e);
+                Ok(CliConfig::default())
+            }
+        }
     } else {
         // Return default configuration
         Ok(CliConfig::default())

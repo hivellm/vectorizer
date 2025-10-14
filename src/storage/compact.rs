@@ -33,24 +33,14 @@ impl StorageCompactor {
     
     /// Compact all collections into .vecdb archive
     pub fn compact_all(&self) -> Result<StorageIndex> {
-        let collections_dir = self.data_dir.join("collections");
-        
-        if !collections_dir.exists() {
-            // Try legacy 'data' directory structure
-            let legacy_data = self.data_dir.parent()
-                .unwrap_or(&self.data_dir)
-                .join("data");
-            
-            if legacy_data.exists() {
-                return self.compact_directory(&legacy_data);
-            }
-            
+        // Use data directory directly (flat structure with collection-name_*.bin files)
+        if !self.data_dir.exists() {
             return Err(VectorizerError::Storage(
-                format!("Collections directory not found: {}", collections_dir.display())
+                format!("Data directory not found: {}", self.data_dir.display())
             ));
         }
         
-        self.compact_directory(&collections_dir)
+        self.compact_directory(&self.data_dir)
     }
     
     /// Compact a specific directory

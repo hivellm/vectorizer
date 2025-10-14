@@ -59,29 +59,84 @@ impl StorageWriter {
         let mut zip = ZipWriter::new(file);
         let mut index = StorageIndex::new();
         
-        // Iterate through collections
-        for entry in fs::read_dir(source_dir).map_err(|e| VectorizerError::Io(e))? {
-            let entry = entry.map_err(|e| VectorizerError::Io(e))?;
-            let path = entry.path();
+        // Group files by collection name (pattern: collection-name_type.ext)
+        let collections = self.discover_collections(source_dir)?;
+        
+        for (collection_name, files) in collections {
+            let collection_index = self.add_flat_collection_to_archive(
+                &mut zip,
+                source_dir,
+                &collection_name,
+                &files
+            )?;
             
-            if path.is_dir() {
-                let collection_name = path.file_name()
-                    .and_then(|n| n.to_str())
-                    .ok_or_else(|| VectorizerError::Storage("Invalid collection name".to_string()))?;
-                
-                let collection_index = self.add_collection_to_archive(
-                    &mut zip,
-                    &path,
-                    collection_name
-                )?;
-                
-                index.add_collection(collection_index);
-            }
+            index.add_collection(collection_index);
         }
         
         zip.finish().map_err(|e| VectorizerError::Storage(e.to_string()))?;
         
         Ok(index)
+    }
+    
+    /// Discover collections from flat file structure
+    fn discover_collections(&self, source_dir: &Path) -> Result<std::collections::HashMap<String, Vec<PathBuf>>> {
+        use std::collections::HashMap;
+        
+        let mut collections: HashMap<String, Vec<PathBuf>> = HashMap::new();
+        
+        for entry in fs::read_dir(source_dir).map_err(|e| VectorizerError::Io(e))? {
+            let entry = entry.map_err(|e| VectorizerError::Io(e))?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    // Extract collection name (everything before the last underscore)
+                    if let Some(pos) = name.rfind('_') {
+                        let collection_name = &name[..pos];
+                        collections.entry(collection_name.to_string())
+                            .or_insert_with(Vec::new)
+                            .push(path.clone());
+                    }
+                }
+            }
+        }
+        
+        Ok(collections)
+    }
+    
+    /// Add collection from flat file structure
+    fn add_flat_collection_to_archive(
+        &self,
+        zip: &mut ZipWriter<File>,
+        source_dir: &Path,
+        collection_name: &str,
+        files: &[PathBuf]
+    ) -> Result<CollectionIndex> {
+        let mut collection_index = CollectionIndex::new(collection_name.to_string());
+        
+        for file_path in files {
+            let file_name = file_path.file_name()
+                .and_then(|n| n.to_str())
+                .ok_or_else(|| VectorizerError::Storage("Invalid file name".to_string()))?;
+            
+            // Archive path: data/collection_name/filename
+            let archive_path = PathBuf::from("data")
+                .join(collection_name)
+                .join(file_name);
+            
+            let file_entry = self.add_file_to_archive(zip, file_path, &archive_path)?;
+            collection_index.add_file(file_entry);
+            
+            // Extract metadata
+            if file_name.contains("metadata.json") {
+                if let Ok(metadata) = self.read_collection_metadata(file_path) {
+                    collection_index.vector_count = metadata.vector_count;
+                    collection_index.dimension = metadata.dimension;
+                }
+            }
+        }
+        
+        Ok(collection_index)
     }
     
     /// Add a collection directory to the archive

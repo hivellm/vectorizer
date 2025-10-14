@@ -12,8 +12,8 @@ pub mod cli;
 pub mod config;
 pub mod db;
 pub mod discovery;
-pub mod document_loader; // Legacy - will be removed
-pub mod file_loader; // New modular loader
+// pub mod document_loader; // REMOVED - replaced by file_loader
+pub mod file_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;

@@ -52,6 +52,17 @@ pub fn detect_format(data_dir: &Path) -> StorageFormat {
     if vecdb_path.exists() {
         StorageFormat::Compact
     } else {
+        // Check if legacy format exists (files with _vector_store.bin pattern)
+        if let Ok(entries) = std::fs::read_dir(data_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if let Some(name_str) = name.to_str() {
+                    if name_str.ends_with("_vector_store.bin") {
+                        return StorageFormat::Legacy;
+                    }
+                }
+            }
+        }
         StorageFormat::Legacy
     }
 }
