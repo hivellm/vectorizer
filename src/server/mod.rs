@@ -876,27 +876,6 @@ pub async fn load_workspace_collections(
                 continue;
             }
 
-            // Convert workspace collection config to models collection config
-            let models_config = crate::models::CollectionConfig {
-                dimension: collection.embedding.dimension,
-                metric: crate::models::DistanceMetric::Cosine,
-                hnsw_config: crate::models::HnswConfig::default(),
-                quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
-                compression: crate::models::CompressionConfig::default(),
-                normalization: Some(crate::normalization::NormalizationConfig::moderate()),
-            };
-
-            // Create collection if it doesn't exist
-            match store.create_collection(&collection.name, models_config) {
-                Ok(_) => {
-                    info!("Created collection: {}", collection.name);
-                },
-                Err(e) => {
-                    warn!("Failed to create collection '{}': {}", collection.name, e);
-                    continue;
-                }
-            }
-
             // Get project path
             let project_path = match workspace_manager.get_project_path(&project.name) {
                 Ok(path) => path,
