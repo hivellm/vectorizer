@@ -846,16 +846,58 @@ pub async fn load_workspace_collections(
             
             // Check if collection already exists in .vecdb archive
             if using_vecdb && existing_in_vecdb.contains(&collection.name) {
-                // Collection exists in .vecdb - ensure it's loaded in memory
+                // Collection exists in .vecdb - FORCE LOAD it into memory (same as when no cache)
                 if !store.has_collection_in_memory(&collection.name) {
-                    info!("📥 Loading collection '{}' from .vecdb into memory...", collection.name);
-                    // Trigger lazy loading by trying to get the collection
-                    match store.get_collection(&collection.name) {
-                        Ok(_) => {
-                            info!("✅ Collection '{}' loaded from .vecdb", collection.name);
+                    info!("📥 FORCE LOADING collection '{}' from .vecdb into memory...", collection.name);
+                    
+                    // Use the SAME method as when .vecdb doesn't exist - load directly from .vecdb
+                    use crate::storage::StorageReader;
+                    match StorageReader::new(&std::path::PathBuf::from("./data")) {
+                        Ok(reader) => {
+                            let vector_store_path = format!("{}_vector_store.bin", collection.name);
+                            match reader.read_file(&vector_store_path) {
+                                Ok(data) => {
+                                    match serde_json::from_slice::<crate::persistence::PersistedCollection>(&data) {
+                                        Ok(persisted) => {
+                                            // Use EXACT config from .vecdb (not workspace config!)
+                                            let config = persisted.config.clone();
+                                            let vector_count = persisted.vectors.len();
+                                            
+                                            info!("📥 Loading collection '{}' from .vecdb with {} vectors...", collection.name, vector_count);
+                                            
+                                            // Create collection with config FROM .vecdb
+                                            if let Err(e) = store.create_collection(&collection.name, config) {
+                                                warn!("Failed to create collection '{}': {}", collection.name, e);
+                                                continue;
+                                            }
+                                            
+                                            // Load vectors into collection (EXACT same as FileLoader)
+                                            let vectors: Vec<crate::models::Vector> = persisted.vectors
+                                                .into_iter()
+                                                .filter_map(|pv| pv.into_runtime().ok())
+                                                .collect();
+                                            
+                                            if let Ok(collection_ref) = store.get_collection(&collection.name) {
+                                                if let Err(e) = collection_ref.load_vectors_into_memory(vectors) {
+                                                    warn!("Failed to load vectors into collection '{}': {}", collection.name, e);
+                                                } else {
+                                                    info!("✅ Collection '{}' loaded from .vecdb with {} vectors", collection.name, vector_count);
+                                                    indexed_count += 1;
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            warn!("Failed to deserialize collection '{}' from .vecdb: {}", collection.name, e);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("Failed to read collection '{}' from .vecdb: {}", collection.name, e);
+                                }
+                            }
                         }
                         Err(e) => {
-                            warn!("Failed to load collection '{}' from .vecdb: {}", collection.name, e);
+                            warn!("Failed to create StorageReader for collection '{}': {}", collection.name, e);
                         }
                     }
                 } else {

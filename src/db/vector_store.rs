@@ -826,8 +826,10 @@ impl VectorStore {
     /// Get a reference to a collection by name
     /// Implements lazy loading: if collection is not in memory but exists on disk, loads it
     pub fn get_collection(&self, name: &str) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
+        info!("🔍 get_collection called for '{}'", name);
         // Fast path: collection already loaded
         if let Some(collection) = self.collections.get(name) {
+            info!("✅ Collection '{}' found in memory with {} vectors", name, collection.vector_count());
             return Ok(collection);
         }
         
@@ -837,12 +839,14 @@ impl VectorStore {
         // First, try to load from .vecdb archive (compact format)
         use crate::storage::{detect_format, StorageFormat, StorageReader};
         if detect_format(&data_dir) == StorageFormat::Compact {
-            debug!("📥 Lazy loading collection '{}' from .vecdb archive", name);
+            info!("📥 Lazy loading collection '{}' from .vecdb archive", name);
             
             match StorageReader::new(&data_dir) {
                 Ok(reader) => {
+                    info!("✅ StorageReader created successfully for collection '{}'", name);
                     // Read the _vector_store.bin file from the archive
                     let vector_store_path = format!("{}_vector_store.bin", name);
+                    info!("📖 Reading file '{}' from .vecdb archive", vector_store_path);
                     match reader.read_file(&vector_store_path) {
                         Ok(data) => {
                             // Deserialize PersistedCollection from JSON (compressed in ZIP)
@@ -926,9 +930,15 @@ impl VectorStore {
         
         // Load vectors into memory - HNSW index is built automatically during insertion
         info!("🔨 Loading {} vectors and building HNSW index for collection '{}'...", vectors.len(), name);
-        collection.load_vectors_into_memory(vectors)?;
-        
-        info!("✅ Collection '{}' loaded from .vecdb with {} vectors and HNSW index built", name, vector_count);
+        match collection.load_vectors_into_memory(vectors) {
+            Ok(_) => {
+                info!("✅ Collection '{}' loaded from .vecdb with {} vectors and HNSW index built", name, vector_count);
+            }
+            Err(e) => {
+                warn!("❌ Failed to load vectors into collection '{}': {}", name, e);
+                return Err(e);
+            }
+        }
         
         Ok(())
     }

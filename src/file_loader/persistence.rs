@@ -256,36 +256,10 @@ impl Persistence {
     }
 
     fn cleanup_temp_files(&self) -> Result<()> {
-        info!("🧹 Cleaning up temporary files after compaction...");
-        let mut removed_count = 0;
-        
-        if let Ok(entries) = std::fs::read_dir(&self.data_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        // Remove ALL temporary collection files after compaction
-                        if name.ends_with("_vector_store.bin")
-                            || name.ends_with("_metadata.json")
-                            || name.ends_with("_tokenizer.json")
-                            || name.ends_with("_checksums.json")
-                        {
-                            match std::fs::remove_file(&path) {
-                                Ok(_) => {
-                                    removed_count += 1;
-                                    info!("   Removed: {}", name);
-                                }
-                                Err(e) => {
-                                    warn!("   Failed to remove {}: {}", name, e);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        info!("🧹 Cleaned up {} temporary files", removed_count);
+        // DO NOT DELETE FILES!
+        // The .bin, _metadata.json, _tokenizer.json files are needed for loading from .vecdb
+        // They should ONLY be deleted when explicitly requested by user, not automatically
+        info!("✅ Skipping cleanup - files kept for .vecdb loading");
         Ok(())
     }
 }
