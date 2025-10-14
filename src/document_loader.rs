@@ -914,20 +914,33 @@ impl DocumentLoader {
 
     /// Collect all documents from the project directory
     pub fn collect_documents(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
-        // Use tokio runtime to run async collection
-        let rt = tokio::runtime::Handle::try_current()
-            .or_else(|_| {
-                // Create a new runtime if we're not in an async context
-                tokio::runtime::Runtime::new()
-                    .map(|rt| {
-                        let handle = rt.handle().clone();
-                        std::mem::forget(rt); // Keep runtime alive
-                        handle
-                    })
+        // Check if we're already in a Tokio runtime context
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // We're already in an async context, spawn and wait
+            let path = project_path.to_string();
+            let path_clone = path.clone();
+            
+            // Use block_in_place to avoid runtime nesting issues
+            tokio::task::block_in_place(|| {
+                handle.block_on(async move {
+                    let path = Path::new(&path_clone);
+                    let mut documents = Vec::new();
+                    self.collect_documents_recursive(path, path, &mut documents).await?;
+                    info!(
+                        "📁 Found {} documents in '{}' for collection '{}'",
+                        documents.len(),
+                        path_clone,
+                        self.config.collection_name
+                    );
+                    Ok(documents)
+                })
             })
-            .map_err(|e| anyhow::anyhow!("Failed to get tokio runtime: {}", e))?;
-        
-        rt.block_on(self.collect_documents_async(project_path))
+        } else {
+            // Not in async context, create a new runtime
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| anyhow::anyhow!("Failed to create tokio runtime: {}", e))?;
+            rt.block_on(self.collect_documents_async(project_path))
+        }
     }
 
     pub async fn collect_documents_async(&self, project_path: &str) -> Result<Vec<(PathBuf, String)>> {
