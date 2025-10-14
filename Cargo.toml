@@ -28,15 +28,15 @@ sha2 = "0.10"
 walkdir = "2.5"
 notify = "8.2"
 fastrand = "2.3"
-sysinfo = "0.33"
+sysinfo = "0.37"
 
 # Index and vector operations
 hnsw_rs = "0.3"
 
 # Intelligent search dependencies
-tantivy = "0.24"  # BM25 full-text search engine
+tantivy = "0.25"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
-fastembed = "0.2" # Embeddings + cross-encoder reranking
+fastembed = "5.2" # Embeddings + cross-encoder reranking
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
@@ -127,7 +127,7 @@ arrow = { version = "56", optional = true }
 parquet = { version = "56", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.7", features = ["server", "macros", "transport-sse-server"] }
+rmcp = { version = "0.8", features = ["server", "macros", "transport-sse-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.16.1"

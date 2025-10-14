@@ -1611,15 +1611,22 @@ mod tests {
             normalization: None,
         };
 
-        // Create collections
-        store.create_collection("test1", config.clone()).unwrap();
-        store.create_collection("test2", config).unwrap();
+        // Get initial collection count
+        let initial_count = store.list_collections().len();
+
+        // Create collections with unique names
+        store.create_collection("test_list1_unique", config.clone()).unwrap();
+        store.create_collection("test_list2_unique", config).unwrap();
 
         // List collections
         let collections = store.list_collections();
-        assert_eq!(collections.len(), 2);
-        assert!(collections.contains(&"test1".to_string()));
-        assert!(collections.contains(&"test2".to_string()));
+        assert_eq!(collections.len(), initial_count + 2);
+        assert!(collections.contains(&"test_list1_unique".to_string()));
+        assert!(collections.contains(&"test_list2_unique".to_string()));
+        
+        // Cleanup
+        store.delete_collection("test_list1_unique").ok();
+        store.delete_collection("test_list2_unique").ok();
     }
 
     #[test]
@@ -1659,15 +1666,18 @@ mod tests {
             normalization: None,
         };
 
+        // Get initial collection count
+        let initial_count = store.list_collections().len();
+        
         // Create and delete collection
-        store.create_collection("test", config).unwrap();
-        assert_eq!(store.list_collections().len(), 1);
+        store.create_collection("test_delete_collection_unique", config).unwrap();
+        assert_eq!(store.list_collections().len(), initial_count + 1);
 
-        store.delete_collection("test").unwrap();
-        assert_eq!(store.list_collections().len(), 0);
+        store.delete_collection("test_delete_collection_unique").unwrap();
+        assert_eq!(store.list_collections().len(), initial_count);
 
         // Try to delete non-existent collection
-        let result = store.delete_collection("test");
+        let result = store.delete_collection("test_delete_collection_unique");
         assert!(matches!(
             result,
             Err(VectorizerError::CollectionNotFound(_))
@@ -1756,23 +1766,26 @@ mod tests {
             normalization: None,
         };
 
-        // Empty store stats
-        let stats = store.stats();
-        assert_eq!(stats.collection_count, 0);
-        assert_eq!(stats.total_vectors, 0);
+        // Get initial stats
+        let initial_stats = store.stats();
+        let initial_count = initial_stats.collection_count;
+        let initial_vectors = initial_stats.total_vectors;
 
         // Create collection and add vectors
-        store.create_collection("test", config).unwrap();
+        store.create_collection("test_stats_unique", config).unwrap();
         let vectors = vec![
             Vector::new("v1".to_string(), vec![1.0, 2.0, 3.0]),
             Vector::new("v2".to_string(), vec![4.0, 5.0, 6.0]),
         ];
-        store.insert("test", vectors).unwrap();
+        store.insert("test_stats_unique", vectors).unwrap();
 
         let stats = store.stats();
-        assert_eq!(stats.collection_count, 1);
-        assert_eq!(stats.total_vectors, 2);
+        assert_eq!(stats.collection_count, initial_count + 1);
+        assert_eq!(stats.total_vectors, initial_vectors + 2);
         assert!(stats.total_memory_bytes > 0);
+        
+        // Cleanup
+        store.delete_collection("test_stats_unique").ok();
     }
 
     #[test]
