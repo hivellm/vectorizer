@@ -945,12 +945,13 @@ impl DocumentLoader {
 
     /// Recursively collect documents from directory
     #[allow(dead_code)]
-    async fn collect_documents_recursive(
-        &self,
-        dir: &Path,
-        project_root: &Path,
-        documents: &mut Vec<(PathBuf, String)>,
-    ) -> Result<()> {
+    fn collect_documents_recursive<'a>(
+        &'a self,
+        dir: &'a Path,
+        project_root: &'a Path,
+        documents: &'a mut Vec<(PathBuf, String)>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
+        Box::pin(async move {
         debug!("Scanning directory: {}", dir.display());
         let entries = fs::read_dir(dir)
             .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
@@ -987,7 +988,7 @@ impl DocumentLoader {
                     }
                 }
                 debug!("Recursively scanning subdirectory: {}", path.display());
-                self.collect_documents_recursive(&path, project_root, documents).await?;
+                Box::pin(self.collect_documents_recursive(&path, project_root, documents)).await?;
             } else if path.is_file() {
                 debug!("Found file: {}", path.display());
                 // Skip specific file names that should never be indexed
@@ -1143,6 +1144,7 @@ impl DocumentLoader {
         }
 
         Ok(())
+        })
     }
 
     /// Build vocabulary from all documents
