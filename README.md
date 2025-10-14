@@ -35,17 +35,20 @@ A high-performance vector database and search engine built in Rust, designed for
 ## 🚀 **Quick Start**
 
 ```bash
-# Build and run
+# Clone the repository
 git clone https://github.com/hivellm/vectorizer.git
 cd vectorizer
+
+# Build and run (basic)
 cargo build --release
 ./target/release/vectorizer
 
 # Build with transmutation support for document conversion
 cargo build --release --features transmutation
+./target/release/vectorizer
 
-# Or use the CLI
-./target/release/vzr start --workspace vectorize-workspace.yml
+# Build with all features
+cargo build --release --features full
 ```
 
 ### **Access Points**
