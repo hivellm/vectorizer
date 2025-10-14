@@ -69,7 +69,7 @@ impl VectorOperations {
             .map_err(|e| VectorizerError::IoError(e))?;
         
         // Create LoaderConfig for this file
-        let loader_config = LoaderConfig {
+        let mut loader_config = LoaderConfig {
             max_chunk_size: 2048,
             chunk_overlap: 256,
             include_patterns: vec!["*".to_string()], // Include all files
@@ -79,6 +79,9 @@ impl VectorOperations {
             collection_name: collection_name.to_string(),
             max_file_size: 10 * 1024 * 1024, // 10MB
         };
+        
+        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+        loader_config.ensure_hardcoded_excludes();
         
         // Create FileLoader and process the file
         let embedding_manager = {
@@ -159,7 +162,7 @@ impl VectorOperations {
         }
 
         // Build loader config
-        let loader_config = LoaderConfig {
+        let mut loader_config = LoaderConfig {
             max_chunk_size: 2048,
             chunk_overlap: 256,
             include_patterns: vec!["*".to_string()],
@@ -169,6 +172,9 @@ impl VectorOperations {
             collection_name: collection_name.clone(),
             max_file_size: self.config.max_file_size as usize,
         };
+        
+        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+        loader_config.ensure_hardcoded_excludes();
 
         let embedding_manager = {
             let mut em = EmbeddingManager::new();

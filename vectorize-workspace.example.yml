@@ -8,28 +8,10 @@ global_settings:
     auto_discovery: true
     enable_auto_update: true
     hot_reload: true
-    # CRITICAL: Global exclude patterns to prevent processing system/data files
-    exclude_patterns:
-      - "**/data/**"           # NEVER watch vectorizer data directory (causes memory issues)
-      - "**/*.bin"             # NEVER watch binary files (causes memory issues)
-      - "**/.git/**"
-      - "**/target/**"
-      - "**/node_modules/**"
-      - "**/.*"
-      - "**/*.tmp"
-      - "**/*.log"
-      - "**/*.part"
-      - "**/*.lock"
-      - "**/~*"
-      - "**/.#*"
-      - "**/*.swp"
-      - "**/*.swo"
-      - "**/Cargo.lock"
-      - "**/.DS_Store"
-      - "**/Thumbs.db"
-      - "**/.fingerprint/**"
-      - "**/*_metadata.json"
-      - "**/*_tokenizer.json"
+    # NOTE: Critical exclusions (Python cache, binaries, build artifacts) are 
+    # hardcoded in the FileLoader core and don't need to be listed here.
+    # Add only project-specific exclusions below if needed.
+    exclude_patterns: []
     
 projects:
   - name: "chat-hub"
@@ -363,18 +345,6 @@ projects:
           - "bindings/python/**/pyproject.toml"
           - "bindings/python/**/requirements.txt"
           - "bindings/python/**/README.md"
-        exclude_patterns:
-          - "bindings/python/**/__pycache__/**"
-          - "bindings/python/**/build/**"
-          - "bindings/python/**/dist/**"
-          - "bindings/python/**/*.egg-info/**"
-          - "bindings/python/**/.venv/**"
-          - "bindings/python/**/venv/**"
-          - "bindings/python/**/*.pyc"
-          - "bindings/python/**/*.pyo"
-          - "bindings/python/**/*.so"
-          - "bindings/python/**/*.whl"
-          - "bindings/python/**/site-packages/**"
 
   - name: "vectorizer"
     path: "."

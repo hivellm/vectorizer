@@ -859,7 +859,7 @@ pub async fn load_workspace_collections(
             };
 
             // Use FileLoader to index files
-            let loader_config = LoaderConfig {
+            let mut loader_config = LoaderConfig {
                 max_chunk_size: 2048,
                 chunk_overlap: 256,
                 include_patterns: collection.processing.include_patterns.clone(),
@@ -869,6 +869,9 @@ pub async fn load_workspace_collections(
                 collection_name: collection.name.clone(),
                 max_file_size: 1024 * 1024, // 1MB
             };
+            
+            // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+            loader_config.ensure_hardcoded_excludes();
 
             // Create embedding manager for this collection
             let mut coll_embedding_manager = crate::embedding::EmbeddingManager::new();
