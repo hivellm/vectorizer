@@ -32,6 +32,7 @@ pub mod file_watcher;
 pub mod logging;
 pub mod server;
 pub mod file_operations;
+pub mod storage;
 pub mod umicp;
 #[cfg(feature = "transmutation")]
 pub mod transmutation_integration;
