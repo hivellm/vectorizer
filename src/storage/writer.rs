@@ -147,12 +147,16 @@ impl StorageWriter {
         // Determine file type
         let file_type = detect_file_type(archive_path.to_str().unwrap_or(""));
         
-        // Add to ZIP with zstd compression
+        // Add to ZIP with default compression
         let archive_path_str = archive_path.to_str()
             .ok_or_else(|| VectorizerError::Storage("Invalid archive path".to_string()))?
             .replace('\\', "/"); // Use forward slashes in ZIP
         
-        zip.start_file(&archive_path_str, FileOptions::default())
+        // Use SimpleFileOptions for compatibility
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        
+        zip.start_file(&archive_path_str, options)
             .map_err(|e| VectorizerError::Storage(e.to_string()))?;
         zip.write_all(&content_to_compress)
             .map_err(|e| VectorizerError::Io(e))?;

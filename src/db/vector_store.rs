@@ -407,7 +407,8 @@ impl VectorStore {
     /// Create a new empty vector store
     pub fn new() -> Self {
         info!("Creating new VectorStore");
-        Self {
+        
+        let store = Self {
             collections: Arc::new(DashMap::new()),
             #[cfg(feature = "wgpu-gpu")]
             metal_config: None,
@@ -418,6 +419,38 @@ impl VectorStore {
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+        };
+        
+        // Check for automatic migration on startup
+        store.check_and_migrate_storage();
+        
+        store
+    }
+    
+    /// Check storage format and perform automatic migration if needed
+    fn check_and_migrate_storage(&self) {
+        use crate::storage::{detect_format, StorageFormat, StorageMigrator};
+        
+        let data_dir = PathBuf::from("./data");
+        
+        // Only check if data directory exists
+        if !data_dir.exists() {
+            return;
+        }
+        
+        let format = detect_format(&data_dir);
+        
+        match format {
+            StorageFormat::Legacy => {
+                // Check if migration is enabled in config
+                // For now, we'll just log that migration is available
+                info!("💾 Legacy storage format detected");
+                info!("   Run 'vectorizer storage migrate' to convert to .vecdb format");
+                info!("   Benefits: Compression, snapshots, faster backups");
+            }
+            StorageFormat::Compact => {
+                info!("✅ Using .vecdb compact storage format");
+            }
         }
     }
     

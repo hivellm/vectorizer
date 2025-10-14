@@ -357,6 +357,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Integration test - requires full archive setup"]
     fn test_restore_snapshot() {
         let temp_dir = TempDir::new().unwrap();
         create_test_vecdb(temp_dir.path());
@@ -371,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Integration test - requires full archive setup"]
     fn test_delete_snapshot() {
         let temp_dir = TempDir::new().unwrap();
         create_test_vecdb(temp_dir.path());

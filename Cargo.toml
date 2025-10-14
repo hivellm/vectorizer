@@ -191,6 +191,10 @@ path = "benchmark/scripts/large_scale_benchmark.rs"
 required-features = ["benchmarks"]
 
 [[bin]]
+name = "storage_benchmark"
+path = "benchmark/scripts/storage_benchmark.rs"
+
+[[bin]]
 name = "diagnostic_benchmark"
 path = "benchmark/scripts/diagnostic_benchmark.rs"
 required-features = ["benchmarks"]
