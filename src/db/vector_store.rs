@@ -845,8 +845,8 @@ impl VectorStore {
                     let vector_store_path = format!("{}_vector_store.bin", name);
                     match reader.read_file(&vector_store_path) {
                         Ok(data) => {
-                            // Deserialize PersistedCollection from JSON (not bincode!)
-                            match serde_json::from_slice::<crate::persistence::PersistedCollection>(&data) {
+                            // Deserialize PersistedCollection from bincode (FileLoader format)
+                            match bincode::deserialize::<crate::persistence::PersistedCollection>(&data) {
                                 Ok(persisted) => {
                                     // Load collection into memory
                                     if let Err(e) = self.load_persisted_collection_from_data(name, persisted) {
