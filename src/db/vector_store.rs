@@ -924,9 +924,12 @@ impl VectorStore {
         let collection = self.collections.get(name)
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))?;
         
+        // Load vectors into memory - HNSW index is built automatically during insertion
+        info!("🔨 Loading {} vectors and building HNSW index for collection '{}'...", vectors.len(), name);
         collection.load_vectors_into_memory(vectors)?;
         
-        info!("✅ Collection '{}' loaded from .vecdb with {} vectors", name, vector_count);
+        info!("✅ Collection '{}' loaded from .vecdb with {} vectors and HNSW index built", name, vector_count);
+        
         Ok(())
     }
     
