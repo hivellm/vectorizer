@@ -316,27 +316,12 @@ impl VectorizerServer {
             match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading, cancel_rx.clone()).await {
                 Ok(workspace_count) => {
         if workspace_count > 0 {
-            println!("✅ Workspace loading completed - {} collections loaded", workspace_count);
-            info!("✅ Workspace loading completed - {} collections loaded", workspace_count);
+            println!("✅ Workspace loading completed - {} collections loaded from cache", workspace_count);
+            info!("✅ Workspace loading completed - {} collections loaded from cache", workspace_count);
             
-            // ONLY compact if we actually loaded collections with vectors
-            info!("🗜️  Compacting {} loaded collections to .vecdb...", workspace_count);
-                        
-                        // Wait a bit for filesystem to flush all .bin files
-                        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-                        
-                        // Use FileLoader's compact method
-                        let persistence = crate::file_loader::Persistence::new();
-                        match persistence.compact_and_cleanup() {
-                            Ok(count) => {
-                                println!("✅ Compacted {} total collections to .vecdb", count);
-                                info!("✅ Compacted {} total collections to .vecdb", count);
-                            }
-                            Err(e) => {
-                                eprintln!("❌ Failed to compact to .vecdb: {}", e);
-                                warn!("❌ Failed to compact to .vecdb: {}", e);
-                            }
-                        }
+            // NEVER compact when loading from cache - .vecdb already exists and is correct!
+            // Compaction ONLY happens when indexing NEW files (no cache exists)
+            info!("ℹ️  Loaded from .vecdb cache - no compaction needed");
                     } else {
                         println!("ℹ️  All collections already exist in .vecdb - no indexing needed");
                         info!("ℹ️  All collections already exist in .vecdb - no indexing needed");
@@ -872,18 +857,32 @@ pub async fn load_workspace_collections(
                                             }
                                             
                                             // Load vectors into collection (EXACT same as FileLoader)
+                                            info!("🔄 Converting {} persisted vectors to runtime format...", persisted.vectors.len());
                                             let vectors: Vec<crate::models::Vector> = persisted.vectors
                                                 .into_iter()
-                                                .filter_map(|pv| pv.into_runtime().ok())
+                                                .filter_map(|pv| {
+                                                    match pv.into_runtime() {
+                                                        Ok(v) => Some(v),
+                                                        Err(e) => {
+                                                            warn!("Failed to convert persisted vector: {}", e);
+                                                            None
+                                                        }
+                                                    }
+                                                })
                                                 .collect();
                                             
+                                            info!("🔄 Converted {} vectors successfully", vectors.len());
+                                            
                                             if let Ok(collection_ref) = store.get_collection(&collection.name) {
+                                                info!("🔄 Loading {} vectors into collection '{}'...", vectors.len(), collection.name);
                                                 if let Err(e) = collection_ref.load_vectors_into_memory(vectors) {
-                                                    warn!("Failed to load vectors into collection '{}': {}", collection.name, e);
+                                                    warn!("❌ FAILED to load vectors into collection '{}': {}", collection.name, e);
                                                 } else {
                                                     info!("✅ Collection '{}' loaded from .vecdb with {} vectors", collection.name, vector_count);
                                                     indexed_count += 1;
                                                 }
+                                            } else {
+                                                warn!("❌ FAILED to get collection '{}' after creation!", collection.name);
                                             }
                                         }
                                         Err(e) => {
