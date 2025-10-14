@@ -669,8 +669,17 @@ impl DocumentLoader {
             self.config.collection_name
         );
 
-        // Save the newly indexed store.
+        // Check if we're using compact storage format - if so, skip legacy file save
         let data_dir = Self::get_data_dir();
+        use crate::storage::{detect_format, StorageFormat};
+        
+        if detect_format(&data_dir) == StorageFormat::Compact {
+            info!("⏭️ Skipping legacy save for '{}' - using .vecdb format", self.config.collection_name);
+            // Skip saving tokenizer and metadata for compact format
+            return Ok((vector_count, false));
+        }
+        
+        // Save the newly indexed store (legacy format only).
         if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
                 "Failed to create data directory {}: {}",
@@ -813,6 +822,14 @@ impl DocumentLoader {
     }
     fn save_tokenizer(&self, _project_path: &str) -> Result<()> {
         let data_dir = Self::get_data_dir();
+        
+        // Check if using compact format - skip tokenizer save
+        use crate::storage::{detect_format, StorageFormat};
+        if detect_format(&data_dir) == StorageFormat::Compact {
+            debug!("⏭️ Skipping tokenizer save for '{}' - using .vecdb format", self.config.collection_name);
+            return Ok(());
+        }
+        
         fs::create_dir_all(&data_dir)?;
         
         // Try to save tokenizer for sparse embedding types
@@ -1783,6 +1800,14 @@ impl DocumentLoader {
     /// Save collection metadata to centralized data directory
     fn save_metadata(&self, _project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
         let data_dir = Self::get_data_dir();
+        
+        // Check if using compact format - skip metadata save
+        use crate::storage::{detect_format, StorageFormat};
+        if detect_format(&data_dir) == StorageFormat::Compact {
+            debug!("⏭️ Skipping metadata save for '{}' - using .vecdb format", self.config.collection_name);
+            return Ok(());
+        }
+        
         if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
                 "Failed to create data directory {}: {}",
