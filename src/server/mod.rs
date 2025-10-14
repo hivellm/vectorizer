@@ -316,21 +316,21 @@ impl VectorizerServer {
             match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading, cancel_rx.clone()).await {
                 Ok(workspace_count) => {
                     if workspace_count > 0 {
-                        println!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
-                        info!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
+                        println!("✅ Workspace indexing completed - {} NEW collections indexed", workspace_count);
+                        info!("✅ Workspace indexing completed - {} NEW collections indexed", workspace_count);
                         
-                        // Always compact to .vecdb after indexing new collections
-                        info!("🗜️  Compacting {} collections to .vecdb...", workspace_count);
+                        // Compact to .vecdb after indexing new collections
+                        info!("🗜️  Compacting {} NEW collections to .vecdb...", workspace_count);
                         
-                        // Wait a bit for filesystem to flush
-                        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                        // Wait a bit for filesystem to flush all .bin files
+                        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
                         
                         // Use FileLoader's compact method
                         let persistence = crate::file_loader::Persistence::new();
                         match persistence.compact_and_cleanup() {
                             Ok(count) => {
-                                println!("✅ Compacted {} collections to .vecdb", count);
-                                info!("✅ Compacted {} collections to .vecdb", count);
+                                println!("✅ Compacted {} total collections to .vecdb", count);
+                                info!("✅ Compacted {} total collections to .vecdb", count);
                             }
                             Err(e) => {
                                 eprintln!("❌ Failed to compact to .vecdb: {}", e);
@@ -338,8 +338,8 @@ impl VectorizerServer {
                             }
                         }
                     } else {
-                        println!("ℹ️  No workspace configuration found or no indexing needed");
-                        info!("ℹ️  No workspace configuration found or no indexing needed");
+                        println!("ℹ️  All collections already exist in .vecdb - no indexing needed");
+                        info!("ℹ️  All collections already exist in .vecdb - no indexing needed");
                     }
                 },
                 Err(e) => {
@@ -846,14 +846,14 @@ pub async fn load_workspace_collections(
             
             // Check if collection already exists in .vecdb archive
             if using_vecdb && existing_in_vecdb.contains(&collection.name) {
-                info!("Collection '{}' already exists in .vecdb, skipping indexing", collection.name);
-                indexed_count += 1; // Count as indexed (already exists)
+                info!("✅ Collection '{}' already exists in .vecdb, skipping indexing", collection.name);
+                // Don't increment indexed_count - this wasn't newly indexed
                 continue;
             }
             
             // Check if collection already exists in store memory (WITHOUT lazy loading)
             if store.has_collection_in_memory(&collection.name) {
-                info!("Collection '{}' already exists in memory, skipping", collection.name);
+                info!("✅ Collection '{}' already exists in memory, skipping", collection.name);
                 continue;
             }
 

@@ -54,7 +54,16 @@ impl Persistence {
         use std::fs::File;
         use std::io::BufWriter;
         
+        // Ensure data directory exists
+        if !self.data_dir.exists() {
+            std::fs::create_dir_all(&self.data_dir)
+                .map_err(|e| crate::error::VectorizerError::Io(e))?;
+            info!("Created data directory: {}", self.data_dir.display());
+        }
+        
         let temp_path = self.data_dir.join(format!("{}_vector_store.bin", collection_name));
+        info!("💾 Saving collection '{}' to: {}", collection_name, temp_path.display());
+        
         let meta = collection.metadata();
         
         // Convert vectors to PersistedVector format using From trait
@@ -76,7 +85,16 @@ impl Persistence {
         bincode::serialize_into(writer, &persisted)
             .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
 
-        info!("Saved temp collection '{}' to {}", collection_name, temp_path.display());
+        // Verify file was created
+        if temp_path.exists() {
+            let file_size = std::fs::metadata(&temp_path)
+                .map(|m| m.len())
+                .unwrap_or(0);
+            info!("✅ Saved temp collection '{}' to {} ({} MB, {} vectors)", 
+                collection_name, temp_path.display(), file_size / 1_048_576, persisted.vectors.len());
+        } else {
+            warn!("⚠️  File not found after save: {}", temp_path.display());
+        }
         
         // Save complete metadata with file list and checksums
         self.save_complete_metadata(collection_name, &meta, &persisted)?;

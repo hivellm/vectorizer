@@ -7,6 +7,7 @@ use sha2::{Sha256, Digest};
 use std::fs::{self, File};
 use std::io::{self, Write, Read};
 use std::path::{Path, PathBuf};
+use tracing::{info, warn};
 use walkdir::WalkDir;
 use zip::ZipWriter;
 use zip::write::FileOptions;
@@ -84,12 +85,23 @@ impl StorageWriter {
         
         let mut collections: HashMap<String, Vec<PathBuf>> = HashMap::new();
         
+        info!("🔍 Discovering collections in: {}", source_dir.display());
+        
+        let mut total_files = 0;
+        let mut bin_files = 0;
+        
         for entry in fs::read_dir(source_dir).map_err(|e| VectorizerError::Io(e))? {
             let entry = entry.map_err(|e| VectorizerError::Io(e))?;
             let path = entry.path();
             
             if path.is_file() {
+                total_files += 1;
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.ends_with("_vector_store.bin") {
+                        bin_files += 1;
+                        info!("   Found .bin file: {}", name);
+                    }
+                    
                     // Extract collection name (everything before the last underscore)
                     if let Some(pos) = name.rfind('_') {
                         let collection_name = &name[..pos];
@@ -100,6 +112,9 @@ impl StorageWriter {
                 }
             }
         }
+        
+        info!("🔍 Discovery complete: {} total files, {} .bin files, {} collections", 
+            total_files, bin_files, collections.len());
         
         Ok(collections)
     }
