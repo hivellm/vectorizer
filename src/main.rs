@@ -50,6 +50,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Project argument: {:?}", args.project);
     info!("Config argument: {:?}", args.config);
 
+    // Check for legacy data and offer migration
+    let data_dir = std::path::Path::new("./data");
+    if data_dir.exists() {
+        let migrator = vectorizer::storage::StorageMigrator::new(data_dir, 6);
+        
+        if migrator.needs_migration() {
+            println!("\n⚠️  Legacy data format detected!");
+            println!("📦 The new .vecdb format offers:");
+            println!("   • Better compression and performance");
+            println!("   • Atomic operations and crash recovery");
+            println!("   • Built-in snapshots and backups");
+            println!("\n❓ Do you want to migrate to the new format now? (Y/n): ");
+            
+            use std::io::{stdin, stdout, Write};
+            stdout().flush().unwrap();
+            
+            let mut response = String::new();
+            stdin().read_line(&mut response).unwrap();
+            let response = response.trim().to_lowercase();
+            
+            if response.is_empty() || response == "y" || response == "yes" {
+                println!("\n🔄 Starting migration...");
+                
+                match migrator.migrate() {
+                    Ok(result) => {
+                        println!("✅ Migration completed successfully!");
+                        println!("   Collections migrated: {}", result.collections_migrated);
+                        if let Some(backup) = result.backup_path {
+                            println!("   Backup saved to: {}", backup.display());
+                            println!("   You can delete the backup after verifying everything works.");
+                        }
+                        println!();
+                        info!("Migration completed: {}", result.message);
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Migration failed: {}", e);
+                        eprintln!("   The vectorizer will continue using the legacy format.");
+                        eprintln!("   You can try migrating manually later with: vectorizer-admin storage compact");
+                        info!("Migration failed: {}", e);
+                    }
+                }
+            } else {
+                println!("⏭️  Skipping migration. Using legacy format.");
+                println!("   You can migrate later with: vectorizer-admin storage compact\n");
+            }
+        }
+    }
+
     // Initialize vector store
     let store = vectorizer::VectorStore::new();
     info!("Vector store initialized");
