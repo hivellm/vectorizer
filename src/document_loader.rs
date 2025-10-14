@@ -696,14 +696,17 @@ impl DocumentLoader {
             self.config.collection_name
         );
 
-        // Check if we're using compact storage format - if so, skip legacy file save
+        // Check if we're using compact storage format
         let data_dir = Self::get_data_dir();
-        use crate::storage::{detect_format, StorageFormat};
+        use crate::storage::{detect_format, StorageFormat, StorageCompactor};
         
-        if detect_format(&data_dir) == StorageFormat::Compact {
-            info!("⏭️ Skipping legacy save for '{}' - using .vecdb format", self.config.collection_name);
-            // Skip saving tokenizer and metadata for compact format
-            return Ok((vector_count, false));
+        let is_compact = detect_format(&data_dir) == StorageFormat::Compact;
+        
+        if is_compact {
+            info!("💾 Using .vecdb format for collection '{}'", self.config.collection_name);
+            
+            // STEP 1: Save temporarily in legacy format (needed for compaction)
+            info!("📝 Saving temporary legacy files for compaction...");
         }
         
         // Save the newly indexed store (legacy format only).
@@ -767,6 +770,39 @@ impl DocumentLoader {
         }
         if let Err(e) = self.save_metadata(project_path, &metadata) {
             warn!("Failed to save metadata: {}", e);
+        }
+
+        // STEP 2: If compact format, compact to .vecdb and remove temporary legacy files
+        if is_compact {
+            info!("🗜️  Compacting to .vecdb...");
+            let compactor = StorageCompactor::new(&data_dir, 6, 1000);
+            match compactor.compact_all() {
+                Ok(index) => {
+                    info!("✅ Compacted {} collections to .vecdb (total: {} vectors)", 
+                          index.collection_count(), index.total_vectors());
+                    
+                    // STEP 3: Remove temporary legacy files
+                    info!("🧹 Cleaning up temporary legacy files...");
+                    let vector_store_path = data_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
+                    let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
+                    let metadata_path = data_dir.join(format!("{}_metadata.json", self.config.collection_name));
+                    
+                    if vector_store_path.exists() {
+                        let _ = fs::remove_file(&vector_store_path);
+                    }
+                    if tokenizer_path.exists() {
+                        let _ = fs::remove_file(&tokenizer_path);
+                    }
+                    if metadata_path.exists() {
+                        let _ = fs::remove_file(&metadata_path);
+                    }
+                    
+                    info!("✅ Temporary files cleaned up");
+                }
+                Err(e) => {
+                    warn!("❌ Failed to compact to .vecdb: {}, keeping temporary files", e);
+                }
+            }
         }
 
         // Note: HNSW dump is now done BEFORE sub_store creation (above)
@@ -849,14 +885,6 @@ impl DocumentLoader {
     }
     fn save_tokenizer(&self, _project_path: &str) -> Result<()> {
         let data_dir = Self::get_data_dir();
-        
-        // Check if using compact format - skip tokenizer save
-        use crate::storage::{detect_format, StorageFormat};
-        if detect_format(&data_dir) == StorageFormat::Compact {
-            debug!("⏭️ Skipping tokenizer save for '{}' - using .vecdb format", self.config.collection_name);
-            return Ok(());
-        }
-        
         fs::create_dir_all(&data_dir)?;
         
         // Try to save tokenizer for sparse embedding types
@@ -1827,13 +1855,6 @@ impl DocumentLoader {
     /// Save collection metadata to centralized data directory
     fn save_metadata(&self, _project_path: &str, metadata: &CollectionMetadataFile) -> Result<()> {
         let data_dir = Self::get_data_dir();
-        
-        // Check if using compact format - skip metadata save
-        use crate::storage::{detect_format, StorageFormat};
-        if detect_format(&data_dir) == StorageFormat::Compact {
-            debug!("⏭️ Skipping metadata save for '{}' - using .vecdb format", self.config.collection_name);
-            return Ok(());
-        }
         
         if let Err(e) = fs::create_dir_all(&data_dir) {
             warn!(
