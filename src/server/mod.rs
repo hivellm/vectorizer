@@ -846,8 +846,21 @@ pub async fn load_workspace_collections(
             
             // Check if collection already exists in .vecdb archive
             if using_vecdb && existing_in_vecdb.contains(&collection.name) {
-                info!("✅ Collection '{}' already exists in .vecdb, skipping indexing", collection.name);
-                // Don't increment indexed_count - this wasn't newly indexed
+                // Collection exists in .vecdb - ensure it's loaded in memory
+                if !store.has_collection_in_memory(&collection.name) {
+                    info!("📥 Loading collection '{}' from .vecdb into memory...", collection.name);
+                    // Trigger lazy loading by trying to get the collection
+                    match store.get_collection(&collection.name) {
+                        Ok(_) => {
+                            info!("✅ Collection '{}' loaded from .vecdb", collection.name);
+                        }
+                        Err(e) => {
+                            warn!("Failed to load collection '{}' from .vecdb: {}", collection.name, e);
+                        }
+                    }
+                } else {
+                    info!("✅ Collection '{}' already in memory, skipping", collection.name);
+                }
                 continue;
             }
             
