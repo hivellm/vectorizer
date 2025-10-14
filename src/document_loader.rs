@@ -476,8 +476,7 @@ impl DocumentLoader {
         
         if format == StorageFormat::Compact {
             // 🚀 FAST PATH: Load from .vecdb (compact format)
-            // The VectorStore itself handles loading from .vecdb automatically
-            // Just check if the collection already exists in the store
+            // Check if the collection already exists in the store
             if let Ok(collection) = store.get_collection(&collection_name) {
                 let count = collection.vector_count();
                 if count > 0 {
@@ -489,9 +488,43 @@ impl DocumentLoader {
                 }
             }
             
-            // Collection not in store yet, but .vecdb exists - need to load workspace
-            info!("📊 Collection '{}' not in memory, will be loaded from .vecdb during indexing", collection_name);
-            // Continue to full indexing - it will use .vecdb format
+            // Collection not in store yet but .vecdb exists - try to load from .vecdb first
+            use crate::storage::StorageReader;
+            let vecdb_path = data_dir.join(crate::storage::VECDB_FILE);
+            
+            if vecdb_path.exists() {
+                info!("📦 .vecdb exists, checking if collection '{}' is in archive...", collection_name);
+                
+                match StorageReader::new(&data_dir) {
+                    Ok(reader) => {
+                        // Check if this collection exists in the archive
+                        match reader.get_collection(&collection_name) {
+                            Ok(Some(_collection_index)) => {
+                                info!("✅ Collection '{}' found in .vecdb archive, no reindexing needed", collection_name);
+                                // The VectorStore will lazy-load it when needed
+                                if let Some(cache_manager) = &self.cache_manager {
+                                    let _ = cache_manager.record_hit().await;
+                                }
+                                // Return 0 to indicate no new indexing was done
+                                return Ok((0, true));
+                            }
+                            Ok(None) => {
+                                info!("📊 Collection '{}' not found in .vecdb, will index and add to archive", collection_name);
+                            }
+                            Err(e) => {
+                                warn!("Failed to check collection in .vecdb: {}, will reindex", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to create StorageReader: {}, will reindex", e);
+                    }
+                }
+            } else {
+                info!("📊 .vecdb doesn't exist yet, will create after indexing");
+            }
+            
+            // Continue to full indexing - collection doesn't exist in .vecdb
         } else {
             // Legacy format - check for individual collection file
             let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
@@ -772,37 +805,10 @@ impl DocumentLoader {
             warn!("Failed to save metadata: {}", e);
         }
 
-        // STEP 2: If compact format, compact to .vecdb and remove temporary legacy files
+        // NOTE: Compaction to .vecdb is done GLOBALLY after all workspace collections are loaded
+        // Individual collections save temporary legacy files that will be compacted together
         if is_compact {
-            info!("🗜️  Compacting to .vecdb...");
-            let compactor = StorageCompactor::new(&data_dir, 6, 1000);
-            match compactor.compact_all() {
-                Ok(index) => {
-                    info!("✅ Compacted {} collections to .vecdb (total: {} vectors)", 
-                          index.collection_count(), index.total_vectors());
-                    
-                    // STEP 3: Remove temporary legacy files
-                    info!("🧹 Cleaning up temporary legacy files...");
-                    let vector_store_path = data_dir.join(format!("{}_vector_store.bin", self.config.collection_name));
-                    let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
-                    let metadata_path = data_dir.join(format!("{}_metadata.json", self.config.collection_name));
-                    
-                    if vector_store_path.exists() {
-                        let _ = fs::remove_file(&vector_store_path);
-                    }
-                    if tokenizer_path.exists() {
-                        let _ = fs::remove_file(&tokenizer_path);
-                    }
-                    if metadata_path.exists() {
-                        let _ = fs::remove_file(&metadata_path);
-                    }
-                    
-                    info!("✅ Temporary files cleaned up");
-                }
-                Err(e) => {
-                    warn!("❌ Failed to compact to .vecdb: {}, keeping temporary files", e);
-                }
-            }
+            info!("📝 Collection '{}' saved as temporary legacy files for batch compaction", self.config.collection_name);
         }
 
         // Note: HNSW dump is now done BEFORE sub_store creation (above)

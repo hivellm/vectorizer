@@ -304,6 +304,56 @@ impl VectorizerServer {
                     if workspace_count > 0 {
                         println!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
                         info!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
+                        
+                        // Check if .vecdb file exists (meaning we should use compact format)
+                        let data_dir = std::path::PathBuf::from("./data");
+                        let vecdb_path = data_dir.join("vectorizer.vecdb");
+                        
+                        if vecdb_path.exists() {
+                            info!("🗜️  Compacting all {} collections to .vecdb...", workspace_count);
+                            
+                            // Wait a bit for file system to flush
+                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                            
+                            use crate::storage::StorageCompactor;
+                            let compactor = StorageCompactor::new(&data_dir, 6, 1000);
+                            match compactor.compact_all() {
+                                Ok(index) => {
+                                    println!("✅ Compacted {} collections to .vecdb (total: {} vectors)", 
+                                          index.collection_count(), index.total_vectors());
+                                    info!("✅ Compacted {} collections to .vecdb (total: {} vectors)", 
+                                          index.collection_count(), index.total_vectors());
+                                    
+                                    // Clean up temporary legacy files
+                                    info!("🧹 Cleaning up temporary legacy files...");
+                                    let mut removed_count = 0;
+                                    if let Ok(entries) = std::fs::read_dir(&data_dir) {
+                                        for entry in entries.flatten() {
+                                            let path = entry.path();
+                                            if path.is_file() {
+                                                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                                                    if name.ends_with("_vector_store.bin") 
+                                                        || name.ends_with("_tokenizer.json")
+                                                        || name.ends_with("_metadata.json") {
+                                                        if std::fs::remove_file(&path).is_ok() {
+                                                            removed_count += 1;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    println!("✅ Cleaned up {} temporary legacy files", removed_count);
+                                    info!("✅ Cleaned up {} temporary legacy files", removed_count);
+                                }
+                                Err(e) => {
+                                    eprintln!("❌ Failed to compact to .vecdb: {}, keeping temporary files", e);
+                                    warn!("❌ Failed to compact to .vecdb: {}, keeping temporary files", e);
+                                }
+                            }
+                        } else {
+                            info!("ℹ️  No .vecdb file exists, using legacy format");
+                        }
                     } else {
                         println!("ℹ️  No workspace configuration found or no indexing needed");
                         info!("ℹ️  No workspace configuration found or no indexing needed");
