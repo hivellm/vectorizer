@@ -85,6 +85,9 @@ impl FileLoader {
 
         // Step 6: Save to temporary format (will be compacted in batch later)
         self.save_collection_temp(store)?;
+        
+        // Step 7: Save tokenizer/vocabulary for file watcher
+        self.save_tokenizer()?;
 
         info!("Indexed {} vectors for collection '{}'", vector_count, collection_name);
         Ok(vector_count)
@@ -197,6 +200,19 @@ impl FileLoader {
     pub fn save_collection_temp(&self, store: &VectorStore) -> Result<()> {
         self.persistence.save_collection_legacy_temp(store, &self.config.collection_name)
             .map_err(|e| anyhow::anyhow!("{}", e))
+    }
+    
+    /// Save tokenizer/vocabulary for file watcher
+    pub fn save_tokenizer(&self) -> Result<()> {
+        let data_dir = std::path::PathBuf::from("./data");
+        let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
+        
+        // Get the embedding type from config
+        let embedding_type = &self.config.embedding_type;
+        
+        // Save vocabulary using the indexer's embedding manager
+        self.indexer.save_vocabulary(&tokenizer_path, embedding_type)
+            .map_err(|e| anyhow::anyhow!("Failed to save vocabulary: {}", e))
     }
 
     /// Compact all collections to .vecdb

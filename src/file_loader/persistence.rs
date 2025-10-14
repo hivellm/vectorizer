@@ -77,6 +77,95 @@ impl Persistence {
             .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
 
         info!("Saved temp collection '{}' to {}", collection_name, temp_path.display());
+        
+        // Save metadata for file watcher
+        self.save_metadata(collection_name, &meta)?;
+        
+        // Save file checksums for file watcher
+        self.save_checksums(collection_name, &persisted)?;
+        
+        Ok(())
+    }
+    
+    /// Save collection metadata
+    fn save_metadata(&self, collection_name: &str, metadata: &crate::models::CollectionMetadata) -> Result<()> {
+        use serde_json;
+        use std::fs::File;
+        use std::io::BufWriter;
+        
+        let metadata_path = self.data_dir.join(format!("{}_metadata.json", collection_name));
+        
+        #[derive(serde::Serialize)]
+        struct MetadataJson {
+            collection_name: String,
+            dimension: usize,
+            vector_count: usize,
+            distance_metric: String,
+            created_at: String,
+        }
+        
+        let metadata_json = MetadataJson {
+            collection_name: collection_name.to_string(),
+            dimension: metadata.config.dimension,
+            vector_count: metadata.vector_count,
+            distance_metric: format!("{:?}", metadata.config.metric),
+            created_at: metadata.created_at.to_rfc3339(),
+        };
+        
+        let file = File::create(&metadata_path)
+            .map_err(|e| crate::error::VectorizerError::Io(e))?;
+        let writer = BufWriter::new(file);
+        
+        serde_json::to_writer_pretty(writer, &metadata_json)
+            .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
+        
+        info!("Saved metadata for collection '{}' to {}", collection_name, metadata_path.display());
+        Ok(())
+    }
+    
+    /// Save file checksums for file watcher
+    fn save_checksums(&self, collection_name: &str, persisted: &crate::persistence::PersistedCollection) -> Result<()> {
+        use serde_json;
+        use std::fs::File;
+        use std::io::BufWriter;
+        use std::collections::HashMap;
+        use sha2::{Sha256, Digest};
+        
+        let checksums_path = self.data_dir.join(format!("{}_checksums.json", collection_name));
+        
+        // Extract file paths from vector payloads and compute checksums
+        let mut file_checksums: HashMap<String, String> = HashMap::new();
+        
+        for vector in &persisted.vectors {
+            // Convert PersistedVector to Vector to access payload
+            if let Ok(runtime_vec) = crate::persistence::PersistedVector::into_runtime(vector.clone()) {
+                if let Some(payload) = &runtime_vec.payload {
+                    if let Some(file_path_val) = payload.data.get("file_path") {
+                        if let Some(file_path) = file_path_val.as_str() {
+                            // Compute checksum if we haven't already
+                            if !file_checksums.contains_key(file_path) {
+                                if let Ok(content) = std::fs::read(file_path) {
+                                    let mut hasher = Sha256::new();
+                                    hasher.update(&content);
+                                    let hash = format!("{:x}", hasher.finalize());
+                                    file_checksums.insert(file_path.to_string(), hash);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        let file = File::create(&checksums_path)
+            .map_err(|e| crate::error::VectorizerError::Io(e))?;
+        let writer = BufWriter::new(file);
+        
+        serde_json::to_writer_pretty(writer, &file_checksums)
+            .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
+        
+        info!("Saved checksums for {} files in collection '{}' to {}", 
+            file_checksums.len(), collection_name, checksums_path.display());
         Ok(())
     }
 
@@ -101,11 +190,11 @@ impl Persistence {
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.ends_with("_vector_store.bin")
-                            || name.ends_with("_tokenizer.json")
-                            || name.ends_with("_metadata.json")
-                        {
+                        // Only delete vector_store.bin (temp binary)
+                        // KEEP metadata.json, tokenizer.json, and checksums.json for file watcher
+                        if name.ends_with("_vector_store.bin") {
                             let _ = std::fs::remove_file(&path);
+                            info!("Cleaned up temp file: {}", name);
                         }
                     }
                 }
@@ -115,4 +204,5 @@ impl Persistence {
         Ok(())
     }
 }
+
 

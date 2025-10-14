@@ -115,5 +115,10 @@ impl Indexer {
 
         Ok(total_vectors)
     }
+    
+    /// Save vocabulary/tokenizer for file watcher
+    pub fn save_vocabulary(&self, path: &std::path::Path, provider_name: &str) -> crate::error::Result<()> {
+        self.embedding_manager.save_vocabulary_json(provider_name, path)
+    }
 }
 
