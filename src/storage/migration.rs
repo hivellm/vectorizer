@@ -88,9 +88,8 @@ impl StorageMigrator {
     fn create_backup(&self) -> Result<PathBuf> {
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
         // Use shorter path to avoid "File name too long" errors
-        let backup_dir = self.data_dir.parent()
-            .unwrap_or(self.data_dir.as_path())
-            .join(format!("data.bak.{}", timestamp));
+        // Place backup inside data directory
+        let backup_dir = self.data_dir.join(format!(".bak.{}", timestamp));
         
         // Create backup directory
         fs::create_dir_all(&backup_dir)
@@ -198,6 +197,15 @@ impl StorageMigrator {
                     continue;
                 }
             };
+            
+            // Skip backup directories and .vecdb files
+            if let Some(name_str) = file_name.to_str() {
+                if name_str.starts_with(".bak") 
+                    || name_str == "vectorizer.vecdb" 
+                    || name_str == "vectorizer.vecidx" {
+                    continue;
+                }
+            }
             
             let dest_path = dst.join(file_name);
             

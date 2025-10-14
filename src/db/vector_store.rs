@@ -1321,8 +1321,16 @@ impl VectorStore {
     pub fn save_collection_to_file(&self, collection_name: &str) -> Result<()> {
         use std::fs;
         use crate::persistence::PersistedCollection;
+        use crate::storage::{detect_format, StorageFormat};
 
         info!("Saving collection '{}' to individual files", collection_name);
+
+        // Check if using compact storage format - if so, don't save in legacy format
+        let data_dir = Self::get_data_dir();
+        if detect_format(&data_dir) == StorageFormat::Compact {
+            debug!("⏭️ Skipping legacy save for '{}' - using .vecdb format", collection_name);
+            return Ok(());
+        }
 
         // Get collection
         let collection = self.get_collection(collection_name)?;
@@ -1373,8 +1381,16 @@ impl VectorStore {
     fn save_collection_to_file_static(collection_name: &str, collection: &CollectionType) -> Result<()> {
         use std::fs;
         use crate::persistence::PersistedCollection;
+        use crate::storage::{detect_format, StorageFormat};
         
         info!("💾 Starting save for collection '{}'", collection_name);
+        
+        // Check if using compact storage format - if so, don't save in legacy format
+        let data_dir = Self::get_data_dir();
+        if detect_format(&data_dir) == StorageFormat::Compact {
+            debug!("⏭️ Skipping legacy save for '{}' - using .vecdb format", collection_name);
+            return Ok(());
+        }
         
         // Get collection metadata
         let metadata = collection.metadata();
