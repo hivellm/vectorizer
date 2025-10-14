@@ -78,22 +78,41 @@ impl Persistence {
 
         info!("Saved temp collection '{}' to {}", collection_name, temp_path.display());
         
-        // Save metadata for file watcher
-        self.save_metadata(collection_name, &meta)?;
-        
-        // Save file checksums for file watcher
+        // Save complete metadata with file list and checksums
+        self.save_complete_metadata(collection_name, &meta, &persisted)?;
         self.save_checksums(collection_name, &persisted)?;
         
         Ok(())
     }
     
-    /// Save collection metadata
-    fn save_metadata(&self, collection_name: &str, metadata: &crate::models::CollectionMetadata) -> Result<()> {
+    /// Save complete metadata with file list and checksums
+    fn save_complete_metadata(
+        &self, 
+        collection_name: &str, 
+        metadata: &crate::models::CollectionMetadata,
+        persisted: &crate::persistence::PersistedCollection,
+    ) -> Result<()> {
         use serde_json;
         use std::fs::File;
         use std::io::BufWriter;
+        use std::collections::HashSet;
         
         let metadata_path = self.data_dir.join(format!("{}_metadata.json", collection_name));
+        
+        // Extract unique file paths from vectors
+        let mut indexed_files: HashSet<String> = HashSet::new();
+        
+        for vector in &persisted.vectors {
+            if let Ok(runtime_vec) = crate::persistence::PersistedVector::into_runtime(vector.clone()) {
+                if let Some(payload) = &runtime_vec.payload {
+                    if let Some(file_path_val) = payload.data.get("file_path") {
+                        if let Some(file_path) = file_path_val.as_str() {
+                            indexed_files.insert(file_path.to_string());
+                        }
+                    }
+                }
+            }
+        }
         
         #[derive(serde::Serialize)]
         struct MetadataJson {
@@ -102,7 +121,13 @@ impl Persistence {
             vector_count: usize,
             distance_metric: String,
             created_at: String,
+            updated_at: String,
+            indexed_files: Vec<String>,
+            file_count: usize,
         }
+        
+        let mut files_vec: Vec<String> = indexed_files.into_iter().collect();
+        files_vec.sort();
         
         let metadata_json = MetadataJson {
             collection_name: collection_name.to_string(),
@@ -110,6 +135,9 @@ impl Persistence {
             vector_count: metadata.vector_count,
             distance_metric: format!("{:?}", metadata.config.metric),
             created_at: metadata.created_at.to_rfc3339(),
+            updated_at: metadata.updated_at.to_rfc3339(),
+            indexed_files: files_vec.clone(),
+            file_count: files_vec.len(),
         };
         
         let file = File::create(&metadata_path)
@@ -119,7 +147,8 @@ impl Persistence {
         serde_json::to_writer_pretty(writer, &metadata_json)
             .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
         
-        info!("Saved metadata for collection '{}' to {}", collection_name, metadata_path.display());
+        info!("Saved metadata for collection '{}': {} vectors from {} files", 
+            collection_name, metadata.vector_count, files_vec.len());
         Ok(())
     }
     
