@@ -59,9 +59,10 @@ async fn main() -> anyhow::Result<()> {
                     Ok(result) => {
                         println!("✅ Migration completed successfully!");
                         println!("   Collections migrated: {}", result.collections_migrated);
+                        println!("   Legacy files removed from data directory");
                         if let Some(backup) = result.backup_path {
                             println!("   Backup saved to: {}", backup.display());
-                            println!("   You can delete the backup after verifying everything works.");
+                            println!("   You can safely delete the backup after verifying the migration");
                         }
                         println!();
                     }

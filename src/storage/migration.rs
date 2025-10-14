@@ -68,9 +68,13 @@ impl StorageMigrator {
         info!("   Space saved: {} MB", 
             (index.total_size.saturating_sub(index.compressed_size)) / 1_048_576);
         
-        // Keep legacy files for safety - user can delete manually
-        info!("ℹ️  Legacy files kept in: {}", backup_path.display());
-        info!("   You can safely delete them after verifying the migration");
+        // Remove legacy files after successful migration
+        info!("🗑️  Removing legacy files from data directory...");
+        let removed_count = self.remove_legacy_files()?;
+        info!("✅ Removed {} legacy files", removed_count);
+        
+        info!("ℹ️  Backup saved to: {}", backup_path.display());
+        info!("   You can delete the backup after verifying the migration");
         
         Ok(MigrationResult {
             success: true,
@@ -131,6 +135,37 @@ impl StorageMigrator {
         }
         
         Ok(collection_names.len())
+    }
+    
+    /// Remove legacy files after successful migration
+    fn remove_legacy_files(&self) -> Result<usize> {
+        let mut removed_count = 0;
+        
+        for entry in fs::read_dir(&self.data_dir).map_err(|e| VectorizerError::Io(e))? {
+            let entry = entry.map_err(|e| VectorizerError::Io(e))?;
+            let path = entry.path();
+            
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    // Remove files with legacy patterns
+                    if name.ends_with("_vector_store.bin") 
+                        || name.ends_with("_tokenizer.json")
+                        || name.ends_with("_metadata.json") {
+                        match fs::remove_file(&path) {
+                            Ok(_) => {
+                                info!("   Removed: {}", name);
+                                removed_count += 1;
+                            }
+                            Err(e) => {
+                                warn!("   Failed to remove {}: {}", name, e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(removed_count)
     }
     
     /// Copy directory recursively (with error tolerance for long file names)
