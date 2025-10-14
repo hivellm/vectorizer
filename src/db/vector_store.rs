@@ -1325,13 +1325,9 @@ impl VectorStore {
                     let collections_to_save: Vec<String> = pending_saves.lock().unwrap().iter().cloned().collect();
                     pending_saves.lock().unwrap().clear();
                     
+                    // Auto-save disabled - using .vecdb format (compaction happens in batch)
                     for collection_name in collections_to_save {
-                        if let Some(collection) = collections.get(&collection_name) {
-                            match Self::save_collection_to_file_static(&collection_name, &*collection) {
-                                Ok(_) => debug!("✅ Background saved collection '{}'", collection_name),
-                                Err(e) => warn!("❌ Background save failed for '{}': {}", collection_name, e),
-                            }
-                        }
+                        debug!("Collection '{}' marked for save (will be compacted to .vecdb in batch)", collection_name);
                     }
                     
                     info!("✅ Background save completed");
@@ -1364,13 +1360,9 @@ impl VectorStore {
         let collections_to_save: Vec<String> = self.pending_saves.lock().unwrap().iter().cloned().collect();
         self.pending_saves.lock().unwrap().clear();
         
+        // Force save disabled - using .vecdb format
         for collection_name in collections_to_save {
-            if let Some(collection) = self.collections.get(&collection_name) {
-                match Self::save_collection_to_file_static(&collection_name, &*collection) {
-                    Ok(_) => debug!("✅ Force saved collection '{}'", collection_name),
-                    Err(e) => warn!("❌ Force save failed for '{}': {}", collection_name, e),
-                }
-            }
+            debug!("Collection '{}' marked for save (using .vecdb format)", collection_name);
         }
         
         info!("✅ Force save completed");

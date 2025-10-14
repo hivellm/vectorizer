@@ -320,54 +320,28 @@ impl VectorizerServer {
                         println!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
                         info!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
                         
-                        // Check if .vecdb file exists (meaning we should use compact format)
+                        // Compact to .vecdb if there were new collections indexed
                         let data_dir = std::path::PathBuf::from("./data");
                         let vecdb_path = data_dir.join("vectorizer.vecdb");
                         
                         if vecdb_path.exists() {
-                            info!("🗜️  Compacting all {} collections to .vecdb...", workspace_count);
+                            info!("🗜️  Compacting collections to .vecdb...");
                             
-                            // Wait a bit for file system to flush
+                            // Wait a bit for filesystem to flush
                             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                             
-                            use crate::storage::StorageCompactor;
-                            let compactor = StorageCompactor::new(&data_dir, 6, 1000);
-                            match compactor.compact_all() {
-                                Ok(index) => {
-                                    println!("✅ Compacted {} collections to .vecdb (total: {} vectors)", 
-                                          index.collection_count(), index.total_vectors());
-                                    info!("✅ Compacted {} collections to .vecdb (total: {} vectors)", 
-                                          index.collection_count(), index.total_vectors());
-                                    
-                                    // Clean up temporary legacy files
-                                    info!("🧹 Cleaning up temporary legacy files...");
-                                    let mut removed_count = 0;
-                                    if let Ok(entries) = std::fs::read_dir(&data_dir) {
-                                        for entry in entries.flatten() {
-                                            let path = entry.path();
-                                            if path.is_file() {
-                                                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                                                    if name.ends_with("_vector_store.bin") 
-                                                        || name.ends_with("_tokenizer.json")
-                                                        || name.ends_with("_metadata.json") {
-                                                        if std::fs::remove_file(&path).is_ok() {
-                                                            removed_count += 1;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    println!("✅ Cleaned up {} temporary legacy files", removed_count);
-                                    info!("✅ Cleaned up {} temporary legacy files", removed_count);
+                            // Use FileLoader's compact method
+                            let persistence = crate::file_loader::Persistence::new();
+                            match persistence.compact_and_cleanup() {
+                                Ok(count) => {
+                                    println!("✅ Compacted {} collections to .vecdb", count);
+                                    info!("✅ Compacted {} collections to .vecdb", count);
                                 }
                                 Err(e) => {
-                                    eprintln!("❌ Failed to compact to .vecdb: {}, keeping temporary files", e);
-                                    warn!("❌ Failed to compact to .vecdb: {}, keeping temporary files", e);
+                                    eprintln!("❌ Failed to compact to .vecdb: {}", e);
+                                    warn!("❌ Failed to compact to .vecdb: {}", e);
                                 }
                             }
-                        } else {
-                            info!("ℹ️  No .vecdb file exists, using legacy format");
                         }
                     } else {
                         println!("ℹ️  No workspace configuration found or no indexing needed");
@@ -803,7 +777,7 @@ pub async fn load_workspace_collections(
 ) -> anyhow::Result<usize> {
     use std::path::Path;
     use crate::workspace::manager::WorkspaceManager;
-    use crate::document_loader::DocumentLoader;
+    use crate::file_loader::{FileLoader, LoaderConfig};
 
     // Look for workspace configuration file
     let workspace_file = Path::new("vectorize-workspace.yml");
@@ -885,11 +859,10 @@ pub async fn load_workspace_collections(
                 }
             };
 
-            // Use DocumentLoader to index files properly
-            let loader_config = crate::document_loader::LoaderConfig {
+            // Use FileLoader to index files
+            let loader_config = LoaderConfig {
                 max_chunk_size: 2048,
                 chunk_overlap: 256,
-                allowed_extensions: vec![], // Not used with include_patterns
                 include_patterns: collection.processing.include_patterns.clone(),
                 exclude_patterns: collection.processing.exclude_patterns.clone(),
                 embedding_dimension: collection.embedding.dimension,
@@ -898,12 +871,22 @@ pub async fn load_workspace_collections(
                 max_file_size: 1024 * 1024, // 1MB
             };
 
-            let mut loader = DocumentLoader::new(loader_config);
+            // Create embedding manager for this collection
+            let mut coll_embedding_manager = crate::embedding::EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(collection.embedding.dimension);
+            coll_embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+            coll_embedding_manager.set_default_provider("bm25")?;
 
-            match loader.load_project_async(&project_path.to_string_lossy(), &store).await {
+            let mut loader = FileLoader::with_embedding_manager(loader_config, coll_embedding_manager);
+
+            match loader.load_and_index_project(&project_path.to_string_lossy(), &store).await {
                 Ok(file_count) => {
-                    info!("Indexed {} files for collection '{}'", file_count, collection.name);
-                    indexed_count += 1;
+                    if file_count > 0 {
+                        info!("Indexed {} vectors for collection '{}'", file_count, collection.name);
+                        indexed_count += 1;
+                    } else {
+                        info!("Collection '{}' already exists in .vecdb, no indexing needed", collection.name);
+                    }
                 },
                 Err(e) => {
                     warn!("Failed to index collection '{}': {}", collection.name, e);
