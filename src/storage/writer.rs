@@ -102,13 +102,27 @@ impl StorageWriter {
                         info!("   Found .bin file: {}", name);
                     }
                     
-                    // Extract collection name (everything before the last underscore)
-                    if let Some(pos) = name.rfind('_') {
-                        let collection_name = &name[..pos];
-                        collections.entry(collection_name.to_string())
-                            .or_insert_with(Vec::new)
-                            .push(path.clone());
-                    }
+                    // Extract collection name - remove known suffixes
+                    let collection_name = if let Some(stripped) = name.strip_suffix("_vector_store.bin") {
+                        stripped.to_string()
+                    } else if let Some(stripped) = name.strip_suffix("_metadata.json") {
+                        stripped.to_string()
+                    } else if let Some(stripped) = name.strip_suffix("_tokenizer.json") {
+                        stripped.to_string()
+                    } else if let Some(stripped) = name.strip_suffix("_checksums.json") {
+                        stripped.to_string()
+                    } else {
+                        // Fallback: use everything before last underscore
+                        if let Some(pos) = name.rfind('_') {
+                            name[..pos].to_string()
+                        } else {
+                            continue; // Skip files that don't match pattern
+                        }
+                    };
+                    
+                    collections.entry(collection_name)
+                        .or_insert_with(Vec::new)
+                        .push(path.clone());
                 }
             }
         }
