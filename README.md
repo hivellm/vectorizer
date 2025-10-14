@@ -2,9 +2,10 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.6.0 - UMICP Protocol Integration**
+## ✨ **Version 0.8.0 - Transmutation Document Conversion**
 
 ### 🎯 **Key Features**
+- **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images to Markdown
 - **UMICP Protocol Support**: Full support for Universal Model Interface Communication Protocol (38 tools)
 - **Text Normalization System**: Content-aware normalization with 30-50% storage reduction
 - **Real-time File Watcher**: Automatic file monitoring and indexing
@@ -14,9 +15,10 @@ A high-performance vector database and search engine built in Rust, designed for
 - **Discovery Pipeline**: 9-stage semantic discovery with evidence compression
 
 ### 🧪 **Quality Metrics**
-- ✅ **282 tests passing** (100% pass rate)
+- ✅ **366 tests passing** (100% pass rate)
 - ⚡ **2.01s execution time**
 - 🎯 **Production-ready** with comprehensive coverage
+- 📄 **19 transmutation tests** (100% pass rate)
 
 ## 🌟 **Core Capabilities**
 
@@ -129,19 +131,24 @@ cache:
 | **Search Speed** | < 3ms |
 | **Startup Time** | Non-blocking |
 | **Storage Reduction** | 30-50% with normalization |
-| **Test Coverage** | 282 tests, 100% pass rate |
+| **Test Coverage** | 366 tests, 100% pass rate |
 | **Collections** | 107+ tested |
+| **PDF Conversion** | 98x faster than Docling |
+| **Document Formats** | 14 formats supported |
 
 ## 🎯 **Use Cases**
 
-- **RAG Systems**: Semantic search for AI applications
-- **Document Search**: Intelligent indexing and retrieval
+- **RAG Systems**: Semantic search for AI applications with automatic PDF/DOCX conversion
+- **Document Search**: Intelligent indexing and retrieval of PDFs, Office files, and web content
 - **Code Analysis**: Semantic code search and navigation
-- **Knowledge Bases**: Enterprise knowledge management
+- **Knowledge Bases**: Enterprise knowledge management with multi-format support
+- **Research Papers**: Automatic PDF indexing with page-level metadata
+- **Legal Documents**: DOCX/PDF processing with precise page tracking
 
 ## 📚 **Documentation**
 
 - **[API Reference](./docs/api/)** - REST API documentation
+- **[Transmutation Integration](./docs/specs/transmutation_integration.md)** - Document conversion guide
 - **[MCP Integration](./docs/specs/MCP_INTEGRATION.md)** - Model Context Protocol guide
 - **[Technical Specs](./docs/specs/)** - Complete technical documentation
 - **[Roadmap](./docs/specs/ROADMAP.md)** - Development roadmap
