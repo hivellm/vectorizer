@@ -43,6 +43,7 @@ pub struct VectorizerServer {
     pub start_time: std::time::Instant,
     pub file_watcher_system: Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
     pub metrics_collector: Arc<MetricsCollector>,
+    background_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl VectorizerServer {
@@ -155,7 +156,7 @@ impl VectorizerServer {
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
         let watcher_system_for_loading = watcher_system_arc.clone();
-        tokio::task::spawn(async move {
+        let background_handle = tokio::task::spawn(async move {
             println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
             
@@ -327,6 +328,7 @@ impl VectorizerServer {
             start_time: std::time::Instant::now(),
             file_watcher_system: watcher_system_for_server,
             metrics_collector: Arc::new(MetricsCollector::new()),
+            background_task: Arc::new(tokio::sync::Mutex::new(Some(background_handle))),
         })
     }
     
@@ -512,6 +514,13 @@ impl VectorizerServer {
             _ = shutdown_signal => {
                 info!("🛑 Shutdown signal received, stopping server...");
             }
+        }
+        
+        // Abort background collection loading task if still running
+        info!("🛑 Stopping background collection loading task...");
+        if let Some(handle) = self.background_task.lock().await.take() {
+            handle.abort();
+            info!("✅ Background task aborted");
         }
         
         // Graceful shutdown of file watcher
