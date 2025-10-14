@@ -230,12 +230,24 @@ impl Persistence {
             info!("Created data directory");
         }
 
+        // CRITICAL: Check if .vecdb already exists before compaction
+        let vecdb_path = self.data_dir.join("vectorizer.vecdb");
+        let vecdb_exists = vecdb_path.exists();
+        
         let compactor = StorageCompactor::new(&self.data_dir, 6, 1000);
         
         info!("🔄 Calling compactor.compact_all()...");
         let index = compactor.compact_all()?;
+        
+        // CRITICAL PROTECTION: NEVER overwrite existing .vecdb with empty data!
+        if index.collection_count() == 0 && vecdb_exists {
+            warn!("⚠️  PROTECTION: Refusing to overwrite existing .vecdb with 0 collections!");
+            warn!("⚠️  This would destroy the database!");
+            return Err(crate::error::VectorizerError::Other(
+                "Refusing to overwrite .vecdb with empty data - collections not loaded correctly".to_string()
+            ));
+        }
 
-        let vecdb_path = self.data_dir.join("vectorizer.vecdb");
         let vecidx_path = self.data_dir.join("vectorizer.vecidx");
         
         info!("✅ Compacted {} collections to .vecdb", index.collection_count());

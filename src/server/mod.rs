@@ -315,12 +315,12 @@ impl VectorizerServer {
             // Check for workspace configuration and reindex if needed
             match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading, cancel_rx.clone()).await {
                 Ok(workspace_count) => {
-                    if workspace_count > 0 {
-                        println!("✅ Workspace indexing completed - {} NEW collections indexed", workspace_count);
-                        info!("✅ Workspace indexing completed - {} NEW collections indexed", workspace_count);
-                        
-                        // Compact to .vecdb after indexing new collections
-                        info!("🗜️  Compacting {} NEW collections to .vecdb...", workspace_count);
+        if workspace_count > 0 {
+            println!("✅ Workspace loading completed - {} collections loaded", workspace_count);
+            info!("✅ Workspace loading completed - {} collections loaded", workspace_count);
+            
+            // ONLY compact if we actually loaded collections with vectors
+            info!("🗜️  Compacting {} loaded collections to .vecdb...", workspace_count);
                         
                         // Wait a bit for filesystem to flush all .bin files
                         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
