@@ -319,27 +319,22 @@ impl VectorizerServer {
                         println!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
                         info!("✅ Workspace indexing completed - {} collections indexed", workspace_count);
                         
-                        // Compact to .vecdb if there were new collections indexed
-                        let data_dir = std::path::PathBuf::from("./data");
-                        let vecdb_path = data_dir.join("vectorizer.vecdb");
+                        // Always compact to .vecdb after indexing new collections
+                        info!("🗜️  Compacting {} collections to .vecdb...", workspace_count);
                         
-                        if vecdb_path.exists() {
-                            info!("🗜️  Compacting collections to .vecdb...");
-                            
-                            // Wait a bit for filesystem to flush
-                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                            
-                            // Use FileLoader's compact method
-                            let persistence = crate::file_loader::Persistence::new();
-                            match persistence.compact_and_cleanup() {
-                                Ok(count) => {
-                                    println!("✅ Compacted {} collections to .vecdb", count);
-                                    info!("✅ Compacted {} collections to .vecdb", count);
-                                }
-                                Err(e) => {
-                                    eprintln!("❌ Failed to compact to .vecdb: {}", e);
-                                    warn!("❌ Failed to compact to .vecdb: {}", e);
-                                }
+                        // Wait a bit for filesystem to flush
+                        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                        
+                        // Use FileLoader's compact method
+                        let persistence = crate::file_loader::Persistence::new();
+                        match persistence.compact_and_cleanup() {
+                            Ok(count) => {
+                                println!("✅ Compacted {} collections to .vecdb", count);
+                                info!("✅ Compacted {} collections to .vecdb", count);
+                            }
+                            Err(e) => {
+                                eprintln!("❌ Failed to compact to .vecdb: {}", e);
+                                warn!("❌ Failed to compact to .vecdb: {}", e);
                             }
                         }
                     } else {

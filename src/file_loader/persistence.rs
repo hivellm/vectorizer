@@ -200,12 +200,35 @@ impl Persistence {
 
     /// Compact all using existing StorageCompactor
     pub fn compact_and_cleanup(&self) -> Result<usize> {
-        info!("Compacting to .vecdb using existing StorageCompactor...");
+        info!("🗜️  Starting compaction to .vecdb using StorageCompactor...");
+        info!("   Data directory: {}", self.data_dir.display());
+        
+        // Verify data directory exists
+        if !self.data_dir.exists() {
+            warn!("Data directory does not exist: {}", self.data_dir.display());
+            std::fs::create_dir_all(&self.data_dir)
+                .map_err(|e| crate::error::VectorizerError::Io(e))?;
+            info!("Created data directory");
+        }
 
         let compactor = StorageCompactor::new(&self.data_dir, 6, 1000);
+        
+        info!("🔄 Calling compactor.compact_all()...");
         let index = compactor.compact_all()?;
 
-        info!("Compacted {} collections to .vecdb", index.collection_count());
+        let vecdb_path = self.data_dir.join("vectorizer.vecdb");
+        let vecidx_path = self.data_dir.join("vectorizer.vecidx");
+        
+        info!("✅ Compacted {} collections to .vecdb", index.collection_count());
+        info!("   .vecdb file: {} (exists: {})", vecdb_path.display(), vecdb_path.exists());
+        info!("   .vecidx file: {} (exists: {})", vecidx_path.display(), vecidx_path.exists());
+        
+        if vecdb_path.exists() {
+            let size = std::fs::metadata(&vecdb_path)
+                .map(|m| m.len())
+                .unwrap_or(0);
+            info!("   .vecdb size: {} MB", size / 1_048_576);
+        }
 
         // Cleanup temporary files
         self.cleanup_temp_files()?;
@@ -214,24 +237,39 @@ impl Persistence {
     }
 
     fn cleanup_temp_files(&self) -> Result<()> {
+        info!("🧹 Cleaning up temporary files after compaction...");
+        let mut removed_count = 0;
+        
         if let Ok(entries) = std::fs::read_dir(&self.data_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        // Only delete vector_store.bin (temp binary)
-                        // KEEP metadata.json, tokenizer.json, and checksums.json for file watcher
-                        if name.ends_with("_vector_store.bin") {
-                            let _ = std::fs::remove_file(&path);
-                            info!("Cleaned up temp file: {}", name);
+                        // Remove ALL temporary collection files after compaction
+                        if name.ends_with("_vector_store.bin")
+                            || name.ends_with("_metadata.json")
+                            || name.ends_with("_tokenizer.json")
+                            || name.ends_with("_checksums.json")
+                        {
+                            match std::fs::remove_file(&path) {
+                                Ok(_) => {
+                                    removed_count += 1;
+                                    info!("   Removed: {}", name);
+                                }
+                                Err(e) => {
+                                    warn!("   Failed to remove {}: {}", name, e);
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-
+        
+        info!("🧹 Cleaned up {} temporary files", removed_count);
         Ok(())
     }
 }
+
 
 
