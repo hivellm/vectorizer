@@ -148,10 +148,8 @@ impl StorageWriter {
                 .and_then(|n| n.to_str())
                 .ok_or_else(|| VectorizerError::Storage("Invalid file name".to_string()))?;
             
-            // Archive path: data/collection_name/filename
-            let archive_path = PathBuf::from("data")
-                .join(collection_name)
-                .join(file_name);
+            // Archive path: just the filename (no subdirectories)
+            let archive_path = PathBuf::from(file_name);
             
             let file_entry = self.add_file_to_archive(zip, file_path, &archive_path)?;
             collection_index.add_file(file_entry);
