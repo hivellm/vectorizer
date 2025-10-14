@@ -807,6 +807,22 @@ pub async fn load_workspace_collections(
 
     let mut indexed_count = 0;
 
+    // Check if using .vecdb format - if so, verify collections in archive first
+    let data_dir = std::path::PathBuf::from("./data");
+    let vecdb_path = data_dir.join("vectorizer.vecdb");
+    let using_vecdb = vecdb_path.exists();
+    
+    let mut existing_in_vecdb = std::collections::HashSet::new();
+    if using_vecdb {
+        use crate::storage::StorageReader;
+        if let Ok(reader) = StorageReader::new(&data_dir) {
+            if let Ok(collections) = reader.list_collections() {
+                existing_in_vecdb = collections.into_iter().collect();
+                info!("📦 Found {} collections in .vecdb archive", existing_in_vecdb.len());
+            }
+        }
+    }
+    
     // Process each enabled project
     for project in workspace_manager.enabled_projects() {
         info!("Processing project: {}", project.name);
@@ -814,9 +830,16 @@ pub async fn load_workspace_collections(
         for collection in &project.collections {
             info!("Processing collection: {}", collection.name);
             
-            // Check if collection already exists in store
+            // Check if collection already exists in .vecdb archive
+            if using_vecdb && existing_in_vecdb.contains(&collection.name) {
+                info!("Collection '{}' already exists in .vecdb, skipping indexing", collection.name);
+                indexed_count += 1; // Count as indexed (already exists)
+                continue;
+            }
+            
+            // Check if collection already exists in store (memory)
             if store.get_collection(&collection.name).is_ok() {
-                info!("Collection '{}' already exists, skipping", collection.name);
+                info!("Collection '{}' already exists in memory, skipping", collection.name);
                 continue;
             }
 
