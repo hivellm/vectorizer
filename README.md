@@ -157,9 +157,6 @@ New unified storage format with compression and snapshots:
 
 **CLI Commands:**
 ```bash
-# Migrate to .vecdb format
-vectorizer storage migrate
-
 # View storage stats
 vectorizer storage info --detailed
 
@@ -170,17 +167,21 @@ vectorizer snapshot restore --id 20241014_120000 --force
 
 # Verify integrity
 vectorizer storage verify --fix
+
+# Manual migration (if needed)
+vectorizer storage migrate
 ```
 
 **Format Support:**
-- **Legacy:** Individual files (current default)
+- **Legacy:** Individual files (automatic migration offered on startup)
 - **Compact:** Single `.vecdb` archive (recommended for production)
 
 **Migration:**
-- ✅ Automatic detection on startup
-- ✅ Safe migration with backup
-- ✅ Rollback support
-- ✅ Zero downtime
+- ✅ **Automatic detection and prompt on startup**
+- ✅ **Interactive migration** - asks user confirmation (Y/n)
+- ✅ Safe migration with timestamped backup
+- ✅ Rollback support if needed
+- ✅ Zero data loss guarantee
 
 See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for details.
 
