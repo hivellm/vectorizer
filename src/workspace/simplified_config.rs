@@ -117,7 +117,8 @@ pub struct SimplifiedCollectionConfig {
     /// File patterns to include
     pub include_patterns: Vec<String>,
     
-    /// File patterns to exclude
+    /// File patterns to exclude (optional - defaults to empty)
+    #[serde(default)]
     pub exclude_patterns: Vec<String>,
     
     // Optional overrides (inherit from defaults if not specified)
