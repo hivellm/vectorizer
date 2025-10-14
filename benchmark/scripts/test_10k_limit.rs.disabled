@@ -65,8 +65,11 @@ async fn test_10k_limit() -> Result<()> {
     println!("📊 Teste 1: Criar Coleção Metal Native");
     println!("----------------------------------------");
     let start = Instant::now();
-    let context = Arc::new(MetalNativeContext::new().map_err(|e| vectorizer::error::VectorizerError::CollectionNotFound(e.to_string()))?);
-    let mut collection = context.create_storage(dimension, GpuDistanceMetric::Cosine).map_err(|e| vectorizer::error::VectorizerError::CollectionNotFound(e.to_string()))?;
+    let context = Arc::new(MetalNativeContext::new()?);
+    let mut collection = MetalNativeCollection::new(
+        dimension,
+        DistanceMetric::Cosine,
+    )?;
     let creation_time = start.elapsed();
     println!("  ✅ Coleção criada: {:.3}ms", creation_time.as_millis());
     println!("  Device: Pure Metal native (VRAM only)");
@@ -84,7 +87,7 @@ async fn test_10k_limit() -> Result<()> {
         
         let batch_start_time = Instant::now();
         for j in batch_start..batch_end {
-            collection.add_vectors(&[vectors[j].clone()]).map_err(|e| vectorizer::error::VectorizerError::CollectionNotFound(e.to_string()))?;
+            collection.add_vector(vectors[j].clone())?;
         }
         let batch_time = batch_start_time.elapsed();
         
@@ -100,7 +103,7 @@ async fn test_10k_limit() -> Result<()> {
     println!("📊 Teste 3: Construir Índice HNSW no GPU (VRAM)");
     println!("-----------------------------------------------");
     let start = Instant::now();
-    // Index is built automatically in hive-gpu
+    collection.build_index()?;
     let construction_time = start.elapsed();
     println!("  ✅ Índice HNSW construído no GPU: {:.3}ms", construction_time.as_millis());
     println!("  Storage: VRAM only (no CPU access)");
@@ -116,7 +119,7 @@ async fn test_10k_limit() -> Result<()> {
     for i in 0..std::cmp::min(search_queries, 10) { // Limitar a 10 buscas para teste
         let query_start = Instant::now();
         let query_vector = &vectors[i % vector_count];
-        let results = collection.search(&query_vector.data, k).map_err(|e| vectorizer::error::VectorizerError::CollectionNotFound(e.to_string()))?;
+        let results = collection.search(&query_vector.data, k)?;
         let query_time = query_start.elapsed();
         search_times.push(query_time.as_millis() as f64);
         
@@ -168,7 +171,7 @@ async fn test_10k_limit() -> Result<()> {
     Ok(())
 }
 
-fn generate_test_vectors(count: usize, dimension: usize) -> Vec<GpuVector> {
+fn generate_test_vectors(count: usize, dimension: usize) -> Vec<Vector> {
     let mut vectors = Vec::with_capacity(count);
     
     for i in 0..count {
@@ -177,10 +180,10 @@ fn generate_test_vectors(count: usize, dimension: usize) -> Vec<GpuVector> {
             data.push(rand::random::<f32>());
         }
         
-        vectors.push(GpuVector {
+        vectors.push(Vector {
             id: format!("vector_{}", i),
             data,
-            metadata: std::collections::HashMap::new(),
+            payload: None,
         });
     }
     

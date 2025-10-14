@@ -1,6 +1,7 @@
 use vectorizer::error::Result;
 use vectorizer::models::{Payload, CollectionConfig, HnswConfig, DistanceMetric, Vector};
-use vectorizer::gpu::MetalNativeCollection;
+use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext, GpuVectorStorage};
+use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
 use tracing::{info, error};
 
 // Test MCP integration
@@ -78,7 +79,7 @@ async fn main() -> Result<()> {
 #[cfg(all(feature = "metal-native", target_os = "macos"))]
 async fn test_basic_functionality() -> Result<()> {
     use std::time::Instant;
-    use vectorizer::gpu::metal_native::MetalNativeCollection;
+    // Using hive-gpu instead of local GPU module
     use vectorizer::models::{Vector, DistanceMetric};
 
     // Test 1: Create collection
@@ -86,7 +87,8 @@ async fn test_basic_functionality() -> Result<()> {
     println!("----------------------------");
     
     let start = Instant::now();
-    let mut collection = MetalNativeCollection::new(128, DistanceMetric::Cosine)?;
+    let context = MetalNativeContext::new()?;
+    let mut collection = context.create_storage(128, GpuDistanceMetric::Cosine)?;
     let elapsed = start.elapsed();
     
     println!("  ✅ Collection created: {:?}", elapsed);
@@ -105,7 +107,8 @@ async fn test_basic_functionality() -> Result<()> {
     };
     
     let start = Instant::now();
-    let index = collection.add_vector(test_vector.clone())?;
+    let indices = collection.add_vectors(&[test_vector.clone()])?;
+    let index = indices[0];
     let elapsed = start.elapsed();
     
     println!("  ✅ Vector added at index {}: {:?}", index, elapsed);
@@ -182,7 +185,7 @@ async fn test_basic_functionality() -> Result<()> {
 
     let start = Instant::now();
     for vector in &test_vectors {
-        collection.add_vector(vector.clone())?;
+        collection.add_vectors(&[vector.clone()])?;
     }
     let elapsed = start.elapsed();
     info!("  ✅ Added {} vectors for search test: {:?}", test_vectors.len(), elapsed);
@@ -216,10 +219,8 @@ async fn test_basic_functionality() -> Result<()> {
         ..Default::default()
     };
 
-    let mut collection_512d = MetalNativeCollection::new_with_name_and_config(
-        "MetalNativeCollection512D",
-        config_512d
-    )?;
+    let context_512d = MetalNativeContext::new()?;
+    let mut collection_512d = context_512d.create_storage(512, GpuDistanceMetric::Cosine)?;
     info!("  ✅ Created 512D collection");
 
     // Add some 512D vectors
@@ -235,7 +236,7 @@ async fn test_basic_functionality() -> Result<()> {
     }
 
     for vector in &test_vectors_512d {
-        collection_512d.add_vector(vector.clone())?;
+        collection_512d.add_vectors(&[vector.clone()])?;
     }
     info!("  ✅ Added 5 vectors to 512D collection");
 
@@ -283,19 +284,12 @@ async fn test_basic_functionality() -> Result<()> {
     let mut handles = vec![];
 
     for i in 0..3 {
-        let mut collection_clone = MetalNativeCollection::new_with_name_and_config(
-            &format!("concurrent_test_{}", i),
-            CollectionConfig {
-                dimension: 128,
-                metric: DistanceMetric::Cosine,
-                hnsw_config: HnswConfig { m: 16, ..Default::default() },
-                ..Default::default()
-            }
-        )?;
+        let context_clone = MetalNativeContext::new()?;
+        let mut collection_clone = context_clone.create_storage(128, GpuDistanceMetric::Cosine)?;
 
         // Add vectors to concurrent collection
         for vector in &test_vectors {
-            collection_clone.add_vector(vector.clone())?;
+            collection_clone.add_vectors(&[vector.clone()])?;
         }
 
         let value = test_vectors.clone();

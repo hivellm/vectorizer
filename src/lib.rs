@@ -16,8 +16,9 @@ pub mod document_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
-#[cfg(feature = "metal-native")]
-pub mod gpu;
+// GPU module removed - using external hive-gpu crate
+#[cfg(feature = "hive-gpu")]
+pub mod gpu_adapter;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod models;

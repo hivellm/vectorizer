@@ -1,9 +1,9 @@
 //! Metal HNSW Search Benchmark
 //! 
-//! Tests GPU-accelerated HNSW search performance
+//! Tests GPU-accelerated HNSW search performance using hive-gpu
 
-use vectorizer::gpu::metal_native::MetalNativeCollection;
-use vectorizer::models::{Vector, DistanceMetric};
+use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext, GpuVectorStorage};
+use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,7 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------------------------------------");
     
     let start = Instant::now();
-    let mut collection = MetalNativeCollection::new(dimension, DistanceMetric::Cosine)?;
+    let context = MetalNativeContext::new()?;
+    let mut storage = context.create_storage(dimension, GpuDistanceMetric::Cosine)?;
     let create_time = start.elapsed();
     
     println!("  ✅ Collection created: {:?}", create_time);
@@ -28,13 +29,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Add vectors
     let add_start = Instant::now();
     for i in 0..vector_count {
-        let vector = Vector {
+        let vector = GpuVector {
             id: format!("vector_{}", i),
             data: vec![i as f32; dimension],
-            payload: None,
+            metadata: std::collections::HashMap::new(),
         };
         
-        collection.add_vector(vector)?;
+        storage.add_vectors(&[vector])?;
         
         if (i + 1) % 100 == 0 {
             println!("  Added {} vectors...", i + 1);
@@ -52,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("  ✅ GPU search ready");
     println!("  Search type: GPU-accelerated Metal compute shaders");
-    println!("  Vectors: {}", collection.vector_count());
+    println!("  Vectors: {}", storage.vector_count());
     println!();
     
     println!("📊 Test 3: GPU HNSW Search Performance");
@@ -65,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let query = vec![i as f32; dimension];
         
         let search_start = Instant::now();
-        let results = collection.search(&query, k)?;
+        let results = storage.search(&query, k)?;
         let search_time = search_start.elapsed();
         
         total_search_time += search_time;
@@ -89,13 +90,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let sample_query = vec![50.0; dimension];
     let sample_start = Instant::now();
-    let sample_results = collection.search(&sample_query, 5)?;
+    let sample_results = storage.search(&sample_query, 5)?;
     let sample_time = sample_start.elapsed();
     
     println!("  Query: {:?}", &sample_query[..5]);
     println!("  Results: {} found in {:?}", sample_results.len(), sample_time);
-    for (i, (id, score)) in sample_results.iter().enumerate() {
-        println!("    {}. ID: {}, Score: {:.4}", i + 1, id, score);
+    for (i, result) in sample_results.iter().enumerate() {
+        println!("    {}. ID: {}, Score: {:.4}", i + 1, result.id, result.score);
     }
     println!();
     
