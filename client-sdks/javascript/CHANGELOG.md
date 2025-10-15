@@ -2,6 +2,24 @@
 
 All notable changes to the Hive Vectorizer JavaScript Client SDK will be documented in this file.
 
+## [0.4.2] - 2025-10-15
+
+### Added
+- **GUI-Specific API Endpoints** for server management and monitoring:
+  - `getStatus()` - Get server status, version, uptime, and statistics
+  - `getLogs(params?)` - Retrieve recent server logs with optional filtering
+  - `forceSaveCollection(name)` - Force immediate save of a specific collection
+  - `addWorkspace(params)` - Add a new workspace configuration
+  - `removeWorkspace(params)` - Remove an existing workspace
+  - `listWorkspaces()` - List all configured workspaces
+  - `getConfig()` - Get current server configuration
+  - `updateConfig(config)` - Update server configuration
+  - `restartServer()` - Admin endpoint to restart the server
+  - `listBackups()` - List available backup files
+  - `createBackup(params?)` - Create a new backup
+  - `restoreBackup(params)` - Restore from a backup file
+  - `getBackupDirectory()` - Get the backup directory path
+
 ## [0.4.1] - 2025-10-15
 
 ### Changed

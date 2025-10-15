@@ -1,6 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
 import { join } from 'path';
-import axios from 'axios';
 
 interface VectorizerStatus {
   online: boolean;
@@ -110,15 +109,29 @@ export class VectorizerManager {
 
   async getStatus(): Promise<VectorizerStatus> {
     try {
-      const response = await axios.get<{ online: boolean; version: string; uptime_seconds: number }>(
-        `${this.apiBaseUrl}/api/status`,
-        { timeout: 5000 }
-      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${this.apiBaseUrl}/api/status`, {
+        method: 'GET',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return {
+          online: false,
+          error: `HTTP ${response.status}: ${response.statusText}`
+        };
+      }
+
+      const data = await response.json() as { online: boolean; version: string; uptime_seconds: number };
 
       return {
         online: true,
-        version: response.data.version,
-        uptime: response.data.uptime_seconds
+        version: data.version,
+        uptime: data.uptime_seconds
       };
     } catch (error) {
       return {

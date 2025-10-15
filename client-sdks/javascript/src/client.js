@@ -920,4 +920,140 @@ export class VectorizerClient {
     this.logger.debug('Searching by file type', params);
     return this.transport.post('/file/search_by_type', params);
   }
+
+  // =============================================================================
+  // GUI-SPECIFIC API METHODS
+  // =============================================================================
+
+  /**
+   * Get server status (GUI endpoint).
+   * @returns {Promise<Object>} Server status including version, uptime, collections count
+   */
+  async getStatus() {
+    this.logger.debug('Getting server status');
+    return this.transport.get('/api/status');
+  }
+
+  /**
+   * Get recent logs (GUI endpoint).
+   * @param {Object} [params] - Log parameters
+   * @param {number} [params.lines] - Number of lines to return
+   * @param {string} [params.level] - Log level filter
+   * @returns {Promise<Object>} Recent log entries
+   */
+  async getLogs(params = {}) {
+    this.logger.debug('Getting logs', params);
+    return this.transport.get('/api/logs', params);
+  }
+
+  /**
+   * Force save a specific collection (GUI endpoint).
+   * @param {string} name - Collection name
+   * @returns {Promise<Object>} Save result
+   */
+  async forceSaveCollection(name) {
+    this.logger.debug('Force saving collection', { name });
+    return this.transport.post(`/api/collections/${name}/force-save`, {});
+  }
+
+  /**
+   * Add a workspace (GUI endpoint).
+   * @param {Object} params - Workspace parameters
+   * @param {string} params.name - Workspace name
+   * @param {string} params.path - Workspace path
+   * @param {Array<Object>} params.collections - Collection configurations
+   * @returns {Promise<Object>} Add workspace result
+   */
+  async addWorkspace(params) {
+    this.logger.debug('Adding workspace', params);
+    return this.transport.post('/api/workspace/add', params);
+  }
+
+  /**
+   * Remove a workspace (GUI endpoint).
+   * @param {Object} params - Remove parameters
+   * @param {string} params.name - Workspace name
+   * @returns {Promise<Object>} Remove result
+   */
+  async removeWorkspace(params) {
+    this.logger.debug('Removing workspace', params);
+    return this.transport.post('/api/workspace/remove', params);
+  }
+
+  /**
+   * List all workspaces (GUI endpoint).
+   * @returns {Promise<Object>} List of workspaces
+   */
+  async listWorkspaces() {
+    this.logger.debug('Listing workspaces');
+    return this.transport.get('/api/workspace/list');
+  }
+
+  /**
+   * Get server configuration (GUI endpoint).
+   * @returns {Promise<Object>} Server configuration
+   */
+  async getConfig() {
+    this.logger.debug('Getting server configuration');
+    return this.transport.get('/api/config');
+  }
+
+  /**
+   * Update server configuration (GUI endpoint).
+   * @param {Object} config - Configuration object
+   * @returns {Promise<Object>} Update result
+   */
+  async updateConfig(config) {
+    this.logger.debug('Updating server configuration', config);
+    return this.transport.post('/api/config', config);
+  }
+
+  /**
+   * Restart the server (GUI endpoint - admin only).
+   * @returns {Promise<Object>} Restart result
+   */
+  async restartServer() {
+    this.logger.debug('Requesting server restart');
+    return this.transport.post('/admin/restart', {});
+  }
+
+  /**
+   * List available backups (GUI endpoint).
+   * @returns {Promise<Object>} List of backups with metadata
+   */
+  async listBackups() {
+    this.logger.debug('Listing backups');
+    return this.transport.get('/api/backups/list');
+  }
+
+  /**
+   * Create a new backup (GUI endpoint).
+   * @param {Object} [params] - Backup parameters
+   * @param {string} [params.name] - Optional backup name
+   * @returns {Promise<Object>} Backup creation result with filename
+   */
+  async createBackup(params = {}) {
+    this.logger.debug('Creating backup', params);
+    return this.transport.post('/api/backups/create', params);
+  }
+
+  /**
+   * Restore from a backup (GUI endpoint).
+   * @param {Object} params - Restore parameters
+   * @param {string} params.filename - Backup filename to restore
+   * @returns {Promise<Object>} Restore result
+   */
+  async restoreBackup(params) {
+    this.logger.debug('Restoring backup', params);
+    return this.transport.post('/api/backups/restore', params);
+  }
+
+  /**
+   * Get backup directory path (GUI endpoint).
+   * @returns {Promise<Object>} Backup directory path
+   */
+  async getBackupDirectory() {
+    this.logger.debug('Getting backup directory');
+    return this.transport.get('/api/backups/directory');
+  }
 }

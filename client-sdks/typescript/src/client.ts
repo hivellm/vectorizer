@@ -906,4 +906,159 @@ export class VectorizerClient {
     this.logger.debug('Searching by file type', params);
     return this.transport.post('/file/search_by_type', params);
   }
+
+  // ============================================================================
+  // GUI-Specific API Methods
+  // ============================================================================
+
+  /**
+   * Get server status (GUI endpoint).
+   */
+  async getStatus(): Promise<{
+    status: string;
+    version: string;
+    uptime: number;
+    collections: number;
+    total_vectors: number;
+  }> {
+    this.logger.debug('Getting server status');
+    return this.transport.get('/api/status');
+  }
+
+  /**
+   * Get recent logs (GUI endpoint).
+   */
+  async getLogs(params?: {
+    lines?: number;
+    level?: string;
+  }): Promise<{ logs: string[] }> {
+    this.logger.debug('Getting logs', params);
+    return this.transport.get('/api/logs', params);
+  }
+
+  /**
+   * Force save a specific collection (GUI endpoint).
+   */
+  async forceSaveCollection(name: string): Promise<{ success: boolean; message: string }> {
+    this.logger.debug('Force saving collection', { name });
+    return this.transport.post(`/api/collections/${name}/force-save`, {});
+  }
+
+  /**
+   * Add a workspace (GUI endpoint).
+   */
+  async addWorkspace(params: {
+    name: string;
+    path: string;
+    collections: Array<{
+      name: string;
+      path: string;
+      exclude_patterns?: string[];
+    }>;
+  }): Promise<{ success: boolean; message: string }> {
+    this.logger.debug('Adding workspace', params);
+    return this.transport.post('/api/workspace/add', params);
+  }
+
+  /**
+   * Remove a workspace (GUI endpoint).
+   */
+  async removeWorkspace(params: {
+    name: string;
+  }): Promise<{ success: boolean; message: string }> {
+    this.logger.debug('Removing workspace', params);
+    return this.transport.post('/api/workspace/remove', params);
+  }
+
+  /**
+   * List all workspaces (GUI endpoint).
+   */
+  async listWorkspaces(): Promise<{
+    workspaces: Array<{
+      name: string;
+      path: string;
+      collections: number;
+    }>;
+  }> {
+    this.logger.debug('Listing workspaces');
+    return this.transport.get('/api/workspace/list');
+  }
+
+  /**
+   * Get server configuration (GUI endpoint).
+   */
+  async getConfig(): Promise<Record<string, any>> {
+    this.logger.debug('Getting server configuration');
+    return this.transport.get('/api/config');
+  }
+
+  /**
+   * Update server configuration (GUI endpoint).
+   */
+  async updateConfig(config: Record<string, any>): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    this.logger.debug('Updating server configuration', config);
+    return this.transport.post('/api/config', config);
+  }
+
+  /**
+   * Restart the server (GUI endpoint - admin only).
+   */
+  async restartServer(): Promise<{ success: boolean; message: string }> {
+    this.logger.debug('Requesting server restart');
+    return this.transport.post('/admin/restart', {});
+  }
+
+  /**
+   * List available backups (GUI endpoint).
+   */
+  async listBackups(): Promise<{
+    backups: Array<{
+      filename: string;
+      size: number;
+      created_at: string;
+    }>;
+  }> {
+    this.logger.debug('Listing backups');
+    return this.transport.get('/api/backups/list');
+  }
+
+  /**
+   * Create a new backup (GUI endpoint).
+   */
+  async createBackup(params?: {
+    name?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    filename?: string;
+  }> {
+    this.logger.debug('Creating backup', params);
+    return this.transport.post('/api/backups/create', params || {});
+  }
+
+  /**
+   * Restore from a backup (GUI endpoint).
+   */
+  async restoreBackup(params: {
+    filename: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    this.logger.debug('Restoring backup', params);
+    return this.transport.post('/api/backups/restore', params);
+  }
+
+  /**
+   * Get backup directory path (GUI endpoint).
+   */
+  async getBackupDirectory(): Promise<{
+    directory: string;
+  }> {
+    this.logger.debug('Getting backup directory');
+    return this.transport.get('/api/backups/directory');
+  }
 }

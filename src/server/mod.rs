@@ -494,7 +494,7 @@ impl VectorizerServer {
             // GUI-specific endpoints
             .route("/api/status", get(rest_handlers::get_status))
             .route("/api/logs", get(rest_handlers::get_logs))
-            .route("/api/collections/:name/force-save", post(rest_handlers::force_save_collection))
+            .route("/api/collections/{name}/force-save", post(rest_handlers::force_save_collection))
             .route("/api/workspace/add", post(rest_handlers::add_workspace))
             .route("/api/workspace/remove", post(rest_handlers::remove_workspace))
             .route("/api/workspace/list", get(rest_handlers::list_workspaces))

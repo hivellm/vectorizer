@@ -39,45 +39,33 @@
 
     <!-- Stats Grid -->
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-layer-group"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ collections.length }}</div>
-          <div class="stat-label">Collections</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-vector-square"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ formatNumber(totalVectors) }}</div>
-          <div class="stat-label">Total Vectors</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-cube"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ avgDimension }}</div>
-          <div class="stat-label">Avg Dimension</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-link"></i>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ connections.length }}</div>
-          <div class="stat-label">Connections</div>
-        </div>
-      </div>
+      <StatCard
+        icon="fas fa-layer-group"
+        :value="collections.length"
+        label="Collections"
+        variant="primary"
+      />
+      
+      <StatCard
+        icon="fas fa-vector-square"
+        :value="formatNumber(totalVectors)"
+        label="Total Vectors"
+        variant="success"
+      />
+      
+      <StatCard
+        icon="fas fa-cube"
+        :value="avgDimension"
+        label="Avg Dimension"
+        variant="info"
+      />
+      
+      <StatCard
+        icon="fas fa-link"
+        :value="connections.length"
+        label="Connections"
+        variant="secondary"
+      />
     </div>
 
     <!-- Quick Actions -->
@@ -118,6 +106,7 @@ import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useConnectionsStore } from '../stores/connections';
 import { useVectorizerStore } from '../stores/vectorizer';
+import StatCard from '../components/StatCard.vue';
 
 const router = useRouter();
 const connectionsStore = useConnectionsStore();
@@ -278,38 +267,6 @@ onUnmounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #eff6ff;
-  color: #3b82f6;
-  font-size: 1.5rem;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1a1a2e;
-}
-
-.stat-label {
-  color: #6b7280;
-  font-size: 0.875rem;
 }
 
 .quick-actions {
