@@ -2,6 +2,17 @@
 
 All notable changes to the Hive Vectorizer JavaScript Client SDK will be documented in this file.
 
+## [0.4.1] - 2025-10-15
+
+### Changed
+- Updated `@hivellm/umicp` dependency to `^0.1.5`
+- Installation no longer requires C++ build tools
+- Faster and more reliable installation process
+
+### Fixed
+- Fixed installation failures on systems without build tools
+- Removed build errors during package installation
+
 ## [0.4.0] - 2025-10-12
 
 ### Added

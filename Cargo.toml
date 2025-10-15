@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "vectorizer"
 version = "0.8.1"
@@ -138,6 +136,7 @@ transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf
 
 [build-dependencies]
 cc = { version = "1.2", features = ["parallel"] }
+winres = "0.1"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -1,0 +1,5 @@
+onlyBuiltDependencies:
+  - '@hivellm/umicp'
+  - electron
+  - esbuild
+  - vue-demi

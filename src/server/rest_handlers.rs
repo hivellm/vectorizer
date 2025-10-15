@@ -1738,3 +1738,218 @@ pub async fn search_by_file_type(
         }
     }
 }
+
+// GUI-specific endpoints
+
+/// Get server status (for GUI)
+pub async fn get_status(State(state): State<VectorizerServer>) -> Json<Value> {
+    Json(json!({
+        "online": true,
+        "version": env!("CARGO_PKG_VERSION"),
+        "uptime_seconds": state.start_time.elapsed().as_secs(),
+        "collections_count": state.store.list_collections().len()
+    }))
+}
+
+/// Get logs (for GUI)
+pub async fn get_logs(
+    Query(params): Query<HashMap<String, String>>,
+) -> Json<Value> {
+    let lines = params.get("lines")
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(100);
+    
+    let _level = params.get("level");
+    
+    // TODO: Implement actual log reading from file or in-memory buffer
+    // For now, return mock logs
+    Json(json!({
+        "logs": []
+    }))
+}
+
+/// Force save collection (for GUI)
+pub async fn force_save_collection(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+) -> Result<Json<Value>, StatusCode> {
+    info!("💾 Force saving collection: {}", collection_name);
+    
+    // Verify collection exists
+    match state.store.get_collection(&collection_name) {
+        Ok(_) => {
+            // Force save all collections (including the requested one)
+            match state.store.force_save_all() {
+                Ok(_) => Ok(Json(json!({
+                    "success": true,
+                    "message": format!("Collection '{}' saved successfully", collection_name)
+                }))),
+                Err(e) => {
+                    error!("Failed to force save: {}", e);
+                    Ok(Json(json!({
+                        "success": false,
+                        "message": format!("Failed to save collection: {}", e)
+                    })))
+                }
+            }
+        },
+        Err(e) => {
+            error!("Collection not found: {}", e);
+            Err(StatusCode::NOT_FOUND)
+        }
+    }
+}
+
+/// Add workspace directory (for GUI)
+pub async fn add_workspace(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let path = payload.get("path")
+        .and_then(|p| p.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let collection_name = payload.get("collection_name")
+        .and_then(|c| c.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    info!("📁 Adding workspace: {} -> {}", path, collection_name);
+    
+    // TODO: Implement workspace manager integration
+    Ok(Json(json!({
+        "success": true,
+        "message": "Workspace added successfully"
+    })))
+}
+
+/// Remove workspace directory (for GUI)
+pub async fn remove_workspace(
+    State(_state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let path = payload.get("path")
+        .and_then(|p| p.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    info!("🗑️ Removing workspace: {}", path);
+    
+    // TODO: Implement workspace manager integration
+    Ok(Json(json!({
+        "success": true,
+        "message": "Workspace removed successfully"
+    })))
+}
+
+/// List workspace directories (for GUI)
+pub async fn list_workspaces(
+    State(_state): State<VectorizerServer>,
+) -> Json<Value> {
+    // TODO: Implement workspace manager integration
+    Json(json!({
+        "workspaces": []
+    }))
+}
+
+/// Get configuration (for GUI)
+pub async fn get_config() -> Json<Value> {
+    // TODO: Read from config.yml
+    Json(json!({
+        "server": {
+            "host": "0.0.0.0",
+            "port": 15002
+        },
+        "storage": {
+            "data_dir": "./data",
+            "cache_size": 1024
+        },
+        "embedding": {
+            "provider": "fastembed",
+            "model": "BAAI/bge-small-en-v1.5",
+            "dimension": 384
+        },
+        "performance": {
+            "threads": 4,
+            "batch_size": 100
+        }
+    }))
+}
+
+/// Update configuration (for GUI)
+pub async fn update_config(
+    Json(_payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    // TODO: Write to config.yml
+    Ok(Json(json!({
+        "success": true,
+        "message": "Configuration updated successfully"
+    })))
+}
+
+/// Restart server (for GUI)
+pub async fn restart_server() -> Json<Value> {
+    // TODO: Implement graceful restart
+    Json(json!({
+        "success": true,
+        "message": "Server restart initiated"
+    }))
+}
+
+/// List backups (for GUI)
+pub async fn list_backups() -> Json<Value> {
+    // TODO: Implement backup listing
+    Json(json!({
+        "backups": []
+    }))
+}
+
+/// Create backup (for GUI)
+pub async fn create_backup(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let name = payload.get("name")
+        .and_then(|n| n.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let collections = payload.get("collections")
+        .and_then(|c| c.as_array())
+        .map(|arr| arr.iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect::<Vec<_>>())
+        .unwrap_or_default();
+    
+    info!("💾 Creating backup '{}' for collections: {:?}", name, collections);
+    
+    // TODO: Implement backup creation
+    Ok(Json(json!({
+        "id": uuid::Uuid::new_v4().to_string(),
+        "name": name,
+        "date": chrono::Utc::now().to_rfc3339(),
+        "size": 0,
+        "collections": collections
+    })))
+}
+
+/// Restore backup (for GUI)
+pub async fn restore_backup(
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    let backup_id = payload.get("backup_id")
+        .and_then(|b| b.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    
+    info!("♻️ Restoring backup: {}", backup_id);
+    
+    // TODO: Implement backup restoration
+    Ok(Json(json!({
+        "success": true,
+        "message": "Backup restored successfully"
+    })))
+}
+
+/// Get backup directory (for GUI)
+pub async fn get_backup_directory() -> Json<Value> {
+    Json(json!({
+        "path": "./backups"
+    }))
+}

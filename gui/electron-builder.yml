@@ -1,0 +1,81 @@
+appId: io.hivellm.vectorizer-gui
+productName: Vectorizer GUI
+copyright: Copyright © 2025 HiveLLM Contributors
+
+directories:
+  output: dist-release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - assets/**/*
+  - "!src/**/*"
+  - "!*.ts"
+  - "!tsconfig*.json"
+  - "!*.map"
+
+extraResources:
+  - from: ../target/release/vectorizer${os === 'win' ? '.exe' : ''}
+    to: vectorizer${os === 'win' ? '.exe' : ''}
+  - from: ../config.yml
+    to: config.example.yml
+
+win:
+  target:
+    - target: msi
+      arch:
+        - x64
+  icon: assets/icons/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: assets/icons/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+linux:
+  target:
+    - target: deb
+      arch:
+        - x64
+  icon: assets/icons/icon.png
+  category: Development
+  maintainer: HiveLLM Contributors
+  artifactName: ${name}_${version}_${arch}.${ext}
+
+msi:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  runAfterFinish: true
+
+dmg:
+  title: ${productName} ${version}
+  icon: assets/icons/icon.icns
+  background: build/dmg-background.png
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+deb:
+  depends:
+    - gconf2
+    - gconf-service
+    - libnotify4
+    - libappindicator1
+    - libxtst6
+    - libnss3
+
