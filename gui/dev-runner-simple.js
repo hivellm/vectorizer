@@ -1,19 +1,9 @@
-// Development runner for Electron app
+// Simple development runner for Electron app
+// Assumes Vite is already running on port 5173
 const { spawn } = require('child_process');
 const waitOn = require('wait-on');
 
-const DEV_SERVER_URL = 'http://127.0.0.1:5173';
-
-async function startDevServer() {
-  console.log('🚀 Starting Vite dev server...');
-  
-  const vite = spawn('npx', ['vite', '--host', '0.0.0.0'], {
-    stdio: 'inherit',
-    shell: true
-  });
-
-  return vite;
-}
+const DEV_SERVER_URL = 'http://localhost:5173';
 
 async function compileMainProcess() {
   console.log('🔨 Compiling main process...');
@@ -26,6 +16,7 @@ async function compileMainProcess() {
 
     tsc.on('close', (code) => {
       if (code === 0) {
+        console.log('✅ Main process compiled');
         resolve();
       } else {
         reject(new Error('Main process compilation failed'));
@@ -37,7 +28,7 @@ async function compileMainProcess() {
 async function startElectron() {
   console.log('⚡ Starting Electron...');
   
-  const electron = spawn('npx', ['electron', '.', '--no-sandbox'], {
+  const electron = spawn('npx', ['electron', '.'], {
     stdio: 'inherit',
     shell: true,
     env: {
@@ -51,28 +42,28 @@ async function startElectron() {
 
 async function main() {
   try {
-    // Start Vite dev server
-    const viteProcess = await startDevServer();
-
-    // Give Vite a few seconds to start
-    console.log('⏳ Waiting for Vite to initialize...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    console.log('✅ Proceeding with build');
+    // Wait for dev server (assumes it's already running)
+    console.log('⏳ Waiting for Vite dev server...');
+    console.log(`   Checking: ${DEV_SERVER_URL}`);
+    console.log('   (Make sure you started Vite with: pnpm vite)');
     
-    // Skip wait-on check - it has issues with WSL
-    // The delay above should be enough for Vite to start
+    await waitOn({
+      resources: [DEV_SERVER_URL],
+      timeout: 10000, // 10 seconds should be enough if Vite is already running
+      interval: 500,
+      log: false
+    });
+    console.log('✅ Dev server ready');
 
     // Compile main process
     await compileMainProcess();
-    console.log('✅ Main process compiled');
 
     // Start Electron
     const electronProcess = await startElectron();
 
     // Handle process cleanup
     const cleanup = () => {
-      console.log('\n🛑 Shutting down...');
-      viteProcess.kill();
+      console.log('\n🛑 Shutting down Electron...');
       electronProcess.kill();
       process.exit(0);
     };
@@ -81,12 +72,15 @@ async function main() {
     process.on('SIGTERM', cleanup);
 
     electronProcess.on('close', () => {
-      viteProcess.kill();
+      console.log('👋 Electron closed');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('\n❌ Error:', error.message);
+    console.error('\n💡 Make sure Vite is running:');
+    console.error('   1. In one terminal: pnpm vite');
+    console.error('   2. In another terminal: node dev-runner-simple.js');
     process.exit(1);
   }
 }

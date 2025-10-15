@@ -7,8 +7,10 @@
   "license": "MIT",
   "scripts": {
     "dev": "node dev-runner.js",
-    "dev:vite": "vite",
-    "dev:electron": "electron .",
+    "dev:simple": "node dev-runner-simple.js",
+    "dev:check": "node check-dev.js",
+    "dev:vite": "vite --host 0.0.0.0",
+    "dev:electron": "tsc -p tsconfig.main.json && electron .",
     "build": "vite build && tsc -p tsconfig.main.json",
     "build:vite": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
