@@ -171,12 +171,25 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      const response = await client.value.searchByText(collectionName, {
-        query,
-        limit
+      // Use direct API call instead of client method
+      const response = await fetch(`${client.value.config.baseURL}/collections/${collectionName}/search/text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(client.value.config.apiKey ? { 'Authorization': `Bearer ${client.value.config.apiKey}` } : {})
+        },
+        body: JSON.stringify({
+          query,
+          limit
+        })
       });
 
-      return response.results as unknown as SearchResult[];
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.results || [];
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Search failed';
       throw err;
@@ -198,8 +211,25 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      const response = await client.value.insertText(collectionName, text, metadata);
-      return response.id;
+      // Use direct API call instead of client method
+      const response = await fetch(`${client.value.config.baseURL}/collections/${collectionName}/insert/text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(client.value.config.apiKey ? { 'Authorization': `Bearer ${client.value.config.apiKey}` } : {})
+        },
+        body: JSON.stringify({
+          text,
+          metadata
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Insert failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.id || data.vector_id || 'unknown';
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to insert text';
       throw err;
@@ -229,6 +259,42 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
     }
   }
 
+  async function listVectors(
+    collectionName: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<SearchResult[]> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      // Use direct API call to list vectors
+      const response = await fetch(`${client.value.config.baseURL}/collections/${collectionName}/vectors?limit=${limit}&offset=${offset}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(client.value.config.apiKey ? { 'Authorization': `Bearer ${client.value.config.apiKey}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to list vectors: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.vectors || [];
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to list vectors';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     client: computed(() => client.value),
@@ -247,7 +313,8 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
     deleteCollection,
     search,
     insertText,
-    batchInsertTexts
+    batchInsertTexts,
+    listVectors
   };
 });
 

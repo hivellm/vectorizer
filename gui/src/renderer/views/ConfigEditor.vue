@@ -441,12 +441,13 @@
         <!-- YAML Editor Tab -->
         <div v-if="activeTab === 'yaml'">
           <h2 class="text-xl font-semibold text-text-primary mb-6">YAML Editor</h2>
-          <textarea
-            v-model="yamlContent"
-            @input="markDirty"
-            class="w-full h-96 px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary font-mono text-xs focus:outline-none focus:border-border-light transition-colors"
-            spellcheck="false"
-          ></textarea>
+          <MonacoEditor
+            v-model:value="yamlContent"
+            language="yaml"
+            :read-only="false"
+            height="500px"
+            @change="markDirty"
+          />
         </div>
 
         <!-- Help Text -->
@@ -478,6 +479,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
 import { useVectorizerStore } from '../stores/vectorizer';
 import CustomCheckbox from '../components/CustomCheckbox.vue';
+import MonacoEditor from '../components/MonacoEditor.vue';
 
 const vectorizerStore = useVectorizerStore();
 

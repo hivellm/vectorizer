@@ -22,21 +22,21 @@
           <button @click="saveWorkspaceConfig" :disabled="saving" class="px-4 py-2 text-sm font-medium rounded hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :class="hasUnsavedChanges ? 'bg-warning/20 text-warning border border-warning' : 'bg-bg-tertiary text-text-primary border border-border'">
             <i :class="['fas', saving ? 'fa-spinner fa-spin' : 'fa-save', 'mr-2']"></i>
             {{ saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Save Configuration' }}
-          </button>
+      </button>
         </div>
-            </div>
-            
+    </div>
+
       <div v-if="filteredProjects.length === 0 && workspaceConfig.projects.length === 0" class="flex flex-col items-center justify-center py-16 text-text-secondary">
         <i class="fas fa-folder-open text-4xl mb-4"></i>
         <h3 class="text-lg font-medium text-text-primary mb-2">No Projects</h3>
         <p class="text-sm">Add your first project to get started</p>
-            </div>
+        </div>
 
       <div v-else-if="filteredProjects.length === 0" class="flex flex-col items-center justify-center py-16 text-text-secondary">
         <i class="fas fa-search text-4xl mb-4"></i>
         <h3 class="text-lg font-medium text-text-primary mb-2">No Results</h3>
         <p class="text-sm">No projects match your search</p>
-      </div>
+        </div>
 
       <div v-else class="space-y-4">
         <div v-for="(project, projectIndex) in filteredProjects" :key="project.name" class="bg-bg-tertiary border border-border rounded-lg p-4">
@@ -68,13 +68,13 @@
                   class="w-full px-3 py-2 bg-bg-primary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-sm"
                   placeholder="Project description"
                 />
+                </div>
               </div>
-            </div>
             <button @click="removeProjectByName(project.name)" class="ml-4 p-2 text-error hover:bg-error/20 rounded transition-colors">
-              <i class="fas fa-trash"></i>
-            </button>
-    </div>
-
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+            
           <!-- Collections -->
           <div class="mt-4 pt-4 border-t border-border">
             <div class="flex items-center justify-between mb-3">
@@ -101,7 +101,7 @@
                   <button @click.stop="removeCollection(project.name, collectionIndex)" class="p-1.5 text-error hover:bg-error/20 rounded transition-colors">
                     <i class="fas fa-trash text-xs"></i>
                   </button>
-          </div>
+            </div>
 
                 <!-- Collection Details (Collapsed by default) -->
                 <div v-if="isCollectionExpanded(project.name, collectionIndex)" class="p-3 pt-0 space-y-3">
@@ -126,7 +126,7 @@
                         placeholder="Collection description"
             />
                     </div>
-          </div>
+              </div>
 
                   <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -139,7 +139,7 @@
                         class="w-full px-2 py-1.5 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-xs font-mono"
                         placeholder="**/*.md&#10;**/*.ts&#10;src/**/*"
                       ></textarea>
-                    </div>
+              </div>
                     <div>
                       <label class="block text-xs font-medium text-text-secondary mb-1">Exclude Patterns</label>
                       <textarea
@@ -150,12 +150,12 @@
                         class="w-full px-2 py-1.5 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-xs font-mono"
                         placeholder="node_modules/**&#10;dist/**&#10;**/*.log"
                       ></textarea>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@hivellm/vectorizer-client": "^0.4.1",
+    "@monaco-editor/loader": "^1.6.1",
     "@vueuse/core": "^10.7.0",
     "electron-store": "^8.1.0",
     "js-yaml": "^4.1.0",
