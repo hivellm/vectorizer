@@ -42,6 +42,7 @@ pub struct VectorizerServer {
     pub start_time: std::time::Instant,
     pub file_watcher_system: Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
     pub metrics_collector: Arc<MetricsCollector>,
+    pub auto_save_manager: Option<Arc<crate::db::AutoSaveManager>>,
     background_task: Arc<tokio::sync::Mutex<Option<(tokio::task::JoinHandle<()>, tokio::sync::watch::Sender<bool>)>>>,
 }
 
@@ -168,19 +169,31 @@ impl VectorizerServer {
                 return;
             }
             
-            // Check if auto-load is enabled in config
-            let auto_load_enabled = std::fs::read_to_string("config.yml")
-                .ok()
-                .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
-                .and_then(|config| {
-                    config.get("workspace")
-                        .and_then(|ws| ws.get("auto_load_collections"))
-                        .and_then(|enabled| enabled.as_bool())
-                })
-                .unwrap_or(false); // Default to disabled (lazy loading)
+            // Check if vectorizer.vecdb exists - if so, ALWAYS load it
+            let data_dir = VectorStore::get_data_dir();
+            let vecdb_path = data_dir.join("vectorizer.vecdb");
+            let vecdb_exists = vecdb_path.exists();
             
-            // Load all persisted collections in background (if enabled)
-            let persisted_count = if auto_load_enabled {
+            // Load all persisted collections if .vecdb exists (ALWAYS, regardless of config)
+            // OR if auto_load is explicitly enabled for raw files
+            let should_auto_load = if vecdb_exists {
+                info!("📦 vectorizer.vecdb exists - will ALWAYS load collections from it");
+                true
+            } else {
+                // No .vecdb - check config for raw file loading
+                std::fs::read_to_string("config.yml")
+                    .ok()
+                    .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
+                    .and_then(|config| {
+                        config.get("workspace")
+                            .and_then(|ws| ws.get("auto_load_collections"))
+                            .and_then(|enabled| enabled.as_bool())
+                    })
+                    .unwrap_or(false)
+            };
+            
+            // Load all persisted collections in background
+            let persisted_count = if should_auto_load {
                 info!("🔍 COLLECTION_LOAD_STEP_1: Auto-load ENABLED - loading all persisted collections...");
                 match store_for_loading.load_all_persisted_collections() {
                 Ok(count) => {
@@ -313,18 +326,85 @@ impl VectorizerServer {
             }
             
             // Check for workspace configuration and reindex if needed
+            // (data_dir and vecdb_path already declared above)
+            
             match load_workspace_collections(&store_for_loading, &embedding_manager_for_loading, cancel_rx.clone()).await {
                 Ok(workspace_count) => {
         if workspace_count > 0 {
-            println!("✅ Workspace loading completed - {} collections loaded from cache", workspace_count);
-            info!("✅ Workspace loading completed - {} collections loaded from cache", workspace_count);
+            println!("✅ Workspace loading completed - {} collections indexed/loaded", workspace_count);
+            info!("✅ Workspace loading completed - {} collections indexed/loaded", workspace_count);
             
-            // NEVER compact when loading from cache - .vecdb already exists and is correct!
-            // Compaction ONLY happens when indexing NEW files (no cache exists)
-            info!("ℹ️  Loaded from .vecdb cache - no compaction needed");
+            // Check if there are .bin files created during indexing
+            use crate::storage::StorageCompactor;
+            let compactor = StorageCompactor::new(&data_dir, 6, 1000);
+            
+            // Count .bin files to see if we need to compact
+            let bin_count = std::fs::read_dir(&data_dir)
+                .ok()
+                .map(|entries| entries.filter_map(|e| e.ok())
+                    .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("bin"))
+                    .count())
+                .unwrap_or(0);
+            
+            if bin_count > 0 {
+                println!("📦 Found {} .bin files - compacting to vectorizer.vecdb from memory...", bin_count);
+                info!("📦 Found {} .bin files - compacting to vectorizer.vecdb from memory...", bin_count);
+                info!("🔍 DEBUG: bin_count = {}, workspace_count = {}", bin_count, workspace_count);
+                info!("🔍 DEBUG: data_dir = {}", data_dir.display());
+                
+                info!("🔍 DEBUG: Starting compact_from_memory...");
+                
+                // Compact directly FROM MEMORY (no raw files needed)
+                match compactor.compact_from_memory(&store_for_loading) {
+                    Ok(index) => {
+                        println!("✅ Compaction complete:");
+                        println!("   Collections: {}", index.collection_count());
+                        println!("   Total vectors: {}", index.total_vectors());
+                        println!("   Compressed size: {} MB", index.compressed_size / 1_048_576);
+                        println!("   🗑️  vectorizer.vecdb created from memory - no raw files needed");
+                        
+                        info!("✅ First compaction complete - created vectorizer.vecdb from memory");
+                        info!("   Collections: {}, Vectors: {}", index.collection_count(), index.total_vectors());
+                        info!("   Only vectorizer.vecdb and vectorizer.vecidx exist");
+                        
+                        // Verify the file was created
+                        if vecdb_path.exists() {
+                            let metadata = std::fs::metadata(&vecdb_path).unwrap();
+                            println!("   📊 vectorizer.vecdb size: {} MB", metadata.len() / 1_048_576);
+                            info!("   📊 vectorizer.vecdb size: {} bytes", metadata.len());
+                        } else {
+                            error!("❌ CRITICAL: vectorizer.vecdb was NOT created!");
+                        }
+                        
+                        // Remove any temporary .bin files that might have been created during indexing
+                        match compactor.remove_raw_files() {
+                            Ok(count) if count > 0 => {
+                                println!("   🗑️  Removed {} temporary raw files", count);
+                                info!("🗑️  Removed {} temporary raw files", count);
+                            }
+                            Ok(_) => {
+                                info!("   No temporary raw files to remove");
+                            }
+                            Err(e) => {
+                                warn!("⚠️  Failed to remove raw files: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("❌ Compaction failed: {}", e);
+                        error!("❌ Compaction from memory failed: {}", e);
+                        error!("   Error details: {:?}", e);
+                        error!("   Will retry on next startup");
+                    }
+                }
+            } else {
+                // No .bin files - either loaded from .vecdb or nothing to compact
+                println!("ℹ️  No .bin files found - skipping compaction");
+                info!("ℹ️  No .bin files found - vectorizer.vecdb is up to date");
+            }
                     } else {
-                        println!("ℹ️  All collections already exist in .vecdb - no indexing needed");
-                        info!("ℹ️  All collections already exist in .vecdb - no indexing needed");
+                        println!("ℹ️  All collections already exist - no indexing needed");
+                        info!("ℹ️  All collections already exist - no indexing needed");
                     }
                 },
                 Err(e) => {
@@ -332,6 +412,12 @@ impl VectorizerServer {
                     warn!("⚠️  Failed to process workspace: {}", e);
                 }
             }
+            
+            // NOW enable auto-save after all collections are loaded
+            println!("🔄 Enabling auto-save after successful initialization");
+            info!("🔄 Enabling auto-save after successful initialization");
+            store_for_loading.enable_auto_save();
+            info!("✅ Auto-save enabled - collections will be saved every 5 minutes when modified");
         });
 
         // Create final embedding manager for the server struct
@@ -340,12 +426,19 @@ impl VectorizerServer {
         final_embedding_manager.register_provider("bm25".to_string(), Box::new(final_bm25));
         final_embedding_manager.set_default_provider("bm25")?;
 
+        // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
+        info!("🔄 Initializing AutoSaveManager...");
+        let auto_save_manager = Arc::new(crate::db::AutoSaveManager::new(store_arc.clone(), 1));
+        let _auto_save_handle = auto_save_manager.start();
+        info!("✅ AutoSaveManager started (5min save + 1h snapshot intervals)");
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
             start_time: std::time::Instant::now(),
             file_watcher_system: watcher_system_for_server,
             metrics_collector: Arc::new(MetricsCollector::new()),
+            auto_save_manager: Some(auto_save_manager),
             background_task: Arc::new(tokio::sync::Mutex::new(Some((background_handle, cancel_tx)))),
         })
     }
@@ -534,16 +627,35 @@ impl VectorizerServer {
             }
         }
         
-        // Cancel and abort background collection loading task if still running
+        // Cancel and await background collection loading task if still running
         info!("🛑 Stopping background collection loading task...");
         if let Some((handle, cancel_tx)) = self.background_task.lock().await.take() {
             // Send cancellation signal
             let _ = cancel_tx.send(true);
             info!("📤 Sent cancellation signal to background task");
             
-            // Abort the task immediately
-            handle.abort();
-            info!("✅ Background task aborted");
+            // CRITICAL: Wait for task to finish gracefully (with timeout)
+            // This ensures all collections are fully loaded before shutdown/compaction
+            info!("⏳ Waiting for background task to complete (max 10 seconds)...");
+            let timeout_duration = tokio::time::Duration::from_secs(10);
+            match tokio::time::timeout(timeout_duration, handle).await {
+                Ok(_) => {
+                    info!("✅ Background task completed gracefully");
+                }
+                Err(_) => {
+                    warn!("⚠️  Background task did not complete within timeout - some collections may be incomplete");
+                }
+            }
+        }
+        
+        // Force final save before shutdown
+        if let Some(auto_save) = &self.auto_save_manager {
+            info!("💾 Performing final save before shutdown...");
+            match auto_save.force_save().await {
+                Ok(_) => info!("✅ Final save completed successfully"),
+                Err(e) => warn!("⚠️  Final save failed: {}", e),
+            }
+            auto_save.shutdown();
         }
         
         // Graceful shutdown of file watcher
@@ -845,18 +957,15 @@ pub async fn load_workspace_collections(
                                     match serde_json::from_slice::<crate::persistence::PersistedCollection>(&data) {
                                         Ok(persisted) => {
                                             // Use EXACT config from .vecdb (not workspace config!)
-                                            let config = persisted.config.clone();
+                                            let config = persisted.config.clone().unwrap_or_else(|| {
+                                                warn!("⚠️  Collection '{}' has no config in .vecdb, using default", collection.name);
+                                                crate::models::CollectionConfig::default()
+                                            });
                                             let vector_count = persisted.vectors.len();
                                             
                                             info!("📥 Loading collection '{}' from .vecdb with {} vectors...", collection.name, vector_count);
                                             
-                                            // Create collection with config FROM .vecdb
-                                            if let Err(e) = store.create_collection(&collection.name, config) {
-                                                warn!("Failed to create collection '{}': {}", collection.name, e);
-                                                continue;
-                                            }
-                                            
-                                            // Load vectors into collection (EXACT same as FileLoader)
+                                            // Convert vectors FIRST (before creating collection)
                                             info!("🔄 Converting {} persisted vectors to runtime format...", persisted.vectors.len());
                                             let vectors: Vec<crate::models::Vector> = persisted.vectors
                                                 .into_iter()
@@ -873,12 +982,31 @@ pub async fn load_workspace_collections(
                                             
                                             info!("🔄 Converted {} vectors successfully", vectors.len());
                                             
+                                            // Create collection with config FROM .vecdb
+                                            if let Err(e) = store.create_collection(&collection.name, config) {
+                                                // Collection might already exist from lazy loading - just load vectors with HNSW
+                                                warn!("Collection '{}' already exists (maybe from lazy loading), loading vectors with HNSW anyway: {}", collection.name, e);
+                                                if let Ok(collection_ref) = store.get_collection(&collection.name) {
+                                                    info!("🔄 Loading {} vectors with HNSW index into existing collection '{}'...", vectors.len(), collection.name);
+                                                    // Use fast_load_vectors() to build HNSW index properly
+                                                    if let Err(e) = collection_ref.fast_load_vectors(vectors) {
+                                                        warn!("❌ FAILED to load vectors with HNSW into collection '{}': {}", collection.name, e);
+                                                    } else {
+                                                        info!("✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index", collection.name, vector_count);
+                                                        indexed_count += 1;
+                                                    }
+                                                }
+                                                continue;
+                                            }
+                                            
+                                            // Collection created successfully - now load vectors with HNSW index
                                             if let Ok(collection_ref) = store.get_collection(&collection.name) {
-                                                info!("🔄 Loading {} vectors into collection '{}'...", vectors.len(), collection.name);
-                                                if let Err(e) = collection_ref.load_vectors_into_memory(vectors) {
-                                                    warn!("❌ FAILED to load vectors into collection '{}': {}", collection.name, e);
+                                                info!("🔄 Loading {} vectors with HNSW index into collection '{}'...", vectors.len(), collection.name);
+                                                // Use fast_load_vectors() to build HNSW index properly
+                                                if let Err(e) = collection_ref.fast_load_vectors(vectors) {
+                                                    warn!("❌ FAILED to load vectors with HNSW into collection '{}': {}", collection.name, e);
                                                 } else {
-                                                    info!("✅ Collection '{}' loaded from .vecdb with {} vectors", collection.name, vector_count);
+                                                    info!("✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index", collection.name, vector_count);
                                                     indexed_count += 1;
                                                 }
                                             } else {

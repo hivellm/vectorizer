@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2025-10-15
+
+### 🔥 **Critical Persistence System Fixes**
+
+This release fixes critical bugs in the vectorizer.vecdb persistence system that were causing data loss and preventing vectors from being loaded correctly.
+
+#### **Critical Bugs Fixed**
+- ✅ **Quantization Bug**: `fast_load_vectors()` was not applying quantization when loading from .vecdb, causing vectors to be stored in the wrong format (full precision instead of quantized). This made vectors "disappear" during search operations.
+- ✅ **Empty Collections Overwrite Protection**: Added critical safety check to prevent overwriting valid vectorizer.vecdb with empty collections (0 total vectors).
+- ✅ **Race Condition in Shutdown**: Fixed race condition where Ctrl+C during loading would trigger compaction before collections were fully loaded, resulting in empty/partial data being saved.
+- ✅ **Auto-load Logic**: Fixed auto-load to ALWAYS load vectorizer.vecdb when it exists, regardless of `auto_load_collections` config flag.
+
+#### **Persistence System Improvements**
+- ✅ **Graceful Shutdown**: Shutdown now waits up to 10 seconds for background loading to complete before compacting
+- ✅ **Memory Compaction**: Implemented `compact_from_memory()` to create vectorizer.vecdb directly from in-memory collections without creating .bin files
+- ✅ **Backup Protection**: Automatic backup creation before any .vecdb write, with restore on error
+- ✅ **Change Detection**: Improved .bin file detection for triggering compaction after initial indexing
+
+#### **Auto-save & Snapshot System**
+- ✅ **5-minute Auto-save**: Changed from 30s to 300s (5 minutes) for better performance
+- ✅ **Hourly Snapshots**: Integrated SnapshotManager for creating hourly backups of vectorizer.vecdb
+- ✅ **Atomic Updates**: All .vecdb writes use .tmp + atomic rename for data integrity
+
+#### **Fixed Modules**
+- **`src/db/collection.rs`**: Fixed `fast_load_vectors()` to apply quantization correctly
+- **`src/storage/compact.rs`**: Added zero-vector protection and `compact_from_memory()` method
+- **`src/storage/writer.rs`**: Implemented `write_from_memory()` for direct in-memory compaction
+- **`src/server/mod.rs`**: Fixed shutdown race condition and auto-load logic
+- **`src/db/vector_store.rs`**: Removed dangerous fallback to raw files, disabled old auto-save system
+- **`src/db/auto_save.rs`**: Updated intervals (5min save, 1h snapshot)
+
+#### **Safety Guarantees**
+- 🛡️ **Never overwrites .vecdb with 0 vectors** - Critical protection against data loss
+- 🛡️ **Never falls back to raw files** - .vecdb is the single source of truth
+- 🛡️ **Graceful shutdown** - Waits for loading completion before saving
+- 🛡️ **Backup & Restore** - Automatic backup before any write operation
+- 🛡️ **Hourly Snapshots** - 7 days of snapshots for disaster recovery
+
+### **Breaking Changes**
+- Old auto-save system (30s interval with .bin files) has been disabled
+- Collections are now ALWAYS loaded from vectorizer.vecdb when it exists
+- .bin files are only temporary during initial indexing and are removed after compaction
+
+### **Migration Notes**
+- If you have an existing vectorizer.vecdb from v0.8.0, it will be loaded correctly
+- Collections will be properly quantized on load (fixing search issues)
+- Auto-save will trigger every 5 minutes (instead of 30 seconds)
+- Snapshots will be created hourly in `data/snapshots/`
+
 ## [0.8.0] - 2025-10-14
 
 ### 📄 **Transmutation Document Conversion Integration**

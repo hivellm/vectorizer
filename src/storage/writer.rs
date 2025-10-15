@@ -52,6 +52,32 @@ impl StorageWriter {
         Ok(index)
     }
     
+    /// Write collections from memory to .vecdb archive atomically (no raw files created)
+    pub fn write_from_memory(&self, collections: Vec<crate::persistence::PersistedCollection>) -> Result<StorageIndex> {
+        let vecdb_path = self.data_dir.join(crate::storage::VECDB_FILE);
+        let vecidx_path = self.data_dir.join(crate::storage::VECIDX_FILE);
+        let temp_vecdb = vecdb_path.with_extension(format!("vecdb{}", crate::storage::TEMP_SUFFIX));
+        let temp_vecidx = vecidx_path.with_extension(format!("vecidx{}", crate::storage::TEMP_SUFFIX));
+        
+        info!("🗜️  Writing {} collections from memory to {}", collections.len(), temp_vecdb.display());
+        
+        // Create temporary archive from memory
+        let mut index = self.create_archive_from_memory(&temp_vecdb, collections)?;
+        
+        // Save index to temporary file
+        index.save(&temp_vecidx)?;
+        
+        // Atomic rename - only if everything succeeded
+        fs::rename(&temp_vecdb, &vecdb_path)
+            .map_err(|e| VectorizerError::Io(e))?;
+        fs::rename(&temp_vecidx, &vecidx_path)
+            .map_err(|e| VectorizerError::Io(e))?;
+        
+        info!("✅ Successfully wrote vectorizer.vecdb from memory");
+        
+        Ok(index)
+    }
+    
     /// Create the archive file
     fn create_archive(&self, archive_path: &Path, source_dir: &Path) -> Result<StorageIndex> {
         let file = File::create(archive_path)
@@ -76,6 +102,103 @@ impl StorageWriter {
         
         zip.finish().map_err(|e| VectorizerError::Storage(e.to_string()))?;
         
+        Ok(index)
+    }
+    
+    /// Create the archive file from memory collections
+    fn create_archive_from_memory(&self, archive_path: &Path, collections: Vec<crate::persistence::PersistedCollection>) -> Result<StorageIndex> {
+        let file = File::create(archive_path)
+            .map_err(|e| VectorizerError::Io(e))?;
+        
+        let mut zip = ZipWriter::new(file);
+        let mut index = StorageIndex::new();
+        
+        let options = FileOptions::<()>::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o644);
+        
+        let collections_count = collections.len();
+        
+        for persisted_collection in collections {
+            let collection_name = &persisted_collection.name;
+            
+            // Create collection index entry
+            let mut collection_index = CollectionIndex {
+                name: collection_name.clone(),
+                files: Vec::new(),
+                vector_count: persisted_collection.vectors.len(),
+                dimension: persisted_collection.config.as_ref().map(|c| c.dimension).unwrap_or(512),
+                metadata: std::collections::HashMap::new(),
+            };
+            
+            // Serialize collection to JSON
+            let vector_store_name = format!("{}_vector_store.bin", collection_name);
+            let json_data = serde_json::to_vec(&persisted_collection)
+                .map_err(|e| VectorizerError::Serialization(format!("Failed to serialize collection: {}", e)))?;
+            
+            let original_size = json_data.len() as u64;
+            
+            // Write to ZIP
+            zip.start_file(&vector_store_name, options)
+                .map_err(|e| VectorizerError::Storage(format!("Failed to start ZIP file: {}", e)))?;
+            zip.write_all(&json_data)
+                .map_err(|e| VectorizerError::Io(e))?;
+            
+            let compressed_size = json_data.len() as u64; // ZIP will compress it
+            
+            collection_index.files.push(crate::storage::index::FileEntry {
+                path: vector_store_name.clone(),
+                file_type: crate::storage::index::FileType::Vectors,
+                size: original_size,
+                compressed_size,
+                checksum: String::new(), // Will be calculated by StorageIndex
+            });
+            
+            // Write metadata if config exists
+            if let Some(config) = &persisted_collection.config {
+                // Create a simple metadata structure for serialization
+                #[derive(serde::Serialize)]
+                struct CollectionMetadataForStorage {
+                    name: String,
+                    config: crate::models::CollectionConfig,
+                    created_at: chrono::DateTime<chrono::Utc>,
+                    modified_at: chrono::DateTime<chrono::Utc>,
+                    vector_count: usize,
+                }
+                
+                let metadata = CollectionMetadataForStorage {
+                    name: collection_name.clone(),
+                    config: config.clone(),
+                    created_at: chrono::Utc::now(),
+                    modified_at: chrono::Utc::now(),
+                    vector_count: persisted_collection.vectors.len(),
+                };
+                
+                let metadata_name = format!("{}_metadata.json", collection_name);
+                let metadata_json = serde_json::to_vec_pretty(&metadata)
+                    .map_err(|e| VectorizerError::Serialization(format!("Failed to serialize metadata: {}", e)))?;
+                
+                zip.start_file(&metadata_name, options)
+                    .map_err(|e| VectorizerError::Storage(format!("Failed to start metadata file: {}", e)))?;
+                zip.write_all(&metadata_json)
+                    .map_err(|e| VectorizerError::Io(e))?;
+                
+                collection_index.files.push(crate::storage::index::FileEntry {
+                    path: metadata_name,
+                    file_type: crate::storage::index::FileType::Metadata,
+                    size: metadata_json.len() as u64,
+                    compressed_size: metadata_json.len() as u64,
+                    checksum: String::new(),
+                });
+            }
+            
+            info!("   Added collection '{}' with {} vectors", collection_name, persisted_collection.vectors.len());
+            index.add_collection(collection_index);
+        }
+        
+        zip.finish().map_err(|e| VectorizerError::Storage(e.to_string()))?;
+        
+        info!("✅ Created archive with {} collections", collections_count);
         Ok(index)
     }
     

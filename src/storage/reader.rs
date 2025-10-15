@@ -163,6 +163,153 @@ impl StorageReader {
             max_size_bytes: self.max_cache_size,
         })
     }
+    
+    /// Extract all collections from archive in memory (no temp files)
+    pub fn extract_all_collections(&self) -> Result<Vec<crate::persistence::PersistedCollection>> {
+        use tracing::info;
+        
+        info!("📦 Extracting all collections from compressed archive in memory...");
+        
+        let collections_list = self.list_collections()?;
+        let mut persisted_collections = Vec::new();
+        
+        for collection_name in &collections_list {
+            if let Some(collection) = self.read_collection_in_memory(collection_name)? {
+                persisted_collections.push(collection);
+            }
+        }
+        
+        info!("✅ Extracted {} collections from archive (no temp files created)", persisted_collections.len());
+        
+        Ok(persisted_collections)
+    }
+    
+    /// Read a collection directly in memory without creating temp files
+    pub fn read_collection_in_memory(&self, collection_name: &str) -> Result<Option<crate::persistence::PersistedCollection>> {
+        use tracing::{debug, warn};
+        
+        let collection_index = match self.get_collection(collection_name)? {
+            Some(c) => c,
+            None => return Ok(None),
+        };
+        
+        debug!("Reading collection '{}' from archive", collection_name);
+        
+        // Read all files for this collection into memory
+        let files = self.read_collection_files(collection_name)?;
+        
+        // Find the vector_store.bin file
+        let vector_store_path = format!("{}_vector_store.bin", collection_name);
+        let vector_data = files.get(&vector_store_path)
+            .ok_or_else(|| VectorizerError::Storage(format!("Vector store file not found for collection: {}", collection_name)))?;
+        
+        // Files are saved as JSON, not bincode
+        let json_str = std::str::from_utf8(vector_data)
+            .map_err(|e| VectorizerError::Deserialization(format!("Invalid UTF-8 in vector store: {}", e)))?;
+        
+        // Deserialize PersistedVectorStore (which contains Vec<PersistedCollection>)
+        let persisted_store: crate::persistence::PersistedVectorStore = serde_json::from_str(json_str)
+            .map_err(|e| VectorizerError::Deserialization(format!("Failed to deserialize collection: {}", e)))?;
+        
+        // Extract the first collection (files are saved as PersistedVectorStore with one collection)
+        let mut persisted = persisted_store.collections.into_iter().next()
+            .ok_or_else(|| VectorizerError::Storage(format!("No collection found in vector store file: {}", vector_store_path)))?;
+        
+        // BACKWARD COMPATIBILITY: If name is empty, infer from filename
+        if persisted.name.is_empty() {
+            debug!("⚠️  Collection name missing in persisted data, inferring from filename: '{}'", collection_name);
+            persisted.name = collection_name.to_string();
+        }
+        
+        // BACKWARD COMPATIBILITY: If config is missing, load from metadata file
+        if persisted.config.is_none() {
+            debug!("⚠️  Collection config missing, attempting to load from metadata file...");
+            let metadata_path = format!("{}_metadata.json", collection_name);
+            
+            if let Some(metadata_data) = files.get(&metadata_path) {
+                let metadata_str = std::str::from_utf8(metadata_data)
+                    .map_err(|e| VectorizerError::Deserialization(format!("Invalid UTF-8 in metadata: {}", e)))?;
+                
+                // Metadata file structure
+                #[derive(serde::Deserialize)]
+                struct Metadata {
+                    config: crate::models::CollectionConfig,
+                }
+                
+                match serde_json::from_str::<Metadata>(metadata_str) {
+                    Ok(metadata) => {
+                        debug!("✅ Loaded config from metadata file");
+                        persisted.config = Some(metadata.config);
+                    }
+                    Err(e) => {
+                        warn!("⚠️  Failed to load config from metadata: {}", e);
+                        // Create default config as fallback
+                        debug!("⚠️  Using default config as fallback");
+                        let dimension = if let Some(first_vec) = persisted.vectors.first() {
+                            // Try to get dimension from first vector using into_runtime
+                            match first_vec.clone().into_runtime() {
+                                Ok(v) => v.data.len(),
+                                Err(_) => 384 // Default fallback
+                            }
+                        } else {
+                            384 // Default dimension
+                        };
+                        
+                        persisted.config = Some(crate::models::CollectionConfig {
+                            dimension,
+                            metric: crate::models::DistanceMetric::Cosine,
+                            hnsw_config: crate::models::HnswConfig {
+                                m: 32,
+                                ef_construction: 100,
+                                ef_search: 50,
+                                seed: None,
+                            },
+                            quantization: crate::models::QuantizationConfig::None,
+                            compression: crate::models::CompressionConfig {
+                                enabled: false,
+                                threshold_bytes: 1024,
+                                algorithm: crate::models::CompressionAlgorithm::Lz4,
+                            },
+                            normalization: None,
+                        });
+                    }
+                }
+            } else {
+                warn!("⚠️  Metadata file not found, using default config");
+                let dimension = if let Some(first_vec) = persisted.vectors.first() {
+                    // Try to get dimension from first vector using into_runtime
+                    match first_vec.clone().into_runtime() {
+                        Ok(v) => v.data.len(),
+                        Err(_) => 384 // Default fallback
+                    }
+                } else {
+                    384
+                };
+                
+                persisted.config = Some(crate::models::CollectionConfig {
+                    dimension,
+                    metric: crate::models::DistanceMetric::Cosine,
+                    hnsw_config: crate::models::HnswConfig {
+                        m: 32,
+                        ef_construction: 100,
+                        ef_search: 50,
+                        seed: None,
+                    },
+                    quantization: crate::models::QuantizationConfig::None,
+                    compression: crate::models::CompressionConfig {
+                        enabled: false,
+                        threshold_bytes: 1024,
+                        algorithm: crate::models::CompressionAlgorithm::Lz4,
+                    },
+                    normalization: None,
+                });
+            }
+        }
+        
+        debug!("✅ Collection '{}' loaded with {} vectors", persisted.name, persisted.vectors.len());
+        
+        Ok(Some(persisted))
+    }
 }
 
 /// Cache statistics

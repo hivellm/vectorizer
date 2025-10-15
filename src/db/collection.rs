@@ -619,10 +619,21 @@ impl Collection {
 
             // Vector is already normalized by into_runtime_with_payload if needed
 
-            // Store vector
-            self.vectors.lock().unwrap().insert(id.clone(), vector.clone());
+            // CRITICAL FIX: Apply quantization if enabled (same as insert_batch does)
+            // This ensures vectors are stored consistently whether loaded from disk or inserted fresh
+            if matches!(self.config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) {
+                // Store as quantized vector (75% memory reduction)
+                let quantized_vector = crate::models::QuantizedVector::from_vector(vector.clone());
+                debug!("Storing quantized vector '{}' during fast load", id);
+                self.quantized_vectors.lock().unwrap().insert(id.clone(), quantized_vector);
+                
+                // Don't store full precision vector to save memory
+            } else {
+                // Store full precision vector
+                self.vectors.lock().unwrap().insert(id.clone(), vector.clone());
+            }
 
-            // Add to batch for HNSW index
+            // Add to batch for HNSW index (using full precision for search accuracy)
             batch_vectors.push((id.clone(), vector.data.clone()));
 
             // Track insertion order

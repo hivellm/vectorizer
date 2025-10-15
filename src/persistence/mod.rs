@@ -38,11 +38,14 @@ pub struct PersistedVectorStore {
 /// Persisted representation of a collection
 #[derive(Serialize, Deserialize)]
 pub struct PersistedCollection {
-    /// Collection name
+    /// Collection name (backward compatible: will be inferred from filename if missing in old files)
+    #[serde(default)]
     pub name: String,
-    /// Collection configuration
-    pub config: CollectionConfig,
-    /// Vectors in the collection
+    /// Collection configuration (backward compatible: will be loaded from metadata file if missing)
+    #[serde(default)]
+    pub config: Option<CollectionConfig>,
+    /// Vectors in the collection (backward compatible: empty vec if missing)
+    #[serde(default)]
     pub vectors: Vec<PersistedVector>,
     /// HNSW index dump basename (if available)
     pub hnsw_dump_basename: Option<String>,
@@ -179,7 +182,7 @@ impl VectorStore {
 
             collections.push(PersistedCollection {
                 name: collection_name,
-                config: metadata.config,
+                config: Some(metadata.config),
                 vectors,
                 hnsw_dump_basename,
             });
@@ -256,7 +259,10 @@ impl VectorStore {
         // Restore collections with fast loading and automatic quantization
         for collection in persisted.collections {
             // Create collection config with quantization enabled
-            let mut config = collection.config.clone();
+            let mut config = collection.config.clone().unwrap_or_else(|| {
+                warn!("⚠️  Collection '{}' has no config, using default", collection.name);
+                crate::models::CollectionConfig::default()
+            });
             config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
             
             store.create_collection_with_quantization(&collection.name, config)?;

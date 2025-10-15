@@ -73,7 +73,7 @@ impl Persistence {
         
         let persisted = PersistedCollection {
             name: collection_name.to_string(),
-            config: meta.config.clone(),
+            config: Some(meta.config.clone()),
             vectors: persisted_vectors,
             hnsw_dump_basename: None,
         };
