@@ -60,7 +60,9 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: join(__dirname, 'preload.js')
+      preload: join(__dirname, 'preload.js'),
+      webSecurity: true,
+      allowRunningInsecureContent: false
     }
   });
 
@@ -70,7 +72,14 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(join(__dirname, '../../dist/index.html'));
+    // Open DevTools in production for debugging
+    mainWindow.webContents.openDevTools();
   }
+  
+  // Log any console messages from renderer
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer] ${message}`);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;

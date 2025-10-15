@@ -685,7 +685,18 @@ function showSuccessToast(message: string): void {
 
 async function loadConfig(): Promise<void> {
   try {
-    const response = await fetch('/api/config');
+    const client = vectorizerStore.client;
+    if (!client) {
+      console.error('Vectorizer client not initialized');
+      return;
+    }
+    
+    const response = await fetch(`${client.config.baseURL}/api/config`, {
+      headers: client.config.apiKey ? {
+        'Authorization': `Bearer ${client.config.apiKey}`
+      } : {}
+    });
+    
     if (response.ok) {
       const configData = await response.json();
       Object.assign(config, configData);
@@ -708,6 +719,13 @@ async function loadConfig(): Promise<void> {
 
 async function saveAndRestart(): Promise<void> {
   try {
+    const client = vectorizerStore.client;
+    if (!client) {
+      console.error('Vectorizer client not initialized');
+      showSuccessToast('Vectorizer client not initialized');
+      return;
+    }
+    
     let payload;
 
     if (activeTab.value === 'yaml') {
@@ -717,20 +735,24 @@ async function saveAndRestart(): Promise<void> {
         payload = yaml.load(yamlContent.value);
       } catch (e) {
         console.error('Failed to parse YAML:', e);
+        showSuccessToast('Failed to parse YAML');
         return;
       }
     } else {
       payload = config;
     }
 
-    const response = await fetch('/api/config', {
+    const response = await fetch(`${client.config.baseURL}/api/config`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
+      },
       body: JSON.stringify(payload)
     });
 
     if (response.ok) {
-    isDirty.value = false;
+      isDirty.value = false;
       showSuccessToast('Configuration saved successfully!');
       // Reload to sync all tabs
       await loadConfig();
@@ -739,6 +761,7 @@ async function saveAndRestart(): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to save config:', error);
+    showSuccessToast('Failed to save configuration');
   }
 }
 

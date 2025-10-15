@@ -313,7 +313,17 @@ function updateExcludePatterns(projectName: string, collectionIndex: number): vo
 
 async function loadWorkspaceConfig(): Promise<void> {
   try {
-    const response = await fetch('/api/workspace/config');
+    const client = vectorizerStore.client;
+    if (!client) {
+      console.error('Vectorizer client not initialized');
+      return;
+    }
+    
+    const response = await fetch(`${client.config.baseURL}/api/workspace/config`, {
+      headers: client.config.apiKey ? {
+        'Authorization': `Bearer ${client.config.apiKey}`
+      } : {}
+    });
     if (!response.ok) {
       throw new Error(`Failed to load workspace config: ${response.statusText}`);
     }
@@ -342,6 +352,13 @@ async function loadWorkspaceConfig(): Promise<void> {
 async function saveWorkspaceConfig(): Promise<void> {
   saving.value = true;
   try {
+    const client = vectorizerStore.client;
+    if (!client) {
+      console.error('Vectorizer client not initialized');
+      await dialog.alert('Vectorizer client not initialized', 'Error');
+      return;
+    }
+    
     // Clean up temporary string fields before saving
     const configToSave = JSON.parse(JSON.stringify(workspaceConfig.value));
     configToSave.projects.forEach((project: Project) => {
@@ -351,9 +368,12 @@ async function saveWorkspaceConfig(): Promise<void> {
       });
     });
 
-    const response = await fetch('/api/workspace/config', {
+    const response = await fetch(`${client.config.baseURL}/api/workspace/config`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
+      },
       body: JSON.stringify(configToSave)
     });
 

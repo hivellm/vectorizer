@@ -2,6 +2,7 @@ ignoredBuiltDependencies:
   - '@hivellm/umicp'
 
 onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
   - electron
   - esbuild
   - vue-demi

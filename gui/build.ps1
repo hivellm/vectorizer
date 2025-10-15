@@ -32,3 +32,4 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Build completed successfully!" -ForegroundColor Green
 
+

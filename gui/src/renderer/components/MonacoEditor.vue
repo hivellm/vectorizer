@@ -1,5 +1,13 @@
 <template>
-  <div ref="editorContainer" class="monaco-editor-container"></div>
+  <div v-if="!useFallback" ref="editorContainer" class="monaco-editor-container"></div>
+  <textarea 
+    v-else
+    v-model="fallbackValue"
+    @input="handleFallbackInput"
+    :readonly="readOnly"
+    :style="{ height: height }"
+    class="fallback-editor"
+  ></textarea>
 </template>
 
 <script setup lang="ts">
@@ -26,14 +34,34 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLElement>();
 let editor: any = null;
+const useFallback = ref(false);
+const fallbackValue = ref(props.value);
+
+function handleFallbackInput(event: Event) {
+  const target = event.target as HTMLTextAreaElement;
+  emit('update:value', target.value);
+  emit('change', target.value);
+}
 
 // Initialize Monaco Editor
 async function initEditor() {
   if (!editorContainer.value) return;
 
   try {
+    // Configure Monaco loader to use CDN in production
+    loader.config({
+      paths: {
+        vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'
+      }
+    });
+    
     // Load Monaco Editor using the loader
     const monaco = await loader.init();
+    
+    // Check if monaco is loaded correctly
+    if (!monaco || !monaco.editor) {
+      throw new Error('Monaco editor not loaded properly');
+    }
     
     // Set theme
     monaco.editor.defineTheme('vectorizer-dark', {
@@ -88,13 +116,17 @@ async function initEditor() {
     editorContainer.value.style.height = props.height;
 
   } catch (error) {
-    console.error('Failed to initialize Monaco Editor:', error);
+    console.error('Failed to initialize Monaco Editor, using fallback:', error);
+    useFallback.value = true;
+    fallbackValue.value = props.value;
   }
 }
 
 // Update editor value when prop changes
 watch(() => props.value, (newValue: string) => {
-  if (editor && editor.getValue() !== newValue) {
+  if (useFallback.value) {
+    fallbackValue.value = newValue;
+  } else if (editor && editor.getValue() !== newValue) {
     editor.setValue(newValue);
   }
 });
@@ -139,5 +171,30 @@ onUnmounted(() => {
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
+}
+
+.fallback-editor {
+  width: 100%;
+  min-height: 300px;
+  padding: 12px;
+  background-color: #1a1a1a;
+  color: #d4d4d4;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+.fallback-editor:focus {
+  outline: none;
+  border-color: var(--border-light);
+}
+
+.fallback-editor[readonly] {
+  background-color: #0f0f0f;
+  cursor: not-allowed;
 }
 </style>

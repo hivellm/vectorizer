@@ -68,13 +68,17 @@ export const useConnectionsStore = defineStore('connections', () => {
 
   async function saveConnections(): Promise<void> {
     try {
+      // Convert to plain objects to avoid cloning issues
+      const plainConnections = JSON.parse(JSON.stringify(connections.value));
+      const plainActiveId = activeConnectionId.value;
+      
       // Check if running in Electron or web mode
       if (!window.electron) {
         // Save to localStorage as fallback for development (NOT encrypted)
         console.warn('Saving to localStorage - data is NOT encrypted');
-        localStorage.setItem('connections', JSON.stringify(connections.value));
-        if (activeConnectionId.value) {
-          localStorage.setItem('activeConnectionId', activeConnectionId.value);
+        localStorage.setItem('connections', JSON.stringify(plainConnections));
+        if (plainActiveId) {
+          localStorage.setItem('activeConnectionId', plainActiveId);
         } else {
           localStorage.removeItem('activeConnectionId');
         }
@@ -82,12 +86,12 @@ export const useConnectionsStore = defineStore('connections', () => {
       }
 
       // Save to encrypted Electron store
-      const success = await window.electron.setStoreValue('connections', connections.value);
+      const success = await window.electron.setStoreValue('connections', plainConnections);
       if (!success) {
         throw new Error('Failed to save connections to encrypted store');
       }
       
-      await window.electron.setStoreValue('activeConnectionId', activeConnectionId.value);
+      await window.electron.setStoreValue('activeConnectionId', plainActiveId);
     } catch (error) {
       console.error('Failed to save connections:', error);
       throw error;

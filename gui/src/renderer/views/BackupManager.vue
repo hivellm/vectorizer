@@ -155,7 +155,17 @@ const canCreateBackup = computed(() =>
 async function loadBackups(): Promise<void> {
   loading.value = true;
   try {
-    const response = await fetch('/api/backups');
+    const client = vectorizerStore.client;
+    if (!client) {
+      console.error('Vectorizer client not initialized');
+      return;
+    }
+    
+    const response = await fetch(`${client.config.baseURL}/api/backups`, {
+      headers: client.config.apiKey ? {
+        'Authorization': `Bearer ${client.config.apiKey}`
+      } : {}
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to load backups: ${response.statusText}`);
@@ -176,7 +186,17 @@ async function loadBackups(): Promise<void> {
 
 async function loadBackupDirectory(): Promise<void> {
   try {
-    const response = await fetch('/api/backups/directory');
+    const client = vectorizerStore.client;
+    if (!client) {
+      console.error('Vectorizer client not initialized');
+      return;
+    }
+    
+    const response = await fetch(`${client.config.baseURL}/api/backups/directory`, {
+      headers: client.config.apiKey ? {
+        'Authorization': `Bearer ${client.config.apiKey}`
+      } : {}
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to load backup directory: ${response.statusText}`);
@@ -200,10 +220,17 @@ async function openBackupDirectory(): Promise<void> {
 async function confirmCreateBackup(): Promise<void> {
   creating.value = true;
   try {
-    const response = await fetch('/api/backups/create', {
+    const client = vectorizerStore.client;
+    if (!client) {
+      await dialog.alert('Vectorizer client not initialized', 'Error');
+      return;
+    }
+    
+    const response = await fetch(`${client.config.baseURL}/api/backups/create`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
       },
       body: JSON.stringify({
         name: newBackup.value.name,
@@ -238,10 +265,17 @@ async function restoreBackup(backupId: string): Promise<void> {
   if (!confirmed) return;
 
   try {
-    const response = await fetch('/api/backups/restore', {
+    const client = vectorizerStore.client;
+    if (!client) {
+      await dialog.alert('Vectorizer client not initialized', 'Error');
+      return;
+    }
+    
+    const response = await fetch(`${client.config.baseURL}/api/backups/restore`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
       },
       body: JSON.stringify({
         backup_id: backupId
