@@ -13,7 +13,7 @@
     "dev:check": "node check-dev.js",
     "dev:vite": "vite --host 0.0.0.0",
     "dev:electron": "tsc -p tsconfig.main.json && electron .",
-    "build": "pnpm exec vite build && pnpm exec tsc -p tsconfig.main.json",
+    "build": "npx vite build && npx tsc -p tsconfig.main.json",
     "build:vite": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "electron:build": "pnpm build && electron-builder",
@@ -72,7 +72,7 @@
     "extraResources": [
       {
         "from": "../config.yml",
-        "to": "config.example.yml"
+        "to": "config.yml"
       }
     ],
     "win": {
