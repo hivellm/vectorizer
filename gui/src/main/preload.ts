@@ -8,6 +8,7 @@ export interface ElectronAPI {
   deleteStoreValue: (key: string) => Promise<boolean>;
   clearStore: () => Promise<boolean>;
   getStorePath: () => Promise<string>;
+  writeFile: (filePath: string, content: string) => Promise<boolean>;
   vectorizer: {
     start: () => Promise<{ success: boolean; message: string }>;
     stop: () => Promise<{ success: boolean; message: string }>;
@@ -34,7 +35,6 @@ const electronAPI: ElectronAPI = {
   deleteStoreValue: (key: string) => ipcRenderer.invoke('delete-store-value', key),
   clearStore: () => ipcRenderer.invoke('clear-store'),
   getStorePath: () => ipcRenderer.invoke('get-store-path'),
-  readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
   vectorizer: {
     start: () => ipcRenderer.invoke('vectorizer:start'),
