@@ -2,9 +2,10 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.8.0 - Transmutation & Compact Storage**
+## ✨ **Version 0.8.2 - Transmutation, Compact Storage & Desktop GUI**
 
 ### 🎯 **Key Features**
+- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (NEW in v0.8.2)
 - **💾 Compact Storage (.vecdb)**: Unified compressed archives with 20-30% space savings and snapshot support
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images to Markdown
 - **📸 Snapshot System**: Automatic backups with configurable retention policies
@@ -55,9 +56,41 @@ cargo build --release --features full
 ```
 
 ### **Access Points**
+- **Desktop GUI**: `./gui/` - Electron desktop application (NEW in v0.8.2)
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp/sse
 - **Health Check**: http://localhost:15002/health
+
+## 🖥️ **Desktop GUI (v0.8.2)**
+
+Modern Electron-based desktop application for managing your Vectorizer database:
+
+**Features:**
+- 🎨 Beautiful Vue 3 + TailwindCSS interface
+- 📊 Real-time collection management and monitoring
+- 🔍 Visual search and vector browsing
+- ⚙️ Configuration editor with live preview
+- 📁 File watcher and workspace management
+- 💾 Backup/restore operations
+- 📈 System metrics and performance monitoring
+
+**Installation:**
+```bash
+cd gui
+pnpm install
+pnpm electron:build:win    # Windows MSI installer
+pnpm electron:build:mac    # macOS DMG installer
+pnpm electron:build:linux  # Linux DEB package
+```
+
+**Development:**
+```bash
+cd gui
+pnpm install
+pnpm dev  # Hot-reload development mode
+```
+
+**Note:** Requires Node.js 64-bit (x64 architecture) for building
 
 ### **Basic Usage**
 ```bash
