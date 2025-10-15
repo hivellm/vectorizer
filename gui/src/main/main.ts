@@ -69,11 +69,11 @@ function createWindow(): void {
   // Load the app
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
+    //mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(join(__dirname, '../../dist/index.html'));
     // Open DevTools in production for debugging
-    mainWindow.webContents.openDevTools();
+    //mainWindow.webContents.openDevTools();
   }
   
   // Log any console messages from renderer
