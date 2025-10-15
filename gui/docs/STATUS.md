@@ -3,6 +3,21 @@
 **Version**: 0.1.0  
 **Status**: Initial Implementation Complete  
 **Date**: 2025-10-15
+**Last Updated**: 2025-10-15
+
+## Recent Improvements (2025-10-15)
+
+### UI/UX Enhancements
+- **Custom Titlebar**: Frameless window with modern, integrated window controls
+- **Auto-Connection**: Automatically opens connection manager on first launch
+- **Smart Connection**: Auto-selects and connects to first created connection
+- **Collections Refresh**: Auto-reload on connection switch + manual refresh button
+- **Better Accessibility**: Connection selector always clickable
+
+### Build System Fixes
+- **pnpm Compatibility**: Configured shamefully-hoist for electron-builder
+- **ASAR Disabled**: Ensures all node_modules are accessible at runtime
+- **Dependency Resolution**: Fixed electron-store and conf module loading
 
 ## Implementation Summary
 
@@ -18,6 +33,8 @@
 
 #### Main Process (Electron)
 - [x] Main window creation (`main.ts`)
+- [x] Frameless window with custom titlebar
+- [x] Window control IPC handlers (minimize, maximize, close)
 - [x] Context bridge / Preload script (`preload.ts`)
 - [x] Vectorizer process manager (`vectorizer-manager.ts`)
 - [x] IPC handlers for file dialogs
@@ -25,8 +42,12 @@
 - [x] IPC handlers for vectorizer control
 
 #### Renderer Process (Vue 3)
-- [x] Root App component with sidebar layout
-- [x] Connection management store
+- [x] Root App component with custom titlebar and sidebar layout
+- [x] Connection management store with persistence
+- [x] Auto-open connection manager on first launch
+- [x] Auto-select and connect to first connection
+- [x] Collections auto-reload on connection switch
+- [x] Manual collections refresh button
 - [x] Vectorizer client store (using @hivellm/vectorizer-client)
 - [x] Auto-save composable with debounce
 - [x] Toast notification system
@@ -76,6 +97,8 @@
 #### Build & Packaging
 - [x] Build scripts (Windows, Linux, macOS)
 - [x] electron-builder configuration
+- [x] pnpm hoisting configuration for electron-builder
+- [x] ASAR disabled for proper dependency resolution
 - [x] Windows MSI installer with service
 - [x] Linux DEB with systemd service
 - [x] macOS DMG with LaunchAgent
