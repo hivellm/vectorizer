@@ -208,6 +208,11 @@ async function performSearch(): Promise<void> {
 }
 
 async function selectFilesToInsert(): Promise<void> {
+  if (!window.electron) {
+    alert('This feature requires Electron. Please run the app in Electron mode.');
+    return;
+  }
+  
   const files = await window.electron.selectFiles();
   selectedFiles.value = files;
 }

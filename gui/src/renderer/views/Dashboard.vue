@@ -1,44 +1,7 @@
 <template>
-  <div class="dashboard">
-    <h1 class="page-title">
-      <i class="fas fa-tachometer-alt"></i>
-      Dashboard
-    </h1>
-
-    <!-- Vectorizer Status Card -->
-    <div class="status-card">
-      <div class="card-header">
-        <h2>Vectorizer Status</h2>
-        <div class="status-indicator">
-          <span :class="['status-dot', { online: vectorizerOnline }]"></span>
-          <span>{{ vectorizerOnline ? 'Online' : 'Offline' }}</span>
-        </div>
-      </div>
-      
-      <div class="card-body">
-        <div v-if="vectorizerOnline" class="status-info">
-          <div class="info-item">
-            <span class="label">Version:</span>
-            <span class="value">{{ vectorizerStatus?.version || 'Unknown' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Uptime:</span>
-            <span class="value">{{ formatUptime(vectorizerStatus?.uptime || 0) }}</span>
-          </div>
-        </div>
-        
-        <div v-else class="offline-actions">
-          <p>Vectorizer is not running</p>
-          <button @click="startVectorizer" :disabled="starting" class="btn btn-primary">
-            <i :class="['fas', starting ? 'fa-spinner fa-spin' : 'fa-play']"></i>
-            {{ starting ? 'Starting...' : 'Start Vectorizer' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
+  <div class="p-8">
     <!-- Stats Grid -->
-    <div class="stats-grid">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <StatCard
         icon="fas fa-layer-group"
         :value="collections.length"
@@ -69,31 +32,31 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="quick-actions">
-      <h2>Quick Actions</h2>
-      <div class="actions-grid">
-        <button @click="$router.push('/workspace')" class="action-card">
-          <i class="fas fa-folder-plus"></i>
-          <h3>Add Directory</h3>
-          <p>Index a new directory</p>
+    <div class="bg-bg-secondary border border-border rounded-xl p-6">
+      <h2 class="text-xl font-semibold text-text-primary mb-6">Quick Actions</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button @click="$router.push('/workspace')" class="bg-bg-tertiary border border-border rounded-lg p-6 text-left hover:bg-bg-hover hover:border-border-light transition-colors group">
+          <i class="fas fa-folder-plus text-2xl text-text-secondary group-hover:text-text-primary mb-3 block"></i>
+          <h3 class="text-lg font-medium text-text-primary mb-2">Add Directory</h3>
+          <p class="text-sm text-text-secondary">Index a new directory</p>
         </button>
 
-        <button @click="createCollection" class="action-card">
-          <i class="fas fa-database"></i>
-          <h3>New Collection</h3>
-          <p>Create a collection</p>
+        <button @click="createCollection" class="bg-bg-tertiary border border-border rounded-lg p-6 text-left hover:bg-bg-hover hover:border-border-light transition-colors group">
+          <i class="fas fa-database text-2xl text-text-secondary group-hover:text-text-primary mb-3 block"></i>
+          <h3 class="text-lg font-medium text-text-primary mb-2">New Collection</h3>
+          <p class="text-sm text-text-secondary">Create a collection</p>
         </button>
 
-        <button @click="$router.push('/backups')" class="action-card">
-          <i class="fas fa-save"></i>
-          <h3>Create Backup</h3>
-          <p>Backup your data</p>
+        <button @click="$router.push('/backups')" class="bg-bg-tertiary border border-border rounded-lg p-6 text-left hover:bg-bg-hover hover:border-border-light transition-colors group">
+          <i class="fas fa-save text-2xl text-text-secondary group-hover:text-text-primary mb-3 block"></i>
+          <h3 class="text-lg font-medium text-text-primary mb-2">Create Backup</h3>
+          <p class="text-sm text-text-secondary">Backup your data</p>
         </button>
 
-        <button @click="refreshData" class="action-card">
-          <i class="fas fa-sync"></i>
-          <h3>Refresh Data</h3>
-          <p>Reload all data</p>
+        <button @click="refreshData" class="bg-bg-tertiary border border-border rounded-lg p-6 text-left hover:bg-bg-hover hover:border-border-light transition-colors group">
+          <i class="fas fa-sync text-2xl text-text-secondary group-hover:text-text-primary mb-3 block"></i>
+          <h3 class="text-lg font-medium text-text-primary mb-2">Refresh Data</h3>
+          <p class="text-sm text-text-secondary">Reload all data</p>
         </button>
       </div>
     </div>
@@ -120,26 +83,56 @@ const vectorizerStatus = ref<{ version?: string; uptime?: number } | null>(null)
 const starting = ref(false);
 const selectedCollection = ref<string | null>(null);
 const statusInterval = ref<NodeJS.Timeout | null>(null);
+const wasOffline = ref(false);
+const showReconnectToast = ref(false);
 
 async function checkVectorizerStatus(): Promise<void> {
   try {
+    if (!window.electron) {
+      // Running in web mode - assume offline
+      vectorizerOnline.value = false;
+      vectorizerStatus.value = null;
+      wasOffline.value = true;
+      return;
+    }
+    
     const status = await window.electron.vectorizer.getStatus();
-    vectorizerOnline.value = status.online;
-    if (status.online) {
+    const isNowOnline = status.online;
+    
+    // Detect if Vectorizer came back online
+    if (isNowOnline && wasOffline.value) {
+      console.log('Vectorizer came back online, refreshing data...');
+      await refreshData();
+      wasOffline.value = false;
+    } else if (!isNowOnline) {
+      wasOffline.value = true;
+    }
+    
+    vectorizerOnline.value = isNowOnline;
+    if (isNowOnline) {
       vectorizerStatus.value = {
         version: status.version,
         uptime: status.uptime
       };
+    } else {
+      vectorizerStatus.value = null;
     }
   } catch (error) {
+    console.error('Failed to get Vectorizer status:', error);
     vectorizerOnline.value = false;
     vectorizerStatus.value = null;
+    wasOffline.value = true;
   }
 }
 
 async function startVectorizer(): Promise<void> {
   starting.value = true;
   try {
+    if (!window.electron) {
+      alert('This feature requires Electron. Please run the app in Electron mode.');
+      return;
+    }
+    
     const result = await window.electron.vectorizer.start();
     if (result.success) {
       // Wait for vectorizer to be ready
@@ -158,6 +151,7 @@ async function startVectorizer(): Promise<void> {
 }
 
 async function refreshData(): Promise<void> {
+  await connectionsStore.loadConnections();
   if (isConnected.value) {
     await vectorizerStore.loadCollections();
   }
@@ -187,10 +181,10 @@ function formatUptime(seconds: number): string {
 }
 
 onMounted(() => {
-  checkVectorizerStatus();
+  refreshData();
   
-  // Check status every 10 seconds
-  statusInterval.value = setInterval(checkVectorizerStatus, 10000);
+  // Check status every 5 seconds for faster detection
+  statusInterval.value = setInterval(checkVectorizerStatus, 5000);
 });
 
 onUnmounted(() => {
@@ -199,140 +193,4 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style scoped>
-.dashboard {
-  padding: 2rem;
-}
-
-.page-title {
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  color: #1a1a2e;
-}
-
-.status-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.card-body {
-  padding: 1.5rem;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ef4444;
-}
-
-.status-dot.online {
-  background: #10b981;
-}
-
-.status-info {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-}
-
-.offline-actions {
-  text-align: center;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.quick-actions {
-  margin-top: 2rem;
-}
-
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.action-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-card:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
-}
-
-.action-card i {
-  font-size: 2rem;
-  color: #3b82f6;
-  margin-bottom: 0.5rem;
-}
-
-.action-card h3 {
-  margin: 0.5rem 0;
-  font-size: 1rem;
-}
-
-.action-card p {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #2563eb;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-</style>
 

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { VectorizerClient } from '@hivellm/vectorizer-client';
-import type { Collection, SearchResult, IndexingProgress } from '@shared/types';
+import type { Collection, SearchResult, IndexingProgress, IndexingStatus } from '@shared/types';
 import { useConnectionsStore } from './connections';
 
 export const useVectorizerStore = defineStore('vectorizer', () => {
@@ -15,13 +15,13 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
   const isConnected = computed(() => client.value !== null);
   
   const totalVectors = computed(() => 
-    collections.value.reduce((sum, col) => sum + col.vector_count, 0)
+    collections.value.reduce((sum: number, col: Collection) => sum + col.vector_count, 0)
   );
 
   const avgDimension = computed(() => {
     if (collections.value.length === 0) return 0;
     return Math.round(
-      collections.value.reduce((sum, col) => sum + col.dimension, 0) / collections.value.length
+      collections.value.reduce((sum: number, col: Collection) => sum + col.dimension, 0) / collections.value.length
     );
   });
 
@@ -70,9 +70,41 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       error.value = null;
 
       const response = await client.value.listCollections();
-      collections.value = response as unknown as Collection[];
+      
+      let rawCollections: any[] = [];
+      
+      // Handle both direct array and wrapped response
+      if (Array.isArray(response)) {
+        rawCollections = response;
+      } else if (response && typeof response === 'object' && 'collections' in response) {
+        // Response is wrapped in { collections: [...] }
+        rawCollections = (response as any).collections;
+      }
+      
+      // Map API response to our Collection interface
+      collections.value = rawCollections.map((col: any): Collection => ({
+        name: col.name,
+        dimension: col.dimension,
+        metric: (col.metric?.toLowerCase() || 'cosine') as 'cosine' | 'euclidean' | 'dot',
+        vector_count: col.vector_count || col.document_count || 0,
+        embedding_provider: col.embedding_provider || 'unknown',
+        indexing_status: {
+          status: (col.indexing_status?.status || 'completed') as IndexingStatus,
+          progress: col.indexing_status?.progress || 1,
+          last_updated: col.indexing_status?.end_time || col.created_at
+        },
+        quantization: col.quantization ? {
+          enabled: col.quantization.enabled || false,
+          type: col.quantization.type
+        } : undefined,
+        size: col.size ? {
+          total: col.size.total || '0 B',
+          total_bytes: col.size.total_bytes || 0
+        } : undefined
+      }));
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load collections';
+      collections.value = [];
       throw err;
     } finally {
       loading.value = false;
@@ -117,7 +149,7 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       error.value = null;
 
       await client.value.deleteCollection(name);
-      collections.value = collections.value.filter(c => c.name !== name);
+      collections.value = collections.value.filter((c: Collection) => c.name !== name);
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to delete collection';
       throw err;

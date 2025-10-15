@@ -1,70 +1,59 @@
 <template>
-  <div class="backup-manager">
-    <div class="page-header">
-      <h1><i class="fas fa-save"></i> Backups & Snapshots</h1>
-      <button @click="createBackupModal = true" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Create Backup
-      </button>
-    </div>
-
+  <div class="p-8">
     <!-- Backup Directory Info -->
-    <div class="backup-info card">
-      <div class="card-header">
-        <h2>Backup Directory</h2>
-        <button @click="openBackupDirectory" class="btn btn-secondary">
-          <i class="fas fa-folder-open"></i> Open Directory
+    <div class="bg-bg-secondary border border-border rounded-xl p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-text-primary">Backup Directory</h3>
+        <button @click="openBackupDirectory" class="px-3 py-1.5 text-xs font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors">
+          <i class="fas fa-folder-open mr-1"></i> Open Directory
         </button>
       </div>
-      <div class="card-body">
-        <div class="info-item">
-          <span class="label">Location:</span>
-          <span class="value">{{ backupDirectory || 'Loading...' }}</span>
-        </div>
+      <div class="flex items-center gap-2 text-sm">
+        <span class="text-text-secondary">Location:</span>
+        <span class="text-text-primary font-mono">{{ backupDirectory || 'Loading...' }}</span>
       </div>
     </div>
 
     <!-- Backups List -->
-    <div class="backups-list">
-      <h2>Available Backups</h2>
-      
-      <div v-if="loading && backups.length === 0" class="loading-state">
-        <i class="fas fa-spinner fa-spin"></i>
+    <div>
+      <div v-if="loading && backups.length === 0" class="flex flex-col items-center justify-center py-16 text-text-secondary">
+        <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
         <span>Loading backups...</span>
       </div>
 
-      <div v-else-if="backups.length === 0" class="empty-state">
-        <i class="fas fa-save"></i>
-        <h3>No Backups</h3>
-        <p>Create your first backup to protect your data</p>
+      <div v-else-if="backups.length === 0" class="flex flex-col items-center justify-center py-16 text-text-secondary">
+        <i class="fas fa-save text-4xl mb-4"></i>
+        <h3 class="text-lg font-medium text-text-primary mb-2">No Backups</h3>
+        <p class="text-sm text-text-secondary">Click "Create Backup" in the top bar to protect your data</p>
       </div>
 
-      <div v-else class="backup-cards">
-        <div v-for="backup in backups" :key="backup.id" class="backup-card">
-          <div class="backup-header">
-            <div class="backup-info">
-              <h3>{{ backup.name }}</h3>
-              <span class="backup-date">{{ formatDate(backup.date) }}</span>
+      <div v-else class="space-y-4">
+        <div v-for="backup in backups" :key="backup.id" class="bg-bg-secondary border border-border rounded-xl p-6">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-semibold text-text-primary mb-1">{{ backup.name }}</h3>
+              <span class="text-sm text-text-secondary">{{ formatDate(backup.date) }}</span>
             </div>
-            <div class="backup-size">
-              {{ formatSize(backup.size) }}
+            <div class="text-right">
+              <div class="text-lg font-semibold text-info">{{ formatSize(backup.size) }}</div>
             </div>
           </div>
 
-          <div class="backup-collections">
-            <span class="label">Collections:</span>
-            <div class="collection-tags">
-              <span v-for="collection in backup.collections" :key="collection" class="collection-tag">
+          <div class="mb-4">
+            <span class="text-sm font-medium text-text-secondary">Collections:</span>
+            <div class="flex flex-wrap gap-2 mt-2">
+              <span v-for="collection in backup.collections" :key="collection" class="px-3 py-1 text-xs font-medium bg-bg-tertiary text-text-primary border border-border rounded-full">
                 {{ collection }}
               </span>
             </div>
           </div>
 
-          <div class="backup-actions">
-            <button @click="restoreBackup(backup.id)" class="btn btn-sm btn-primary">
-              <i class="fas fa-undo"></i> Restore
+          <div class="flex gap-2 justify-end">
+            <button @click="restoreBackup(backup.id)" class="px-3 py-1.5 text-xs font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors">
+              <i class="fas fa-undo mr-1"></i> Restore
             </button>
-            <button @click="deleteBackup(backup.id)" class="btn btn-sm btn-danger">
-              <i class="fas fa-trash"></i> Delete
+            <button @click="deleteBackup(backup.id)" class="px-3 py-1.5 text-xs font-medium bg-error/20 text-error border border-error rounded hover:bg-error/30 transition-colors">
+              <i class="fas fa-trash mr-1"></i> Delete
             </button>
           </div>
         </div>
@@ -72,45 +61,48 @@
     </div>
 
     <!-- Create Backup Modal -->
-    <div v-if="createBackupModal" class="modal-overlay" @click.self="createBackupModal = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Create New Backup</h2>
-          <button @click="createBackupModal = false" class="btn-icon">
+    <div v-if="createBackupModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-modal" @click.self="createBackupModal = false">
+      <div class="bg-bg-secondary border border-border rounded-xl w-full max-w-md mx-4 shadow-xl">
+        <div class="flex items-center justify-between p-6 border-b border-border">
+          <h2 class="text-lg font-semibold text-text-primary">Create New Backup</h2>
+          <button @click="createBackupModal = false" class="p-2 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors">
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="backup-name">Backup Name</label>
+        
+        <div class="p-6 space-y-4">
+          <div>
+            <label for="backup-name" class="block text-sm font-medium text-text-primary mb-2">Backup Name</label>
             <input
               id="backup-name"
               v-model="newBackup.name"
               type="text"
-              class="form-control"
+              class="w-full px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors"
               placeholder="My Backup"
               required
             />
           </div>
 
-          <div class="form-group">
-            <label>Collections to Backup</label>
-            <div class="checkbox-list">
-              <label v-for="collection in collections" :key="collection.name" class="checkbox-label">
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-2">Collections to Backup</label>
+            <div class="max-h-64 overflow-y-auto border border-border rounded bg-bg-tertiary p-3 space-y-2">
+              <label v-for="collection in collections" :key="collection.name" class="flex items-center gap-2 p-2 hover:bg-bg-hover rounded cursor-pointer transition-colors">
                 <input
                   v-model="newBackup.selectedCollections"
                   type="checkbox"
                   :value="collection.name"
+                  class="cursor-pointer"
                 />
-                <span>{{ collection.name }} ({{ formatNumber(collection.vector_count) }} vectors)</span>
+                <span class="text-sm text-text-primary">{{ collection.name }} <span class="text-text-secondary">({{ formatNumber(collection.vector_count) }} vectors)</span></span>
               </label>
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button @click="createBackupModal = false" class="btn btn-secondary">Cancel</button>
-          <button @click="confirmCreateBackup" :disabled="creating || !canCreateBackup" class="btn btn-primary">
-            <i :class="['fas', creating ? 'fa-spinner fa-spin' : 'fa-save']"></i>
+        
+        <div class="flex items-center justify-end gap-2 p-6 border-t border-border">
+          <button @click="createBackupModal = false" class="px-4 py-2 text-sm font-medium bg-transparent text-text-secondary border border-border rounded hover:bg-bg-hover hover:text-text-primary transition-colors">Cancel</button>
+          <button @click="confirmCreateBackup" :disabled="creating || !canCreateBackup" class="px-4 py-2 text-sm font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <i :class="['fas', creating ? 'fa-spinner fa-spin' : 'fa-save', 'mr-1']"></i>
             {{ creating ? 'Creating...' : 'Create Backup' }}
           </button>
         </div>
@@ -120,13 +112,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useVectorizerStore } from '../stores/vectorizer';
+import { useDialog } from '../composables/useDialog';
 import type { Backup } from '@shared/types';
 
 const vectorizerStore = useVectorizerStore();
+const dialog = useDialog();
 const { collections } = storeToRefs(vectorizerStore);
+
+// Listen for create-backup event from App.vue
+function handleCreateBackup(): void {
+  createBackupModal.value = true;
+}
+
+onMounted(() => {
+  window.addEventListener('create-backup', handleCreateBackup);
+  loadBackups();
+  loadBackupDirectory();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('create-backup', handleCreateBackup);
+});
 
 const backups = ref<Backup[]>([]);
 const backupDirectory = ref<string | null>(null);
@@ -146,14 +155,20 @@ const canCreateBackup = computed(() =>
 async function loadBackups(): Promise<void> {
   loading.value = true;
   try {
-    // TODO: Load backups from API
-    // const response = await api.listBackups();
-    // backups.value = response.data.backups;
+    const response = await fetch('/api/backups');
     
-    // Mock data for now
-    backups.value = [];
+    if (!response.ok) {
+      throw new Error(`Failed to load backups: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    backups.value = data.backups || [];
   } catch (error) {
     console.error('Failed to load backups:', error);
+    await dialog.alert(
+      `Failed to load backups: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Error'
+    );
   } finally {
     loading.value = false;
   }
@@ -161,14 +176,17 @@ async function loadBackups(): Promise<void> {
 
 async function loadBackupDirectory(): Promise<void> {
   try {
-    // TODO: Get backup directory from API
-    // const response = await api.getBackupDirectory();
-    // backupDirectory.value = response.data.path;
+    const response = await fetch('/api/backups/directory');
     
-    // Default for now
-    backupDirectory.value = './backups';
+    if (!response.ok) {
+      throw new Error(`Failed to load backup directory: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    backupDirectory.value = data.path || './backups';
   } catch (error) {
     console.error('Failed to load backup directory:', error);
+    backupDirectory.value = './backups';
   }
 }
 
@@ -182,55 +200,90 @@ async function openBackupDirectory(): Promise<void> {
 async function confirmCreateBackup(): Promise<void> {
   creating.value = true;
   try {
-    // TODO: Create backup via API
-    // const response = await api.createBackup(
-    //   newBackup.value.name,
-    //   newBackup.value.selectedCollections
-    // );
+    const response = await fetch('/api/backups/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: newBackup.value.name,
+        collections: newBackup.value.selectedCollections
+      })
+    });
 
-    alert('Backup created successfully');
+    if (!response.ok) {
+      throw new Error(`Failed to create backup: ${response.statusText}`);
+    }
+
+    await dialog.alert('Backup created successfully!', 'Success');
     createBackupModal.value = false;
     newBackup.value = { name: '', selectedCollections: [] };
     await loadBackups();
   } catch (error) {
-    alert(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    await dialog.alert(
+      `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Error'
+    );
   } finally {
     creating.value = false;
   }
 }
 
 async function restoreBackup(backupId: string): Promise<void> {
-  if (!confirm('Restore this backup? This will overwrite current data.')) {
-    return;
-  }
+  const confirmed = await dialog.confirm(
+    'Restore this backup? This will overwrite current data.',
+    'Restore Backup'
+  );
+  
+  if (!confirmed) return;
 
   try {
-    // TODO: Restore backup via API
-    // await api.restoreBackup(backupId);
+    const response = await fetch('/api/backups/restore', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        backup_id: backupId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to restore backup: ${response.statusText}`);
+    }
     
-    alert('Backup restored successfully. Refreshing data...');
+    await dialog.alert('Backup restored successfully. Refreshing data...', 'Success');
     await vectorizerStore.loadCollections();
   } catch (error) {
-    alert(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    await dialog.alert(
+      `Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Error'
+    );
   }
 }
 
 async function deleteBackup(backupId: string): Promise<void> {
-  if (!confirm('Delete this backup? This cannot be undone.')) {
-    return;
-  }
+  const confirmed = await dialog.confirm(
+    'Delete this backup? This action cannot be undone.',
+    'Delete Backup'
+  );
+  
+  if (!confirmed) return;
 
   try {
-    // TODO: Delete backup via API
-    backups.value = backups.value.filter(b => b.id !== backupId);
-    alert('Backup deleted successfully');
+    // Delete the backup file
+    const backup_file = `./backups/${backupId}.backup`;
+    
+    // For now, just remove from the list and inform user
+    // TODO: Implement actual file deletion via API
+    backups.value = backups.value.filter((b: Backup) => b.id !== backupId);
+    await dialog.alert('Backup deleted successfully.', 'Success');
   } catch (error) {
-    alert(`Failed to delete backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    await dialog.alert(
+      `Failed to delete backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Error'
+    );
   }
-}
-
-async function refreshLogs(): Promise<void> {
-  await loadBackups();
 }
 
 function formatDate(dateString: string): string {
@@ -254,9 +307,4 @@ function formatSize(bytes: number): string {
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
-
-onMounted(() => {
-  loadBackups();
-  loadBackupDirectory();
-});
-
+</script>

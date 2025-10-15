@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background Colors */
+  --color-bg-primary: oklch(14.5% 0 0);
+  --color-bg-secondary: oklch(18% 0 0);
+  --color-bg-tertiary: oklch(22% 0 0);
+  --color-bg-card: oklch(20% 0 0);
+  --color-bg-hover: oklch(25% 0 0);
+  --color-bg-elevated: oklch(27% 0 0);
+
+  /* Text Colors */
+  --color-text-primary: oklch(96% 0 0);
+  --color-text-secondary: oklch(75% 0 0);
+  --color-text-muted: oklch(45% 0 0);
+  --color-text-disabled: oklch(30% 0 0);
+
+  /* Border Colors */
+  --color-border: oklch(20% 0 0);
+  --color-border-light: oklch(25% 0 0);
+  --color-border-focus: oklch(30% 0 0);
+
+  /* Status Colors */
+  --color-success: oklch(65% 0.15 140);
+  --color-warning: oklch(75% 0.15 80);
+  --color-error: oklch(60% 0.15 20);
+  --color-info: oklch(65% 0.15 260);
+
+  /* Custom Breakpoints */
+  --breakpoint-3xl: 1920px;
+
+  /* Custom Easing */
+  --ease-fluid: cubic-bezier(0.3, 0, 0, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: oklch(18% 0 0);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: oklch(35% 0 0);
+    border-radius: 4px;
+    transition: all 200ms ease;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(45% 0 0);
+  }
+  
+  ::-webkit-scrollbar-thumb:active {
+    background: oklch(50% 0 0);
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background: oklch(18% 0 0);
+  }
+  
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(35% 0 0) oklch(18% 0 0);
+  }
+}
+
+/* Custom Utilities using @utility directive (Tailwind v4) */
+@utility bg-bg-primary {
+  background-color: var(--color-bg-primary);
+}
+
+@utility bg-bg-secondary {
+  background-color: var(--color-bg-secondary);
+}
+
+@utility bg-bg-tertiary {
+  background-color: var(--color-bg-tertiary);
+}
+
+@utility bg-bg-card {
+  background-color: var(--color-bg-card);
+}
+
+@utility bg-bg-hover {
+  background-color: var(--color-bg-hover);
+}
+
+@utility bg-bg-elevated {
+  background-color: var(--color-bg-elevated);
+}
+
+@utility text-text-primary {
+  color: var(--color-text-primary);
+}
+
+@utility text-text-secondary {
+  color: var(--color-text-secondary);
+}
+
+@utility text-text-muted {
+  color: var(--color-text-muted);
+}
+
+@utility text-text-disabled {
+  color: var(--color-text-disabled);
+}
+
+@utility border-border {
+  border-color: var(--color-border);
+}
+
+@utility border-border-light {
+  border-color: var(--color-border-light);
+}
+
+@utility border-border-focus {
+  border-color: var(--color-border-focus);
+}
+
+@utility bg-success {
+  background-color: var(--color-success);
+}
+
+@utility bg-warning {
+  background-color: var(--color-warning);
+}
+
+@utility bg-error {
+  background-color: var(--color-error);
+}
+
+@utility bg-info {
+  background-color: var(--color-info);
+}
+
+@utility text-success {
+  color: var(--color-success);
+}
+
+@utility text-warning {
+  color: var(--color-warning);
+}
+
+@utility text-error {
+  color: var(--color-error);
+}
+
+@utility text-info {
+  color: var(--color-info);
+}
+
+@utility border-error {
+  border-color: var(--color-error);
+}
+
+/* Animation utilities */
+@utility animate-slide-in {
+  animation: slideIn 0.3s var(--ease-fluid);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

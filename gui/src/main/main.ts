@@ -2,8 +2,48 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { join } from 'path';
 import Store from 'electron-store';
 import { VectorizerManager } from './vectorizer-manager';
+import { randomBytes } from 'crypto';
 
-const store = new Store();
+// Generate or load encryption key
+function getEncryptionKey(): string {
+  const tempStore = new Store({ name: 'vectorizer-secure' });
+  let encryptionKey = tempStore.get('encryptionKey') as string | undefined;
+  
+  if (!encryptionKey) {
+    // Generate a new encryption key on first run
+    encryptionKey = randomBytes(32).toString('hex');
+    tempStore.set('encryptionKey', encryptionKey);
+  }
+  
+  return encryptionKey;
+}
+
+// Initialize encrypted store for sensitive data
+const encryptionKey = getEncryptionKey();
+const store = new Store({
+  name: 'vectorizer-config',
+  encryptionKey,
+  // Store connections and sensitive data securely
+  schema: {
+    connections: {
+      type: 'array',
+      default: []
+    },
+    activeConnectionId: {
+      type: ['string', 'null'],
+      default: null
+    },
+    workspaces: {
+      type: 'array',
+      default: []
+    },
+    settings: {
+      type: 'object',
+      default: {}
+    }
+  }
+});
+
 const vectorizerManager = new VectorizerManager();
 
 let mainWindow: BrowserWindow | null = null;
@@ -75,8 +115,37 @@ ipcMain.handle('get-store-value', (_event, key: string): unknown => {
 });
 
 ipcMain.handle('set-store-value', (_event, key: string, value: unknown): boolean => {
-  store.set(key, value);
-  return true;
+  try {
+    store.set(key, value);
+    return true;
+  } catch (error) {
+    console.error('Failed to set store value:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('delete-store-value', (_event, key: string): boolean => {
+  try {
+    store.delete(key);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete store value:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('clear-store', (): boolean => {
+  try {
+    store.clear();
+    return true;
+  } catch (error) {
+    console.error('Failed to clear store:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('get-store-path', (): string => {
+  return store.path;
 });
 
 ipcMain.handle('vectorizer:start', async () => {

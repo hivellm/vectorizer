@@ -11,22 +11,48 @@ export const useConnectionsStore = defineStore('connections', () => {
   // Computed
   const activeConnection = computed<Connection | null>(() => {
     if (!activeConnectionId.value) return null;
-    return connections.value.find(c => c.id === activeConnectionId.value) ?? null;
+    return connections.value.find((c: Connection) => c.id === activeConnectionId.value) ?? null;
   });
 
   const onlineConnections = computed(() => 
-    connections.value.filter(c => c.status === 'online')
+    connections.value.filter((c: Connection) => c.status === 'online')
   );
 
   // Actions
   async function loadConnections(): Promise<void> {
     try {
+      // Check if running in Electron or web mode
+      if (!window.electron) {
+        console.warn('Running in web mode - using localStorage fallback (data is NOT encrypted)');
+        // Load from localStorage as fallback for development
+        const stored = localStorage.getItem('connections');
+        if (stored) {
+          try {
+            connections.value = JSON.parse(stored) as Connection[];
+          } catch (e) {
+            console.error('Failed to parse connections from localStorage:', e);
+            connections.value = [];
+          }
+        }
+        
+        const activeId = localStorage.getItem('activeConnectionId');
+        if (activeId) {
+          activeConnectionId.value = activeId;
+        }
+        
+        await checkAllConnectionsHealth();
+        return;
+      }
+
+      // Use encrypted Electron store
       const stored = await window.electron.getStoreValue('connections');
       if (Array.isArray(stored)) {
         connections.value = stored as Connection[];
+      } else {
+        connections.value = [];
       }
 
-      // Load active connection ID
+      // Load active connection ID from encrypted store
       const activeId = await window.electron.getStoreValue('activeConnectionId');
       if (typeof activeId === 'string') {
         activeConnectionId.value = activeId;
@@ -36,15 +62,35 @@ export const useConnectionsStore = defineStore('connections', () => {
       await checkAllConnectionsHealth();
     } catch (error) {
       console.error('Failed to load connections:', error);
+      connections.value = [];
     }
   }
 
   async function saveConnections(): Promise<void> {
     try {
-      await window.electron.setStoreValue('connections', connections.value);
+      // Check if running in Electron or web mode
+      if (!window.electron) {
+        // Save to localStorage as fallback for development (NOT encrypted)
+        console.warn('Saving to localStorage - data is NOT encrypted');
+        localStorage.setItem('connections', JSON.stringify(connections.value));
+        if (activeConnectionId.value) {
+          localStorage.setItem('activeConnectionId', activeConnectionId.value);
+        } else {
+          localStorage.removeItem('activeConnectionId');
+        }
+        return;
+      }
+
+      // Save to encrypted Electron store
+      const success = await window.electron.setStoreValue('connections', connections.value);
+      if (!success) {
+        throw new Error('Failed to save connections to encrypted store');
+      }
+      
       await window.electron.setStoreValue('activeConnectionId', activeConnectionId.value);
     } catch (error) {
       console.error('Failed to save connections:', error);
+      throw error;
     }
   }
 
@@ -60,18 +106,18 @@ export const useConnectionsStore = defineStore('connections', () => {
   }
 
   function updateConnection(id: string, updates: Partial<Omit<Connection, 'id'>>): void {
-    const index = connections.value.findIndex(c => c.id === id);
+    const index = connections.value.findIndex((c: Connection) => c.id === id);
     if (index !== -1) {
-      connections.value[index] = {
-        ...connections.value[index],
-        ...updates
-      };
+      // Create a new array to trigger reactivity
+      connections.value = connections.value.map((c: Connection) => 
+        c.id === id ? { ...c, ...updates } : c
+      );
       saveConnections();
     }
   }
 
   function removeConnection(id: string): void {
-    connections.value = connections.value.filter(c => c.id !== id);
+    connections.value = connections.value.filter((c: Connection) => c.id !== id);
     if (activeConnectionId.value === id) {
       activeConnectionId.value = null;
     }
@@ -79,23 +125,25 @@ export const useConnectionsStore = defineStore('connections', () => {
   }
 
   async function setActiveConnection(id: string): Promise<void> {
-    const connection = connections.value.find(c => c.id === id);
+    const connection = connections.value.find((c: Connection) => c.id === id);
     if (!connection) return;
 
-    // Deactivate all connections
-    connections.value.forEach(c => {
-      c.active = false;
-    });
+    // Update all connections reactively
+    connections.value = connections.value.map((c: Connection) => ({
+      ...c,
+      active: c.id === id
+    }));
 
-    // Activate selected connection
-    connection.active = true;
     activeConnectionId.value = id;
 
     await saveConnections();
+    
+    // Immediately check health of the new active connection
+    await checkConnectionHealth(id);
   }
 
   async function checkConnectionHealth(id: string): Promise<ConnectionStatus> {
-    const connection = connections.value.find(c => c.id === id);
+    const connection = connections.value.find((c: Connection) => c.id === id);
     if (!connection) return 'offline';
 
     try {
@@ -108,26 +156,28 @@ export const useConnectionsStore = defineStore('connections', () => {
       });
 
       const status: ConnectionStatus = response.ok ? 'online' : 'offline';
+      console.log(`Connection ${connection.name} (${id}): ${status}`);
       updateConnection(id, { status });
       return status;
-    } catch {
+    } catch (error) {
+      console.log(`Connection ${connection.name} (${id}): offline (error: ${error})`);
       updateConnection(id, { status: 'offline' });
       return 'offline';
     }
   }
 
   async function checkAllConnectionsHealth(): Promise<void> {
-    const promises = connections.value.map(c => checkConnectionHealth(c.id));
+    const promises = connections.value.map((c: Connection) => checkConnectionHealth(c.id));
     await Promise.allSettled(promises);
   }
 
   // Initialize
   loadConnections();
 
-  // Periodic health check (every 30 seconds)
+  // Periodic health check (every 10 seconds for more responsive UI)
   setInterval(() => {
     checkAllConnectionsHealth();
-  }, 30000);
+  }, 10000);
 
   return {
     // State

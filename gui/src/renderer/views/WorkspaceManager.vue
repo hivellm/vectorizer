@@ -1,128 +1,161 @@
 <template>
-  <div class="workspace-manager">
-    <div class="page-header">
-      <h1><i class="fas fa-folder-open"></i> Workspace Manager</h1>
-      <button @click="addDirectory" class="btn btn-primary">
-        <i class="fas fa-folder-plus"></i> Add Directory
-      </button>
+  <div class="p-8">
+    <!-- Projects Configuration -->
+    <div class="bg-bg-secondary border border-border rounded-xl p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4 flex-1">
+          <h2 class="text-xl font-semibold text-text-primary">Projects</h2>
+          <div class="flex-1 max-w-md">
+            <input
+              v-model="searchFilter"
+              type="text"
+              placeholder="Search projects..."
+              class="w-full px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-sm"
+            />
     </div>
-
-    <div class="workspace-info card">
-      <div class="card-header">
-        <h2>Workspace Directories</h2>
-        <div class="auto-save-indicator" :class="{ saving: autoSaving }">
-          <i :class="['fas', autoSaving ? 'fa-spinner fa-spin' : 'fa-check-circle']"></i>
-          <span>{{ autoSaving ? 'Saving...' : 'Saved' }}</span>
         </div>
-      </div>
-      <div class="card-body">
-        <div v-if="workspaces.length === 0" class="empty-state">
-          <i class="fas fa-folder-open"></i>
-          <h3>No Workspace Directories</h3>
-          <p>Add directories to start indexing files into collections</p>
+        <div class="flex gap-2">
+          <button @click="addProject" class="px-4 py-2 text-sm font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors">
+            <i class="fas fa-plus mr-2"></i>
+            Add Project
+          </button>
+          <button @click="saveWorkspaceConfig" :disabled="saving" class="px-4 py-2 text-sm font-medium rounded hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :class="hasUnsavedChanges ? 'bg-warning/20 text-warning border border-warning' : 'bg-bg-tertiary text-text-primary border border-border'">
+            <i :class="['fas', saving ? 'fa-spinner fa-spin' : 'fa-save', 'mr-2']"></i>
+            {{ saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Save Configuration' }}
+          </button>
         </div>
-
-        <div v-else class="workspaces-list">
-          <div v-for="workspace in workspaces" :key="workspace.path" class="workspace-item">
-            <div class="workspace-header">
-              <div class="workspace-info">
-                <i class="fas fa-folder"></i>
-                <div class="workspace-details">
-                  <span class="workspace-path">{{ workspace.path }}</span>
-                  <span class="workspace-collection">→ {{ workspace.collection_name }}</span>
-                </div>
-              </div>
-              <button @click="removeWorkspace(workspace.path)" class="btn-icon btn-danger">
-                <i class="fas fa-trash"></i>
-              </button>
             </div>
             
-            <div class="workspace-stats">
-              <span class="stat-item">
-                <i class="fas fa-file"></i>
-                {{ workspace.indexed_files }} files indexed
-              </span>
+      <div v-if="filteredProjects.length === 0 && workspaceConfig.projects.length === 0" class="flex flex-col items-center justify-center py-16 text-text-secondary">
+        <i class="fas fa-folder-open text-4xl mb-4"></i>
+        <h3 class="text-lg font-medium text-text-primary mb-2">No Projects</h3>
+        <p class="text-sm">Add your first project to get started</p>
             </div>
 
-            <!-- Indexing Progress -->
-            <div v-if="getIndexingProgress(workspace.collection_name)" class="indexing-progress">
-              <div class="progress-header">
-                <span>Indexing...</span>
-                <span class="progress-percent">
-                  {{ getIndexingProgress(workspace.collection_name)!.progress.toFixed(0) }}%
-                </span>
+      <div v-else-if="filteredProjects.length === 0" class="flex flex-col items-center justify-center py-16 text-text-secondary">
+        <i class="fas fa-search text-4xl mb-4"></i>
+        <h3 class="text-lg font-medium text-text-primary mb-2">No Results</h3>
+        <p class="text-sm">No projects match your search</p>
+      </div>
+
+      <div v-else class="space-y-4">
+        <div v-for="(project, projectIndex) in filteredProjects" :key="project.name" class="bg-bg-tertiary border border-border rounded-lg p-4">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex-1 grid grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-text-secondary mb-1">Project Name</label>
+                <input
+                  v-model="project.name"
+                  type="text"
+                  class="w-full px-3 py-2 bg-bg-primary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-sm"
+                  placeholder="project-name"
+                />
               </div>
-              <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  :style="{ width: getIndexingProgress(workspace.collection_name)!.progress + '%' }"
-                ></div>
+              <div>
+                <label class="block text-xs font-medium text-text-secondary mb-1">Path</label>
+                <input
+                  v-model="project.path"
+                  type="text"
+                  class="w-full px-3 py-2 bg-bg-primary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-sm"
+                  placeholder="../project-path"
+                />
               </div>
-              <div class="progress-info">
-                <span>{{ getIndexingProgress(workspace.collection_name)!.files_processed || 0 }} files processed</span>
+              <div>
+                <label class="block text-xs font-medium text-text-secondary mb-1">Description</label>
+                <input
+                  v-model="project.description"
+                  type="text"
+                  class="w-full px-3 py-2 bg-bg-primary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-sm"
+                  placeholder="Project description"
+                />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+            <button @click="removeProjectByName(project.name)" class="ml-4 p-2 text-error hover:bg-error/20 rounded transition-colors">
+              <i class="fas fa-trash"></i>
+            </button>
     </div>
 
-    <!-- Add Directory Modal -->
-    <div v-if="showAddModal" class="modal-overlay" @click.self="showAddModal = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Add Workspace Directory</h2>
-          <button @click="showAddModal = false" class="btn-icon">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Directory Path</label>
-            <div class="input-group">
-              <input
-                v-model="newWorkspace.path"
-                type="text"
-                class="form-control"
-                placeholder="Select a directory..."
-                readonly
-              />
-              <button @click="selectDirectory" class="btn btn-secondary">
-                <i class="fas fa-folder-open"></i> Browse
+          <!-- Collections -->
+          <div class="mt-4 pt-4 border-t border-border">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-text-primary">Collections</h3>
+              <button @click="addCollection(project.name)" class="px-3 py-1.5 text-xs font-medium bg-bg-primary text-text-secondary border border-border rounded hover:bg-bg-hover hover:text-text-primary transition-colors">
+                <i class="fas fa-plus mr-1"></i>
+                Add Collection
               </button>
             </div>
+
+            <div v-if="!project.collections || project.collections.length === 0" class="text-sm text-text-secondary py-2">
+              No collections configured
+            </div>
+
+            <div v-else class="space-y-2">
+              <div v-for="(collection, collectionIndex) in project.collections" :key="collection.name" class="bg-bg-primary border border-border rounded">
+                <!-- Collection Header (Always Visible) -->
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-bg-hover transition-colors" @click="toggleCollection(project.name, collectionIndex)">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <i :class="['fas fa-chevron-right text-xs text-text-muted transition-transform', { 'rotate-90': isCollectionExpanded(project.name, collectionIndex) }]"></i>
+                    <span class="text-sm font-medium text-text-primary truncate">{{ collection.name || 'Unnamed Collection' }}</span>
+                    <span class="text-xs text-text-secondary truncate">{{ collection.description }}</span>
+                  </div>
+                  <button @click.stop="removeCollection(project.name, collectionIndex)" class="p-1.5 text-error hover:bg-error/20 rounded transition-colors">
+                    <i class="fas fa-trash text-xs"></i>
+                  </button>
           </div>
 
-          <div class="form-group">
-            <label>Target Collection</label>
-            <select v-model="newWorkspace.collection" class="form-control">
-              <option value="">-- Select Collection --</option>
-              <option v-for="collection in collections" :key="collection.name" :value="collection.name">
-                {{ collection.name }}
-              </option>
-            </select>
-            <p class="form-help">Or create a new collection name</p>
+                <!-- Collection Details (Collapsed by default) -->
+                <div v-if="isCollectionExpanded(project.name, collectionIndex)" class="p-3 pt-0 space-y-3">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-medium text-text-secondary mb-1">Collection Name</label>
+                      <input
+                        v-model="collection.name"
+                        type="text"
+                        @click.stop
+                        class="w-full px-2 py-1.5 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-xs"
+                        placeholder="collection-name"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-text-secondary mb-1">Description</label>
             <input
-              v-if="!newWorkspace.collection"
-              v-model="newWorkspace.newCollectionName"
+                        v-model="collection.description"
               type="text"
-              class="form-control"
-              placeholder="New collection name..."
+                        @click.stop
+                        class="w-full px-2 py-1.5 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-xs"
+                        placeholder="Collection description"
             />
+                    </div>
           </div>
 
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input v-model="newWorkspace.autoIndex" type="checkbox" />
-              <span>Auto-index file changes</span>
-            </label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-medium text-text-secondary mb-1">Include Patterns</label>
+                      <textarea
+                        v-model="collection.include_patterns_str"
+                        @input="updateIncludePatterns(project.name, collectionIndex)"
+                        @click.stop
+                        rows="3"
+                        class="w-full px-2 py-1.5 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-xs font-mono"
+                        placeholder="**/*.md&#10;**/*.ts&#10;src/**/*"
+                      ></textarea>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-text-secondary mb-1">Exclude Patterns</label>
+                      <textarea
+                        v-model="collection.exclude_patterns_str"
+                        @input="updateExcludePatterns(project.name, collectionIndex)"
+                        @click.stop
+                        rows="3"
+                        class="w-full px-2 py-1.5 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors text-xs font-mono"
+                        placeholder="node_modules/**&#10;dist/**&#10;**/*.log"
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button @click="showAddModal = false" class="btn btn-secondary">Cancel</button>
-          <button @click="confirmAddDirectory" :disabled="!canAddDirectory" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add Directory
-          </button>
         </div>
       </div>
     </div>
@@ -130,246 +163,224 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { storeToRefs } from 'pinia';
+import { ref, computed, onMounted } from 'vue';
 import { useVectorizerStore } from '../stores/vectorizer';
-import type { WorkspaceDirectory, IndexingProgress } from '@shared/types';
-import { useDebounceFn } from '@vueuse/core';
+import { useDialog } from '../composables/useDialog';
+
+interface Collection {
+  name: string;
+  description: string;
+  include_patterns: string[];
+  exclude_patterns: string[];
+  include_patterns_str?: string;
+  exclude_patterns_str?: string;
+}
+
+interface Project {
+  name: string;
+  path: string;
+  description: string;
+  collections: Collection[];
+}
+
+interface WorkspaceConfig {
+  projects: Project[];
+}
 
 const vectorizerStore = useVectorizerStore();
-const { collections, isConnected } = storeToRefs(vectorizerStore);
+const dialog = useDialog();
+const saving = ref(false);
+const searchFilter = ref('');
+const hasUnsavedChanges = ref(false);
 
-const workspaces = ref<WorkspaceDirectory[]>([]);
-const indexingProgress = ref<IndexingProgress | null>(null);
-const autoSaving = ref(false);
-const showAddModal = ref(false);
-const progressInterval = ref<NodeJS.Timeout | null>(null);
-
-const newWorkspace = ref({
-  path: '',
-  collection: '',
-  newCollectionName: '',
-  autoIndex: true
+const workspaceConfig = ref<WorkspaceConfig>({
+  projects: []
 });
 
-const canAddDirectory = computed(() => 
-  newWorkspace.value.path && 
-  (newWorkspace.value.collection || newWorkspace.value.newCollectionName)
-);
+const filteredProjects = computed(() => {
+  if (!searchFilter.value.trim()) {
+    return workspaceConfig.value.projects;
+  }
+  const search = searchFilter.value.toLowerCase();
+  return workspaceConfig.value.projects.filter(p => 
+    p.name.toLowerCase().includes(search) ||
+    p.description.toLowerCase().includes(search) ||
+    p.path.toLowerCase().includes(search)
+  );
+});
 
-function addDirectory(): void {
-  showAddModal.value = true;
-  newWorkspace.value = {
-    path: '',
-    collection: '',
-    newCollectionName: '',
-    autoIndex: true
-  };
-}
+const expandedCollections = ref<Set<string>>(new Set());
 
-async function selectDirectory(): Promise<void> {
-  const path = await window.electron.selectDirectory();
-  if (path) {
-    newWorkspace.value.path = path;
+function toggleCollection(projectName: string, collectionIndex: number): void {
+  const key = `${projectName}-${collectionIndex}`;
+  if (expandedCollections.value.has(key)) {
+    expandedCollections.value.delete(key);
+  } else {
+    expandedCollections.value.add(key);
   }
 }
 
-const debouncedSave = useDebounceFn(async () => {
-  autoSaving.value = true;
+function isCollectionExpanded(projectName: string, collectionIndex: number): boolean {
+  return expandedCollections.value.has(`${projectName}-${collectionIndex}`);
+}
+
+function addProject(): void {
+  const timestamp = Date.now();
+  const newProject = {
+    name: `new-project-${timestamp}`,
+    path: `../new-project-${timestamp}`,
+    description: 'New Project Description',
+    collections: []
+  };
+  workspaceConfig.value.projects = [...workspaceConfig.value.projects, newProject];
+  hasUnsavedChanges.value = true;
+  
+  // Set filter to show only the new project
+  searchFilter.value = `new-project-${timestamp}`;
+  
+  // Scroll to top to see the filtered result
+  setTimeout(() => {
+    const container = document.querySelector('.overflow-y-auto');
+    if (container) {
+      container.scrollTop = 0;
+    }
+  }, 100);
+}
+
+async function removeProjectByName(projectName: string): Promise<void> {
+  const confirmed = await dialog.confirm(
+    `Are you sure you want to remove project "${projectName}"?`,
+    'Remove Project'
+  );
+  if (confirmed) {
+    const index = workspaceConfig.value.projects.findIndex(p => p.name === projectName);
+    if (index !== -1) {
+      workspaceConfig.value.projects.splice(index, 1);
+      hasUnsavedChanges.value = true;
+    }
+    searchFilter.value = '';
+  }
+}
+
+function addCollection(projectName: string): void {
+  const project = workspaceConfig.value.projects.find(p => p.name === projectName);
+  if (!project) return;
+  
+  if (!project.collections) {
+    project.collections = [];
+  }
+  
+  const timestamp = Date.now();
+  project.collections.push({
+    name: `new-collection-${timestamp}`,
+    description: 'New Collection Description',
+    include_patterns: [],
+    exclude_patterns: [],
+    include_patterns_str: '',
+    exclude_patterns_str: ''
+  });
+  hasUnsavedChanges.value = true;
+}
+
+async function removeCollection(projectName: string, collectionIndex: number): Promise<void> {
+  const project = workspaceConfig.value.projects.find(p => p.name === projectName);
+  if (!project) return;
+  
+  const collectionName = project.collections[collectionIndex].name;
+  const confirmed = await dialog.confirm(
+    `Remove collection "${collectionName}"?`,
+    'Remove Collection'
+  );
+  if (confirmed) {
+    project.collections.splice(collectionIndex, 1);
+    hasUnsavedChanges.value = true;
+  }
+}
+
+function updateIncludePatterns(projectName: string, collectionIndex: number): void {
+  const project = workspaceConfig.value.projects.find(p => p.name === projectName);
+  if (!project) return;
+  const collection = project.collections[collectionIndex];
+  collection.include_patterns = collection.include_patterns_str?.split('\n').filter((p: string) => p.trim()) || [];
+}
+
+function updateExcludePatterns(projectName: string, collectionIndex: number): void {
+  const project = workspaceConfig.value.projects.find(p => p.name === projectName);
+  if (!project) return;
+  const collection = project.collections[collectionIndex];
+  collection.exclude_patterns = collection.exclude_patterns_str?.split('\n').filter((p: string) => p.trim()) || [];
+}
+
+async function loadWorkspaceConfig(): Promise<void> {
   try {
-    // Save workspace configuration
-    await window.electron.setStoreValue('workspaces', workspaces.value);
+    const response = await fetch('/api/workspace/config');
+    if (!response.ok) {
+      throw new Error(`Failed to load workspace config: ${response.statusText}`);
+    }
     
-    // Force save all collections
-    for (const workspace of workspaces.value) {
-      // TODO: Call force-save API
+    const config = await response.json();
+    workspaceConfig.value = config;
+    
+    // Convert arrays to strings for textarea editing
+    if (config.projects) {
+      config.projects.forEach((project: Project) => {
+        project.collections?.forEach((collection: Collection) => {
+          collection.include_patterns_str = collection.include_patterns?.join('\n') || '';
+          collection.exclude_patterns_str = collection.exclude_patterns?.join('\n') || '';
+        });
+      });
     }
   } catch (error) {
-    console.error('Auto-save failed:', error);
-  } finally {
-    autoSaving.value = false;
+    console.error('Failed to load workspace configuration:', error);
+    await dialog.alert(
+      `Failed to load workspace configuration: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Error'
+    );
   }
-}, 3000);
+}
 
-async function confirmAddDirectory(): Promise<void> {
+async function saveWorkspaceConfig(): Promise<void> {
+  saving.value = true;
   try {
-    const collectionName = newWorkspace.value.collection || newWorkspace.value.newCollectionName;
-    
-    // Add workspace to vectorizer
-    // TODO: Call API to add workspace
-    
-    workspaces.value.push({
-      path: newWorkspace.value.path,
-      collection_name: collectionName,
-      indexed_files: 0,
-      auto_index: newWorkspace.value.autoIndex
+    // Clean up temporary string fields before saving
+    const configToSave = JSON.parse(JSON.stringify(workspaceConfig.value));
+    configToSave.projects.forEach((project: Project) => {
+      project.collections?.forEach((collection: Collection) => {
+        delete collection.include_patterns_str;
+        delete collection.exclude_patterns_str;
+      });
     });
 
-    debouncedSave();
-    showAddModal.value = false;
-  } catch (error) {
-    alert(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
+    const response = await fetch('/api/workspace/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configToSave)
+    });
 
-async function removeWorkspace(path: string): Promise<void> {
-  if (confirm(`Remove workspace directory?\n${path}`)) {
-    workspaces.value = workspaces.value.filter(w => w.path !== path);
-    debouncedSave();
-  }
-}
-
-function getIndexingProgress(collectionName: string) {
-  return indexingProgress.value?.collections.find(c => c.name === collectionName);
-}
-
-async function loadWorkspaces(): Promise<void> {
-  try {
-    const stored = await window.electron.getStoreValue('workspaces');
-    if (Array.isArray(stored)) {
-      workspaces.value = stored as WorkspaceDirectory[];
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to save: ${error}`);
     }
+
+    const result = await response.json();
+    hasUnsavedChanges.value = false;
+    await dialog.alert(
+      result.message || 'Workspace configuration saved successfully!',
+      'Success'
+    );
   } catch (error) {
-    console.error('Failed to load workspaces:', error);
+    console.error('Failed to save workspace configuration:', error);
+    await dialog.alert(
+      `Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Error'
+    );
+  } finally {
+    saving.value = false;
   }
 }
 
-async function loadIndexingProgress(): Promise<void> {
-  // TODO: Load indexing progress from API
-}
-
-onMounted(() => {
-  loadWorkspaces();
-  loadIndexingProgress();
-  
-  // Poll indexing progress every 2 seconds
-  progressInterval.value = setInterval(loadIndexingProgress, 2000);
-});
-
-onUnmounted(() => {
-  if (progressInterval.value) {
-    clearInterval(progressInterval.value);
-  }
+onMounted(async () => {
+  console.log('WorkspaceManager mounted!');
+  await loadWorkspaceConfig();
 });
 </script>
-
-<style scoped>
-.workspace-manager {
-  padding: 2rem;
-}
-
-.workspace-info {
-  margin-bottom: 2rem;
-}
-
-.auto-save-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #10b981;
-}
-
-.auto-save-indicator.saving {
-  color: #f59e0b;
-}
-
-.workspaces-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.workspace-item {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 1rem;
-}
-
-.workspace-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.workspace-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.workspace-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.workspace-path {
-  font-weight: 600;
-  color: #1a1a2e;
-}
-
-.workspace-collection {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.workspace-stats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.indexing-progress {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #3b82f6;
-  transition: width 0.3s ease;
-}
-
-.progress-info {
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.input-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.form-help {
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-</style>
-

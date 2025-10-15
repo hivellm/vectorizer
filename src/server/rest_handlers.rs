@@ -1759,12 +1759,83 @@ pub async fn get_logs(
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(100);
     
-    let _level = params.get("level");
+    let level_filter = params.get("level");
     
-    // TODO: Implement actual log reading from file or in-memory buffer
-    // For now, return mock logs
+    // Read logs from the .logs directory
+    let logs_dir = std::path::Path::new(".logs");
+    let mut all_logs = Vec::new();
+    
+    if logs_dir.exists() {
+        // Find the most recent log file
+        if let Ok(entries) = std::fs::read_dir(logs_dir) {
+            let mut log_files: Vec<_> = entries
+                .flatten()
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s == "log")
+                        .unwrap_or(false)
+                })
+                .collect();
+            
+            // Sort by modified time (newest first)
+            log_files.sort_by_key(|e| std::cmp::Reverse(e.metadata().and_then(|m| m.modified()).ok()));
+            
+            // Read only the most recent file
+            if let Some(entry) = log_files.first() {
+                let path = entry.path();
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    // Get last N lines from the file
+                    let log_lines: Vec<&str> = content.lines().rev().take(lines * 2).collect();
+                    
+                    for line in log_lines.iter().rev() {
+                        if line.trim().is_empty() {
+                            continue;
+                        }
+                        
+                        // Simple parsing
+                        let upper_line = line.to_uppercase();
+                        let level = if upper_line.contains("ERROR") {
+                            "ERROR"
+                        } else if upper_line.contains("WARN") {
+                            "WARN"
+                        } else if upper_line.contains("INFO") {
+                            "INFO"
+                        } else if upper_line.contains("DEBUG") {
+                            "DEBUG"
+                        } else {
+                            "INFO"
+                        };
+                        
+                        // Apply level filter if specified
+                        if let Some(filter_level) = level_filter {
+                            if !level.eq_ignore_ascii_case(filter_level) {
+                                continue;
+                            }
+                        }
+                        
+                        all_logs.push(json!({
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                            "level": level,
+                            "message": line,
+                            "source": "vectorizer"
+                        }));
+                        
+                        if all_logs.len() >= lines {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Reverse to show newest first
+    all_logs.reverse();
+    
     Json(json!({
-        "logs": []
+        "logs": all_logs
     }))
 }
 
@@ -1852,37 +1923,68 @@ pub async fn list_workspaces(
 
 /// Get configuration (for GUI)
 pub async fn get_config() -> Json<Value> {
-    // TODO: Read from config.yml
-    Json(json!({
-        "server": {
-            "host": "0.0.0.0",
-            "port": 15002
-        },
-        "storage": {
-            "data_dir": "./data",
-            "cache_size": 1024
-        },
-        "embedding": {
-            "provider": "fastembed",
-            "model": "BAAI/bge-small-en-v1.5",
-            "dimension": 384
-        },
-        "performance": {
-            "threads": 4,
-            "batch_size": 100
+    // Try multiple paths for config.yml
+    let possible_paths = vec![
+        "./config.yml",
+        "../config.yml",
+        "config.yml",
+        "/mnt/f/Node/hivellm/vectorizer/config.yml",
+    ];
+    
+    for path in &possible_paths {
+        info!("Trying to read config from: {}", path);
+        if let Ok(content) = std::fs::read_to_string(path) {
+            info!("Successfully read config from: {}", path);
+            match serde_yaml::from_str::<Value>(&content) {
+                Ok(config) => {
+                    info!("Successfully parsed config.yml");
+                    return Json(config);
+                }
+                Err(e) => {
+                    error!("Failed to parse config.yml from {}: {}", path, e);
+                }
+            }
         }
+    }
+    
+    // If all paths failed, log and return error
+    error!("Failed to read config.yml from any path. Tried: {:?}", possible_paths);
+    Json(json!({
+        "error": "config.yml not found",
+        "message": "Could not find config.yml file",
+        "server": { "host": "0.0.0.0", "port": 15002 },
+        "storage": { "data_dir": "./data", "cache_size": 1024 },
+        "embedding": { "provider": "fastembed", "model": "BAAI/bge-small-en-v1.5", "dimension": 384 },
+        "performance": { "threads": 4, "batch_size": 100 }
     }))
 }
 
 /// Update configuration (for GUI)
 pub async fn update_config(
-    Json(_payload): Json<Value>,
+    Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    // TODO: Write to config.yml
-    Ok(Json(json!({
-        "success": true,
-        "message": "Configuration updated successfully"
-    })))
+    // Write to config.yml
+    match serde_yaml::to_string(&payload) {
+        Ok(yaml_content) => {
+            match std::fs::write("./config.yml", yaml_content) {
+                Ok(_) => {
+                    info!("Configuration updated successfully");
+                    Ok(Json(json!({
+                        "success": true,
+                        "message": "Configuration updated successfully. Restart server for changes to take effect."
+                    })))
+                }
+                Err(e) => {
+                    error!("Failed to write config.yml: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to serialize config to YAML: {}", e);
+            Err(StatusCode::BAD_REQUEST)
+        }
+    }
 }
 
 /// Restart server (for GUI)
@@ -1896,9 +1998,34 @@ pub async fn restart_server() -> Json<Value> {
 
 /// List backups (for GUI)
 pub async fn list_backups() -> Json<Value> {
-    // TODO: Implement backup listing
+    let backup_dir = std::path::Path::new("./backups");
+    let mut backups = Vec::new();
+    
+    if backup_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(backup_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("backup") {
+                    // Read backup metadata
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(backup_data) = serde_json::from_str::<Value>(&content) {
+                            backups.push(backup_data);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort by date (newest first)
+    backups.sort_by(|a, b| {
+        let a_date = a.get("date").and_then(|d| d.as_str()).unwrap_or("");
+        let b_date = b.get("date").and_then(|d| d.as_str()).unwrap_or("");
+        b_date.cmp(a_date)
+    });
+    
     Json(json!({
-        "backups": []
+        "backups": backups
     }))
 }
 
@@ -1920,18 +2047,95 @@ pub async fn create_backup(
     
     info!("💾 Creating backup '{}' for collections: {:?}", name, collections);
     
-    // TODO: Implement backup creation
-    Ok(Json(json!({
-        "id": uuid::Uuid::new_v4().to_string(),
+    // Create backups directory if it doesn't exist
+    let backup_dir = std::path::Path::new("./backups");
+    if !backup_dir.exists() {
+        std::fs::create_dir_all(backup_dir)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    
+    // Generate backup ID and metadata
+    let backup_id = uuid::Uuid::new_v4().to_string();
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    
+    // Create backup data structure
+    let mut backup_data = json!({
+        "id": backup_id.clone(),
         "name": name,
-        "date": chrono::Utc::now().to_rfc3339(),
+        "date": timestamp,
+        "collections": collections.clone(),
         "size": 0,
+        "data": {}
+    });
+    
+    let mut total_size = 0u64;
+    let mut backup_collections_data = serde_json::Map::new();
+    
+    // Backup each collection
+    for collection_name in &collections {
+        match state.store.get_collection(collection_name) {
+            Ok(collection) => {
+                // Get all vectors from collection
+                let all_vectors = collection.get_all_vectors();
+                
+                let vectors: Vec<_> = all_vectors.iter()
+                    .map(|vector| {
+                        json!({
+                            "id": vector.id,
+                            "vector": vector.data,
+                            "metadata": vector.payload
+                        })
+                    })
+                    .collect();
+                
+                let collection_size = std::mem::size_of_val(&vectors) as u64;
+                total_size += collection_size;
+                
+                let config = collection.config();
+                
+                backup_collections_data.insert(
+                    collection_name.clone(),
+                    json!({
+                        "vectors": vectors,
+                        "dimension": config.dimension,
+                        "metric": format!("{:?}", config.metric)
+                    })
+                );
+                
+                info!("✅ Backed up collection '{}': {} vectors", collection_name, vectors.len());
+            },
+            Err(e) => {
+                error!("Failed to backup collection '{}': {}", collection_name, e);
+            }
+        }
+    }
+    
+    backup_data["data"] = Value::Object(backup_collections_data);
+    backup_data["size"] = json!(total_size);
+    
+    // Save backup to file
+    let backup_file = backup_dir.join(format!("{}.backup", backup_id));
+    let backup_json = serde_json::to_string_pretty(&backup_data)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    std::fs::write(&backup_file, backup_json)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    info!("💾 Backup created successfully: {}", backup_file.display());
+    
+    // Return metadata without full data
+    Ok(Json(json!({
+        "id": backup_id,
+        "name": name,
+        "date": timestamp,
+        "size": total_size,
         "collections": collections
     })))
 }
 
 /// Restore backup (for GUI)
 pub async fn restore_backup(
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     let backup_id = payload.get("backup_id")
@@ -1940,7 +2144,101 @@ pub async fn restore_backup(
     
     info!("♻️ Restoring backup: {}", backup_id);
     
-    // TODO: Implement backup restoration
+    // Load backup file
+    let backup_file = std::path::Path::new("./backups").join(format!("{}.backup", backup_id));
+    if !backup_file.exists() {
+        error!("Backup file not found: {}", backup_file.display());
+        return Err(StatusCode::NOT_FOUND);
+    }
+    
+    let backup_content = std::fs::read_to_string(&backup_file)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let backup_data: Value = serde_json::from_str(&backup_content)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let collections_data = backup_data.get("data")
+        .and_then(|d| d.as_object())
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Restore each collection
+    for (collection_name, collection_data) in collections_data {
+        let vectors = collection_data.get("vectors")
+            .and_then(|v| v.as_array())
+            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        let dimension = collection_data.get("dimension")
+            .and_then(|d| d.as_u64())
+            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)? as usize;
+        
+        info!("🔄 Restoring collection '{}': {} vectors", collection_name, vectors.len());
+        
+        // Create or get collection
+        let collection_exists = state.store.get_collection(collection_name).is_ok();
+        
+        if !collection_exists {
+            // Create new collection if it doesn't exist
+            use crate::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, CompressionConfig};
+            
+            let config = CollectionConfig {
+                dimension,
+                metric: DistanceMetric::Cosine,
+                hnsw_config: HnswConfig::default(),
+                quantization: QuantizationConfig::default(),
+                compression: CompressionConfig::default(),
+                normalization: None,
+            };
+            
+            state.store.create_collection(collection_name, config)
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+        
+        // Restore vectors
+        let mut vectors_to_insert = Vec::new();
+        
+        for vector_data in vectors {
+            let id = vector_data.get("id")
+                .and_then(|i| i.as_str())
+                .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+            
+            let vector_array = vector_data.get("vector")
+                .and_then(|v| v.as_array())
+                .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+            
+            let vector: Vec<f32> = vector_array.iter()
+                .filter_map(|f| f.as_f64())
+                .map(|f| f as f32)
+                .collect();
+            
+            let payload_value = vector_data.get("metadata").cloned();
+            let payload = payload_value.map(|v| crate::models::Payload { data: v });
+            
+            use crate::models::Vector;
+            let vec = Vector {
+                id: id.to_string(),
+                data: vector,
+                payload,
+            };
+            
+            vectors_to_insert.push(vec);
+        }
+        
+        // Insert all vectors at once
+        state.store.insert(collection_name, vectors_to_insert)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        let collection = state.store.get_collection(collection_name)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        info!("✅ Restored collection '{}': {} vectors", collection_name, collection.vector_count());
+    }
+    
+    // Force save all collections
+    state.store.force_save_all()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    info!("♻️ Backup restored successfully");
+    
     Ok(Json(json!({
         "success": true,
         "message": "Backup restored successfully"
@@ -1952,4 +2250,71 @@ pub async fn get_backup_directory() -> Json<Value> {
     Json(json!({
         "path": "./backups"
     }))
+}
+
+/// Get workspace configuration (for GUI)
+pub async fn get_workspace_config() -> Result<Json<Value>, StatusCode> {
+    let possible_paths = vec![
+        "./vectorize-workspace.yml",
+        "../vectorize-workspace.yml",
+        "../../vectorize-workspace.yml",
+        "./config/vectorize-workspace.yml",
+    ];
+
+    for path in &possible_paths {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            match serde_yaml::from_str::<Value>(&content) {
+                Ok(config) => {
+                    info!("✅ Loaded workspace config from: {}", path);
+                    return Ok(Json(config));
+                }
+                Err(e) => {
+                    error!("Failed to parse workspace YAML from {}: {}", path, e);
+                }
+            }
+        }
+    }
+
+    // Return minimal default if no file found
+    error!("⚠️ No workspace config file found in any of the expected paths");
+    Ok(Json(json!({
+        "global_settings": {
+            "file_watcher": {
+                "watch_paths": [],
+                "auto_discovery": true,
+                "enable_auto_update": true,
+                "hot_reload": true,
+                "exclude_patterns": []
+            }
+        },
+        "projects": []
+    })))
+}
+
+/// Update workspace configuration (for GUI)
+pub async fn update_workspace_config(
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    // Write to vectorize-workspace.yml
+    match serde_yaml::to_string(&payload) {
+        Ok(yaml_content) => {
+            match std::fs::write("./vectorize-workspace.yml", yaml_content) {
+                Ok(_) => {
+                    info!("Workspace configuration updated successfully");
+                    Ok(Json(json!({
+                        "success": true,
+                        "message": "Workspace configuration updated successfully."
+                    })))
+                }
+                Err(e) => {
+                    error!("Failed to write vectorize-workspace.yml: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to serialize workspace config to YAML: {}", e);
+            Err(StatusCode::BAD_REQUEST)
+        }
+    }
 }

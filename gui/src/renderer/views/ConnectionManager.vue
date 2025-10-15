@@ -1,94 +1,88 @@
 <template>
-  <div class="connection-manager">
-    <div class="page-header">
-      <h1><i class="fas fa-network-wired"></i> Connection Manager</h1>
-      <button @click="showAddConnectionForm = true" class="btn btn-primary">
-        <i class="fas fa-plus"></i> New Connection
-      </button>
-    </div>
-
+  <div class="p-8">
+    <div class="connection-manager">
     <!-- Add Connection Form -->
-    <div v-if="showAddConnectionForm" class="card form-card">
-      <div class="card-header">
-        <h3>{{ editingConnection ? 'Edit Connection' : 'Add New Connection' }}</h3>
-        <button @click="cancelForm" class="btn-icon">
+    <div v-if="showAddConnectionForm" class="bg-bg-secondary border border-border rounded-xl p-6 mb-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-semibold text-text-primary">{{ editingConnection ? 'Edit Connection' : 'Add New Connection' }}</h3>
+        <button @click="cancelForm" class="p-2 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors">
           <i class="fas fa-times"></i>
         </button>
       </div>
-      <div class="card-body">
-        <form @submit.prevent="saveConnection">
-          <div class="form-group">
-            <label for="conn-name">Connection Name</label>
+      <div>
+        <form @submit.prevent="saveConnection" class="space-y-4">
+          <div>
+            <label for="conn-name" class="block text-sm font-medium text-text-primary mb-2">Connection Name</label>
             <input
               id="conn-name"
               v-model="connectionForm.name"
               type="text"
-              class="form-control"
+              class="w-full px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors"
               placeholder="My Vectorizer"
               required
             />
           </div>
 
-          <div class="form-group">
-            <label>Connection Type</label>
-            <div class="radio-group">
-              <label class="radio-label">
-                <input v-model="connectionForm.type" type="radio" value="local" />
-                <span>Local</span>
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-2">Connection Type</label>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input v-model="connectionForm.type" type="radio" value="local" class="text-blue-500" />
+                <span class="text-sm text-text-primary">Local</span>
               </label>
-              <label class="radio-label">
-                <input v-model="connectionForm.type" type="radio" value="remote" />
-                <span>Remote</span>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input v-model="connectionForm.type" type="radio" value="remote" class="text-blue-500" />
+                <span class="text-sm text-text-primary">Remote</span>
               </label>
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="conn-host">Host</label>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="conn-host" class="block text-sm font-medium text-text-primary mb-2">Host</label>
               <input
                 id="conn-host"
                 v-model="connectionForm.host"
                 type="text"
-                class="form-control"
+                class="w-full px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors"
                 placeholder="localhost"
                 required
               />
             </div>
 
-            <div class="form-group">
-              <label for="conn-port">Port</label>
+            <div>
+              <label for="conn-port" class="block text-sm font-medium text-text-primary mb-2">Port</label>
               <input
                 id="conn-port"
                 v-model.number="connectionForm.port"
                 type="number"
-                class="form-control"
+                class="w-full px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors"
                 placeholder="3030"
                 required
               />
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="conn-token">API Token (Optional)</label>
+          <div>
+            <label for="conn-token" class="block text-sm font-medium text-text-primary mb-2">API Token (Optional)</label>
             <input
               id="conn-token"
               v-model="connectionForm.token"
               type="password"
-              class="form-control"
+              class="w-full px-3 py-2 bg-bg-tertiary border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-light transition-colors"
               placeholder="Enter API token if required"
             />
           </div>
 
-          <div class="form-actions">
-            <button type="button" @click="testConnection" :disabled="testing" class="btn btn-secondary">
-              <i :class="['fas', testing ? 'fa-spinner fa-spin' : 'fa-plug']"></i>
+          <div class="flex items-center justify-between pt-4">
+            <button type="button" @click="testConnection" :disabled="testing" class="px-4 py-2 text-sm font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i :class="['fas', testing ? 'fa-spinner fa-spin' : 'fa-plug', 'mr-2']"></i>
               {{ testing ? 'Testing...' : 'Test Connection' }}
             </button>
-            <div class="form-actions-right">
-              <button type="button" @click="cancelForm" class="btn btn-secondary">Cancel</button>
-              <button type="submit" :disabled="saving" class="btn btn-primary">
-                <i :class="['fas', saving ? 'fa-spinner fa-spin' : 'fa-save']"></i>
+            <div class="flex gap-2">
+              <button type="button" @click="cancelForm" class="px-4 py-2 text-sm font-medium bg-transparent text-text-secondary border border-border rounded hover:bg-bg-hover hover:text-text-primary transition-colors">Cancel</button>
+              <button type="submit" :disabled="saving" class="px-4 py-2 text-sm font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <i :class="['fas', saving ? 'fa-spinner fa-spin' : 'fa-save', 'mr-2']"></i>
                 {{ saving ? 'Saving...' : 'Save' }}
               </button>
             </div>
@@ -98,68 +92,72 @@
     </div>
 
     <!-- Connections List -->
-    <div class="connections-list">
-      <div v-if="connections.length === 0" class="empty-state">
-        <i class="fas fa-network-wired"></i>
-        <h3>No Connections</h3>
-        <p>Add your first connection to get started</p>
+    <div class="space-y-4">
+      <div v-if="connections.length === 0 && !showAddConnectionForm" class="flex flex-col items-center justify-center py-16 text-text-secondary">
+        <i class="fas fa-network-wired text-4xl mb-4"></i>
+        <h3 class="text-lg font-medium text-text-primary mb-2">No Connections</h3>
+        <p class="text-sm text-text-secondary">Click "New Connection" in the top bar to add your first connection</p>
       </div>
 
-      <div v-for="connection in connections" :key="connection.id" class="connection-card">
-        <div class="connection-header">
-          <div class="connection-info">
-            <h3>{{ connection.name }}</h3>
-            <span :class="['connection-type-badge', connection.type]">
+      <div v-for="connection in connections" :key="connection.id" class="bg-bg-secondary border border-border rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-lg font-semibold text-text-primary">{{ connection.name }}</h3>
+            <span class="px-2 py-1 text-xs font-medium rounded uppercase" :class="connection.type === 'local' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'">
               {{ connection.type }}
             </span>
           </div>
-          <div :class="['connection-status', connection.status]">
-            <span class="status-dot"></span>
-            <span>{{ connection.status }}</span>
+          <div class="flex items-center gap-2">
+            <span :class="['w-2 h-2 rounded-full', connection.status === 'online' ? 'bg-success' : 'bg-text-muted']"></span>
+            <span class="text-sm" :class="connection.status === 'online' ? 'text-success' : 'text-text-muted'">{{ connection.status }}</span>
           </div>
         </div>
 
-        <div class="connection-details">
-          <div class="detail-item">
-            <span class="detail-label">Endpoint:</span>
-            <span class="detail-value">{{ connection.host }}:{{ connection.port }}</span>
+        <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+          <div>
+            <span class="text-text-secondary">Endpoint:</span>
+            <span class="text-text-primary ml-2">{{ connection.host }}:{{ connection.port }}</span>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">Authentication:</span>
-            <span class="detail-value">{{ connection.auth?.token ? 'Token configured' : 'None' }}</span>
+          <div>
+            <span class="text-text-secondary">Authentication:</span>
+            <span class="text-text-primary ml-2">{{ connection.auth?.token ? 'Token configured' : 'None' }}</span>
           </div>
         </div>
 
-        <div class="connection-actions">
+        <div class="flex gap-2">
           <button
             @click="setActive(connection.id)"
             :disabled="connection.active"
-            class="btn btn-sm btn-primary"
+            class="px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="connection.active ? 'bg-success/20 text-success' : 'bg-bg-tertiary text-text-primary border border-border hover:bg-bg-hover'"
           >
-            <i class="fas fa-check"></i>
+            <i class="fas fa-check mr-1"></i>
             {{ connection.active ? 'Active' : 'Set Active' }}
           </button>
-          <button @click="editConnection(connection)" class="btn btn-sm btn-secondary">
-            <i class="fas fa-edit"></i> Edit
+          <button @click="editConnection(connection)" class="px-3 py-1.5 text-xs font-medium bg-bg-tertiary text-text-primary border border-border rounded hover:bg-bg-hover transition-colors">
+            <i class="fas fa-edit mr-1"></i> Edit
           </button>
-          <button @click="removeConnection(connection.id)" class="btn btn-sm btn-danger">
-            <i class="fas fa-trash"></i> Delete
+          <button @click="removeConnection(connection.id)" class="px-3 py-1.5 text-xs font-medium bg-error/20 text-error border border-error rounded hover:bg-error/30 transition-colors">
+            <i class="fas fa-trash mr-1"></i> Delete
           </button>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useConnectionsStore } from '../stores/connections';
 import { useVectorizerStore } from '../stores/vectorizer';
+import { useDialog } from '../composables/useDialog';
 import type { Connection } from '@shared/types';
 
 const connectionsStore = useConnectionsStore();
 const vectorizerStore = useVectorizerStore();
+const dialog = useDialog();
 
 const { connections } = storeToRefs(connectionsStore);
 
@@ -167,6 +165,19 @@ const showAddConnectionForm = ref(false);
 const editingConnection = ref<Connection | null>(null);
 const testing = ref(false);
 const saving = ref(false);
+
+// Listen for add-connection event from App.vue
+function handleAddConnection(): void {
+  showAddConnectionForm.value = true;
+}
+
+onMounted(() => {
+  window.addEventListener('add-connection', handleAddConnection);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('add-connection', handleAddConnection);
+});
 
 const connectionForm = reactive({
   name: '',
@@ -212,12 +223,15 @@ async function testConnection(): Promise<void> {
     });
 
     if (response.ok) {
-      alert('Connection successful!');
+      await dialog.alert('Connection successful! The server is reachable.', 'Connection Test');
     } else {
-      alert('Connection failed: Server returned error');
+      await dialog.alert('Connection failed: Server returned an error.', 'Connection Test Failed');
     }
   } catch (error) {
-    alert(`Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    await dialog.alert(
+      `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      'Connection Test Failed'
+    );
   } finally {
     testing.value = false;
   }
@@ -255,196 +269,20 @@ async function setActive(id: string): Promise<void> {
   await connectionsStore.setActiveConnection(id);
   
   // Reinitialize vectorizer client
-  const conn = connections.value.find(c => c.id === id);
+  const conn = connections.value.find((c: Connection) => c.id === id);
   if (conn) {
     await vectorizerStore.initializeClient(conn.host, conn.port, conn.auth?.token);
   }
 }
 
-function removeConnection(id: string): void {
-  if (confirm('Are you sure you want to delete this connection?')) {
+async function removeConnection(id: string): Promise<void> {
+  const confirmed = await dialog.confirm(
+    'Are you sure you want to delete this connection? This action cannot be undone.',
+    'Delete Connection'
+  );
+  
+  if (confirmed) {
     connectionsStore.removeConnection(id);
   }
 }
 </script>
-
-<style scoped>
-.connection-manager {
-  padding: 2rem;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
-}
-
-.form-card {
-  max-width: 600px;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.form-control {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
-.radio-group {
-  display: flex;
-  gap: 1rem;
-}
-
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1.5rem;
-}
-
-.form-actions-right {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.connections-list {
-  display: grid;
-  gap: 1rem;
-}
-
-.connection-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-}
-
-.connection-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.connection-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.connection-type-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.connection-type-badge.local {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.connection-type-badge.remote {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.connection-status.online {
-  color: #10b981;
-}
-
-.connection-status.offline {
-  color: #ef4444;
-}
-
-.connection-details {
-  display: grid;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.detail-item {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.detail-label {
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.connection-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-sm {
-  padding: 0.375rem 0.75rem;
-  font-size: 0.8125rem;
-}
-
-.btn-secondary {
-  background: #6b7280;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #4b5563;
-}
-
-.btn-danger {
-  background: #ef4444;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: #6b7280;
-}
-
-.empty-state i {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  color: #d1d5db;
-}
-</style>
-

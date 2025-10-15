@@ -1,4 +1,4 @@
-import { createRouter, createMemoryHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import Dashboard from './views/Dashboard.vue';
 import ConnectionManager from './views/ConnectionManager.vue';
 import CollectionDetail from './views/CollectionDetail.vue';
@@ -47,8 +47,17 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createMemoryHistory(),
+  history: createWebHashHistory(),
   routes
+});
+
+router.beforeEach((to, from, next) => {
+  console.log('Router navigating to:', to.path, to.name);
+  next();
+});
+
+router.onError((error) => {
+  console.error('Router error:', error);
 });
 
 export default router;
