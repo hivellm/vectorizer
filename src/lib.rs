@@ -12,7 +12,8 @@ pub mod cli;
 pub mod config;
 pub mod db;
 pub mod discovery;
-pub mod document_loader;
+// pub mod document_loader; // REMOVED - replaced by file_loader
+pub mod file_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
@@ -32,6 +33,7 @@ pub mod file_watcher;
 pub mod logging;
 pub mod server;
 pub mod file_operations;
+pub mod storage;
 pub mod umicp;
 #[cfg(feature = "transmutation")]
 pub mod transmutation_integration;

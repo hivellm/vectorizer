@@ -2,7 +2,7 @@ cargo-features = ["edition2024"]
 
 [package]
 name = "vectorizer"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -93,6 +93,7 @@ lz4_flex = "0.11"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
+zip = { version = "2.2", features = ["zstd", "deflate"] }
 
 # Text normalization dependencies
 blake3 = "1.5"
@@ -188,6 +189,10 @@ required-features = ["benchmarks"]
 name = "large_scale_benchmark"
 path = "benchmark/scripts/large_scale_benchmark.rs"
 required-features = ["benchmarks"]
+
+[[bin]]
+name = "storage_benchmark"
+path = "benchmark/scripts/storage_benchmark.rs"
 
 [[bin]]
 name = "diagnostic_benchmark"

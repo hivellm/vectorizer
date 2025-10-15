@@ -241,6 +241,7 @@ impl ConfigManager {
                 log_to_file: config_file.logging.log_to_file,
                 log_file: config_file.logging.log_file.map(PathBuf::from),
             },
+            storage: crate::storage::StorageConfig::default(),
         }
     }
 

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::{VectorStore, embedding::EmbeddingManager, document_loader::{DocumentLoader, LoaderConfig}};
+use crate::{VectorStore, embedding::EmbeddingManager, file_loader::{FileLoader, LoaderConfig}};
 use crate::error::{Result, VectorizerError};
 
 /// Vector operations for file watcher
@@ -69,10 +69,9 @@ impl VectorOperations {
             .map_err(|e| VectorizerError::IoError(e))?;
         
         // Create LoaderConfig for this file
-        let loader_config = LoaderConfig {
+        let mut loader_config = LoaderConfig {
             max_chunk_size: 2048,
             chunk_overlap: 256,
-            allowed_extensions: vec![],
             include_patterns: vec!["*".to_string()], // Include all files
             exclude_patterns: vec![],
             embedding_dimension: 512, // Default dimension
@@ -81,11 +80,23 @@ impl VectorOperations {
             max_file_size: 10 * 1024 * 1024, // 10MB
         };
         
-        // Create DocumentLoader and process the file
-        let mut loader = DocumentLoader::new(loader_config);
+        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+        loader_config.ensure_hardcoded_excludes();
         
-        // Process the file using load_project_async
-        match loader.load_project_async(&temp_dir.to_string_lossy(), &self.vector_store).await {
+        // Create FileLoader and process the file
+        let embedding_manager = {
+            let guard = self.embedding_manager.read().await;
+            // Create new embedding manager for this operation
+            let mut em = EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            em.register_provider("bm25".to_string(), Box::new(bm25));
+            em.set_default_provider("bm25").unwrap();
+            em
+        };
+        let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
+        
+        // Process the file
+        match loader.load_and_index_project(&temp_dir.to_string_lossy(), &self.vector_store).await {
             Ok(_) => {
                 tracing::info!("Successfully indexed file: {} in collection: {}", file_path, collection_name);
             },
@@ -151,10 +162,9 @@ impl VectorOperations {
         }
 
         // Build loader config
-        let loader_config = LoaderConfig {
+        let mut loader_config = LoaderConfig {
             max_chunk_size: 2048,
             chunk_overlap: 256,
-            allowed_extensions: vec![],
             include_patterns: vec!["*".to_string()],
             exclude_patterns: vec![],
             embedding_dimension: 512,
@@ -162,9 +172,19 @@ impl VectorOperations {
             collection_name: collection_name.clone(),
             max_file_size: self.config.max_file_size as usize,
         };
+        
+        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+        loader_config.ensure_hardcoded_excludes();
 
-        let mut loader = DocumentLoader::new(loader_config);
-        match loader.load_project_async(&temp_dir.to_string_lossy(), &self.vector_store).await {
+        let embedding_manager = {
+            let mut em = EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            em.register_provider("bm25".to_string(), Box::new(bm25));
+            em.set_default_provider("bm25").unwrap();
+            em
+        };
+        let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
+        match loader.load_and_index_project(&temp_dir.to_string_lossy(), &self.vector_store).await {
             Ok(_) => {
                 tracing::info!("Successfully indexed file via temp copy: {:?}", path);
             }

@@ -2,10 +2,12 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.8.0 - Transmutation Document Conversion**
+## ✨ **Version 0.8.0 - Transmutation & Compact Storage**
 
 ### 🎯 **Key Features**
+- **💾 Compact Storage (.vecdb)**: Unified compressed archives with 20-30% space savings and snapshot support
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images to Markdown
+- **📸 Snapshot System**: Automatic backups with configurable retention policies
 - **UMICP Protocol Support**: Full support for Universal Model Interface Communication Protocol (38 tools)
 - **Text Normalization System**: Content-aware normalization with 30-50% storage reduction
 - **Real-time File Watcher**: Automatic file monitoring and indexing
@@ -15,10 +17,11 @@ A high-performance vector database and search engine built in Rust, designed for
 - **Discovery Pipeline**: 9-stage semantic discovery with evidence compression
 
 ### 🧪 **Quality Metrics**
-- ✅ **366 tests passing** (100% pass rate)
+- ✅ **396 tests passing** (100% pass rate)
 - ⚡ **2.01s execution time**
 - 🎯 **Production-ready** with comprehensive coverage
 - 📄 **19 transmutation tests** (100% pass rate)
+- 💾 **30+ storage system tests** (compaction, snapshots, migration)
 
 ## 🌟 **Core Capabilities**
 
@@ -125,7 +128,62 @@ cache:
   enabled: true
   max_entries: 10000
   ttl_seconds: 3600
+
+# Compact storage with snapshots (NEW in v0.8.0)
+storage:
+  compression:
+    enabled: true          # Enable .vecdb format
+    format: "zstd"
+    level: 3               # Balanced compression
+  snapshots:
+    enabled: true          # Automatic backups
+    interval_hours: 1      # Hourly snapshots
+    retention_days: 2      # Keep for 2 days
+    max_snapshots: 48
 ```
+
+## 💾 **Storage System**
+
+### Compact Format (.vecdb)
+
+New unified storage format with compression and snapshots:
+
+**Benefits:**
+- ✅ 20-30% disk space reduction
+- ✅ Automatic snapshots with retention policies
+- ✅ Single-file backups (easy portability)
+- ✅ Atomic updates (corruption-safe)
+- ✅ Faster backups (copy vs full backup)
+
+**CLI Commands:**
+```bash
+# View storage stats
+vectorizer storage info --detailed
+
+# Manage snapshots
+vectorizer snapshot list
+vectorizer snapshot create
+vectorizer snapshot restore --id 20241014_120000 --force
+
+# Verify integrity
+vectorizer storage verify --fix
+
+# Manual migration (if needed)
+vectorizer storage migrate
+```
+
+**Format Support:**
+- **Legacy:** Individual files (automatic migration offered on startup)
+- **Compact:** Single `.vecdb` archive (recommended for production)
+
+**Migration:**
+- ✅ **Automatic detection and prompt on startup**
+- ✅ **Interactive migration** - asks user confirmation (Y/n)
+- ✅ Safe migration with timestamped backup
+- ✅ Rollback support if needed
+- ✅ Zero data loss guarantee
+
+See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for details.
 
 ## 📊 **Performance**
 

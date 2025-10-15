@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::config::FileWatcherYamlConfig;
 use crate::summarization::SummarizationConfig;
+use crate::storage::StorageConfig;
 
 /// Main Vectorizer configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +20,9 @@ pub struct VectorizerConfig {
     /// Transmutation configuration
     #[serde(default)]
     pub transmutation: TransmutationConfig,
+    /// Storage configuration (vecdb compaction)
+    #[serde(default)]
+    pub storage: StorageConfig,
     /// Projects configuration
     pub projects: Vec<ProjectConfig>,
 }
@@ -146,6 +150,7 @@ impl Default for VectorizerConfig {
             logging: LoggingConfig::default(),
             summarization: SummarizationConfig::default(),
             transmutation: TransmutationConfig::default(),
+            storage: StorageConfig::default(),
             projects: Vec::new(),
         }
     }

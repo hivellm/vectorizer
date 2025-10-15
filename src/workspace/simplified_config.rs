@@ -117,23 +117,29 @@ pub struct SimplifiedCollectionConfig {
     /// File patterns to include
     pub include_patterns: Vec<String>,
     
-    /// File patterns to exclude
+    /// File patterns to exclude (optional - defaults to empty)
+    #[serde(default)]
     pub exclude_patterns: Vec<String>,
     
     // Optional overrides (inherit from defaults if not specified)
     /// Override embedding configuration
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub embedding: Option<EmbeddingConfig>,
     
     /// Override dimension
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dimension: Option<u32>,
     
     /// Override metric
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metric: Option<String>,
     
     /// Override indexing configuration
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub indexing: Option<IndexingConfig>,
     
     /// Override processing configuration
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub processing: Option<ProcessingConfig>,
 }
 
