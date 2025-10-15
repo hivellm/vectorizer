@@ -237,9 +237,11 @@ async function testConnection(): Promise<void> {
   }
 }
 
-function saveConnection(): void {
+async function saveConnection(): Promise<void> {
   saving.value = true;
   try {
+    const isFirstConnection = connections.value.length === 0;
+    
     if (editingConnection.value) {
       connectionsStore.updateConnection(editingConnection.value.id, {
         name: connectionForm.name,
@@ -255,8 +257,16 @@ function saveConnection(): void {
         host: connectionForm.host,
         port: connectionForm.port,
         auth: connectionForm.token ? { token: connectionForm.token } : undefined,
-        active: connections.value.length === 0 // Set as active if first connection
+        active: false  // Will be set active below
       });
+      
+      // Auto-select first connection
+      if (isFirstConnection) {
+        const newConn = connections.value[connections.value.length - 1];
+        if (newConn) {
+          await setActive(newConn.id);
+        }
+      }
     }
 
     cancelForm();

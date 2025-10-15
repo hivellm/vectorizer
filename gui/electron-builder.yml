@@ -15,6 +15,10 @@ files:
   - "!tsconfig*.json"
   - "!*.map"
 
+asar: false
+npmRebuild: false
+nodeGypRebuild: false
+
 extraResources:
   - from: ../target/release/vectorizer${os === 'win' ? '.exe' : ''}
     to: vectorizer${os === 'win' ? '.exe' : ''}

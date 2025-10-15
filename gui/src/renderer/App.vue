@@ -1,5 +1,26 @@
 <template>
-  <div id="app" class="flex h-screen bg-bg-primary text-text-primary">
+  <div id="app" class="flex flex-col h-screen bg-bg-primary text-text-primary">
+    <!-- Custom Titlebar -->
+    <div class="h-8 bg-bg-secondary border-b border-border flex items-center justify-between px-4 drag-region flex-shrink-0">
+      <div class="flex items-center gap-2 text-xs text-text-secondary">
+        <i class="fas fa-cube"></i>
+        <span>Vectorizer GUI</span>
+      </div>
+      <div class="flex items-center gap-1 no-drag">
+        <button @click="minimizeWindow" class="p-1 w-8 h-8 hover:bg-bg-hover transition-colors rounded">
+          <i class="fas fa-window-minimize text-xs"></i>
+        </button>
+        <button @click="maximizeWindow" class="p-1 w-8 h-8 hover:bg-bg-hover transition-colors rounded">
+          <i class="fas fa-window-maximize text-xs"></i>
+        </button>
+        <button @click="closeWindow" class="p-1 w-8 h-8 hover:bg-red-600 hover:text-white transition-colors rounded">
+          <i class="fas fa-times text-xs"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex flex-1 min-h-0">
     <!-- Sidebar -->
     <aside class="w-64 bg-bg-secondary border-r border-border flex flex-col">
 
@@ -7,9 +28,8 @@
       <div class="h-14 flex items-center px-4 border-b border-border flex-shrink-0">
         <div class="connection-dropdown relative w-full" :class="{ 'z-dropdown': isDropdownOpen }">
           <button 
-            @click="toggleDropdown" 
-            class="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="connections.length === 0"
+            @click="connections.length === 0 ? openConnectionManager() : toggleDropdown()" 
+            class="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors cursor-pointer"
           >
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 whitespace-nowrap overflow-hidden text-ellipsis">
@@ -61,9 +81,14 @@
       <div class="flex-1 flex flex-col min-h-0">
         <div class="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           <h3 class="text-sm font-semibold text-text-primary">Collections</h3>
-          <button @click="createCollection" class="p-1 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors" title="New Collection">
-            <i class="fas fa-plus text-sm"></i>
-          </button>
+          <div class="flex gap-1">
+            <button @click="refreshCollections" class="p-1 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors" title="Refresh Collections">
+              <i class="fas fa-sync text-sm" :class="{ 'fa-spin': loading }"></i>
+            </button>
+            <button @click="createCollection" class="p-1 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors" title="New Collection">
+              <i class="fas fa-plus text-sm"></i>
+            </button>
+          </div>
         </div>
         
         <div v-if="loading" class="flex flex-col items-center justify-center py-12 text-text-secondary flex-1">
@@ -217,6 +242,7 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -295,6 +321,8 @@ async function selectConnection(connectionId: string): Promise<void> {
   activeConnectionId.value = connectionId;
   isDropdownOpen.value = false;
   await switchConnection();
+  // Auto-reload collections after switching
+  await vectorizerStore.loadCollections();
 }
 
 function openConnectionManager(): void {
@@ -360,17 +388,44 @@ function selectCollection(name: string): void {
   router.push(`/collections/${name}`);
 }
 
+async function refreshCollections(): Promise<void> {
+  if (activeConnection.value) {
+    await vectorizerStore.loadCollections();
+  }
+}
+
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
+}
+
+function minimizeWindow(): void {
+  window.electron?.windowMinimize();
+}
+
+function maximizeWindow(): void {
+  window.electron?.windowMaximize();
+}
+
+function closeWindow(): void {
+  window.electron?.windowClose();
 }
 
 onMounted(async () => {
   await connectionsStore.loadConnections();
   
-  // Auto-select active connection
-  if (activeConnection.value) {
-    activeConnectionId.value = activeConnection.value.id;
-    await switchConnection();
+  // Auto-open connection manager if no connections exist
+  if (connections.value.length === 0) {
+    router.push('/connections');
+    // Trigger the add connection form
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('add-connection'));
+    }, 100);
+  } else {
+    // Auto-select active connection
+    if (activeConnection.value) {
+      activeConnectionId.value = activeConnection.value.id;
+      await switchConnection();
+    }
   }
   
   // Close dropdown when clicking outside
@@ -382,3 +437,12 @@ onMounted(async () => {
   });
 });
 </script>
+
+<style scoped>
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+</style>

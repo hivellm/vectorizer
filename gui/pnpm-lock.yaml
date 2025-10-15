@@ -17,6 +17,9 @@ importers:
       '@vueuse/core':
         specifier: ^10.7.0
         version: 10.11.1(vue@3.5.22(typescript@5.9.3))
+      conf:
+        specifier: ^10.2.0
+        version: 10.2.0
       electron-store:
         specifier: ^8.1.0
         version: 8.2.0
@@ -34,11 +37,8 @@ importers:
         version: 3.5.22(typescript@5.9.3)
       vue-router:
         specifier: ^4.2.5
-        version: 4.6.0(vue@3.5.22(typescript@5.9.3))
+        version: 4.6.2(vue@3.5.22(typescript@5.9.3))
     devDependencies:
-      '@rollup/rollup-win32-x64-msvc':
-        specifier: ^4.52.4
-        version: 4.52.4
       '@tailwindcss/postcss':
         specifier: ^4.1.14
         version: 4.1.14
@@ -1974,8 +1974,8 @@ packages:
       '@vue/composition-api':
         optional: true
 
-  vue-router@4.6.0:
-    resolution: {integrity: sha512-YRrWLi4ayHe1d6zyH6sMPwF/WwcDY8XgUOfQGa0Kx4kmugSorLavD1ExrM/Y83B4X2NQMXYpJFSq2pbZh9ildQ==}
+  vue-router@4.6.2:
+    resolution: {integrity: sha512-my83mxQKXyCms9EegBXZldehOihxBjgSjZqrZwgg4vBacNGl0oBCO+xT//wgOYpLV1RW93ZfqxrjTozd+82nbA==}
     peerDependencies:
       vue: ^3.5.0
 
@@ -2343,7 +2343,8 @@ snapshots:
   '@rollup/rollup-win32-x64-gnu@4.52.4':
     optional: true
 
-  '@rollup/rollup-win32-x64-msvc@4.52.4': {}
+  '@rollup/rollup-win32-x64-msvc@4.52.4':
+    optional: true
 
   '@sideway/address@4.1.5':
     dependencies:
@@ -3993,7 +3994,7 @@ snapshots:
     dependencies:
       vue: 3.5.22(typescript@5.9.3)
 
-  vue-router@4.6.0(vue@3.5.22(typescript@5.9.3)):
+  vue-router@4.6.2(vue@3.5.22(typescript@5.9.3)):
     dependencies:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.22(typescript@5.9.3)

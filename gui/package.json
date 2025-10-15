@@ -1,7 +1,6 @@
 {
   "name": "vectorizer-gui",
   "version": "0.1.0",
-  "type": "module",
   "description": "Desktop GUI for Vectorizer - High-performance vector database",
   "main": "dist-electron/main/main.js",
   "author": "HiveLLM Contributors",
@@ -27,6 +26,7 @@
     "@hivellm/vectorizer-client": "^0.4.1",
     "@monaco-editor/loader": "^1.6.1",
     "@vueuse/core": "^10.7.0",
+    "conf": "^10.2.0",
     "electron-store": "^8.1.0",
     "js-yaml": "^4.1.0",
     "pinia": "^2.1.7",
@@ -35,7 +35,6 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.52.4",
     "@tailwindcss/postcss": "^4.1.14",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
@@ -60,6 +59,7 @@
       "output": "dist-release",
       "buildResources": "build"
     },
+    "includeSubNodeModules": true,
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
@@ -69,6 +69,9 @@
       "!tsconfig*.json",
       "!*.map"
     ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "asar": false,
     "extraResources": [
       {
         "from": "../config.yml",
@@ -79,7 +82,9 @@
       "target": [
         {
           "target": "msi",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icons/icon.ico",
@@ -89,7 +94,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "assets/icons/icon.icns",
@@ -101,7 +109,9 @@
       "target": [
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icons/icon.png",

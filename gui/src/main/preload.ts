@@ -9,6 +9,9 @@ export interface ElectronAPI {
   clearStore: () => Promise<boolean>;
   getStorePath: () => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
+  windowMinimize: () => void;
+  windowMaximize: () => void;
+  windowClose: () => void;
   vectorizer: {
     start: () => Promise<{ success: boolean; message: string }>;
     stop: () => Promise<{ success: boolean; message: string }>;
@@ -36,6 +39,9 @@ const electronAPI: ElectronAPI = {
   clearStore: () => ipcRenderer.invoke('clear-store'),
   getStorePath: () => ipcRenderer.invoke('get-store-path'),
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
+  windowMinimize: () => ipcRenderer.send('window-minimize'),
+  windowMaximize: () => ipcRenderer.send('window-maximize'),
+  windowClose: () => ipcRenderer.send('window-close'),
   vectorizer: {
     start: () => ipcRenderer.invoke('vectorizer:start'),
     stop: () => ipcRenderer.invoke('vectorizer:stop'),

@@ -54,6 +54,8 @@ function createWindow(): void {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
+    frame: false,
+    titleBarStyle: 'hidden',
     icon: join(__dirname, '../../assets/icons/icon.png'),
     webPreferences: {
       nodeIntegration: false,
@@ -166,6 +168,25 @@ ipcMain.handle('vectorizer:status', async () => {
 
 ipcMain.handle('vectorizer:logs', async () => {
   return vectorizerManager.getLogs();
+});
+
+// Window control handlers
+ipcMain.on('window-minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window-maximize', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+
+ipcMain.on('window-close', () => {
+  if (mainWindow) mainWindow.close();
 });
 
 // Cleanup on quit
