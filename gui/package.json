@@ -6,6 +6,7 @@
   "main": "dist-electron/main/main.js",
   "author": "HiveLLM Contributors",
   "license": "MIT",
+  "homepage": "https://github.com/hivellm/vectorizer",
   "scripts": {
     "dev": "node dev-runner.js",
     "dev:simple": "node dev-runner-simple.js",
@@ -69,10 +70,6 @@
       "!*.map"
     ],
     "extraResources": [
-      {
-        "from": "../target/release/vectorizer${os === 'win' ? '.exe' : ''}",
-        "to": "vectorizer${os === 'win' ? '.exe' : ''}"
-      },
       {
         "from": "../config.yml",
         "to": "config.example.yml"
