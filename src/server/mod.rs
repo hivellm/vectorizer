@@ -491,6 +491,23 @@ impl VectorizerServer {
             .route("/stats", get(rest_handlers::get_stats))
             .route("/indexing/progress", get(rest_handlers::get_indexing_progress))
             
+            // GUI-specific endpoints
+            .route("/api/status", get(rest_handlers::get_status))
+            .route("/api/logs", get(rest_handlers::get_logs))
+            .route("/api/collections/{name}/force-save", post(rest_handlers::force_save_collection))
+            .route("/api/workspace/add", post(rest_handlers::add_workspace))
+            .route("/api/workspace/remove", post(rest_handlers::remove_workspace))
+            .route("/api/workspace/list", get(rest_handlers::list_workspaces))
+            .route("/api/workspace/config", get(rest_handlers::get_workspace_config))
+            .route("/api/workspace/config", post(rest_handlers::update_workspace_config))
+            .route("/api/config", get(rest_handlers::get_config))
+            .route("/api/config", post(rest_handlers::update_config))
+            .route("/admin/restart", post(rest_handlers::restart_server))
+            .route("/api/backups", get(rest_handlers::list_backups))
+            .route("/api/backups/create", post(rest_handlers::create_backup))
+            .route("/api/backups/restore", post(rest_handlers::restore_backup))
+            .route("/api/backups/directory", get(rest_handlers::get_backup_directory))
+            
             // Collection management
             .route("/collections", get(rest_handlers::list_collections))
             .route("/collections", post(rest_handlers::create_collection))

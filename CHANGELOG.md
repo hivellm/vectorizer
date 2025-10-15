@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2025-10-15
+
+### 🖥️ **Vectorizer GUI - Electron Desktop Application**
+
+#### **GUI Package Configuration**
+- ✅ **Electron Build Setup**: Configured electron-builder for Windows MSI installer generation
+- ✅ **Package Dependencies**: Added `conf` package for application settings management
+- ✅ **Build Optimization**: Disabled ASAR packaging, npm rebuild, and node-gyp rebuild for stability
+- ✅ **Sub-modules Support**: Enabled `includeSubNodeModules` for complete dependency inclusion
+- ✅ **Module System**: Changed from ES modules to CommonJS for better Electron compatibility
+
+#### **Build Configuration Improvements**
+- ✅ **Windows Target**: Configured MSI installer build for x64 architecture
+- ✅ **macOS Target**: Configured DMG installer for x64 and ARM64 (Apple Silicon) architectures
+- ✅ **Linux Target**: Configured DEB package for x64 architecture
+- ✅ **Architecture Support**: Multi-architecture build configuration for cross-platform deployment
+
+#### **Technical Changes**
+- 🔧 Removed `"type": "module"` from package.json for Electron main process compatibility
+- 🔧 Added `conf` dependency for persistent configuration storage
+- 🔧 Disabled ASAR, npm rebuild, and node-gyp rebuild to prevent build issues
+- 🔧 Enabled sub node_modules inclusion for complete dependency packaging
+
+### **Notes**
+- GUI requires Node.js 64-bit (x64 architecture) for build process
+- Electron-builder configuration optimized for multi-platform distribution
+- Desktop application provides visual interface for Vectorizer database management
+
 ## [0.8.1] - 2025-10-15
 
 ### 🔥 **Critical Persistence System Fixes**
