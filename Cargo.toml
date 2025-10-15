@@ -38,7 +38,7 @@ fastembed = "5.2" # Embeddings + cross-encoder reranking
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
-ndarray = "0.16"
+ndarray = "0.17"
 
 # GPU dependencies (real GPU processing)
 cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
