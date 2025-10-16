@@ -1,15 +1,16 @@
 //! Functional file watcher implementation
 
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use notify::{Event, EventKind, RecursiveMode, Watcher as NotifyWatcher};
 use tokio::sync::mpsc;
-use notify::{Watcher as NotifyWatcher, RecursiveMode, Event, EventKind};
-use super::{
-    config::FileWatcherConfig,
-    debouncer::Debouncer,
-    hash_validator::HashValidator,
-    FileChangeEvent, FileChangeEventWithMetadata, Result, FileWatcherError
-};
+
+use super::config::FileWatcherConfig;
+use super::debouncer::Debouncer;
+use super::hash_validator::HashValidator;
+use super::{FileChangeEvent, FileChangeEventWithMetadata, FileWatcherError, Result};
 
 /// Functional file watcher implementation
 pub struct Watcher {
@@ -44,10 +45,10 @@ impl Watcher {
 
         // Create event channel
         let (tx, mut rx) = mpsc::unbounded_channel();
-        
+
         // Clone tx for the watcher callback
         let tx_for_watcher = tx.clone();
-        
+
         // Store tx to keep the channel alive
         self.event_sender = Some(tx);
 
@@ -56,14 +57,16 @@ impl Watcher {
 
         // Clone config for the watcher closure
         let config_for_watcher = self.config.clone();
-        
+
         // Create notify watcher with specific configuration
-        let mut notify_watcher = notify::recommended_watcher(
-            move |res: std::result::Result<Event, notify::Error>| {
+        let mut notify_watcher =
+            notify::recommended_watcher(move |res: std::result::Result<Event, notify::Error>| {
                 match res {
                     Ok(event) => {
                         // Filter paths to only include relevant files BEFORE processing
-                        let relevant_paths: Vec<_> = event.paths.iter()
+                        let relevant_paths: Vec<_> = event
+                            .paths
+                            .iter()
                             .filter(|path| {
                                 // Use the configuration to check if file should be processed (silently)
                                 config_for_watcher.should_process_file_silent(path)
@@ -79,39 +82,67 @@ impl Watcher {
                         // Create a new event with only the relevant paths
                         let mut filtered_event = event.clone();
                         filtered_event.paths = relevant_paths.into_iter().cloned().collect();
-                        
-                        tracing::info!("🔍 NOTIFY: Raw event received: kind={:?}, paths={:?}", filtered_event.kind, filtered_event.paths);
-                        tracing::info!("🔍 NOTIFY: Filtered to relevant paths: {:?}", filtered_event.paths);
+
+                        tracing::info!(
+                            "🔍 NOTIFY: Raw event received: kind={:?}, paths={:?}",
+                            filtered_event.kind,
+                            filtered_event.paths
+                        );
+                        tracing::info!(
+                            "🔍 NOTIFY: Filtered to relevant paths: {:?}",
+                            filtered_event.paths
+                        );
 
                         // Filter events to only process relevant ones
                         match &filtered_event.kind {
                             notify::EventKind::Create(_) => {
-                                tracing::info!("🔍 NOTIFY: CREATE event detected: {:?}", filtered_event.paths);
+                                tracing::info!(
+                                    "🔍 NOTIFY: CREATE event detected: {:?}",
+                                    filtered_event.paths
+                                );
                             }
                             notify::EventKind::Modify(_) => {
-                                tracing::info!("🔍 NOTIFY: MODIFY event detected: {:?}", filtered_event.paths);
+                                tracing::info!(
+                                    "🔍 NOTIFY: MODIFY event detected: {:?}",
+                                    filtered_event.paths
+                                );
                             }
                             notify::EventKind::Remove(_) => {
-                                tracing::info!("🔍 NOTIFY: REMOVE event detected: {:?}", filtered_event.paths);
+                                tracing::info!(
+                                    "🔍 NOTIFY: REMOVE event detected: {:?}",
+                                    filtered_event.paths
+                                );
                             }
                             notify::EventKind::Access(_) => {
-                                tracing::info!("🔍 NOTIFY: ACCESS event detected: {:?}", filtered_event.paths);
+                                tracing::info!(
+                                    "🔍 NOTIFY: ACCESS event detected: {:?}",
+                                    filtered_event.paths
+                                );
                             }
                             _ => {
-                                tracing::info!("🔍 NOTIFY: OTHER event detected: {:?}", filtered_event.paths);
+                                tracing::info!(
+                                    "🔍 NOTIFY: OTHER event detected: {:?}",
+                                    filtered_event.paths
+                                );
                             }
                         }
 
                         let file_event = FileChangeEvent::from_notify_event(filtered_event);
                         tracing::info!("🔍 NOTIFY: Converted to FileChangeEvent: {:?}", file_event);
-                        
+
                         // Try to send event to channel
                         match tx_for_watcher.send(file_event.clone()) {
                             Ok(_) => {
-                                tracing::info!("✅ NOTIFY: Event sent to channel successfully: {:?}", file_event);
+                                tracing::info!(
+                                    "✅ NOTIFY: Event sent to channel successfully: {:?}",
+                                    file_event
+                                );
                             }
                             Err(e) => {
-                                tracing::error!("❌ NOTIFY: Failed to send event to channel: {:?}", e);
+                                tracing::error!(
+                                    "❌ NOTIFY: Failed to send event to channel: {:?}",
+                                    e
+                                );
                                 // If channel is closed, return to avoid infinite errors
                                 return;
                             }
@@ -119,42 +150,65 @@ impl Watcher {
                     }
                     Err(e) => tracing::error!("Watch error: {:?}", e),
                 }
-            }
-        ).map_err(|e| FileWatcherError::WatcherCreationFailed(e.to_string()))?;
+            })
+            .map_err(|e| FileWatcherError::WatcherCreationFailed(e.to_string()))?;
 
         // Add paths to watch
         if let Some(paths) = &self.config.watch_paths {
-            tracing::info!("🔍 WATCHER: Processing {} watch paths: {:?}", paths.len(), paths);
+            tracing::info!(
+                "🔍 WATCHER: Processing {} watch paths: {:?}",
+                paths.len(),
+                paths
+            );
             for (i, path) in paths.iter().enumerate() {
-                tracing::info!("🔍 WATCHER: Processing path {}/{}: {:?}", i+1, paths.len(), path);
+                tracing::info!(
+                    "🔍 WATCHER: Processing path {}/{}: {:?}",
+                    i + 1,
+                    paths.len(),
+                    path
+                );
                 if path.exists() {
                     let recursive_mode = if self.config.recursive {
                         RecursiveMode::Recursive
                     } else {
                         RecursiveMode::NonRecursive
                     };
-                    
-                    tracing::info!("🔍 WATCHER: Adding path to notify watcher: {:?} (recursive: {})", path, self.config.recursive);
-                    
+
+                    tracing::info!(
+                        "🔍 WATCHER: Adding path to notify watcher: {:?} (recursive: {})",
+                        path,
+                        self.config.recursive
+                    );
+
                     // Skip paths that are already covered by parent paths
                     if i > 0 {
-                        let is_covered = paths[0..i].iter().any(|parent_path| {
-                            path.starts_with(parent_path)
-                        });
-                        
+                        let is_covered = paths[0..i]
+                            .iter()
+                            .any(|parent_path| path.starts_with(parent_path));
+
                         if is_covered {
-                            tracing::info!("🔍 WATCHER: Path {:?} is already covered by a parent path, skipping", path);
+                            tracing::info!(
+                                "🔍 WATCHER: Path {:?} is already covered by a parent path, skipping",
+                                path
+                            );
                             continue;
                         }
                     }
-                    
+
                     match notify_watcher.watch(path, recursive_mode) {
                         Ok(_) => {
-                            tracing::info!("✅ WATCHER: Successfully watching path: {:?} (recursive: {})", path, self.config.recursive);
+                            tracing::info!(
+                                "✅ WATCHER: Successfully watching path: {:?} (recursive: {})",
+                                path,
+                                self.config.recursive
+                            );
                         }
                         Err(e) => {
                             tracing::error!("❌ WATCHER: Failed to watch path {:?}: {:?}", path, e);
-                            return Err(FileWatcherError::PathWatchFailed(path.clone(), e.to_string()));
+                            return Err(FileWatcherError::PathWatchFailed(
+                                path.clone(),
+                                e.to_string(),
+                            ));
                         }
                     }
                 } else {
@@ -175,14 +229,14 @@ impl Watcher {
         let task_handle = tokio::spawn(async move {
             tracing::info!("🔍 Event processing task ENTERED and STARTED");
             tracing::info!("🔍 Event processing task waiting for events...");
-            
+
             // Test if task is actually running
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             tracing::info!("🔍 Task is running - sleep completed");
-            
+
             while let Some(event) = rx_for_task.recv().await {
                 tracing::info!("🔍 File change detected: {:?}", event);
-                
+
                 // Check if the path is a file or directory
                 let path = match &event {
                     FileChangeEvent::Created(path) => path,
@@ -190,7 +244,7 @@ impl Watcher {
                     FileChangeEvent::Deleted(path) => path,
                     FileChangeEvent::Renamed(_, new_path) => new_path,
                 };
-                
+
                 // Skip processing if content has not changed (for files)
                 // Only applies to Created/Modified events on existing files
                 let should_skip_due_to_hash = match &event {
@@ -199,7 +253,11 @@ impl Watcher {
                             match hash_validator.has_content_changed(p).await {
                                 Ok(changed) => !changed,
                                 Err(e) => {
-                                    tracing::warn!("⚠️ HASH: Failed to check content change for {:?}: {}", p, e);
+                                    tracing::warn!(
+                                        "⚠️ HASH: Failed to check content change for {:?}: {}",
+                                        p,
+                                        e
+                                    );
                                     false
                                 }
                             }
@@ -219,7 +277,11 @@ impl Watcher {
                             match hash_validator.has_content_changed(new_path).await {
                                 Ok(changed) => !changed,
                                 Err(e) => {
-                                    tracing::warn!("⚠️ HASH: Failed to check content change for {:?}: {}", new_path, e);
+                                    tracing::warn!(
+                                        "⚠️ HASH: Failed to check content change for {:?}: {}",
+                                        new_path,
+                                        e
+                                    );
                                     false
                                 }
                             }
@@ -230,7 +292,10 @@ impl Watcher {
                 };
 
                 if should_skip_due_to_hash {
-                    tracing::debug!("⏭️ HASH: Skipping event for {:?} due to unchanged content", path);
+                    tracing::debug!(
+                        "⏭️ HASH: Skipping event for {:?} due to unchanged content",
+                        path
+                    );
                     continue;
                 }
 
@@ -245,7 +310,7 @@ impl Watcher {
                 } else {
                     tracing::info!("🔍 MISSING: Path does not exist: {:?}", path);
                 }
-                
+
                 // Create event with metadata
                 let event_with_metadata = FileChangeEventWithMetadata {
                     event: event.clone(),
@@ -253,14 +318,17 @@ impl Watcher {
                     content_hash: None, // Will be calculated by hash_validator if needed
                     file_size: None,    // Will be calculated if needed
                 };
-                
+
                 // Add event to debouncer
                 debouncer.add_event_with_metadata(event_with_metadata).await;
             }
             tracing::info!("🔍 File watcher event processing task ended");
         });
-        
-        tracing::info!("✅ Event processing task spawned with handle: {:?}", task_handle.id());
+
+        tracing::info!(
+            "✅ Event processing task spawned with handle: {:?}",
+            task_handle.id()
+        );
 
         tracing::info!("File watcher started successfully");
         Ok(())
@@ -273,7 +341,7 @@ impl Watcher {
 
         // Close event sender to stop the processing task
         self.event_sender = None;
-        
+
         // Drop the notify watcher to stop watching all paths gracefully
         self.notify_watcher = None;
 
@@ -291,7 +359,10 @@ impl Watcher {
     }
 
     pub fn get_watched_paths(&self) -> Vec<String> {
-        self.config.watch_paths.clone().unwrap_or_default()
+        self.config
+            .watch_paths
+            .clone()
+            .unwrap_or_default()
             .into_iter()
             .map(|p| p.to_string_lossy().to_string())
             .collect()

@@ -1,9 +1,11 @@
 //! Text chunking utilities
 
-use super::config::{DocumentChunk, LoaderConfig};
-use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+
+use super::config::{DocumentChunk, LoaderConfig};
 
 pub struct Chunker {
     config: LoaderConfig,
@@ -116,4 +118,3 @@ impl Chunker {
         Ok(chunks)
     }
 }
-

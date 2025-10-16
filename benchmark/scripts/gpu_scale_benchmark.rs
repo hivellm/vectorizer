@@ -13,15 +13,18 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
+
 use serde::{Deserialize, Serialize};
 use tracing_subscriber;
 // Removed itertools import
-
 use vectorizer::{
     VectorStore,
-    models::{CollectionConfig, DistanceMetric, HnswConfig, Vector, Payload, QuantizationConfig, CompressionConfig},
-    gpu::config::GpuConfig,
     gpu::backends::GpuBackendType,
+    gpu::config::GpuConfig,
+    models::{
+        CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, Payload,
+        QuantizationConfig, Vector,
+    },
 };
 
 /// GPU Scale benchmark result for a specific backend and dataset size
@@ -107,7 +110,10 @@ impl GpuTestDataset {
         base_queries: &[String],
         target_size: usize,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("🔧 Generating GPU test dataset with {} vectors...", target_size);
+        println!(
+            "🔧 Generating GPU test dataset with {} vectors...",
+            target_size
+        );
 
         // Generate documents by duplicating and slightly modifying base docs
         let mut documents = Vec::new();
@@ -145,40 +151,43 @@ impl GpuTestDataset {
         })
     }
 
-    fn generate_simple_ground_truth(
-        docs: &[String],
-        queries: &[String],
-    ) -> Vec<HashSet<String>> {
-        queries.iter().enumerate().map(|(query_idx, query)| {
-            let mut relevant = HashSet::new();
+    fn generate_simple_ground_truth(docs: &[String], queries: &[String]) -> Vec<HashSet<String>> {
+        queries
+            .iter()
+            .enumerate()
+            .map(|(query_idx, query)| {
+                let mut relevant = HashSet::new();
 
-            // Simple lexical matching for ground truth
-            let query_lower = query.to_lowercase();
-            let keywords: Vec<&str> = query_lower.split_whitespace().collect();
+                // Simple lexical matching for ground truth
+                let query_lower = query.to_lowercase();
+                let keywords: Vec<&str> = query_lower.split_whitespace().collect();
 
-            for (idx, doc) in docs.iter().enumerate() {
-                let doc_lower = doc.to_lowercase();
-                let matching = keywords.iter().filter(|kw| doc_lower.contains(*kw)).count();
+                for (idx, doc) in docs.iter().enumerate() {
+                    let doc_lower = doc.to_lowercase();
+                    let matching = keywords.iter().filter(|kw| doc_lower.contains(*kw)).count();
 
-                if matching >= 1 {
-                    relevant.insert(format!("doc_{}", idx));
+                    if matching >= 1 {
+                        relevant.insert(format!("doc_{}", idx));
+                    }
                 }
-            }
 
-            // Ensure at least 3 relevant documents per query
-            if relevant.len() < 3 {
-                for i in 0..3.min(docs.len()) {
-                    relevant.insert(format!("doc_{}", i));
+                // Ensure at least 3 relevant documents per query
+                if relevant.len() < 3 {
+                    for i in 0..3.min(docs.len()) {
+                        relevant.insert(format!("doc_{}", i));
+                    }
                 }
-            }
 
-            relevant
-        }).collect()
+                relevant
+            })
+            .collect()
     }
 }
 
 /// Create VectorStore with specific GPU backend
-fn create_vector_store_with_backend(backend: GpuBackendType) -> Result<VectorStore, Box<dyn std::error::Error>> {
+fn create_vector_store_with_backend(
+    backend: GpuBackendType,
+) -> Result<VectorStore, Box<dyn std::error::Error>> {
     match backend {
         GpuBackendType::Vulkan => {
             let gpu_config = GpuConfig {
@@ -192,7 +201,7 @@ fn create_vector_store_with_backend(backend: GpuBackendType) -> Result<VectorSto
                 gpu_threshold_operations: 1000,
             };
             Ok(VectorStore::new_with_vulkan_config(gpu_config))
-        },
+        }
         GpuBackendType::DirectX12 => {
             let gpu_config = GpuConfig {
                 enabled: true,
@@ -205,12 +214,13 @@ fn create_vector_store_with_backend(backend: GpuBackendType) -> Result<VectorSto
                 gpu_threshold_operations: 1000,
             };
             Ok(VectorStore::new_with_vulkan_config(gpu_config)) // Using Vulkan config for DirectX12
-        },
-        GpuBackendType::Cpu => {
-            Ok(VectorStore::new())
-        },
+        }
+        GpuBackendType::Cpu => Ok(VectorStore::new()),
         _ => {
-            println!("⚠️ Backend {:?} not supported in this test, falling back to auto-detection", backend);
+            println!(
+                "⚠️ Backend {:?} not supported in this test, falling back to auto-detection",
+                backend
+            );
             Ok(VectorStore::new_auto_universal())
         }
     }
@@ -220,13 +230,13 @@ fn create_vector_store_with_backend(backend: GpuBackendType) -> Result<VectorSto
 fn generate_test_vectors(documents: &[String], dimension: usize) -> Vec<Vector> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    
-    documents.iter().enumerate()
+
+    documents
+        .iter()
+        .enumerate()
         .map(|(i, doc)| Vector {
             id: format!("doc_{}", i),
-            data: (0..dimension)
-                .map(|_| rng.gen_range(-1.0..1.0))
-                .collect(),
+            data: (0..dimension).map(|_| rng.gen_range(-1.0..1.0)).collect(),
             payload: Some(Payload {
                 data: serde_json::json!({
                     "content": doc,
@@ -244,11 +254,15 @@ async fn benchmark_gpu_backend(
     backend: GpuBackendType,
 ) -> Result<GpuScaleBenchmarkResult, Box<dyn std::error::Error>> {
     let backend_name = format!("{:?}", backend);
-    println!("🚀 Benchmarking {} backend with {} vectors", backend_name, dataset.documents.len());
+    println!(
+        "🚀 Benchmarking {} backend with {} vectors",
+        backend_name,
+        dataset.documents.len()
+    );
 
     // Create VectorStore with specific backend
     let vector_store = create_vector_store_with_backend(backend)?;
-    
+
     // Create collection
     let collection_name = format!("gpu_scale_test_{}", backend_name.to_lowercase());
     let collection_config = CollectionConfig {
@@ -270,13 +284,13 @@ async fn benchmark_gpu_backend(
     // Generate test vectors
     println!("  📊 Generating test vectors...");
     let test_vectors = generate_test_vectors(&dataset.documents, dimension);
-    
+
     // Benchmark vector insertion
     println!("  🏗️  Benchmarking vector insertion...");
     let insertion_start = Instant::now();
     vector_store.insert(&collection_name, test_vectors.clone())?;
     let insertion_duration = insertion_start.elapsed();
-    
+
     let index_build_time_ms = insertion_duration.as_millis() as f64;
     let vectors_per_second = test_vectors.len() as f64 / insertion_duration.as_secs_f64();
 
@@ -285,9 +299,16 @@ async fn benchmark_gpu_backend(
     let index_memory_mb = stats.total_memory_bytes as f64 / 1_048_576.0;
     let bytes_per_vector = (dimension * 4) as f64; // 4 bytes per f32
 
-    println!("  ✅ Inserted {} vectors in {:.1}s ({:.0} vectors/sec)", 
-             test_vectors.len(), index_build_time_ms / 1000.0, vectors_per_second);
-    println!("  ✅ Memory usage: {:.2} MB ({:.0} bytes/vector)", index_memory_mb, bytes_per_vector);
+    println!(
+        "  ✅ Inserted {} vectors in {:.1}s ({:.0} vectors/sec)",
+        test_vectors.len(),
+        index_build_time_ms / 1000.0,
+        vectors_per_second
+    );
+    println!(
+        "  ✅ Memory usage: {:.2} MB ({:.0} bytes/vector)",
+        index_memory_mb, bytes_per_vector
+    );
 
     // Benchmark search performance
     println!("  🔍 Benchmarking search performance...");
@@ -310,7 +331,8 @@ async fn benchmark_gpu_backend(
         search_times.push(elapsed_us);
 
         // Convert results for quality evaluation
-        let query_result: Vec<(String, f32)> = results.into_iter()
+        let query_result: Vec<(String, f32)> = results
+            .into_iter()
             .map(|result| (result.id, result.score))
             .collect();
 
@@ -330,14 +352,14 @@ async fn benchmark_gpu_backend(
     for (query_result, ground_truth) in query_results {
         let mut precision_sum = 0.0;
         let mut relevant_count = 0;
-        
+
         for (i, (doc_id, _score)) in query_result.iter().enumerate() {
             if ground_truth.contains(doc_id) {
                 relevant_count += 1;
                 precision_sum += relevant_count as f64 / (i + 1) as f64;
             }
         }
-        
+
         if !ground_truth.is_empty() {
             let ap = precision_sum / ground_truth.len() as f64;
             map_scores.push(ap);
@@ -366,16 +388,34 @@ async fn benchmark_gpu_backend(
         search_throughput_qps,
         map_score,
         recall_at_10,
-        gpu_memory_usage_mb: if backend != GpuBackendType::Cpu { index_memory_mb * 0.8 } else { 0.0 },
-        cpu_memory_usage_mb: if backend == GpuBackendType::Cpu { index_memory_mb } else { index_memory_mb * 0.2 },
-        gpu_utilization: if backend != GpuBackendType::Cpu { 85.0 } else { 0.0 },
+        gpu_memory_usage_mb: if backend != GpuBackendType::Cpu {
+            index_memory_mb * 0.8
+        } else {
+            0.0
+        },
+        cpu_memory_usage_mb: if backend == GpuBackendType::Cpu {
+            index_memory_mb
+        } else {
+            index_memory_mb * 0.2
+        },
+        gpu_utilization: if backend != GpuBackendType::Cpu {
+            85.0
+        } else {
+            0.0
+        },
         memory_efficiency: map_score / index_memory_mb,
         speed_efficiency: search_throughput_qps / (index_memory_mb / 1024.0),
         gpu_speedup: 1.0, // Will be calculated later in comparison
     };
 
-    println!("  ✅ Search: {:.0} μs avg, {:.1} QPS", avg_search_latency_us, search_throughput_qps);
-    println!("  ✅ Quality: MAP={:.4}, Recall@10={:.3}", result.map_score, result.recall_at_10);
+    println!(
+        "  ✅ Search: {:.0} μs avg, {:.1} QPS",
+        avg_search_latency_us, search_throughput_qps
+    );
+    println!(
+        "  ✅ Quality: MAP={:.4}, Recall@10={:.3}",
+        result.map_score, result.recall_at_10
+    );
 
     Ok(result)
 }
@@ -397,24 +437,49 @@ fn analyze_backend_comparison(results: &[GpuScaleBenchmarkResult]) -> BackendCom
 
     // Calculate average speedups
     let vulkan_vs_cpu_speedup = if !vulkan_results.is_empty() && !cpu_results.is_empty() {
-        let vulkan_avg_qps: f64 = vulkan_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / vulkan_results.len() as f64;
-        let cpu_avg_qps: f64 = cpu_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / cpu_results.len() as f64;
+        let vulkan_avg_qps: f64 = vulkan_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / vulkan_results.len() as f64;
+        let cpu_avg_qps: f64 = cpu_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / cpu_results.len() as f64;
         vulkan_avg_qps / cpu_avg_qps
     } else {
         1.0
     };
 
     let directx12_vs_cpu_speedup = if !directx12_results.is_empty() && !cpu_results.is_empty() {
-        let directx12_avg_qps: f64 = directx12_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / directx12_results.len() as f64;
-        let cpu_avg_qps: f64 = cpu_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / cpu_results.len() as f64;
+        let directx12_avg_qps: f64 = directx12_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / directx12_results.len() as f64;
+        let cpu_avg_qps: f64 = cpu_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / cpu_results.len() as f64;
         directx12_avg_qps / cpu_avg_qps
     } else {
         1.0
     };
 
-    let vulkan_vs_directx12_speedup = if !vulkan_results.is_empty() && !directx12_results.is_empty() {
-        let vulkan_avg_qps: f64 = vulkan_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / vulkan_results.len() as f64;
-        let directx12_avg_qps: f64 = directx12_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / directx12_results.len() as f64;
+    let vulkan_vs_directx12_speedup = if !vulkan_results.is_empty() && !directx12_results.is_empty()
+    {
+        let vulkan_avg_qps: f64 = vulkan_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / vulkan_results.len() as f64;
+        let directx12_avg_qps: f64 = directx12_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / directx12_results.len() as f64;
         vulkan_avg_qps / directx12_avg_qps
     } else {
         1.0
@@ -427,8 +492,17 @@ fn analyze_backend_comparison(results: &[GpuScaleBenchmarkResult]) -> BackendCom
         "DirectX 12"
     };
 
-    let most_efficient_backend = if vulkan_results.iter().map(|r| r.memory_efficiency).sum::<f64>() / vulkan_results.len() as f64 >
-                                  directx12_results.iter().map(|r| r.memory_efficiency).sum::<f64>() / directx12_results.len() as f64 {
+    let most_efficient_backend = if vulkan_results
+        .iter()
+        .map(|r| r.memory_efficiency)
+        .sum::<f64>()
+        / vulkan_results.len() as f64
+        > directx12_results
+            .iter()
+            .map(|r| r.memory_efficiency)
+            .sum::<f64>()
+            / directx12_results.len() as f64
+    {
         "Vulkan"
     } else {
         "DirectX 12"
@@ -449,9 +523,13 @@ fn generate_gpu_recommendations(results: &[GpuScaleBenchmarkResult]) -> GpuScale
     let mut gpu_threshold_size = 1000; // Default
 
     // Group results by size
-    let mut size_groups: std::collections::HashMap<usize, Vec<&GpuScaleBenchmarkResult>> = std::collections::HashMap::new();
+    let mut size_groups: std::collections::HashMap<usize, Vec<&GpuScaleBenchmarkResult>> =
+        std::collections::HashMap::new();
     for result in results {
-        size_groups.entry(result.dataset_size).or_default().push(result);
+        size_groups
+            .entry(result.dataset_size)
+            .or_default()
+            .push(result);
     }
 
     // Find optimal backend for each size
@@ -461,7 +539,8 @@ fn generate_gpu_recommendations(results: &[GpuScaleBenchmarkResult]) -> GpuScale
 
         for result in size_results {
             // Score = throughput * quality / latency
-            let score = result.search_throughput_qps * result.map_score / result.avg_search_latency_us;
+            let score =
+                result.search_throughput_qps * result.map_score / result.avg_search_latency_us;
             if score > best_score {
                 best_score = score;
                 best_backend = &result.backend_type;
@@ -469,7 +548,7 @@ fn generate_gpu_recommendations(results: &[GpuScaleBenchmarkResult]) -> GpuScale
         }
 
         optimal_backend_per_size.push((size, best_backend.to_string()));
-        
+
         // Find GPU threshold (first size where GPU outperforms CPU)
         if best_backend != "cpu" && size >= gpu_threshold_size {
             gpu_threshold_size = size;
@@ -477,26 +556,59 @@ fn generate_gpu_recommendations(results: &[GpuScaleBenchmarkResult]) -> GpuScale
     }
 
     // Determine most efficient backends
-    let vulkan_results: Vec<_> = results.iter().filter(|r| r.backend_type == "vulkan").collect();
-    let directx12_results: Vec<_> = results.iter().filter(|r| r.backend_type == "directx12").collect();
+    let vulkan_results: Vec<_> = results
+        .iter()
+        .filter(|r| r.backend_type == "vulkan")
+        .collect();
+    let directx12_results: Vec<_> = results
+        .iter()
+        .filter(|r| r.backend_type == "directx12")
+        .collect();
 
-    let memory_efficient_backend = if vulkan_results.iter().map(|r| r.memory_efficiency).sum::<f64>() / vulkan_results.len() as f64 >
-                                    directx12_results.iter().map(|r| r.memory_efficiency).sum::<f64>() / directx12_results.len() as f64 {
+    let memory_efficient_backend = if vulkan_results
+        .iter()
+        .map(|r| r.memory_efficiency)
+        .sum::<f64>()
+        / vulkan_results.len() as f64
+        > directx12_results
+            .iter()
+            .map(|r| r.memory_efficiency)
+            .sum::<f64>()
+            / directx12_results.len() as f64
+    {
         "Vulkan"
     } else {
         "DirectX 12"
     };
 
-    let performance_efficient_backend = if vulkan_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / vulkan_results.len() as f64 >
-                                         directx12_results.iter().map(|r| r.search_throughput_qps).sum::<f64>() / directx12_results.len() as f64 {
+    let performance_efficient_backend = if vulkan_results
+        .iter()
+        .map(|r| r.search_throughput_qps)
+        .sum::<f64>()
+        / vulkan_results.len() as f64
+        > directx12_results
+            .iter()
+            .map(|r| r.search_throughput_qps)
+            .sum::<f64>()
+            / directx12_results.len() as f64
+    {
         "Vulkan"
     } else {
         "DirectX 12"
     };
 
     // Cost-effective = balance of performance and efficiency
-    let cost_effective_backend = if vulkan_results.iter().map(|r| r.speed_efficiency).sum::<f64>() / vulkan_results.len() as f64 >
-                                  directx12_results.iter().map(|r| r.speed_efficiency).sum::<f64>() / directx12_results.len() as f64 {
+    let cost_effective_backend = if vulkan_results
+        .iter()
+        .map(|r| r.speed_efficiency)
+        .sum::<f64>()
+        / vulkan_results.len() as f64
+        > directx12_results
+            .iter()
+            .map(|r| r.speed_efficiency)
+            .sum::<f64>()
+            / directx12_results.len() as f64
+    {
         "Vulkan"
     } else {
         "DirectX 12"
@@ -520,28 +632,50 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
 
     md.push_str("## Test Configuration\n\n");
     md.push_str(&format!("- **Dimension**: {}D\n", report.dimension));
-    md.push_str(&format!("- **Test Sizes**: {:?} vectors\n", report.test_sizes));
+    md.push_str(&format!(
+        "- **Test Sizes**: {:?} vectors\n",
+        report.test_sizes
+    ));
     md.push_str(&format!("- **Backends**: {:?}\n", report.backends));
     md.push_str("- **HNSW Config**: M=16, ef_construction=200\n");
     md.push_str("- **Distance**: Cosine\n");
     md.push_str("- **Quantization**: SQ-8bit\n\n");
 
     md.push_str("## Backend Performance Comparison\n\n");
-    
+
     let comparison = &report.backend_comparison;
     md.push_str(&format!("### Speedup vs CPU Baseline\n\n"));
-    md.push_str(&format!("- **Vulkan**: {:.2}x faster than CPU\n", comparison.vulkan_vs_cpu_speedup));
-    md.push_str(&format!("- **DirectX 12**: {:.2}x faster than CPU\n", comparison.directx12_vs_cpu_speedup));
-    md.push_str(&format!("- **Vulkan vs DirectX 12**: {:.2}x\n", comparison.vulkan_vs_directx12_speedup));
-    md.push_str(&format!("- **Best Backend**: {}\n", comparison.best_backend));
-    md.push_str(&format!("- **Most Efficient**: {}\n\n", comparison.most_efficient_backend));
+    md.push_str(&format!(
+        "- **Vulkan**: {:.2}x faster than CPU\n",
+        comparison.vulkan_vs_cpu_speedup
+    ));
+    md.push_str(&format!(
+        "- **DirectX 12**: {:.2}x faster than CPU\n",
+        comparison.directx12_vs_cpu_speedup
+    ));
+    md.push_str(&format!(
+        "- **Vulkan vs DirectX 12**: {:.2}x\n",
+        comparison.vulkan_vs_directx12_speedup
+    ));
+    md.push_str(&format!(
+        "- **Best Backend**: {}\n",
+        comparison.best_backend
+    ));
+    md.push_str(&format!(
+        "- **Most Efficient**: {}\n\n",
+        comparison.most_efficient_backend
+    ));
 
     md.push_str("## Performance Results by Backend\n\n");
 
     // Group results by backend
-    let mut backend_groups: std::collections::HashMap<String, Vec<&GpuScaleBenchmarkResult>> = std::collections::HashMap::new();
+    let mut backend_groups: std::collections::HashMap<String, Vec<&GpuScaleBenchmarkResult>> =
+        std::collections::HashMap::new();
     for result in &report.results {
-        backend_groups.entry(result.backend.clone()).or_default().push(result);
+        backend_groups
+            .entry(result.backend.clone())
+            .or_default()
+            .push(result);
     }
 
     for (backend, results) in backend_groups {
@@ -571,11 +705,15 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
     }
 
     md.push_str("## GPU vs CPU Performance Analysis\n\n");
-    
+
     // Compare backends at each size
-    let mut size_groups: std::collections::HashMap<usize, Vec<&GpuScaleBenchmarkResult>> = std::collections::HashMap::new();
+    let mut size_groups: std::collections::HashMap<usize, Vec<&GpuScaleBenchmarkResult>> =
+        std::collections::HashMap::new();
     for result in &report.results {
-        size_groups.entry(result.dataset_size).or_default().push(result);
+        size_groups
+            .entry(result.dataset_size)
+            .or_default()
+            .push(result);
     }
 
     md.push_str("| Size | Vulkan QPS | DirectX12 QPS | DirectX12 vs Vulkan |\n");
@@ -588,10 +726,18 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
             let vulkan_result = size_results.iter().find(|r| r.backend_type == "vulkan");
             let directx12_result = size_results.iter().find(|r| r.backend_type == "directx12");
 
-            let vulkan_qps = vulkan_result.map(|r| r.search_throughput_qps).unwrap_or(0.0);
-            let directx12_qps = directx12_result.map(|r| r.search_throughput_qps).unwrap_or(0.0);
+            let vulkan_qps = vulkan_result
+                .map(|r| r.search_throughput_qps)
+                .unwrap_or(0.0);
+            let directx12_qps = directx12_result
+                .map(|r| r.search_throughput_qps)
+                .unwrap_or(0.0);
 
-            let directx12_vs_vulkan = if vulkan_qps > 0.0 { directx12_qps / vulkan_qps } else { 0.0 };
+            let directx12_vs_vulkan = if vulkan_qps > 0.0 {
+                directx12_qps / vulkan_qps
+            } else {
+                0.0
+            };
 
             let size_str = if size >= 1000 {
                 format!("{}K", size / 1000)
@@ -620,9 +766,18 @@ fn generate_gpu_scale_report(report: &GpuScaleBenchmarkReport) -> String {
     }
 
     md.push_str(&format!("\n### GPU Performance Analysis\n\n"));
-    md.push_str(&format!("- **Best Performance**: {}\n", rec.performance_efficient_backend));
-    md.push_str(&format!("- **Most Memory Efficient**: {}\n", rec.memory_efficient_backend));
-    md.push_str(&format!("- **Most Cost Effective**: {}\n\n", rec.cost_effective_backend));
+    md.push_str(&format!(
+        "- **Best Performance**: {}\n",
+        rec.performance_efficient_backend
+    ));
+    md.push_str(&format!(
+        "- **Most Memory Efficient**: {}\n",
+        rec.memory_efficient_backend
+    ));
+    md.push_str(&format!(
+        "- **Most Cost Effective**: {}\n\n",
+        rec.cost_effective_backend
+    ));
 
     md.push_str("## GPU Implementation Guidelines\n\n");
     md.push_str("### GPU Backend Selection Strategy\n\n");
@@ -665,10 +820,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let dimension = 512;
     let test_sizes = vec![1_000, 5_000, 10_000, 25_000, 50_000, 100_000];
-    let backends = vec![
-        GpuBackendType::Vulkan,
-        GpuBackendType::DirectX12,
-    ];
+    let backends = vec![GpuBackendType::Vulkan, GpuBackendType::DirectX12];
 
     println!("📊 Configuration:");
     println!("  - Dimension: {}D", dimension);
@@ -718,10 +870,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match benchmark_gpu_backend(&dataset, dimension, backend).await {
                 Ok(result) => {
                     results.push(result);
-                    println!("✅ {:?} backend with {} vectors completed successfully", backend, size);
+                    println!(
+                        "✅ {:?} backend with {} vectors completed successfully",
+                        backend, size
+                    );
                 }
                 Err(e) => {
-                    println!("❌ Failed to benchmark {:?} with {} vectors: {}", backend, size, e);
+                    println!(
+                        "❌ Failed to benchmark {:?} with {} vectors: {}",
+                        backend, size, e
+                    );
                     // Continue with other combinations
                 }
             }
@@ -733,7 +891,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let recommendations = generate_gpu_recommendations(&results);
 
     let report = GpuScaleBenchmarkReport {
-        timestamp: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        timestamp: chrono::Utc::now()
+            .format("%Y-%m-%d %H:%M:%S UTC")
+            .to_string(),
         dimension,
         test_sizes: test_sizes.clone(),
         backends: backends.iter().map(|b| format!("{:?}", b)).collect(),
@@ -765,16 +925,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=".repeat(40));
 
     let comp = &report.backend_comparison;
-    println!("🚀 Vulkan vs CPU: {:.2}x speedup", comp.vulkan_vs_cpu_speedup);
-    println!("🚀 DirectX 12 vs CPU: {:.2}x speedup", comp.directx12_vs_cpu_speedup);
-    println!("🚀 Vulkan vs DirectX 12: {:.2}x", comp.vulkan_vs_directx12_speedup);
+    println!(
+        "🚀 Vulkan vs CPU: {:.2}x speedup",
+        comp.vulkan_vs_cpu_speedup
+    );
+    println!(
+        "🚀 DirectX 12 vs CPU: {:.2}x speedup",
+        comp.directx12_vs_cpu_speedup
+    );
+    println!(
+        "🚀 Vulkan vs DirectX 12: {:.2}x",
+        comp.vulkan_vs_directx12_speedup
+    );
     println!("🏆 Best Backend: {}", comp.best_backend);
     println!("💡 Most Efficient: {}", comp.most_efficient_backend);
 
     let rec = &report.recommendations;
-    println!("\n📏 GPU Threshold: {}K vectors", rec.gpu_threshold_size / 1000);
+    println!(
+        "\n📏 GPU Threshold: {}K vectors",
+        rec.gpu_threshold_size / 1000
+    );
     println!("💾 Memory Efficient: {}", rec.memory_efficient_backend);
-    println!("⚡ Performance Efficient: {}", rec.performance_efficient_backend);
+    println!(
+        "⚡ Performance Efficient: {}",
+        rec.performance_efficient_backend
+    );
     println!("💰 Cost Effective: {}", rec.cost_effective_backend);
 
     println!("\n📄 Full report: {}", report_path.display());

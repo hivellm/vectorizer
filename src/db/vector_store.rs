@@ -1,21 +1,20 @@
 //! Main VectorStore implementation
 
-use crate::{
-    error::{Result, VectorizerError},
-    models::{CollectionConfig, CollectionMetadata, SearchResult, Vector},
-};
+use std::collections::HashSet;
+use std::ops::Deref;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+
 use anyhow::anyhow;
 use dashmap::DashMap;
-use std::sync::Arc;
-use std::ops::Deref;
-use std::collections::HashSet;
-use std::time::Duration;
-use std::path::PathBuf;
 use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
+use crate::error::{Result, VectorizerError};
 #[cfg(feature = "wgpu-gpu")]
-use crate::gpu::{MetalCollection, VulkanCollection, DirectX12Collection, GpuConfig};
+use crate::gpu::{DirectX12Collection, GpuConfig, MetalCollection, VulkanCollection};
+use crate::models::{CollectionConfig, CollectionMetadata, SearchResult, Vector};
 
 /// Enum to represent different collection types (CPU or GPU)
 pub enum CollectionType {
@@ -171,9 +170,13 @@ impl CollectionType {
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
+            CollectionType::Vulkan(c) => {
+                pollster::block_on(c.get_all_vectors()).unwrap_or_default()
+            }
             #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
+            CollectionType::DirectX12(c) => {
+                pollster::block_on(c.get_all_vectors()).unwrap_or_default()
+            }
         }
     }
 
@@ -307,7 +310,11 @@ impl CollectionType {
     }
 
     /// Load HNSW index from dump
-    pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<()> {
+    pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+        basename: &str,
+    ) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_hnsw_index_from_dump(path, basename),
             #[cfg(feature = "wgpu-gpu")]
@@ -407,7 +414,7 @@ impl VectorStore {
     /// Create a new empty vector store
     pub fn new() -> Self {
         info!("Creating new VectorStore");
-        
+
         let store = Self {
             collections: Arc::new(DashMap::new()),
             #[cfg(feature = "wgpu-gpu")]
@@ -420,20 +427,21 @@ impl VectorStore {
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         };
-        
+
         // Check for automatic migration on startup
         store.check_and_migrate_storage();
-        
+
         store
     }
-    
+
     /// Check storage format and perform automatic migration if needed
     fn check_and_migrate_storage(&self) {
-        use crate::storage::{detect_format, StorageFormat, StorageMigrator};
         use std::fs;
-        
+
+        use crate::storage::{StorageFormat, StorageMigrator, detect_format};
+
         let data_dir = PathBuf::from("./data");
-        
+
         // Create data directory if it doesn't exist
         if !data_dir.exists() {
             if let Err(e) = fs::create_dir_all(&data_dir) {
@@ -441,13 +449,13 @@ impl VectorStore {
                 return;
             }
         }
-        
+
         // Check if data directory is empty (no legacy files)
         let is_empty = fs::read_dir(&data_dir)
             .ok()
             .map(|mut entries| entries.next().is_none())
             .unwrap_or(false);
-        
+
         if is_empty {
             // Initialize with compact format for new installations
             info!("📁 Empty data directory detected - initializing with .vecdb format");
@@ -458,9 +466,9 @@ impl VectorStore {
             }
             return;
         }
-        
+
         let format = detect_format(&data_dir);
-        
+
         match format {
             StorageFormat::Legacy => {
                 // Check if migration is enabled in config
@@ -474,19 +482,19 @@ impl VectorStore {
             }
         }
     }
-    
+
     /// Initialize compact storage format (create empty .vecdb and .vecidx files)
     fn initialize_compact_storage(&self, data_dir: &PathBuf) -> Result<()> {
-        use crate::storage::{vecdb_path, vecidx_path, StorageIndex};
         use std::fs::File;
-        
+
+        use crate::storage::{StorageIndex, vecdb_path, vecidx_path};
+
         let vecdb_file = vecdb_path(data_dir);
         let vecidx_file = vecidx_path(data_dir);
-        
+
         // Create empty .vecdb file
-        File::create(&vecdb_file)
-            .map_err(|e| crate::error::VectorizerError::Io(e))?;
-        
+        File::create(&vecdb_file).map_err(|e| crate::error::VectorizerError::Io(e))?;
+
         // Create empty index
         let now = chrono::Utc::now();
         let empty_index = StorageIndex {
@@ -498,25 +506,31 @@ impl VectorStore {
             compressed_size: 0,
             compression_ratio: 0.0,
         };
-        
+
         // Save empty index
         let index_json = serde_json::to_string_pretty(&empty_index)
             .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
-        
+
         std::fs::write(&vecidx_file, index_json)
             .map_err(|e| crate::error::VectorizerError::Io(e))?;
-        
+
         info!("Created empty .vecdb and .vecidx files");
         Ok(())
     }
-    
+
     /// Create a new vector store with Metal GPU configuration
     #[cfg(feature = "wgpu-gpu")]
     pub fn new_with_metal_config(metal_config: GpuConfig) -> Self {
-        info!("Creating new VectorStore with Metal GPU config: enabled={}", metal_config.enabled);
+        info!(
+            "Creating new VectorStore with Metal GPU config: enabled={}",
+            metal_config.enabled
+        );
         Self {
             collections: Arc::new(DashMap::new()),
-            gpu_config: GpuConfig { enabled: false, ..Default::default() },
+            gpu_config: GpuConfig {
+                enabled: false,
+                ..Default::default()
+            },
             metal_config: Some(metal_config),
             vulkan_config: None,
             dx12_config: None,
@@ -525,14 +539,20 @@ impl VectorStore {
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         }
     }
-    
+
     /// Create a new vector store with Vulkan GPU configuration
     #[cfg(feature = "wgpu-gpu")]
     pub fn new_with_vulkan_config(vulkan_config: GpuConfig) -> Self {
-        info!("Creating new VectorStore with Vulkan GPU config: enabled={}", vulkan_config.enabled);
+        info!(
+            "Creating new VectorStore with Vulkan GPU config: enabled={}",
+            vulkan_config.enabled
+        );
         Self {
             collections: Arc::new(DashMap::new()),
-            gpu_config: GpuConfig { enabled: false, ..Default::default() },
+            gpu_config: GpuConfig {
+                enabled: false,
+                ..Default::default()
+            },
             metal_config: None,
             vulkan_config: Some(vulkan_config),
             dx12_config: None,
@@ -541,7 +561,7 @@ impl VectorStore {
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         }
     }
-    
+
     /// Create a new vector store with automatic GPU detection
     /// Priority: Metal (Mac Silicon) > CUDA > CPU
     pub fn new_auto() -> Self {
@@ -549,13 +569,15 @@ impl VectorStore {
 
         // Create store without loading collections (will be loaded in background task)
         let store = Self::new();
-        
+
         // DON'T enable auto-save yet - will be enabled after collections are loaded
         // This prevents auto-save from triggering during initial load
-        info!("⏸️  Auto-save disabled during initialization - will be enabled after load completes");
-        
+        info!(
+            "⏸️  Auto-save disabled during initialization - will be enabled after load completes"
+        );
+
         eprintln!("✅ VectorStore created (collections will be loaded in background)");
-        
+
         // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
         #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
         {
@@ -573,35 +595,35 @@ impl VectorStore {
                 warn!("⚠️ Metal GPU detection failed, falling back...");
             }
         }
-        
+
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu")))]
         {
             eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
         }
-        
+
         // 2. Return the store (auto-save will be enabled after collections load)
         eprintln!("💻 Using CPU-only mode");
         info!("💻 Using CPU-only mode");
         store
     }
-    
+
     /// Universal GPU detection across all backends (Vulkan, DirectX, CUDA, Metal)
     /// Priority: Metal (macOS) > Vulkan (AMD/Universal) > DirectX12 (Windows) > CUDA (NVIDIA) > CPU
     #[cfg(feature = "wgpu-gpu")]
     pub fn new_auto_universal() -> Self {
-        use crate::gpu::{detect_available_backends, select_best_backend, GpuBackendType};
-        
+        use crate::gpu::{GpuBackendType, detect_available_backends, select_best_backend};
+
         //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
         info!("🔍 Starting universal GPU backend detection...");
-        
+
         // Create store without loading collections (will be loaded in background task)
         let store = Self::new();
         info!("⏸️  Auto-save will be enabled after collections load");
         eprintln!("✅ VectorStore created (collections will be loaded in background)");
-        
+
         // Detect all available backends
         let available = detect_available_backends();
-        
+
         if available.is_empty() {
             eprintln!("❌ No GPU backends detected - using CPU");
             warn!("No GPU backends available");
@@ -609,12 +631,12 @@ impl VectorStore {
             info!("⏸️  Auto-save will be enabled after collections load");
             return store;
         }
-        
+
         // Select best backend
         let best = select_best_backend(&available);
         eprintln!("🎯 Selected: {}", best);
         info!("Selected backend: {}", best);
-        
+
         // Initialize VectorStore with the selected backend
         match best {
             GpuBackendType::Metal => {
@@ -622,7 +644,9 @@ impl VectorStore {
                 {
                     eprintln!("🍎 Initializing Metal GPU backend...");
                     let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
-                    if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
+                    if let Ok(_) =
+                        pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone()))
+                    {
                         eprintln!("✅ Metal GPU initialized successfully!");
                         info!("✅ Metal GPU initialized successfully!");
                         let store = Self::new_with_metal_config(metal_config);
@@ -634,7 +658,7 @@ impl VectorStore {
                     }
                 }
             }
-            
+
             GpuBackendType::Vulkan => {
                 #[cfg(feature = "wgpu-gpu")]
                 {
@@ -647,26 +671,29 @@ impl VectorStore {
                     info!("⏸️  Auto-save will be enabled after collections load");
                     return store;
                 }
-                
+
                 #[cfg(not(feature = "wgpu-gpu"))]
                 {
                     eprintln!("⚠️ Vulkan requires wgpu-gpu feature");
                     warn!("Vulkan selected but wgpu-gpu feature not enabled");
                 }
             }
-            
+
             GpuBackendType::DirectX12 => {
                 eprintln!("🪟 DirectX 12 detected but integration pending...");
                 info!("DirectX 12 backend detected but not yet integrated");
                 // TODO: Implement DirectX12Collection (FASE 3)
             }
-            
+
             GpuBackendType::CudaNative => {
                 #[cfg(feature = "cuda")]
                 {
                     eprintln!("⚡ Initializing CUDA GPU backend...");
                     info!("Initializing CUDA GPU backend...");
-                    let cuda_config = CudaConfig { enabled: true, ..Default::default() };
+                    let cuda_config = CudaConfig {
+                        enabled: true,
+                        ..Default::default()
+                    };
                     eprintln!("✅ CUDA GPU initialized!");
                     info!("✅ CUDA GPU initialized!");
                     let store = Self::new_with_cuda_config(cuda_config);
@@ -674,13 +701,13 @@ impl VectorStore {
                     return store;
                 }
             }
-            
+
             GpuBackendType::Cpu => {
                 eprintln!("💻 Using CPU backend");
                 info!("Using CPU backend");
             }
         }
-        
+
         // Fallback to CPU if GPU initialization failed
         eprintln!("💻 Falling back to CPU backend");
         warn!("GPU initialization failed, using CPU fallback");
@@ -702,9 +729,11 @@ impl VectorStore {
         if let Some(ref metal_cfg) = self.metal_config {
             if metal_cfg.enabled {
                 info!("Creating Metal GPU-accelerated collection '{}'", name);
-                let metal_collection = pollster::block_on(
-                    crate::gpu::MetalCollection::new(name.to_string(), config, metal_cfg.clone())
-                )?;
+                let metal_collection = pollster::block_on(crate::gpu::MetalCollection::new(
+                    name.to_string(),
+                    config,
+                    metal_cfg.clone(),
+                ))?;
                 let collection = CollectionType::Metal(metal_collection);
                 self.collections.insert(name.to_string(), collection);
                 info!("Collection '{}' created successfully with Metal GPU", name);
@@ -716,9 +745,11 @@ impl VectorStore {
         if let Some(ref vulkan_cfg) = self.vulkan_config {
             if vulkan_cfg.enabled {
                 info!("Creating Vulkan GPU-accelerated collection '{}'", name);
-                let vulkan_collection = pollster::block_on(
-                    crate::gpu::VulkanCollection::new(name.to_string(), config, vulkan_cfg.clone())
-                )?;
+                let vulkan_collection = pollster::block_on(crate::gpu::VulkanCollection::new(
+                    name.to_string(),
+                    config,
+                    vulkan_cfg.clone(),
+                ))?;
                 let collection = CollectionType::Vulkan(vulkan_collection);
                 self.collections.insert(name.to_string(), collection);
                 info!("Collection '{}' created successfully with Vulkan GPU", name);
@@ -730,12 +761,17 @@ impl VectorStore {
         if let Some(ref dx12_cfg) = self.dx12_config {
             if dx12_cfg.enabled {
                 info!("Creating DirectX 12 GPU-accelerated collection '{}'", name);
-                let dx12_collection = pollster::block_on(
-                    crate::gpu::DirectX12Collection::new(name.to_string(), config, dx12_cfg.clone())
-                )?;
+                let dx12_collection = pollster::block_on(crate::gpu::DirectX12Collection::new(
+                    name.to_string(),
+                    config,
+                    dx12_cfg.clone(),
+                ))?;
                 let collection = CollectionType::DirectX12(dx12_collection);
                 self.collections.insert(name.to_string(), collection);
-                info!("Collection '{}' created successfully with DirectX 12 GPU", name);
+                info!(
+                    "Collection '{}' created successfully with DirectX 12 GPU",
+                    name
+                );
                 return Ok(());
             }
         }
@@ -751,49 +787,74 @@ impl VectorStore {
     }
 
     /// Create or update collection with automatic quantization
-    pub fn create_collection_with_quantization(&self, name: &str, config: CollectionConfig) -> Result<()> {
-        debug!("Creating/updating collection '{}' with automatic quantization", name);
+    pub fn create_collection_with_quantization(
+        &self,
+        name: &str,
+        config: CollectionConfig,
+    ) -> Result<()> {
+        debug!(
+            "Creating/updating collection '{}' with automatic quantization",
+            name
+        );
 
         // Check if collection already exists
         if let Some(existing_collection) = self.collections.get(name) {
             // Check if quantization is enabled in the new config
-            let quantization_enabled = matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
-            
+            let quantization_enabled = matches!(
+                config.quantization,
+                crate::models::QuantizationConfig::SQ { bits: 8 }
+            );
+
             // Check if existing collection has quantization
-            let existing_quantization_enabled = matches!(existing_collection.config().quantization, crate::models::QuantizationConfig::SQ { bits: 8 });
-            
+            let existing_quantization_enabled = matches!(
+                existing_collection.config().quantization,
+                crate::models::QuantizationConfig::SQ { bits: 8 }
+            );
+
             if quantization_enabled && !existing_quantization_enabled {
-                info!("🔄 Collection '{}' needs quantization upgrade - applying automatically", name);
-                
+                info!(
+                    "🔄 Collection '{}' needs quantization upgrade - applying automatically",
+                    name
+                );
+
                 // Store existing vectors
                 let existing_vectors = existing_collection.get_all_vectors();
                 let vector_count = existing_vectors.len();
-                
+
                 if vector_count > 0 {
-                    info!("📦 Storing {} existing vectors for quantization upgrade", vector_count);
-                    
+                    info!(
+                        "📦 Storing {} existing vectors for quantization upgrade",
+                        vector_count
+                    );
+
                     // Store the existing vector count and document count
                     let existing_metadata = existing_collection.metadata();
                     let existing_document_count = existing_metadata.document_count;
-                    
+
                     // Remove old collection
                     self.collections.remove(name);
-                    
+
                     // Create new collection with quantization
                     self.create_collection(name, config)?;
-                    
+
                     // Get the new collection
                     let new_collection = self.get_collection(name)?;
-                    
+
                     // Apply quantization to existing vectors
                     for vector in existing_vectors {
                         let vector_id = vector.id.clone();
                         if let Err(e) = new_collection.add_vector(vector_id.clone(), vector) {
-                            warn!("Failed to add vector {} to quantized collection: {}", vector_id, e);
+                            warn!(
+                                "Failed to add vector {} to quantized collection: {}",
+                                vector_id, e
+                            );
                         }
                     }
-                    
-                    info!("✅ Successfully upgraded collection '{}' with quantization for {} vectors", name, vector_count);
+
+                    info!(
+                        "✅ Successfully upgraded collection '{}' with quantization for {} vectors",
+                        name, vector_count
+                    );
                 } else {
                     // Collection is empty, just recreate with new config
                     self.collections.remove(name);
@@ -801,7 +862,10 @@ impl VectorStore {
                     info!("✅ Recreated empty collection '{}' with quantization", name);
                 }
             } else {
-                debug!("Collection '{}' already has correct quantization configuration", name);
+                debug!(
+                    "Collection '{}' already has correct quantization configuration",
+                    name
+                );
             }
         } else {
             // Collection doesn't exist, create it normally with quantization
@@ -825,20 +889,23 @@ impl VectorStore {
 
     /// Get a reference to a collection by name
     /// Implements lazy loading: if collection is not in memory but exists on disk, loads it
-    pub fn get_collection(&self, name: &str) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
+    pub fn get_collection(
+        &self,
+        name: &str,
+    ) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
         // Fast path: collection already loaded
         if let Some(collection) = self.collections.get(name) {
             return Ok(collection);
         }
-        
+
         // Slow path: try lazy loading from disk
         let data_dir = Self::get_data_dir();
-        
+
         // First, try to load from .vecdb archive (compact format)
-        use crate::storage::{detect_format, StorageFormat, StorageReader};
+        use crate::storage::{StorageFormat, StorageReader, detect_format};
         if detect_format(&data_dir) == StorageFormat::Compact {
             debug!("📥 Lazy loading collection '{}' from .vecdb archive", name);
-            
+
             match StorageReader::new(&data_dir) {
                 Ok(reader) => {
                     // Read the _vector_store.bin file from the archive
@@ -846,28 +913,43 @@ impl VectorStore {
                     match reader.read_file(&vector_store_path) {
                         Ok(data) => {
                             // Deserialize PersistedCollection from JSON (compressed in ZIP)
-                            match serde_json::from_slice::<crate::persistence::PersistedCollection>(&data) {
+                            match serde_json::from_slice::<crate::persistence::PersistedCollection>(
+                                &data,
+                            ) {
                                 Ok(persisted) => {
                                     // Load collection into memory
-                                    if let Err(e) = self.load_persisted_collection_from_data(name, persisted) {
-                                        warn!("Failed to load collection '{}' from .vecdb: {}", name, e);
-                                        return Err(VectorizerError::CollectionNotFound(name.to_string()));
+                                    if let Err(e) =
+                                        self.load_persisted_collection_from_data(name, persisted)
+                                    {
+                                        warn!(
+                                            "Failed to load collection '{}' from .vecdb: {}",
+                                            name, e
+                                        );
+                                        return Err(VectorizerError::CollectionNotFound(
+                                            name.to_string(),
+                                        ));
                                     }
-                                    
+
                                     info!("✅ Lazy loaded collection '{}' from .vecdb", name);
-                                    
+
                                     // Try again now that it's loaded
-                                    return self.collections
-                                        .get(name)
-                                        .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()));
+                                    return self.collections.get(name).ok_or_else(|| {
+                                        VectorizerError::CollectionNotFound(name.to_string())
+                                    });
                                 }
                                 Err(e) => {
-                                    warn!("Failed to deserialize collection '{}' from .vecdb: {}", name, e);
+                                    warn!(
+                                        "Failed to deserialize collection '{}' from .vecdb: {}",
+                                        name, e
+                                    );
                                 }
                             }
                         }
                         Err(e) => {
-                            debug!("Collection file '{}' not found in .vecdb: {}", vector_store_path, e);
+                            debug!(
+                                "Collection file '{}' not found in .vecdb: {}",
+                                vector_store_path, e
+                            );
                         }
                     }
                 }
@@ -876,37 +958,47 @@ impl VectorStore {
                 }
             }
         }
-        
+
         // Fallback: try loading from legacy _vector_store.bin file
         let collection_file = data_dir.join(format!("{}_vector_store.bin", name));
-        
+
         if collection_file.exists() {
-            debug!("📥 Lazy loading collection '{}' from legacy .bin file", name);
-            
+            debug!(
+                "📥 Lazy loading collection '{}' from legacy .bin file",
+                name
+            );
+
             // Load collection from disk
             if let Err(e) = self.load_persisted_collection(&collection_file, name) {
                 warn!("Failed to lazy load collection '{}': {}", name, e);
                 return Err(VectorizerError::CollectionNotFound(name.to_string()));
             }
-            
+
             // Try again now that it's loaded
-            return self.collections
+            return self
+                .collections
                 .get(name)
                 .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()));
         }
-        
+
         // Collection doesn't exist anywhere
         Err(VectorizerError::CollectionNotFound(name.to_string()))
     }
 
-
     /// Load collection from PersistedCollection data
-    fn load_persisted_collection_from_data(&self, name: &str, persisted: crate::persistence::PersistedCollection) -> Result<()> {
+    fn load_persisted_collection_from_data(
+        &self,
+        name: &str,
+        persisted: crate::persistence::PersistedCollection,
+    ) -> Result<()> {
         use crate::models::Vector;
-        
+
         let vector_count = persisted.vectors.len();
-        info!("Loading collection '{}' with {} vectors from .vecdb", name, vector_count);
-        
+        info!(
+            "Loading collection '{}' with {} vectors from .vecdb",
+            name, vector_count
+        );
+
         // Create collection if it doesn't exist
         if !self.has_collection_in_memory(name) {
             let config = persisted.config.clone().unwrap_or_else(|| {
@@ -915,50 +1007,66 @@ impl VectorStore {
             });
             self.create_collection(name, config)?;
         }
-        
+
         // Convert persisted vectors to runtime vectors
-        let vectors: Vec<Vector> = persisted.vectors
+        let vectors: Vec<Vector> = persisted
+            .vectors
             .into_iter()
             .filter_map(|pv| pv.into_runtime().ok())
             .collect();
-        
-        info!("Converted {} persisted vectors to runtime format", vectors.len());
-        
+
+        info!(
+            "Converted {} persisted vectors to runtime format",
+            vectors.len()
+        );
+
         // Load vectors into the collection
-        let collection = self.collections.get(name)
+        let collection = self
+            .collections
+            .get(name)
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))?;
-        
+
         // Load vectors into memory - HNSW index is built automatically during insertion
-        info!("🔨 Loading {} vectors and building HNSW index for collection '{}'...", vectors.len(), name);
+        info!(
+            "🔨 Loading {} vectors and building HNSW index for collection '{}'...",
+            vectors.len(),
+            name
+        );
         match collection.load_vectors_into_memory(vectors) {
             Ok(_) => {
-                info!("✅ Collection '{}' loaded from .vecdb with {} vectors and HNSW index built", name, vector_count);
+                info!(
+                    "✅ Collection '{}' loaded from .vecdb with {} vectors and HNSW index built",
+                    name, vector_count
+                );
             }
             Err(e) => {
-                warn!("❌ Failed to load vectors into collection '{}': {}", name, e);
+                warn!(
+                    "❌ Failed to load vectors into collection '{}': {}",
+                    name, e
+                );
                 return Err(e);
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// List all collections (both loaded in memory and available on disk)
     /// Check if collection exists in memory only (without lazy loading)
     pub fn has_collection_in_memory(&self, name: &str) -> bool {
         self.collections.contains_key(name)
     }
-    
+
     pub fn list_collections(&self) -> Vec<String> {
         use std::collections::HashSet;
-        
+
         let mut collection_names = HashSet::new();
-        
+
         // Add collections already loaded in memory
         for entry in self.collections.iter() {
             collection_names.insert(entry.key().clone());
         }
-        
+
         // Add collections available on disk
         let data_dir = Self::get_data_dir();
         if data_dir.exists() {
@@ -974,7 +1082,7 @@ impl VectorStore {
                 }
             }
         }
-        
+
         collection_names.into_iter().collect()
     }
 
@@ -1002,13 +1110,13 @@ impl VectorStore {
                 for vector in vectors {
                     collection_ref.add_vector(vector.id.clone(), vector)?;
                 }
-            },
+            }
             _ => {
                 // For CPU collections, use parallel iteration for better performance
                 use rayon::prelude::*;
-                vectors.into_par_iter().try_for_each(|vector| {
-                    collection_ref.add_vector(vector.id.clone(), vector)
-                })?;
+                vectors
+                    .into_par_iter()
+                    .try_for_each(|vector| collection_ref.add_vector(vector.id.clone(), vector))?;
             }
         }
 
@@ -1075,10 +1183,18 @@ impl VectorStore {
     }
 
     /// Load a collection from cache without reconstructing the HNSW index
-    pub fn load_collection_from_cache(&self, collection_name: &str, persisted_vectors: Vec<crate::persistence::PersistedVector>) -> Result<()> {
+    pub fn load_collection_from_cache(
+        &self,
+        collection_name: &str,
+        persisted_vectors: Vec<crate::persistence::PersistedVector>,
+    ) -> Result<()> {
         use crate::persistence::PersistedVector;
 
-        debug!("Fast loading collection '{}' from cache with {} vectors", collection_name, persisted_vectors.len());
+        debug!(
+            "Fast loading collection '{}' from cache with {} vectors",
+            collection_name,
+            persisted_vectors.len()
+        );
 
         let collection_ref = self.get_collection(collection_name)?;
 
@@ -1088,10 +1204,12 @@ impl VectorStore {
                 c.load_from_cache(persisted_vectors)?;
                 // Requantize existing vectors if quantization is enabled
                 c.requantize_existing_vectors()?;
-            },
+            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
-                warn!("Metal collections don't support cache loading yet - falling back to manual insertion");
+                warn!(
+                    "Metal collections don't support cache loading yet - falling back to manual insertion"
+                );
                 // For now, manually insert vectors for Metal collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
@@ -1101,7 +1219,9 @@ impl VectorStore {
             }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Vulkan(_) => {
-                warn!("Vulkan collections don't support cache loading yet - falling back to manual insertion");
+                warn!(
+                    "Vulkan collections don't support cache loading yet - falling back to manual insertion"
+                );
                 // For now, manually insert vectors for Vulkan collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
@@ -1111,7 +1231,9 @@ impl VectorStore {
             }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::DirectX12(_) => {
-                warn!("DirectX 12 collections don't support cache loading yet - falling back to manual insertion");
+                warn!(
+                    "DirectX 12 collections don't support cache loading yet - falling back to manual insertion"
+                );
                 // For now, manually insert vectors for DirectX 12 collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
@@ -1125,19 +1247,34 @@ impl VectorStore {
     }
 
     /// Load a collection from cache with optional HNSW dump for instant loading
-    pub fn load_collection_from_cache_with_hnsw_dump(&self, collection_name: &str, persisted_vectors: Vec<crate::persistence::PersistedVector>, hnsw_dump_path: Option<&std::path::Path>, hnsw_basename: Option<&str>) -> Result<()> {
+    pub fn load_collection_from_cache_with_hnsw_dump(
+        &self,
+        collection_name: &str,
+        persisted_vectors: Vec<crate::persistence::PersistedVector>,
+        hnsw_dump_path: Option<&std::path::Path>,
+        hnsw_basename: Option<&str>,
+    ) -> Result<()> {
         use crate::persistence::PersistedVector;
 
-        debug!("Loading collection '{}' from cache with {} vectors (HNSW dump: {})", collection_name, persisted_vectors.len(), hnsw_basename.is_some());
+        debug!(
+            "Loading collection '{}' from cache with {} vectors (HNSW dump: {})",
+            collection_name,
+            persisted_vectors.len(),
+            hnsw_basename.is_some()
+        );
 
         let collection_ref = self.get_collection(collection_name)?;
 
         // TODO: Implement load_from_cache_with_hnsw_dump for CudaCollection and Metal
         match &*collection_ref {
-            CollectionType::Cpu(c) => c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?,
+            CollectionType::Cpu(c) => {
+                c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?
+            }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Metal(_) => {
-                warn!("Metal collections don't support HNSW dump loading yet - falling back to manual insertion");
+                warn!(
+                    "Metal collections don't support HNSW dump loading yet - falling back to manual insertion"
+                );
                 // For now, manually insert vectors for Metal collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
@@ -1147,7 +1284,9 @@ impl VectorStore {
             }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::Vulkan(_) => {
-                warn!("Vulkan collections don't support HNSW dump loading yet - falling back to manual insertion");
+                warn!(
+                    "Vulkan collections don't support HNSW dump loading yet - falling back to manual insertion"
+                );
                 // For now, manually insert vectors for Vulkan collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
@@ -1157,7 +1296,9 @@ impl VectorStore {
             }
             #[cfg(feature = "wgpu-gpu")]
             CollectionType::DirectX12(_) => {
-                warn!("DirectX 12 collections don't support HNSW dump loading yet - falling back to manual insertion");
+                warn!(
+                    "DirectX 12 collections don't support HNSW dump loading yet - falling back to manual insertion"
+                );
                 // For now, manually insert vectors for DirectX 12 collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
@@ -1213,7 +1354,6 @@ impl VectorStore {
         current_dir.join("data")
     }
 
-
     /// Load all persisted collections from the data directory
     pub fn load_all_persisted_collections(&self) -> Result<usize> {
         let data_dir = Self::get_data_dir();
@@ -1223,10 +1363,10 @@ impl VectorStore {
         }
 
         info!("🔍 Detecting storage format...");
-        
+
         // Detect storage format
         let format = crate::storage::detect_format(&data_dir);
-        
+
         match format {
             crate::storage::StorageFormat::Compact => {
                 info!("📦 Found vectorizer.vecdb - loading from compressed archive");
@@ -1238,12 +1378,12 @@ impl VectorStore {
             }
         }
     }
-    
+
     /// Load collections from vectorizer.vecdb (compressed archive)
     /// NEVER falls back to raw files - .vecdb is the ONLY source of truth
     fn load_from_vecdb(&self) -> Result<usize> {
         use crate::storage::StorageReader;
-        
+
         let data_dir = Self::get_data_dir();
         let reader = match StorageReader::new(&data_dir) {
             Ok(r) => r,
@@ -1253,77 +1393,124 @@ impl VectorStore {
                 error!("   This usually indicates .vecdb corruption.");
                 error!("   RESTORE FROM SNAPSHOT in data/snapshots/ if available.");
                 // NO FALLBACK! Return error instead
-                return Err(VectorizerError::Storage(format!("Failed to read vectorizer.vecdb: {}", e)));
+                return Err(VectorizerError::Storage(format!(
+                    "Failed to read vectorizer.vecdb: {}",
+                    e
+                )));
             }
         };
-        
+
         // Extract all collections in memory
         let persisted_collections = match reader.extract_all_collections() {
             Ok(collections) => collections,
             Err(e) => {
-                error!("❌ CRITICAL: Failed to extract collections from .vecdb: {}", e);
+                error!(
+                    "❌ CRITICAL: Failed to extract collections from .vecdb: {}",
+                    e
+                );
                 error!("   This usually indicates .vecdb corruption or format mismatch");
                 error!("   RESTORE FROM SNAPSHOT in data/snapshots/ if available.");
                 // NO FALLBACK! Return error instead
-                return Err(VectorizerError::Storage(format!("Failed to extract from vectorizer.vecdb: {}", e)));
+                return Err(VectorizerError::Storage(format!(
+                    "Failed to extract from vectorizer.vecdb: {}",
+                    e
+                )));
             }
         };
-        
-        info!("📦 Loading {} collections from archive...", persisted_collections.len());
-        
+
+        info!(
+            "📦 Loading {} collections from archive...",
+            persisted_collections.len()
+        );
+
         let mut collections_loaded = 0;
-        
+
         for (i, persisted_collection) in persisted_collections.iter().enumerate() {
             let collection_name = &persisted_collection.name;
-            info!("⏳ Loading collection {}/{}: '{}'", i + 1, persisted_collections.len(), collection_name);
-            
+            info!(
+                "⏳ Loading collection {}/{}: '{}'",
+                i + 1,
+                persisted_collections.len(),
+                collection_name
+            );
+
             // SKIP empty collections - don't create them
             if persisted_collection.vectors.is_empty() {
-                warn!("⚠️  Collection '{}' has NO vectors in .vecdb, skipping creation", collection_name);
+                warn!(
+                    "⚠️  Collection '{}' has NO vectors in .vecdb, skipping creation",
+                    collection_name
+                );
                 continue;
             }
-            
+
             // Create collection with the persisted config
             let mut config = persisted_collection.config.clone().unwrap_or_else(|| {
-                warn!("⚠️  Collection '{}' has no config, using default", collection_name);
+                warn!(
+                    "⚠️  Collection '{}' has no config, using default",
+                    collection_name
+                );
                 crate::models::CollectionConfig::default()
             });
             config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
-            
+
             match self.create_collection_with_quantization(collection_name, config) {
                 Ok(_) => {
                     // Load vectors (we already checked they exist above)
-                    debug!("Loading {} vectors into collection '{}'", persisted_collection.vectors.len(), collection_name);
-                    
-                    match self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone()) {
+                    debug!(
+                        "Loading {} vectors into collection '{}'",
+                        persisted_collection.vectors.len(),
+                        collection_name
+                    );
+
+                    match self.load_collection_from_cache(
+                        collection_name,
+                        persisted_collection.vectors.clone(),
+                    ) {
                         Ok(_) => {
                             collections_loaded += 1;
-                            info!("✅ Successfully loaded collection '{}' with {} vectors ({}/{})", 
-                                  collection_name, persisted_collection.vectors.len(), i + 1, persisted_collections.len());
+                            info!(
+                                "✅ Successfully loaded collection '{}' with {} vectors ({}/{})",
+                                collection_name,
+                                persisted_collection.vectors.len(),
+                                i + 1,
+                                persisted_collections.len()
+                            );
                         }
                         Err(e) => {
-                            error!("❌ CRITICAL: Failed to load vectors for collection '{}': {}", collection_name, e);
+                            error!(
+                                "❌ CRITICAL: Failed to load vectors for collection '{}': {}",
+                                collection_name, e
+                            );
                             // Remove the empty collection
                             let _ = self.delete_collection(collection_name);
                         }
                     }
                 }
                 Err(e) => {
-                    error!("❌ CRITICAL: Failed to create collection '{}': {}", collection_name, e);
+                    error!(
+                        "❌ CRITICAL: Failed to create collection '{}': {}",
+                        collection_name, e
+                    );
                 }
             }
         }
-        
-        info!("✅ Loaded {} collections from memory (no temp files)", collections_loaded);
-        
+
+        info!(
+            "✅ Loaded {} collections from memory (no temp files)",
+            collections_loaded
+        );
+
         // SAFETY CHECK: If no collections loaded but .vecdb exists, something is wrong
         if collections_loaded == 0 && persisted_collections.len() > 0 {
-            error!("❌ CRITICAL: Failed to load any collections despite {} in archive!", persisted_collections.len());
+            error!(
+                "❌ CRITICAL: Failed to load any collections despite {} in archive!",
+                persisted_collections.len()
+            );
             error!("   All collections failed to deserialize - likely format mismatch");
             warn!("🔄 Attempting fallback to raw files...");
             return self.load_from_raw_files();
         }
-        
+
         // Clean up any legacy raw files after successful load from .vecdb
         if collections_loaded > 0 {
             info!("🧹 Cleaning up legacy raw files...");
@@ -1340,32 +1527,33 @@ impl VectorStore {
                 }
             }
         }
-        
+
         Ok(collections_loaded)
     }
-    
+
     /// Clean up raw collection files from data directory
     fn cleanup_raw_files(data_dir: &std::path::Path) -> Result<usize> {
         use std::fs;
-        
+
         let mut removed_count = 0;
-        
+
         for entry in fs::read_dir(data_dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     // Skip .vecdb and .vecidx files
                     if name == "vectorizer.vecdb" || name == "vectorizer.vecidx" {
                         continue;
                     }
-                    
+
                     // Remove legacy collection files
-                    if name.ends_with("_vector_store.bin") 
+                    if name.ends_with("_vector_store.bin")
                         || name.ends_with("_tokenizer.json")
                         || name.ends_with("_metadata.json")
-                        || name.ends_with("_checksums.json") {
+                        || name.ends_with("_checksums.json")
+                    {
                         match fs::remove_file(&path) {
                             Ok(_) => {
                                 debug!("   Removed: {}", name);
@@ -1379,14 +1567,14 @@ impl VectorStore {
                 }
             }
         }
-        
+
         Ok(removed_count)
     }
-    
+
     /// Load collections from raw files (legacy format)
     fn load_from_raw_files(&self) -> Result<usize> {
         let data_dir = Self::get_data_dir();
-        
+
         // Collect all collection files first
         let mut collection_files = Vec::new();
         for entry in std::fs::read_dir(&data_dir)? {
@@ -1406,26 +1594,45 @@ impl VectorStore {
             }
         }
 
-        info!("📦 Found {} persisted collections to load", collection_files.len());
+        info!(
+            "📦 Found {} persisted collections to load",
+            collection_files.len()
+        );
 
         // Load collections sequentially but with better progress reporting
         let mut collections_loaded = 0;
         for (i, (path, collection_name)) in collection_files.iter().enumerate() {
-            info!("⏳ Loading collection {}/{}: '{}'", i + 1, collection_files.len(), collection_name);
-            
+            info!(
+                "⏳ Loading collection {}/{}: '{}'",
+                i + 1,
+                collection_files.len(),
+                collection_name
+            );
+
             match self.load_persisted_collection(path, collection_name) {
                 Ok(_) => {
                     collections_loaded += 1;
-                    info!("✅ Successfully loaded collection '{}' from persistence ({}/{})", collection_name, i + 1, collection_files.len());
+                    info!(
+                        "✅ Successfully loaded collection '{}' from persistence ({}/{})",
+                        collection_name,
+                        i + 1,
+                        collection_files.len()
+                    );
                 }
                 Err(e) => {
-                    warn!("❌ Failed to load collection '{}' from {:?}: {}", collection_name, path, e);
+                    warn!(
+                        "❌ Failed to load collection '{}' from {:?}: {}",
+                        collection_name, path, e
+                    );
                 }
             }
         }
 
-        info!("📊 Loaded {} collections from raw files", collections_loaded);
-        
+        info!(
+            "📊 Loaded {} collections from raw files",
+            collections_loaded
+        );
+
         // After loading raw files, compact them to vecdb
         if collections_loaded > 0 {
             info!("💾 Compacting raw files to vectorizer.vecdb...");
@@ -1434,26 +1641,29 @@ impl VectorStore {
                 Err(e) => warn!("⚠️  Failed to create vectorizer.vecdb: {}", e),
             }
         }
-        
+
         Ok(collections_loaded)
     }
-    
+
     /// Compact raw files to vectorizer.vecdb
     fn compact_to_vecdb(&self) -> Result<()> {
         use crate::storage::StorageCompactor;
-        
+
         let data_dir = Self::get_data_dir();
         let compactor = StorageCompactor::new(&data_dir, 6, 1000);
-        
+
         info!("🗜️  Starting compaction of raw files...");
-        
+
         // Compact with cleanup (remove raw files after successful compaction)
         match compactor.compact_all_with_cleanup(true) {
             Ok(index) => {
                 info!("✅ Compaction completed successfully:");
                 info!("   Collections: {}", index.collection_count());
                 info!("   Total vectors: {}", index.total_vectors());
-                info!("   Compressed size: {} MB", index.compressed_size / 1_048_576);
+                info!(
+                    "   Compressed size: {} MB",
+                    index.compressed_size / 1_048_576
+                );
                 Ok(())
             }
             Err(e) => {
@@ -1474,7 +1684,8 @@ impl VectorStore {
         }
 
         let mut dynamic_collections_loaded = 0;
-        let existing_collections: std::collections::HashSet<String> = self.list_collections().into_iter().collect();
+        let existing_collections: std::collections::HashSet<String> =
+            self.list_collections().into_iter().collect();
 
         // Find all .bin files in the data directory that are not already loaded
         for entry in std::fs::read_dir(&data_dir)? {
@@ -1488,7 +1699,10 @@ impl VectorStore {
                         if let Some(collection_name) = filename.strip_suffix("_vector_store.bin") {
                             // Skip if this collection is already loaded (from workspace)
                             if existing_collections.contains(collection_name) {
-                                debug!("Skipping collection '{}' - already loaded from workspace", collection_name);
+                                debug!(
+                                    "Skipping collection '{}' - already loaded from workspace",
+                                    collection_name
+                                );
                                 continue;
                             }
 
@@ -1497,10 +1711,16 @@ impl VectorStore {
                             match self.load_persisted_collection(&path, collection_name) {
                                 Ok(_) => {
                                     dynamic_collections_loaded += 1;
-                                    info!("✅ Loaded dynamic collection '{}' from persistence", collection_name);
+                                    info!(
+                                        "✅ Loaded dynamic collection '{}' from persistence",
+                                        collection_name
+                                    );
                                 }
                                 Err(e) => {
-                                    warn!("❌ Failed to load dynamic collection '{}' from {:?}: {}", collection_name, path, e);
+                                    warn!(
+                                        "❌ Failed to load dynamic collection '{}' from {:?}: {}",
+                                        collection_name, path, e
+                                    );
                                 }
                             }
                         }
@@ -1510,27 +1730,39 @@ impl VectorStore {
         }
 
         if dynamic_collections_loaded > 0 {
-            info!("📊 Loaded {} additional dynamic collections from persistence", dynamic_collections_loaded);
+            info!(
+                "📊 Loaded {} additional dynamic collections from persistence",
+                dynamic_collections_loaded
+            );
         }
 
         Ok(dynamic_collections_loaded)
     }
 
     /// Load a single persisted collection from file
-    fn load_persisted_collection<P: AsRef<std::path::Path>>(&self, path: P, collection_name: &str) -> Result<()> {
-        use crate::persistence::PersistedVectorStore;
+    fn load_persisted_collection<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+        collection_name: &str,
+    ) -> Result<()> {
         use std::io::Read;
+
         use flate2::read::GzDecoder;
 
+        use crate::persistence::PersistedVectorStore;
+
         let path = path.as_ref();
-        debug!("Loading persisted collection '{}' from {:?}", collection_name, path);
+        debug!(
+            "Loading persisted collection '{}' from {:?}",
+            collection_name, path
+        );
 
         // Read and parse the JSON file with compression support
         let (json_data, was_compressed) = match std::fs::File::open(path) {
             Ok(file) => {
                 let mut decoder = GzDecoder::new(file);
                 let mut json_string = String::new();
-                
+
                 // Try to decompress - if it fails, try reading as plain text
                 match decoder.read_to_string(&mut json_string) {
                     Ok(_) => {
@@ -1544,9 +1776,14 @@ impl VectorStore {
                     }
                 }
             }
-            Err(e) => return Err(crate::error::VectorizerError::Other(format!("Failed to open file: {}", e))),
+            Err(e) => {
+                return Err(crate::error::VectorizerError::Other(format!(
+                    "Failed to open file: {}",
+                    e
+                )));
+            }
         };
-        
+
         let persisted: PersistedVectorStore = serde_json::from_str(&json_data)?;
 
         // Check version
@@ -1558,15 +1795,23 @@ impl VectorStore {
         }
 
         // Find the collection in the persisted data
-        let persisted_collection = persisted.collections.iter()
+        let persisted_collection = persisted
+            .collections
+            .iter()
             .find(|c| c.name == collection_name)
-            .ok_or_else(|| crate::error::VectorizerError::Other(format!(
-                "Collection '{}' not found in persisted data", collection_name
-            )))?;
+            .ok_or_else(|| {
+                crate::error::VectorizerError::Other(format!(
+                    "Collection '{}' not found in persisted data",
+                    collection_name
+                ))
+            })?;
 
         // Create collection with the persisted config
         let mut config = persisted_collection.config.clone().unwrap_or_else(|| {
-            warn!("⚠️  Collection '{}' has no config, using default", collection_name);
+            warn!(
+                "⚠️  Collection '{}' has no config, using default",
+                collection_name
+            );
             crate::models::CollectionConfig::default()
         });
         config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
@@ -1575,86 +1820,97 @@ impl VectorStore {
 
         // Load vectors if any exist
         if !persisted_collection.vectors.is_empty() {
-            debug!("Loading {} vectors into collection '{}'", persisted_collection.vectors.len(), collection_name);
+            debug!(
+                "Loading {} vectors into collection '{}'",
+                persisted_collection.vectors.len(),
+                collection_name
+            );
             self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
         }
-        
+
         // Note: Auto-migration removed to prevent memory duplication
         // Uncompressed files will be saved compressed on next auto-save cycle
         if !was_compressed {
-            info!("📦 Loaded uncompressed cache for '{}' - will be saved compressed on next auto-save", collection_name);
+            info!(
+                "📦 Loaded uncompressed cache for '{}' - will be saved compressed on next auto-save",
+                collection_name
+            );
         }
-        
+
         Ok(())
     }
-    
+
     /// Enable auto-save for all collections
     /// Call this after initialization is complete
     pub fn enable_auto_save(&self) {
         // Check if auto-save is already enabled to avoid multiple tasks
-        if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+        if self
+            .auto_save_enabled
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             info!("⏭️ Auto-save already enabled, skipping");
             return;
         }
-        
-        self.auto_save_enabled.store(true, std::sync::atomic::Ordering::Relaxed);
-        
+
+        self.auto_save_enabled
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
         // DEPRECATED: Old auto-save system disabled
         // Auto-save is now managed exclusively by AutoSaveManager (5min intervals)
         // which compacts directly from memory without creating raw .bin files
         info!("✅ Auto-save flag enabled - managed by AutoSaveManager (no raw .bin files)");
-        
+
         // OLD SYSTEM DISABLED - keeping the code for reference only
         /*
         // Start background save task
         let pending_saves: Arc<std::sync::Mutex<HashSet<String>>> = Arc::clone(&self.pending_saves);
         let collections = Arc::clone(&self.collections);
-        
+
         let save_task = tokio::spawn(async move {
             info!("🔄 OLD Background save task - DEPRECATED");
             loop {
                 if !pending_saves.lock().unwrap().is_empty() {
                     info!("🔄 Background save: {} collections pending", pending_saves.lock().unwrap().len());
-                    
+
                     // Process all pending saves
                     let collections_to_save: Vec<String> = pending_saves.lock().unwrap().iter().cloned().collect();
                     pending_saves.lock().unwrap().clear();
-                    
+
                     // Save each collection to raw format
                     let mut saved_count = 0;
                     for collection_name in collections_to_save {
                         debug!("💾 Saving collection '{}' to raw format", collection_name);
-                        
+
                         // Get collection and save to raw files
                         if let Some(collection_ref) = collections.get(&collection_name) {
                             match collection_ref.deref() {
                                 CollectionType::Cpu(c) => {
                                     let metadata = c.metadata();
                                     let vectors = c.get_all_vectors();
-                                    
+
                                     // Create persisted representation
                                     let persisted_vectors: Vec<crate::persistence::PersistedVector> = vectors
                                         .into_iter()
                                         .map(crate::persistence::PersistedVector::from)
                                         .collect();
-                                    
+
                                     let persisted_collection = crate::persistence::PersistedCollection {
                                         name: collection_name.clone(),
                                         config: Some(metadata.config),
                                         vectors: persisted_vectors,
                                         hnsw_dump_basename: None,
                                     };
-                                    
+
                                     // Save to raw format
                                     let data_dir = VectorStore::get_data_dir();
                                     let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
-                                    
+
                                     // Serialize to JSON (matching the load format)
                                     let persisted_store = crate::persistence::PersistedVectorStore {
                                         version: 1,
                                         collections: vec![persisted_collection],
                                     };
-                                    
+
                                     if let Ok(json_data) = serde_json::to_string(&persisted_store) {
                                         if let Ok(mut file) = std::fs::File::create(&vector_store_path) {
                                             use std::io::Write;
@@ -1670,47 +1926,47 @@ impl VectorStore {
                             }
                         }
                     }
-                    
+
                     info!("✅ Background save completed - {} collections saved", saved_count);
-                    
+
                     // Immediately compact to .vecdb and remove raw files
                     if saved_count > 0 {
                         info!("🗜️  Starting immediate compaction to vectorizer.vecdb...");
                         info!("📝 First, saving ALL collections to ensure complete backup...");
-                        
+
                         let data_dir = VectorStore::get_data_dir();
-                        
+
                         // Save ALL collections to raw format (not just modified ones)
                         // This ensures the .vecdb will contain everything
                         let all_collection_names: Vec<String> = collections.iter().map(|entry| entry.key().clone()).collect();
                         info!("💾 Saving all {} collections to raw format for complete backup", all_collection_names.len());
-                        
+
                         for collection_name in &all_collection_names {
                             if let Some(collection_ref) = collections.get(collection_name) {
                                 match collection_ref.deref() {
                                     CollectionType::Cpu(c) => {
                                         let metadata = c.metadata();
                                         let vectors = c.get_all_vectors();
-                                        
+
                                         let persisted_vectors: Vec<crate::persistence::PersistedVector> = vectors
                                             .into_iter()
                                             .map(crate::persistence::PersistedVector::from)
                                             .collect();
-                                        
+
                                         let persisted_collection = crate::persistence::PersistedCollection {
                                             name: collection_name.clone(),
                                             config: Some(metadata.config),
                                             vectors: persisted_vectors,
                                             hnsw_dump_basename: None,
                                         };
-                                        
+
                                         let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
-                                        
+
                                         let persisted_store = crate::persistence::PersistedVectorStore {
                                             version: 1,
                                             collections: vec![persisted_collection],
                                         };
-                                        
+
                                         if let Ok(json_data) = serde_json::to_string(&persisted_store) {
                                             if let Ok(mut file) = std::fs::File::create(&vector_store_path) {
                                                 use std::io::Write;
@@ -1722,12 +1978,12 @@ impl VectorStore {
                                 }
                             }
                         }
-                        
+
                         info!("✅ All collections saved to raw format");
-                        
+
                         // Now compact everything
                         let compactor = crate::storage::StorageCompactor::new(&data_dir, 6, 1000);
-                        
+
                         match compactor.compact_all_with_cleanup(true) {
                             Ok(index) => {
                                 info!("✅ Compaction completed successfully:");
@@ -1745,19 +2001,20 @@ impl VectorStore {
                 }
             }
         });
-        
+
         // Store the task handle
         *self.save_task_handle.lock().unwrap() = Some(save_task);
         */
     }
-    
+
     /// Disable auto-save for all collections
     /// Useful during bulk operations or maintenance
     pub fn disable_auto_save(&self) {
-        self.auto_save_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.auto_save_enabled
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         info!("⏸️ Auto-save disabled for all collections");
     }
-    
+
     /// Force immediate save of all pending collections
     /// Useful before shutdown or critical operations
     pub fn force_save_all(&self) -> Result<()> {
@@ -1765,17 +2022,24 @@ impl VectorStore {
             debug!("No pending saves to force");
             return Ok(());
         }
-        
-        info!("🔄 Force saving {} pending collections", self.pending_saves.lock().unwrap().len());
-        
-        let collections_to_save: Vec<String> = self.pending_saves.lock().unwrap().iter().cloned().collect();
+
+        info!(
+            "🔄 Force saving {} pending collections",
+            self.pending_saves.lock().unwrap().len()
+        );
+
+        let collections_to_save: Vec<String> =
+            self.pending_saves.lock().unwrap().iter().cloned().collect();
         self.pending_saves.lock().unwrap().clear();
-        
+
         // Force save disabled - using .vecdb format
         for collection_name in collections_to_save {
-            debug!("Collection '{}' marked for save (using .vecdb format)", collection_name);
+            debug!(
+                "Collection '{}' marked for save (using .vecdb format)",
+                collection_name
+            );
         }
-        
+
         info!("✅ Force save completed");
         Ok(())
     }
@@ -1784,15 +2048,22 @@ impl VectorStore {
     /// Creates separate files for vectors, tokenizer, and metadata
     pub fn save_collection_to_file(&self, collection_name: &str) -> Result<()> {
         use std::fs;
-        use crate::persistence::PersistedCollection;
-        use crate::storage::{detect_format, StorageFormat};
 
-        info!("Saving collection '{}' to individual files", collection_name);
+        use crate::persistence::PersistedCollection;
+        use crate::storage::{StorageFormat, detect_format};
+
+        info!(
+            "Saving collection '{}' to individual files",
+            collection_name
+        );
 
         // Check if using compact storage format - if so, don't save in legacy format
         let data_dir = Self::get_data_dir();
         if detect_format(&data_dir) == StorageFormat::Compact {
-            debug!("⏭️ Skipping legacy save for '{}' - using .vecdb format", collection_name);
+            debug!(
+                "⏭️ Skipping legacy save for '{}' - using .vecdb format",
+                collection_name
+            );
             return Ok(());
         }
 
@@ -1837,33 +2108,47 @@ impl VectorStore {
         let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
         self.save_collection_tokenizer(collection_name, &tokenizer_path)?;
 
-        info!("Successfully saved collection '{}' to files", collection_name);
+        info!(
+            "Successfully saved collection '{}' to files",
+            collection_name
+        );
         Ok(())
     }
-    
+
     /// Static method to save collection to file (for background task)
-    fn save_collection_to_file_static(collection_name: &str, collection: &CollectionType) -> Result<()> {
+    fn save_collection_to_file_static(
+        collection_name: &str,
+        collection: &CollectionType,
+    ) -> Result<()> {
         use std::fs;
+
         use crate::persistence::PersistedCollection;
-        use crate::storage::{detect_format, StorageFormat};
-        
+        use crate::storage::{StorageFormat, detect_format};
+
         info!("💾 Starting save for collection '{}'", collection_name);
-        
+
         // Check if using compact storage format - if so, don't save in legacy format
         let data_dir = Self::get_data_dir();
         if detect_format(&data_dir) == StorageFormat::Compact {
-            debug!("⏭️ Skipping legacy save for '{}' - using .vecdb format", collection_name);
+            debug!(
+                "⏭️ Skipping legacy save for '{}' - using .vecdb format",
+                collection_name
+            );
             return Ok(());
         }
-        
+
         // Get collection metadata
         let metadata = collection.metadata();
         info!("💾 Got metadata for collection '{}'", collection_name);
-        
+
         // Ensure data directory exists
         let data_dir = Self::get_data_dir();
         if let Err(e) = fs::create_dir_all(&data_dir) {
-            warn!("Failed to create data directory '{}': {}", data_dir.display(), e);
+            warn!(
+                "Failed to create data directory '{}': {}",
+                data_dir.display(),
+                e
+            );
             return Err(crate::error::VectorizerError::Other(format!(
                 "Failed to create data directory '{}': {}",
                 data_dir.display(),
@@ -1871,15 +2156,19 @@ impl VectorStore {
             )));
         }
         info!("💾 Data directory ready: {:?}", data_dir);
-        
+
         // Collect all vectors from the collection
         let vectors: Vec<crate::persistence::PersistedVector> = collection
             .get_all_vectors()
             .into_iter()
             .map(crate::persistence::PersistedVector::from)
             .collect();
-        info!("💾 Collected {} vectors from collection '{}'", vectors.len(), collection_name);
-        
+        info!(
+            "💾 Collected {} vectors from collection '{}'",
+            vectors.len(),
+            collection_name
+        );
+
         // Create persisted collection for vector store
         let persisted_collection_for_store = PersistedCollection {
             name: collection_name.to_string(),
@@ -1887,19 +2176,19 @@ impl VectorStore {
             vectors: vectors.clone(),
             hnsw_dump_basename: None,
         };
-        
+
         // Create persisted vector store with version
         let persisted_vector_store = crate::persistence::PersistedVectorStore {
             version: 1,
             collections: vec![persisted_collection_for_store],
         };
-        
+
         // Save vectors to binary file
         let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
         info!("💾 Saving vectors to: {:?}", vector_store_path);
         Self::save_collection_vectors_binary_static(&persisted_vector_store, &vector_store_path)?;
         info!("💾 Vectors saved successfully");
-        
+
         // Create persisted collection for metadata
         let persisted_collection_for_metadata = PersistedCollection {
             name: collection_name.to_string(),
@@ -1907,39 +2196,56 @@ impl VectorStore {
             vectors,
             hnsw_dump_basename: None,
         };
-        
+
         // Save metadata to JSON file
         let metadata_path = data_dir.join(format!("{}_metadata.json", collection_name));
         info!("💾 Saving metadata to: {:?}", metadata_path);
         Self::save_collection_metadata_static(&persisted_collection_for_metadata, &metadata_path)?;
         info!("💾 Metadata saved successfully");
-        
+
         // Save tokenizer
         let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
         info!("💾 Saving tokenizer to: {:?}", tokenizer_path);
         Self::save_collection_tokenizer_static(collection_name, &tokenizer_path)?;
         info!("💾 Tokenizer saved successfully");
-        
-        info!("✅ Successfully saved collection '{}' to files", collection_name);
+
+        info!(
+            "✅ Successfully saved collection '{}' to files",
+            collection_name
+        );
         Ok(())
     }
-    
+
     /// Mark a collection for auto-save (internal method)
     fn mark_collection_for_save(&self, collection_name: &str) {
-        if self.auto_save_enabled.load(std::sync::atomic::Ordering::Relaxed) {
+        if self
+            .auto_save_enabled
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             info!("📝 Marking collection '{}' for auto-save", collection_name);
-            self.pending_saves.lock().unwrap().insert(collection_name.to_string());
-            info!("📝 Collection '{}' added to pending saves (total: {})", 
-                collection_name, 
+            self.pending_saves
+                .lock()
+                .unwrap()
+                .insert(collection_name.to_string());
+            info!(
+                "📝 Collection '{}' added to pending saves (total: {})",
+                collection_name,
                 self.pending_saves.lock().unwrap().len()
             );
         } else {
-            warn!("⚠️ Auto-save is disabled, collection '{}' will not be saved", collection_name);
+            warn!(
+                "⚠️ Auto-save is disabled, collection '{}' will not be saved",
+                collection_name
+            );
         }
     }
 
     /// Save collection vectors to binary file
-    fn save_collection_vectors_binary(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+    fn save_collection_vectors_binary(
+        &self,
+        persisted_collection: &crate::persistence::PersistedCollection,
+        path: &std::path::Path,
+    ) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -1947,15 +2253,23 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved {} vectors to {}", persisted_collection.vectors.len(), path.display());
+        debug!(
+            "Saved {} vectors to {}",
+            persisted_collection.vectors.len(),
+            path.display()
+        );
         Ok(())
     }
-    
+
     /// Save collection metadata to JSON file
-    fn save_collection_metadata(&self, persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+    fn save_collection_metadata(
+        &self,
+        persisted_collection: &crate::persistence::PersistedCollection,
+        path: &std::path::Path,
+    ) -> Result<()> {
+        use std::collections::HashSet;
         use std::fs::File;
         use std::io::Write;
-        use std::collections::HashSet;
 
         // Extract unique file paths from vectors
         let mut indexed_files: HashSet<String> = HashSet::new();
@@ -1991,12 +2305,21 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved metadata for '{}' to {} ({} files indexed)", persisted_collection.name, path.display(), files_vec.len());
+        debug!(
+            "Saved metadata for '{}' to {} ({} files indexed)",
+            persisted_collection.name,
+            path.display(),
+            files_vec.len()
+        );
         Ok(())
     }
-    
+
     /// Save collection tokenizer to JSON file
-    fn save_collection_tokenizer(&self, collection_name: &str, path: &std::path::Path) -> Result<()> {
+    fn save_collection_tokenizer(
+        &self,
+        collection_name: &str,
+        path: &std::path::Path,
+    ) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -2013,12 +2336,19 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved tokenizer for '{}' to {}", collection_name, path.display());
+        debug!(
+            "Saved tokenizer for '{}' to {}",
+            collection_name,
+            path.display()
+        );
         Ok(())
     }
 
     /// Static version of save_collection_vectors_binary
-    fn save_collection_vectors_binary_static(persisted_vector_store: &crate::persistence::PersistedVectorStore, path: &std::path::Path) -> Result<()> {
+    fn save_collection_vectors_binary_static(
+        persisted_vector_store: &crate::persistence::PersistedVectorStore,
+        path: &std::path::Path,
+    ) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -2027,7 +2357,7 @@ impl VectorStore {
         file.write_all(json_data.as_bytes())?;
         file.flush()?;
         file.sync_all()?;
-        
+
         // Verify file was created
         if path.exists() {
             info!("✅ File created successfully: {:?}", path);
@@ -2035,15 +2365,22 @@ impl VectorStore {
             warn!("❌ File was not created: {:?}", path);
         }
 
-        debug!("Saved {} collections to {}", persisted_vector_store.collections.len(), path.display());
+        debug!(
+            "Saved {} collections to {}",
+            persisted_vector_store.collections.len(),
+            path.display()
+        );
         Ok(())
     }
 
     /// Static version of save_collection_metadata
-    fn save_collection_metadata_static(persisted_collection: &crate::persistence::PersistedCollection, path: &std::path::Path) -> Result<()> {
+    fn save_collection_metadata_static(
+        persisted_collection: &crate::persistence::PersistedCollection,
+        path: &std::path::Path,
+    ) -> Result<()> {
+        use std::collections::HashSet;
         use std::fs::File;
         use std::io::Write;
-        use std::collections::HashSet;
 
         // Extract unique file paths from vectors
         let mut indexed_files: HashSet<String> = HashSet::new();
@@ -2079,12 +2416,20 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved metadata for '{}' to {} ({} files indexed)", persisted_collection.name, path.display(), files_vec.len());
+        debug!(
+            "Saved metadata for '{}' to {} ({} files indexed)",
+            persisted_collection.name,
+            path.display(),
+            files_vec.len()
+        );
         Ok(())
     }
 
     /// Static version of save_collection_tokenizer
-    fn save_collection_tokenizer_static(collection_name: &str, path: &std::path::Path) -> Result<()> {
+    fn save_collection_tokenizer_static(
+        collection_name: &str,
+        path: &std::path::Path,
+    ) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
@@ -2101,7 +2446,11 @@ impl VectorStore {
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
-        debug!("Saved tokenizer for '{}' to {}", collection_name, path.display());
+        debug!(
+            "Saved tokenizer for '{}' to {}",
+            collection_name,
+            path.display()
+        );
         Ok(())
     }
 }
@@ -2128,15 +2477,19 @@ mod tests {
         let initial_count = store.list_collections().len();
 
         // Create collections with unique names
-        store.create_collection("test_list1_unique", config.clone()).unwrap();
-        store.create_collection("test_list2_unique", config).unwrap();
+        store
+            .create_collection("test_list1_unique", config.clone())
+            .unwrap();
+        store
+            .create_collection("test_list2_unique", config)
+            .unwrap();
 
         // List collections
         let collections = store.list_collections();
         assert_eq!(collections.len(), initial_count + 2);
         assert!(collections.contains(&"test_list1_unique".to_string()));
         assert!(collections.contains(&"test_list2_unique".to_string()));
-        
+
         // Cleanup
         store.delete_collection("test_list1_unique").ok();
         store.delete_collection("test_list2_unique").ok();
@@ -2181,12 +2534,16 @@ mod tests {
 
         // Get initial collection count
         let initial_count = store.list_collections().len();
-        
+
         // Create and delete collection
-        store.create_collection("test_delete_collection_unique", config).unwrap();
+        store
+            .create_collection("test_delete_collection_unique", config)
+            .unwrap();
         assert_eq!(store.list_collections().len(), initial_count + 1);
 
-        store.delete_collection("test_delete_collection_unique").unwrap();
+        store
+            .delete_collection("test_delete_collection_unique")
+            .unwrap();
         assert_eq!(store.list_collections().len(), initial_count);
 
         // Try to delete non-existent collection
@@ -2285,7 +2642,9 @@ mod tests {
         let initial_vectors = initial_stats.total_vectors;
 
         // Create collection and add vectors
-        store.create_collection("test_stats_unique", config).unwrap();
+        store
+            .create_collection("test_stats_unique", config)
+            .unwrap();
         let vectors = vec![
             Vector::new("v1".to_string(), vec![1.0, 2.0, 3.0]),
             Vector::new("v2".to_string(), vec![4.0, 5.0, 6.0]),
@@ -2297,7 +2656,7 @@ mod tests {
         assert_eq!(stats.total_vectors, initial_vectors + 2);
         // Memory bytes may be 0 if collection uses optimization - just check it's calculated
         assert!(stats.total_memory_bytes >= 0);
-        
+
         // Cleanup
         store.delete_collection("test_stats_unique").ok();
     }

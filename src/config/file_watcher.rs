@@ -1,7 +1,8 @@
 //! File Watcher configuration structures
 
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 /// File Watcher configuration for YAML files
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +38,7 @@ impl Default for FileWatcherYamlConfig {
             debounce_delay_ms: Some(1000),
             include_patterns: Some(vec!["*.txt".to_string(), "*.md".to_string()]),
             exclude_patterns: Some(vec![
-                "*.log".to_string(), 
+                "*.log".to_string(),
                 "*.tmp".to_string(),
                 "**/target/**".to_string(),
                 "**/node_modules/**".to_string(),
@@ -58,13 +59,49 @@ impl FileWatcherYamlConfig {
     /// Convert to FileWatcherConfig
     pub fn to_file_watcher_config(&self) -> crate::file_watcher::FileWatcherConfig {
         crate::file_watcher::FileWatcherConfig {
-            watch_paths: self.watch_paths.as_ref().map(|paths| paths.iter().map(|p| PathBuf::from(p)).collect()),
-            include_patterns: self.include_patterns.clone().unwrap_or_else(|| vec!["*.md".to_string(), "*.txt".to_string(), "*.rs".to_string(), "*.py".to_string(), "*.js".to_string(), "*.ts".to_string(), "*.json".to_string(), "*.yaml".to_string(), "*.yml".to_string()]),
-            exclude_patterns: self.exclude_patterns.clone().unwrap_or_else(|| vec!["**/target/**".to_string(), "**/node_modules/**".to_string(), "**/.git/**".to_string(), "**/.*".to_string(), "**/*.tmp".to_string(), "**/*.log".to_string(), "**/*.part".to_string(), "**/*.lock".to_string(), "**/~*".to_string(), "**/.#*".to_string(), "**/*.swp".to_string(), "**/*.swo".to_string(), "**/Cargo.lock".to_string(), "**/.DS_Store".to_string(), "**/Thumbs.db".to_string()]),
+            watch_paths: self
+                .watch_paths
+                .as_ref()
+                .map(|paths| paths.iter().map(|p| PathBuf::from(p)).collect()),
+            include_patterns: self.include_patterns.clone().unwrap_or_else(|| {
+                vec![
+                    "*.md".to_string(),
+                    "*.txt".to_string(),
+                    "*.rs".to_string(),
+                    "*.py".to_string(),
+                    "*.js".to_string(),
+                    "*.ts".to_string(),
+                    "*.json".to_string(),
+                    "*.yaml".to_string(),
+                    "*.yml".to_string(),
+                ]
+            }),
+            exclude_patterns: self.exclude_patterns.clone().unwrap_or_else(|| {
+                vec![
+                    "**/target/**".to_string(),
+                    "**/node_modules/**".to_string(),
+                    "**/.git/**".to_string(),
+                    "**/.*".to_string(),
+                    "**/*.tmp".to_string(),
+                    "**/*.log".to_string(),
+                    "**/*.part".to_string(),
+                    "**/*.lock".to_string(),
+                    "**/~*".to_string(),
+                    "**/.#*".to_string(),
+                    "**/*.swp".to_string(),
+                    "**/*.swo".to_string(),
+                    "**/Cargo.lock".to_string(),
+                    "**/.DS_Store".to_string(),
+                    "**/Thumbs.db".to_string(),
+                ]
+            }),
             debounce_delay_ms: self.debounce_delay_ms.unwrap_or(1000),
             max_file_size: self.max_file_size_bytes.unwrap_or(10 * 1024 * 1024),
             enable_hash_validation: self.hash_validation_enabled.unwrap_or(true),
-            collection_name: self.collection_name.clone().unwrap_or_else(|| "default_collection".to_string()),
+            collection_name: self
+                .collection_name
+                .clone()
+                .unwrap_or_else(|| "default_collection".to_string()),
             recursive: self.recursive.unwrap_or(true),
             max_concurrent_tasks: 4,
             enable_realtime_indexing: true,

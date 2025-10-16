@@ -2,7 +2,8 @@
 //!
 //! Provides middleware for JWT and API key authentication
 
-use crate::auth::{AuthManager, UserClaims};
+use std::sync::Arc;
+
 // Result type is used in function signatures
 use axum::{
     extract::{Request, State},
@@ -11,7 +12,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
-use std::sync::Arc;
+
+use crate::auth::{AuthManager, UserClaims};
 
 /// Authentication state for request context
 #[derive(Debug, Clone)]
@@ -248,11 +250,14 @@ impl AuthErrorResponse {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use axum::http::Request;
+
     use super::*;
     use crate::auth::roles::{Permission, Role};
     use crate::auth::{AuthConfig, AuthManager};
-    use axum::{body::Body, http::Request};
-    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_auth_middleware_jwt() {

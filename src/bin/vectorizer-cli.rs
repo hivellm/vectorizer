@@ -3,14 +3,14 @@
 //! This binary provides a unified interface for running and managing Vectorizer servers,
 //! including REST API, MCP server, and daemon/service management.
 
-use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use tokio::process::Command as TokioCommand;
-use tracing_subscriber;
 
+use clap::{Parser, Subcommand};
 #[cfg(target_os = "linux")]
 use libc::setsid;
+use tokio::process::Command as TokioCommand;
+use tracing_subscriber;
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]

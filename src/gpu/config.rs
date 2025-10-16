@@ -23,19 +23,19 @@ impl Default for GpuBackend {
     fn default() -> Self {
         #[cfg(target_os = "macos")]
         return Self::Metal;
-        
+
         #[cfg(target_os = "ios")]
         return Self::Metal;
-        
+
         #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
         return Self::DirectX12;
-        
+
         #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
         return Self::Vulkan;
-        
+
         #[cfg(target_arch = "wasm32")]
         return Self::WebGpu;
-        
+
         #[cfg(not(any(
             target_os = "macos",
             target_os = "ios",
@@ -52,26 +52,26 @@ impl Default for GpuBackend {
 pub struct GpuConfig {
     /// Habilitar aceleração GPU
     pub enabled: bool,
-    
+
     /// Backend preferido (None = auto-detect)
     pub preferred_backend: Option<GpuBackend>,
-    
+
     /// Limite de memória GPU em MB (0 = sem limite)
     pub memory_limit_mb: usize,
-    
+
     /// Tamanho do workgroup para compute shaders
     pub workgroup_size: u32,
-    
+
     /// Threshold mínimo de operações para usar GPU
     /// Operações menores que isso usarão CPU
     pub gpu_threshold_operations: usize,
-    
+
     /// Usar memória mapeada quando possível
     pub use_mapped_memory: bool,
-    
+
     /// Timeout para operações GPU em milissegundos
     pub timeout_ms: u64,
-    
+
     /// Power preference
     pub power_preference: GpuPowerPreference,
 }
@@ -90,9 +90,9 @@ impl Default for GpuConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            preferred_backend: None, // Auto-detect
-            memory_limit_mb: 4096,   // 4GB padrão
-            workgroup_size: 256,     // Otimizado para a maioria das GPUs
+            preferred_backend: None,             // Auto-detect
+            memory_limit_mb: 4096,               // 4GB padrão
+            workgroup_size: 256,                 // Otimizado para a maioria das GPUs
             gpu_threshold_operations: 5_000_000, // 5M operações
             use_mapped_memory: true,
             timeout_ms: 30_000, // 30 segundos
@@ -107,7 +107,7 @@ impl GpuConfig {
         Self {
             enabled: true,
             preferred_backend: Some(GpuBackend::Metal),
-            memory_limit_mb: 8192,  // Apple Silicon tem memória unificada
+            memory_limit_mb: 8192, // Apple Silicon tem memória unificada
             workgroup_size: 256,
             gpu_threshold_operations: 1_000_000, // Metal é muito eficiente
             use_mapped_memory: true,

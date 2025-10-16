@@ -9,16 +9,17 @@
 //! This eliminates CPU-GPU memory transfers during search operations,
 //! significantly improving throughput and reducing latency.
 
-use crate::error::{Result, VectorizerError};
-use crate::models::{DistanceMetric, Vector};
-use crate::gpu::{GpuContext};
-use crate::gpu::buffers::BufferManager;
 use std::sync::Arc;
+
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
-
 #[cfg(feature = "wgpu-gpu")]
 use wgpu::{Buffer, BufferUsages, Device, Queue};
+
+use crate::error::{Result, VectorizerError};
+use crate::gpu::GpuContext;
+use crate::gpu::buffers::BufferManager;
+use crate::models::{DistanceMetric, Vector};
 
 /// GPU HNSW Graph Node
 #[derive(Debug, Clone, Copy)]
@@ -107,12 +108,11 @@ pub struct GpuHnswStorage {
 
 impl GpuHnswStorage {
     /// Create a new GPU HNSW storage manager
-    pub async fn new(
-        gpu_context: Arc<GpuContext>,
-        config: GpuHnswStorageConfig,
-    ) -> Result<Self> {
-        info!("Creating GPU HNSW storage with {}MB limit", 
-              config.gpu_memory_limit / (1024 * 1024));
+    pub async fn new(gpu_context: Arc<GpuContext>, config: GpuHnswStorageConfig) -> Result<Self> {
+        info!(
+            "Creating GPU HNSW storage with {}MB limit",
+            config.gpu_memory_limit / (1024 * 1024)
+        );
 
         let buffer_manager = BufferManager::new(
             Arc::new(gpu_context.device().clone()),
@@ -121,26 +121,22 @@ impl GpuHnswStorage {
 
         // Calculate buffer sizes
         let node_size = config.initial_node_capacity * std::mem::size_of::<GpuHnswNode>();
-        let vector_size = config.initial_vector_capacity * config.dimension * std::mem::size_of::<f32>();
-        let connection_size = config.initial_node_capacity * config.max_connections_0 * std::mem::size_of::<u32>();
+        let vector_size =
+            config.initial_vector_capacity * config.dimension * std::mem::size_of::<f32>();
+        let connection_size =
+            config.initial_node_capacity * config.max_connections_0 * std::mem::size_of::<u32>();
 
         // Create persistent GPU buffers
         #[cfg(feature = "wgpu-gpu")]
         let (node_buffer, vector_buffer, connection_buffer) = {
-            let node_buffer = buffer_manager.create_storage_buffer_rw(
-                "hnsw_nodes",
-                node_size as u64,
-            )?;
+            let node_buffer =
+                buffer_manager.create_storage_buffer_rw("hnsw_nodes", node_size as u64)?;
 
-            let vector_buffer = buffer_manager.create_storage_buffer_rw(
-                "hnsw_vectors", 
-                vector_size as u64,
-            )?;
+            let vector_buffer =
+                buffer_manager.create_storage_buffer_rw("hnsw_vectors", vector_size as u64)?;
 
-            let connection_buffer = buffer_manager.create_storage_buffer_rw(
-                "hnsw_connections",
-                connection_size as u64,
-            )?;
+            let connection_buffer = buffer_manager
+                .create_storage_buffer_rw("hnsw_connections", connection_size as u64)?;
 
             (node_buffer, vector_buffer, connection_buffer)
         };
@@ -148,15 +144,17 @@ impl GpuHnswStorage {
         #[cfg(not(feature = "wgpu-gpu"))]
         let (node_buffer, vector_buffer, connection_buffer) = (
             wgpu::Buffer::default(),
-            wgpu::Buffer::default(), 
+            wgpu::Buffer::default(),
             wgpu::Buffer::default(),
         );
 
         let total_memory = node_size + vector_size + connection_size;
-        info!("GPU HNSW storage allocated: {}MB for nodes, {}MB for vectors, {}MB for connections",
-              node_size / (1024 * 1024),
-              vector_size / (1024 * 1024), 
-              connection_size / (1024 * 1024));
+        info!(
+            "GPU HNSW storage allocated: {}MB for nodes, {}MB for vectors, {}MB for connections",
+            node_size / (1024 * 1024),
+            vector_size / (1024 * 1024),
+            connection_size / (1024 * 1024)
+        );
 
         Ok(Self {
             gpu_context,
@@ -185,13 +183,13 @@ impl GpuHnswStorage {
         // Check memory limits
         let required_memory = self.config.dimension * std::mem::size_of::<f32>();
         let current_usage = *self.memory_usage.read();
-        
+
         if current_usage + required_memory as u64 > self.config.gpu_memory_limit {
-            return Err(VectorizerError::InternalError(
-                format!("GPU memory limit exceeded. Required: {}MB, Available: {}MB",
-                    (current_usage + required_memory as u64) / (1024 * 1024),
-                    self.config.gpu_memory_limit / (1024 * 1024))
-            ));
+            return Err(VectorizerError::InternalError(format!(
+                "GPU memory limit exceeded. Required: {}MB, Available: {}MB",
+                (current_usage + required_memory as u64) / (1024 * 1024),
+                self.config.gpu_memory_limit / (1024 * 1024)
+            )));
         }
 
         // Get next vector index
@@ -203,14 +201,15 @@ impl GpuHnswStorage {
         };
 
         // Calculate buffer offset for this vector
-        let buffer_offset = (vector_index as u64) * (self.config.dimension as u64 * std::mem::size_of::<f32>() as u64);
+        let buffer_offset = (vector_index as u64)
+            * (self.config.dimension as u64 * std::mem::size_of::<f32>() as u64);
 
         // Upload vector data to GPU
         #[cfg(feature = "wgpu-gpu")]
         {
             let device = self.gpu_context.device();
             let queue = self.gpu_context.queue();
-            
+
             // Create staging buffer for upload
             let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("vector_staging"),
@@ -244,7 +243,10 @@ impl GpuHnswStorage {
             *usage += required_memory as u64;
         }
 
-        debug!("Added vector {} to GPU storage at offset {}", vector.id, buffer_offset);
+        debug!(
+            "Added vector {} to GPU storage at offset {}",
+            vector.id, buffer_offset
+        );
         Ok(vector_index)
     }
 
@@ -253,11 +255,11 @@ impl GpuHnswStorage {
         // Check memory limits
         let required_memory = std::mem::size_of::<GpuHnswNode>();
         let current_usage = *self.memory_usage.read();
-        
+
         if current_usage + required_memory as u64 > self.config.gpu_memory_limit {
-            return Err(VectorizerError::InternalError(
-                format!("GPU memory limit exceeded for node storage")
-            ));
+            return Err(VectorizerError::InternalError(format!(
+                "GPU memory limit exceeded for node storage"
+            )));
         }
 
         // Get next node index
@@ -276,7 +278,7 @@ impl GpuHnswStorage {
         {
             let device = self.gpu_context.device();
             let queue = self.gpu_context.queue();
-            
+
             // Create staging buffer for node
             let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("node_staging"),
@@ -310,7 +312,10 @@ impl GpuHnswStorage {
             *usage += required_memory as u64;
         }
 
-        debug!("Added node {} to GPU HNSW graph at offset {}", node_index, buffer_offset);
+        debug!(
+            "Added node {} to GPU HNSW graph at offset {}",
+            node_index, buffer_offset
+        );
         Ok(node_index)
     }
 
@@ -322,7 +327,9 @@ impl GpuHnswStorage {
             vector_count: *self.vector_count.read(),
             connection_count: *self.connection_count.read(),
             memory_limit: self.config.gpu_memory_limit,
-            memory_usage_percent: (*self.memory_usage.read() as f64 / self.config.gpu_memory_limit as f64) * 100.0,
+            memory_usage_percent: (*self.memory_usage.read() as f64
+                / self.config.gpu_memory_limit as f64)
+                * 100.0,
         }
     }
 
@@ -368,7 +375,7 @@ mod tests {
         let gpu_config = crate::gpu::GpuConfig::default();
         if let Ok(gpu_context) = GpuContext::new(gpu_config).await {
             let result = GpuHnswStorage::new(Arc::new(gpu_context), config).await;
-            
+
             match result {
                 Ok(storage) => {
                     let stats = storage.get_memory_stats();

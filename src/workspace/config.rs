@@ -2,9 +2,10 @@
 //!
 //! Defines the data structures for workspace configuration
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 /// Workspace configuration root structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -481,7 +482,7 @@ impl Default for WorkspaceConfig {
                     parameters: HashMap::new(),
                 },
                 processing: ProcessingDefaults {
-                    chunk_size: 2048,  // Chunks maiores para melhor contexto
+                    chunk_size: 2048,   // Chunks maiores para melhor contexto
                     chunk_overlap: 256, // Overlap maior para melhor continuidade
                     max_file_size_mb: 10,
                     supported_extensions: vec![

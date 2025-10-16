@@ -12,17 +12,15 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
+
 use serde::{Deserialize, Serialize};
 use tracing_subscriber;
-
-use vectorizer::{
-    VectorStore,
-    db::{OptimizedHnswConfig, OptimizedHnswIndex},
-    document_loader::{DocumentLoader, LoaderConfig},
-    embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider},
-    evaluation::{EvaluationMetrics, QueryResult, evaluate_search_quality},
-    models::DistanceMetric,
-};
+use vectorizer::VectorStore;
+use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};
+use vectorizer::document_loader::{DocumentLoader, LoaderConfig};
+use vectorizer::embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider};
+use vectorizer::evaluation::{EvaluationMetrics, QueryResult, evaluate_search_quality};
+use vectorizer::models::DistanceMetric;
 
 /// Scale benchmark result for a specific dataset size
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,10 +139,7 @@ impl TestDataset {
         })
     }
 
-    fn generate_ground_truth(
-        docs: &[String],
-        queries: &[String],
-    ) -> Vec<HashSet<String>> {
+    fn generate_ground_truth(docs: &[String], queries: &[String]) -> Vec<HashSet<String>> {
         // Create embedding manager for semantic ground truth
         let mut manager = EmbeddingManager::new();
         let bm25 = Bm25Embedding::new(512);
@@ -158,68 +153,79 @@ impl TestDataset {
             }
         }
 
-        queries.iter().enumerate().map(|(query_idx, query)| {
-            let mut relevant = HashSet::new();
+        queries
+            .iter()
+            .enumerate()
+            .map(|(query_idx, query)| {
+                let mut relevant = HashSet::new();
 
-            // Get semantic similarity using BM25 embeddings
-            if let Ok(query_emb) = manager.embed(query) {
-                // Calculate similarity to all documents
-                let mut similarities: Vec<(usize, f32)> = docs.iter().enumerate()
-                    .filter_map(|(idx, doc)| {
-                        if let Ok(doc_emb) = manager.embed(doc) {
-                            // Cosine similarity
-                            let dot_product: f32 = query_emb.iter().zip(doc_emb.iter())
-                                .map(|(a, b)| a * b).sum();
-                            let norm_q: f32 = query_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-                            let norm_d: f32 = doc_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
+                // Get semantic similarity using BM25 embeddings
+                if let Ok(query_emb) = manager.embed(query) {
+                    // Calculate similarity to all documents
+                    let mut similarities: Vec<(usize, f32)> = docs
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, doc)| {
+                            if let Ok(doc_emb) = manager.embed(doc) {
+                                // Cosine similarity
+                                let dot_product: f32 = query_emb
+                                    .iter()
+                                    .zip(doc_emb.iter())
+                                    .map(|(a, b)| a * b)
+                                    .sum();
+                                let norm_q: f32 =
+                                    query_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
+                                let norm_d: f32 = doc_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
 
-                            if norm_q > 0.0 && norm_d > 0.0 {
-                                let similarity = dot_product / (norm_q * norm_d);
-                                Some((idx, similarity))
+                                if norm_q > 0.0 && norm_d > 0.0 {
+                                    let similarity = dot_product / (norm_q * norm_d);
+                                    Some((idx, similarity))
+                                } else {
+                                    None
+                                }
                             } else {
                                 None
                             }
-                        } else {
-                            None
+                        })
+                        .collect();
+
+                    // Sort by similarity (highest first)
+                    similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+                    // Take top 10 most similar documents
+                    for (idx, similarity) in similarities.into_iter().take(10) {
+                        if similarity > 0.1 {
+                            // Minimum similarity threshold
+                            relevant.insert(format!("doc_0_{}", idx)); // Use consistent ID format
                         }
-                    })
-                    .collect();
-
-                // Sort by similarity (highest first)
-                similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-
-                // Take top 10 most similar documents
-                for (idx, similarity) in similarities.into_iter().take(10) {
-                    if similarity > 0.1 { // Minimum similarity threshold
-                        relevant.insert(format!("doc_0_{}", idx)); // Use consistent ID format
                     }
                 }
-            }
 
-            // Fallback: lexical matching if semantic fails
-            if relevant.is_empty() {
-                let query_lower = query.to_lowercase();
-                let keywords: Vec<&str> = query_lower.split_whitespace().collect();
+                // Fallback: lexical matching if semantic fails
+                if relevant.is_empty() {
+                    let query_lower = query.to_lowercase();
+                    let keywords: Vec<&str> = query_lower.split_whitespace().collect();
 
-                for (idx, doc) in docs.iter().enumerate() {
-                    let doc_lower = doc.to_lowercase();
-                    let matching = keywords.iter().filter(|kw| doc_lower.contains(*kw)).count();
+                    for (idx, doc) in docs.iter().enumerate() {
+                        let doc_lower = doc.to_lowercase();
+                        let matching = keywords.iter().filter(|kw| doc_lower.contains(*kw)).count();
 
-                    if matching >= 1 {
-                        relevant.insert(format!("doc_0_{}", idx));
+                        if matching >= 1 {
+                            relevant.insert(format!("doc_0_{}", idx));
+                        }
                     }
                 }
-            }
 
-            // Ensure at least 3 relevant documents per query
-            if relevant.len() < 3 {
-                for i in 0..3.min(docs.len()) {
-                    relevant.insert(format!("doc_0_{}", i));
+                // Ensure at least 3 relevant documents per query
+                if relevant.len() < 3 {
+                    for i in 0..3.min(docs.len()) {
+                        relevant.insert(format!("doc_0_{}", i));
+                    }
                 }
-            }
 
-            relevant
-        }).collect()
+                relevant
+            })
+            .collect()
     }
 }
 
@@ -228,7 +234,10 @@ fn benchmark_dataset_size(
     dataset: &TestDataset,
     dimension: usize,
 ) -> Result<ScaleBenchmarkResult, Box<dyn std::error::Error>> {
-    println!("🚀 Benchmarking dataset size: {} vectors", dataset.documents.len());
+    println!(
+        "🚀 Benchmarking dataset size: {} vectors",
+        dataset.documents.len()
+    );
 
     // Create embedding manager
     let mut manager = EmbeddingManager::new();
@@ -247,13 +256,19 @@ fn benchmark_dataset_size(
     println!("  📊 Generating embeddings...");
     let embeddings_start = Instant::now();
 
-    let embeddings: Vec<Vec<f32>> = dataset.documents.iter()
+    let embeddings: Vec<Vec<f32>> = dataset
+        .documents
+        .iter()
         .filter_map(|doc| manager.embed(doc).ok())
         .collect();
 
     let embeddings_time = embeddings_start.elapsed().as_millis() as f64;
 
-    println!("  ✅ Generated {} embeddings in {:.1}s", embeddings.len(), embeddings_time / 1000.0);
+    println!(
+        "  ✅ Generated {} embeddings in {:.1}s",
+        embeddings.len(),
+        embeddings_time / 1000.0
+    );
 
     // Build HNSW index
     println!("  🏗️  Building HNSW index...");
@@ -286,8 +301,15 @@ fn benchmark_dataset_size(
     let index_memory_mb = (embeddings.len() * dimension * 4) as f64 / 1_048_576.0; // 4 bytes per f32
     let bytes_per_vector = (dimension * 4) as f64;
 
-    println!("  ✅ Index built in {:.1}s ({:.0} vectors/sec)", index_build_time_ms / 1000.0, vectors_per_second);
-    println!("  ✅ Memory usage: {:.2} MB ({:.0} bytes/vector)", index_memory_mb, bytes_per_vector);
+    println!(
+        "  ✅ Index built in {:.1}s ({:.0} vectors/sec)",
+        index_build_time_ms / 1000.0,
+        vectors_per_second
+    );
+    println!(
+        "  ✅ Memory usage: {:.2} MB ({:.0} bytes/vector)",
+        index_memory_mb, bytes_per_vector
+    );
 
     // Search performance benchmarking
     println!("  🔍 Benchmarking search performance...");
@@ -313,7 +335,8 @@ fn benchmark_dataset_size(
         search_times.push(elapsed_us);
 
         // Convert results for quality evaluation
-        let query_result: Vec<QueryResult> = results.into_iter()
+        let query_result: Vec<QueryResult> = results
+            .into_iter()
             .map(|(id, distance)| QueryResult {
                 doc_id: id,
                 relevance: 1.0 - distance,
@@ -349,8 +372,14 @@ fn benchmark_dataset_size(
         speed_efficiency: search_throughput_qps / (index_memory_mb / 1024.0), // QPS per GB
     };
 
-    println!("  ✅ Search: {:.0} μs avg, {:.1} QPS", avg_search_latency_us, search_throughput_qps);
-    println!("  ✅ Quality: MAP={:.4}, Recall@10={:.3}", result.map_score, result.recall_at_10);
+    println!(
+        "  ✅ Search: {:.0} μs avg, {:.1} QPS",
+        avg_search_latency_us, search_throughput_qps
+    );
+    println!(
+        "  ✅ Quality: MAP={:.4}, Recall@10={:.3}",
+        result.map_score, result.recall_at_10
+    );
 
     Ok(result)
 }
@@ -364,7 +393,8 @@ fn analyze_scale_performance(results: &[ScaleBenchmarkResult]) -> ScaleRecommend
     let baseline_map = results[0].map_score;
 
     for result in results.iter().skip(1) {
-        if baseline_map - result.map_score > 0.1 { // 10% quality drop
+        if baseline_map - result.map_score > 0.1 {
+            // 10% quality drop
             quality_inflection = result.dataset_size;
             break;
         }
@@ -384,7 +414,8 @@ fn analyze_scale_performance(results: &[ScaleBenchmarkResult]) -> ScaleRecommend
     // Memory limit: find where memory usage becomes problematic (> 8GB)
     let mut memory_limit = results.last().unwrap().dataset_size;
     for result in results.iter() {
-        if result.index_memory_mb > 8192.0 { // 8GB
+        if result.index_memory_mb > 8192.0 {
+            // 8GB
             memory_limit = result.dataset_size;
             break;
         }
@@ -486,11 +517,26 @@ fn generate_scale_report(report: &ScaleBenchmarkReport) -> String {
     md.push_str("\n## Recommendations\n\n");
 
     let rec = &report.recommendations;
-    md.push_str(&format!("### Optimal Collection Size: **{}K vectors**\n\n", rec.optimal_collection_size / 1000));
-    md.push_str(&format!("### Maximum Recommended Size: **{}K vectors**\n\n", rec.maximum_recommended_size / 1000));
-    md.push_str(&format!("### Performance Inflection Point: **{}K vectors**\n\n", rec.performance_inflection_point / 1000));
-    md.push_str(&format!("### Memory Limit: **{:.1} GB**\n\n", rec.memory_limit_gb));
-    md.push_str(&format!("### Quality Threshold: **MAP ≥ {:.3}**\n\n", rec.quality_threshold_map));
+    md.push_str(&format!(
+        "### Optimal Collection Size: **{}K vectors**\n\n",
+        rec.optimal_collection_size / 1000
+    ));
+    md.push_str(&format!(
+        "### Maximum Recommended Size: **{}K vectors**\n\n",
+        rec.maximum_recommended_size / 1000
+    ));
+    md.push_str(&format!(
+        "### Performance Inflection Point: **{}K vectors**\n\n",
+        rec.performance_inflection_point / 1000
+    ));
+    md.push_str(&format!(
+        "### Memory Limit: **{:.1} GB**\n\n",
+        rec.memory_limit_gb
+    ));
+    md.push_str(&format!(
+        "### Quality Threshold: **MAP ≥ {:.3}**\n\n",
+        rec.quality_threshold_map
+    ));
 
     md.push_str("## Implementation Guidelines\n\n");
     md.push_str("### Collection Size Strategy\n\n");
@@ -530,7 +576,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("====================================\n");
 
     let dimension = 512;
-    let test_sizes = vec![1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000];
+    let test_sizes = vec![
+        1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
+    ];
 
     println!("📊 Configuration:");
     println!("  - Dimension: {}D", dimension);
@@ -591,7 +639,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let recommendations = analyze_scale_performance(&results);
 
     let report = ScaleBenchmarkReport {
-        timestamp: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        timestamp: chrono::Utc::now()
+            .format("%Y-%m-%d %H:%M:%S UTC")
+            .to_string(),
         dimension,
         test_sizes: test_sizes.clone(),
         results,
@@ -621,11 +671,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=".repeat(40));
 
     let rec = &report.recommendations;
-    println!("📏 Optimal Collection Size: {}K vectors", rec.optimal_collection_size / 1000);
-    println!("📏 Maximum Recommended Size: {}K vectors", rec.maximum_recommended_size / 1000);
-    println!("📏 Performance Inflection Point: {}K vectors", rec.performance_inflection_point / 1000);
+    println!(
+        "📏 Optimal Collection Size: {}K vectors",
+        rec.optimal_collection_size / 1000
+    );
+    println!(
+        "📏 Maximum Recommended Size: {}K vectors",
+        rec.maximum_recommended_size / 1000
+    );
+    println!(
+        "📏 Performance Inflection Point: {}K vectors",
+        rec.performance_inflection_point / 1000
+    );
     println!("💾 Memory Limit: {:.1} GB", rec.memory_limit_gb);
-    println!("🎯 Quality Threshold: MAP ≥ {:.3}", rec.quality_threshold_map);
+    println!(
+        "🎯 Quality Threshold: MAP ≥ {:.3}",
+        rec.quality_threshold_map
+    );
 
     println!("\n📄 Full report: {}", report_path.display());
     println!("📊 JSON data: {}", json_path.display());

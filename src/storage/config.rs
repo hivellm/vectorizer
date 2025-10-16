@@ -1,7 +1,8 @@
 //! Storage configuration structures
 
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 /// Storage configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,11 +10,11 @@ pub struct StorageConfig {
     /// Compression settings
     #[serde(default)]
     pub compression: CompressionConfig,
-    
+
     /// Snapshot settings
     #[serde(default)]
     pub snapshots: SnapshotConfig,
-    
+
     /// Compaction settings
     #[serde(default)]
     pub compaction: CompactionConfig,
@@ -35,11 +36,11 @@ pub struct CompressionConfig {
     /// Enable compression
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    
+
     /// Compression format (currently only "zstd" is supported)
     #[serde(default = "default_format")]
     pub format: String,
-    
+
     /// Compression level (1-22 for zstd, 3 is balanced)
     #[serde(default = "default_level")]
     pub level: i32,
@@ -61,19 +62,19 @@ pub struct SnapshotConfig {
     /// Enable automatic snapshots
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    
+
     /// Interval between snapshots in hours
     #[serde(default = "default_interval_hours")]
     pub interval_hours: u64,
-    
+
     /// Retention period in days
     #[serde(default = "default_retention_days")]
     pub retention_days: u64,
-    
+
     /// Maximum number of snapshots to keep
     #[serde(default = "default_max_snapshots")]
     pub max_snapshots: usize,
-    
+
     /// Path to snapshots directory
     #[serde(default = "default_snapshot_path")]
     pub path: String,
@@ -97,7 +98,7 @@ pub struct CompactionConfig {
     /// Number of operations to batch before consolidating
     #[serde(default = "default_batch_size")]
     pub batch_size: usize,
-    
+
     /// Enable automatic compaction
     #[serde(default = "default_enabled")]
     pub auto_compact: bool,
@@ -150,30 +151,31 @@ impl StorageConfig {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Validate the configuration
     pub fn validate(&self) -> crate::error::Result<()> {
         if self.compression.enabled && self.compression.format != "zstd" {
-            return Err(crate::error::VectorizerError::Configuration(
-                format!("Unsupported compression format: {}", self.compression.format)
-            ));
+            return Err(crate::error::VectorizerError::Configuration(format!(
+                "Unsupported compression format: {}",
+                self.compression.format
+            )));
         }
-        
+
         if self.compression.level < 1 || self.compression.level > 22 {
             return Err(crate::error::VectorizerError::Configuration(
-                "Compression level must be between 1 and 22".to_string()
+                "Compression level must be between 1 and 22".to_string(),
             ));
         }
-        
+
         if self.compaction.batch_size == 0 {
             return Err(crate::error::VectorizerError::Configuration(
-                "Batch size must be greater than 0".to_string()
+                "Batch size must be greater than 0".to_string(),
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Get the snapshots directory path
     pub fn snapshots_path(&self) -> PathBuf {
         PathBuf::from(&self.snapshots.path)
@@ -199,11 +201,11 @@ mod tests {
     fn test_config_validation() {
         let config = StorageConfig::default();
         assert!(config.validate().is_ok());
-        
+
         let mut invalid = config.clone();
         invalid.compression.format = "invalid".to_string();
         assert!(invalid.validate().is_err());
-        
+
         let mut invalid_level = config.clone();
         invalid_level.compression.level = 0;
         assert!(invalid_level.validate().is_err());
@@ -216,9 +218,8 @@ mod tests {
         assert!(yaml.contains("compression"));
         assert!(yaml.contains("snapshots"));
         assert!(yaml.contains("compaction"));
-        
+
         let deserialized: StorageConfig = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(deserialized.compression.level, config.compression.level);
     }
 }
-

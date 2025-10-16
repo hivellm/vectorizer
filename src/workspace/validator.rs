@@ -2,10 +2,12 @@
 //!
 //! Provides validation functionality for workspace configurations
 
-use crate::workspace::config::*;
 use std::collections::HashSet;
 use std::path::Path;
+
 use tracing::{debug, error, info, warn};
+
+use crate::workspace::config::*;
 
 /// Validation result
 #[derive(Debug, Clone)]
@@ -458,7 +460,10 @@ fn validate_bert_parameters(
     if let Some(max_seq_len) = parameters.get("max_sequence_length") {
         if let Some(len) = max_seq_len.as_u64() {
             if len == 0 || len > 512 {
-                result.add_error(format!("{}: max_sequence_length must be between 1 and 512", prefix));
+                result.add_error(format!(
+                    "{}: max_sequence_length must be between 1 and 512",
+                    prefix
+                ));
             }
         }
     }
@@ -481,7 +486,10 @@ fn validate_minilm_parameters(
     if let Some(max_seq_len) = parameters.get("max_sequence_length") {
         if let Some(len) = max_seq_len.as_u64() {
             if len == 0 || len > 256 {
-                result.add_error(format!("{}: max_sequence_length must be between 1 and 256", prefix));
+                result.add_error(format!(
+                    "{}: max_sequence_length must be between 1 and 256",
+                    prefix
+                ));
             }
         }
     }
@@ -772,8 +780,9 @@ fn validate_validation_settings(_config: &WorkspaceConfig, _result: &mut Validat
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_validate_workspace_config() {

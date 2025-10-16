@@ -2,10 +2,11 @@
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::normalization::cache::{CacheConfig, CacheManager};
-    use crate::normalization::ContentHash;
     use tempfile::tempdir;
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
+
+    use crate::normalization::ContentHash;
+    use crate::normalization::cache::{CacheConfig, CacheManager};
 
     #[tokio::test]
     #[ignore] // Timeout: runs for over 60 seconds
@@ -274,4 +275,3 @@ mod integration_tests {
         }
     }
 }
-

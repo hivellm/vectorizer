@@ -3,14 +3,16 @@
 //! This module provides high-performance tokenization using HuggingFace tokenizers
 //! with intelligent caching, batch processing, and memory-mapped persistence.
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use anyhow::Result;
 use arc_swap::ArcSwap;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokenizers::{PaddingParams, PaddingStrategy, TruncationParams, tokenizer::Tokenizer};
+use tokenizers::tokenizer::Tokenizer;
+use tokenizers::{PaddingParams, PaddingStrategy, TruncationParams};
 use xxhash_rust::xxh3::xxh3_64;
 
 /// Global tokenizer cache shared across the application
@@ -249,8 +251,9 @@ impl TokenizerCache {
 
 /// Performance benchmarking utilities
 pub mod benchmark {
-    use super::*;
     use std::time::Instant;
+
+    use super::*;
 
     pub struct TokenizationBenchmark {
         tokenizer: FastTokenizer,

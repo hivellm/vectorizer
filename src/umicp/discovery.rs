@@ -3,8 +3,8 @@
 //! Implements the DiscoverableService trait to expose all 38+ MCP tools
 //! via UMICP v0.2.1 tool discovery protocol
 
-use umicp_core::{DiscoverableService, OperationSchema, ServerInfo};
 use serde_json::json;
+use umicp_core::{DiscoverableService, OperationSchema, ServerInfo};
 
 /// Vectorizer Discovery Service
 /// Exposes all MCP tools as UMICP-discoverable operations
@@ -41,10 +41,8 @@ impl DiscoverableService for VectorizerDiscoveryService {
         mcp_tools
             .into_iter()
             .map(|tool| {
-                let mut schema = OperationSchema::new(
-                    tool.name.to_string(),
-                    json!(tool.input_schema),
-                );
+                let mut schema =
+                    OperationSchema::new(tool.name.to_string(), json!(tool.input_schema));
 
                 // Set title if available
                 if let Some(title) = tool.title {
@@ -99,7 +97,11 @@ mod tests {
         let operations = service.list_operations();
 
         // Should have 38+ operations
-        assert!(operations.len() >= 38, "Expected at least 38 operations, got {}", operations.len());
+        assert!(
+            operations.len() >= 38,
+            "Expected at least 38 operations, got {}",
+            operations.len()
+        );
 
         // Check for key operations
         let op_names: Vec<String> = operations.iter().map(|op| op.name.clone()).collect();
@@ -117,7 +119,7 @@ mod tests {
         for op in operations.iter().take(5) {
             // Check that operation has a name
             assert!(!op.name.is_empty());
-            
+
             // Check that input_schema exists
             assert!(op.input_schema.is_object() || op.input_schema.is_null());
         }
@@ -175,4 +177,3 @@ mod tests {
         assert!(info_json.is_ok());
     }
 }
-

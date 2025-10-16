@@ -1,7 +1,8 @@
 //! Collection metadata structures for tracking indexed files
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Metadata for a collection
 #[derive(Debug, Clone, Serialize, Deserialize)]

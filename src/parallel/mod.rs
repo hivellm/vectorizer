@@ -6,13 +6,13 @@
 //! - Batch processing pipelines
 //! - Work stealing for load balancing
 
+use std::sync::Arc;
+use std::{env, thread};
+
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender, bounded};
 use parking_lot::Mutex;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::env;
-use std::sync::Arc;
-use std::thread;
 use tracing::{debug, info};
 
 /// Global thread pool for embedding operations

@@ -8,16 +8,17 @@ pub mod jwt;
 pub mod middleware;
 pub mod roles;
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 pub use api_keys::ApiKeyManager;
 pub use jwt::JwtManager;
 pub use middleware::AuthMiddleware;
 pub use roles::{Permission, Role};
+use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use crate::error::{Result, VectorizerError};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

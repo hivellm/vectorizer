@@ -151,10 +151,10 @@ name = "benchmark_embeddings"
 path = "benchmark/scripts/benchmark_embeddings.rs"
 required-features = ["benchmarks"]
 
-[[bin]]
-name = "gpu_benchmark"
-path = "benchmark/scripts/gpu_benchmark.rs"
-required-features = ["benchmarks"]
+# [[bin]]
+# name = "gpu_benchmark"
+# path = "benchmark/scripts/gpu_benchmark.rs"
+# required-features = ["benchmarks"]
 
 [[bin]]
 name = "quantization_benchmark"

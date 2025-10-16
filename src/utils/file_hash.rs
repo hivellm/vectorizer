@@ -2,8 +2,9 @@
 
 use std::fs;
 use std::path::Path;
-use sha2::{Sha256, Digest};
+
 use anyhow::Result;
+use sha2::{Digest, Sha256};
 
 /// Calculate SHA256 hash of a file's content
 pub fn calculate_file_hash(file_path: &Path) -> Result<String> {

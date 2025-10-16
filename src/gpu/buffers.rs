@@ -1,23 +1,21 @@
 //! Gerenciamento de buffers GPU
 
-use crate::error::{Result, VectorizerError};
+#[cfg(feature = "wgpu-gpu")]
+use bytemuck;
 use tracing::warn;
-
+#[cfg(feature = "wgpu-gpu")]
+use wgpu::util::DeviceExt;
 #[cfg(feature = "wgpu-gpu")]
 use wgpu::{Buffer, BufferUsages, Device, Queue};
 
-#[cfg(feature = "wgpu-gpu")]
-use wgpu::util::DeviceExt;
-
-#[cfg(feature = "wgpu-gpu")]
-use bytemuck;
+use crate::error::{Result, VectorizerError};
 
 /// Gerenciador de buffers GPU
 #[derive(Debug, Clone)]
 pub struct BufferManager {
     #[cfg(feature = "wgpu-gpu")]
     device: std::sync::Arc<Device>,
-    
+
     #[cfg(feature = "wgpu-gpu")]
     queue: std::sync::Arc<Queue>,
 }
@@ -30,11 +28,13 @@ impl BufferManager {
 
     /// Criar buffer de storage para leitura na GPU
     pub fn create_storage_buffer(&self, label: &str, data: &[f32]) -> Result<Buffer> {
-        let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(label),
-            contents: bytemuck::cast_slice(data),
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        });
+        let buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label),
+                contents: bytemuck::cast_slice(data),
+                usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            });
         Ok(buffer)
     }
 
@@ -62,11 +62,13 @@ impl BufferManager {
 
     /// Criar buffer uniforme
     pub fn create_uniform_buffer(&self, label: &str, data: &[u8]) -> Result<Buffer> {
-        let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(label),
-            contents: data,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
+        let buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label),
+                contents: data,
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            });
         Ok(buffer)
     }
 
@@ -84,24 +86,24 @@ impl BufferManager {
     /// Ler dados de volta do buffer (síncrono com polling ativo)
     pub fn read_buffer_sync(&self, buffer: &Buffer) -> Result<Vec<f32>> {
         use std::sync::{Arc, Mutex};
-        
+
         // Verificar se o buffer tem dados antes de tentar lê-lo
         if buffer.size() == 0 {
             warn!("Attempting to read from empty buffer (size=0), returning empty vector");
             return Ok(Vec::new());
         }
-        
+
         let buffer_slice = buffer.slice(..);
-        
+
         // Usar um flag compartilhado para saber quando o mapeamento completou
         let mapped = Arc::new(Mutex::new(None));
         let mapped_clone = mapped.clone();
-        
+
         // Iniciar mapeamento assíncrono
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             *mapped_clone.lock().unwrap() = Some(result);
         });
-        
+
         // Fazer polling ativo do device até o mapeamento completar
         // CRÍTICO: Este é o motivo do travamento anterior - precisamos fazer polling!
         let max_attempts = 10000; // ~100ms timeout
@@ -109,36 +111,40 @@ impl BufferManager {
             // Poll do device para processar operações pendentes (wgpu 27.0)
             // PollType::Poll é non-blocking
             let _ = self.device.poll(wgpu::PollType::Poll);
-            
+
             // Verificar se o mapeamento completou
             if let Some(result) = mapped.lock().unwrap().as_ref() {
-                result.as_ref()
-                    .map_err(|e| VectorizerError::Other(format!("Erro ao mapear buffer: {:?}", e)))?;
+                result.as_ref().map_err(|e| {
+                    VectorizerError::Other(format!("Erro ao mapear buffer: {:?}", e))
+                })?;
                 break;
             }
-            
+
             // Pequeno sleep para não consumir 100% CPU
             std::thread::sleep(std::time::Duration::from_micros(10));
         }
-        
+
         // Verificar timeout
         if mapped.lock().unwrap().is_none() {
-            return Err(VectorizerError::Other("Timeout ao aguardar mapeamento de buffer GPU".to_string()));
+            return Err(VectorizerError::Other(
+                "Timeout ao aguardar mapeamento de buffer GPU".to_string(),
+            ));
         }
-        
+
         // Ler dados mapeados
         let data = buffer_slice.get_mapped_range();
         let vec_result: Vec<f32> = bytemuck::cast_slice(&data).to_vec();
-        
+
         drop(data);
         buffer.unmap();
-        
+
         Ok(vec_result)
     }
 
     /// Atualizar dados de um buffer
     pub fn update_buffer(&self, buffer: &Buffer, data: &[f32]) {
-        self.queue.write_buffer(buffer, 0, bytemuck::cast_slice(data));
+        self.queue
+            .write_buffer(buffer, 0, bytemuck::cast_slice(data));
     }
 
     /// Calcular tamanho do buffer alinhado

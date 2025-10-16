@@ -3,29 +3,29 @@
 //! This collection integrates DirectX 12 GPU operations with complete HNSW storage in VRAM,
 //! providing full GPU acceleration for Windows with NVIDIA, AMD, and Intel GPUs.
 
-use crate::error::{Result, VectorizerError};
-use crate::models::{CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector};
-use crate::gpu::{
-    GpuContext, GpuConfig, GpuOperations,
-    GpuHnswStorage, GpuHnswStorageConfig,
-    GpuVectorStorage, GpuVectorStorageConfig,
-    GpuHnswNavigation, GpuHnswNode
-};
 use std::sync::Arc;
+
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
+
+use crate::error::{Result, VectorizerError};
+use crate::gpu::{
+    GpuConfig, GpuContext, GpuHnswNavigation, GpuHnswNode, GpuHnswStorage, GpuHnswStorageConfig,
+    GpuOperations, GpuVectorStorage, GpuVectorStorageConfig,
+};
+use crate::models::{CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector};
 
 /// DirectX 12 GPU-accelerated collection with complete GPU storage
 pub struct DirectX12Collection {
     /// Collection name
     name: String,
-    
+
     /// Collection configuration
     config: CollectionConfig,
-    
+
     /// GPU context for DirectX 12 operations
     gpu_context: Arc<GpuContext>,
-    
+
     /// GPU HNSW storage manager (VRAM)
     hnsw_storage: Arc<GpuHnswStorage>,
     /// GPU vector storage manager (VRAM)
@@ -45,21 +45,31 @@ impl DirectX12Collection {
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     /// Get collection configuration
     pub fn config(&self) -> &CollectionConfig {
         &self.config
     }
-    
+
     /// Create a new DirectX 12 GPU-accelerated collection with complete GPU storage
-    pub async fn new(name: String, config: CollectionConfig, gpu_config: GpuConfig) -> Result<Self> {
-        info!("🪟 Creating DirectX 12 GPU-accelerated collection '{}' with complete GPU storage", name);
-        
+    pub async fn new(
+        name: String,
+        config: CollectionConfig,
+        gpu_config: GpuConfig,
+    ) -> Result<Self> {
+        info!(
+            "🪟 Creating DirectX 12 GPU-accelerated collection '{}' with complete GPU storage",
+            name
+        );
+
         // Initialize GPU context
         let gpu_context = Arc::new(GpuContext::new(gpu_config).await?);
         let gpu_info = gpu_context.info();
-        info!("✅ DirectX 12 GPU initialized: {} for collection '{}'", gpu_info.name, name);
-        
+        info!(
+            "✅ DirectX 12 GPU initialized: {} for collection '{}'",
+            gpu_info.name, name
+        );
+
         // Create GPU HNSW storage configuration
         let hnsw_storage_config = GpuHnswStorageConfig {
             max_connections: config.hnsw_config.m,
@@ -76,9 +86,12 @@ impl DirectX12Collection {
         // Calculate safe initial capacity based on GPU buffer limits
         let gpu_limits = &gpu_context.info().limits;
         let gpu_info = &gpu_context.info();
-        
+
         // Estimate total VRAM based on GPU name and max buffer size
-        let estimated_vram = if gpu_info.name.contains("RTX 4090") || gpu_info.name.contains("RTX 4080") || gpu_info.name.contains("RTX 3090") {
+        let estimated_vram = if gpu_info.name.contains("RTX 4090")
+            || gpu_info.name.contains("RTX 4080")
+            || gpu_info.name.contains("RTX 3090")
+        {
             24 * 1024 * 1024 * 1024 // 24GB for high-end GPUs
         } else if gpu_info.name.contains("RTX 4070") || gpu_info.name.contains("RTX 3070") {
             12 * 1024 * 1024 * 1024 // 12GB for mid-range GPUs
@@ -88,20 +101,36 @@ impl DirectX12Collection {
             // Fallback: use max_buffer_size as conservative estimate
             gpu_limits.max_buffer_size
         };
-        
+
         let max_buffer_size = (estimated_vram as f64 * 0.8) as u64; // 80% of estimated VRAM
         let vector_size_bytes = config.dimension * std::mem::size_of::<f32>();
-        let safe_initial_capacity = (max_buffer_size / vector_size_bytes as u64).min(1_000_000) as usize; // Increased max capacity
-        
+        let safe_initial_capacity =
+            (max_buffer_size / vector_size_bytes as u64).min(1_000_000) as usize; // Increased max capacity
+
         info!("🔧 DirectX 12 GPU Buffer Configuration:");
         info!("  - GPU Name: {}", gpu_info.name);
-        info!("  - Max buffer binding size: {:.2} GB", gpu_limits.max_storage_buffer_binding_size as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Max buffer size: {:.2} GB", gpu_limits.max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Estimated total VRAM: {:.2} GB", estimated_vram as f64 / (1024.0 * 1024.0 * 1024.0));
-        info!("  - Using 80% of estimated VRAM: {:.2} GB", max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0));
+        info!(
+            "  - Max buffer binding size: {:.2} GB",
+            gpu_limits.max_storage_buffer_binding_size as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
+        info!(
+            "  - Max buffer size: {:.2} GB",
+            gpu_limits.max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
+        info!(
+            "  - Estimated total VRAM: {:.2} GB",
+            estimated_vram as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
+        info!(
+            "  - Using 80% of estimated VRAM: {:.2} GB",
+            max_buffer_size as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
         info!("  - Vector size: {} bytes", vector_size_bytes);
-        info!("  - Calculated initial capacity: {} vectors", safe_initial_capacity);
-        
+        info!(
+            "  - Calculated initial capacity: {} vectors",
+            safe_initial_capacity
+        );
+
         // Create GPU vector storage configuration
         let vector_storage_config = GpuVectorStorageConfig {
             dimension: config.dimension,
@@ -113,20 +142,16 @@ impl DirectX12Collection {
         };
 
         // Initialize GPU storage managers
-        let hnsw_storage = Arc::new(
-            GpuHnswStorage::new(gpu_context.clone(), hnsw_storage_config).await?
-        );
+        let hnsw_storage =
+            Arc::new(GpuHnswStorage::new(gpu_context.clone(), hnsw_storage_config).await?);
 
-        let vector_storage = Arc::new(
-            GpuVectorStorage::new(gpu_context.clone(), vector_storage_config).await?
-        );
+        let vector_storage =
+            Arc::new(GpuVectorStorage::new(gpu_context.clone(), vector_storage_config).await?);
 
-        let navigation = Arc::new(
-            GpuHnswNavigation::new(gpu_context.clone()).await?
-        );
+        let navigation = Arc::new(GpuHnswNavigation::new(gpu_context.clone()).await?);
 
         let now = chrono::Utc::now();
-        
+
         Ok(Self {
             name,
             config,
@@ -139,10 +164,13 @@ impl DirectX12Collection {
             updated_at: Arc::new(RwLock::new(now)),
         })
     }
-    
+
     /// Add a vector to the collection with complete GPU storage
     pub async fn add_vector(&self, vector: Vector) -> Result<()> {
-        debug!("Adding vector '{}' to DirectX 12 collection '{}' with GPU storage", vector.id, self.name);
+        debug!(
+            "Adding vector '{}' to DirectX 12 collection '{}' with GPU storage",
+            vector.id, self.name
+        );
 
         // Validate dimension
         if vector.data.len() != self.config.dimension {
@@ -151,7 +179,7 @@ impl DirectX12Collection {
                 actual: vector.data.len(),
             });
         }
-        
+
         // Store vector in GPU vector storage
         let vector_index = self.vector_storage.add_vector(&vector).await?;
 
@@ -161,7 +189,8 @@ impl DirectX12Collection {
             level: self.calculate_node_level(),
             connections: [0; 16], // Will be populated during graph construction
             connection_count: 0,
-            vector_buffer_offset: (vector_index as u64) * (self.config.dimension as u64 * std::mem::size_of::<f32>() as u64),
+            vector_buffer_offset: (vector_index as u64)
+                * (self.config.dimension as u64 * std::mem::size_of::<f32>() as u64),
         };
 
         // Store node in GPU HNSW storage
@@ -178,17 +207,23 @@ impl DirectX12Collection {
         // 1. Finding neighbors using GPU-accelerated distance calculations
         // 2. Building connections at each level
         // 3. Updating connection buffers in GPU memory
-        
+
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
-        
-        debug!("Successfully added vector '{}' to DirectX 12 GPU storage", vector.id);
+
+        debug!(
+            "Successfully added vector '{}' to DirectX 12 GPU storage",
+            vector.id
+        );
         Ok(())
     }
-    
+
     /// Search for similar vectors using complete GPU acceleration
     pub async fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
-        debug!("Searching DirectX 12 collection '{}' with complete GPU acceleration", self.name);
+        debug!(
+            "Searching DirectX 12 collection '{}' with complete GPU acceleration",
+            self.name
+        );
 
         // Validate query dimension
         if query.len() != self.config.dimension {
@@ -209,17 +244,20 @@ impl DirectX12Collection {
         // Execute GPU-accelerated HNSW search with complete GPU navigation
         // Use primary buffer from multi-buffer storage system
         let primary_vector_buffer = self.vector_storage.get_primary_vector_buffer();
-        let search_result = self.navigation.search(
-            query,
-            k,
-            self.config.hnsw_config.ef_search,
-            self.config.metric.clone(),
-            &self.hnsw_storage.node_buffer,
-            &primary_vector_buffer,
-            &self.hnsw_storage.connection_buffer,
-            hnsw_stats.node_count,
-            self.config.dimension,
-        ).await?;
+        let search_result = self
+            .navigation
+            .search(
+                query,
+                k,
+                self.config.hnsw_config.ef_search,
+                self.config.metric.clone(),
+                &self.hnsw_storage.node_buffer,
+                &primary_vector_buffer,
+                &self.hnsw_storage.connection_buffer,
+                hnsw_stats.node_count,
+                self.config.dimension,
+            )
+            .await?;
 
         if search_result.result_count == 0 {
             return Ok(Vec::new());
@@ -227,12 +265,12 @@ impl DirectX12Collection {
 
         // Convert results to SearchResult format
         let mut results = Vec::with_capacity(search_result.result_count);
-        
+
         for (i, &node_index) in search_result.node_indices.iter().enumerate() {
             // Get vector by index from GPU storage
             let vector = self.get_vector_by_index(node_index).await?;
             let score = search_result.scores.get(i).copied().unwrap_or(0.0);
-            
+
             results.push(SearchResult {
                 id: vector.id.clone(),
                 score,
@@ -241,14 +279,17 @@ impl DirectX12Collection {
             });
         }
 
-        debug!("DirectX 12 GPU search completed, found {} results", results.len());
+        debug!(
+            "DirectX 12 GPU search completed, found {} results",
+            results.len()
+        );
         Ok(results)
     }
-    
+
     /// Get collection metadata
     pub fn metadata(&self) -> CollectionMetadata {
         let vector_stats = self.vector_storage.get_storage_stats();
-        
+
         CollectionMetadata {
             name: self.name.clone(),
             vector_count: vector_stats.vector_count,
@@ -258,10 +299,13 @@ impl DirectX12Collection {
             updated_at: *self.updated_at.read(),
         }
     }
-    
+
     /// Remove a vector by ID
     pub fn remove_vector(&self, id: &str) -> Result<()> {
-        debug!("Removing vector '{}' from DirectX 12 GPU collection '{}'", id, self.name);
+        debug!(
+            "Removing vector '{}' from DirectX 12 GPU collection '{}'",
+            id, self.name
+        );
 
         // Remove from vector storage
         self.vector_storage.remove_vector(id)?;
@@ -273,12 +317,15 @@ impl DirectX12Collection {
         }
 
         // TODO: Remove from HNSW storage and update graph connections
-        
+
         *self.updated_at.write() = chrono::Utc::now();
-        debug!("Successfully removed vector '{}' from DirectX 12 GPU storage", id);
+        debug!(
+            "Successfully removed vector '{}' from DirectX 12 GPU storage",
+            id
+        );
         Ok(())
     }
-    
+
     /// Get a vector by ID
     pub async fn get_vector(&self, id: &str) -> Result<Vector> {
         self.vector_storage.get_vector(id).await
@@ -294,23 +341,23 @@ impl DirectX12Collection {
                 return self.vector_storage.get_vector(id).await;
             }
         }
-        
+
         Err(VectorizerError::VectorNotFound(format!("vector_{}", index)))
     }
-    
+
     /// Get vector count
     pub fn vector_count(&self) -> usize {
         self.vector_storage.get_storage_stats().vector_count
     }
-    
+
     /// Estimate memory usage
     pub fn estimated_memory_usage(&self) -> usize {
         let hnsw_stats = self.hnsw_storage.get_memory_stats();
         let vector_stats = self.vector_storage.get_storage_stats();
-        
+
         (hnsw_stats.total_allocated + vector_stats.memory_used) as usize
     }
-    
+
     /// Get all vectors (for export/backup)
     pub async fn get_all_vectors(&self) -> Result<Vec<Vector>> {
         // TODO: Implement efficient retrieval of all vectors
@@ -328,7 +375,9 @@ impl DirectX12Collection {
             vector_memory_used: vector_stats.memory_used,
             total_memory_used: hnsw_stats.total_allocated + vector_stats.memory_used,
             memory_limit: hnsw_stats.memory_limit,
-            memory_usage_percent: ((hnsw_stats.total_allocated + vector_stats.memory_used) as f64 / hnsw_stats.memory_limit as f64) * 100.0,
+            memory_usage_percent: ((hnsw_stats.total_allocated + vector_stats.memory_used) as f64
+                / hnsw_stats.memory_limit as f64)
+                * 100.0,
             node_count: hnsw_stats.node_count,
             vector_count: vector_stats.vector_count,
         }
@@ -369,7 +418,7 @@ pub struct DirectX12GpuMemoryStats {
 mod tests {
     use super::*;
     use crate::models::HnswConfig;
-    
+
     #[tokio::test]
     async fn test_dx12_collection_creation() {
         let config = CollectionConfig {
@@ -379,12 +428,12 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
         };
-        
+
         let gpu_config = GpuConfig::default();
-        
+
         // This will fail if DirectX 12 is not available, which is expected
         let result = DirectX12Collection::new("test".to_string(), config, gpu_config).await;
-        
+
         match result {
             Ok(collection) => {
                 assert_eq!(collection.name(), "test");
@@ -394,7 +443,7 @@ mod tests {
             Err(e) => println!("DirectX 12 not available (expected): {}", e),
         }
     }
-    
+
     #[tokio::test]
     async fn test_dx12_collection_add_and_search() {
         let config = CollectionConfig {
@@ -404,16 +453,18 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
         };
-        
+
         let gpu_config = GpuConfig::default();
-        if let Ok(collection) = DirectX12Collection::new("test".to_string(), config, gpu_config).await {
+        if let Ok(collection) =
+            DirectX12Collection::new("test".to_string(), config, gpu_config).await
+        {
             // Add vector
             let vector = Vector {
                 id: "v1".to_string(),
                 data: vec![1.0; 128],
                 payload: None,
             };
-            
+
             if let Ok(_) = collection.add_vector(vector).await {
                 assert_eq!(collection.vector_count(), 1);
 
@@ -435,16 +486,19 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
         };
-        
+
         let gpu_config = GpuConfig::default();
-        if let Ok(collection) = DirectX12Collection::new("test".to_string(), config, gpu_config).await {
+        if let Ok(collection) =
+            DirectX12Collection::new("test".to_string(), config, gpu_config).await
+        {
             let stats = collection.get_gpu_memory_stats();
             assert!(stats.total_memory_used > 0);
             assert!(stats.memory_limit > 0);
-            println!("DirectX 12 GPU memory stats: {}MB used / {}MB limit", 
-                     stats.total_memory_used / (1024 * 1024),
-                     stats.memory_limit / (1024 * 1024));
+            println!(
+                "DirectX 12 GPU memory stats: {}MB used / {}MB limit",
+                stats.total_memory_used / (1024 * 1024),
+                stats.memory_limit / (1024 * 1024)
+            );
         }
     }
 }
-

@@ -3,15 +3,17 @@
 //! This is the second tier of the cache hierarchy, providing persistent
 //! storage for frequently accessed normalized text using mmap for fast access.
 
-use crate::normalization::ContentHash;
-use anyhow::{Context, Result};
-use memmap2::{Mmap, MmapMut};
-use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::{File, OpenOptions, create_dir_all};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use anyhow::{Context, Result};
+use memmap2::{Mmap, MmapMut};
+use parking_lot::RwLock;
+
+use crate::normalization::ContentHash;
 
 /// Warm store for medium-term caching with mmap
 pub struct WarmStore {
@@ -200,8 +202,9 @@ impl WarmStore {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_warm_store_basic() {
@@ -293,4 +296,3 @@ mod tests {
         assert_eq!(store.len(), 0);
     }
 }
-

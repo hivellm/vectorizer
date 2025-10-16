@@ -3,24 +3,25 @@
 //! This module provides a unified storage format (.vecdb/.vecidx) with compression,
 //! snapshots, and automatic migration from legacy file structures.
 
+pub mod compact;
 pub mod config;
 pub mod index;
-pub mod reader;
-pub mod writer;
-pub mod compact;
 pub mod migration;
+pub mod reader;
 pub mod snapshot;
+pub mod writer;
 
+use std::path::{Path, PathBuf};
+
+pub use compact::StorageCompactor;
 pub use config::StorageConfig;
 pub use index::{CollectionIndex, FileEntry, StorageIndex};
-pub use reader::StorageReader;
-pub use writer::StorageWriter;
-pub use compact::StorageCompactor;
 pub use migration::StorageMigrator;
-pub use snapshot::{SnapshotManager, SnapshotInfo};
+pub use reader::StorageReader;
+pub use snapshot::{SnapshotInfo, SnapshotManager};
+pub use writer::StorageWriter;
 
 use crate::error::{Result, VectorizerError};
-use std::path::{Path, PathBuf};
 
 /// Storage format version
 pub const STORAGE_VERSION: &str = "1.0";
@@ -83,7 +84,7 @@ pub fn snapshots_dir(data_dir: &Path) -> PathBuf {
 }
 
 /// Load or initialize storage with automatic format detection
-/// 
+///
 /// This is a convenience function that:
 /// 1. Detects the storage format (vecdb vs raw)
 /// 2. Loads appropriately  
@@ -91,29 +92,32 @@ pub fn snapshots_dir(data_dir: &Path) -> PathBuf {
 /// 4. Returns the number of collections loaded
 pub fn load_or_initialize(data_dir: &Path) -> Result<usize> {
     use tracing::info;
-    
+
     if !data_dir.exists() {
-        info!("📁 Data directory does not exist, creating: {}", data_dir.display());
+        info!(
+            "📁 Data directory does not exist, creating: {}",
+            data_dir.display()
+        );
         std::fs::create_dir_all(data_dir)?;
         return Ok(0);
     }
-    
+
     let format = detect_format(data_dir);
-    
+
     match format {
         StorageFormat::Compact => {
             info!("📦 Found vectorizer.vecdb - using compressed storage");
-            
+
             // Verify integrity
             let reader = StorageReader::new(data_dir)?;
             let collections = reader.list_collections()?;
-            
+
             info!("✅ Verified {} collections in archive", collections.len());
             Ok(collections.len())
         }
         StorageFormat::Legacy => {
             info!("📁 Found legacy format - will migrate on first load");
-            
+
             // Count legacy collections
             let mut count = 0;
             if let Ok(entries) = std::fs::read_dir(data_dir) {
@@ -126,7 +130,7 @@ pub fn load_or_initialize(data_dir: &Path) -> Result<usize> {
                     }
                 }
             }
-            
+
             info!("📊 Found {} collections in legacy format", count);
             Ok(count)
         }
@@ -135,8 +139,9 @@ pub fn load_or_initialize(data_dir: &Path) -> Result<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_detect_format_legacy() {
@@ -159,4 +164,3 @@ mod tests {
         assert_eq!(snapshots_dir(data_dir), Path::new("/data/snapshots"));
     }
 }
-

@@ -6,13 +6,13 @@ pub mod commands;
 pub mod config;
 pub mod utils;
 
-pub use commands::*;
-// Re-export CliConfig directly since it's defined in this module
-pub use utils::*;
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+pub use commands::*;
 use tracing::warn;
+// Re-export CliConfig directly since it's defined in this module
+pub use utils::*;
 
 /// Vectorizer CLI - Administrative tools for the vector database
 #[derive(Parser)]

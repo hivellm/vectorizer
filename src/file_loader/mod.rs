@@ -2,24 +2,24 @@
 //!
 //! Thin orchestrator that uses existing embedding, persistence, and storage modules
 
-pub mod config;
 pub mod chunker;
+pub mod config;
 pub mod indexer;
 pub mod persistence;
 
-pub use config::{LoaderConfig, DocumentChunk};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use anyhow::{Context, Result};
 pub use chunker::Chunker;
+pub use config::{DocumentChunk, LoaderConfig};
+use glob::Pattern;
 pub use indexer::Indexer;
 pub use persistence::Persistence;
-
-use crate::{VectorStore, embedding::EmbeddingManager};
-use anyhow::{Context, Result};
-use glob::Pattern;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
 use tracing::{info, warn};
+
+use crate::VectorStore;
+use crate::embedding::EmbeddingManager;
 
 /// Thin file loader orchestrator - uses existing infrastructure
 pub struct FileLoader {
@@ -31,7 +31,10 @@ pub struct FileLoader {
 
 impl FileLoader {
     /// Create with shared embedding manager (uses existing infrastructure)
-    pub fn with_embedding_manager(config: LoaderConfig, embedding_manager: EmbeddingManager) -> Self {
+    pub fn with_embedding_manager(
+        config: LoaderConfig,
+        embedding_manager: EmbeddingManager,
+    ) -> Self {
         let chunker = Chunker::new(config.clone());
         let indexer = Indexer::with_embedding_manager(config.clone(), embedding_manager);
         let persistence = Persistence::new();
@@ -54,25 +57,39 @@ impl FileLoader {
 
         // FAST PATH: Check if collection already exists in .vecdb
         if self.persistence.collection_exists_in_vecdb(collection_name) {
-            info!("Collection '{}' found in .vecdb, skipping indexing", collection_name);
+            info!(
+                "Collection '{}' found in .vecdb, skipping indexing",
+                collection_name
+            );
             return Ok(0); // No new indexing
         }
 
-        info!("Starting indexing for collection '{}' from {}", collection_name, project_path);
+        info!(
+            "Starting indexing for collection '{}' from {}",
+            collection_name, project_path
+        );
 
         // Step 1: Collect documents
         let documents = self.collect_documents_sync(project_path)?;
-        
+
         if documents.is_empty() {
             warn!("No documents found for collection '{}'", collection_name);
             return Ok(0);
         }
 
-        info!("Found {} documents for collection '{}'", documents.len(), collection_name);
+        info!(
+            "Found {} documents for collection '{}'",
+            documents.len(),
+            collection_name
+        );
 
         // Step 2: Chunk documents
         let chunks = self.chunker.chunk_documents(&documents)?;
-        info!("Created {} chunks for collection '{}'", chunks.len(), collection_name);
+        info!(
+            "Created {} chunks for collection '{}'",
+            chunks.len(),
+            collection_name
+        );
 
         // Step 3: Build vocabulary
         self.indexer.build_vocabulary(&documents)?;
@@ -85,11 +102,14 @@ impl FileLoader {
 
         // Step 6: Save to temporary format (will be compacted in batch later)
         self.save_collection_temp(store)?;
-        
+
         // Step 7: Save tokenizer/vocabulary for file watcher
         self.save_tokenizer()?;
 
-        info!("Indexed {} vectors for collection '{}'", vector_count, collection_name);
+        info!(
+            "Indexed {} vectors for collection '{}'",
+            vector_count, collection_name
+        );
         Ok(vector_count)
     }
 
@@ -198,27 +218,30 @@ impl FileLoader {
 
     /// Save collection to temporary format (for batch compaction)
     pub fn save_collection_temp(&self, store: &VectorStore) -> Result<()> {
-        self.persistence.save_collection_legacy_temp(store, &self.config.collection_name)
+        self.persistence
+            .save_collection_legacy_temp(store, &self.config.collection_name)
             .map_err(|e| anyhow::anyhow!("{}", e))
     }
-    
+
     /// Save tokenizer/vocabulary for file watcher
     pub fn save_tokenizer(&self) -> Result<()> {
         let data_dir = std::path::PathBuf::from("./data");
-        let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
-        
+        let tokenizer_path =
+            data_dir.join(format!("{}_tokenizer.json", self.config.collection_name));
+
         // Get the embedding type from config
         let embedding_type = &self.config.embedding_type;
-        
+
         // Save vocabulary using the indexer's embedding manager
-        self.indexer.save_vocabulary(&tokenizer_path, embedding_type)
+        self.indexer
+            .save_vocabulary(&tokenizer_path, embedding_type)
             .map_err(|e| anyhow::anyhow!("Failed to save vocabulary: {}", e))
     }
 
     /// Compact all collections to .vecdb
     pub fn compact_all(&self) -> Result<usize> {
-        self.persistence.compact_and_cleanup()
+        self.persistence
+            .compact_and_cleanup()
             .map_err(|e| anyhow::anyhow!("{}", e))
     }
 }
-

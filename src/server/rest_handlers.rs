@@ -1,13 +1,12 @@
 //! REST API handlers
 
-use axum::{
-    extract::{Path, Query, State},
-    response::Json,
-    http::StatusCode,
-};
 use std::collections::HashMap;
-use serde_json::{json, Value};
-use tracing::{info, debug, error};
+
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::Json;
+use serde_json::{Value, json};
+use tracing::{debug, error, info};
 
 use super::VectorizerServer;
 
@@ -21,10 +20,17 @@ pub async fn health_check() -> Json<Value> {
 
 pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
     let collections = state.store.list_collections();
-    let total_vectors: usize = collections.iter().map(|name| {
-        state.store.get_collection(name).map(|c| c.vector_count()).unwrap_or(0)
-    }).sum();
-    
+    let total_vectors: usize = collections
+        .iter()
+        .map(|name| {
+            state
+                .store
+                .get_collection(name)
+                .map(|c| c.vector_count())
+                .unwrap_or(0)
+        })
+        .sum();
+
     Json(json!({
         "collections": collections.len(),
         "total_vectors": total_vectors,
@@ -36,7 +42,7 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
 pub async fn get_indexing_progress(State(state): State<VectorizerServer>) -> Json<Value> {
     let collections = state.store.list_collections();
     let total_collections = collections.len();
-    
+
     Json(json!({
         "overall_status": "completed",
         "collections": collections.iter().map(|name| {
@@ -55,21 +61,21 @@ pub async fn get_indexing_progress(State(state): State<VectorizerServer>) -> Jso
     }))
 }
 
-
-
 pub async fn search_vectors_by_text(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let query = payload.get("query")
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    let limit = payload.get("limit")
-        .and_then(|l| l.as_u64())
-        .unwrap_or(10) as usize;
+    let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
-    info!("🔍 Searching for '{}' in collection '{}'", query, collection_name);
+    info!(
+        "🔍 Searching for '{}' in collection '{}'",
+        query, collection_name
+    );
 
     // Get the collection
     let collection = match state.store.get_collection(&collection_name) {
@@ -116,14 +122,17 @@ pub async fn search_vectors_by_text(
     };
 
     // Convert results to JSON format
-    let results: Vec<Value> = search_results.into_iter().map(|result| {
-        json!({
-            "id": result.id,
-            "score": result.score,
-            "vector": result.vector,
-            "payload": result.payload.map(|p| p.data)
+    let results: Vec<Value> = search_results
+        .into_iter()
+        .map(|result| {
+            json!({
+                "id": result.id,
+                "score": result.score,
+                "vector": result.vector,
+                "payload": result.payload.map(|p| p.data)
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(Json(json!({
         "results": results,
@@ -139,12 +148,11 @@ pub async fn search_by_file(
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let file_path = payload.get("file_path")
+    let file_path = payload
+        .get("file_path")
         .and_then(|f| f.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    let limit = payload.get("limit")
-        .and_then(|l| l.as_u64())
-        .unwrap_or(10) as usize;
+    let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
     // For now, return empty results
     Ok(Json(json!({
@@ -164,14 +172,17 @@ pub async fn list_vectors(
     debug!("Listing vectors from collection: {}", collection_name);
 
     // Parse query parameters for pagination - cap at 50 for vector browser
-    let limit = params.get("limit")
+    let limit = params
+        .get("limit")
         .and_then(|l| l.parse::<usize>().ok())
         .unwrap_or(10)
         .min(50);
-    let offset = params.get("offset")
+    let offset = params
+        .get("offset")
         .and_then(|o| o.parse::<usize>().ok())
         .unwrap_or(0);
-    let min_score = params.get("min_score")
+    let min_score = params
+        .get("min_score")
         .and_then(|s| s.parse::<f32>().ok())
         .unwrap_or(0.0)
         .max(0.0)
@@ -203,7 +214,9 @@ pub async fn list_vectors(
             // Calculate a score based on payload content length
             let score = if let Some(ref payload) = v.payload {
                 // Simple scoring based on content richness
-                let content_length = payload.data.get("content")
+                let content_length = payload
+                    .data
+                    .get("content")
                     .and_then(|c| c.as_str())
                     .map(|s| s.len())
                     .unwrap_or(0);
@@ -222,11 +235,13 @@ pub async fn list_vectors(
         .into_iter()
         .skip(offset)
         .take(limit)
-        .map(|v| json!({
-            "id": v.id,
-            "vector": v.data,
-            "payload": v.payload.map(|p| p.data),
-        }))
+        .map(|v| {
+            json!({
+                "id": v.id,
+                "vector": v.data,
+                "payload": v.payload.map(|p| p.data),
+            })
+        })
         .collect();
 
     let paginated_count = paginated_vectors.len();
@@ -249,10 +264,7 @@ pub async fn list_vectors(
     let duration = start_time.elapsed();
     info!(
         "Listed {} vectors from local collection '{}' (total: {}) in {:?}",
-        paginated_count,
-        collection_name,
-        total_count,
-        duration
+        paginated_count, collection_name, total_count, duration
     );
 
     Ok(Json(response))
@@ -260,10 +272,10 @@ pub async fn list_vectors(
 
 pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Value> {
     let mut collections = state.store.list_collections();
-    
+
     // Sort alphabetically for consistent dashboard display
     collections.sort();
-    
+
     let collection_infos: Vec<Value> = collections.iter().map(|name| {
         match state.store.get_collection(name) {
             Ok(collection) => {
@@ -271,13 +283,13 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
                 let config = collection.config();
                 let (index_size, payload_size, total_size) = collection.get_size_info();
                 let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
-                
+
                 // Build normalization info
                 let normalization_enabled = config.normalization
                     .as_ref()
                     .map(|n| n.enabled)
                     .unwrap_or(false);
-                
+
                 let normalization_level = if normalization_enabled {
                     config.normalization
                         .as_ref()
@@ -286,7 +298,7 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
                 } else {
                     "Disabled".to_string()
                 };
-                
+
                 json!({
                     "name": name,
                     "vector_count": collection.vector_count(),
@@ -364,17 +376,23 @@ pub async fn create_collection(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let name = payload.get("name")
+    let name = payload
+        .get("name")
         .and_then(|n| n.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    let dimension = payload.get("dimension")
+    let dimension = payload
+        .get("dimension")
         .and_then(|d| d.as_u64())
         .unwrap_or(512) as usize;
-    let metric = payload.get("metric")
+    let metric = payload
+        .get("metric")
         .and_then(|m| m.as_str())
         .unwrap_or("cosine");
 
-    info!("Creating collection: {} with dimension {} and metric {}", name, dimension, metric);
+    info!(
+        "Creating collection: {} with dimension {} and metric {}",
+        name, dimension, metric
+    );
 
     // Create collection configuration
     let config = crate::models::CollectionConfig {
@@ -419,7 +437,7 @@ pub async fn get_collection(
             let config = collection.config();
             let (index_size, payload_size, total_size) = collection.get_size_info();
             let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
-            
+
             // Build normalization info
             let normalization_info = if let Some(norm_config) = &config.normalization {
                 json!({
@@ -439,7 +457,7 @@ pub async fn get_collection(
                     "message": "Text normalization is disabled for this collection"
                 })
             };
-            
+
             Ok(Json(json!({
                 "name": name,
                 "vector_count": collection.vector_count(),
@@ -464,8 +482,8 @@ pub async fn get_collection(
                 "normalization": normalization_info,
                 "status": "ready"
             })))
-        },
-        Err(_) => Err(StatusCode::NOT_FOUND)
+        }
+        Err(_) => Err(StatusCode::NOT_FOUND),
     }
 }
 
@@ -474,7 +492,7 @@ pub async fn delete_collection(
     Path(name): Path<String>,
 ) -> Result<Json<Value>, StatusCode> {
     info!("Deleting collection: {}", name);
-    
+
     // For now, just return success
     Ok(Json(json!({
         "message": format!("Collection '{}' deleted successfully", name)
@@ -495,8 +513,8 @@ pub async fn get_vector(
                     "collection": collection_name
                 }
             })))
-        },
-        Err(_) => Err(StatusCode::NOT_FOUND)
+        }
+        Err(_) => Err(StatusCode::NOT_FOUND),
     }
 }
 
@@ -504,8 +522,11 @@ pub async fn delete_vector(
     State(_state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, StatusCode> {
-    info!("Deleting vector {} from collection {}", vector_id, collection_name);
-    
+    info!(
+        "Deleting vector {} from collection {}",
+        vector_id, collection_name
+    );
+
     Ok(Json(json!({
         "message": format!("Vector '{}' deleted from collection '{}'", vector_id, collection_name)
     })))
@@ -515,12 +536,11 @@ pub async fn search_vectors(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let query_vector = payload.get("vector")
+    let query_vector = payload
+        .get("vector")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    let limit = payload.get("limit")
-        .and_then(|l| l.as_u64())
-        .unwrap_or(10) as usize;
+    let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
     // For now, return empty results
     Ok(Json(json!({
@@ -534,40 +554,55 @@ pub async fn insert_text(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let collection_name = payload.get("collection")
+    let collection_name = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    let text = payload.get("text")
+    let text = payload
+        .get("text")
         .and_then(|t| t.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    let metadata = payload.get("metadata")
+    let metadata = payload
+        .get("metadata")
         .and_then(|m| m.as_object())
         .map(|m| {
-            m.iter().map(|(k, v)| {
-                (k.clone(), match v {
-                    serde_json::Value::String(s) => s.clone(),
-                    _ => v.to_string(),
+            m.iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        match v {
+                            serde_json::Value::String(s) => s.clone(),
+                            _ => v.to_string(),
+                        },
+                    )
                 })
-            }).collect::<std::collections::HashMap<String, String>>()
+                .collect::<std::collections::HashMap<String, String>>()
         })
         .unwrap_or_default();
 
-    info!("Inserting text into collection '{}': {}", collection_name, text);
+    info!(
+        "Inserting text into collection '{}': {}",
+        collection_name, text
+    );
 
     // Get the collection
-    let collection = state.store.get_collection(collection_name)
+    let collection = state
+        .store
+        .get_collection(collection_name)
         .map_err(|_| StatusCode::NOT_FOUND)?;
 
     // Generate embedding for the text
-    let embedding = state.embedding_manager.embed(text)
-        .map_err(|e| {
-            error!("Failed to generate embedding: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let embedding = state.embedding_manager.embed(text).map_err(|e| {
+        error!("Failed to generate embedding: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // Create payload with metadata
     let payload_data = crate::models::Payload::new(serde_json::Value::Object(
-        metadata.into_iter().map(|(k, v)| (k, serde_json::Value::String(v))).collect()
+        metadata
+            .into_iter()
+            .map(|(k, v)| (k, serde_json::Value::String(v)))
+            .collect(),
     ));
 
     // Create vector with generated ID
@@ -579,7 +614,9 @@ pub async fn insert_text(
     };
 
     // Insert the vector using the store
-    state.store.insert(collection_name, vec![vector])
+    state
+        .store
+        .insert(collection_name, vec![vector])
         .map_err(|e| {
             error!("Failed to insert vector: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
@@ -599,7 +636,8 @@ pub async fn update_vector(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let id = payload.get("id")
+    let id = payload
+        .get("id")
         .and_then(|i| i.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -614,7 +652,8 @@ pub async fn delete_vector_generic(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let id = payload.get("id")
+    let id = payload
+        .get("id")
         .and_then(|i| i.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -629,7 +668,8 @@ pub async fn embed_text(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let text = payload.get("text")
+    let text = payload
+        .get("text")
         .and_then(|t| t.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -645,7 +685,8 @@ pub async fn batch_insert_texts(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let texts = payload.get("texts")
+    let texts = payload
+        .get("texts")
         .and_then(|t| t.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -661,7 +702,8 @@ pub async fn insert_texts(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let texts = payload.get("texts")
+    let texts = payload
+        .get("texts")
         .and_then(|t| t.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -677,7 +719,8 @@ pub async fn batch_search_vectors(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let queries = payload.get("queries")
+    let queries = payload
+        .get("queries")
         .and_then(|q| q.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -694,7 +737,8 @@ pub async fn batch_update_vectors(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let updates = payload.get("updates")
+    let updates = payload
+        .get("updates")
         .and_then(|u| u.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -710,7 +754,8 @@ pub async fn batch_delete_vectors(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let ids = payload.get("ids")
+    let ids = payload
+        .get("ids")
         .and_then(|i| i.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
@@ -728,37 +773,43 @@ pub async fn intelligent_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::intelligent_search::rest_api::{RESTAPIHandler, IntelligentSearchRequest};
-    
+    use crate::intelligent_search::rest_api::{IntelligentSearchRequest, RESTAPIHandler};
+
     // Create handler with the actual server instances
     let handler = RESTAPIHandler::new_with_store(state.store.clone());
-    
+
     // Extract parameters from JSON payload
-    let query = payload.get("query")
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let collections = payload.get("collections")
+
+    let collections = payload
+        .get("collections")
         .and_then(|c| c.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect::<Vec<_>>());
-    
-    let max_results = payload.get("max_results")
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+        });
+
+    let max_results = payload
+        .get("max_results")
         .and_then(|m| m.as_u64())
         .map(|m| m as usize);
-    
-    let domain_expansion = payload.get("domain_expansion")
-        .and_then(|d| d.as_bool());
-    
-    let technical_focus = payload.get("technical_focus")
-        .and_then(|t| t.as_bool());
-    
-    let mmr_enabled = payload.get("mmr_enabled")
-        .and_then(|m| m.as_bool());
-    
-    let mmr_lambda = payload.get("mmr_lambda")
+
+    let domain_expansion = payload.get("domain_expansion").and_then(|d| d.as_bool());
+
+    let technical_focus = payload.get("technical_focus").and_then(|t| t.as_bool());
+
+    let mmr_enabled = payload.get("mmr_enabled").and_then(|m| m.as_bool());
+
+    let mmr_lambda = payload
+        .get("mmr_lambda")
         .and_then(|l| l.as_f64())
         .map(|l| l as f32);
-    
+
     // Create intelligent search request
     let request = IntelligentSearchRequest {
         query: query.to_string(),
@@ -769,7 +820,7 @@ pub async fn intelligent_search(
         mmr_enabled,
         mmr_lambda,
     };
-    
+
     match handler.handle_intelligent_search(request).await {
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
@@ -783,34 +834,39 @@ pub async fn multi_collection_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::intelligent_search::rest_api::{RESTAPIHandler, MultiCollectionSearchRequest};
-    
+    use crate::intelligent_search::rest_api::{MultiCollectionSearchRequest, RESTAPIHandler};
+
     // Create handler with the actual server instances
     let handler = RESTAPIHandler::new_with_store(state.store.clone());
-    
-    let query = payload.get("query")
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let collections = payload.get("collections")
+
+    let collections = payload
+        .get("collections")
         .and_then(|c| c.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?
         .iter()
         .filter_map(|v| v.as_str())
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-    
-    let max_per_collection = payload.get("max_per_collection")
+
+    let max_per_collection = payload
+        .get("max_per_collection")
         .and_then(|m| m.as_u64())
         .map(|m| m as usize);
-    
-    let max_total_results = payload.get("max_total_results")
+
+    let max_total_results = payload
+        .get("max_total_results")
         .and_then(|m| m.as_u64())
         .map(|m| m as usize);
-    
-    let cross_collection_reranking = payload.get("cross_collection_reranking")
+
+    let cross_collection_reranking = payload
+        .get("cross_collection_reranking")
         .and_then(|c| c.as_bool());
-    
+
     let request = MultiCollectionSearchRequest {
         query: query.to_string(),
         collections,
@@ -818,7 +874,7 @@ pub async fn multi_collection_search(
         max_total_results,
         cross_collection_reranking,
     };
-    
+
     match handler.handle_multi_collection_search(request).await {
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
@@ -833,32 +889,36 @@ pub async fn semantic_search(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{RESTAPIHandler, SemanticSearchRequest};
-    
+
     // Create handler with the actual server instances
     let handler = RESTAPIHandler::new_with_store(state.store.clone());
-    
-    let query = payload.get("query")
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let max_results = payload.get("max_results")
+
+    let max_results = payload
+        .get("max_results")
         .and_then(|m| m.as_u64())
         .map(|m| m as usize);
-    
-    let semantic_reranking = payload.get("semantic_reranking")
-        .and_then(|s| s.as_bool());
-    
-    let cross_encoder_reranking = payload.get("cross_encoder_reranking")
+
+    let semantic_reranking = payload.get("semantic_reranking").and_then(|s| s.as_bool());
+
+    let cross_encoder_reranking = payload
+        .get("cross_encoder_reranking")
         .and_then(|c| c.as_bool());
-    
-    let similarity_threshold = payload.get("similarity_threshold")
+
+    let similarity_threshold = payload
+        .get("similarity_threshold")
         .and_then(|s| s.as_f64())
         .map(|s| s as f32);
-    
+
     let request = SemanticSearchRequest {
         query: query.to_string(),
         collection: collection.to_string(),
@@ -867,7 +927,7 @@ pub async fn semantic_search(
         cross_encoder_reranking,
         similarity_threshold,
     };
-    
+
     match handler.handle_semantic_search(request).await {
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
@@ -881,20 +941,23 @@ pub async fn contextual_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::intelligent_search::rest_api::{RESTAPIHandler, ContextualSearchRequest};
-    
+    use crate::intelligent_search::rest_api::{ContextualSearchRequest, RESTAPIHandler};
+
     // Create handler with the actual server instances
     let handler = RESTAPIHandler::new_with_store(state.store.clone());
-    
-    let query = payload.get("query")
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let context_filters = payload.get("context_filters")
+
+    let context_filters = payload
+        .get("context_filters")
         .and_then(|f| f.as_object())
         .map(|obj| {
             let mut map = std::collections::HashMap::new();
@@ -903,18 +966,19 @@ pub async fn contextual_search(
             }
             map
         });
-    
-    let context_weight = payload.get("context_weight")
+
+    let context_weight = payload
+        .get("context_weight")
         .and_then(|w| w.as_f64())
         .map(|w| w as f32);
-    
-    let context_reranking = payload.get("context_reranking")
-        .and_then(|r| r.as_bool());
-    
-    let max_results = payload.get("max_results")
+
+    let context_reranking = payload.get("context_reranking").and_then(|r| r.as_bool());
+
+    let max_results = payload
+        .get("max_results")
         .and_then(|m| m.as_u64())
         .map(|m| m as usize);
-    
+
     let request = ContextualSearchRequest {
         query: query.to_string(),
         collection: collection.to_string(),
@@ -923,7 +987,7 @@ pub async fn contextual_search(
         context_reranking,
         max_results,
     };
-    
+
     match handler.handle_contextual_search(request).await {
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
@@ -942,39 +1006,48 @@ pub async fn discover(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::discovery::{Discovery, DiscoveryConfig};
-    
-    let query = payload.get("query")
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     let mut config = DiscoveryConfig::default();
-    
-    if let Some(include) = payload.get("include_collections").and_then(|v| v.as_array()) {
-        config.include_collections = include.iter()
+
+    if let Some(include) = payload
+        .get("include_collections")
+        .and_then(|v| v.as_array())
+    {
+        config.include_collections = include
+            .iter()
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect();
     }
-    
-    if let Some(exclude) = payload.get("exclude_collections").and_then(|v| v.as_array()) {
-        config.exclude_collections = exclude.iter()
+
+    if let Some(exclude) = payload
+        .get("exclude_collections")
+        .and_then(|v| v.as_array())
+    {
+        config.exclude_collections = exclude
+            .iter()
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect();
     }
-    
+
     if let Some(max_bullets) = payload.get("max_bullets").and_then(|v| v.as_u64()) {
         config.max_bullets = max_bullets as usize;
     }
-    
+
     if let Some(broad_k) = payload.get("broad_k").and_then(|v| v.as_u64()) {
         config.broad_k = broad_k as usize;
     }
-    
+
     if let Some(focus_k) = payload.get("focus_k").and_then(|v| v.as_u64()) {
         config.focus_k = focus_k as usize;
     }
-    
+
     let discovery = Discovery::new(config, state.store.clone(), state.embedding_manager.clone());
-    
+
     match discovery.discover(query).await {
         Ok(response) => Ok(Json(json!({
             "answer_prompt": response.answer_prompt,
@@ -1003,22 +1076,27 @@ pub async fn filter_collections(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::discovery::filter_collections as filter_fn;
-    
-    let query = payload.get("query")
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let include: Vec<&str> = payload.get("include")
+
+    let include: Vec<&str> = payload
+        .get("include")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
-    
-    let exclude: Vec<&str> = payload.get("exclude")
+
+    let exclude: Vec<&str> = payload
+        .get("exclude")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
         .unwrap_or_default();
-    
-    let all_collections: Vec<_> = state.store.list_collections()
+
+    let all_collections: Vec<_> = state
+        .store
+        .list_collections()
         .iter()
         .filter_map(|name| {
             state.store.get_collection(name).ok().map(|coll| {
@@ -1034,7 +1112,7 @@ pub async fn filter_collections(
             })
         })
         .collect();
-    
+
     match filter_fn(query, &include, &exclude, &all_collections) {
         Ok(filtered) => Ok(Json(json!({
             "filtered_collections": filtered.iter().map(|c| json!({
@@ -1054,14 +1132,15 @@ pub async fn score_collections(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{score_collections as score_fn, ScoringConfig};
-    
-    let query = payload.get("query")
+    use crate::discovery::{ScoringConfig, score_collections as score_fn};
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     let mut config = ScoringConfig::default();
-    
+
     if let Some(w) = payload.get("name_match_weight").and_then(|v| v.as_f64()) {
         config.name_match_weight = w as f32;
     }
@@ -1071,8 +1150,10 @@ pub async fn score_collections(
     if let Some(w) = payload.get("signal_boost_weight").and_then(|v| v.as_f64()) {
         config.signal_boost_weight = w as f32;
     }
-    
-    let all_collections: Vec<_> = state.store.list_collections()
+
+    let all_collections: Vec<_> = state
+        .store
+        .list_collections()
         .iter()
         .filter_map(|name| {
             state.store.get_collection(name).ok().map(|coll| {
@@ -1088,9 +1169,9 @@ pub async fn score_collections(
             })
         })
         .collect();
-    
+
     let query_terms: Vec<&str> = query.split_whitespace().collect();
-    
+
     match score_fn(&query_terms, &all_collections, &config) {
         Ok(scored) => Ok(Json(json!({
             "scored_collections": scored.iter().map(|(c, score)| json!({
@@ -1107,17 +1188,16 @@ pub async fn score_collections(
     }
 }
 
-pub async fn expand_queries(
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{expand_queries_baseline, ExpansionConfig};
-    
-    let query = payload.get("query")
+pub async fn expand_queries(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+    use crate::discovery::{ExpansionConfig, expand_queries_baseline};
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     let mut config = ExpansionConfig::default();
-    
+
     if let Some(max) = payload.get("max_expansions").and_then(|v| v.as_u64()) {
         config.max_expansions = max as usize;
     }
@@ -1127,10 +1207,13 @@ pub async fn expand_queries(
     if let Some(feat) = payload.get("include_features").and_then(|v| v.as_bool()) {
         config.include_features = feat;
     }
-    if let Some(arch) = payload.get("include_architecture").and_then(|v| v.as_bool()) {
+    if let Some(arch) = payload
+        .get("include_architecture")
+        .and_then(|v| v.as_bool())
+    {
         config.include_architecture = arch;
     }
-    
+
     match expand_queries_baseline(query, &config) {
         Ok(expanded) => Ok(Json(json!({
             "original_query": query,
@@ -1148,22 +1231,23 @@ pub async fn broad_discovery(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{broad_discovery as broad_fn, BroadDiscoveryConfig};
-    
-    let queries = payload.get("queries")
+    use crate::discovery::{BroadDiscoveryConfig, broad_discovery as broad_fn};
+
+    let queries = payload
+        .get("queries")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.to_string()))
         .collect::<Vec<_>>();
-    
-    let k = payload.get("k")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(50) as usize;
-    
+
+    let k = payload.get("k").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+
     let config = BroadDiscoveryConfig::default();
-    
-    let collections: Vec<_> = state.store.list_collections()
+
+    let collections: Vec<_> = state
+        .store
+        .list_collections()
         .iter()
         .filter_map(|name| {
             state.store.get_collection(name).ok().map(|coll| {
@@ -1179,8 +1263,17 @@ pub async fn broad_discovery(
             })
         })
         .collect();
-    
-    match broad_fn(&queries, &collections, k, &config, &state.store, &state.embedding_manager).await {
+
+    match broad_fn(
+        &queries,
+        &collections,
+        k,
+        &config,
+        &state.store,
+        &state.embedding_manager,
+    )
+    .await
+    {
         Ok(chunks) => Ok(Json(json!({
             "chunks": chunks.iter().map(|c| json!({
                 "collection": c.collection,
@@ -1200,28 +1293,30 @@ pub async fn semantic_focus(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{semantic_focus as focus_fn, SemanticFocusConfig};
-    
-    let collection_name = payload.get("collection")
+    use crate::discovery::{SemanticFocusConfig, semantic_focus as focus_fn};
+
+    let collection_name = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let queries = payload.get("queries")
+
+    let queries = payload
+        .get("queries")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.to_string()))
         .collect::<Vec<_>>();
-    
-    let k = payload.get("k")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(15) as usize;
-    
+
+    let k = payload.get("k").and_then(|v| v.as_u64()).unwrap_or(15) as usize;
+
     let config = SemanticFocusConfig::default();
-    
-    let coll = state.store.get_collection(collection_name)
+
+    let coll = state
+        .store
+        .get_collection(collection_name)
         .map_err(|_| StatusCode::NOT_FOUND)?;
-    
+
     let metadata = coll.metadata();
     let collection = crate::discovery::CollectionRef {
         name: collection_name.to_string(),
@@ -1231,8 +1326,17 @@ pub async fn semantic_focus(
         updated_at: metadata.updated_at,
         tags: vec![],
     };
-    
-    match focus_fn(&collection, &queries, k, &config, &state.store, &state.embedding_manager).await {
+
+    match focus_fn(
+        &collection,
+        &queries,
+        k,
+        &config,
+        &state.store,
+        &state.embedding_manager,
+    )
+    .await
+    {
         Ok(chunks) => Ok(Json(json!({
             "chunks": chunks.iter().map(|c| json!({
                 "collection": c.collection,
@@ -1248,33 +1352,37 @@ pub async fn semantic_focus(
     }
 }
 
-pub async fn promote_readme(
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{promote_readme as promote_fn, ReadmePromotionConfig, ScoredChunk, ChunkMetadata};
-    
-    let chunks_json = payload.get("chunks")
+pub async fn promote_readme(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+    use crate::discovery::{
+        ChunkMetadata, ReadmePromotionConfig, ScoredChunk, promote_readme as promote_fn,
+    };
+
+    let chunks_json = payload
+        .get("chunks")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let chunks: Vec<ScoredChunk> = chunks_json.iter().filter_map(|v| {
-        let obj = v.as_object()?;
-        Some(ScoredChunk {
-            collection: obj.get("collection")?.as_str()?.to_string(),
-            doc_id: obj.get("doc_id")?.as_str()?.to_string(),
-            content: obj.get("content")?.as_str()?.to_string(),
-            score: obj.get("score")?.as_f64()? as f32,
-            metadata: ChunkMetadata {
-                file_path: obj.get("file_path")?.as_str()?.to_string(),
-                chunk_index: obj.get("chunk_index")?.as_u64()? as usize,
-                file_extension: obj.get("file_extension")?.as_str()?.to_string(),
-                line_range: None,
-            },
+
+    let chunks: Vec<ScoredChunk> = chunks_json
+        .iter()
+        .filter_map(|v| {
+            let obj = v.as_object()?;
+            Some(ScoredChunk {
+                collection: obj.get("collection")?.as_str()?.to_string(),
+                doc_id: obj.get("doc_id")?.as_str()?.to_string(),
+                content: obj.get("content")?.as_str()?.to_string(),
+                score: obj.get("score")?.as_f64()? as f32,
+                metadata: ChunkMetadata {
+                    file_path: obj.get("file_path")?.as_str()?.to_string(),
+                    chunk_index: obj.get("chunk_index")?.as_u64()? as usize,
+                    file_extension: obj.get("file_extension")?.as_str()?.to_string(),
+                    line_range: None,
+                },
+            })
         })
-    }).collect();
-    
+        .collect();
+
     let config = ReadmePromotionConfig::default();
-    
+
     match promote_fn(&chunks, &config) {
         Ok(promoted) => Ok(Json(json!({
             "promoted_chunks": promoted.iter().map(|c| json!({
@@ -1291,41 +1399,47 @@ pub async fn promote_readme(
     }
 }
 
-pub async fn compress_evidence(
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{compress_evidence as compress_fn, CompressionConfig, ScoredChunk, ChunkMetadata};
-    
-    let chunks_json = payload.get("chunks")
+pub async fn compress_evidence(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+    use crate::discovery::{
+        ChunkMetadata, CompressionConfig, ScoredChunk, compress_evidence as compress_fn,
+    };
+
+    let chunks_json = payload
+        .get("chunks")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let max_bullets = payload.get("max_bullets")
+
+    let max_bullets = payload
+        .get("max_bullets")
         .and_then(|v| v.as_u64())
         .unwrap_or(20) as usize;
-    
-    let max_per_doc = payload.get("max_per_doc")
+
+    let max_per_doc = payload
+        .get("max_per_doc")
         .and_then(|v| v.as_u64())
         .unwrap_or(3) as usize;
-    
-    let chunks: Vec<ScoredChunk> = chunks_json.iter().filter_map(|v| {
-        let obj = v.as_object()?;
-        Some(ScoredChunk {
-            collection: obj.get("collection")?.as_str()?.to_string(),
-            doc_id: obj.get("doc_id")?.as_str()?.to_string(),
-            content: obj.get("content")?.as_str()?.to_string(),
-            score: obj.get("score")?.as_f64()? as f32,
-            metadata: ChunkMetadata {
-                file_path: obj.get("file_path")?.as_str()?.to_string(),
-                chunk_index: obj.get("chunk_index")?.as_u64()? as usize,
-                file_extension: obj.get("file_extension")?.as_str()?.to_string(),
-                line_range: None,
-            },
+
+    let chunks: Vec<ScoredChunk> = chunks_json
+        .iter()
+        .filter_map(|v| {
+            let obj = v.as_object()?;
+            Some(ScoredChunk {
+                collection: obj.get("collection")?.as_str()?.to_string(),
+                doc_id: obj.get("doc_id")?.as_str()?.to_string(),
+                content: obj.get("content")?.as_str()?.to_string(),
+                score: obj.get("score")?.as_f64()? as f32,
+                metadata: ChunkMetadata {
+                    file_path: obj.get("file_path")?.as_str()?.to_string(),
+                    chunk_index: obj.get("chunk_index")?.as_u64()? as usize,
+                    file_extension: obj.get("file_extension")?.as_str()?.to_string(),
+                    line_range: None,
+                },
+            })
         })
-    }).collect();
-    
+        .collect();
+
     let config = CompressionConfig::default();
-    
+
     match compress_fn(&chunks, max_bullets, max_per_doc, &config) {
         Ok(bullets) => Ok(Json(json!({
             "bullets": bullets.iter().map(|b| json!({
@@ -1343,39 +1457,43 @@ pub async fn compress_evidence(
     }
 }
 
-pub async fn build_answer_plan(
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{build_answer_plan as build_fn, AnswerPlanConfig, Bullet, BulletCategory};
-    
-    let bullets_json = payload.get("bullets")
+pub async fn build_answer_plan(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+    use crate::discovery::{
+        AnswerPlanConfig, Bullet, BulletCategory, build_answer_plan as build_fn,
+    };
+
+    let bullets_json = payload
+        .get("bullets")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let bullets: Vec<Bullet> = bullets_json.iter().filter_map(|v| {
-        let obj = v.as_object()?;
-        let category = match obj.get("category")?.as_str()? {
-            "Definition" => BulletCategory::Definition,
-            "Feature" => BulletCategory::Feature,
-            "Architecture" => BulletCategory::Architecture,
-            "Performance" => BulletCategory::Performance,
-            "Integration" => BulletCategory::Integration,
-            "UseCase" => BulletCategory::UseCase,
-            _ => BulletCategory::Other,
-        };
-        
-        Some(Bullet {
-            text: obj.get("text")?.as_str()?.to_string(),
-            source_id: obj.get("source_id")?.as_str()?.to_string(),
-            collection: obj.get("collection")?.as_str()?.to_string(),
-            file_path: obj.get("file_path")?.as_str()?.to_string(),
-            score: obj.get("score")?.as_f64()? as f32,
-            category,
+
+    let bullets: Vec<Bullet> = bullets_json
+        .iter()
+        .filter_map(|v| {
+            let obj = v.as_object()?;
+            let category = match obj.get("category")?.as_str()? {
+                "Definition" => BulletCategory::Definition,
+                "Feature" => BulletCategory::Feature,
+                "Architecture" => BulletCategory::Architecture,
+                "Performance" => BulletCategory::Performance,
+                "Integration" => BulletCategory::Integration,
+                "UseCase" => BulletCategory::UseCase,
+                _ => BulletCategory::Other,
+            };
+
+            Some(Bullet {
+                text: obj.get("text")?.as_str()?.to_string(),
+                source_id: obj.get("source_id")?.as_str()?.to_string(),
+                collection: obj.get("collection")?.as_str()?.to_string(),
+                file_path: obj.get("file_path")?.as_str()?.to_string(),
+                score: obj.get("score")?.as_f64()? as f32,
+                category,
+            })
         })
-    }).collect();
-    
+        .collect();
+
     let config = AnswerPlanConfig::default();
-    
+
     match build_fn(&bullets, &config) {
         Ok(plan) => Ok(Json(json!({
             "sections": plan.sections.iter().map(|s| json!({
@@ -1396,64 +1514,81 @@ pub async fn build_answer_plan(
     }
 }
 
-pub async fn render_llm_prompt(
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
-    use crate::discovery::{render_llm_prompt as render_fn, PromptRenderConfig, AnswerPlan, Section, SectionType, Bullet, BulletCategory};
-    
-    let plan_json = payload.get("plan")
+pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+    use crate::discovery::{
+        AnswerPlan, Bullet, BulletCategory, PromptRenderConfig, Section, SectionType,
+        render_llm_prompt as render_fn,
+    };
+
+    let plan_json = payload
+        .get("plan")
         .and_then(|v| v.as_object())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let sections_json = plan_json.get("sections")
+
+    let sections_json = plan_json
+        .get("sections")
         .and_then(|v| v.as_array())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let sections: Vec<Section> = sections_json.iter().filter_map(|v| {
-        let obj = v.as_object()?;
-        let bullets_json = obj.get("bullets")?.as_array()?;
-        
-        let bullets: Vec<Bullet> = bullets_json.iter().filter_map(|b| {
-            let b_obj = b.as_object()?;
-            let category = match b_obj.get("category")?.as_str()? {
-                "Definition" => BulletCategory::Definition,
-                "Feature" => BulletCategory::Feature,
-                "Architecture" => BulletCategory::Architecture,
-                "Performance" => BulletCategory::Performance,
-                "Integration" => BulletCategory::Integration,
-                "UseCase" => BulletCategory::UseCase,
-                _ => BulletCategory::Other,
-            };
-            
-            Some(Bullet {
-                text: b_obj.get("text")?.as_str()?.to_string(),
-                source_id: b_obj.get("source_id")?.as_str()?.to_string(),
-                collection: b_obj.get("collection")?.as_str()?.to_string(),
-                file_path: b_obj.get("file_path")?.as_str()?.to_string(),
-                score: b_obj.get("score")?.as_f64()? as f32,
-                category,
+
+    let sections: Vec<Section> = sections_json
+        .iter()
+        .filter_map(|v| {
+            let obj = v.as_object()?;
+            let bullets_json = obj.get("bullets")?.as_array()?;
+
+            let bullets: Vec<Bullet> = bullets_json
+                .iter()
+                .filter_map(|b| {
+                    let b_obj = b.as_object()?;
+                    let category = match b_obj.get("category")?.as_str()? {
+                        "Definition" => BulletCategory::Definition,
+                        "Feature" => BulletCategory::Feature,
+                        "Architecture" => BulletCategory::Architecture,
+                        "Performance" => BulletCategory::Performance,
+                        "Integration" => BulletCategory::Integration,
+                        "UseCase" => BulletCategory::UseCase,
+                        _ => BulletCategory::Other,
+                    };
+
+                    Some(Bullet {
+                        text: b_obj.get("text")?.as_str()?.to_string(),
+                        source_id: b_obj.get("source_id")?.as_str()?.to_string(),
+                        collection: b_obj.get("collection")?.as_str()?.to_string(),
+                        file_path: b_obj.get("file_path")?.as_str()?.to_string(),
+                        score: b_obj.get("score")?.as_f64()? as f32,
+                        category,
+                    })
+                })
+                .collect();
+
+            Some(Section {
+                title: obj.get("title")?.as_str()?.to_string(),
+                section_type: SectionType::Definition,
+                bullets,
+                priority: obj.get("priority")?.as_u64()? as usize,
             })
-        }).collect();
-        
-        Some(Section {
-            title: obj.get("title")?.as_str()?.to_string(),
-            section_type: SectionType::Definition,
-            bullets,
-            priority: obj.get("priority")?.as_u64()? as usize,
         })
-    }).collect();
-    
+        .collect();
+
     let plan = AnswerPlan {
         sections,
-        total_bullets: plan_json.get("total_bullets").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
-        sources: plan_json.get("sources")
+        total_bullets: plan_json
+            .get("total_bullets")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize,
+        sources: plan_json
+            .get("sources")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
             .unwrap_or_default(),
     };
-    
+
     let config = PromptRenderConfig::default();
-    
+
     match render_fn(&plan, &config) {
         Ok(prompt) => Ok(Json(json!({
             "prompt": prompt,
@@ -1476,22 +1611,28 @@ pub async fn get_file_content(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::file_operations::FileOperations;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let file_path = payload.get("file_path")
+
+    let file_path = payload
+        .get("file_path")
         .and_then(|f| f.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let max_size_kb = payload.get("max_size_kb")
+
+    let max_size_kb = payload
+        .get("max_size_kb")
         .and_then(|m| m.as_u64())
         .unwrap_or(500) as usize;
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
-    match file_ops.get_file_content(collection, file_path, max_size_kb).await {
+
+    match file_ops
+        .get_file_content(collection, file_path, max_size_kb)
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get file content error: {:?}", e);
@@ -1504,27 +1645,34 @@ pub async fn list_files_in_collection(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    use crate::file_operations::{FileOperations, FileListFilter, SortBy};
-    
-    let collection = payload.get("collection")
+    use crate::file_operations::{FileListFilter, FileOperations, SortBy};
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let filter_by_type = payload.get("filter_by_type")
+
+    let filter_by_type = payload
+        .get("filter_by_type")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect());
-    
-    let min_chunks = payload.get("min_chunks")
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        });
+
+    let min_chunks = payload
+        .get("min_chunks")
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
-    
-    let max_results = payload.get("max_results")
+
+    let max_results = payload
+        .get("max_results")
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
-    
-    let sort_by = payload.get("sort_by")
+
+    let sort_by = payload
+        .get("sort_by")
         .and_then(|v| v.as_str())
         .and_then(|s| match s {
             "name" => Some(SortBy::Name),
@@ -1534,16 +1682,16 @@ pub async fn list_files_in_collection(
             _ => None,
         })
         .unwrap_or(SortBy::Name);
-    
+
     let filter = FileListFilter {
         filter_by_type,
         min_chunks,
         max_results,
         sort_by,
     };
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
+
     match file_ops.list_files_in_collection(collection, filter).await {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
@@ -1558,16 +1706,19 @@ pub async fn get_file_summary(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::file_operations::{FileOperations, SummaryType};
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let file_path = payload.get("file_path")
+
+    let file_path = payload
+        .get("file_path")
         .and_then(|f| f.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let summary_type = payload.get("summary_type")
+
+    let summary_type = payload
+        .get("summary_type")
         .and_then(|v| v.as_str())
         .and_then(|s| match s {
             "extractive" => Some(SummaryType::Extractive),
@@ -1576,14 +1727,18 @@ pub async fn get_file_summary(
             _ => None,
         })
         .unwrap_or(SummaryType::Both);
-    
-    let max_sentences = payload.get("max_sentences")
+
+    let max_sentences = payload
+        .get("max_sentences")
         .and_then(|v| v.as_u64())
         .unwrap_or(5) as usize;
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
-    match file_ops.get_file_summary(collection, file_path, summary_type, max_sentences).await {
+
+    match file_ops
+        .get_file_summary(collection, file_path, summary_type, max_sentences)
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get file summary error: {:?}", e);
@@ -1597,30 +1752,35 @@ pub async fn get_file_chunks_ordered(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::file_operations::FileOperations;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let file_path = payload.get("file_path")
+
+    let file_path = payload
+        .get("file_path")
         .and_then(|f| f.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let start_chunk = payload.get("start_chunk")
+
+    let start_chunk = payload
+        .get("start_chunk")
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as usize;
-    
-    let limit = payload.get("limit")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(10) as usize;
-    
-    let include_context = payload.get("include_context")
+
+    let limit = payload.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+
+    let include_context = payload
+        .get("include_context")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
-    match file_ops.get_file_chunks_ordered(collection, file_path, start_chunk, limit, include_context).await {
+
+    match file_ops
+        .get_file_chunks_ordered(collection, file_path, start_chunk, limit, include_context)
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get file chunks error: {:?}", e);
@@ -1634,26 +1794,38 @@ pub async fn get_project_outline(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::file_operations::FileOperations;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let max_depth = payload.get("max_depth")
+
+    let max_depth = payload
+        .get("max_depth")
         .and_then(|v| v.as_u64())
         .unwrap_or(5) as usize;
-    
-    let include_summaries = payload.get("include_summaries")
+
+    let include_summaries = payload
+        .get("include_summaries")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    
-    let highlight_key_files = payload.get("highlight_key_files")
+
+    let highlight_key_files = payload
+        .get("highlight_key_files")
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
-    match file_ops.get_project_outline(collection, max_depth, include_summaries, highlight_key_files).await {
+
+    match file_ops
+        .get_project_outline(
+            collection,
+            max_depth,
+            include_summaries,
+            highlight_key_files,
+        )
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get project outline error: {:?}", e);
@@ -1667,30 +1839,42 @@ pub async fn get_related_files(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::file_operations::FileOperations;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let file_path = payload.get("file_path")
+
+    let file_path = payload
+        .get("file_path")
         .and_then(|f| f.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let limit = payload.get("limit")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(5) as usize;
-    
-    let similarity_threshold = payload.get("similarity_threshold")
+
+    let limit = payload.get("limit").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+
+    let similarity_threshold = payload
+        .get("similarity_threshold")
         .and_then(|v| v.as_f64())
         .unwrap_or(0.6) as f32;
-    
-    let include_reason = payload.get("include_reason")
+
+    let include_reason = payload
+        .get("include_reason")
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
-    match file_ops.get_related_files(collection, file_path, limit, similarity_threshold, include_reason, &state.embedding_manager).await {
+
+    match file_ops
+        .get_related_files(
+            collection,
+            file_path,
+            limit,
+            similarity_threshold,
+            include_reason,
+            &state.embedding_manager,
+        )
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get related files error: {:?}", e);
@@ -1704,33 +1888,47 @@ pub async fn search_by_file_type(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::file_operations::FileOperations;
-    
-    let collection = payload.get("collection")
+
+    let collection = payload
+        .get("collection")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let query = payload.get("query")
+
+    let query = payload
+        .get("query")
         .and_then(|q| q.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let file_types = payload.get("file_types")
+
+    let file_types = payload
+        .get("file_types")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect::<Vec<_>>())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect::<Vec<_>>()
+        })
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let limit = payload.get("limit")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(10) as usize;
-    
-    let return_full_files = payload.get("return_full_files")
+
+    let limit = payload.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+
+    let return_full_files = payload
+        .get("return_full_files")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    
+
     let file_ops = FileOperations::with_store(state.store.clone());
-    
-    match file_ops.search_by_file_type(collection, query, file_types, limit, return_full_files, &state.embedding_manager).await {
+
+    match file_ops
+        .search_by_file_type(
+            collection,
+            query,
+            file_types,
+            limit,
+            return_full_files,
+            &state.embedding_manager,
+        )
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Search by file type error: {:?}", e);
@@ -1752,19 +1950,18 @@ pub async fn get_status(State(state): State<VectorizerServer>) -> Json<Value> {
 }
 
 /// Get logs (for GUI)
-pub async fn get_logs(
-    Query(params): Query<HashMap<String, String>>,
-) -> Json<Value> {
-    let lines = params.get("lines")
+pub async fn get_logs(Query(params): Query<HashMap<String, String>>) -> Json<Value> {
+    let lines = params
+        .get("lines")
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(100);
-    
+
     let level_filter = params.get("level");
-    
+
     // Read logs from the .logs directory
     let logs_dir = std::path::Path::new(".logs");
     let mut all_logs = Vec::new();
-    
+
     if logs_dir.exists() {
         // Find the most recent log file
         if let Ok(entries) = std::fs::read_dir(logs_dir) {
@@ -1778,22 +1975,23 @@ pub async fn get_logs(
                         .unwrap_or(false)
                 })
                 .collect();
-            
+
             // Sort by modified time (newest first)
-            log_files.sort_by_key(|e| std::cmp::Reverse(e.metadata().and_then(|m| m.modified()).ok()));
-            
+            log_files
+                .sort_by_key(|e| std::cmp::Reverse(e.metadata().and_then(|m| m.modified()).ok()));
+
             // Read only the most recent file
             if let Some(entry) = log_files.first() {
                 let path = entry.path();
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     // Get last N lines from the file
                     let log_lines: Vec<&str> = content.lines().rev().take(lines * 2).collect();
-                    
+
                     for line in log_lines.iter().rev() {
                         if line.trim().is_empty() {
                             continue;
                         }
-                        
+
                         // Simple parsing
                         let upper_line = line.to_uppercase();
                         let level = if upper_line.contains("ERROR") {
@@ -1807,21 +2005,21 @@ pub async fn get_logs(
                         } else {
                             "INFO"
                         };
-                        
+
                         // Apply level filter if specified
                         if let Some(filter_level) = level_filter {
                             if !level.eq_ignore_ascii_case(filter_level) {
                                 continue;
                             }
                         }
-                        
+
                         all_logs.push(json!({
                             "timestamp": chrono::Utc::now().to_rfc3339(),
                             "level": level,
                             "message": line,
                             "source": "vectorizer"
                         }));
-                        
+
                         if all_logs.len() >= lines {
                             break;
                         }
@@ -1830,10 +2028,10 @@ pub async fn get_logs(
             }
         }
     }
-    
+
     // Reverse to show newest first
     all_logs.reverse();
-    
+
     Json(json!({
         "logs": all_logs
     }))
@@ -1845,7 +2043,7 @@ pub async fn force_save_collection(
     Path(collection_name): Path<String>,
 ) -> Result<Json<Value>, StatusCode> {
     info!("💾 Force saving collection: {}", collection_name);
-    
+
     // Verify collection exists
     match state.store.get_collection(&collection_name) {
         Ok(_) => {
@@ -1863,7 +2061,7 @@ pub async fn force_save_collection(
                     })))
                 }
             }
-        },
+        }
         Err(e) => {
             error!("Collection not found: {}", e);
             Err(StatusCode::NOT_FOUND)
@@ -1876,16 +2074,18 @@ pub async fn add_workspace(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let path = payload.get("path")
+    let path = payload
+        .get("path")
         .and_then(|p| p.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let collection_name = payload.get("collection_name")
+
+    let collection_name = payload
+        .get("collection_name")
         .and_then(|c| c.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     info!("📁 Adding workspace: {} -> {}", path, collection_name);
-    
+
     // TODO: Implement workspace manager integration
     Ok(Json(json!({
         "success": true,
@@ -1898,12 +2098,13 @@ pub async fn remove_workspace(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let path = payload.get("path")
+    let path = payload
+        .get("path")
         .and_then(|p| p.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     info!("🗑️ Removing workspace: {}", path);
-    
+
     // TODO: Implement workspace manager integration
     Ok(Json(json!({
         "success": true,
@@ -1912,9 +2113,7 @@ pub async fn remove_workspace(
 }
 
 /// List workspace directories (for GUI)
-pub async fn list_workspaces(
-    State(_state): State<VectorizerServer>,
-) -> Json<Value> {
+pub async fn list_workspaces(State(_state): State<VectorizerServer>) -> Json<Value> {
     // TODO: Implement workspace manager integration
     Json(json!({
         "workspaces": []
@@ -1930,7 +2129,7 @@ pub async fn get_config() -> Json<Value> {
         "config.yml",
         "/mnt/f/Node/hivellm/vectorizer/config.yml",
     ];
-    
+
     for path in &possible_paths {
         info!("Trying to read config from: {}", path);
         if let Ok(content) = std::fs::read_to_string(path) {
@@ -1946,9 +2145,12 @@ pub async fn get_config() -> Json<Value> {
             }
         }
     }
-    
+
     // If all paths failed, log and return error
-    error!("Failed to read config.yml from any path. Tried: {:?}", possible_paths);
+    error!(
+        "Failed to read config.yml from any path. Tried: {:?}",
+        possible_paths
+    );
     Json(json!({
         "error": "config.yml not found",
         "message": "Could not find config.yml file",
@@ -1960,26 +2162,22 @@ pub async fn get_config() -> Json<Value> {
 }
 
 /// Update configuration (for GUI)
-pub async fn update_config(
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
     // Write to config.yml
     match serde_yaml::to_string(&payload) {
-        Ok(yaml_content) => {
-            match std::fs::write("./config.yml", yaml_content) {
-                Ok(_) => {
-                    info!("Configuration updated successfully");
-                    Ok(Json(json!({
-                        "success": true,
-                        "message": "Configuration updated successfully. Restart server for changes to take effect."
-                    })))
-                }
-                Err(e) => {
-                    error!("Failed to write config.yml: {}", e);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
-                }
+        Ok(yaml_content) => match std::fs::write("./config.yml", yaml_content) {
+            Ok(_) => {
+                info!("Configuration updated successfully");
+                Ok(Json(json!({
+                    "success": true,
+                    "message": "Configuration updated successfully. Restart server for changes to take effect."
+                })))
             }
-        }
+            Err(e) => {
+                error!("Failed to write config.yml: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        },
         Err(e) => {
             error!("Failed to serialize config to YAML: {}", e);
             Err(StatusCode::BAD_REQUEST)
@@ -2000,7 +2198,7 @@ pub async fn restart_server() -> Json<Value> {
 pub async fn list_backups() -> Json<Value> {
     let backup_dir = std::path::Path::new("./backups");
     let mut backups = Vec::new();
-    
+
     if backup_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(backup_dir) {
             for entry in entries.flatten() {
@@ -2016,14 +2214,14 @@ pub async fn list_backups() -> Json<Value> {
             }
         }
     }
-    
+
     // Sort by date (newest first)
     backups.sort_by(|a, b| {
         let a_date = a.get("date").and_then(|d| d.as_str()).unwrap_or("");
         let b_date = b.get("date").and_then(|d| d.as_str()).unwrap_or("");
         b_date.cmp(a_date)
     });
-    
+
     Json(json!({
         "backups": backups
     }))
@@ -2034,30 +2232,36 @@ pub async fn create_backup(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let name = payload.get("name")
+    let name = payload
+        .get("name")
         .and_then(|n| n.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
-    let collections = payload.get("collections")
+
+    let collections = payload
+        .get("collections")
         .and_then(|c| c.as_array())
-        .map(|arr| arr.iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect::<Vec<_>>())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
-    
-    info!("💾 Creating backup '{}' for collections: {:?}", name, collections);
-    
+
+    info!(
+        "💾 Creating backup '{}' for collections: {:?}",
+        name, collections
+    );
+
     // Create backups directory if it doesn't exist
     let backup_dir = std::path::Path::new("./backups");
     if !backup_dir.exists() {
-        std::fs::create_dir_all(backup_dir)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        std::fs::create_dir_all(backup_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
-    
+
     // Generate backup ID and metadata
     let backup_id = uuid::Uuid::new_v4().to_string();
     let timestamp = chrono::Utc::now().to_rfc3339();
-    
+
     // Create backup data structure
     let mut backup_data = json!({
         "id": backup_id.clone(),
@@ -2067,18 +2271,19 @@ pub async fn create_backup(
         "size": 0,
         "data": {}
     });
-    
+
     let mut total_size = 0u64;
     let mut backup_collections_data = serde_json::Map::new();
-    
+
     // Backup each collection
     for collection_name in &collections {
         match state.store.get_collection(collection_name) {
             Ok(collection) => {
                 // Get all vectors from collection
                 let all_vectors = collection.get_all_vectors();
-                
-                let vectors: Vec<_> = all_vectors.iter()
+
+                let vectors: Vec<_> = all_vectors
+                    .iter()
                     .map(|vector| {
                         json!({
                             "id": vector.id,
@@ -2087,42 +2292,45 @@ pub async fn create_backup(
                         })
                     })
                     .collect();
-                
+
                 let collection_size = std::mem::size_of_val(&vectors) as u64;
                 total_size += collection_size;
-                
+
                 let config = collection.config();
-                
+
                 backup_collections_data.insert(
                     collection_name.clone(),
                     json!({
                         "vectors": vectors,
                         "dimension": config.dimension,
                         "metric": format!("{:?}", config.metric)
-                    })
+                    }),
                 );
-                
-                info!("✅ Backed up collection '{}': {} vectors", collection_name, vectors.len());
-            },
+
+                info!(
+                    "✅ Backed up collection '{}': {} vectors",
+                    collection_name,
+                    vectors.len()
+                );
+            }
             Err(e) => {
                 error!("Failed to backup collection '{}': {}", collection_name, e);
             }
         }
     }
-    
+
     backup_data["data"] = Value::Object(backup_collections_data);
     backup_data["size"] = json!(total_size);
-    
+
     // Save backup to file
     let backup_file = backup_dir.join(format!("{}.backup", backup_id));
     let backup_json = serde_json::to_string_pretty(&backup_data)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    std::fs::write(&backup_file, backup_json)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
+    std::fs::write(&backup_file, backup_json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     info!("💾 Backup created successfully: {}", backup_file.display());
-    
+
     // Return metadata without full data
     Ok(Json(json!({
         "id": backup_id,
@@ -2138,48 +2346,58 @@ pub async fn restore_backup(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let backup_id = payload.get("backup_id")
+    let backup_id = payload
+        .get("backup_id")
         .and_then(|b| b.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     info!("♻️ Restoring backup: {}", backup_id);
-    
+
     // Load backup file
     let backup_file = std::path::Path::new("./backups").join(format!("{}.backup", backup_id));
     if !backup_file.exists() {
         error!("Backup file not found: {}", backup_file.display());
         return Err(StatusCode::NOT_FOUND);
     }
-    
-    let backup_content = std::fs::read_to_string(&backup_file)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let backup_data: Value = serde_json::from_str(&backup_content)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let collections_data = backup_data.get("data")
+
+    let backup_content =
+        std::fs::read_to_string(&backup_file).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let backup_data: Value =
+        serde_json::from_str(&backup_content).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let collections_data = backup_data
+        .get("data")
         .and_then(|d| d.as_object())
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     // Restore each collection
     for (collection_name, collection_data) in collections_data {
-        let vectors = collection_data.get("vectors")
+        let vectors = collection_data
+            .get("vectors")
             .and_then(|v| v.as_array())
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-        
-        let dimension = collection_data.get("dimension")
+
+        let dimension = collection_data
+            .get("dimension")
             .and_then(|d| d.as_u64())
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)? as usize;
-        
-        info!("🔄 Restoring collection '{}': {} vectors", collection_name, vectors.len());
-        
+
+        info!(
+            "🔄 Restoring collection '{}': {} vectors",
+            collection_name,
+            vectors.len()
+        );
+
         // Create or get collection
         let collection_exists = state.store.get_collection(collection_name).is_ok();
-        
+
         if !collection_exists {
             // Create new collection if it doesn't exist
-            use crate::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, CompressionConfig};
-            
+            use crate::models::{
+                CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
+            };
+
             let config = CollectionConfig {
                 dimension,
                 metric: DistanceMetric::Cosine,
@@ -2188,57 +2406,72 @@ pub async fn restore_backup(
                 compression: CompressionConfig::default(),
                 normalization: None,
             };
-            
-            state.store.create_collection(collection_name, config)
+
+            state
+                .store
+                .create_collection(collection_name, config)
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
-        
+
         // Restore vectors
         let mut vectors_to_insert = Vec::new();
-        
+
         for vector_data in vectors {
-            let id = vector_data.get("id")
+            let id = vector_data
+                .get("id")
                 .and_then(|i| i.as_str())
                 .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-            
-            let vector_array = vector_data.get("vector")
+
+            let vector_array = vector_data
+                .get("vector")
                 .and_then(|v| v.as_array())
                 .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-            
-            let vector: Vec<f32> = vector_array.iter()
+
+            let vector: Vec<f32> = vector_array
+                .iter()
                 .filter_map(|f| f.as_f64())
                 .map(|f| f as f32)
                 .collect();
-            
+
             let payload_value = vector_data.get("metadata").cloned();
             let payload = payload_value.map(|v| crate::models::Payload { data: v });
-            
+
             use crate::models::Vector;
             let vec = Vector {
                 id: id.to_string(),
                 data: vector,
                 payload,
             };
-            
+
             vectors_to_insert.push(vec);
         }
-        
+
         // Insert all vectors at once
-        state.store.insert(collection_name, vectors_to_insert)
+        state
+            .store
+            .insert(collection_name, vectors_to_insert)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
-        let collection = state.store.get_collection(collection_name)
+
+        let collection = state
+            .store
+            .get_collection(collection_name)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
-        info!("✅ Restored collection '{}': {} vectors", collection_name, collection.vector_count());
+
+        info!(
+            "✅ Restored collection '{}': {} vectors",
+            collection_name,
+            collection.vector_count()
+        );
     }
-    
+
     // Force save all collections
-    state.store.force_save_all()
+    state
+        .store
+        .force_save_all()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     info!("♻️ Backup restored successfully");
-    
+
     Ok(Json(json!({
         "success": true,
         "message": "Backup restored successfully"
@@ -2297,21 +2530,19 @@ pub async fn update_workspace_config(
 ) -> Result<Json<Value>, StatusCode> {
     // Write to vectorize-workspace.yml
     match serde_yaml::to_string(&payload) {
-        Ok(yaml_content) => {
-            match std::fs::write("./vectorize-workspace.yml", yaml_content) {
-                Ok(_) => {
-                    info!("Workspace configuration updated successfully");
-                    Ok(Json(json!({
-                        "success": true,
-                        "message": "Workspace configuration updated successfully."
-                    })))
-                }
-                Err(e) => {
-                    error!("Failed to write vectorize-workspace.yml: {}", e);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
-                }
+        Ok(yaml_content) => match std::fs::write("./vectorize-workspace.yml", yaml_content) {
+            Ok(_) => {
+                info!("Workspace configuration updated successfully");
+                Ok(Json(json!({
+                    "success": true,
+                    "message": "Workspace configuration updated successfully."
+                })))
             }
-        }
+            Err(e) => {
+                error!("Failed to write vectorize-workspace.yml: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        },
         Err(e) => {
             error!("Failed to serialize workspace config to YAML: {}", e);
             Err(StatusCode::BAD_REQUEST)

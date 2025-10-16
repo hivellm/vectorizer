@@ -4,8 +4,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
 use tokio::sync::RwLock;
 use tokio::time::sleep;
+
 use crate::file_watcher::{FileChangeEvent, FileChangeEventWithMetadata};
 
 /// Debouncer for file change events
@@ -92,8 +94,11 @@ impl Debouncer {
             if let Some(processing_time) = processing_files.get(&path) {
                 // If file was processed less than 5 seconds ago, skip to avoid duplicates
                 if processing_time.elapsed() < Duration::from_secs(5) {
-                    tracing::debug!("⏭️ Skipping duplicate event for file: {:?} (processed {}ms ago)", 
-                        path, processing_time.elapsed().as_millis());
+                    tracing::debug!(
+                        "⏭️ Skipping duplicate event for file: {:?} (processed {}ms ago)",
+                        path,
+                        processing_time.elapsed().as_millis()
+                    );
                     return;
                 }
             }
@@ -148,7 +153,9 @@ impl Debouncer {
                                     .map(|b| format!("{:02x}", b))
                                     .collect::<String>()
                             })
-                        }).await {
+                        })
+                        .await
+                        {
                             Ok(Some(hash)) => (Some(hash), file_size),
                             _ => (None, file_size),
                         }
@@ -168,17 +175,26 @@ impl Debouncer {
 
                 // Call the event callback
                 if let Some(callback) = event_callback.read().await.as_ref() {
-                    tracing::info!("🔍 DEBOUNCER: Calling callback for event: {:?}", event_with_metadata.event);
+                    tracing::info!(
+                        "🔍 DEBOUNCER: Calling callback for event: {:?}",
+                        event_with_metadata.event
+                    );
                     callback(event_with_metadata);
-                    tracing::info!("✅ DEBOUNCER: Callback completed for event: {:?}", pending_event.event);
-                    
+                    tracing::info!(
+                        "✅ DEBOUNCER: Callback completed for event: {:?}",
+                        pending_event.event
+                    );
+
                     // Mark file as processed to avoid duplicates
                     {
                         let mut processing = processing_files.write().await;
                         processing.insert(path.clone(), Instant::now());
                     }
                 } else {
-                    tracing::warn!("⚠️ DEBOUNCER: No callback set for event: {:?}", pending_event.event);
+                    tracing::warn!(
+                        "⚠️ DEBOUNCER: No callback set for event: {:?}",
+                        pending_event.event
+                    );
                 }
             }
         });
@@ -216,9 +232,11 @@ impl Debouncer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
     use tokio::sync::Mutex;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_debouncer_creation() {
@@ -233,17 +251,21 @@ mod tests {
         let events_received = Arc::new(Mutex::new(Vec::new()));
 
         let events_clone = Arc::clone(&events_received);
-        debouncer.set_event_callback(move |event| {
-            let events_clone = Arc::clone(&events_clone);
-            tokio::spawn(async move {
-                let mut events = events_clone.lock().await;
-                events.push(event);
-            });
-        }).await;
+        debouncer
+            .set_event_callback(move |event| {
+                let events_clone = Arc::clone(&events_clone);
+                tokio::spawn(async move {
+                    let mut events = events_clone.lock().await;
+                    events.push(event);
+                });
+            })
+            .await;
 
         // Add an event
         let test_path = PathBuf::from("test.txt");
-        debouncer.add_event(FileChangeEvent::Modified(test_path.clone())).await;
+        debouncer
+            .add_event(FileChangeEvent::Modified(test_path.clone()))
+            .await;
 
         // Wait for debounce
         sleep(Duration::from_millis(100)).await;
@@ -260,19 +282,27 @@ mod tests {
         let events_received = Arc::new(Mutex::new(Vec::new()));
 
         let events_clone = Arc::clone(&events_received);
-        debouncer.set_event_callback(move |event| {
-            let events_clone = Arc::clone(&events_clone);
-            tokio::spawn(async move {
-                let mut events = events_clone.lock().await;
-                events.push(event);
-            });
-        }).await;
+        debouncer
+            .set_event_callback(move |event| {
+                let events_clone = Arc::clone(&events_clone);
+                tokio::spawn(async move {
+                    let mut events = events_clone.lock().await;
+                    events.push(event);
+                });
+            })
+            .await;
 
         // Add multiple events for the same file
         let test_path = PathBuf::from("test.txt");
-        debouncer.add_event(FileChangeEvent::Modified(test_path.clone())).await;
-        debouncer.add_event(FileChangeEvent::Modified(test_path.clone())).await;
-        debouncer.add_event(FileChangeEvent::Modified(test_path.clone())).await;
+        debouncer
+            .add_event(FileChangeEvent::Modified(test_path.clone()))
+            .await;
+        debouncer
+            .add_event(FileChangeEvent::Modified(test_path.clone()))
+            .await;
+        debouncer
+            .add_event(FileChangeEvent::Modified(test_path.clone()))
+            .await;
 
         // Wait for debounce
         sleep(Duration::from_millis(100)).await;
@@ -286,8 +316,10 @@ mod tests {
     async fn test_debouncer_clear_pending() {
         let debouncer = Debouncer::new(1000); // Long delay
         let test_path = PathBuf::from("test.txt");
-        
-        debouncer.add_event(FileChangeEvent::Modified(test_path)).await;
+
+        debouncer
+            .add_event(FileChangeEvent::Modified(test_path))
+            .await;
         assert_eq!(debouncer.pending_events_count().await, 1);
 
         debouncer.clear_pending_events().await;

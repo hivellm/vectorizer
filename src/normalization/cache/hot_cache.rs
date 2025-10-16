@@ -3,10 +3,11 @@
 //! This is the first tier of the cache hierarchy, storing recently accessed
 //! normalized text in memory for ultra-fast access.
 
-use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
+
+use parking_lot::RwLock;
 
 /// Entry in LFU cache with frequency tracking
 struct CacheEntry<V> {
@@ -302,4 +303,3 @@ mod tests {
         assert_eq!(stats.max_frequency, 11); // 1 from put + 10 from get
     }
 }
-

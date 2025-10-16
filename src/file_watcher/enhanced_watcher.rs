@@ -2,20 +2,30 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use super::{
-    FileChangeEvent, FileChangeEventWithMetadata, Result, FileWatcherError,
-    FileWatcherConfig, FileIndex, FileIndexArc, CollectionVectorMapping
-};
+
 use super::debouncer::Debouncer;
 use super::hash_validator::HashValidator;
+use super::{
+    CollectionVectorMapping, FileChangeEvent, FileChangeEventWithMetadata, FileIndex, FileIndexArc,
+    FileWatcherConfig, FileWatcherError, Result,
+};
 
 /// Enhanced file system event types
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileSystemEvent {
-    Created { path: PathBuf },
-    Modified { path: PathBuf },
-    Deleted { path: PathBuf },
-    Renamed { old_path: PathBuf, new_path: PathBuf },
+    Created {
+        path: PathBuf,
+    },
+    Modified {
+        path: PathBuf,
+    },
+    Deleted {
+        path: PathBuf,
+    },
+    Renamed {
+        old_path: PathBuf,
+        new_path: PathBuf,
+    },
 }
 
 /// Enhanced file watcher implementation
@@ -57,7 +67,10 @@ impl EnhancedFileWatcher {
     }
 
     pub fn get_watched_paths(&self) -> Vec<String> {
-        self.config.watch_paths.clone().unwrap_or_default()
+        self.config
+            .watch_paths
+            .clone()
+            .unwrap_or_default()
             .into_iter()
             .map(|p| p.to_string_lossy().to_string())
             .collect()

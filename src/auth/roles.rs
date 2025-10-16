@@ -2,8 +2,9 @@
 //!
 //! Defines roles, permissions, and access control for the vector database
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+use serde::{Deserialize, Serialize};
 
 /// User roles in the system
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

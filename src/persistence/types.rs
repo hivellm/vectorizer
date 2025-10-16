@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
 use crate::models::{CollectionConfig, DistanceMetric};
 
 /// Collection types for persistence system
@@ -163,7 +165,7 @@ impl EnhancedCollectionMetadata {
     pub fn calculate_data_checksum(&self) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         self.id.hash(&mut hasher);
         self.name.hash(&mut hasher);
@@ -171,7 +173,7 @@ impl EnhancedCollectionMetadata {
         self.document_count.hash(&mut hasher);
         self.dimension.hash(&mut hasher);
         self.updated_at.timestamp().hash(&mut hasher);
-        
+
         format!("{:x}", hasher.finish())
     }
 
@@ -179,13 +181,16 @@ impl EnhancedCollectionMetadata {
     pub fn calculate_index_checksum(&self) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         self.id.hash(&mut hasher);
         self.index_version.hash(&mut hasher);
         self.vector_count.hash(&mut hasher);
-        self.compression_ratio.unwrap_or(1.0).to_bits().hash(&mut hasher);
-        
+        self.compression_ratio
+            .unwrap_or(1.0)
+            .to_bits()
+            .hash(&mut hasher);
+
         format!("{:x}", hasher.finish())
     }
 
@@ -228,13 +233,9 @@ pub enum Operation {
         metadata: Option<HashMap<String, String>>,
     },
     /// Delete vector(s) from collection
-    DeleteVector {
-        vector_id: String,
-    },
+    DeleteVector { vector_id: String },
     /// Create new collection
-    CreateCollection {
-        config: CollectionConfig,
-    },
+    CreateCollection { config: CollectionConfig },
     /// Delete collection
     DeleteCollection,
     /// Checkpoint marker
@@ -344,7 +345,9 @@ impl Transaction {
     pub fn is_completed(&self) -> bool {
         matches!(
             self.status,
-            TransactionStatus::Committed | TransactionStatus::RolledBack | TransactionStatus::Failed
+            TransactionStatus::Committed
+                | TransactionStatus::RolledBack
+                | TransactionStatus::Failed
         )
     }
 
@@ -352,13 +355,13 @@ impl Transaction {
     pub fn calculate_checksum(&self) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         self.id.hash(&mut hasher);
         self.collection_id.hash(&mut hasher);
         self.operations.len().hash(&mut hasher);
         self.started_at.timestamp().hash(&mut hasher);
-        
+
         format!("{:x}", hasher.finish())
     }
 }
@@ -447,7 +450,7 @@ mod tests {
     #[test]
     fn test_transaction_lifecycle() {
         let mut transaction = Transaction::new(1, "collection1".to_string());
-        
+
         assert_eq!(transaction.status, TransactionStatus::InProgress);
         assert!(!transaction.is_completed());
 

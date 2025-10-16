@@ -50,9 +50,7 @@ impl ShaderType {
     pub fn is_vectorized(&self) -> bool {
         matches!(
             self,
-            Self::CosineSimilarityVec4
-                | Self::EuclideanDistanceVec4
-                | Self::DotProductVec4
+            Self::CosineSimilarityVec4 | Self::EuclideanDistanceVec4 | Self::DotProductVec4
         )
     }
 

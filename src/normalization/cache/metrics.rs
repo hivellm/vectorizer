@@ -2,10 +2,11 @@
 //!
 //! Provides real-time metrics for cache performance monitoring.
 
-use parking_lot::RwLock;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
+
+use parking_lot::RwLock;
 
 /// Cache metrics collector
 pub struct CacheMetrics {
@@ -333,4 +334,3 @@ mod tests {
         assert_eq!(stats.max.as_micros(), 100);
     }
 }
-

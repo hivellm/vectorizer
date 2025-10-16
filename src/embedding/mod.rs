@@ -1,9 +1,10 @@
 //! Embedding generation module for converting text to vectors
 
-use crate::error::{Result, VectorizerError};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+use crate::error::{Result, VectorizerError};
 
 /// Trait for embedding providers
 pub trait EmbeddingProvider: Send + Sync {
@@ -1408,7 +1409,7 @@ impl EmbeddingManager {
     /// Save vocabulary for a specific provider
     pub fn save_vocabulary_json<P: AsRef<Path>>(&self, provider_name: &str, path: P) -> Result<()> {
         let provider = self.get_provider(provider_name)?;
-        
+
         // Try to downcast to specific embedding types that have save_vocabulary_json
         if let Some(bm25) = provider.as_any().downcast_ref::<Bm25Embedding>() {
             bm25.save_vocabulary_json(path)
@@ -1522,15 +1523,12 @@ pub mod onnx_models;
 pub mod cache;
 
 // Re-export real models
-pub use real_models::{RealModelEmbedder, RealModelType};
-
+pub use cache::{CacheConfig, EmbeddingCache};
 // Re-export performance modules
 #[cfg(feature = "tokenizers")]
 pub use fast_tokenizer::{FastTokenizer, FastTokenizerConfig};
-
 #[cfg(feature = "onnx-models")]
 pub use onnx_models::{OnnxConfig, OnnxEmbedder, OnnxModelType, PoolingStrategy};
-
-pub use cache::{CacheConfig, EmbeddingCache};
+pub use real_models::{RealModelEmbedder, RealModelType};
 
 // TfIdfEmbedding is already public in this module

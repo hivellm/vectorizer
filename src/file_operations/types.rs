@@ -1,6 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::time::Instant;
+
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Complete file content with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -365,4 +366,3 @@ pub struct FileTypeSearchMatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub full_content: Option<String>,
 }
-

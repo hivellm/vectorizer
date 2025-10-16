@@ -1,9 +1,5 @@
 //! Operações GPU de alto nível
 
-use super::context::GpuContext;
-use super::shaders::ShaderType;
-use crate::error::{Result, VectorizerError};
-use crate::models::DistanceMetric;
 use std::sync::Arc;
 
 #[cfg(feature = "wgpu-gpu")]
@@ -11,29 +7,21 @@ use wgpu::{BindGroup, BindGroupLayout, Buffer, ComputePipeline, ShaderModule};
 
 #[cfg(feature = "wgpu-gpu")]
 use super::buffers::{BufferManager, ComputeParams};
+use super::context::GpuContext;
+use super::shaders::ShaderType;
+use crate::error::{Result, VectorizerError};
+use crate::models::DistanceMetric;
 
 /// Interface de operações GPU
 pub trait GpuOperations {
     /// Calcular similaridade coseno entre query e múltiplos vetores
-    async fn cosine_similarity(
-        &self,
-        query: &[f32],
-        vectors: &[Vec<f32>],
-    ) -> Result<Vec<f32>>;
+    async fn cosine_similarity(&self, query: &[f32], vectors: &[Vec<f32>]) -> Result<Vec<f32>>;
 
     /// Calcular distância euclidiana entre query e múltiplos vetores
-    async fn euclidean_distance(
-        &self,
-        query: &[f32],
-        vectors: &[Vec<f32>],
-    ) -> Result<Vec<f32>>;
+    async fn euclidean_distance(&self, query: &[f32], vectors: &[Vec<f32>]) -> Result<Vec<f32>>;
 
     /// Calcular produto escalar entre query e múltiplos vetores
-    async fn dot_product(
-        &self,
-        query: &[f32],
-        vectors: &[Vec<f32>],
-    ) -> Result<Vec<f32>>;
+    async fn dot_product(&self, query: &[f32], vectors: &[Vec<f32>]) -> Result<Vec<f32>>;
 
     /// Busca em lote: múltiplas queries contra múltiplos vetores
     async fn batch_search(
@@ -46,11 +34,7 @@ pub trait GpuOperations {
 
 #[cfg(feature = "wgpu-gpu")]
 impl GpuOperations for GpuContext {
-    async fn cosine_similarity(
-        &self,
-        query: &[f32],
-        vectors: &[Vec<f32>],
-    ) -> Result<Vec<f32>> {
+    async fn cosine_similarity(&self, query: &[f32], vectors: &[Vec<f32>]) -> Result<Vec<f32>> {
         if vectors.is_empty() {
             return Ok(Vec::new());
         }
@@ -88,11 +72,7 @@ impl GpuOperations for GpuContext {
         .await
     }
 
-    async fn euclidean_distance(
-        &self,
-        query: &[f32],
-        vectors: &[Vec<f32>],
-    ) -> Result<Vec<f32>> {
+    async fn euclidean_distance(&self, query: &[f32], vectors: &[Vec<f32>]) -> Result<Vec<f32>> {
         if vectors.is_empty() {
             return Ok(Vec::new());
         }
@@ -127,11 +107,7 @@ impl GpuOperations for GpuContext {
         .await
     }
 
-    async fn dot_product(
-        &self,
-        query: &[f32],
-        vectors: &[Vec<f32>],
-    ) -> Result<Vec<f32>> {
+    async fn dot_product(&self, query: &[f32], vectors: &[Vec<f32>]) -> Result<Vec<f32>> {
         if vectors.is_empty() {
             return Ok(Vec::new());
         }
@@ -214,7 +190,12 @@ impl GpuOperations for GpuContext {
             DistanceMetric::Cosine => ShaderType::CosineSimilarity,
             DistanceMetric::Euclidean => ShaderType::EuclideanDistance,
             DistanceMetric::DotProduct => ShaderType::DotProduct,
-            _ => return Err(VectorizerError::Other(format!("Métrica {:?} não suportada na GPU", metric))),
+            _ => {
+                return Err(VectorizerError::Other(format!(
+                    "Métrica {:?} não suportada na GPU",
+                    metric
+                )));
+            }
         };
 
         let shader = ShaderType::select_for_dimension(shader, dimension);
@@ -271,64 +252,65 @@ impl GpuContext {
         let vector_buffer = buffer_manager.create_storage_buffer("vectors", vectors)?;
 
         let result_size = params.total_comparisons() * std::mem::size_of::<f32>();
-        let result_buffer = buffer_manager.create_storage_buffer_rw(
-            "results",
-            result_size as u64,
-        )?;
+        let result_buffer =
+            buffer_manager.create_storage_buffer_rw("results", result_size as u64)?;
 
         // Criar shader module
-        let shader = self.device().create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("compute_shader"),
-            source: wgpu::ShaderSource::Wgsl(shader_type.source().into()),
-        });
+        let shader = self
+            .device()
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("compute_shader"),
+                source: wgpu::ShaderSource::Wgsl(shader_type.source().into()),
+            });
 
         // Criar bind group layout
         let bind_group_layout =
-            self.device().create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("compute_bind_group_layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+            self.device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("compute_bind_group_layout"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    },
-                ],
-            });
+                    ],
+                });
 
         // Criar bind group
         let bind_group = self.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -356,20 +338,23 @@ impl GpuContext {
 
         // Criar pipeline
         let pipeline_layout =
-            self.device().create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("compute_pipeline_layout"),
-                bind_group_layouts: &[&bind_group_layout],
-                push_constant_ranges: &[],
-            });
+            self.device()
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("compute_pipeline_layout"),
+                    bind_group_layouts: &[&bind_group_layout],
+                    push_constant_ranges: &[],
+                });
 
-        let pipeline = self.device().create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("compute_pipeline"),
-            layout: Some(&pipeline_layout),
-            module: &shader,
-            entry_point: Some(shader_type.entry_point()),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        let pipeline = self
+            .device()
+            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("compute_pipeline"),
+                layout: Some(&pipeline_layout),
+                module: &shader,
+                entry_point: Some(shader_type.entry_point()),
+                compilation_options: Default::default(),
+                cache: None,
+            });
 
         // Criar staging buffer para ler resultados
         let staging_buffer = buffer_manager.create_staging_buffer("staging", result_size as u64)?;
@@ -378,9 +363,11 @@ impl GpuContext {
         let workgroup_size = self.optimal_workgroup_size(params.total_comparisons());
         let workgroup_count = self.workgroups_needed(params.total_comparisons(), workgroup_size);
 
-        let mut encoder = self.device().create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("compute_encoder"),
-        });
+        let mut encoder = self
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("compute_encoder"),
+            });
 
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -467,7 +454,10 @@ impl GpuContext {
                     DistanceMetric::Cosine => self.cosine_similarity_cpu(query, vectors),
                     DistanceMetric::Euclidean => self.euclidean_distance_cpu(query, vectors),
                     DistanceMetric::DotProduct => self.dot_product_cpu(query, vectors),
-                    _ => Err(VectorizerError::Other(format!("Métrica {:?} não suportada", metric))),
+                    _ => Err(VectorizerError::Other(format!(
+                        "Métrica {:?} não suportada",
+                        metric
+                    ))),
                 }
                 .unwrap_or_default()
             })
