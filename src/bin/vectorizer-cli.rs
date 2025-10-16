@@ -317,6 +317,11 @@ async fn install_service() {
 
         let username = whoami::username();
         let exe_path = std::env::current_exe().unwrap().display().to_string();
+        let current_dir = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("/var/lib/vectorizer"))
+            .display()
+            .to_string();
+        
         let service_content = format!(
             r"[Unit]
 Description=Vectorizer Server
@@ -325,7 +330,8 @@ After=network.target
 [Service]
 Type=simple
 User={username}
-ExecStart={exe_path} --project ../gov --daemon
+WorkingDirectory={current_dir}
+ExecStart={exe_path} start --daemon
 Restart=always
 RestartSec=5
 
