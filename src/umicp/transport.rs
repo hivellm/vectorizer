@@ -1,14 +1,17 @@
 //! UMICP Transport - Simple HTTP handler
+//! Updated for v0.2.1: Native JSON types + Tool Discovery
 
 use axum::{
     extract::{Request, State},
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
-use umicp_core::Envelope;
+use umicp_core::{Envelope, DiscoverableService};
 use tracing::{debug, error, info};
+use serde_json::json;
 
-use super::UmicpState;
+use super::{UmicpState, VectorizerDiscoveryService};
 
 /// Main UMICP HTTP handler
 pub async fn umicp_handler(
@@ -73,3 +76,38 @@ pub async fn umicp_handler(
         }
     }
 }
+
+/// UMICP Discovery Handler - Returns all 38+ available operations
+/// Endpoint: GET /umicp/discover
+pub async fn umicp_discover_handler(
+    State(_state): State<UmicpState>,
+) -> Json<serde_json::Value> {
+    info!("🔍 UMICP discovery request received");
+    
+    let service = VectorizerDiscoveryService;
+    let server_info = service.server_info();
+    let operations = service.list_operations();
+    
+    // Operations are already serializable OperationSchema structs
+    let operations_json: Vec<serde_json::Value> = operations
+        .iter()
+        .map(|op| serde_json::to_value(op).unwrap())
+        .collect();
+    
+    Json(json!({
+        "protocol": "UMICP",
+        "version": "0.2.1",
+        "server_info": {
+            "server": server_info.server,
+            "version": server_info.version,
+            "protocol": server_info.protocol,
+            "features": server_info.features,
+            "operations_count": server_info.operations_count,
+            "mcp_compatible": server_info.mcp_compatible,
+            "metadata": server_info.metadata,
+        },
+        "operations": operations_json,
+        "total_operations": operations.len(),
+    }))
+}
+

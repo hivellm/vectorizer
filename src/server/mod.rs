@@ -600,6 +600,7 @@ impl VectorizerServer {
         let umicp_routes = Router::new()
             .route("/umicp", post(crate::umicp::transport::umicp_handler))
             .route("/umicp/health", get(crate::umicp::health_check))
+            .route("/umicp/discover", get(crate::umicp::transport::umicp_discover_handler))
             .with_state(umicp_state);
         
         // Merge all routes - UMICP first so it doesn't get masked
@@ -613,6 +614,7 @@ impl VectorizerServer {
         info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
         info!("   🔌 REST API: http://{}:{}", host, port);
         info!("   🔗 UMICP: http://{}:{}/umicp", host, port);
+        info!("   🔍 UMICP Discovery (v0.2.1): http://{}:{}/umicp/discover", host, port);
         info!("   📊 Dashboard: http://{}:{}/", host, port);
 
         // Bind and start the server
