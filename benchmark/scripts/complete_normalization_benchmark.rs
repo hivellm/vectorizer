@@ -20,10 +20,7 @@ use vectorizer::embedding::{Bm25Embedding, EmbeddingManager};
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
 };
-use vectorizer::normalization::{
-    ContentTypeDetector, NormalizationConfig, NormalizationLevel, NormalizationPolicy,
-    TextNormalizer,
-};
+use vectorizer::normalization::{NormalizationConfig, NormalizationLevel, NormalizationPolicy};
 
 /// Configuration for a benchmark scenario
 #[derive(Debug, Clone)]
