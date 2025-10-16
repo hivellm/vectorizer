@@ -21,8 +21,8 @@ Vectorizer uses automated GitHub Actions workflows to build and publish releases
   - TAR.GZ archives (Intel and Apple Silicon)
 
 - **Windows**:
-  - ZIP archives
-  - MSI installer
+  - ZIP archives (binaries)
+  - MSI installer (automatic installation)
 
 - **Docker**:
   - Multi-platform images (linux/amd64, linux/arm64)

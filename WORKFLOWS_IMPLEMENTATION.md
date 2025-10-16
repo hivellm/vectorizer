@@ -33,12 +33,14 @@ Production-ready release workflow with:
 - `x86_64-apple-darwin` (Intel)
 - `aarch64-apple-darwin` (Apple Silicon)
 
-**Windows Build:**
-- `x86_64-pc-windows-msvc`
+**Windows Builds:**
+- `x86_64-pc-windows-msvc` (binaries)
+- MSI installer for Windows
 
 **Package Formats:**
 - TAR.GZ archives for Linux/macOS
 - ZIP archives for Windows
+- MSI installer for Windows
 - Debian packages (.deb) for x86_64 MUSL
 - AppImage for universal Linux compatibility
 
@@ -272,6 +274,7 @@ When you publish a release, the workflows generate:
 
 ### Windows
 - `vectorizer-x86_64-pc-windows-msvc.zip`
+- `vectorizer-x86_64.msi` (MSI installer)
 
 ### Docker
 - `username/vectorizer:v0.9.2`

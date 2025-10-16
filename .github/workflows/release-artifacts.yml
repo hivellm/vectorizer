@@ -105,6 +105,42 @@ jobs:
           bin: vectorizer,vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  build-windows-msi:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build --release --locked
+
+      - name: Install WiX Toolset
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix --version
+
+      - name: Build MSI installer
+        shell: pwsh
+        env:
+          CargoTargetBinDir: ${{ github.workspace }}\target\release
+        run: |
+          wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
+
+      - name: Upload MSI
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: vectorizer.msi
+          asset_name: vectorizer-x86_64.msi
+          tag: ${{ github.ref }}
+          overwrite: true
+
   build-app-image:
     strategy:
       matrix:
