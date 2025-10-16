@@ -58,7 +58,7 @@ cargo build --release --features full
 ### **Access Points**
 - **Desktop GUI**: `./gui/` - Electron desktop application (NEW in v0.8.2)
 - **REST API**: http://localhost:15002
-- **MCP Server**: http://localhost:15002/mcp/sse
+- **MCP Server**: http://localhost:15002/mcp (StreamableHTTP)
 - **Health Check**: http://localhost:15002/health
 
 ## 🖥️ **Desktop GUI (v0.8.2)**
@@ -255,8 +255,8 @@ Cursor IDE configuration:
 {
   "mcpServers": {
     "vectorizer": {
-      "url": "http://localhost:15002/sse",
-      "type": "sse"
+      "url": "http://localhost:15002/mcp",
+      "type": "streamablehttp"
     }
   }
 }
