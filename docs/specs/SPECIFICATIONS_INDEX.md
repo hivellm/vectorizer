@@ -1,11 +1,54 @@
-# Specifications Index - Vectorizer
+# Specifications Index - Vectorizer Documentation
 
-**Last Updated**: January 6, 2025 - **UPDATED WITH v0.3.1 INTELLIGENT SEARCH**  
-**Status**: Intelligent Search Implementation Complete - Production Ready
+**Version**: 0.9.0  
+**Last Updated**: 2025-10-16 - **StreamableHTTP MCP Transport**  
+**Status**: ✅ Production Ready
 
 ## 📋 Overview
 
-This directory contains detailed technical specifications for upcoming Vectorizer features. Each document is implementation-ready with complete API designs, code examples, and success criteria.
+This directory contains technical specifications and documentation for Vectorizer. All documents are well-organized, consolidated, and production-ready.
+
+**Recent Consolidation** (2025-10-16):
+- **Before**: 32 files
+- **After**: 22 files
+- **Reduction**: 31% (10 files removed)
+- **Benefit**: Eliminated redundancy, improved navigation
+
+---
+
+## 📚 Documentation Structure
+
+### Core Documentation (Must Read)
+1. **MCP.md** - Model Context Protocol reference (v0.9.0 StreamableHTTP)
+2. **API_REFERENCE.md** - REST API & SDK integrations
+3. **ROADMAP.md** - Project roadmap and priorities
+4. **README.md** - Quick start guide
+
+### Feature Specifications
+5. **INTELLIGENT_SEARCH.md** - Advanced search capabilities
+6. **FILE_OPERATIONS.md** - File-level MCP tools
+7. **DASHBOARD.md** - Admin dashboard UI
+8. **EMBEDDING.md** - Embedding system
+9. **PERFORMANCE.md** - Optimization & benchmarks
+10. **STORAGE.md** - Storage architecture
+11. **PERSISTENCE.md** - Persistence system
+12. **WORKSPACE.md** - Workspace management
+13. **FILE_WATCHER.md** - File monitoring
+14. **SUMMARIZATION.md** - Text summarization
+
+### Advanced Features
+15. **TRANSMUTATION_INTEGRATION_SUMMARY.md** - Document conversion
+16. **CHAT_HISTORY_AND_MULTI_MODEL_DISCUSSIONS.md** - Chat integration
+17. **GUI_IMPLEMENTATION_REPORT.md** - Desktop GUI
+
+### Development
+18. **CODE_GUIDELINES.md** - Coding standards
+19. **CONTRIBUTING.md** - Contribution guide
+20. **TESTING_COVERAGE.md** - Testing strategies
+
+### Infrastructure & DevOps
+21. **INFRASTRUCTURE.md** - DevOps, Docker, CI/CD, Future Features
+22. **MIGRATION_GUIDE.md** - Version migration guides
 
 ## 🎯 Priority Roadmap - **INTELLIGENT SEARCH IMPLEMENTED**
 

@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.8.2"
+version = "0.9.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -91,7 +91,7 @@ lz4_flex = "0.11"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
-zip = { version = "2.2", features = ["zstd", "deflate"] }
+zip = { version = "6.0", features = ["zstd", "deflate"] }
 
 # Text normalization dependencies
 blake3 = "1.5"
@@ -126,10 +126,12 @@ arrow = { version = "56", optional = true }
 parquet = { version = "56", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.8", features = ["server", "macros", "transport-sse-server"] }
+rmcp = { version = "0.8.1", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.16.1"
+hyper = { version = "1.7", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }

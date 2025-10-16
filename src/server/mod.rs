@@ -452,10 +452,10 @@ impl VectorizerServer {
             file_watcher_system: self.file_watcher_system.clone(),
         };
 
-        // Create MCP router (main server) using SSE transport
-        info!("🔧 Creating MCP router with SSE transport...");
+        // Create MCP router (main server) using StreamableHTTP transport
+        info!("🔧 Creating MCP router with StreamableHTTP transport (rmcp 0.8.1)...");
         let mcp_router = self.create_mcp_router().await;
-        info!("✅ MCP router created");
+        info!("✅ MCP router created (StreamableHTTP)");
 
         // Create REST API router to add to MCP
         let metrics_collector_1 = self.metrics_collector.clone();
@@ -610,15 +610,14 @@ impl VectorizerServer {
             .merge(metrics_router);
 
         info!("🌐 Vectorizer Server available at:");
-        info!("   📡 MCP SSE: http://{}:{}/mcp/sse", host, port);
-        info!("   📬 MCP POST: http://{}:{}/mcp/message", host, port);
+        info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
         info!("   🔌 REST API: http://{}:{}", host, port);
         info!("   🔗 UMICP: http://{}:{}/umicp", host, port);
         info!("   📊 Dashboard: http://{}:{}/", host, port);
 
         // Bind and start the server
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
-        info!("✅ MCP server with REST API listening on {}:{}", host, port);
+        info!("✅ MCP server (StreamableHTTP) with REST API listening on {}:{}", host, port);
         
         // Set up graceful shutdown
         let shutdown_signal = async {
@@ -689,35 +688,46 @@ impl VectorizerServer {
         Ok(())
     }
 
-    /// Create MCP router with SSE transport
+    /// Create MCP router with StreamableHTTP transport (rmcp 0.8.1)
     async fn create_mcp_router(&self) -> Router {
-        use rmcp::transport::sse_server::{SseServer, SseServerConfig};
+        use rmcp::transport::streamable_http_server::{
+            StreamableHttpService, session::local::LocalSessionManager,
+        };
+        use hyper_util::service::TowerToHyperService;
+        use hyper::service::Service;
         use std::sync::Arc;
         
         // Create MCP service handler
-        let mcp_service = Arc::new(VectorizerMcpService {
-            store: self.store.clone(),
-            embedding_manager: self.embedding_manager.clone(),
-        });
-
-        // Create SSE server config (same as task-queue implementation)
-        let config = SseServerConfig {
-            bind: "0.0.0.0:0".parse().expect("Invalid bind address"), // Port 0 means don't bind, just create router
-            sse_path: "/mcp/sse".into(),
-            post_path: "/mcp/message".into(),
-            ct: Default::default(),
-            sse_keep_alive: Some(std::time::Duration::from_secs(30)),
-        };
-
-        // Create SSE server and get router
-        let (sse, router) = SseServer::new(config);
+        let store = self.store.clone();
+        let embedding_manager = self.embedding_manager.clone();
         
-        // Create the MCP server and register it with the SSE server
-        let _cancel = sse.with_service(move || {
-            (*mcp_service).clone()
-        });
-
-        router
+        // Create StreamableHTTP service
+        let streamable_service = StreamableHttpService::new(
+            move || {
+                Ok(VectorizerMcpService {
+                    store: store.clone(),
+                    embedding_manager: embedding_manager.clone(),
+                })
+            },
+            LocalSessionManager::default().into(),
+            Default::default(),
+        );
+        
+        // Convert to axum service and create router
+        let hyper_service = TowerToHyperService::new(streamable_service);
+        
+        // Create router with the MCP endpoint
+        Router::new()
+            .route("/mcp", axum::routing::any(move |req: axum::extract::Request| {
+                let mut service = hyper_service.clone();
+                async move {
+                    // Forward request to hyper service
+                    match service.call(req).await {
+                        Ok(response) => Ok(response),
+                        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+                    }
+                }
+            }))
     }
 }
 

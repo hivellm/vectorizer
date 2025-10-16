@@ -1,7 +1,8 @@
-# API Reference
+# API Reference & Integrations
 
-**Version**: 0.3.0  
+**Version**: 0.9.0  
 **Base URL**: `http://localhost:15002`  
+**MCP Endpoint**: `http://localhost:15002/mcp`  
 **Status**: ✅ Production Ready
 
 ---
@@ -13,9 +14,10 @@ Vectorizer provides multiple interfaces optimized for different use cases:
 | Interface | Type | Description | Use Cases |
 |-----------|------|-------------|-----------|
 | **REST API** | Server | HTTP/JSON access | Custom integrations, direct API |
-| **MCP API** | Server | Model Context Protocol | AI integration, IDE tools |
+| **MCP API** | Server | Model Context Protocol | AI integration, IDE tools (StreamableHTTP) |
 | **Python SDK** | Client | Python client library | Data Science, ML pipelines |
 | **TypeScript SDK** | Client | TS/JS client library | Web apps, Node.js |
+| **Rust SDK** | Client | Rust client library | High-performance apps |
 | **CLI Tools** | Client | Command-line tools | Administration, scripts |
 
 ---
@@ -27,6 +29,69 @@ Vectorizer provides multiple interfaces optimized for different use cases:
 - **SDKs**: Lightweight clients (Python, TypeScript, Rust)
 - **Security**: All operations require valid API keys
 - **Dashboard**: Local key management (localhost only)
+
+---
+
+## Framework Integrations
+
+### LangChain
+
+**Python**:
+```python
+from vectorizer_store import VectorizerStore
+
+store = VectorizerStore(
+    host="localhost",
+    port=15002,
+    collection="documents",
+    api_key="your-key"
+)
+
+# Use with LangChain
+from langchain.chains import RetrievalQA
+
+qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=store.as_retriever()
+)
+```
+
+**TypeScript**:
+```typescript
+import { VectorizerStore } from '@hivellm/vectorizer-langchain';
+
+const store = new VectorizerStore({
+  host: 'localhost',
+  port: 15002,
+  collection: 'documents',
+  apiKey: 'your-key'
+});
+```
+
+### PyTorch
+
+```python
+from vectorizer.pytorch import PyTorchEmbedder
+
+embedder = PyTorchEmbedder(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    device="cuda"  # or "cpu"
+)
+
+embeddings = embedder.embed_batch(texts)
+```
+
+### TensorFlow
+
+```python
+from vectorizer.tensorflow import TensorFlowEmbedder
+
+embedder = TensorFlowEmbedder(
+    model_name="universal-sentence-encoder"
+)
+
+embeddings = embedder.embed(texts)
+```
 
 ---
 
