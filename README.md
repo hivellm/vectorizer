@@ -2,7 +2,7 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.8.2 - Transmutation, Compact Storage & Desktop GUI**
+## ✨ **Version 0.9.0 - StreamableHTTP MCP Transport**
 
 ### 🎯 **Key Features**
 - **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (NEW in v0.8.2)

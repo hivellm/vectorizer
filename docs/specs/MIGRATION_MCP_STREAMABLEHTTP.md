@@ -1,7 +1,7 @@
 # MCP Transport Migration: SSE → StreamableHTTP
 
 **Date**: 2025-01-16  
-**Version**: v0.8.3  
+**Version**: v0.9.0  
 **Status**: ✅ Completed
 
 ---
