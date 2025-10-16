@@ -2,14 +2,15 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.9.0 - StreamableHTTP MCP Transport**
+## ✨ **Version 0.9.1 - UMICP v0.2.1 Integration**
 
 ### 🎯 **Key Features**
-- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (NEW in v0.8.2)
+- **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint (NEW in v0.9.1)
+- **🔍 Tool Discovery**: GET `/umicp/discover` exposes all 38+ MCP tools with full schemas
+- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
 - **💾 Compact Storage (.vecdb)**: Unified compressed archives with 20-30% space savings and snapshot support
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images to Markdown
 - **📸 Snapshot System**: Automatic backups with configurable retention policies
-- **UMICP Protocol Support**: Full support for Universal Model Interface Communication Protocol (38 tools)
 - **Text Normalization System**: Content-aware normalization with 30-50% storage reduction
 - **Real-time File Watcher**: Automatic file monitoring and indexing
 - **Intelligent Search**: Advanced semantic search with multi-query generation
@@ -18,11 +19,12 @@ A high-performance vector database and search engine built in Rust, designed for
 - **Discovery Pipeline**: 9-stage semantic discovery with evidence compression
 
 ### 🧪 **Quality Metrics**
-- ✅ **396 tests passing** (100% pass rate)
+- ✅ **403 tests passing** (100% pass rate)
 - ⚡ **2.01s execution time**
 - 🎯 **Production-ready** with comprehensive coverage
 - 📄 **19 transmutation tests** (100% pass rate)
 - 💾 **30+ storage system tests** (compaction, snapshots, migration)
+- 🔄 **6 UMICP discovery tests** (100% pass rate)
 
 ## 🌟 **Core Capabilities**
 
@@ -59,6 +61,8 @@ cargo build --release --features full
 - **Desktop GUI**: `./gui/` - Electron desktop application (NEW in v0.8.2)
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp (StreamableHTTP)
+- **UMICP**: http://localhost:15002/umicp (Protocol v0.2.1)
+- **UMICP Discovery**: http://localhost:15002/umicp/discover (Tool discovery endpoint)
 - **Health Check**: http://localhost:15002/health
 
 ## 🖥️ **Desktop GUI (v0.8.2)**

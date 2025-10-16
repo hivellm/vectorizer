@@ -284,11 +284,10 @@ mod tests {
     use std::io::Write;
 
     fn create_legacy_structure(data_dir: &Path) {
-        let collections_dir = data_dir.join("collections");
-        let collection_dir = collections_dir.join("test_collection");
-        fs::create_dir_all(&collection_dir).unwrap();
+        fs::create_dir_all(&data_dir).unwrap();
         
-        let test_file = collection_dir.join("test.bin");
+        // Create legacy format: flat files directly in data_dir with collection_name_vector_store.bin pattern
+        let test_file = data_dir.join("test_collection_vector_store.bin");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"test vector data").unwrap();
     }

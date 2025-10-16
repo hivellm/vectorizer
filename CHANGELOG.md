@@ -5,6 +5,106 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2025-10-16
+
+### 🔄 **UMICP v0.2.1 Integration**
+
+#### **Breaking Changes**
+- ⚠️ **UMICP Protocol Updated**: From UMICP v0.1 to v0.2.1
+- ⚠️ **Native JSON Types**: Capabilities now use `HashMap<String, serde_json::Value>` instead of `HashMap<String, String>`
+
+#### **UMICP v0.2.1 Features** ✅
+- **IMPLEMENTED**: Native JSON type support in UMICP capabilities
+  - Numbers, booleans, arrays, objects, and null directly in capabilities
+  - No more string encoding/decoding overhead
+- **NEW ENDPOINT**: `/umicp/discover` - Tool discovery endpoint
+  - Exposes all 38+ MCP tools with full schemas
+  - MCP-compatible operation schemas
+  - Server metadata and feature flags
+- **UPDATED**: `umicp-core` 0.1 → 0.2.1
+  - Tool discovery support via `DiscoverableService` trait
+  - `OperationSchema` and `ServerInfo` types
+  - Builder pattern for schema construction
+
+#### **Implementation Details**
+- **NEW MODULE**: `vectorizer/src/umicp/discovery.rs`
+  - `VectorizerDiscoveryService` implements `DiscoverableService`
+  - Automatically converts all 38+ MCP tools to UMICP operation schemas
+  - Full annotation support (read_only, idempotent, destructive)
+- **UPDATED**: `vectorizer/src/umicp/handlers.rs`
+  - Native JSON type handling in request/response
+  - Direct `serde_json::Value` usage (no parsing needed)
+  - Simplified capability access
+- **UPDATED**: `vectorizer/src/umicp/transport.rs`
+  - New `umicp_discover_handler()` for tool discovery
+  - Returns server info + all operations + schemas
+- **UPDATED**: Server routes
+  - `POST /umicp` - UMICP request handler (updated for v0.2.1)
+  - `GET /umicp/health` - Health check endpoint
+  - `GET /umicp/discover` - **NEW** Tool discovery endpoint
+
+#### **Tool Discovery Response Format**
+```json
+{
+  "protocol": "UMICP",
+  "version": "0.2.1",
+  "server_info": {
+    "server": "vectorizer-server",
+    "version": "0.9.1",
+    "protocol": "UMICP/2.0",
+    "features": ["semantic-search", "vector-storage", "mcp-compatible"],
+    "operations_count": 38,
+    "mcp_compatible": true
+  },
+  "operations": [
+    {
+      "name": "search_vectors",
+      "title": "Search Vectors",
+      "description": "Search for semantically similar content...",
+      "input_schema": { "type": "object", "properties": {...} },
+      "annotations": {
+        "read_only": true,
+        "idempotent": true,
+        "destructive": false
+      }
+    },
+    // ... 37+ more operations
+  ],
+  "total_operations": 38
+}
+```
+
+#### **Testing & Validation** ✅
+- ✅ **6/6 UMICP discovery tests passing**: 100% success rate
+- ✅ **All 38+ MCP tools discoverable**: Complete schema exposure
+- ✅ **Native JSON types validated**: No breaking changes in MCP handlers
+- ✅ **Compilation successful**: Rust edition 2024 compatible
+
+#### **Migration Guide**
+If you're using UMICP programmatically, update your capability handling:
+
+**Before (v0.1):**
+```rust
+let mut caps = HashMap::new();
+caps.insert("operation".to_string(), "search_vectors".to_string());
+caps.insert("limit".to_string(), "10".to_string()); // String!
+```
+
+**After (v0.2.1):**
+```rust
+use serde_json::json;
+
+let mut caps = HashMap::new();
+caps.insert("operation".to_string(), json!("search_vectors"));
+caps.insert("limit".to_string(), json!(10)); // Native number!
+caps.insert("filters".to_string(), json!({"type": "document"})); // Native object!
+```
+
+#### **Dependencies Updated**
+- ✅ **umicp-core**: 0.1 → 0.2.1 (native JSON + tool discovery)
+
+---
+
 ## [0.9.0] - 2025-10-16
 
 ### 🚀 **MCP Transport Migration: SSE → StreamableHTTP**

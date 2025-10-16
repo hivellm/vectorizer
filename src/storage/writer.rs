@@ -120,20 +120,27 @@ impl StorageWriter {
         let collections_count = collections.len();
         
         for persisted_collection in collections {
-            let collection_name = &persisted_collection.name;
+            let collection_name = persisted_collection.name.clone();
+            let vector_count = persisted_collection.vectors.len();
+            let dimension = persisted_collection.config.as_ref().map(|c| c.dimension).unwrap_or(512);
+            let config_clone = persisted_collection.config.clone();
             
             // Create collection index entry
             let mut collection_index = CollectionIndex {
                 name: collection_name.clone(),
                 files: Vec::new(),
-                vector_count: persisted_collection.vectors.len(),
-                dimension: persisted_collection.config.as_ref().map(|c| c.dimension).unwrap_or(512),
+                vector_count,
+                dimension,
                 metadata: std::collections::HashMap::new(),
             };
             
-            // Serialize collection to JSON
+            // Serialize collection wrapped in PersistedVectorStore to JSON
             let vector_store_name = format!("{}_vector_store.bin", collection_name);
-            let json_data = serde_json::to_vec(&persisted_collection)
+            let wrapped_store = crate::persistence::PersistedVectorStore {
+                version: 1,
+                collections: vec![persisted_collection],
+            };
+            let json_data = serde_json::to_vec(&wrapped_store)
                 .map_err(|e| VectorizerError::Serialization(format!("Failed to serialize collection: {}", e)))?;
             
             let original_size = json_data.len() as u64;
@@ -155,7 +162,7 @@ impl StorageWriter {
             });
             
             // Write metadata if config exists
-            if let Some(config) = &persisted_collection.config {
+            if let Some(config) = config_clone {
                 // Create a simple metadata structure for serialization
                 #[derive(serde::Serialize)]
                 struct CollectionMetadataForStorage {
@@ -171,7 +178,7 @@ impl StorageWriter {
                     config: config.clone(),
                     created_at: chrono::Utc::now(),
                     modified_at: chrono::Utc::now(),
-                    vector_count: persisted_collection.vectors.len(),
+                    vector_count,
                 };
                 
                 let metadata_name = format!("{}_metadata.json", collection_name);
@@ -192,7 +199,7 @@ impl StorageWriter {
                 });
             }
             
-            info!("   Added collection '{}' with {} vectors", collection_name, persisted_collection.vectors.len());
+            info!("   Added collection '{}' with {} vectors", collection_name, vector_count);
             index.add_collection(collection_index);
         }
         
@@ -447,12 +454,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let data_dir = temp_dir.path().join("data");
         let collections_dir = data_dir.join("collections");
+        fs::create_dir_all(&collections_dir).unwrap();
         
-        // Create test collection
-        let collection_dir = collections_dir.join("test_collection");
-        fs::create_dir_all(&collection_dir).unwrap();
-        
-        let test_file = collection_dir.join("test.bin");
+        // Create test collection file in the correct format
+        let test_file = collections_dir.join("test_collection_vector_store.bin");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"test vector data").unwrap();
         

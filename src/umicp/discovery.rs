@@ -102,7 +102,7 @@ mod tests {
         assert!(operations.len() >= 38, "Expected at least 38 operations, got {}", operations.len());
 
         // Check for key operations
-        let op_names: Vec<String> = operations.iter().map(|op| op.name().to_string()).collect();
+        let op_names: Vec<String> = operations.iter().map(|op| op.name.clone()).collect();
         assert!(op_names.contains(&"search_vectors".to_string()));
         assert!(op_names.contains(&"list_collections".to_string()));
         assert!(op_names.contains(&"create_collection".to_string()));
