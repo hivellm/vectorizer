@@ -97,7 +97,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --release --locked
+        run: cargo build --release
 
       - name: Build and publish
         uses: taiki-e/upload-rust-binary-action@v1
@@ -118,7 +118,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Build release binaries
-        run: cargo build --release --locked
+        run: cargo build --release
 
       - name: Install WiX Toolset
         run: |
@@ -159,7 +159,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build release binary
-        run: cargo build --release --locked
+        run: cargo build --release
 
       - name: Build AppImage
         shell: bash
