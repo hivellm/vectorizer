@@ -1,11 +1,13 @@
 //! UMICP Handlers - Wrapper for MCP tools
 //! 
 //! Converts UMICP Envelopes to MCP CallToolRequest and back
+//! Updated for UMICP v0.2.1 - Native JSON types support
 
-use umicp_core::{Envelope, OperationType, Capabilities};
+use umicp_core::{Envelope, OperationType};
 use rmcp::model::{CallToolRequestParam, Content};
 use tracing::{debug, error};
-use serde_json::json;
+use serde_json::{json, Value};
+use std::collections::HashMap;
 
 use crate::error::Result;
 use super::UmicpState;
@@ -21,8 +23,9 @@ pub async fn handle_umicp_request(
     let caps = envelope.capabilities()
         .ok_or_else(|| crate::error::VectorizerError::Other("Missing capabilities".to_string()))?;
     
-    // Get operation name
+    // Get operation name (now a Value, convert to string)
     let operation = caps.get("operation")
+        .and_then(|v| v.as_str())
         .ok_or_else(|| crate::error::VectorizerError::Other("Missing 'operation' in capabilities".to_string()))?;
     
     debug!("Operation: {}", operation);
@@ -53,9 +56,10 @@ pub async fn handle_umicp_request(
 }
 
 /// Convert UMICP capabilities to MCP CallToolRequest
+/// Now with native JSON types support (v0.2.1)
 fn capabilities_to_mcp_request(
     tool_name: &str,
-    caps: &std::collections::HashMap<String, String>,
+    caps: &HashMap<String, Value>,
 ) -> Result<CallToolRequestParam> {
     // Build arguments JSON from capabilities
     let mut args = serde_json::Map::new();
@@ -65,11 +69,8 @@ fn capabilities_to_mcp_request(
             continue; // Skip the operation field
         }
         
-        // Try to parse as JSON, fallback to string
-        let json_value = serde_json::from_str(value)
-            .unwrap_or_else(|_| serde_json::Value::String(value.clone()));
-        
-        args.insert(key.clone(), json_value);
+        // Direct use of Value - no parsing needed!
+        args.insert(key.clone(), value.clone());
     }
     
     Ok(CallToolRequestParam {
@@ -94,14 +95,15 @@ fn content_to_json(content: &[Content]) -> serde_json::Value {
 }
 
 /// Create success response envelope
+/// Now with native JSON types (v0.2.1)
 fn create_success_response(
     request: Envelope,
-    result: serde_json::Value,
+    result: Value,
 ) -> Result<Envelope> {
-    let mut response_caps = Capabilities::new();
-    response_caps.insert("status".to_string(), "success".to_string());
-    response_caps.insert("result".to_string(), serde_json::to_string(&result)?);
-    response_caps.insert("original_message_id".to_string(), request.message_id().to_string());
+    let mut response_caps = HashMap::new();
+    response_caps.insert("status".to_string(), json!("success"));
+    response_caps.insert("result".to_string(), result); // Direct JSON value!
+    response_caps.insert("original_message_id".to_string(), json!(request.message_id()));
     
     let response = Envelope::builder()
         .from(request.to())
@@ -115,14 +117,15 @@ fn create_success_response(
 }
 
 /// Create error response envelope
+/// Now with native JSON types (v0.2.1)
 fn create_error_response(
     request: Envelope,
     error_message: &str,
 ) -> Result<Envelope> {
-    let mut response_caps = Capabilities::new();
-    response_caps.insert("status".to_string(), "error".to_string());
-    response_caps.insert("error".to_string(), error_message.to_string());
-    response_caps.insert("original_message_id".to_string(), request.message_id().to_string());
+    let mut response_caps = HashMap::new();
+    response_caps.insert("status".to_string(), json!("error"));
+    response_caps.insert("error".to_string(), json!(error_message));
+    response_caps.insert("original_message_id".to_string(), json!(request.message_id()));
     
     let response = Envelope::builder()
         .from(request.to())

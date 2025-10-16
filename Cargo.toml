@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.9.0"
+version = "0.9.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -79,8 +79,8 @@ flate2 = "1.0"
 # HTTP client for status checks
 reqwest = { version = "0.12", features = ["json"] }
 
-# UMICP protocol integration
-umicp-core = { version = "0.1", features = ["http2", "websocket"] }
+# UMICP protocol integration (v0.2.1 with native JSON types + tool discovery)
+umicp-core = { version = "0.2.1", features = ["http2", "websocket"] }
 
 # System utilities
 whoami = "1.5"

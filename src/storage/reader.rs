@@ -346,10 +346,10 @@ mod tests {
 
     fn create_test_archive(data_dir: &Path) -> Result<()> {
         let collections_dir = data_dir.join("collections");
-        let collection_dir = collections_dir.join("test_collection");
-        fs::create_dir_all(&collection_dir)?;
+        fs::create_dir_all(&collections_dir)?;
         
-        let test_file = collection_dir.join("test.bin");
+        // Create test collection file in the correct format
+        let test_file = collections_dir.join("test_collection_vector_store.bin");
         let mut file = File::create(&test_file)?;
         file.write_all(b"test vector data")?;
         
