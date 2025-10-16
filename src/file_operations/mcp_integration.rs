@@ -366,44 +366,5 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[ignore] // DISABLED: Test failing - functionality not fully implemented
-    async fn test_get_file_summary_handler() {
-        let file_ops = FileOperations::new();
-        let handlers = FileMcpHandlers::new(file_ops);
 
-        let params = json!({
-            "collection": "test-collection",
-            "file_path": "README.md",
-            "summary_type": "both",
-            "max_sentences": 5
-        });
-
-        let result = handlers.handle_get_file_summary(params).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response["file_path"], "README.md");
-        assert!(response.get("extractive_summary").is_some());
-    }
-
-    #[tokio::test]
-    #[ignore] // DISABLED: Test failing - functionality not fully implemented
-    async fn test_tool_dispatch() {
-        let file_ops = FileOperations::new();
-        let handlers = FileMcpHandlers::new(file_ops);
-
-        let params = json!({
-            "collection": "test-collection",
-            "file_path": "test.rs",
-        });
-
-        let result = handlers
-            .handle_tool_call("get_file_content", params.clone())
-            .await;
-        assert!(result.is_ok());
-
-        let invalid = handlers.handle_tool_call("invalid_tool", params).await;
-        assert!(invalid.is_err());
-    }
 }

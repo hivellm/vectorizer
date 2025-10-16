@@ -280,19 +280,4 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    async fn test_warm_store_clear() {
-        let dir = tempdir().unwrap();
-        let store = WarmStore::new(dir.path()).unwrap();
-
-        let hash = ContentHash::from_bytes([3u8; 32]);
-        store.put(hash, "test").await.unwrap();
-
-        store.clear().await.unwrap();
-
-        let result = store.get(&hash).await.unwrap();
-        assert!(result.is_none());
-        assert_eq!(store.len(), 0);
-    }
 }

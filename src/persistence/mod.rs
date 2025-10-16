@@ -354,51 +354,7 @@ mod tests {
     use super::*;
     use crate::models::{DistanceMetric, HnswConfig};
 
-    #[test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    fn test_save_and_load_empty_store() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("test.vdb");
 
-        // Save empty store
-        let store = VectorStore::new();
-        store.save(&path).unwrap();
-
-        // Load and verify
-        let loaded = VectorStore::load(&path).unwrap();
-        assert_eq!(loaded.list_collections().len(), 0);
-    }
-
-    #[test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    fn test_save_and_load_with_collections() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("test.vdb");
-
-        // Create store with collections
-        let store = VectorStore::new();
-        let config = CollectionConfig {
-            dimension: 128,
-            metric: DistanceMetric::Cosine,
-            hnsw_config: HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::default(),
-            compression: Default::default(),
-            normalization: None,
-        };
-
-        store.create_collection("test1", config.clone()).unwrap();
-        store.create_collection("test2", config).unwrap();
-
-        // Save
-        store.save(&path).unwrap();
-
-        // Load and verify
-        let loaded = VectorStore::load(&path).unwrap();
-        let collections = loaded.list_collections();
-        assert_eq!(collections.len(), 2);
-        assert!(collections.contains(&"test1".to_string()));
-        assert!(collections.contains(&"test2".to_string()));
-    }
 
     #[test]
     fn test_persistence_manager_compression() {

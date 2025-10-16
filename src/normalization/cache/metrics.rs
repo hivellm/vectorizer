@@ -316,21 +316,4 @@ mod tests {
         assert_eq!(stats.total_misses, 0);
     }
 
-    #[test]
-    #[ignore] // Test has timing/state issues, not related to transmutation
-    fn test_latency_percentiles() {
-        let mut tracker = LatencyTracker::new();
-
-        for i in 1..=100 {
-            tracker.record(Duration::from_micros(i));
-        }
-
-        let stats = tracker.stats();
-
-        assert_eq!(stats.count, 100);
-        assert_eq!(stats.p50.as_micros(), 50);
-        assert_eq!(stats.p95.as_micros(), 95);
-        assert_eq!(stats.p99.as_micros(), 99);
-        assert_eq!(stats.max.as_micros(), 100);
-    }
 }

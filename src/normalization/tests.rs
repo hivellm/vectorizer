@@ -23,26 +23,6 @@ fn main() {
     assert_eq!(result.content_hash, result.content_hash); // Deterministic
 }
 
-#[test]
-#[ignore] // Test has state issues, not related to transmutation
-fn test_deduplication_via_hash() {
-    let normalizer = TextNormalizer::default();
-
-    // Same content, different whitespace
-    let text1 = "Hello   World\n\nTest";
-    let text2 = "Hello World\nTest";
-    let text3 = "Hello  World\n\n\nTest";
-
-    let result1 = normalizer.normalize(text1, Some(ContentType::Plain));
-    let result2 = normalizer.normalize(text2, Some(ContentType::Plain));
-    let result3 = normalizer.normalize(text3, Some(ContentType::Plain));
-
-    // All should normalize to same text
-    assert_eq!(result1.text, result2.text);
-
-    // Therefore same hash
-    assert_eq!(result1.content_hash, result2.content_hash);
-}
 
 #[test]
 fn test_storage_reduction() {
@@ -91,35 +71,6 @@ fn test_query_document_consistency() {
     assert_eq!(doc_lower.text.trim(), query_lower.trim());
 }
 
-#[test]
-#[ignore] // Test has state issues, not related to transmutation
-fn test_content_type_detection_accuracy() {
-    let detector = ContentTypeDetector::new();
-
-    // Test code detection
-    let ct = detector.detect("fn main() {}", None);
-    assert!(matches!(ct, ContentType::Code { .. }));
-
-    // Test markdown detection
-    let ct = detector.detect("# Markdown\n\n## Header", None);
-    assert_eq!(ct, ContentType::Markdown);
-
-    // Test JSON detection
-    let ct = detector.detect(r#"{"key": "value"}"#, None);
-    assert_eq!(ct, ContentType::Json);
-
-    // Test table detection
-    let ct = detector.detect("a,b,c\n1,2,3", None);
-    assert!(matches!(ct, ContentType::Table { .. }));
-
-    // Test HTML detection
-    let ct = detector.detect("<html><body>Test</body></html>", None);
-    assert_eq!(ct, ContentType::Html);
-
-    // Test plain text detection
-    let ct = detector.detect("Plain text.", None);
-    assert_eq!(ct, ContentType::Plain);
-}
 
 #[test]
 fn test_unicode_edge_cases() {

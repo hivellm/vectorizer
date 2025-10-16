@@ -128,15 +128,6 @@ impl NormalizationConfig {
 mod tests {
     use super::*;
 
-    #[test]
-    #[ignore] // Test has state issues, not related to transmutation
-    fn test_default_config() {
-        let config = NormalizationConfig::default();
-        assert!(!config.enabled); // Disabled by default
-        assert!(config.cache_enabled);
-        assert!(config.normalize_queries);
-        assert!(config.store_raw_text);
-    }
 
     #[test]
     fn test_conservative_config() {

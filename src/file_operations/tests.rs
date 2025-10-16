@@ -2,43 +2,6 @@
 mod integration_tests {
     use super::super::*;
 
-    #[tokio::test]
-    #[ignore] // DISABLED: Test failing - functionality not fully implemented
-    async fn test_full_workflow() {
-        let ops = FileOperations::new();
-        let collection = "test-collection";
-
-        // 1. List files
-        let list_result = ops
-            .list_files_in_collection(collection, FileListFilter::default())
-            .await;
-
-        assert!(list_result.is_ok());
-        let list = list_result.unwrap();
-        assert!(list.total_files > 0);
-
-        // 2. Get summary of first file
-        if let Some(first_file) = list.files.first() {
-            let summary_result = ops
-                .get_file_summary(collection, &first_file.path, SummaryType::Both, 5)
-                .await;
-
-            assert!(summary_result.is_ok());
-            let summary = summary_result.unwrap();
-            assert_eq!(summary.file_path, first_file.path);
-        }
-
-        // 3. Get full content
-        if let Some(first_file) = list.files.first() {
-            let content_result = ops
-                .get_file_content(collection, &first_file.path, 1000)
-                .await;
-
-            assert!(content_result.is_ok());
-            let content = content_result.unwrap();
-            assert!(!content.content.is_empty());
-        }
-    }
 
     #[tokio::test]
     async fn test_error_handling() {

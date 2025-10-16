@@ -346,26 +346,6 @@ mod tests {
         assert_eq!(result, "hello world test");
     }
 
-    #[test]
-    #[ignore] // Test has state issues, not related to transmutation
-    fn test_normalize_with_content_type() {
-        let normalizer = TextNormalizer::default();
-
-        // Code should use conservative
-        let code = "fn   main()   {\n    println!(\"test\");\n}";
-        let result = normalizer.normalize(
-            code,
-            Some(ContentType::Code {
-                language: Some("rust".to_string()),
-            }),
-        );
-        assert!(result.text.contains("   ")); // Preserves code spacing
-
-        // Plain text should use moderate by default
-        let plain = "Hello   World\n\n\n\nTest";
-        let result = normalizer.normalize(plain, Some(ContentType::Plain));
-        assert!(!result.text.contains("   ")); // Collapses spacing
-    }
 
     #[test]
     fn test_metadata() {

@@ -16,8 +16,6 @@ pub enum GpuBackendType {
     Vulkan,
     /// DirectX 12 (Windows)
     DirectX12,
-    /// GPU (NVIDIA native, not via wgpu)
-    GpuNative,
     /// CPU-only (no GPU acceleration)
     Cpu,
 }
