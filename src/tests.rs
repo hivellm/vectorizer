@@ -70,7 +70,7 @@ mod tests {
 
         // Test euclidean distance calculation
         let euclidean_dist = ((v1[0] - v2[0]).powi(2) + (v1[1] - v2[1]).powi(2)).sqrt();
-        assert!((euclidean_dist - 1.4142135623730951).abs() < 1e-6);
+        assert!((euclidean_dist - std::f32::consts::SQRT_2).abs() < 1e-6);
     }
 
     #[test]

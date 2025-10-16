@@ -2654,8 +2654,8 @@ mod tests {
         let stats = store.stats();
         assert_eq!(stats.collection_count, initial_count + 1);
         assert_eq!(stats.total_vectors, initial_vectors + 2);
-        // Memory bytes may be 0 if collection uses optimization - just check it's calculated
-        assert!(stats.total_memory_bytes >= 0);
+        // Memory bytes may be 0 if collection uses optimization (always >= 0 for usize)
+        let _ = stats.total_memory_bytes;
 
         // Cleanup
         store.delete_collection("test_stats_unique").ok();

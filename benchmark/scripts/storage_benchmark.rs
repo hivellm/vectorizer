@@ -1,17 +1,14 @@
 //! Storage format benchmark - Compare legacy vs .vecdb performance
 
+#![allow(clippy::uninlined_format_args)]
+
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::path::{Path, PathBuf};
+use std::time::Instant;
 
-use vectorizer::VectorStore;
-use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
-};
-use vectorizer::storage::{
-    StorageFormat, StorageMigrator, StorageReader, StorageWriter, detect_format,
-};
+use vectorizer::models::{Payload, Vector};
+use vectorizer::storage::{StorageReader, StorageWriter};
 
 /// Benchmark result for a single test
 #[derive(Debug, Clone)]
@@ -162,7 +159,7 @@ fn create_test_vectors(count: usize) -> Vec<Vector> {
 }
 
 /// Save vectors in legacy format
-fn save_vectors_legacy(dir: &PathBuf, vectors: &[Vector]) {
+fn save_vectors_legacy(dir: &Path, vectors: &[Vector]) {
     for (i, vector) in vectors.iter().enumerate() {
         let file_path = dir.join(format!("vector_{}.bin", i));
         let data = bincode::serialize(&vector.data).unwrap();

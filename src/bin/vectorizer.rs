@@ -3,6 +3,8 @@
 //! This is the unified server that provides MCP + REST API access
 //! for all vector operations.
 
+#![allow(clippy::uninlined_format_args)]
+
 use clap::Parser;
 use tracing::error;
 use vectorizer::server::VectorizerServer;
@@ -23,7 +25,7 @@ struct Cli {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    vectorizer::logging::init_logging("vectorizer");
+    let _ = vectorizer::logging::init_logging("vectorizer");
 
     let cli = Cli::parse();
 
@@ -35,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
     if data_dir.exists() {
         use vectorizer::storage::{StorageFormat, StorageMigrator, detect_format};
 
-        let format = detect_format(&data_dir);
+        let format = detect_format(data_dir);
         if format == StorageFormat::Legacy {
             println!("\n⚠️  Legacy data format detected!");
             println!("📦 The new .vecdb format offers:");

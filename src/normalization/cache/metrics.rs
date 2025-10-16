@@ -298,8 +298,8 @@ mod tests {
 
         let stats = metrics.stats();
 
-        // Should still work but may not record
-        assert!(stats.total_hits + stats.total_misses >= 0);
+        // Should still work but may not record (total is always >= 0 for u64)
+        assert!(stats.total_hits + stats.total_misses >= 1);
     }
 
     #[test]
