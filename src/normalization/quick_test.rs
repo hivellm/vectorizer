@@ -4,8 +4,9 @@
 
 #[cfg(test)]
 mod quick_validation {
-    use crate::normalization::*;
     use std::path::Path;
+
+    use crate::normalization::*;
 
     #[test]
     fn test_basic_functionality() {
@@ -17,7 +18,7 @@ mod quick_validation {
         // Test normalizer
         let normalizer = TextNormalizer::default();
         let result = normalizer.normalize("Hello   World\n\n\n", Some(ContentType::Plain));
-        
+
         assert!(result.text.len() < "Hello   World\n\n\n".len());
         assert!(result.metadata.removed_bytes > 0);
 
@@ -33,13 +34,13 @@ mod quick_validation {
     #[test]
     fn test_compression() {
         let normalizer = TextNormalizer::default();
-        
+
         let wasteful = "Hello    World\n\n\n\n\nTest    Content   ";
         let result = normalizer.normalize(wasteful, Some(ContentType::Plain));
-        
-        let compression_ratio = (result.metadata.removed_bytes as f64 
-            / result.metadata.original_size as f64) * 100.0;
-        
+
+        let compression_ratio =
+            (result.metadata.removed_bytes as f64 / result.metadata.original_size as f64) * 100.0;
+
         println!("✅ Compression: {:.1}% reduction", compression_ratio);
         assert!(compression_ratio > 10.0, "Should achieve >10% compression");
     }
@@ -48,7 +49,7 @@ mod quick_validation {
     #[ignore] // Test has state issues, not related to transmutation
     fn test_content_types() {
         let detector = ContentTypeDetector::new();
-        
+
         let tests = vec![
             ("fn main() {}", ContentType::Code { language: None }),
             ("# Markdown", ContentType::Markdown),
@@ -166,4 +167,3 @@ mod quick_validation {
         assert!(duration.as_secs() < 1, "Should be fast");
     }
 }
-

@@ -1,9 +1,11 @@
 //! Cache validation system
 
-use super::*;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::Path;
+
+use sha2::{Digest, Sha256};
+
+use super::*;
 
 /// Cache validator
 pub struct CacheValidator {

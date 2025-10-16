@@ -48,15 +48,16 @@ pub mod hot_cache;
 pub mod metrics;
 pub mod warm_store;
 
-use crate::normalization::{ContentHash, VectorKey};
-use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow::Result;
 pub use blob_store::BlobStore;
 pub use hot_cache::LfuCache;
 pub use metrics::{CacheMetrics, CacheStats};
 pub use warm_store::WarmStore;
+
+use crate::normalization::{ContentHash, VectorKey};
 
 /// Cache configuration
 #[derive(Debug, Clone)]
@@ -189,8 +190,9 @@ mod tests;
 
 #[cfg(test)]
 mod unit_tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_cache_manager_basic() {
@@ -262,4 +264,3 @@ mod unit_tests {
         assert_eq!(stats.total_writes, 1);
     }
 }
-

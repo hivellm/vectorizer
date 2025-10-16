@@ -2,10 +2,11 @@
 //!
 //! Applies content-aware text normalization to reduce storage and improve consistency.
 
-use super::detector::ContentType;
-use super::hasher::{ContentHash, ContentHashCalculator};
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
+
+use super::detector::ContentType;
+use super::hasher::{ContentHash, ContentHashCalculator};
 
 /// Normalization level determines aggressiveness of text processing
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,11 +88,7 @@ impl TextNormalizer {
     }
 
     /// Normalize text with optional content type override
-    pub fn normalize(
-        &self,
-        raw: &str,
-        content_type: Option<ContentType>,
-    ) -> NormalizedContent {
+    pub fn normalize(&self, raw: &str, content_type: Option<ContentType>) -> NormalizedContent {
         let original_size = raw.len();
         let content_type = content_type.unwrap_or(ContentType::Plain);
 
@@ -102,9 +99,7 @@ impl TextNormalizer {
                 self.normalize_conservative(raw)
             }
             // Aggressive for plain text when configured
-            (NormalizationLevel::Aggressive, ContentType::Plain) => {
-                self.normalize_aggressive(raw)
-            }
+            (NormalizationLevel::Aggressive, ContentType::Plain) => self.normalize_aggressive(raw),
             // Moderate for everything else
             _ => self.normalize_moderate(raw),
         };
@@ -412,4 +407,3 @@ mod tests {
         assert_eq!(result, "é"); // Should be composed
     }
 }
-

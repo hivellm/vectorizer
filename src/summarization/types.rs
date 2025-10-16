@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Tipos de métodos de sumarização disponíveis
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -172,28 +173,28 @@ pub struct ContextSummarizationParams {
 pub enum SummarizationError {
     #[error("Summarization method not supported: {method}")]
     UnsupportedMethod { method: String },
-    
+
     #[error("Summarization method disabled: {method}")]
     MethodDisabled { method: String },
-    
+
     #[error("Text too short for summarization: {length} characters")]
     TextTooShort { length: usize },
-    
+
     #[error("Text too long for summarization: {length} characters")]
     TextTooLong { length: usize },
-    
+
     #[error("Invalid compression ratio: {ratio} (must be between 0.1 and 0.9)")]
     InvalidCompressionRatio { ratio: f32 },
-    
+
     #[error("Language not supported: {language}")]
     UnsupportedLanguage { language: String },
-    
+
     #[error("External API error: {message}")]
     ExternalApiError { message: String },
-    
+
     #[error("Summarization failed: {message}")]
     SummarizationFailed { message: String },
-    
+
     #[error("Configuration error: {message}")]
     ConfigurationError { message: String },
 }
@@ -206,8 +207,8 @@ impl From<String> for SummarizationError {
 
 impl From<crate::error::VectorizerError> for SummarizationError {
     fn from(error: crate::error::VectorizerError) -> Self {
-        SummarizationError::SummarizationFailed { 
-            message: format!("Embedding error: {}", error) 
+        SummarizationError::SummarizationFailed {
+            message: format!("Embedding error: {}", error),
         }
     }
 }

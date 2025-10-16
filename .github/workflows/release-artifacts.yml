@@ -1,0 +1,204 @@
+name: Build and publish release packages
+permissions:
+  contents: write
+on:
+  release:
+    # 'published' is triggered when publishing draft release, 'created' is not
+    types: [published]
+
+jobs:
+  build-linux-binaries:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake
+          rustup default stable
+          rustup update
+          rustup show
+          cargo -Vv
+      - uses: actions/checkout@v5
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cross-compilation tools
+        with:
+          target: ${{ matrix.target }}
+        if: startsWith(matrix.os, 'ubuntu') && contains(matrix.target, '-musl')
+        uses: taiki-e/setup-cross-toolchain-action@v1
+      - name: Build and publish
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer,vectorizer-cli
+          target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Debian Package
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          cargo install cargo-deb
+          cargo deb --no-strip --target ${{ matrix.target }}
+      - name: Upload Debian package
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/debian/*.deb
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+
+  build-mac-binaries:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dependencies
+        run: |
+          brew update-reset
+          brew install gcc cmake
+          rustup default stable
+          rustup update
+          rustup show
+          cargo -Vv
+      - uses: actions/checkout@v5
+      - name: Build and publish
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer,vectorizer-cli
+          target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows-binaries:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Build and publish
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer,vectorizer-cli
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows-msi:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build --release --locked
+
+      - name: Install WiX Toolset
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix --version
+
+      - name: Build MSI installer
+        shell: pwsh
+        env:
+          CargoTargetBinDir: ${{ github.workspace }}\target\release
+        run: |
+          wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
+
+      - name: Upload MSI
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: vectorizer.msi
+          asset_name: vectorizer-x86_64.msi
+          tag: ${{ github.ref }}
+          overwrite: true
+
+  build-app-image:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake libfuse2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Build AppImage
+        shell: bash
+        run: |
+          mkdir -p AppDir
+          
+          # Create simple icon if not exists
+          if [ ! -f "docs/logo.svg" ]; then
+            echo '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect fill="#4a90e2" width="256" height="256"/><text x="128" y="140" font-size="72" text-anchor="middle" fill="white" font-family="Arial">V</text></svg>' > vectorizer.svg
+          else
+            cp docs/logo.svg vectorizer.svg
+          fi
+          
+          cp target/release/vectorizer .
+
+          curl -Lo linuxdeploy-x86_64.AppImage \
+              https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+          ./linuxdeploy-x86_64.AppImage \
+              --appdir AppDir \
+              --executable vectorizer \
+              -d pkg/appimage/vectorizer.desktop \
+              -i vectorizer.svg \
+              --custom-apprun pkg/appimage/AppRun.sh
+
+          # Copy config
+          mkdir -p AppDir/usr/share
+          cp config.example.yml AppDir/usr/share/config.yml
+
+          ./linuxdeploy-x86_64.AppImage \
+              --appdir AppDir \
+              --output appimage
+
+      - name: Upload AppImage
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: "vectorizer-x86_64.AppImage"
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true

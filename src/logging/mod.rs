@@ -1,5 +1,5 @@
 //! Centralized logging system for Vectorizer
-//! 
+//!
 //! This module provides a unified logging system that:
 //! - Stores all logs in the `.logs` directory
 //! - Includes date in log file names for better organization
@@ -9,9 +9,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use chrono::{DateTime, Local};
-use tracing::{info, warn, error};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing::{error, info, warn};
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 /// Initialize the centralized logging system
 pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -59,21 +62,23 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
                 .with_line_number(true),
         )
         .try_init();
-    
+
     if let Err(e) = result {
         eprintln!("Failed to initialize tracing: {}", e);
         return Err(format!("Failed to initialize tracing: {}", e).into());
     }
 
-    info!("Logging initialized for {} - Log file: {:?}", service_name, log_path);
+    info!(
+        "Logging initialized for {} - Log file: {:?}",
+        service_name, log_path
+    );
     Ok(())
 }
-
 
 /// Clean up log files older than 1 day
 fn cleanup_old_logs(logs_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let cutoff_time = SystemTime::now() - Duration::from_secs(24 * 60 * 60); // 1 day ago
-    
+
     if !logs_dir.exists() {
         return Ok(());
     }
@@ -84,7 +89,7 @@ fn cleanup_old_logs(logs_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
-        
+
         // Only process .log files
         if path.extension().map_or(false, |ext| ext == "log") {
             if let Ok(metadata) = path.metadata() {
@@ -132,10 +137,10 @@ pub fn get_log_file_path(service_name: &str, date: Option<DateTime<Local>>) -> P
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::thread;
     use std::time::Duration;
 
+    use super::*;
 
     #[test]
     fn test_get_log_file_path() {
@@ -152,18 +157,18 @@ mod tests {
         // we'll just test that the function executes successfully
         let logs_dir = get_logs_dir();
         fs::create_dir_all(&logs_dir).unwrap();
-        
+
         // Create a test log file
         let test_log = logs_dir.join("test-cleanup.log");
         fs::write(&test_log, "test log content").unwrap();
-        
+
         // Run cleanup (should not remove recent files)
         let result = cleanup_old_logs(&logs_dir);
         assert!(result.is_ok());
-        
+
         // The recent file should still exist
         assert!(test_log.exists());
-        
+
         // Clean up
         let _ = fs::remove_file(test_log);
     }

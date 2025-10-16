@@ -1,10 +1,12 @@
 //! Main Vectorizer configuration structure
 
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
 use crate::config::FileWatcherYamlConfig;
-use crate::summarization::SummarizationConfig;
 use crate::storage::StorageConfig;
+use crate::summarization::SummarizationConfig;
 
 /// Main Vectorizer configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -219,7 +221,10 @@ mod config_tests {
 
         #[cfg(not(feature = "transmutation"))]
         {
-            assert!(!config.enabled, "Should be disabled when feature is not compiled");
+            assert!(
+                !config.enabled,
+                "Should be disabled when feature is not compiled"
+            );
         }
 
         assert_eq!(config.max_file_size_mb, 50);
@@ -278,7 +283,7 @@ mod config_tests {
     #[test]
     fn test_transmutation_config_in_vectorizer_config() {
         let config = VectorizerConfig::default();
-        
+
         // Verify transmutation config is present
         #[cfg(feature = "transmutation")]
         {
@@ -306,7 +311,7 @@ mod config_tests {
         // Test maximum reasonable values
         let config_max = TransmutationConfig {
             enabled: true,
-            max_file_size_mb: 1000, // 1GB
+            max_file_size_mb: 1000,        // 1GB
             conversion_timeout_secs: 3600, // 1 hour
             preserve_images: true,
         };
@@ -327,11 +332,10 @@ mod config_tests {
         let yaml = serde_yaml::to_string(&config).unwrap();
         assert!(yaml.contains("enabled"));
         assert!(yaml.contains("max_file_size_mb"));
-        
+
         // Test YAML deserialization
         let config_from_yaml: TransmutationConfig = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(config.enabled, config_from_yaml.enabled);
         assert_eq!(config.max_file_size_mb, config_from_yaml.max_file_size_mb);
     }
 }
-

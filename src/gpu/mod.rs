@@ -1,10 +1,10 @@
 //! Aceleração GPU usando wgpu (Metal, Vulkan, DX12, OpenGL)
-//! 
+//!
 //! Este módulo fornece aceleração GPU cross-platform para operações vetoriais
 //! usando wgpu, que suporta Metal (macOS/iOS), Vulkan, DirectX 12 e OpenGL.
 //!
 //! ## Operações Suportadas
-//! 
+//!
 //! - Similaridade Coseno (Cosine Similarity)
 //! - Distância Euclidiana (Euclidean Distance)
 //! - Produto Escalar (Dot Product)
@@ -34,54 +34,53 @@
 //! # }
 //! ```
 
+pub mod backends;
+pub mod buffers;
 pub mod config;
 pub mod context;
+pub mod dx12_collection;
+pub mod hnsw_gpu;
+pub mod hnsw_navigation;
+pub mod hnsw_storage;
+pub mod metal_collection;
 pub mod operations;
 pub mod shaders;
-pub mod buffers;
 pub mod utils;
-pub mod metal_collection;
-pub mod vulkan_collection;
-pub mod dx12_collection;
-pub mod backends;
-pub mod hnsw_gpu;
-pub mod hnsw_storage;
-pub mod hnsw_navigation;
 pub mod vector_storage;
+pub mod vulkan_collection;
 
-pub use config::{GpuConfig, GpuBackend};
-pub use context::GpuContext;
-pub use operations::GpuOperations;
-pub use metal_collection::{MetalCollection, MetalGpuMemoryStats};
-pub use vulkan_collection::{VulkanCollection, VulkanGpuMemoryStats};
-pub use dx12_collection::{DirectX12Collection, DirectX12GpuMemoryStats};
 pub use backends::{GpuBackendType, detect_available_backends, select_best_backend};
-pub use hnsw_gpu::{GpuHnswSearch, GpuHnswConfig, GpuSearchCandidate};
-pub use hnsw_storage::{GpuHnswStorage, GpuHnswStorageConfig, GpuHnswNode, GpuHnswMemoryStats};
+pub use config::{GpuBackend, GpuConfig};
+pub use context::GpuContext;
+pub use dx12_collection::{DirectX12Collection, DirectX12GpuMemoryStats};
+pub use hnsw_gpu::{GpuHnswConfig, GpuHnswSearch, GpuSearchCandidate};
 pub use hnsw_navigation::{GpuHnswNavigation, GpuHnswNavigationParams, GpuHnswSearchResult};
+pub use hnsw_storage::{GpuHnswMemoryStats, GpuHnswNode, GpuHnswStorage, GpuHnswStorageConfig};
+pub use metal_collection::{MetalCollection, MetalGpuMemoryStats};
+pub use operations::GpuOperations;
 pub use vector_storage::{GpuVectorStorage, GpuVectorStorageConfig, GpuVectorStorageStats};
+pub use vulkan_collection::{VulkanCollection, VulkanGpuMemoryStats};
+#[cfg(feature = "wgpu-gpu")]
+use wgpu;
 
 use crate::error::{Result, VectorizerError};
 use crate::models::DistanceMetric;
-
-#[cfg(feature = "wgpu-gpu")]
-use wgpu;
 
 /// Verifica se a GPU está disponível e qual backend será usado
 pub async fn check_gpu_availability() -> Result<GpuBackend> {
     #[cfg(not(feature = "wgpu-gpu"))]
     {
         return Err(VectorizerError::Other(
-            "Feature 'wgpu-gpu' não está habilitada. Compile com --features wgpu-gpu".to_string()
+            "Feature 'wgpu-gpu' não está habilitada. Compile com --features wgpu-gpu".to_string(),
         ));
     }
 
     #[cfg(feature = "wgpu-gpu")]
     {
         use wgpu::Instance;
-        
+
         let instance = Instance::default();
-        
+
         // Tentar detectar o melhor adapter disponível
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -101,14 +100,14 @@ pub async fn check_gpu_availability() -> Result<GpuBackend> {
                     wgpu::Backend::Gl => GpuBackend::OpenGL,
                     _ => GpuBackend::None,
                 };
-                
+
                 tracing::info!(
                     "GPU detectada: {} ({:?}) - Backend: {:?}",
                     info.name,
                     info.device_type,
                     info.backend
                 );
-                
+
                 Ok(backend)
             }
             Err(_) => {
@@ -150,7 +149,7 @@ impl Default for GpuInfo {
             max_compute_workgroup_size_z: 64,
             max_compute_invocations_per_workgroup: 256,
             limits: GpuLimits {
-                max_buffer_size: 1 << 30, // 1GB
+                max_buffer_size: 1 << 30,                 // 1GB
                 max_storage_buffer_binding_size: 1 << 28, // 256MB
                 max_compute_workgroups_per_dimension: 65535,
             },

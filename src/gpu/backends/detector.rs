@@ -3,8 +3,9 @@
 //! Automatically detects available GPU backends and selects the best one
 //! based on platform, hardware, and performance characteristics.
 
+use tracing::{debug, info, warn};
+
 use crate::error::Result;
-use tracing::{info, debug, warn};
 
 /// Supported GPU backend types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -25,14 +26,14 @@ impl GpuBackendType {
     /// Get priority of backend (lower = higher priority)
     pub fn priority(&self) -> u8 {
         match self {
-            Self::Metal => 0,       // Best for Apple Silicon
-            Self::Vulkan => 1,      // Universal, AMD optimized
-            Self::DirectX12 => 2,   // Windows native
-            Self::CudaNative => 3,  // NVIDIA specific
-            Self::Cpu => 255,       // Last resort
+            Self::Metal => 0,      // Best for Apple Silicon
+            Self::Vulkan => 1,     // Universal, AMD optimized
+            Self::DirectX12 => 2,  // Windows native
+            Self::CudaNative => 3, // NVIDIA specific
+            Self::Cpu => 255,      // Last resort
         }
     }
-    
+
     /// Check if backend is theoretically available on current platform
     pub fn is_platform_compatible(&self) -> bool {
         match self {
@@ -43,7 +44,7 @@ impl GpuBackendType {
             Self::Cpu => true, // Always available
         }
     }
-    
+
     /// Get human-readable name
     pub fn name(&self) -> &'static str {
         match self {
@@ -54,7 +55,7 @@ impl GpuBackendType {
             Self::Cpu => "CPU",
         }
     }
-    
+
     /// Get emoji icon for backend
     pub fn icon(&self) -> &'static str {
         match self {
@@ -77,7 +78,7 @@ impl std::fmt::Display for GpuBackendType {
 pub fn detect_available_backends() -> Vec<GpuBackendType> {
     info!("🔍 Detecting available GPU backends...");
     let mut available = Vec::new();
-    
+
     // Check Metal (macOS Apple Silicon only)
     #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
     {
@@ -89,7 +90,7 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
             debug!("❌ Metal backend not available");
         }
     }
-    
+
     // Check Vulkan (universal)
     #[cfg(feature = "wgpu-gpu")]
     {
@@ -101,7 +102,7 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
             debug!("❌ Vulkan backend not available");
         }
     }
-    
+
     // Check DirectX 12 (Windows only)
     #[cfg(all(target_os = "windows", feature = "wgpu-gpu"))]
     {
@@ -113,7 +114,7 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
             debug!("❌ DirectX 12 backend not available");
         }
     }
-    
+
     // Check CUDA (if feature enabled)
     #[cfg(feature = "cuda")]
     {
@@ -125,10 +126,10 @@ pub fn detect_available_backends() -> Vec<GpuBackendType> {
             debug!("❌ CUDA backend not available");
         }
     }
-    
+
     // CPU always available as fallback
     available.push(GpuBackendType::Cpu);
-    
+
     info!("📊 Available backends: {:?}", available);
     available
 }
@@ -139,11 +140,11 @@ pub fn select_best_backend(available: &[GpuBackendType]) -> GpuBackendType {
         warn!("No backends available, defaulting to CPU");
         return GpuBackendType::Cpu;
     }
-    
+
     // Sort by priority and return first
     let mut sorted = available.to_vec();
     sorted.sort_by_key(|b| b.priority());
-    
+
     let best = sorted[0];
     info!("🎯 Selected backend: {}", best);
     best
@@ -152,13 +153,13 @@ pub fn select_best_backend(available: &[GpuBackendType]) -> GpuBackendType {
 /// Try to detect Metal backend (macOS Apple Silicon)
 #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
 fn try_detect_metal() -> bool {
-    use wgpu::{Instance, Backends, RequestAdapterOptions};
-    
+    use wgpu::{Backends, Instance, RequestAdapterOptions};
+
     let instance = Instance::new(&wgpu::InstanceDescriptor {
         backends: Backends::METAL,
         ..Default::default()
     });
-    
+
     match pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
         compatible_surface: None,
@@ -166,7 +167,10 @@ fn try_detect_metal() -> bool {
     })) {
         Ok(adapter) => {
             let info = adapter.get_info();
-            debug!("Metal adapter found: {} ({:?})", info.name, info.device_type);
+            debug!(
+                "Metal adapter found: {} ({:?})",
+                info.name, info.device_type
+            );
             true
         }
         Err(_) => false,
@@ -176,13 +180,13 @@ fn try_detect_metal() -> bool {
 /// Try to detect Vulkan backend
 #[cfg(feature = "wgpu-gpu")]
 fn try_detect_vulkan() -> bool {
-    use wgpu::{Instance, Backends, RequestAdapterOptions};
-    
+    use wgpu::{Backends, Instance, RequestAdapterOptions};
+
     let instance = Instance::new(&wgpu::InstanceDescriptor {
         backends: Backends::VULKAN,
         ..Default::default()
     });
-    
+
     match pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
         compatible_surface: None,
@@ -190,7 +194,10 @@ fn try_detect_vulkan() -> bool {
     })) {
         Ok(adapter) => {
             let info = adapter.get_info();
-            debug!("Vulkan adapter found: {} ({:?})", info.name, info.device_type);
+            debug!(
+                "Vulkan adapter found: {} ({:?})",
+                info.name, info.device_type
+            );
             true
         }
         Err(_) => false,
@@ -200,13 +207,13 @@ fn try_detect_vulkan() -> bool {
 /// Try to detect DirectX 12 backend (Windows)
 #[cfg(all(target_os = "windows", feature = "wgpu-gpu"))]
 fn try_detect_dx12() -> bool {
-    use wgpu::{Instance, Backends, RequestAdapterOptions};
-    
+    use wgpu::{Backends, Instance, RequestAdapterOptions};
+
     let instance = Instance::new(&wgpu::InstanceDescriptor {
         backends: Backends::DX12,
         ..Default::default()
     });
-    
+
     match pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
         compatible_surface: None,
@@ -214,7 +221,10 @@ fn try_detect_dx12() -> bool {
     })) {
         Ok(adapter) => {
             let info = adapter.get_info();
-            debug!("DirectX 12 adapter found: {} ({:?})", info.name, info.device_type);
+            debug!(
+                "DirectX 12 adapter found: {} ({:?})",
+                info.name, info.device_type
+            );
             true
         }
         Err(_) => false,
@@ -232,7 +242,7 @@ fn try_detect_cuda() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_backend_priority() {
         assert!(GpuBackendType::Metal.priority() < GpuBackendType::Vulkan.priority());
@@ -240,14 +250,14 @@ mod tests {
         assert!(GpuBackendType::DirectX12.priority() < GpuBackendType::CudaNative.priority());
         assert!(GpuBackendType::CudaNative.priority() < GpuBackendType::Cpu.priority());
     }
-    
+
     #[test]
     fn test_backend_display() {
         assert_eq!(GpuBackendType::Metal.to_string(), "🍎 Metal");
         assert_eq!(GpuBackendType::Vulkan.to_string(), "🔥 Vulkan");
         assert_eq!(GpuBackendType::DirectX12.to_string(), "🪟 DirectX 12");
     }
-    
+
     #[test]
     fn test_select_best_backend() {
         let backends = vec![
@@ -255,20 +265,19 @@ mod tests {
             GpuBackendType::Vulkan,
             GpuBackendType::Metal,
         ];
-        
+
         let best = select_best_backend(&backends);
         assert_eq!(best, GpuBackendType::Metal); // Metal has highest priority
     }
-    
+
     #[test]
     fn test_detect_available_backends() {
         let available = detect_available_backends();
-        
+
         // CPU should always be available
         assert!(available.contains(&GpuBackendType::Cpu));
-        
+
         // At least one backend should be available
         assert!(!available.is_empty());
     }
 }
-

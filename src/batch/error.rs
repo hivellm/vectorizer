@@ -1,9 +1,10 @@
 //! Batch Operations Error Handling
-//! 
+//!
 //! Comprehensive error handling for batch operations including error types,
 //! error codes, and result structures.
 
 use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 /// Batch operation status
@@ -33,25 +34,25 @@ pub enum BatchErrorType {
     InvalidVectorId,
     InvalidCollection,
     InvalidQuery,
-    
+
     // Resource errors
     MemoryLimitExceeded,
     TimeoutExceeded,
     ResourceUnavailable,
     ConcurrentBatchLimitExceeded,
-    
+
     // Processing errors
     EmbeddingGenerationFailed,
     VectorStoreError,
     IndexingError,
     SerializationError,
-    
+
     // System errors
     InternalError,
     DatabaseError,
     NetworkError,
     AuthenticationError,
-    
+
     // Custom error
     Custom(String),
 }
@@ -67,7 +68,9 @@ impl fmt::Display for BatchErrorType {
             BatchErrorType::MemoryLimitExceeded => write!(f, "memory_limit_exceeded"),
             BatchErrorType::TimeoutExceeded => write!(f, "timeout_exceeded"),
             BatchErrorType::ResourceUnavailable => write!(f, "resource_unavailable"),
-            BatchErrorType::ConcurrentBatchLimitExceeded => write!(f, "concurrent_batch_limit_exceeded"),
+            BatchErrorType::ConcurrentBatchLimitExceeded => {
+                write!(f, "concurrent_batch_limit_exceeded")
+            }
             BatchErrorType::EmbeddingGenerationFailed => write!(f, "embedding_generation_failed"),
             BatchErrorType::VectorStoreError => write!(f, "vector_store_error"),
             BatchErrorType::IndexingError => write!(f, "indexing_error"),
@@ -233,7 +236,9 @@ impl<T> BatchResult<T> {
     pub fn get_errors_by_type(&self, error_type: &BatchErrorType) -> Vec<&BatchError> {
         self.failed_operations
             .iter()
-            .filter(|error| std::mem::discriminant(&error.error_type) == std::mem::discriminant(error_type))
+            .filter(|error| {
+                std::mem::discriminant(&error.error_type) == std::mem::discriminant(error_type)
+            })
             .collect()
     }
 
@@ -280,27 +285,28 @@ impl BatchStatistics {
 
     pub fn from_result<T>(result: &BatchResult<T>) -> Self {
         let mut stats = Self::new();
-        
+
         stats.total_operations = result.total_operations;
         stats.successful_operations = result.successful_count;
         stats.failed_operations = result.failed_count;
         stats.processing_time_ms = result.processing_time_ms;
-        
+
         // Calculate throughput
         if result.processing_time_ms > 0.0 {
-            stats.throughput_ops_per_second = (result.total_operations as f64 * 1000.0) / result.processing_time_ms;
+            stats.throughput_ops_per_second =
+                (result.total_operations as f64 * 1000.0) / result.processing_time_ms;
             stats.average_latency_ms = result.processing_time_ms / result.total_operations as f64;
         }
-        
+
         // Count retryable errors
         stats.retryable_errors = result.get_retryable_errors().len();
-        
+
         // Build error distribution
         for error in &result.failed_operations {
             let error_code = error.error_code();
             *stats.error_distribution.entry(error_code).or_insert(0) += 1;
         }
-        
+
         stats
     }
 }
@@ -312,20 +318,34 @@ impl Default for BatchStatistics {
 }
 
 /// Helper functions for creating common batch errors
-pub fn invalid_batch_size_error(operation_id: String, actual_size: usize, max_size: usize) -> BatchError {
+pub fn invalid_batch_size_error(
+    operation_id: String,
+    actual_size: usize,
+    max_size: usize,
+) -> BatchError {
     BatchError::new(
         operation_id,
         BatchErrorType::InvalidBatchSize,
-        format!("Batch size {} exceeds maximum allowed size {}", actual_size, max_size),
+        format!(
+            "Batch size {} exceeds maximum allowed size {}",
+            actual_size, max_size
+        ),
         None,
     )
 }
 
-pub fn memory_limit_exceeded_error(operation_id: String, estimated_mb: usize, limit_mb: usize) -> BatchError {
+pub fn memory_limit_exceeded_error(
+    operation_id: String,
+    estimated_mb: usize,
+    limit_mb: usize,
+) -> BatchError {
     BatchError::new(
         operation_id,
         BatchErrorType::MemoryLimitExceeded,
-        format!("Estimated memory usage {}MB exceeds limit {}MB", estimated_mb, limit_mb),
+        format!(
+            "Estimated memory usage {}MB exceeds limit {}MB",
+            estimated_mb, limit_mb
+        ),
         None,
     )
 }
@@ -339,7 +359,11 @@ pub fn vector_store_error(operation_id: String, vector_id: String, message: Stri
     )
 }
 
-pub fn embedding_generation_error(operation_id: String, vector_id: Option<String>, message: String) -> BatchError {
+pub fn embedding_generation_error(
+    operation_id: String,
+    vector_id: Option<String>,
+    message: String,
+) -> BatchError {
     BatchError::new(
         operation_id,
         BatchErrorType::EmbeddingGenerationFailed,
@@ -370,9 +394,18 @@ mod tests {
 
     #[test]
     fn test_batch_error_type_display() {
-        assert_eq!(format!("{}", BatchErrorType::InvalidBatchSize), "invalid_batch_size");
-        assert_eq!(format!("{}", BatchErrorType::MemoryLimitExceeded), "memory_limit_exceeded");
-        assert_eq!(format!("{}", BatchErrorType::Custom("test".to_string())), "custom:test");
+        assert_eq!(
+            format!("{}", BatchErrorType::InvalidBatchSize),
+            "invalid_batch_size"
+        );
+        assert_eq!(
+            format!("{}", BatchErrorType::MemoryLimitExceeded),
+            "memory_limit_exceeded"
+        );
+        assert_eq!(
+            format!("{}", BatchErrorType::Custom("test".to_string())),
+            "custom:test"
+        );
     }
 
     #[test]
@@ -383,7 +416,7 @@ mod tests {
             "Invalid vector".to_string(),
             Some("vec1".to_string()),
         );
-        
+
         assert_eq!(error.operation_id, "op1");
         assert_eq!(error.vector_id, Some("vec1".to_string()));
         assert_eq!(error.retry_count, 0);
@@ -411,10 +444,10 @@ mod tests {
     #[test]
     fn test_batch_result_operations() {
         let mut result: BatchResult<String> = BatchResult::new();
-        
+
         result.add_success("success1".to_string());
         result.add_success("success2".to_string());
-        
+
         let error = BatchError::new(
             "op1".to_string(),
             BatchErrorType::InvalidVectorData,
@@ -422,7 +455,7 @@ mod tests {
             None,
         );
         result.add_error(error);
-        
+
         assert_eq!(result.successful_count, 2);
         assert_eq!(result.failed_count, 1);
         assert_eq!(result.total_operations, 3);
@@ -433,14 +466,14 @@ mod tests {
     #[test]
     fn test_batch_result_status() {
         let mut result: BatchResult<String> = BatchResult::new();
-        
+
         // Empty result should be success
         assert_eq!(result.status, BatchStatus::Success);
-        
+
         // Add success - should remain success
         result.add_success("test".to_string());
         assert_eq!(result.status, BatchStatus::Success);
-        
+
         // Add error - should become partial
         let error = BatchError::new(
             "op1".to_string(),
@@ -458,7 +491,7 @@ mod tests {
         let mut result: BatchResult<String> = BatchResult::new();
         result.add_success("success".to_string());
         result.add_success("success2".to_string());
-        
+
         let error = BatchError::new(
             "op1".to_string(),
             BatchErrorType::TimeoutExceeded,
@@ -466,7 +499,7 @@ mod tests {
             None,
         );
         result.add_error(error);
-        
+
         let stats = BatchStatistics::from_result(&result);
         assert_eq!(stats.total_operations, 3);
         assert_eq!(stats.successful_operations, 2);
@@ -480,7 +513,7 @@ mod tests {
         assert_eq!(error.error_type, BatchErrorType::InvalidBatchSize);
         assert!(error.error_message.contains("1500"));
         assert!(error.error_message.contains("1000"));
-        
+
         let error = memory_limit_exceeded_error("op1".to_string(), 1024, 512);
         assert_eq!(error.error_type, BatchErrorType::MemoryLimitExceeded);
         assert!(error.error_message.contains("1024"));

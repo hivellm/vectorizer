@@ -1,12 +1,14 @@
 //! Storage format benchmark - Compare legacy vs .vecdb performance
 
+#![allow(clippy::uninlined_format_args)]
+
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
-use vectorizer::storage::{StorageWriter, StorageReader, StorageMigrator, detect_format, StorageFormat};
-use vectorizer::VectorStore;
-use vectorizer::models::{Vector, Payload, CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
+use std::path::{Path, PathBuf};
+use std::time::Instant;
+
+use vectorizer::models::{Payload, Vector};
+use vectorizer::storage::{StorageReader, StorageWriter};
 
 /// Benchmark result for a single test
 #[derive(Debug, Clone)]
@@ -23,13 +25,13 @@ struct BenchmarkResult {
 fn main() {
     println!("🚀 Storage Format Benchmark");
     println!("=====================================\n");
-    
+
     let results = run_benchmarks();
-    
+
     println!("\n📊 Results Summary:");
     println!("=====================================");
     print_results_table(&results);
-    
+
     println!("\n📈 Analysis:");
     analyze_results(&results);
 }
@@ -37,26 +39,26 @@ fn main() {
 /// Run all benchmark scenarios
 fn run_benchmarks() -> Vec<BenchmarkResult> {
     let mut results = Vec::new();
-    
+
     // Test with different dataset sizes
     let test_sizes = vec![
         (100, "Small (100 vectors)"),
         (1_000, "Medium (1K vectors)"),
         (10_000, "Large (10K vectors)"),
     ];
-    
+
     for (size, label) in test_sizes {
         println!("\n📦 Testing {} dataset:", label);
-        
+
         // Legacy format
         let legacy_result = benchmark_legacy_format(size);
         results.push(legacy_result);
-        
+
         // Compact format
         let compact_result = benchmark_compact_format(size);
         results.push(compact_result);
     }
-    
+
     results
 }
 
@@ -67,23 +69,23 @@ fn benchmark_legacy_format(vector_count: usize) -> BenchmarkResult {
     let data_dir = temp_base.join("data");
     let collection_dir = data_dir.join("test_collection");
     fs::create_dir_all(&collection_dir).unwrap();
-    
+
     // Create test data
     let vectors = create_test_vectors(vector_count);
-    
+
     // Measure save time
     let save_start = Instant::now();
     save_vectors_legacy(&collection_dir, &vectors);
     let save_time = save_start.elapsed();
-    
+
     // Get storage size
     let storage_size = get_directory_size(&data_dir);
-    
+
     // Measure load time
     let load_start = Instant::now();
     let _loaded = load_vectors_legacy(&collection_dir);
     let load_time = load_start.elapsed();
-    
+
     BenchmarkResult {
         name: format!("Legacy ({} vectors)", vector_count),
         load_time_ms: load_time.as_millis(),
@@ -96,35 +98,36 @@ fn benchmark_legacy_format(vector_count: usize) -> BenchmarkResult {
 
 /// Benchmark compact .vecdb format
 fn benchmark_compact_format(vector_count: usize) -> BenchmarkResult {
-    let temp_base = std::env::temp_dir().join(format!("vectorizer_bench_compact_{}", std::process::id()));
+    let temp_base =
+        std::env::temp_dir().join(format!("vectorizer_bench_compact_{}", std::process::id()));
     fs::create_dir_all(&temp_base).unwrap();
     let data_dir = temp_base.join("data");
     let collections_dir = data_dir.join("collections");
     let collection_dir = collections_dir.join("test_collection");
     fs::create_dir_all(&collection_dir).unwrap();
-    
+
     // Create test data
     let vectors = create_test_vectors(vector_count);
-    
+
     // Save in legacy format first
     save_vectors_legacy(&collection_dir, &vectors);
-    
+
     // Measure compaction time
     let save_start = Instant::now();
     let writer = StorageWriter::new(&data_dir, 3);
     let index = writer.write_archive(&collections_dir).unwrap();
     let save_time = save_start.elapsed();
-    
+
     // Get storage size
     let vecdb_path = data_dir.join("vectorizer.vecdb");
     let storage_size = fs::metadata(&vecdb_path).unwrap().len();
-    
+
     // Measure load time
     let load_start = Instant::now();
     let reader = StorageReader::new(&data_dir).unwrap();
     let _files = reader.read_collection_files("test_collection").unwrap();
     let load_time = load_start.elapsed();
-    
+
     BenchmarkResult {
         name: format!("Compact ({} vectors)", vector_count),
         load_time_ms: load_time.as_millis(),
@@ -142,7 +145,7 @@ fn create_test_vectors(count: usize) -> Vec<Vector> {
             let data: Vec<f32> = (0..384)
                 .map(|j| (i as f32 * 0.01) + (j as f32 * 0.001))
                 .collect();
-            
+
             Vector::with_payload(
                 format!("vec_{}", i),
                 data,
@@ -156,11 +159,11 @@ fn create_test_vectors(count: usize) -> Vec<Vector> {
 }
 
 /// Save vectors in legacy format
-fn save_vectors_legacy(dir: &PathBuf, vectors: &[Vector]) {
+fn save_vectors_legacy(dir: &Path, vectors: &[Vector]) {
     for (i, vector) in vectors.iter().enumerate() {
         let file_path = dir.join(format!("vector_{}.bin", i));
         let data = bincode::serialize(&vector.data).unwrap();
-        
+
         let mut file = File::create(&file_path).unwrap();
         file.write_all(&data).unwrap();
     }
@@ -169,7 +172,7 @@ fn save_vectors_legacy(dir: &PathBuf, vectors: &[Vector]) {
 /// Load vectors from legacy format
 fn load_vectors_legacy(dir: &PathBuf) -> Vec<Vec<f32>> {
     let mut vectors = Vec::new();
-    
+
     for entry in fs::read_dir(dir).unwrap() {
         let entry = entry.unwrap();
         if entry.path().extension().and_then(|e| e.to_str()) == Some("bin") {
@@ -178,14 +181,14 @@ fn load_vectors_legacy(dir: &PathBuf) -> Vec<Vec<f32>> {
             vectors.push(vector);
         }
     }
-    
+
     vectors
 }
 
 /// Get total directory size recursively
 fn get_directory_size(dir: &PathBuf) -> u64 {
     let mut total = 0;
-    
+
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -198,7 +201,7 @@ fn get_directory_size(dir: &PathBuf) -> u64 {
             }
         }
     }
-    
+
     total
 }
 
@@ -211,12 +214,15 @@ fn estimate_memory_usage(vectors: &[Vector]) -> f64 {
 
 /// Print results as a formatted table
 fn print_results_table(results: &[BenchmarkResult]) {
-    println!("\n{:<25} {:>12} {:>12} {:>12} {:>12} {:>10}",
-        "Test", "Load (ms)", "Save (ms)", "Size (MB)", "Memory (MB)", "Compress");
+    println!(
+        "\n{:<25} {:>12} {:>12} {:>12} {:>12} {:>10}",
+        "Test", "Load (ms)", "Save (ms)", "Size (MB)", "Memory (MB)", "Compress"
+    );
     println!("{}", "-".repeat(95));
-    
+
     for result in results {
-        println!("{:<25} {:>12} {:>12} {:>12.2} {:>12.2} {:>9.1}%",
+        println!(
+            "{:<25} {:>12} {:>12} {:>12.2} {:>12.2} {:>9.1}%",
             result.name,
             result.load_time_ms,
             result.save_time_ms,
@@ -229,55 +235,86 @@ fn print_results_table(results: &[BenchmarkResult]) {
 
 /// Analyze and compare results
 fn analyze_results(results: &[BenchmarkResult]) {
-    let legacy_results: Vec<_> = results.iter().filter(|r| r.name.contains("Legacy")).collect();
-    let compact_results: Vec<_> = results.iter().filter(|r| r.name.contains("Compact")).collect();
-    
+    let legacy_results: Vec<_> = results
+        .iter()
+        .filter(|r| r.name.contains("Legacy"))
+        .collect();
+    let compact_results: Vec<_> = results
+        .iter()
+        .filter(|r| r.name.contains("Compact"))
+        .collect();
+
     if legacy_results.len() != compact_results.len() {
         return;
     }
-    
+
     println!("\n📊 Performance Comparison:");
     println!("=====================================");
-    
+
     for (legacy, compact) in legacy_results.iter().zip(compact_results.iter()) {
-        let load_improvement = ((legacy.load_time_ms as f64 - compact.load_time_ms as f64) 
-            / legacy.load_time_ms as f64) * 100.0;
-        
-        let save_improvement = ((legacy.save_time_ms as f64 - compact.save_time_ms as f64) 
-            / legacy.save_time_ms as f64) * 100.0;
-        
-        let size_reduction = ((legacy.storage_size_mb - compact.storage_size_mb) 
-            / legacy.storage_size_mb) * 100.0;
-        
+        let load_improvement = ((legacy.load_time_ms as f64 - compact.load_time_ms as f64)
+            / legacy.load_time_ms as f64)
+            * 100.0;
+
+        let save_improvement = ((legacy.save_time_ms as f64 - compact.save_time_ms as f64)
+            / legacy.save_time_ms as f64)
+            * 100.0;
+
+        let size_reduction =
+            ((legacy.storage_size_mb - compact.storage_size_mb) / legacy.storage_size_mb) * 100.0;
+
         println!("\n{}", legacy.name.split(" ").next().unwrap_or("Test"));
-        println!("  Load time: {}{:.1}%", 
-            if load_improvement > 0.0 { "✅ " } else { "⚠️ " },
+        println!(
+            "  Load time: {}{:.1}%",
+            if load_improvement > 0.0 {
+                "✅ "
+            } else {
+                "⚠️ "
+            },
             load_improvement.abs()
         );
-        println!("  Save time: {}{:.1}%", 
-            if save_improvement > 0.0 { "✅ " } else { "⚠️ " },
+        println!(
+            "  Save time: {}{:.1}%",
+            if save_improvement > 0.0 {
+                "✅ "
+            } else {
+                "⚠️ "
+            },
             save_improvement.abs()
         );
         println!("  Storage size: ✅ {:.1}% reduction", size_reduction);
-        println!("  Compression ratio: {:.1}%", compact.compression_ratio * 100.0);
+        println!(
+            "  Compression ratio: {:.1}%",
+            compact.compression_ratio * 100.0
+        );
     }
-    
+
     // Overall recommendation
     println!("\n💡 Recommendation:");
-    let avg_size_reduction: f64 = legacy_results.iter()
+    let avg_size_reduction: f64 = legacy_results
+        .iter()
         .zip(compact_results.iter())
         .map(|(l, c)| ((l.storage_size_mb - c.storage_size_mb) / l.storage_size_mb) * 100.0)
-        .sum::<f64>() / legacy_results.len() as f64;
-    
+        .sum::<f64>()
+        / legacy_results.len() as f64;
+
     if avg_size_reduction > 30.0 {
-        println!("  ✅ .vecdb format provides significant space savings ({:.1}% reduction)", avg_size_reduction);
+        println!(
+            "  ✅ .vecdb format provides significant space savings ({:.1}% reduction)",
+            avg_size_reduction
+        );
         println!("  ✅ Recommended for production use");
     } else if avg_size_reduction > 10.0 {
-        println!("  ⚠️  .vecdb format provides moderate space savings ({:.1}% reduction)", avg_size_reduction);
+        println!(
+            "  ⚠️  .vecdb format provides moderate space savings ({:.1}% reduction)",
+            avg_size_reduction
+        );
         println!("  ℹ️  Consider for large datasets");
     } else {
-        println!("  ℹ️  .vecdb format provides minimal space savings ({:.1}% reduction)", avg_size_reduction);
+        println!(
+            "  ℹ️  .vecdb format provides minimal space savings ({:.1}% reduction)",
+            avg_size_reduction
+        );
         println!("  ℹ️  Use based on other benefits (snapshots, portability)");
     }
 }
-

@@ -1,19 +1,20 @@
 //! Intelligent Search Module - Simplified Working Implementation
-//! 
+//!
 //! This module implements intelligent search capabilities using a simplified approach
 //! that focuses on functionality over complex external dependencies.
 
-pub mod query_generator;
-pub mod simple_search_engine;
-pub mod mmr_diversifier;
 pub mod context_formatter;
-pub mod mcp_tools;
-pub mod rest_api;
-pub mod mcp_server_integration;
 pub mod examples;
+pub mod mcp_server_integration;
+pub mod mcp_tools;
+pub mod mmr_diversifier;
+pub mod query_generator;
+pub mod rest_api;
+pub mod simple_search_engine;
+
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Configuration for intelligent search
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,17 +64,13 @@ pub struct IntelligentSearchEngine {
 impl IntelligentSearchEngine {
     /// Create a new intelligent search engine
     pub fn new(config: IntelligentSearchConfig) -> Self {
-        let query_generator = query_generator::QueryGenerator::new(
-            config.max_queries
-        );
+        let query_generator = query_generator::QueryGenerator::new(config.max_queries);
         let search_engine = simple_search_engine::SimpleSearchEngine::new();
-        let mmr_diversifier = mmr_diversifier::MMRDiversifier::new(
-            config.mmr_lambda
-        );
+        let mmr_diversifier = mmr_diversifier::MMRDiversifier::new(config.mmr_lambda);
         let context_formatter = context_formatter::ContextFormatter::new(
             500,  // max_content_length
             3,    // max_lines_per_result
-            true  // include_metadata
+            true, // include_metadata
         );
 
         Self {
@@ -87,7 +84,10 @@ impl IntelligentSearchEngine {
 
     /// Add documents to the search engine
     pub async fn add_documents(&mut self, documents: Vec<Document>) -> Result<(), String> {
-        self.search_engine.add_documents(documents).await.map_err(|e| e.to_string())
+        self.search_engine
+            .add_documents(documents)
+            .await
+            .map_err(|e| e.to_string())
     }
 
     /// Perform intelligent search
@@ -102,7 +102,7 @@ impl IntelligentSearchEngine {
 
         // Generate multiple queries
         let queries = self.query_generator.generate_queries(query);
-        
+
         // Search across collections
         let mut all_results = Vec::new();
         let collections_to_search = collections.unwrap_or_else(|| {
@@ -111,11 +111,15 @@ impl IntelligentSearchEngine {
 
         for search_query in &queries {
             for collection in &collections_to_search {
-                let results = self.search_engine.search(
-                    search_query,
-                    vec![collection.clone()],
-                    max_results * 2, // Get more results for better selection
-                ).await.map_err(|e| e.to_string())?;
+                let results = self
+                    .search_engine
+                    .search(
+                        search_query,
+                        vec![collection.clone()],
+                        max_results * 2, // Get more results for better selection
+                    )
+                    .await
+                    .map_err(|e| e.to_string())?;
                 all_results.extend(results);
             }
         }
@@ -125,9 +129,14 @@ impl IntelligentSearchEngine {
 
         // Apply MMR diversification if enabled
         let final_results = if self.config.mmr_enabled {
-            self.mmr_diversifier.diversify(&deduplicated_results, max_results)
+            self.mmr_diversifier
+                .diversify(&deduplicated_results, max_results)
         } else {
-            deduplicated_results.clone().into_iter().take(max_results).collect()
+            deduplicated_results
+                .clone()
+                .into_iter()
+                .take(max_results)
+                .collect()
         };
 
         let processing_time = start_time.elapsed().as_millis() as u64;
@@ -145,19 +154,25 @@ impl IntelligentSearchEngine {
     }
 
     /// Deduplicate results based on similarity
-    fn deduplicate_results(&self, results: &[IntelligentSearchResult]) -> Vec<IntelligentSearchResult> {
+    fn deduplicate_results(
+        &self,
+        results: &[IntelligentSearchResult],
+    ) -> Vec<IntelligentSearchResult> {
         let mut deduplicated = Vec::new();
-        
+
         for result in results {
-            let is_duplicate = deduplicated.iter().any(|existing: &IntelligentSearchResult| {
-                self.calculate_similarity(&result.content, &existing.content) > self.config.similarity_threshold
-            });
-            
+            let is_duplicate = deduplicated
+                .iter()
+                .any(|existing: &IntelligentSearchResult| {
+                    self.calculate_similarity(&result.content, &existing.content)
+                        > self.config.similarity_threshold
+                });
+
             if !is_duplicate {
                 deduplicated.push(result.clone());
             }
         }
-        
+
         deduplicated
     }
 
@@ -167,10 +182,10 @@ impl IntelligentSearchEngine {
         let words1: std::collections::HashSet<&str> = binding1.split_whitespace().collect();
         let binding2 = text2.to_lowercase();
         let words2: std::collections::HashSet<&str> = binding2.split_whitespace().collect();
-        
+
         let intersection = words1.intersection(&words2).count();
         let union = words1.union(&words2).count();
-        
+
         if union == 0 {
             0.0
         } else {
@@ -277,15 +292,18 @@ mod tests {
     #[test]
     fn test_document_creation() {
         let mut metadata = HashMap::new();
-        metadata.insert("author".to_string(), serde_json::Value::String("John Doe".to_string()));
-        
+        metadata.insert(
+            "author".to_string(),
+            serde_json::Value::String("John Doe".to_string()),
+        );
+
         let doc = Document {
             id: "doc1".to_string(),
             content: "This is a test document".to_string(),
             collection: "test".to_string(),
             metadata,
         };
-        
+
         assert_eq!(doc.id, "doc1");
         assert_eq!(doc.content, "This is a test document");
         assert_eq!(doc.collection, "test");

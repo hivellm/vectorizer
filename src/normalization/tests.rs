@@ -1,7 +1,8 @@
 //! Integration tests for normalization module
 
-use super::*;
 use std::path::Path;
+
+use super::*;
 
 #[test]
 fn test_end_to_end_normalization() {
@@ -38,7 +39,7 @@ fn test_deduplication_via_hash() {
 
     // All should normalize to same text
     assert_eq!(result1.text, result2.text);
-    
+
     // Therefore same hash
     assert_eq!(result1.content_hash, result2.content_hash);
 }
@@ -53,7 +54,8 @@ fn test_storage_reduction() {
         remove_html: false,
     });
 
-    let wasteful_text = "Hello      World\n\n\n\n\n\n\nThis    has    too    many    spaces\t\t\t\nAnd   tabs";
+    let wasteful_text =
+        "Hello      World\n\n\n\n\n\n\nThis    has    too    many    spaces\t\t\t\nAnd   tabs";
 
     let result = normalizer.normalize(wasteful_text, Some(ContentType::Plain));
 
@@ -128,7 +130,7 @@ fn test_unicode_edge_cases() {
         ("Café", "Café"), // Should preserve accents
         ("naïve", "naïve"),
         ("Hello\u{200B}World", "HelloWorld"), // Zero-width space removed
-        ("\u{FEFF}BOM test", "BOM test"), // BOM removed
+        ("\u{FEFF}BOM test", "BOM test"),     // BOM removed
     ];
 
     for (input, expected_contains) in test_cases {
@@ -243,4 +245,3 @@ fn test_whitespace_only() {
     // Should be collapsed to minimal whitespace or empty
     assert!(result.text.len() <= 2);
 }
-

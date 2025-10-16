@@ -4,16 +4,17 @@
 //! including hierarchical traversal and neighbor discovery entirely on GPU.
 //! This eliminates CPU-GPU transfers during graph navigation.
 
+use std::sync::Arc;
+
+use tracing::{debug, info, warn};
+#[cfg(feature = "wgpu-gpu")]
+use wgpu::{BindGroup, BindGroupLayout, Buffer, BufferUsages, ComputePipeline, Device, Queue};
+
 use crate::error::{Result, VectorizerError};
-use crate::models::DistanceMetric;
-use crate::gpu::{GpuContext};
+use crate::gpu::GpuContext;
 use crate::gpu::buffers::BufferManager;
 use crate::gpu::shaders::ShaderType;
-use std::sync::Arc;
-use tracing::{debug, info, warn};
-
-#[cfg(feature = "wgpu-gpu")]
-use wgpu::{Buffer, BufferUsages, Device, Queue, ComputePipeline, BindGroup, BindGroupLayout};
+use crate::models::DistanceMetric;
 
 /// GPU HNSW Navigation Parameters
 #[derive(Debug, Clone, Copy)]
@@ -75,123 +76,128 @@ impl GpuHnswNavigation {
         );
 
         #[cfg(feature = "wgpu-gpu")]
-        let (navigation_pipeline, bind_group_layout) = {
-            // Create navigation shader module
-            let navigation_shader = gpu_context.device().create_shader_module(
-                wgpu::ShaderModuleDescriptor {
-                    label: Some("hnsw_navigation"),
-                    source: wgpu::ShaderSource::Wgsl(include_str!("shaders/hnsw_navigation.wgsl").into()),
-                }
-            );
+        let (navigation_pipeline, bind_group_layout) =
+            {
+                // Create navigation shader module
+                let navigation_shader =
+                    gpu_context
+                        .device()
+                        .create_shader_module(wgpu::ShaderModuleDescriptor {
+                            label: Some("hnsw_navigation"),
+                            source: wgpu::ShaderSource::Wgsl(
+                                include_str!("shaders/hnsw_navigation.wgsl").into(),
+                            ),
+                        });
 
-            // Create bind group layout
-            let bind_group_layout = gpu_context.device().create_bind_group_layout(
-                &wgpu::BindGroupLayoutDescriptor {
-                    label: Some("hnsw_navigation_layout"),
-                    entries: &[
-                        // Parameters buffer
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                // Create bind group layout
+                let bind_group_layout = gpu_context.device().create_bind_group_layout(
+                    &wgpu::BindGroupLayoutDescriptor {
+                        label: Some("hnsw_navigation_layout"),
+                        entries: &[
+                            // Parameters buffer
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Uniform,
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                        // Query vector buffer
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                            // Query vector buffer
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 1,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                        // Node buffer (read-only)
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                            // Node buffer (read-only)
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 2,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                        // Vector buffer (read-only)
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 3,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                            // Vector buffer (read-only)
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 3,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                        // Connection buffer (read-only)
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 4,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                            // Connection buffer (read-only)
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 4,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                        // Results buffer (read-write)
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 5,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: false },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                            // Results buffer (read-write)
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 5,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                        // Candidate buffer (read-write)
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 6,
-                            visibility: wgpu::ShaderStages::COMPUTE,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Storage { read_only: false },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                            // Candidate buffer (read-write)
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 6,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
                             },
-                            count: None,
-                        },
-                    ],
-                }
-            );
+                        ],
+                    },
+                );
 
-            // Create compute pipeline
-            let pipeline_layout = gpu_context.device().create_pipeline_layout(
-                &wgpu::PipelineLayoutDescriptor {
-                    label: Some("hnsw_navigation_pipeline_layout"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                }
-            );
+                // Create compute pipeline
+                let pipeline_layout =
+                    gpu_context
+                        .device()
+                        .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                            label: Some("hnsw_navigation_pipeline_layout"),
+                            bind_group_layouts: &[&bind_group_layout],
+                            push_constant_ranges: &[],
+                        });
 
-            let navigation_pipeline = gpu_context.device().create_compute_pipeline(
-                &wgpu::ComputePipelineDescriptor {
-                    label: Some("hnsw_navigation_pipeline"),
-                    layout: Some(&pipeline_layout),
-                    module: &navigation_shader,
-                    entry_point: Some("main"),
-                    cache: None,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                }
-            );
+                let navigation_pipeline = gpu_context.device().create_compute_pipeline(
+                    &wgpu::ComputePipelineDescriptor {
+                        label: Some("hnsw_navigation_pipeline"),
+                        layout: Some(&pipeline_layout),
+                        module: &navigation_shader,
+                        entry_point: Some("main"),
+                        cache: None,
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    },
+                );
 
-            (navigation_pipeline, bind_group_layout)
-        };
+                (navigation_pipeline, bind_group_layout)
+            };
 
         #[cfg(not(feature = "wgpu-gpu"))]
         let (navigation_pipeline, bind_group_layout) = (
@@ -220,9 +226,16 @@ impl GpuHnswNavigation {
         node_count: usize,
         dimension: usize,
     ) -> Result<GpuHnswSearchResult> {
-        debug!("Executing GPU HNSW search for k={}, ef_search={}", k, ef_search);
-        debug!("Buffer sizes: node_buffer={}, vector_buffer={}, connection_buffer={}", 
-               node_buffer.size(), vector_buffer.size(), connection_buffer.size());
+        debug!(
+            "Executing GPU HNSW search for k={}, ef_search={}",
+            k, ef_search
+        );
+        debug!(
+            "Buffer sizes: node_buffer={}, vector_buffer={}, connection_buffer={}",
+            node_buffer.size(),
+            vector_buffer.size(),
+            connection_buffer.size()
+        );
 
         // Validate input
         if query.len() != dimension {
@@ -255,42 +268,39 @@ impl GpuHnswNavigation {
             _padding: 0,
         };
 
-        let params_buffer = self.buffer_manager.create_uniform_buffer(
-            "hnsw_params",
-            bytemuck::bytes_of(&params),
-        )?;
+        let params_buffer = self
+            .buffer_manager
+            .create_uniform_buffer("hnsw_params", bytemuck::bytes_of(&params))?;
 
         // Create query buffer
-        let query_buffer = self.buffer_manager.create_storage_buffer(
-            "hnsw_query",
-            query,
-        )?;
+        let query_buffer = self
+            .buffer_manager
+            .create_storage_buffer("hnsw_query", query)?;
 
         // Create results buffer for GPU computation
         let result_size = k * std::mem::size_of::<u32>();
         debug!("Creating results buffer with size: {} bytes", result_size);
-        let results_buffer = self.buffer_manager.create_storage_buffer_rw(
-            "hnsw_results",
-            result_size as u64,
-        )?;
+        let results_buffer = self
+            .buffer_manager
+            .create_storage_buffer_rw("hnsw_results", result_size as u64)?;
 
         // Create read buffer for copying results back to CPU
-        let read_buffer = self.buffer_manager.create_read_buffer(
-            "hnsw_results_read",
-            result_size as u64,
-        )?;
+        let read_buffer = self
+            .buffer_manager
+            .create_read_buffer("hnsw_results_read", result_size as u64)?;
 
         // Create candidate buffer (for intermediate results)
         let candidate_size = ef_search * std::mem::size_of::<u32>();
-        let candidate_buffer = self.buffer_manager.create_storage_buffer_rw(
-            "hnsw_candidates", 
-            candidate_size as u64,
-        )?;
+        let candidate_buffer = self
+            .buffer_manager
+            .create_storage_buffer_rw("hnsw_candidates", candidate_size as u64)?;
 
         // Create bind group
         #[cfg(feature = "wgpu-gpu")]
-        let bind_group = self.gpu_context.device().create_bind_group(
-            &wgpu::BindGroupDescriptor {
+        let bind_group = self
+            .gpu_context
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("hnsw_navigation_bind_group"),
                 layout: &self.bind_group_layout,
                 entries: &[
@@ -323,25 +333,23 @@ impl GpuHnswNavigation {
                         resource: candidate_buffer.as_entire_binding(),
                     },
                 ],
-            }
-        );
+            });
 
         // Execute compute shader
         #[cfg(feature = "wgpu-gpu")]
         {
-            let mut encoder = self.gpu_context.device().create_command_encoder(
-                &wgpu::CommandEncoderDescriptor {
-                    label: Some("hnsw_navigation_encoder"),
-                }
-            );
+            let mut encoder =
+                self.gpu_context
+                    .device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("hnsw_navigation_encoder"),
+                    });
 
             {
-                let mut compute_pass = encoder.begin_compute_pass(
-                    &wgpu::ComputePassDescriptor {
-                        label: Some("hnsw_navigation_pass"),
-                        timestamp_writes: None,
-                    }
-                );
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("hnsw_navigation_pass"),
+                    timestamp_writes: None,
+                });
 
                 compute_pass.set_pipeline(&self.navigation_pipeline);
                 compute_pass.set_bind_group(0, &bind_group, &[]);
@@ -349,30 +357,40 @@ impl GpuHnswNavigation {
                 compute_pass.dispatch_workgroups(1, 1, 1); // Single workgroup for now
             }
 
-            self.gpu_context.queue().submit(std::iter::once(encoder.finish()));
+            self.gpu_context
+                .queue()
+                .submit(std::iter::once(encoder.finish()));
         }
 
         // Copy results from compute buffer to read buffer
         {
-            let mut encoder = self.gpu_context.device().create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Copy results to read buffer"),
-            });
+            let mut encoder =
+                self.gpu_context
+                    .device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Copy results to read buffer"),
+                    });
             encoder.copy_buffer_to_buffer(&results_buffer, 0, &read_buffer, 0, result_size as u64);
-            self.gpu_context.queue().submit(std::iter::once(encoder.finish()));
+            self.gpu_context
+                .queue()
+                .submit(std::iter::once(encoder.finish()));
         }
 
         // Read results back from GPU
         let result_indices = match self.buffer_manager.read_buffer_sync(&read_buffer) {
             Ok(data) => data,
             Err(e) => {
-                warn!("Failed to read HNSW results buffer: {}. Using simulated results for benchmarking.", e);
+                warn!(
+                    "Failed to read HNSW results buffer: {}. Using simulated results for benchmarking.",
+                    e
+                );
                 // For benchmarking purposes, generate simulated results
                 // This allows the benchmark to complete while we work on the shader
                 let simulated_results = self.generate_simulated_results(k, node_count)?;
                 return Ok(simulated_results);
             }
         };
-        
+
         // Convert f32 results back to u32 indices
         let node_indices: Vec<u32> = result_indices
             .chunks_exact(1)
@@ -382,7 +400,10 @@ impl GpuHnswNavigation {
         // For now, return dummy scores (TODO: implement score calculation in shader)
         let scores = vec![1.0f32; node_indices.len()];
 
-        debug!("GPU HNSW search completed, found {} results", node_indices.len());
+        debug!(
+            "GPU HNSW search completed, found {} results",
+            node_indices.len()
+        );
 
         let result_count = node_indices.len();
 
@@ -394,9 +415,16 @@ impl GpuHnswNavigation {
     }
 
     /// Generate simulated results for benchmarking when GPU shader fails
-    fn generate_simulated_results(&self, k: usize, node_count: usize) -> Result<GpuHnswSearchResult> {
-        debug!("Generating simulated HNSW results for benchmarking: k={}, nodes={}", k, node_count);
-        
+    fn generate_simulated_results(
+        &self,
+        k: usize,
+        node_count: usize,
+    ) -> Result<GpuHnswSearchResult> {
+        debug!(
+            "Generating simulated HNSW results for benchmarking: k={}, nodes={}",
+            k, node_count
+        );
+
         if node_count == 0 {
             return Ok(GpuHnswSearchResult {
                 node_indices: vec![],
@@ -409,7 +437,7 @@ impl GpuHnswNavigation {
         let max_results = k.min(node_count);
         let mut node_indices = Vec::with_capacity(max_results);
         let mut scores = Vec::with_capacity(max_results);
-        
+
         for i in 0..max_results {
             // Use deterministic "random" selection for consistent benchmarking
             let node_index = i % node_count;
@@ -419,8 +447,11 @@ impl GpuHnswNavigation {
             scores.push(score);
         }
 
-        debug!("Generated {} simulated results for benchmarking", node_indices.len());
-        
+        debug!(
+            "Generated {} simulated results for benchmarking",
+            node_indices.len()
+        );
+
         Ok(GpuHnswSearchResult {
             node_indices,
             scores,
@@ -447,7 +478,7 @@ mod tests {
         let gpu_config = crate::gpu::GpuConfig::default();
         if let Ok(gpu_context) = GpuContext::new(gpu_config).await {
             let result = GpuHnswNavigation::new(Arc::new(gpu_context)).await;
-            
+
             match result {
                 Ok(_navigation) => println!("GPU HNSW navigation created successfully"),
                 Err(e) => println!("GPU not available (expected): {}", e),

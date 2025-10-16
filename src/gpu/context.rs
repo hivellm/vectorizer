@@ -1,26 +1,26 @@
 //! Contexto GPU usando wgpu
 
-use super::config::{GpuConfig, GpuBackend, GpuPowerPreference};
+#[cfg(feature = "wgpu-gpu")]
+use wgpu::{Adapter, Device, Features, Instance, Limits, Queue};
+
+use super::config::{GpuBackend, GpuConfig, GpuPowerPreference};
 use super::{GpuInfo, GpuLimits};
 use crate::error::{Result, VectorizerError};
-
-#[cfg(feature = "wgpu-gpu")]
-use wgpu::{Instance, Adapter, Device, Queue, Features, Limits};
 
 /// Contexto GPU que gerencia a conexão com o hardware
 pub struct GpuContext {
     config: GpuConfig,
     info: GpuInfo,
-    
+
     #[cfg(feature = "wgpu-gpu")]
     instance: Instance,
-    
+
     #[cfg(feature = "wgpu-gpu")]
     adapter: Adapter,
-    
+
     #[cfg(feature = "wgpu-gpu")]
     device: Device,
-    
+
     #[cfg(feature = "wgpu-gpu")]
     queue: Queue,
 }
@@ -29,13 +29,14 @@ impl GpuContext {
     /// Criar novo contexto GPU
     pub async fn new(config: GpuConfig) -> Result<Self> {
         // Validar configuração
-        config.validate()
+        config
+            .validate()
             .map_err(|e| VectorizerError::Other(format!("Configuração inválida: {}", e)))?;
 
         #[cfg(not(feature = "wgpu-gpu"))]
         {
             return Err(VectorizerError::Other(
-                "Feature 'wgpu-gpu' não está habilitada".to_string()
+                "Feature 'wgpu-gpu' não está habilitada".to_string(),
             ));
         }
 
@@ -70,9 +71,7 @@ impl GpuContext {
                 force_fallback_adapter: false,
             })
             .await
-            .map_err(|e| {
-                VectorizerError::Other(format!("Falha ao obter adapter GPU: {:?}", e))
-            })?;
+            .map_err(|e| VectorizerError::Other(format!("Falha ao obter adapter GPU: {:?}", e)))?;
 
         let adapter_info = adapter.get_info();
         info!(
@@ -82,7 +81,7 @@ impl GpuContext {
 
         // Verificar limites
         let adapter_limits = adapter.limits();
-        
+
         // Request device
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
@@ -94,8 +93,10 @@ impl GpuContext {
                     max_compute_workgroup_size_x: adapter_limits.max_compute_workgroup_size_x,
                     max_compute_workgroup_size_y: adapter_limits.max_compute_workgroup_size_y,
                     max_compute_workgroup_size_z: adapter_limits.max_compute_workgroup_size_z,
-                    max_compute_workgroups_per_dimension: adapter_limits.max_compute_workgroups_per_dimension,
-                    max_compute_invocations_per_workgroup: adapter_limits.max_compute_invocations_per_workgroup,
+                    max_compute_workgroups_per_dimension: adapter_limits
+                        .max_compute_workgroups_per_dimension,
+                    max_compute_invocations_per_workgroup: adapter_limits
+                        .max_compute_invocations_per_workgroup,
                     ..Default::default()
                 },
                 memory_hints: Default::default(),
@@ -121,11 +122,13 @@ impl GpuContext {
             max_compute_workgroup_size_x: adapter_limits.max_compute_workgroup_size_x,
             max_compute_workgroup_size_y: adapter_limits.max_compute_workgroup_size_y,
             max_compute_workgroup_size_z: adapter_limits.max_compute_workgroup_size_z,
-            max_compute_invocations_per_workgroup: adapter_limits.max_compute_invocations_per_workgroup,
+            max_compute_invocations_per_workgroup: adapter_limits
+                .max_compute_invocations_per_workgroup,
             limits: GpuLimits {
                 max_buffer_size: adapter_limits.max_buffer_size,
                 max_storage_buffer_binding_size: adapter_limits.max_storage_buffer_binding_size,
-                max_compute_workgroups_per_dimension: adapter_limits.max_compute_workgroups_per_dimension,
+                max_compute_workgroups_per_dimension: adapter_limits
+                    .max_compute_workgroups_per_dimension,
             },
         };
 
@@ -133,7 +136,8 @@ impl GpuContext {
         info!("  - Backend: {:?}", info.backend);
         info!("  - Device: {}", info.name);
         info!("  - Tipo: {}", info.device_type);
-        info!("  - Max workgroup size: {}x{}x{}", 
+        info!(
+            "  - Max workgroup size: {}x{}x{}",
             info.max_compute_workgroup_size_x,
             info.max_compute_workgroup_size_y,
             info.max_compute_workgroup_size_z
@@ -154,7 +158,7 @@ impl GpuContext {
         if let Some(backend) = config.preferred_backend {
             return backend;
         }
-        
+
         GpuBackend::default()
     }
 
@@ -194,9 +198,10 @@ impl GpuContext {
 
     /// Calcular tamanho ótimo do workgroup
     pub fn optimal_workgroup_size(&self, elements: usize) -> u32 {
-        let max_size = self.config.workgroup_size.min(
-            self.info.max_compute_workgroup_size_x
-        );
+        let max_size = self
+            .config
+            .workgroup_size
+            .min(self.info.max_compute_workgroup_size_x);
 
         // Encontrar a maior potência de 2 que não excede max_size
         let mut size = 256;
@@ -231,7 +236,7 @@ mod tests {
     async fn test_create_context() {
         let config = GpuConfig::default();
         let result = GpuContext::new(config).await;
-        
+
         match result {
             Ok(ctx) => {
                 println!("GPU Context criado com sucesso");
@@ -248,7 +253,7 @@ mod tests {
     fn test_workgroup_calculations() {
         let mut info = GpuInfo::default();
         info.max_compute_workgroup_size_x = 256;
-        
+
         let config = GpuConfig::default();
         let ctx = GpuContext {
             config: config.clone(),

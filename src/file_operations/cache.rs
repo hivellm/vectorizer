@@ -1,18 +1,20 @@
-use super::types::{CachedFile, FileSummary};
-use lru::LruCache;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use lru::LruCache;
 use tokio::sync::RwLock;
+
+use super::types::{CachedFile, FileSummary};
 
 /// File-level cache system
 pub struct FileLevelCache {
     /// LRU cache for complete files (max 100 files)
     file_content_cache: Arc<RwLock<LruCache<String, CachedFile>>>,
-    
+
     /// LRU cache for summaries (max 500 summaries)
     summary_cache: Arc<RwLock<LruCache<String, CachedSummary>>>,
-    
+
     /// File list cache per collection (with TTL)
     file_list_cache: Arc<RwLock<lru::LruCache<String, CachedFileList>>>,
 }
@@ -33,15 +35,11 @@ struct CachedFileList {
 impl FileLevelCache {
     pub fn new() -> Self {
         Self {
-            file_content_cache: Arc::new(RwLock::new(
-                LruCache::new(NonZeroUsize::new(100).unwrap())
-            )),
-            summary_cache: Arc::new(RwLock::new(
-                LruCache::new(NonZeroUsize::new(500).unwrap())
-            )),
-            file_list_cache: Arc::new(RwLock::new(
-                LruCache::new(NonZeroUsize::new(50).unwrap())
-            )),
+            file_content_cache: Arc::new(RwLock::new(LruCache::new(
+                NonZeroUsize::new(100).unwrap(),
+            ))),
+            summary_cache: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(500).unwrap()))),
+            file_list_cache: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(50).unwrap()))),
         }
     }
 
@@ -71,17 +69,20 @@ impl FileLevelCache {
     /// Put summary in cache
     pub async fn put_summary(&self, key: String, summary: FileSummary) {
         let mut cache = self.summary_cache.write().await;
-        cache.put(key, CachedSummary {
-            summary,
-            cached_at: Instant::now(),
-        });
+        cache.put(
+            key,
+            CachedSummary {
+                summary,
+                cached_at: Instant::now(),
+            },
+        );
     }
 
     /// Get cached file list
     pub async fn get_file_list(
-        &self, 
-        collection: &str, 
-        max_age: Duration
+        &self,
+        collection: &str,
+        max_age: Duration,
     ) -> Option<(Vec<super::types::FileInfo>, usize)> {
         let mut cache = self.file_list_cache.write().await;
         if let Some(cached) = cache.get(collection) {
@@ -100,11 +101,14 @@ impl FileLevelCache {
         total_chunks: usize,
     ) {
         let mut cache = self.file_list_cache.write().await;
-        cache.put(collection, CachedFileList {
-            files,
-            total_chunks,
-            cached_at: Instant::now(),
-        });
+        cache.put(
+            collection,
+            CachedFileList {
+                files,
+                total_chunks,
+                cached_at: Instant::now(),
+            },
+        );
     }
 
     /// Clear all caches
@@ -124,7 +128,7 @@ impl FileLevelCache {
                 .filter(|(k, _)| k.starts_with(&format!("{}:", collection)))
                 .map(|(k, _)| k.clone())
                 .collect();
-            
+
             for key in keys_to_remove {
                 cache.pop(&key);
             }
@@ -138,7 +142,7 @@ impl FileLevelCache {
                 .filter(|(k, _)| k.starts_with(&format!("{}:", collection)))
                 .map(|(k, _)| k.clone())
                 .collect();
-            
+
             for key in keys_to_remove {
                 cache.pop(&key);
             }
@@ -182,7 +186,7 @@ mod tests {
     async fn test_cache_creation() {
         let cache = FileLevelCache::new();
         let stats = cache.stats().await;
-        
+
         assert_eq!(stats.file_content_entries, 0);
         assert_eq!(stats.summary_entries, 0);
         assert_eq!(stats.file_list_entries, 0);
@@ -192,10 +196,10 @@ mod tests {
     async fn test_file_content_cache() {
         let cache = FileLevelCache::new();
         let key = "test:file.rs".to_string();
-        
+
         // Initially empty
         assert!(cache.get_file_content(&key).await.is_none());
-        
+
         // Put file
         let cached_file = CachedFile {
             path: "file.rs".to_string(),
@@ -211,9 +215,11 @@ mod tests {
             },
             cached_at: Instant::now(),
         };
-        
-        cache.put_file_content(key.clone(), cached_file.clone()).await;
-        
+
+        cache
+            .put_file_content(key.clone(), cached_file.clone())
+            .await;
+
         // Retrieve
         let retrieved = cache.get_file_content(&key).await;
         assert!(retrieved.is_some());
@@ -223,20 +229,18 @@ mod tests {
     #[tokio::test]
     async fn test_clear_collection() {
         let cache = FileLevelCache::new();
-        
+
         // Add entries for two collections
-        cache.put_file_content(
-            "coll1:file1.rs".to_string(),
-            create_test_file("file1.rs"),
-        ).await;
-        cache.put_file_content(
-            "coll2:file2.rs".to_string(),
-            create_test_file("file2.rs"),
-        ).await;
-        
+        cache
+            .put_file_content("coll1:file1.rs".to_string(), create_test_file("file1.rs"))
+            .await;
+        cache
+            .put_file_content("coll2:file2.rs".to_string(), create_test_file("file2.rs"))
+            .await;
+
         // Clear coll1
         cache.clear_collection("coll1").await;
-        
+
         // coll1 should be gone, coll2 should remain
         assert!(cache.get_file_content("coll1:file1.rs").await.is_none());
         assert!(cache.get_file_content("coll2:file2.rs").await.is_some());
@@ -259,4 +263,3 @@ mod tests {
         }
     }
 }
-

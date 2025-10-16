@@ -3,14 +3,16 @@
 //! This binary provides a unified interface for running and managing Vectorizer servers,
 //! including REST API, MCP server, and daemon/service management.
 
-use clap::{Parser, Subcommand};
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use tokio::process::Command as TokioCommand;
-use tracing_subscriber;
 
+use clap::{Parser, Subcommand};
 #[cfg(target_os = "linux")]
 use libc::setsid;
+use tokio::process::Command as TokioCommand;
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
@@ -91,7 +93,7 @@ async fn main() {
         Commands::Cli => {
             // Run legacy CLI
             if let Err(e) = vectorizer::cli::run().await {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
                 std::process::exit(1);
             }
         }
@@ -188,10 +190,9 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     println!("✅ Servers stopped.");
 }
 
-async fn run_as_daemon(project: PathBuf, host: String, port: u16, mcp_port: u16) {
+async fn run_as_daemon(project: PathBuf, _host: String, _port: u16, _mcp_port: u16) {
     #[cfg(target_os = "linux")]
     {
-        use std::fs;
         use std::os::unix::process::CommandExt;
 
         println!("🐧 Setting up Linux daemon...");
@@ -208,7 +209,7 @@ async fn run_as_daemon(project: PathBuf, host: String, port: u16, mcp_port: u16)
                 ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
-                .pre_exec(|| unsafe {
+                .pre_exec(|| {
                     // Detach from controlling terminal
                     if setsid() == -1 {
                         return Err(std::io::Error::last_os_error());
@@ -314,23 +315,29 @@ async fn install_service() {
     {
         println!("🐧 Installing as Linux systemd service...");
 
+        let username = whoami::username();
+        let exe_path = std::env::current_exe().unwrap().display().to_string();
+        let current_dir = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("/var/lib/vectorizer"))
+            .display()
+            .to_string();
+
         let service_content = format!(
-            r#"[Unit]
+            r"[Unit]
 Description=Vectorizer Server
 After=network.target
 
 [Service]
 Type=simple
-User={}
-ExecStart={} --project ../gov --daemon
+User={username}
+WorkingDirectory={current_dir}
+ExecStart={exe_path} start --daemon
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-"#,
-            whoami::username(),
-            std::env::current_exe().unwrap().display()
+"
         );
 
         let service_path = "/etc/systemd/system/vectorizer.service";
@@ -406,7 +413,7 @@ async fn uninstall_service() {
 
 fn find_processes(name: &str) -> Vec<u32> {
     let output = Command::new("pgrep")
-        .args(&["-f", name])
+        .args(["-f", name])
         .output()
         .unwrap_or_else(|_| std::process::Output {
             status: std::process::ExitStatus::default(),

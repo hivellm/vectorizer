@@ -9,13 +9,14 @@ pub mod types;
 #[cfg(test)]
 mod tests;
 
-use crate::error::{Result, VectorizerError};
 use std::path::Path;
+
 use tracing::{debug, info, warn};
+#[cfg(feature = "transmutation")]
+use transmutation::{ConversionOptions, Converter, OutputFormat};
 use types::{ConvertedDocument, PageInfo};
 
-#[cfg(feature = "transmutation")]
-use transmutation::{Converter, OutputFormat, ConversionOptions};
+use crate::error::{Result, VectorizerError};
 
 /// Transmutation processor for document conversion
 pub struct TransmutationProcessor {
@@ -28,12 +29,12 @@ impl TransmutationProcessor {
     pub fn new() -> Result<Self> {
         #[cfg(feature = "transmutation")]
         {
-            let converter = Converter::new()
-                .map_err(|e| VectorizerError::TransmutationError(e.to_string()))?;
+            let converter =
+                Converter::new().map_err(|e| VectorizerError::TransmutationError(e.to_string()))?;
             info!("✅ Transmutation processor initialized");
             Ok(Self { converter })
         }
-        
+
         #[cfg(not(feature = "transmutation"))]
         {
             Ok(Self {})
@@ -59,7 +60,7 @@ impl TransmutationProcessor {
     }
 
     /// Convert a document to markdown
-    /// 
+    ///
     /// NOTE: This is a placeholder implementation. The actual transmutation API
     /// from crates.io may have a different interface. This code compiles but
     /// returns placeholder data. To use with real documents, update this method
@@ -70,7 +71,7 @@ impl TransmutationProcessor {
         warn!("⚠️ Using placeholder transmutation implementation - update to match actual API");
 
         let file_path_str = file_path.to_string_lossy().to_string();
-        
+
         // Determine if this is a paginated format
         let is_paginated = if let Some(ext) = file_path.extension() {
             matches!(
@@ -95,7 +96,8 @@ impl TransmutationProcessor {
 
         // Perform the conversion
         // Note: OutputFormat API may vary - this is a placeholder
-        let result = self.converter
+        let result = self
+            .converter
             .convert(&file_path_str)
             .execute()
             .await
@@ -112,15 +114,18 @@ impl TransmutationProcessor {
         // Note: Transmutation's ConversionResult API may vary by version
         // This is a placeholder implementation that will work with the basic API
         let content = format!("{:?}", result); // Temporary: will be replaced with actual content extraction
-        
+
         // Build metadata
         let mut metadata = std::collections::HashMap::new();
-        
+
         if let Some(ext) = file_path.extension() {
-            metadata.insert("source_format".to_string(), ext.to_string_lossy().to_string());
+            metadata.insert(
+                "source_format".to_string(),
+                ext.to_string_lossy().to_string(),
+            );
         }
         metadata.insert("converted_via".to_string(), "transmutation".to_string());
-        
+
         // Page count may not be available in all versions
         let page_count = 0_usize; // Placeholder
         if page_count > 0 {
@@ -138,16 +143,22 @@ impl TransmutationProcessor {
             converted_doc = converted_doc.with_metadata(key, value);
         }
 
-        info!("✅ Conversion complete: {} characters", converted_doc.content.len());
+        info!(
+            "✅ Conversion complete: {} characters",
+            converted_doc.content.len()
+        );
         Ok(converted_doc)
     }
 
     /// Convert a document to markdown (feature disabled fallback)
     #[cfg(not(feature = "transmutation"))]
     pub async fn convert_to_markdown(&self, file_path: &Path) -> Result<ConvertedDocument> {
-        warn!("Transmutation feature is disabled, cannot convert: {:?}", file_path);
+        warn!(
+            "Transmutation feature is disabled, cannot convert: {:?}",
+            file_path
+        );
         Err(VectorizerError::TransmutationError(
-            "Transmutation feature is not enabled".to_string()
+            "Transmutation feature is not enabled".to_string(),
         ))
     }
 
@@ -159,16 +170,16 @@ impl TransmutationProcessor {
         if page_count > 0 {
             let mut pages: Vec<PageInfo> = Vec::new();
             let content = String::new(); // Placeholder: actual content extraction
-            
+
             // Try to detect page breaks in the markdown
             // Transmutation typically uses "--- Page N ---" markers
             let mut current_pos = 0;
             let mut page_num = 1;
-            
+
             for (idx, line) in content.lines().enumerate() {
                 let line_start = current_pos;
                 let line_end = current_pos + line.len() + 1; // +1 for newline
-                
+
                 // Check if this is a page marker
                 if line.starts_with("--- Page") || line.starts_with("# Page") {
                     if page_num > 1 {
@@ -177,29 +188,29 @@ impl TransmutationProcessor {
                             last_page.end_char = line_start;
                         }
                     }
-                    
+
                     // Start a new page
                     pages.push(PageInfo {
                         page_number: page_num,
                         start_char: line_start,
                         end_char: content.len(),
                     });
-                    
+
                     page_num += 1;
                 }
-                
+
                 current_pos = line_end;
             }
-            
+
             // If we found page markers, return them
             if !pages.is_empty() {
                 return Some(pages);
             }
-            
+
             // Fallback: estimate equal page distribution
             let chars_per_page = content.len() / page_count;
             let mut pages = Vec::new();
-            
+
             for i in 0..page_count {
                 pages.push(PageInfo {
                     page_number: i + 1,
@@ -211,7 +222,7 @@ impl TransmutationProcessor {
                     },
                 });
             }
-            
+
             Some(pages)
         } else {
             None
@@ -225,10 +236,9 @@ impl Default for TransmutationProcessor {
             warn!("Failed to initialize transmutation processor: {}", e);
             #[cfg(feature = "transmutation")]
             panic!("Failed to initialize transmutation processor: {}", e);
-            
+
             #[cfg(not(feature = "transmutation"))]
             Self {}
         })
     }
 }
-

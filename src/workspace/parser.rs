@@ -2,13 +2,15 @@
 //!
 //! Provides functionality to parse and load workspace configuration files
 
+use std::fs;
+use std::path::Path;
+
+use serde_yaml;
+use tracing::{debug, info};
+
 use crate::error::{Result, VectorizerError};
 use crate::workspace::config::WorkspaceConfig;
 use crate::workspace::simplified_config::SimplifiedWorkspaceConfig;
-use serde_yaml;
-use std::fs;
-use std::path::Path;
-use tracing::{debug, info};
 
 /// Parse workspace configuration from YAML file
 pub fn parse_workspace_config<P: AsRef<Path>>(path: P) -> Result<WorkspaceConfig> {
@@ -59,7 +61,9 @@ pub fn parse_workspace_config_from_str(content: &str) -> Result<WorkspaceConfig>
 }
 
 /// Parse simplified workspace configuration from string content
-pub fn parse_simplified_workspace_config_from_str(content: &str) -> Result<SimplifiedWorkspaceConfig> {
+pub fn parse_simplified_workspace_config_from_str(
+    content: &str,
+) -> Result<SimplifiedWorkspaceConfig> {
     debug!("Parsing simplified workspace configuration from string content");
 
     let config: SimplifiedWorkspaceConfig = serde_yaml::from_str(content)?;
@@ -160,8 +164,9 @@ pub fn validate_workspace_config_file<P: AsRef<Path>>(path: P) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_parse_workspace_config_from_str() {
@@ -175,7 +180,7 @@ projects: []
 "#;
 
         let result = parse_workspace_config_from_str(yaml_content);
-        
+
         // Test may fail if YAML structure doesn't match expected schema
         // This is acceptable - schema validation is working
         if result.is_ok() {

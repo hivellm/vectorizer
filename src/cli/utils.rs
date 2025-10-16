@@ -2,9 +2,11 @@
 //!
 //! Common utilities for CLI operations
 
-use crate::error::{Result, VectorizerError};
 use std::path::PathBuf;
+
 use tracing::{info, warn};
+
+use crate::error::{Result, VectorizerError};
 
 /// Utility functions for CLI operations
 pub struct CliUtils;
@@ -326,8 +328,9 @@ impl ProgressBar {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_format_bytes() {

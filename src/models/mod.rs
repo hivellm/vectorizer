@@ -1,7 +1,8 @@
 //! Data models for Vectorizer
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
 
 /// A vector with its associated data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,7 +41,7 @@ impl QuantizedVector {
             payload: vector.payload,
         }
     }
-    
+
     /// Convert back to full precision vector (for search/API responses)
     pub fn to_vector(&self) -> Vector {
         let data = dequantize_from_u8(&self.quantized_data, self.min_val, self.max_val);
@@ -50,7 +51,7 @@ impl QuantizedVector {
             payload: self.payload.clone(),
         }
     }
-    
+
     /// Get memory usage in bytes (1 byte per dimension + overhead)
     pub fn memory_size(&self) -> usize {
         self.quantized_data.len() + std::mem::size_of::<f32>() * 2 + self.id.len()
@@ -62,7 +63,7 @@ fn quantize_to_u8(data: &[f32]) -> (Vec<u8>, f32, f32) {
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     let range = max_val - min_val;
-    
+
     let quantized = if range > 0.0 {
         data.iter()
             .map(|&v| (((v - min_val) / range) * 255.0) as u8)
@@ -70,14 +71,15 @@ fn quantize_to_u8(data: &[f32]) -> (Vec<u8>, f32, f32) {
     } else {
         vec![0u8; data.len()]
     };
-    
+
     (quantized, min_val, max_val)
 }
 
 /// Dequantize u8 vector back to f32
 fn dequantize_from_u8(quantized: &[u8], min_val: f32, max_val: f32) -> Vec<f32> {
     let range = max_val - min_val;
-    quantized.iter()
+    quantized
+        .iter()
         .map(|&v| (v as f32 / 255.0) * range + min_val)
         .collect()
 }
@@ -104,18 +106,19 @@ impl Payload {
             serde_json::Value::String(s) => {
                 // Step 1: Normalize all line endings to LF
                 *s = s.replace("\r\n", "\n").replace('\r', "\n");
-                
+
                 // Step 2: Collapse multiple consecutive newlines (more than 2) into 2
                 while s.contains("\n\n\n") {
                     *s = s.replace("\n\n\n", "\n\n");
                 }
-                
+
                 // Step 3: Trim leading/trailing whitespace from each line
-                *s = s.lines()
+                *s = s
+                    .lines()
                     .map(|line| line.trim_end())
                     .collect::<Vec<_>>()
                     .join("\n");
-                
+
                 // Step 4: Remove leading/trailing empty lines
                 *s = s.trim().to_string();
             }
@@ -305,7 +308,8 @@ pub struct CollectionMetadata {
 impl CollectionMetadata {
     /// Check if text normalization is enabled
     pub fn is_normalization_enabled(&self) -> bool {
-        self.config.normalization
+        self.config
+            .normalization
             .as_ref()
             .map(|n| n.enabled)
             .unwrap_or(false)
@@ -313,7 +317,8 @@ impl CollectionMetadata {
 
     /// Get normalization level if enabled
     pub fn normalization_level(&self) -> Option<String> {
-        self.config.normalization
+        self.config
+            .normalization
             .as_ref()
             .filter(|n| n.enabled)
             .map(|n| format!("{:?}", n.policy.level))
@@ -425,4 +430,3 @@ impl Payload {
 
 /// Collection metadata module for tracking indexed files
 pub mod collection_metadata;
-

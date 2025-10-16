@@ -10,10 +10,9 @@ fn main() {
         res.set("LegalCopyright", "Copyright © 2025 HiveLLM Contributors");
         res.set("ProductVersion", env!("CARGO_PKG_VERSION"));
         res.set("FileVersion", env!("CARGO_PKG_VERSION"));
-        
+
         if let Err(e) = res.compile() {
             eprintln!("Warning: Failed to compile Windows resource: {}", e);
         }
     }
 }
-

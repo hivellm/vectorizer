@@ -1,8 +1,9 @@
 //! Core types for the discovery system
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Reference to a collection with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,19 +113,18 @@ pub struct DiscoveryMetrics {
 pub enum DiscoveryError {
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
-    
+
     #[error("Search error: {0}")]
     SearchError(String),
-    
+
     #[error("Collection not found: {0}")]
     CollectionNotFound(String),
-    
+
     #[error("Processing error: {0}")]
     ProcessingError(String),
-    
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 }
 
 pub type DiscoveryResult<T> = Result<T, DiscoveryError>;
-

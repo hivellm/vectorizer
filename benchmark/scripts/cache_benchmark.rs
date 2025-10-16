@@ -4,9 +4,10 @@
 
 use std::sync::Arc;
 use std::time::Instant;
+
 use tokio::sync::RwLock;
-use vectorizer::normalization::cache::{CacheConfig, CacheManager};
 use vectorizer::normalization::ContentHash;
+use vectorizer::normalization::cache::{CacheConfig, CacheManager};
 
 #[tokio::main]
 async fn main() {
@@ -248,10 +249,18 @@ async fn benchmark_compression_efficiency(cache: &Arc<RwLock<CacheManager>>) {
     println!("├─────────────────────────────────────────────────────────────────────┤");
 
     let test_data = vec![
-        ("random", (0..10000).map(|_| fastrand::u8(..)).collect::<Vec<_>>()),
+        (
+            "random",
+            (0..10000).map(|_| fastrand::u8(..)).collect::<Vec<_>>(),
+        ),
         ("repetitive", "abc".repeat(3333).into_bytes()),
         ("whitespace", "   \n\n\n   ".repeat(1000).into_bytes()),
-        ("code", "fn main() { println!(\"test\"); }\n".repeat(200).into_bytes()),
+        (
+            "code",
+            "fn main() { println!(\"test\"); }\n"
+                .repeat(200)
+                .into_bytes(),
+        ),
     ];
 
     for (i, (name, data)) in test_data.iter().enumerate() {
@@ -331,13 +340,31 @@ async fn benchmark_cache_hit_rates(cache: &Arc<RwLock<CacheManager>>) {
         cache.stats()
     };
 
-    println!("│ Hot Cache Hits:    {:>10} ({:>5.1}%)                  │", stats.hot_hits, (stats.hot_hits as f64 / access_count as f64 * 100.0));
-    println!("│ Warm Store Hits:   {:>10} ({:>5.1}%)                  │", stats.warm_hits, (stats.warm_hits as f64 / access_count as f64 * 100.0));
-    println!("│ Cold Store Hits:   {:>10} ({:>5.1}%)                  │", stats.cold_hits, (stats.cold_hits as f64 / access_count as f64 * 100.0));
-    println!("│ Cache Misses:      {:>10} ({:>5.1}%)                  │", stats.total_misses, (stats.total_misses as f64 / access_count as f64 * 100.0));
+    println!(
+        "│ Hot Cache Hits:    {:>10} ({:>5.1}%)                  │",
+        stats.hot_hits,
+        (stats.hot_hits as f64 / access_count as f64 * 100.0)
+    );
+    println!(
+        "│ Warm Store Hits:   {:>10} ({:>5.1}%)                  │",
+        stats.warm_hits,
+        (stats.warm_hits as f64 / access_count as f64 * 100.0)
+    );
+    println!(
+        "│ Cold Store Hits:   {:>10} ({:>5.1}%)                  │",
+        stats.cold_hits,
+        (stats.cold_hits as f64 / access_count as f64 * 100.0)
+    );
+    println!(
+        "│ Cache Misses:      {:>10} ({:>5.1}%)                  │",
+        stats.total_misses,
+        (stats.total_misses as f64 / access_count as f64 * 100.0)
+    );
     println!("│                                                             │");
-    println!("│ Overall Hit Rate:  {:>5.1}%                                 │", stats.hit_rate * 100.0);
+    println!(
+        "│ Overall Hit Rate:  {:>5.1}%                                 │",
+        stats.hit_rate * 100.0
+    );
 
     println!("└─────────────────────────────────────────────────────────────┘");
 }
-

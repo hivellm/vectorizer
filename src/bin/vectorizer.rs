@@ -3,9 +3,11 @@
 //! This is the unified server that provides MCP + REST API access
 //! for all vector operations.
 
-use vectorizer::server::VectorizerServer;
+#![allow(clippy::uninlined_format_args)]
+
 use clap::Parser;
 use tracing::error;
+use vectorizer::server::VectorizerServer;
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
@@ -23,7 +25,7 @@ struct Cli {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    vectorizer::logging::init_logging("vectorizer");
+    let _ = vectorizer::logging::init_logging("vectorizer");
 
     let cli = Cli::parse();
 
@@ -33,9 +35,9 @@ async fn main() -> anyhow::Result<()> {
     // Check for legacy data and offer migration BEFORE creating the server
     let data_dir = std::path::Path::new("./data");
     if data_dir.exists() {
-        use vectorizer::storage::{StorageMigrator, detect_format, StorageFormat};
-        
-        let format = detect_format(&data_dir);
+        use vectorizer::storage::{StorageFormat, StorageMigrator, detect_format};
+
+        let format = detect_format(data_dir);
         if format == StorageFormat::Legacy {
             println!("\n⚠️  Legacy data format detected!");
             println!("📦 The new .vecdb format offers:");
@@ -43,17 +45,17 @@ async fn main() -> anyhow::Result<()> {
             println!("   • Atomic operations and crash recovery");
             println!("   • Built-in snapshots and backups");
             println!("\n❓ Do you want to migrate to the new format now? (Y/n): ");
-            
-            use std::io::{stdin, stdout, Write};
+
+            use std::io::{Write, stdin, stdout};
             stdout().flush().unwrap();
-            
+
             let mut response = String::new();
             stdin().read_line(&mut response).unwrap();
             let response = response.trim().to_lowercase();
-            
+
             if response.is_empty() || response == "y" || response == "yes" {
                 println!("\n🔄 Starting migration...");
-                
+
                 let migrator = StorageMigrator::new(data_dir, 6);
                 match migrator.migrate() {
                     Ok(result) => {
@@ -62,14 +64,18 @@ async fn main() -> anyhow::Result<()> {
                         println!("   Legacy files removed from data directory");
                         if let Some(backup) = result.backup_path {
                             println!("   Backup saved to: {}", backup.display());
-                            println!("   You can safely delete the backup after verifying the migration");
+                            println!(
+                                "   You can safely delete the backup after verifying the migration"
+                            );
                         }
                         println!();
                     }
                     Err(e) => {
                         eprintln!("❌ Migration failed: {}", e);
                         eprintln!("   The vectorizer will continue using the legacy format.");
-                        eprintln!("   You can try migrating manually later with: vectorizer storage migrate");
+                        eprintln!(
+                            "   You can try migrating manually later with: vectorizer storage migrate"
+                        );
                     }
                 }
             } else {
@@ -81,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Create and start the server
     let server = VectorizerServer::new().await?;
-        
+
     // Start the server (this will block)
     if let Err(e) = server.start(&cli.host, cli.port).await {
         error!("❌ Server failed: {}", e);

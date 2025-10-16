@@ -1,8 +1,9 @@
 //! MCP Tools definitions
 
+use std::borrow::Cow;
+
 use rmcp::model::{Tool, ToolAnnotations};
 use serde_json::json;
-use std::borrow::Cow;
 
 pub fn get_mcp_tools() -> Vec<Tool> {
     vec![

@@ -3,14 +3,17 @@
 //! This module provides integration utilities to connect text normalization
 //! with the vector ingestion and search pipelines.
 
-use super::{
-    cache::CacheManager, config::NormalizationConfig, ContentHashCalculator, ContentType,
-    ContentTypeDetector, NormalizedContent, TextNormalizer,
-};
-use anyhow::Result;
-use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
+
+use anyhow::Result;
+use parking_lot::RwLock;
+
+use super::cache::CacheManager;
+use super::config::NormalizationConfig;
+use super::{
+    ContentHashCalculator, ContentType, ContentTypeDetector, NormalizedContent, TextNormalizer,
+};
 
 /// Normalization pipeline that integrates detector, normalizer, and cache
 pub struct NormalizationPipeline {
@@ -183,8 +186,9 @@ impl ProcessedDocument {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_pipeline_basic() {
@@ -277,4 +281,3 @@ mod tests {
         assert_eq!(doc.display_text(), "normalized");
     }
 }
-

@@ -2,10 +2,12 @@
 //!
 //! Provides secure token generation and validation using HMAC-SHA256
 
-use crate::error::{Result, VectorizerError};
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 // serde traits are used in the UserClaims struct
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+
+use crate::error::{Result, VectorizerError};
 
 /// JWT manager for token operations
 #[derive(Debug)]

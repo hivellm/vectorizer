@@ -5,11 +5,11 @@
 //! - AMD GPUs
 //! - Intel GPUs
 
-use crate::error::{Result, VectorizerError};
-use tracing::{info, debug};
-
+use tracing::{debug, info};
 #[cfg(all(target_os = "windows", feature = "wgpu-gpu"))]
-use wgpu::{Instance, Adapter, Device, Queue, Backends};
+use wgpu::{Adapter, Backends, Device, Instance, Queue};
+
+use crate::error::{Result, VectorizerError};
 
 /// DirectX 12 backend configuration
 #[derive(Debug, Clone)]
@@ -52,16 +52,18 @@ impl DirectX12Backend {
     /// Create a new DirectX 12 backend instance
     pub async fn new(config: DirectX12Config) -> Result<Self> {
         info!("🪟 Initializing DirectX 12 backend...");
-        
+
         if !config.enabled {
-            return Err(VectorizerError::Other("DirectX 12 backend is disabled".to_string()));
+            return Err(VectorizerError::Other(
+                "DirectX 12 backend is disabled".to_string(),
+            ));
         }
-        
+
         let instance = Instance::new(&wgpu::InstanceDescriptor {
             backends: Backends::DX12,
             ..Default::default()
         });
-        
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -70,14 +72,14 @@ impl DirectX12Backend {
             })
             .await
             .map_err(|e| VectorizerError::Other(format!("No DirectX 12 adapter found: {:?}", e)))?;
-        
+
         let adapter_info = adapter.get_info();
         let gpu_vendor = GpuVendor::from_vendor_id(adapter_info.vendor);
-        
+
         info!("✅ DirectX 12 GPU detected: {}", adapter_info.name);
         debug!("   Vendor: {:?}", gpu_vendor);
         debug!("   Device Type: {:?}", adapter_info.device_type);
-        
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("DirectX 12 Device"),
@@ -88,10 +90,12 @@ impl DirectX12Backend {
                 trace: wgpu::Trace::Off,
             })
             .await
-            .map_err(|e| VectorizerError::Other(format!("Failed to create DirectX 12 device: {}", e)))?;
-        
+            .map_err(|e| {
+                VectorizerError::Other(format!("Failed to create DirectX 12 device: {}", e))
+            })?;
+
         info!("✅ DirectX 12 backend initialized successfully");
-        
+
         Ok(Self {
             instance,
             adapter,
@@ -100,17 +104,17 @@ impl DirectX12Backend {
             gpu_vendor,
         })
     }
-    
+
     /// Get GPU vendor
     pub fn gpu_vendor(&self) -> GpuVendor {
         self.gpu_vendor
     }
-    
+
     /// Get device reference
     pub fn device(&self) -> &Device {
         &self.device
     }
-    
+
     /// Get queue reference
     pub fn queue(&self) -> &Queue {
         &self.queue
@@ -126,7 +130,7 @@ impl GpuVendor {
             _ => Self::Other,
         }
     }
-    
+
     pub fn name(&self) -> &'static str {
         match self {
             Self::Nvidia => "NVIDIA",
@@ -140,14 +144,14 @@ impl GpuVendor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_dx12_config_default() {
         let config = DirectX12Config::default();
         assert!(config.enabled);
         assert!(config.hardware_acceleration);
     }
-    
+
     #[test]
     fn test_gpu_vendor_from_id() {
         assert_eq!(GpuVendor::from_vendor_id(0x10DE), GpuVendor::Nvidia);
@@ -156,4 +160,3 @@ mod tests {
         assert_eq!(GpuVendor::from_vendor_id(0x9999), GpuVendor::Other);
     }
 }
-

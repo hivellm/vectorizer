@@ -3,20 +3,17 @@
 //! Orchestrates batch operations, handling parallel processing, error management,
 //! and atomic transactions.
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
+
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use super::{BatchConfig, BatchError, BatchErrorType, BatchStatus, SearchQuery, VectorUpdate};
 use crate::db::VectorStore;
 use crate::embedding::EmbeddingManager;
-use crate::models::{Vector, SearchResult, Payload};
 use crate::error::{Result, VectorizerError};
-
-use super::{
-    BatchConfig, BatchError, BatchStatus, BatchErrorType,
-    VectorUpdate, SearchQuery,
-};
+use crate::models::{Payload, SearchResult, Vector};
 
 /// Type alias for batch operation results
 pub type BatchResult<T> = std::result::Result<T, BatchError>;
@@ -85,7 +82,10 @@ impl BatchProcessor {
         }
 
         // Validate memory usage
-        if self.config.would_exceed_memory_limit(vectors.len(), vector_dimension) {
+        if self
+            .config
+            .would_exceed_memory_limit(vectors.len(), vector_dimension)
+        {
             let error = BatchError::new(
                 operation_id.clone(),
                 BatchErrorType::MemoryLimitExceeded,
@@ -101,9 +101,11 @@ impl BatchProcessor {
         }
 
         let result = if atomic.unwrap_or(self.config.atomic_by_default) {
-            self.batch_insert_atomic(collection, vectors, operation_id.clone()).await
+            self.batch_insert_atomic(collection, vectors, operation_id.clone())
+                .await
         } else {
-            self.batch_insert_non_atomic(collection, vectors, operation_id.clone()).await
+            self.batch_insert_non_atomic(collection, vectors, operation_id.clone())
+                .await
         };
 
         self.unregister_operation(&operation_id).await;
@@ -137,9 +139,11 @@ impl BatchProcessor {
         }
 
         let result = if atomic.unwrap_or(self.config.atomic_by_default) {
-            self.batch_update_atomic(collection, updates, operation_id.clone()).await
+            self.batch_update_atomic(collection, updates, operation_id.clone())
+                .await
         } else {
-            self.batch_update_non_atomic(collection, updates, operation_id.clone()).await
+            self.batch_update_non_atomic(collection, updates, operation_id.clone())
+                .await
         };
 
         self.unregister_operation(&operation_id).await;
@@ -173,9 +177,11 @@ impl BatchProcessor {
         }
 
         let result = if atomic.unwrap_or(self.config.atomic_by_default) {
-            self.batch_delete_atomic(collection, vector_ids, operation_id.clone()).await
+            self.batch_delete_atomic(collection, vector_ids, operation_id.clone())
+                .await
         } else {
-            self.batch_delete_non_atomic(collection, vector_ids, operation_id.clone()).await
+            self.batch_delete_non_atomic(collection, vector_ids, operation_id.clone())
+                .await
         };
 
         self.unregister_operation(&operation_id).await;
@@ -209,9 +215,11 @@ impl BatchProcessor {
         }
 
         let result = if atomic.unwrap_or(self.config.atomic_by_default) {
-            self.batch_search_atomic(collection, queries, operation_id.clone()).await
+            self.batch_search_atomic(collection, queries, operation_id.clone())
+                .await
         } else {
-            self.batch_search_non_atomic(collection, queries, operation_id.clone()).await
+            self.batch_search_non_atomic(collection, queries, operation_id.clone())
+                .await
         };
 
         self.unregister_operation(&operation_id).await;
@@ -227,7 +235,7 @@ impl BatchProcessor {
         operation_id: String,
     ) -> BatchResult<Vec<String>> {
         let vector_store = self.vector_store.clone();
-        
+
         // For atomic operations, we try to insert all vectors at once
         match vector_store.insert(&collection, vectors.clone()) {
             Ok(_) => Ok(vectors.into_iter().map(|v| v.id).collect()),
@@ -308,7 +316,9 @@ impl BatchProcessor {
                 &embedding_manager,
                 &collection,
                 query,
-            ).await {
+            )
+            .await
+            {
                 Ok(query_results) => results.push(query_results),
                 Err(e) => {
                     return Err(BatchError::new(
@@ -472,7 +482,9 @@ impl BatchProcessor {
                 &embedding_manager,
                 &collection,
                 query,
-            ).await {
+            )
+            .await
+            {
                 Ok(query_results) => results.push(query_results),
                 Err(e) => {
                     errors.push(BatchError::new(
@@ -511,13 +523,17 @@ impl BatchProcessor {
         update: &VectorUpdate,
     ) -> Result<()> {
         let existing_vector = vector_store.get_vector(collection, &update.id)?;
-        
+
         let updated_vector = Vector {
             id: update.id.clone(),
             data: update.data.clone().unwrap_or(existing_vector.data),
-            payload: update.metadata.clone().map(|m| Payload {
-                data: serde_json::to_value(m).unwrap_or_default()
-            }).or(existing_vector.payload),
+            payload: update
+                .metadata
+                .clone()
+                .map(|m| Payload {
+                    data: serde_json::to_value(m).unwrap_or_default(),
+                })
+                .or(existing_vector.payload),
         };
 
         vector_store.update(collection, updated_vector)
@@ -536,14 +552,12 @@ impl BatchProcessor {
             let manager = embedding_manager.lock().unwrap();
             manager.embed(&text)?
         } else {
-            return Err(VectorizerError::Other("No query vector or text provided".to_string()));
+            return Err(VectorizerError::Other(
+                "No query vector or text provided".to_string(),
+            ));
         };
 
-        vector_store.search(
-            collection,
-            &query_vector,
-            query.limit as usize,
-        )
+        vector_store.search(collection, &query_vector, query.limit as usize)
     }
 
     /// Execute a batch operation with unified interface
@@ -560,7 +574,10 @@ impl BatchProcessor {
             BatchOperation::Insert { vectors, atomic } => {
                 // Get vector dimension from first vector or assume default
                 let dimension = vectors.first().map(|v| v.data.len()).unwrap_or(384);
-                match self.batch_insert(collection, vectors, Some(atomic), dimension).await {
+                match self
+                    .batch_insert(collection, vectors, Some(atomic), dimension)
+                    .await
+                {
                     Ok(ids) => {
                         let mut result = super::BatchResult::new();
                         for id in ids {
@@ -586,7 +603,10 @@ impl BatchProcessor {
                 }
             }
             BatchOperation::Delete { vector_ids, atomic } => {
-                match self.batch_delete(collection, vector_ids, Some(atomic)).await {
+                match self
+                    .batch_delete(collection, vector_ids, Some(atomic))
+                    .await
+                {
                     Ok(ids) => {
                         let mut result = super::BatchResult::new();
                         for id in ids {

@@ -1,0 +1,79 @@
+name: Build and deploy docker image
+
+on:
+  push:
+    # Pattern matched against refs/tags
+    tags:
+      - '*'           # Push events to every tag not containing /
+
+jobs:
+
+  build:
+    # Run build on our self-hosted runner or ubuntu-latest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # needed for cosign keyless signing with OIDC
+    steps:
+    - uses: actions/checkout@v5
+    - uses: Swatinem/rust-cache@v2
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3.10.0
+    - name: Get current tag
+      id: vars
+      run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+    - name: Get minor and major tags
+      id: version
+      run: |
+        MAJOR_VERSION=$(echo "${{ steps.vars.outputs.tag }}" | cut -d '.' -f 1)
+        MINOR_VERSION=$(echo "${{ steps.vars.outputs.tag }}" | cut -d '.' -f 1-2)
+        echo "major_version=${MAJOR_VERSION}" >> $GITHUB_OUTPUT
+        echo "minor_version=${MINOR_VERSION}" >> $GITHUB_OUTPUT
+    - name: Build the Docker image
+      env:
+        RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        MAJOR_VERSION: ${{ steps.version.outputs.major_version }}
+        MINOR_VERSION: ${{ steps.version.outputs.minor_version }}
+      run: |
+        # Create build container
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+        docker buildx create --use
+
+        # Authenticate on registries
+        echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login https://docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+
+        # Build regular image for Docker Hub
+        DOCKERHUB_TAG="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${{ github.ref_name }}"
+        DOCKERHUB_TAG_LATEST="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:latest"
+        DOCKERHUB_TAG_MINOR="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${MINOR_VERSION}"
+        DOCKERHUB_TAG_MAJOR="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${MAJOR_VERSION}"
+        TAGS="-t ${DOCKERHUB_TAG} -t ${DOCKERHUB_TAG_LATEST} -t ${DOCKERHUB_TAG_MINOR} -t ${DOCKERHUB_TAG_MAJOR}"
+        GITHUB_TAG="docker.pkg.github.com/${{ github.repository }}/vectorizer:${{ github.ref_name }}"
+
+        # Pull, retag and push to GitHub packages
+        docker buildx build --sbom=true --platform='linux/amd64,linux/arm64' --build-arg GIT_COMMIT_ID=${{ github.sha }} $TAGS --push --label "org.opencontainers.image.version"=$RELEASE_VERSION .
+        docker pull $DOCKERHUB_TAG
+        docker tag $DOCKERHUB_TAG $GITHUB_TAG
+        docker push $GITHUB_TAG
+        
+        DIGEST=$(docker buildx imagetools inspect ${DOCKERHUB_TAG} --format '{{ json .Manifest.Digest }}' | cut -d '"' -f 2)
+        cosign sign --yes "${DOCKERHUB_TAG}@${DIGEST}"
+
+        # Build unprivileged image for Docker Hub
+        DOCKERHUB_TAG_UNPRIVILEGED="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${{ github.ref_name }}-unprivileged"
+        DOCKERHUB_TAG_LATEST_UNPRIVILEGED="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:latest-unprivileged"
+        DOCKERHUB_TAG_MINOR_UNPRIVILEGED="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${MINOR_VERSION}-unprivileged"
+        DOCKERHUB_TAG_MAJOR_UNPRIVILEGED="${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${MAJOR_VERSION}-unprivileged"
+        TAGS_UNPRIVILEGED="-t ${DOCKERHUB_TAG_UNPRIVILEGED} -t ${DOCKERHUB_TAG_LATEST_UNPRIVILEGED} -t ${DOCKERHUB_TAG_MINOR_UNPRIVILEGED} -t ${DOCKERHUB_TAG_MAJOR_UNPRIVILEGED}"
+        GITHUB_TAG_UNPRIVILEGED="docker.pkg.github.com/${{ github.repository }}/vectorizer:${{ github.ref_name }}-unprivileged"
+
+        # Pull, retag and push to GitHub packages
+        docker buildx build --sbom=true --build-arg='USER_ID=1000' --platform='linux/amd64,linux/arm64' $TAGS_UNPRIVILEGED --push --label "org.opencontainers.image.version"=$RELEASE_VERSION .
+        docker pull $DOCKERHUB_TAG_UNPRIVILEGED
+        docker tag $DOCKERHUB_TAG_UNPRIVILEGED $GITHUB_TAG_UNPRIVILEGED
+        docker push $GITHUB_TAG_UNPRIVILEGED
+        
+        DIGEST=$(docker buildx imagetools inspect ${DOCKERHUB_TAG_UNPRIVILEGED} --format '{{ json .Manifest.Digest }}' | cut -d '"' -f 2)
+        cosign sign --yes "${DOCKERHUB_TAG_UNPRIVILEGED}@${DIGEST}"

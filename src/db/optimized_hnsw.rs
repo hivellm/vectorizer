@@ -6,14 +6,16 @@
 //! - Memory-efficient storage
 //! - Optimized distance computations
 
-use crate::error::{Result, VectorizerError};
-use crate::models::DistanceMetric;
-use hnsw_rs::prelude::*;
-use hnsw_rs::libext::file_dump_f32;
-use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use hnsw_rs::libext::file_dump_f32;
+use hnsw_rs::prelude::*;
+use parking_lot::RwLock;
 use tracing::{debug, info};
+
+use crate::error::{Result, VectorizerError};
+use crate::models::DistanceMetric;
 
 /// Optimized HNSW configuration
 #[derive(Debug, Clone, Copy)]
@@ -305,64 +307,89 @@ impl OptimizedHnswIndex {
 
     /// Dump the HNSW index to files using direct FFI call
     pub fn file_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<String> {
-        use tracing::{debug, error, info, warn};
         use std::ffi::CString;
-        
+
+        use tracing::{debug, error, info, warn};
+
         let vector_count = self.len();
         let dimension = self.dimension;
-                
+
         if vector_count == 0 {
-            return Err(VectorizerError::IndexError("Cannot dump empty HNSW index".to_string()));
+            return Err(VectorizerError::IndexError(
+                "Cannot dump empty HNSW index".to_string(),
+            ));
         }
-        
+
         // Check if directory exists
         if !path.as_ref().exists() {
-            return Err(VectorizerError::IndexError(format!("Directory does not exist: {}", path.as_ref().display())));
+            return Err(VectorizerError::IndexError(format!(
+                "Directory does not exist: {}",
+                path.as_ref().display()
+            )));
         }
-                
+
         // Try to get more info about the HNSW state before dumping
         let hnsw = self.hnsw.read();
-        
+
         // Check if the HNSW index is properly initialized
         if vector_count == 0 {
-            return Err(VectorizerError::IndexError("Cannot dump empty HNSW index".to_string()));
+            return Err(VectorizerError::IndexError(
+                "Cannot dump empty HNSW index".to_string(),
+            ));
         }
-        
+
         // Try using the library's file_dump method first
         match (*hnsw).file_dump(path.as_ref(), basename) {
             Ok(result) => {
-                info!("✅ HNSW DUMP SUCCESS: Dump completed successfully, result: {}", result);
-                
+                info!(
+                    "✅ HNSW DUMP SUCCESS: Dump completed successfully, result: {}",
+                    result
+                );
+
                 // Verify files were created
                 let data_file = path.as_ref().join(format!("{}.hnsw.data", basename));
                 let graph_file = path.as_ref().join(format!("{}.hnsw.graph", basename));
-                
+
                 if data_file.exists() {
                     let data_size = std::fs::metadata(&data_file).map(|m| m.len()).unwrap_or(0);
-                    info!("📁 HNSW DUMP VERIFY: Data file created: {} ({} bytes)", data_file.display(), data_size);
+                    info!(
+                        "📁 HNSW DUMP VERIFY: Data file created: {} ({} bytes)",
+                        data_file.display(),
+                        data_size
+                    );
                 } else {
-                    warn!("⚠️ HNSW DUMP VERIFY: Data file NOT created: {}", data_file.display());
+                    warn!(
+                        "⚠️ HNSW DUMP VERIFY: Data file NOT created: {}",
+                        data_file.display()
+                    );
                 }
-                
+
                 if graph_file.exists() {
                     let graph_size = std::fs::metadata(&graph_file).map(|m| m.len()).unwrap_or(0);
-                    info!("📁 HNSW DUMP VERIFY: Graph file created: {} ({} bytes)", graph_file.display(), graph_size);
+                    info!(
+                        "📁 HNSW DUMP VERIFY: Graph file created: {} ({} bytes)",
+                        graph_file.display(),
+                        graph_size
+                    );
                 } else {
-                    warn!("⚠️ HNSW DUMP VERIFY: Graph file NOT created: {}", graph_file.display());
+                    warn!(
+                        "⚠️ HNSW DUMP VERIFY: Graph file NOT created: {}",
+                        graph_file.display()
+                    );
                 }
-                
+
                 Ok(result)
-            },
+            }
             Err(e) => {
                 error!("❌ HNSW DUMP ERROR: Library file_dump failed: {}", e);
-                               
+
                 let data_file = path.as_ref().join(format!("{}.hnsw.data", basename));
                 let graph_file = path.as_ref().join(format!("{}.hnsw.graph", basename));
-                
+
                 // Create empty files as placeholder
                 std::fs::write(&data_file, b"HNSW_DATA_PLACEHOLDER")?;
                 std::fs::write(&graph_file, b"HNSW_GRAPH_PLACEHOLDER")?;
-                
+
                 warn!("⚠️ HNSW DUMP FALLBACK: Created placeholder files due to library error");
                 Ok(basename.to_string())
             }
@@ -370,13 +397,19 @@ impl OptimizedHnswIndex {
     }
 
     /// Load HNSW index from dump files (replaces current index)
-    pub fn load_from_dump<P: AsRef<std::path::Path>>(&mut self, path: P, basename: &str) -> Result<()> {
+    pub fn load_from_dump<P: AsRef<std::path::Path>>(
+        &mut self,
+        path: P,
+        basename: &str,
+    ) -> Result<()> {
         // Note: This requires &mut self because we need to replace the entire HNSW index
         // We may need to redesign this to work with Arc<RwLock<...>> in the collection
 
         // For now, return not implemented - this would require significant changes to the architecture
         // to allow replacing the HNSW index atomically
-        Err(VectorizerError::IndexError("Load from dump requires architecture changes".to_string()))
+        Err(VectorizerError::IndexError(
+            "Load from dump requires architecture changes".to_string(),
+        ))
     }
 }
 

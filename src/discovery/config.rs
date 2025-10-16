@@ -1,6 +1,7 @@
 //! Configuration for discovery system
 
 use serde::{Deserialize, Serialize};
+
 use super::types::SectionType;
 
 /// Main configuration for discovery system
@@ -9,33 +10,33 @@ pub struct DiscoveryConfig {
     /// Step 1: Filter
     pub include_collections: Vec<String>,
     pub exclude_collections: Vec<String>,
-    
+
     /// Step 2: Score
     pub scoring: ScoringConfig,
-    
+
     /// Step 3: Expand
     pub expansion: ExpansionConfig,
-    
+
     /// Step 4: Broad Discovery
     pub broad: BroadDiscoveryConfig,
     pub broad_k: usize,
-    
+
     /// Step 5: Semantic Focus
     pub focus: SemanticFocusConfig,
     pub focus_k: usize,
     pub focus_top_n_collections: usize,
-    
+
     /// Step 6: README Promotion
     pub readme: ReadmePromotionConfig,
-    
+
     /// Step 7: Evidence Compression
     pub compression: CompressionConfig,
     pub max_bullets: usize,
     pub max_per_doc: usize,
-    
+
     /// Step 8: Answer Plan
     pub plan: AnswerPlanConfig,
-    
+
     /// Step 9: Prompt Rendering
     pub render: PromptRenderConfig,
 }
@@ -244,4 +245,3 @@ impl Default for PromptRenderConfig {
         }
     }
 }
-

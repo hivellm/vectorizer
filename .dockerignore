@@ -1,11 +1,23 @@
-# Docker ignore file for Vectorizer
+# Docker build context optimization
 
-# Target directory
-target/
-
-# Git
+# Git files
 .git/
 .gitignore
+.gitattributes
+
+# Build artifacts
+target/
+*.log
+*.tmp
+
+# Test files
+tests/
+benchmark/
+
+# Documentation
+docs/
+*.md
+!README.md
 
 # IDE files
 .vscode/
@@ -13,43 +25,26 @@ target/
 *.swp
 *.swo
 
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Development files
+.env
+.env.*
+*.local
+
 # OS files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-logs/
-
-# Data directories
-data/
-.vectorizer/
-
-# Cache directories
-.cargo/
-node_modules/
-
-# Documentation build
-docs/_build/
-
-# Test artifacts
-test-results/
-coverage/
+# Package files
+*.tar.gz
+*.zip
+*.deb
+*.msi
+*.AppImage
 
 # Temporary files
-*.tmp
-*.temp
-
-# Models (too large for Docker)
-models/
-
-# Benchmark results
-benchmark/results/
-benchmark/reports/
-
-# Client SDKs (separate builds)
-client-sdks/
-
-# Dashboard build artifacts
-dashboard/dist/
-dashboard/build/
+tmp/
+temp/

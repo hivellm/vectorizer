@@ -6,11 +6,11 @@
 pub mod config;
 pub mod manager;
 pub mod parser;
-pub mod validator;
 pub mod simplified_config;
+pub mod validator;
 
 pub use config::*;
 pub use manager::*;
 pub use parser::*;
-pub use validator::*;
 pub use simplified_config::*;
+pub use validator::*;

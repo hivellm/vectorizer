@@ -1,57 +1,58 @@
 //! Configuration for File Watcher System
 
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
 
 /// Configuration for the File Watcher System
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileWatcherConfig {
     /// Paths to watch for changes (optional - auto-discovered if not provided)
     pub watch_paths: Option<Vec<PathBuf>>,
-    
+
     /// File patterns to include (glob patterns)
     pub include_patterns: Vec<String>,
-    
+
     /// File patterns to exclude (glob patterns)
     pub exclude_patterns: Vec<String>,
-    
+
     /// Debounce delay in milliseconds
     pub debounce_delay_ms: u64,
-    
+
     /// Maximum file size to process (in bytes)
     pub max_file_size: u64,
-    
+
     /// Enable content hash validation
     pub enable_hash_validation: bool,
-    
+
     /// Collection name for indexed files
     pub collection_name: String,
-    
+
     /// Enable recursive directory watching
     pub recursive: bool,
-    
+
     /// Maximum number of concurrent file processing tasks
     pub max_concurrent_tasks: usize,
-    
+
     /// Enable real-time indexing
     pub enable_realtime_indexing: bool,
-    
+
     /// Batch size for bulk operations
     pub batch_size: usize,
-    
+
     /// Enable performance monitoring
     pub enable_monitoring: bool,
-    
+
     /// Log level for file watcher operations
     pub log_level: String,
-    
+
     /// Enable auto-discovery of files
     pub auto_discovery: bool,
-    
+
     /// Enable auto-update of collections
     pub enable_auto_update: bool,
-    
+
     /// Enable hot reload
     pub hot_reload: bool,
 }
@@ -69,7 +70,7 @@ impl Default for FileWatcherConfig {
             "*.yaml".to_string(),
             "*.yml".to_string(),
         ];
-        
+
         // Add transmutation-supported formats when feature is enabled
         #[cfg(feature = "transmutation")]
         {
@@ -86,13 +87,13 @@ impl Default for FileWatcherConfig {
                 "*.png".to_string(),
             ]);
         }
-        
+
         Self {
             watch_paths: None, // Auto-discovered from indexed files
             include_patterns,
             exclude_patterns: vec![
-                "**/data/**".to_string(),              // CRITICAL: Never watch vectorizer data directory
-                "**/*.bin".to_string(),                // CRITICAL: Never watch binary files (causes memory issues)
+                "**/data/**".to_string(), // CRITICAL: Never watch vectorizer data directory
+                "**/*.bin".to_string(), // CRITICAL: Never watch binary files (causes memory issues)
                 "**/target/**".to_string(),
                 "**/node_modules/**".to_string(),
                 "**/.git/**".to_string(),
@@ -108,9 +109,9 @@ impl Default for FileWatcherConfig {
                 "**/Cargo.lock".to_string(),
                 "**/.DS_Store".to_string(),
                 "**/Thumbs.db".to_string(),
-                "**/*_metadata.json".to_string(),      // Vectorizer metadata files
-                "**/*_tokenizer.json".to_string(),     // Tokenizer files
-                "**/.fingerprint/**".to_string(),      // Build fingerprints
+                "**/*_metadata.json".to_string(), // Vectorizer metadata files
+                "**/*_tokenizer.json".to_string(), // Tokenizer files
+                "**/.fingerprint/**".to_string(), // Build fingerprints
             ],
             debounce_delay_ms: 1000,
             max_file_size: 10 * 1024 * 1024, // 10MB
@@ -136,14 +137,19 @@ impl FileWatcherConfig {
     }
 
     /// Load configuration from YAML file
-    pub fn from_yaml_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_yaml_file<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let config: Self = serde_yaml::from_str(&content)?;
         Ok(config)
     }
 
     /// Save configuration to YAML file
-    pub fn to_yaml_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn to_yaml_file<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let content = serde_yaml::to_string(self)?;
         std::fs::write(path, content)?;
         Ok(())
@@ -224,7 +230,10 @@ impl FileWatcherConfig {
             }
         }
 
-        tracing::info!("❌ File doesn't match any include patterns: {:?}", file_path);
+        tracing::info!(
+            "❌ File doesn't match any include patterns: {:?}",
+            file_path
+        );
         false
     }
 
@@ -304,12 +313,12 @@ mod tests {
     #[test]
     fn test_file_pattern_matching() {
         let config = FileWatcherConfig::default();
-        
+
         // Test include patterns
         assert!(config.should_process_file(std::path::Path::new("test.md")));
         assert!(config.should_process_file(std::path::Path::new("test.rs")));
         assert!(config.should_process_file(std::path::Path::new("test.py")));
-        
+
         // Test exclude patterns
         assert!(!config.should_process_file(std::path::Path::new("target/debug/test")));
         assert!(!config.should_process_file(std::path::Path::new("node_modules/test")));
@@ -332,23 +341,33 @@ mod tests {
         let config = FileWatcherConfig::default();
 
         // Verify transmutation formats are in include patterns when feature is enabled
-        assert!(config.include_patterns.iter().any(|p| p.contains("pdf")),
-                "PDF should be in include patterns");
-        assert!(config.include_patterns.iter().any(|p| p.contains("docx")),
-                "DOCX should be in include patterns");
-        assert!(config.include_patterns.iter().any(|p| p.contains("xlsx")),
-                "XLSX should be in include patterns");
-        assert!(config.include_patterns.iter().any(|p| p.contains("pptx")),
-                "PPTX should be in include patterns");
-        assert!(config.include_patterns.iter().any(|p| p.contains("html")),
-                "HTML should be in include patterns");
+        assert!(
+            config.include_patterns.iter().any(|p| p.contains("pdf")),
+            "PDF should be in include patterns"
+        );
+        assert!(
+            config.include_patterns.iter().any(|p| p.contains("docx")),
+            "DOCX should be in include patterns"
+        );
+        assert!(
+            config.include_patterns.iter().any(|p| p.contains("xlsx")),
+            "XLSX should be in include patterns"
+        );
+        assert!(
+            config.include_patterns.iter().any(|p| p.contains("pptx")),
+            "PPTX should be in include patterns"
+        );
+        assert!(
+            config.include_patterns.iter().any(|p| p.contains("html")),
+            "HTML should be in include patterns"
+        );
     }
 
     #[cfg(feature = "transmutation")]
     #[test]
     fn test_file_watcher_should_process_pdf() {
         let config = FileWatcherConfig::default();
-        
+
         assert!(config.should_process_file(&PathBuf::from("document.pdf")));
         assert!(config.should_process_file(&PathBuf::from("report.PDF")));
         assert!(config.should_process_file(&PathBuf::from("/path/to/file.pdf")));
@@ -358,7 +377,7 @@ mod tests {
     #[test]
     fn test_file_watcher_should_process_office_formats() {
         let config = FileWatcherConfig::default();
-        
+
         assert!(config.should_process_file(&PathBuf::from("document.docx")));
         assert!(config.should_process_file(&PathBuf::from("spreadsheet.xlsx")));
         assert!(config.should_process_file(&PathBuf::from("presentation.pptx")));
@@ -368,7 +387,7 @@ mod tests {
     #[test]
     fn test_file_watcher_should_process_web_formats() {
         let config = FileWatcherConfig::default();
-        
+
         assert!(config.should_process_file(&PathBuf::from("page.html")));
         assert!(config.should_process_file(&PathBuf::from("index.htm")));
         assert!(config.should_process_file(&PathBuf::from("config.xml")));
@@ -378,7 +397,7 @@ mod tests {
     #[test]
     fn test_file_watcher_should_process_images() {
         let config = FileWatcherConfig::default();
-        
+
         assert!(config.should_process_file(&PathBuf::from("image.jpg")));
         assert!(config.should_process_file(&PathBuf::from("photo.jpeg")));
         assert!(config.should_process_file(&PathBuf::from("screenshot.png")));
@@ -387,7 +406,7 @@ mod tests {
     #[test]
     fn test_file_watcher_exclude_data_directory() {
         let config = FileWatcherConfig::default();
-        
+
         // Should NOT process files in data directory
         assert!(!config.should_process_file(&PathBuf::from("data/file.pdf")));
         assert!(!config.should_process_file(&PathBuf::from("/project/data/document.docx")));
@@ -396,7 +415,7 @@ mod tests {
     #[test]
     fn test_file_watcher_exclude_binary_files() {
         let config = FileWatcherConfig::default();
-        
+
         // Should NOT process .bin files
         assert!(!config.should_process_file(&PathBuf::from("file.bin")));
         assert!(!config.should_process_file(&PathBuf::from("data.BIN")));
@@ -405,7 +424,7 @@ mod tests {
     #[test]
     fn test_file_watcher_exclude_build_artifacts() {
         let config = FileWatcherConfig::default();
-        
+
         // Should NOT process files in target directory
         assert!(!config.should_process_file(&PathBuf::from("target/debug/file.pdf")));
         assert!(!config.should_process_file(&PathBuf::from("node_modules/package/file.html")));
@@ -425,7 +444,7 @@ mod tests {
     #[test]
     fn test_file_watcher_silent_check() {
         let config = FileWatcherConfig::default();
-        
+
         // Test silent version (no logging)
         // Only test formats that are always available
         assert!(config.should_process_file_silent(&PathBuf::from("document.md")));
@@ -436,14 +455,14 @@ mod tests {
     #[test]
     fn test_file_watcher_max_file_size() {
         let config = FileWatcherConfig::default();
-        
+
         assert_eq!(config.max_file_size, 10 * 1024 * 1024); // 10MB default
     }
 
     #[test]
     fn test_file_watcher_debounce_delay() {
         let config = FileWatcherConfig::default();
-        
+
         assert_eq!(config.debounce_delay_ms, 1000); // 1 second default
         assert_eq!(config.debounce_duration().as_millis(), 1000);
     }
@@ -458,8 +477,14 @@ mod tests {
         let has_docx = config.include_patterns.iter().any(|p| p.contains("docx"));
 
         // Without transmutation feature, these formats are not in default patterns
-        assert!(!has_pdf, "PDF should not be in default patterns without transmutation");
-        assert!(!has_docx, "DOCX should not be in default patterns without transmutation");
+        assert!(
+            !has_pdf,
+            "PDF should not be in default patterns without transmutation"
+        );
+        assert!(
+            !has_docx,
+            "DOCX should not be in default patterns without transmutation"
+        );
 
         // But text formats should still be there
         assert!(config.include_patterns.iter().any(|p| p.contains("txt")));

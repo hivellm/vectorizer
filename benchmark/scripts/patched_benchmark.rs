@@ -1,18 +1,15 @@
 use std::collections::{HashMap, HashSet};
-use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::thread;
+use std::{fs, thread};
+
 use serde::{Deserialize, Serialize};
 use serde_json;
-
-use vectorizer::{
-    VectorStore,
-    db::{OptimizedHnswConfig, OptimizedHnswIndex},
-    embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider},
-    models::DistanceMetric,
-};
+use vectorizer::VectorStore;
+use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};
+use vectorizer::embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider};
+use vectorizer::models::DistanceMetric;
 
 /// Benchmark result for a single combination
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -56,12 +53,12 @@ impl TestDataset {
     /// Load dataset from workspace with expansion
     fn load_from_workspace(max_docs: usize) -> Result<Self, Box<dyn std::error::Error>> {
         println!("📂 Loading test dataset...");
-        
+
         // Load real documents from workspace
         let mut docs = Vec::new();
         let workspace_paths = vec![
             "README.md",
-            "CONTRIBUTING.md", 
+            "CONTRIBUTING.md",
             "LICENSE",
             "chat-hub/README.md",
             "cursor-extension/README.md",
@@ -77,7 +74,8 @@ impl TestDataset {
 
         for path in workspace_paths {
             if let Ok(content) = fs::read_to_string(path) {
-                if content.len() > 100 { // Only meaningful documents
+                if content.len() > 100 {
+                    // Only meaningful documents
                     docs.push(content);
                 }
             }
@@ -85,17 +83,21 @@ impl TestDataset {
 
         // Expand documents if needed
         if docs.len() < max_docs {
-            println!("📈 Expanding {} real documents to {} for testing...", docs.len(), max_docs);
-            
+            println!(
+                "📈 Expanding {} real documents to {} for testing...",
+                docs.len(),
+                max_docs
+            );
+
             let expansion_factor = (max_docs + docs.len() - 1) / docs.len();
             let mut expanded_docs = Vec::new();
-            
+
             for i in 0..expansion_factor {
                 for (j, doc) in docs.iter().enumerate() {
                     if expanded_docs.len() >= max_docs {
                         break;
                     }
-                    
+
                     if i == 0 {
                         expanded_docs.push(doc.clone());
                     } else {
@@ -104,23 +106,27 @@ impl TestDataset {
                     }
                 }
             }
-            
+
             docs = expanded_docs.into_iter().take(max_docs).collect();
         }
 
         // Generate queries from representative sample
         let query_sample_size = 100.min(max_docs / 10).max(10);
-        let queries: Vec<String> = docs.iter().take(query_sample_size).map(|doc| {
-            if let Some(first_sentence) = doc.split('.').next() {
-                if first_sentence.len() > 30 {
-                    first_sentence.trim().to_string()
+        let queries: Vec<String> = docs
+            .iter()
+            .take(query_sample_size)
+            .map(|doc| {
+                if let Some(first_sentence) = doc.split('.').next() {
+                    if first_sentence.len() > 30 {
+                        first_sentence.trim().to_string()
+                    } else {
+                        doc.chars().take(120).collect::<String>()
+                    }
                 } else {
                     doc.chars().take(120).collect::<String>()
                 }
-            } else {
-                doc.chars().take(120).collect::<String>()
-            }
-        }).collect();
+            })
+            .collect();
 
         // Pre-compute embeddings with normalization
         println!("📊 Pre-computing embeddings...");
@@ -145,23 +151,33 @@ impl TestDataset {
                 if let Ok(emb) = manager.embed(doc) {
                     // Pre-normalize for cosine distance
                     let norm: f32 = emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-                    let normalized_emb: Vec<f32> = emb.into_iter()
+                    let normalized_emb: Vec<f32> = emb
+                        .into_iter()
                         .map(|x| if norm > 0.0 { x / norm } else { x })
                         .collect();
                     base_embeddings.push(normalized_emb);
                 }
             }
-            
+
             if (batch_idx + 1) % 10 == 0 {
-                println!("  Processed {}/{} embeddings...", base_embeddings.len(), docs.len());
+                println!(
+                    "  Processed {}/{} embeddings...",
+                    base_embeddings.len(),
+                    docs.len()
+                );
             }
         }
 
         // Generate ground truth using brute-force FLAT search
-        let ground_truth = Self::generate_brute_force_ground_truth(&base_embeddings, &queries, &docs)?;
+        let ground_truth =
+            Self::generate_brute_force_ground_truth(&base_embeddings, &queries, &docs)?;
 
-        println!("✅ Loaded {} documents, {} queries, {} embeddings", 
-                 docs.len(), queries.len(), base_embeddings.len());
+        println!(
+            "✅ Loaded {} documents, {} queries, {} embeddings",
+            docs.len(),
+            queries.len(),
+            base_embeddings.len()
+        );
 
         Ok(Self {
             documents: docs,
@@ -178,7 +194,7 @@ impl TestDataset {
         docs: &[String],
     ) -> Result<Vec<HashSet<String>>, Box<dyn std::error::Error>> {
         println!("🎯 Generating ground truth using brute-force FLAT search...");
-        
+
         let mut manager = EmbeddingManager::new();
         let bm25 = Bm25Embedding::new(512);
         manager.register_provider("bm25".to_string(), Box::new(bm25));
@@ -197,30 +213,36 @@ impl TestDataset {
             if let Ok(query_emb) = manager.embed(query) {
                 // Normalize query once
                 let query_norm: f32 = query_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-                let query_normalized: Vec<f32> = query_emb.into_iter()
+                let query_normalized: Vec<f32> = query_emb
+                    .into_iter()
                     .map(|x| if query_norm > 0.0 { x / query_norm } else { x })
                     .collect();
 
                 // Calculate similarities to all documents with deterministic tie-breaking
-                let mut similarities: Vec<(usize, f32)> = embeddings.iter().enumerate()
+                let mut similarities: Vec<(usize, f32)> = embeddings
+                    .iter()
+                    .enumerate()
                     .map(|(idx, doc_emb)| {
                         // Cosine similarity (both vectors are pre-normalized)
-                        let dot_product: f32 = query_normalized.iter().zip(doc_emb.iter())
-                            .map(|(a, b)| a * b).sum();
+                        let dot_product: f32 = query_normalized
+                            .iter()
+                            .zip(doc_emb.iter())
+                            .map(|(a, b)| a * b)
+                            .sum();
                         (idx, dot_product)
                     })
                     .collect();
 
                 // Sort by similarity (highest first), then by index for tie-breaking
                 similarities.sort_by(|a, b| {
-                    b.1.partial_cmp(&a.1).unwrap()
-                        .then(a.0.cmp(&b.0)) // Deterministic tie-breaking by index
+                    b.1.partial_cmp(&a.1).unwrap().then(a.0.cmp(&b.0)) // Deterministic tie-breaking by index
                 });
 
                 // Take top 10 most similar documents
                 let mut relevant = HashSet::new();
                 for (idx, similarity) in similarities.into_iter().take(10) {
-                    if similarity > 0.1 { // Minimum similarity threshold
+                    if similarity > 0.1 {
+                        // Minimum similarity threshold
                         relevant.insert(format!("doc_{}", idx));
                     }
                 }
@@ -332,20 +354,36 @@ impl BenchmarkRunner {
                     let k_values = self.config.k_values.clone();
                     for &k in &k_values {
                         let k_eval = 10.min(k); // Recall@min(10,k)
-                        
+
                         if mode == "FLAT" {
                             // FLAT search (ef_search = 0)
                             self.benchmark_combination(
-                                &dataset, dataset_size, mode, quantization, k, k_eval, 0,
-                                &cpu_info, &numa_info, &build_flags
+                                &dataset,
+                                dataset_size,
+                                mode,
+                                quantization,
+                                k,
+                                k_eval,
+                                0,
+                                &cpu_info,
+                                &numa_info,
+                                &build_flags,
                             )?;
                         } else if mode == "HNSW" {
                             // HNSW search with different ef_search values
                             let ef_values = self.config.get_ef_search_values(k);
                             for &ef_search in &ef_values {
                                 self.benchmark_combination(
-                                    &dataset, dataset_size, mode, quantization, k, k_eval, ef_search,
-                                    &cpu_info, &numa_info, &build_flags
+                                    &dataset,
+                                    dataset_size,
+                                    mode,
+                                    quantization,
+                                    k,
+                                    k_eval,
+                                    ef_search,
+                                    &cpu_info,
+                                    &numa_info,
+                                    &build_flags,
                                 )?;
                             }
                         }
@@ -358,7 +396,8 @@ impl BenchmarkRunner {
 
         // Sort results as specified
         self.results.sort_by(|a, b| {
-            a.dataset_size.cmp(&b.dataset_size)
+            a.dataset_size
+                .cmp(&b.dataset_size)
                 .then(a.mode.cmp(&b.mode))
                 .then(a.quantization.cmp(&b.quantization))
                 .then(a.k_real.cmp(&b.k_real))
@@ -392,23 +431,47 @@ impl BenchmarkRunner {
         numa_info: &str,
         build_flags: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!("  🔬 Benchmarking: {} {} k={} ef={}", mode, quantization, k_real, ef_search);
+        println!(
+            "  🔬 Benchmarking: {} {} k={} ef={}",
+            mode, quantization, k_real, ef_search
+        );
 
         // Build index
-        let (index, memory_bytes_index) = self.build_index(dataset, mode, quantization, ef_search)?;
+        let (index, memory_bytes_index) =
+            self.build_index(dataset, mode, quantization, ef_search)?;
 
         // Run warm phase
         let warm_result = self.run_phase(
-            &index, dataset, mode, quantization, k_real, k_eval, ef_search,
-            dataset_size, memory_bytes_index, cpu_info, numa_info, build_flags,
-            "warm"
+            &index,
+            dataset,
+            mode,
+            quantization,
+            k_real,
+            k_eval,
+            ef_search,
+            dataset_size,
+            memory_bytes_index,
+            cpu_info,
+            numa_info,
+            build_flags,
+            "warm",
         )?;
 
         // Run cold phase
         let cold_result = self.run_phase(
-            &index, dataset, mode, quantization, k_real, k_eval, ef_search,
-            dataset_size, memory_bytes_index, cpu_info, numa_info, build_flags,
-            "cold"
+            &index,
+            dataset,
+            mode,
+            quantization,
+            k_real,
+            k_eval,
+            ef_search,
+            dataset_size,
+            memory_bytes_index,
+            cpu_info,
+            numa_info,
+            build_flags,
+            "cold",
         )?;
 
         // Store results
@@ -439,14 +502,14 @@ impl BenchmarkRunner {
                     initial_capacity: dataset.base_embeddings.len(),
                     batch_size: 1000,
                 };
-                
+
                 let index = OptimizedHnswIndex::new(512, config)?;
-                
+
                 // Insert all vectors
                 for (i, embedding) in dataset.base_embeddings.iter().enumerate() {
                     index.add(format!("doc_{}", i), embedding.clone())?;
                 }
-                
+
                 let memory_bytes = dataset.base_embeddings.len() * std::mem::size_of::<f32>() * 512;
                 Ok((Arc::new(index), memory_bytes))
             }
@@ -461,14 +524,14 @@ impl BenchmarkRunner {
                     initial_capacity: dataset.base_embeddings.len(),
                     batch_size: 1000,
                 };
-                
+
                 let index = OptimizedHnswIndex::new(512, config)?;
-                
+
                 // Insert all vectors
                 for (i, embedding) in dataset.base_embeddings.iter().enumerate() {
                     index.add(format!("doc_{}", i), embedding.clone())?;
                 }
-                
+
                 let memory_bytes = dataset.base_embeddings.len() * std::mem::size_of::<f32>() * 512;
                 Ok((Arc::new(index), memory_bytes))
             }
@@ -493,7 +556,15 @@ impl BenchmarkRunner {
         build_flags: &str,
         phase: &str,
     ) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
-        println!("    {} phase: {}", if phase == "warm" { "🔥 Warm-up" } else { "❄️ Cold" }, phase);
+        println!(
+            "    {} phase: {}",
+            if phase == "warm" {
+                "🔥 Warm-up"
+            } else {
+                "❄️ Cold"
+            },
+            phase
+        );
 
         // Warm-up for warm phase
         if phase == "warm" {
@@ -501,14 +572,15 @@ impl BenchmarkRunner {
             for _ in 0..200 {
                 let query_idx = fastrand::usize(..dataset.queries.len());
                 let query = &dataset.queries[query_idx];
-                
+
                 // Normalize query once
                 let query_emb = self.embed_query(query)?;
                 let query_norm: f32 = query_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-                let query_normalized: Vec<f32> = query_emb.into_iter()
+                let query_normalized: Vec<f32> = query_emb
+                    .into_iter()
                     .map(|x| if query_norm > 0.0 { x / query_norm } else { x })
                     .collect();
-                
+
                 // Perform search (don't measure)
                 let _ = self.search_with_tracking(index, &query_normalized, k_real, mode)?;
             }
@@ -525,24 +597,27 @@ impl BenchmarkRunner {
         for _ in 0..num_queries {
             let query_idx = fastrand::usize(..dataset.queries.len());
             let query = &dataset.queries[query_idx];
-            
+
             // Normalize query once
             let query_emb = self.embed_query(query)?;
             let query_norm: f32 = query_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-            let query_normalized: Vec<f32> = query_emb.into_iter()
+            let query_normalized: Vec<f32> = query_emb
+                .into_iter()
                 .map(|x| if query_norm > 0.0 { x / query_norm } else { x })
                 .collect();
 
             // Measure search
             let start = Instant::now();
-            let (results, visited) = self.search_with_tracking(index, &query_normalized, k_real, mode)?;
+            let (results, visited) =
+                self.search_with_tracking(index, &query_normalized, k_real, mode)?;
             let latency = start.elapsed().as_micros() as f64;
-            
+
             latencies.push(latency);
             nodes_visited.push(visited as f64);
 
             // Calculate recall and MAP for this query
-            let (recall, map) = self.calculate_query_metrics(&results, &dataset.ground_truth[query_idx], k_eval);
+            let (recall, map) =
+                self.calculate_query_metrics(&results, &dataset.ground_truth[query_idx], k_eval);
             recalls.push(recall);
             maps.push(map);
         }
@@ -551,13 +626,13 @@ impl BenchmarkRunner {
         let latency_us_p50 = self.percentile(&latencies, 50.0);
         let latency_us_p95 = self.percentile(&latencies, 95.0);
         let latency_us_p99 = self.percentile(&latencies, 99.0);
-        
+
         let nodes_visited_p50 = self.percentile(&nodes_visited, 50.0);
         let nodes_visited_p95 = self.percentile(&nodes_visited, 95.0);
-        
+
         let recall_at_k_eval = recalls.iter().sum::<f64>() / recalls.len() as f64;
         let map = maps.iter().sum::<f64>() / maps.len() as f64;
-        
+
         let total_time_seconds = latencies.iter().sum::<f64>() / 1_000_000.0;
         let qps = num_queries as f64 / total_time_seconds.max(0.001);
 
@@ -612,11 +687,11 @@ impl BenchmarkRunner {
                 let log_n = n.ln().max(1.0) as usize;
                 let ef_factor = 3;
                 let layer_overhead = 4;
-                
+
                 let estimated_visited = log_n + (ef_factor * k) + layer_overhead;
                 let max_reasonable = (n * 0.1) as usize;
                 let estimated_visited = estimated_visited.min(max_reasonable).max(k);
-                
+
                 let results = index.search(query, k)?;
                 Ok((results, estimated_visited))
             }
@@ -631,7 +706,8 @@ impl BenchmarkRunner {
         ground_truth: &HashSet<String>,
         k_eval: usize,
     ) -> (f64, f64) {
-        let retrieved: HashSet<String> = results.iter()
+        let retrieved: HashSet<String> = results
+            .iter()
             .take(k_eval)
             .map(|(id, _)| id.clone())
             .collect();
@@ -647,15 +723,19 @@ impl BenchmarkRunner {
         // MAP calculation
         let mut map = 0.0;
         let mut relevant_count = 0;
-        
+
         for (i, (id, _)) in results.iter().enumerate() {
             if ground_truth.contains(id) {
                 relevant_count += 1;
                 map += relevant_count as f64 / (i + 1) as f64;
             }
         }
-        
-        let map = if relevant_count == 0 { 0.0 } else { map / relevant_count as f64 };
+
+        let map = if relevant_count == 0 {
+            0.0
+        } else {
+            map / relevant_count as f64
+        };
 
         (recall, map)
     }
@@ -666,7 +746,7 @@ impl BenchmarkRunner {
         let bm25 = Bm25Embedding::new(512);
         manager.register_provider("bm25".to_string(), Box::new(bm25));
         manager.set_default_provider("bm25")?;
-        
+
         Ok(manager.embed(query)?)
     }
 
@@ -675,10 +755,10 @@ impl BenchmarkRunner {
         if values.is_empty() {
             return 0.0;
         }
-        
+
         let mut sorted = values.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        
+
         let idx = ((p / 100.0) * sorted.len() as f64) as usize;
         sorted[idx.min(sorted.len() - 1)]
     }
@@ -686,7 +766,7 @@ impl BenchmarkRunner {
     /// Calculate speedup for warm phases
     fn calculate_speedup(&mut self) {
         let mut cold_results = HashMap::new();
-        
+
         // First pass: collect cold results
         for result in &self.results {
             if result.phase == "cold" {
@@ -700,7 +780,7 @@ impl BenchmarkRunner {
                 cold_results.insert(key, result.qps);
             }
         }
-        
+
         // Second pass: calculate speedup for warm phases
         for result in &mut self.results {
             if result.phase == "warm" {
@@ -711,7 +791,7 @@ impl BenchmarkRunner {
                     result.k_real,
                     result.ef_search,
                 );
-                
+
                 if let Some(&cold_qps) = cold_results.get(&key) {
                     result.speedup_vs_cold = result.qps / cold_qps.max(0.001);
                 }
@@ -722,8 +802,8 @@ impl BenchmarkRunner {
     /// Detect anomalies
     fn detect_anomalies(&mut self) {
         for result in &mut self.results {
-        let mut anomalies = Vec::new();
-        let mut notes: Vec<String> = Vec::new();
+            let mut anomalies = Vec::new();
+            let mut notes: Vec<String> = Vec::new();
 
             // HNSW flat-like or counter bug
             if result.mode == "HNSW" {
@@ -732,7 +812,9 @@ impl BenchmarkRunner {
                     notes.push("nodes_visited_p50 is 0".to_string());
                 } else if (result.nodes_visited_p50 - result.dataset_size as f64).abs() < 100.0 {
                     anomalies.push("HNSW_flat_like_or_counter_bug");
-                    notes.push("nodes_visited_p50 ≈ dataset_size (possible linear scan)".to_string());
+                    notes.push(
+                        "nodes_visited_p50 ≈ dataset_size (possible linear scan)".to_string(),
+                    );
                 }
             }
 
@@ -743,22 +825,33 @@ impl BenchmarkRunner {
             }
 
             // Speedup out of range
-            if result.phase == "warm" && (result.speedup_vs_cold < 0.8 || result.speedup_vs_cold > 5.0) {
+            if result.phase == "warm"
+                && (result.speedup_vs_cold < 0.8 || result.speedup_vs_cold > 5.0)
+            {
                 anomalies.push("speedup_out_of_range");
-                let note = format!("speedup_vs_cold = {:.2} (expected 0.8-5.0)", result.speedup_vs_cold);
+                let note = format!(
+                    "speedup_vs_cold = {:.2} (expected 0.8-5.0)",
+                    result.speedup_vs_cold
+                );
                 notes.push(note);
             }
 
             // Recall implausible
             if result.mode == "FLAT" && result.recall_at_k_eval < 0.8 {
                 anomalies.push("recall_implausible_flat");
-                let note = format!("FLAT recall_at_k_eval = {:.3} (expected ≥0.8)", result.recall_at_k_eval);
+                let note = format!(
+                    "FLAT recall_at_k_eval = {:.3} (expected ≥0.8)",
+                    result.recall_at_k_eval
+                );
                 notes.push(note);
             }
 
             if result.mode == "HNSW" && result.recall_at_k_eval < 0.7 {
                 anomalies.push("recall_implausible_hnsw");
-                let note = format!("HNSW recall_at_k_eval = {:.3} (expected ≥0.7)", result.recall_at_k_eval);
+                let note = format!(
+                    "HNSW recall_at_k_eval = {:.3} (expected ≥0.7)",
+                    result.recall_at_k_eval
+                );
                 notes.push(note);
             }
 

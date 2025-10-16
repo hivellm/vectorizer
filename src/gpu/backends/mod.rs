@@ -19,4 +19,3 @@ pub mod dx12;
 pub mod metal;
 
 pub use detector::{GpuBackendType, detect_available_backends, select_best_backend};
-

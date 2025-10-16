@@ -13,39 +13,42 @@ pub mod config;
 pub mod db;
 pub mod discovery;
 // pub mod document_loader; // REMOVED - replaced by file_loader
-pub mod file_loader;
 pub mod embedding;
 pub mod error;
 pub mod evaluation;
+pub mod file_loader;
+pub mod file_operations;
+pub mod file_watcher;
 #[cfg(feature = "wgpu-gpu")]
 pub mod gpu;
 pub mod hybrid_search;
 pub mod intelligent_search;
+pub mod logging;
 pub mod models;
 pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
-pub mod summarization;
-pub mod workspace;
-pub mod utils;
-pub mod file_watcher;
-pub mod logging;
 pub mod server;
-pub mod file_operations;
 pub mod storage;
-pub mod umicp;
+pub mod summarization;
 #[cfg(feature = "transmutation")]
 pub mod transmutation_integration;
+pub mod umicp;
+pub mod utils;
+pub mod workspace;
 
 // Re-export commonly used types
+pub use batch::{BatchConfig, BatchOperation, BatchProcessor, BatchProcessorBuilder};
 pub use db::{Collection, VectorStore};
 pub use embedding::{BertEmbedding, Bm25Embedding, MiniLmEmbedding, SvdEmbedding};
 pub use error::{Result, VectorizerError};
 pub use evaluation::{EvaluationMetrics, QueryMetrics, QueryResult, evaluate_search_quality};
 pub use models::{CollectionConfig, Payload, SearchResult, Vector};
-pub use batch::{BatchProcessor, BatchConfig, BatchOperation, BatchProcessorBuilder};
-pub use summarization::{SummarizationManager, SummarizationConfig, SummarizationMethod, SummarizationResult, SummarizationError};
+pub use summarization::{
+    SummarizationConfig, SummarizationError, SummarizationManager, SummarizationMethod,
+    SummarizationResult,
+};
 
 // Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -56,10 +59,12 @@ mod tests;
 
 #[cfg(test)]
 mod integration_tests {
-    use super::*;
     use std::sync::Arc;
     use std::thread;
+
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_concurrent_workload_simulation() {
@@ -101,8 +106,7 @@ mod integration_tests {
                             "thread_id": thread_id,
                             "vector_index": i,
                             "created_by": format!("thread_{}", thread_id)
-                        }))
-                        ,
+                        })),
                     );
 
                     store_clone.insert("concurrent", vec![vector]).unwrap();
@@ -229,12 +233,20 @@ mod integration_tests {
             Vector::new("large_2".to_string(), vec![0.2; 512]),
         ];
 
-        store.insert("small_test_mgmt_unique", small_vectors).unwrap();
-        store.insert("large_test_mgmt_unique", large_vectors).unwrap();
+        store
+            .insert("small_test_mgmt_unique", small_vectors)
+            .unwrap();
+        store
+            .insert("large_test_mgmt_unique", large_vectors)
+            .unwrap();
 
         // Verify collection metadata
-        let small_metadata = store.get_collection_metadata("small_test_mgmt_unique").unwrap();
-        let large_metadata = store.get_collection_metadata("large_test_mgmt_unique").unwrap();
+        let small_metadata = store
+            .get_collection_metadata("small_test_mgmt_unique")
+            .unwrap();
+        let large_metadata = store
+            .get_collection_metadata("large_test_mgmt_unique")
+            .unwrap();
 
         assert_eq!(small_metadata.vector_count, 2);
         assert_eq!(small_metadata.config.dimension, 64);
@@ -242,8 +254,12 @@ mod integration_tests {
         assert_eq!(large_metadata.config.dimension, 512);
 
         // Test search in different collections
-        let small_results = store.search("small_test_mgmt_unique", &vec![1.5; 64], 2).unwrap();
-        let large_results = store.search("large_test_mgmt_unique", &vec![0.15; 512], 2).unwrap();
+        let small_results = store
+            .search("small_test_mgmt_unique", &vec![1.5; 64], 2)
+            .unwrap();
+        let large_results = store
+            .search("large_test_mgmt_unique", &vec![0.15; 512], 2)
+            .unwrap();
 
         assert_eq!(small_results.len(), 2);
         assert_eq!(large_results.len(), 2);
@@ -251,7 +267,11 @@ mod integration_tests {
         // Test deleting collections
         store.delete_collection("small_test_mgmt_unique").unwrap();
         assert_eq!(store.list_collections().len(), initial_count + 1);
-        assert!(store.list_collections().contains(&"large_test_mgmt_unique".to_string()));
+        assert!(
+            store
+                .list_collections()
+                .contains(&"large_test_mgmt_unique".to_string())
+        );
 
         store.delete_collection("large_test_mgmt_unique").unwrap();
         assert_eq!(store.list_collections().len(), initial_count);

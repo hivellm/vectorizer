@@ -14,14 +14,15 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use vectorizer::{
-    db::{Collection, CollectionNormalizationHelper},
-    embedding::{EmbeddingManager, Bm25Embedding},
-    models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Payload, Vector},
-    normalization::{
-        ContentTypeDetector, TextNormalizer, NormalizationLevel, NormalizationPolicy,
-        NormalizationConfig,
-    },
+
+use vectorizer::db::{Collection, CollectionNormalizationHelper};
+use vectorizer::embedding::{Bm25Embedding, EmbeddingManager};
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+};
+use vectorizer::normalization::{
+    ContentTypeDetector, NormalizationConfig, NormalizationLevel, NormalizationPolicy,
+    TextNormalizer,
 };
 
 /// Configuration for a benchmark scenario
@@ -71,7 +72,9 @@ impl ScenarioResult {
         if baseline_storage == 0 {
             return 0.0;
         }
-        ((baseline_storage as i64 - self.total_storage_bytes as i64) as f64 / baseline_storage as f64) * 100.0
+        ((baseline_storage as i64 - self.total_storage_bytes as i64) as f64
+            / baseline_storage as f64)
+            * 100.0
     }
 }
 
@@ -89,7 +92,13 @@ fn collect_workspace_documents(max_docs: usize) -> Vec<TestDocument> {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.to_str().map(|s| s.contains("target") || s.contains("node_modules") || s.contains(".git")).unwrap_or(false) {
+                if path
+                    .to_str()
+                    .map(|s| {
+                        s.contains("target") || s.contains("node_modules") || s.contains(".git")
+                    })
+                    .unwrap_or(false)
+                {
                     continue;
                 }
 
@@ -126,16 +135,22 @@ fn generate_test_queries(docs: &[TestDocument]) -> Vec<TestQuery> {
     let mut queries = Vec::new();
 
     // Query 1: From code file
-    if let Some(doc) = docs.iter().find(|d| d.file_type == "rs" && d.raw_content.len() > 1000) {
-        if let Some(line) = doc.raw_content.lines()
+    if let Some(doc) = docs
+        .iter()
+        .find(|d| d.file_type == "rs" && d.raw_content.len() > 1000)
+    {
+        if let Some(line) = doc
+            .raw_content
+            .lines()
             .filter(|l| l.len() > 30 && l.len() < 100)
-            .nth(10) 
+            .nth(10)
         {
-            let words: Vec<&str> = line.split_whitespace()
+            let words: Vec<&str> = line
+                .split_whitespace()
                 .filter(|w| w.len() > 3)
                 .take(4)
                 .collect();
-            
+
             if words.len() >= 3 {
                 queries.push(TestQuery {
                     raw_query: words.join(" "),
@@ -149,19 +164,25 @@ fn generate_test_queries(docs: &[TestDocument]) -> Vec<TestQuery> {
     // Query 2: Technical terms
     queries.push(TestQuery {
         raw_query: "collection vector database search".to_string(),
-        expected_docs: docs.iter().filter(|d| {
-            let c = d.raw_content.to_lowercase();
-            c.contains("collection") && c.contains("vector")
-        }).map(|d| d.id.clone()).collect(),
+        expected_docs: docs
+            .iter()
+            .filter(|d| {
+                let c = d.raw_content.to_lowercase();
+                c.contains("collection") && c.contains("vector")
+            })
+            .map(|d| d.id.clone())
+            .collect(),
         description: "Technical multi-term".to_string(),
     });
 
     // Query 3: With whitespace
     queries.push(TestQuery {
         raw_query: "  function   async   implementation  ".to_string(),
-        expected_docs: docs.iter().filter(|d| {
-            d.raw_content.contains("function") || d.raw_content.contains("async")
-        }).map(|d| d.id.clone()).collect(),
+        expected_docs: docs
+            .iter()
+            .filter(|d| d.raw_content.contains("function") || d.raw_content.contains("async"))
+            .map(|d| d.id.clone())
+            .collect(),
         description: "Query with whitespace".to_string(),
     });
 
@@ -185,8 +206,10 @@ async fn run_scenario(
             QuantizationConfig::None
         },
         compression: Default::default(),
-        normalization: config.normalization.as_ref().map(|level| {
-            NormalizationConfig {
+        normalization: config
+            .normalization
+            .as_ref()
+            .map(|level| NormalizationConfig {
                 enabled: true,
                 policy: NormalizationPolicy {
                     version: 1,
@@ -199,28 +222,33 @@ async fn run_scenario(
                 hot_cache_size: 0,
                 normalize_queries: true,
                 store_raw_text: true,
-            }
-        }),
+            }),
     };
-    
-    let collection = Collection::new(format!("bench_{}", config.name.replace(" ", "_")), coll_config.clone());
-    
+
+    let collection = Collection::new(
+        format!("bench_{}", config.name.replace(" ", "_")),
+        coll_config.clone(),
+    );
+
     // Normalization helper
     let temp_dir = std::env::temp_dir().join("vectorizer_benchmark");
     let norm_helper = CollectionNormalizationHelper::from_config(&coll_config, &temp_dir).ok();
-    
+
     // Step 1: Process and index documents
     let prep_start = Instant::now();
     let mut original_size = 0;
     let mut processed_size = 0;
-    
+
     for doc in &raw_docs[..raw_docs.len().min(50)] {
         original_size += doc.raw_content.len();
-        
+
         // Process text (normalize if enabled)
         let text_to_embed: String = if norm_helper.is_some() {
             let helper = norm_helper.as_ref().unwrap();
-            match helper.process_document(&doc.raw_content, Some(&doc.path)).await {
+            match helper
+                .process_document(&doc.raw_content, Some(&doc.path))
+                .await
+            {
                 Ok(p) => {
                     processed_size += p.normalized_text.len();
                     p.normalized_text
@@ -234,7 +262,7 @@ async fn run_scenario(
             processed_size += doc.raw_content.len();
             doc.raw_content.clone()
         };
-        
+
         // Generate real BM25 embedding
         match embedding_manager.embed(&text_to_embed) {
             Ok(embedding) => {
@@ -249,7 +277,7 @@ async fn run_scenario(
                         }),
                     }),
                 };
-                
+
                 if let Err(e) = collection.insert(vector) {
                     eprintln!("Failed to insert vector {}: {}", doc.id, e);
                 }
@@ -259,31 +287,34 @@ async fn run_scenario(
             }
         }
     }
-    
+
     let indexed_count = collection.vector_count();
     if indexed_count == 0 {
-        eprintln!("⚠️  Warning: No vectors indexed for scenario '{}'", config.name);
+        eprintln!(
+            "⚠️  Warning: No vectors indexed for scenario '{}'",
+            config.name
+        );
     }
-    
+
     let prep_time = prep_start.elapsed();
     let index_time = Duration::from_millis(0); // Already included in prep
-    
+
     // Calculate storage
     let vector_count = collection.vector_count();
     let dimension = coll_config.dimension;
     let bytes_per_dim = if config.quantization { 1 } else { 4 };
     let vector_size = vector_count * dimension * bytes_per_dim;
-    
+
     // Step 2: Test queries
     let queries = generate_test_queries(raw_docs);
     let mut search_times = Vec::new();
     let mut precisions = Vec::new();
     let mut recalls = Vec::new();
-    
+
     if vector_count > 0 && !queries.is_empty() {
         for query in &queries {
             let search_start = Instant::now();
-            
+
             // Process query (normalize if enabled)
             let query_text: String = if norm_helper.is_some() {
                 let helper = norm_helper.as_ref().unwrap();
@@ -291,64 +322,64 @@ async fn run_scenario(
             } else {
                 query.raw_query.clone()
             };
-            
+
             // Generate query embedding
             if let Ok(query_embedding) = embedding_manager.embed(&query_text) {
                 // Search using real HNSW index
                 if let Ok(results) = collection.search(&query_embedding, 10) {
                     let search_time = search_start.elapsed();
                     search_times.push(search_time);
-                    
+
                     // Calculate metrics
                     let found: Vec<String> = results.iter().map(|r| r.id.clone()).collect();
                     let found_set: HashSet<_> = found.iter().collect();
                     let expected_set: HashSet<_> = query.expected_docs.iter().collect();
-                    
+
                     let true_positives = found_set.intersection(&expected_set).count();
-                    
+
                     let precision = if !found.is_empty() {
                         true_positives as f64 / found.len() as f64
                     } else {
                         0.0
                     };
-                    
+
                     let recall = if !query.expected_docs.is_empty() {
                         true_positives as f64 / query.expected_docs.len() as f64
                     } else {
                         0.0
                     };
-                    
+
                     precisions.push(precision);
                     recalls.push(recall);
                 }
             }
         }
     }
-    
+
     let avg_search_time = if !search_times.is_empty() {
         search_times.iter().sum::<Duration>() / search_times.len() as u32
     } else {
         Duration::from_secs(0)
     };
-    
+
     let avg_precision = if !precisions.is_empty() {
         precisions.iter().sum::<f64>() / precisions.len() as f64
     } else {
         0.0
     };
-    
+
     let avg_recall = if !recalls.is_empty() {
         recalls.iter().sum::<f64>() / recalls.len() as f64
     } else {
         0.0
     };
-    
+
     let avg_f1 = if avg_precision + avg_recall > 0.0 {
         2.0 * (avg_precision * avg_recall) / (avg_precision + avg_recall)
     } else {
         0.0
     };
-    
+
     ScenarioResult {
         config,
         original_size_bytes: original_size,
@@ -370,19 +401,21 @@ fn print_results_table(results: &[ScenarioResult]) {
     println!("\n{}", "=".repeat(120));
     println!("📊 COMPLETE BENCHMARK RESULTS - Using REAL BM25 + HNSW");
     println!("{}\n", "=".repeat(120));
-    
+
     let baseline_storage = results[0].total_storage_bytes;
-    
+
     println!("💾 STORAGE IMPACT:");
     println!("{}", "-".repeat(120));
-    println!("{:<40} {:>12} {:>12} {:>12} {:>12} {:>12}",
+    println!(
+        "{:<40} {:>12} {:>12} {:>12} {:>12} {:>12}",
         "Scenario", "Text Size", "Vector Size", "Total", "Saved", "vs Baseline"
     );
     println!("{}", "-".repeat(120));
-    
+
     for result in results {
         let saved = baseline_storage as i64 - result.total_storage_bytes as i64;
-        println!("{:<40} {:>12} {:>12} {:>12} {:>12} {:>11.1}%",
+        println!(
+            "{:<40} {:>12} {:>12} {:>12} {:>12} {:>11.1}%",
             result.config.name,
             format!("{} KB", result.processed_size_bytes / 1024),
             format!("{} KB", result.vector_size_bytes / 1024),
@@ -391,39 +424,43 @@ fn print_results_table(results: &[ScenarioResult]) {
             result.storage_vs_baseline(baseline_storage)
         );
     }
-    
+
     println!("\n⚡ PERFORMANCE:");
     println!("{}", "-".repeat(120));
-    println!("{:<40} {:>15} {:>15} {:>15}",
+    println!(
+        "{:<40} {:>15} {:>15} {:>15}",
         "Scenario", "Preprocessing", "Search Time", "Total Time"
     );
     println!("{}", "-".repeat(120));
-    
+
     for result in results {
-        println!("{:<40} {:>15?} {:>15?} {:>15?}",
+        println!(
+            "{:<40} {:>15?} {:>15?} {:>15?}",
             result.config.name,
             result.preprocessing_time,
             result.avg_search_time,
             result.preprocessing_time
         );
     }
-    
+
     println!("\n🎯 SEARCH QUALITY:");
     println!("{}", "-".repeat(120));
-    println!("{:<40} {:>12} {:>12} {:>12}",
+    println!(
+        "{:<40} {:>12} {:>12} {:>12}",
         "Scenario", "Precision", "Recall", "F1-Score"
     );
     println!("{}", "-".repeat(120));
-    
+
     for result in results {
-        println!("{:<40} {:>11.1}% {:>11.1}% {:>11.1}%",
+        println!(
+            "{:<40} {:>11.1}% {:>11.1}% {:>11.1}%",
             result.config.name,
             result.avg_precision * 100.0,
             result.avg_recall * 100.0,
             result.avg_f1 * 100.0
         );
     }
-    
+
     println!();
 }
 
@@ -432,18 +469,43 @@ fn print_analysis(results: &[ScenarioResult]) {
     println!("\n{}", "=".repeat(120));
     println!("📈 KEY FINDINGS");
     println!("{}\n", "=".repeat(120));
-    
+
     let baseline = &results[0];
-    
+
     for result in results.iter().skip(1) {
         let storage_diff = result.storage_vs_baseline(baseline.total_storage_bytes);
-        let time_diff = ((result.avg_search_time.as_nanos() as f64 - baseline.avg_search_time.as_nanos() as f64) / baseline.avg_search_time.as_nanos() as f64) * 100.0;
+        let time_diff = ((result.avg_search_time.as_nanos() as f64
+            - baseline.avg_search_time.as_nanos() as f64)
+            / baseline.avg_search_time.as_nanos() as f64)
+            * 100.0;
         let quality_diff = ((result.avg_f1 - baseline.avg_f1) / baseline.avg_f1.max(0.01)) * 100.0;
-        
+
         println!("vs {}", result.config.name);
-        println!("   Storage:  {:>+7.1}% {}", storage_diff, if storage_diff > 0.0 { "✅" } else { "→" });
-        println!("   Latency:  {:>+7.1}% {}", time_diff, if time_diff.abs() < 10.0 { "✅" } else { "⚠️" });
-        println!("   Quality:  {:>+7.1}% {}", quality_diff, if quality_diff.abs() < 5.0 { "✅" } else if quality_diff > 0.0 { "📈" } else { "📉" });
+        println!(
+            "   Storage:  {:>+7.1}% {}",
+            storage_diff,
+            if storage_diff > 0.0 { "✅" } else { "→" }
+        );
+        println!(
+            "   Latency:  {:>+7.1}% {}",
+            time_diff,
+            if time_diff.abs() < 10.0 {
+                "✅"
+            } else {
+                "⚠️"
+            }
+        );
+        println!(
+            "   Quality:  {:>+7.1}% {}",
+            quality_diff,
+            if quality_diff.abs() < 5.0 {
+                "✅"
+            } else if quality_diff > 0.0 {
+                "📈"
+            } else {
+                "📉"
+            }
+        );
         println!();
     }
 }
@@ -451,14 +513,21 @@ fn print_analysis(results: &[ScenarioResult]) {
 /// Generate comprehensive report
 fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Result<()> {
     let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S");
-    let report_path = PathBuf::from(format!("benchmark/reports/complete_benchmark_{}.md", timestamp));
-    
+    let report_path = PathBuf::from(format!(
+        "benchmark/reports/complete_benchmark_{}.md",
+        timestamp
+    ));
+
     fs::create_dir_all("benchmark/reports")?;
     let mut report = fs::File::create(&report_path)?;
-    
+
     writeln!(report, "# Complete Normalization & Quantization Benchmark")?;
     writeln!(report)?;
-    writeln!(report, "**Date**: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"))?;
+    writeln!(
+        report,
+        "**Date**: {}",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+    )?;
     writeln!(report, "**Documents**: {}", docs_count)?;
     writeln!(report, "**Embedding**: BM25 (real)")?;
     writeln!(report, "**Index**: HNSW (real)")?;
@@ -466,18 +535,26 @@ fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Res
     writeln!(report)?;
     writeln!(report, "---")?;
     writeln!(report)?;
-    
+
     let baseline_storage = results[0].total_storage_bytes;
-    
+
     // Storage
     writeln!(report, "## 💾 Storage Impact")?;
     writeln!(report)?;
-    writeln!(report, "| Scenario | Text | Vectors | Total | Saved | Reduction |")?;
-    writeln!(report, "|----------|------|---------|-------|-------|-----------|")?;
-    
+    writeln!(
+        report,
+        "| Scenario | Text | Vectors | Total | Saved | Reduction |"
+    )?;
+    writeln!(
+        report,
+        "|----------|------|---------|-------|-------|-----------|"
+    )?;
+
     for result in results {
         let saved = baseline_storage as i64 - result.total_storage_bytes as i64;
-        writeln!(report, "| {} | {} KB | {} KB | {} KB | {} KB | {:.1}% |",
+        writeln!(
+            report,
+            "| {} | {} KB | {} KB | {} KB | {} KB | {:.1}% |",
             result.config.name,
             result.processed_size_bytes / 1024,
             result.vector_size_bytes / 1024,
@@ -487,15 +564,17 @@ fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Res
         )?;
     }
     writeln!(report)?;
-    
+
     // Performance
     writeln!(report, "## ⚡ Performance")?;
     writeln!(report)?;
     writeln!(report, "| Scenario | Preprocessing | Search | Total |")?;
     writeln!(report, "|----------|---------------|--------|-------|")?;
-    
+
     for result in results {
-        writeln!(report, "| {} | {:?} | {:?} | {:?} |",
+        writeln!(
+            report,
+            "| {} | {:?} | {:?} | {:?} |",
             result.config.name,
             result.preprocessing_time,
             result.avg_search_time,
@@ -503,15 +582,17 @@ fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Res
         )?;
     }
     writeln!(report)?;
-    
+
     // Quality
     writeln!(report, "## 🎯 Search Quality")?;
     writeln!(report)?;
     writeln!(report, "| Scenario | Precision | Recall | F1-Score |")?;
     writeln!(report, "|----------|-----------|--------|----------|")?;
-    
+
     for result in results {
-        writeln!(report, "| {} | {:.1}% | {:.1}% | {:.1}% |",
+        writeln!(
+            report,
+            "| {} | {:.1}% | {:.1}% | {:.1}% |",
             result.config.name,
             result.avg_precision * 100.0,
             result.avg_recall * 100.0,
@@ -519,32 +600,55 @@ fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Res
         )?;
     }
     writeln!(report)?;
-    
+
     // Key Findings
     writeln!(report, "## ✅ Key Findings")?;
     writeln!(report)?;
     writeln!(report, "**Moderate + SQ-8 (Default Configuration)**:")?;
-    
+
     let baseline = &results[0];
-    
-    if let Some(recommended) = results.iter().find(|r| 
-        matches!(r.config.normalization, Some(NormalizationLevel::Moderate)) && r.config.quantization
-    ) {
+
+    if let Some(recommended) = results.iter().find(|r| {
+        matches!(r.config.normalization, Some(NormalizationLevel::Moderate))
+            && r.config.quantization
+    }) {
         let storage_saved = baseline_storage as i64 - recommended.total_storage_bytes as i64;
-        let quality_change = ((recommended.avg_f1 - baseline.avg_f1) / baseline.avg_f1.max(0.01)) * 100.0;
-        let latency_change = ((recommended.avg_search_time.as_micros() as f64 - baseline.avg_search_time.as_micros() as f64) / baseline.avg_search_time.as_micros() as f64) * 100.0;
-        
-        writeln!(report, "- Storage: -{} KB ({:.1}% reduction)", storage_saved / 1024, recommended.storage_vs_baseline(baseline_storage))?;
-        writeln!(report, "- Quality: {:.1}% F1 ({:+.1}% vs baseline)", recommended.avg_f1 * 100.0, quality_change)?;
-        writeln!(report, "- Latency: {:?} ({:+.1}% vs baseline)", recommended.avg_search_time, latency_change)?;
+        let quality_change =
+            ((recommended.avg_f1 - baseline.avg_f1) / baseline.avg_f1.max(0.01)) * 100.0;
+        let latency_change = ((recommended.avg_search_time.as_micros() as f64
+            - baseline.avg_search_time.as_micros() as f64)
+            / baseline.avg_search_time.as_micros() as f64)
+            * 100.0;
+
+        writeln!(
+            report,
+            "- Storage: -{} KB ({:.1}% reduction)",
+            storage_saved / 1024,
+            recommended.storage_vs_baseline(baseline_storage)
+        )?;
+        writeln!(
+            report,
+            "- Quality: {:.1}% F1 ({:+.1}% vs baseline)",
+            recommended.avg_f1 * 100.0,
+            quality_change
+        )?;
+        writeln!(
+            report,
+            "- Latency: {:?} ({:+.1}% vs baseline)",
+            recommended.avg_search_time, latency_change
+        )?;
     }
-    
+
     writeln!(report)?;
     writeln!(report, "---")?;
-    writeln!(report, "**Generated**: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"))?;
-    
+    writeln!(
+        report,
+        "**Generated**: {}",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+    )?;
+
     println!("\n📄 Report saved to: {}", report_path.display());
-    
+
     Ok(())
 }
 
@@ -552,12 +656,16 @@ fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Res
 async fn main() -> anyhow::Result<()> {
     println!("\n🔥 COMPLETE NORMALIZATION & QUANTIZATION BENCHMARK");
     println!("Using REAL BM25 embeddings and HNSW index\n");
-    
+
     // Collect documents
     println!("📁 Collecting documents...");
     let docs = collect_workspace_documents(50);
-    println!("   ✓ {} documents ({} KB)\n", docs.len(), docs.iter().map(|d| d.raw_content.len()).sum::<usize>() / 1024);
-    
+    println!(
+        "   ✓ {} documents ({} KB)\n",
+        docs.len(),
+        docs.iter().map(|d| d.raw_content.len()).sum::<usize>() / 1024
+    );
+
     // Create embedding manager with BM25
     println!("🔧 Initializing BM25 embedding manager (512D)...");
     let mut embedding_manager = EmbeddingManager::new();
@@ -565,7 +673,7 @@ async fn main() -> anyhow::Result<()> {
     embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
     embedding_manager.set_default_provider("bm25")?;
     println!("   ✓ BM25 ready (512D)\n");
-    
+
     // Define scenarios
     let scenarios = vec![
         ScenarioConfig {
@@ -599,9 +707,9 @@ async fn main() -> anyhow::Result<()> {
             quantization: true,
         },
     ];
-    
+
     println!("🧪 Running {} scenarios...\n", scenarios.len());
-    
+
     let mut results = Vec::new();
     for (i, scenario) in scenarios.iter().enumerate() {
         print!("   [{}/{}] {}... ", i + 1, scenarios.len(), scenario.name);
@@ -609,15 +717,15 @@ async fn main() -> anyhow::Result<()> {
         println!("✓");
         results.push(result);
     }
-    
+
     print_results_table(&results);
     print_analysis(&results);
     generate_report(&results, docs.len())?;
-    
+
     println!("\n{}", "=".repeat(120));
     println!("✅ Benchmark Complete!");
     println!("{}", "=".repeat(120));
     println!();
-    
+
     Ok(())
 }

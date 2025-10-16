@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" 
+             Name="Vectorizer" 
+             Language="1033" 
+             Version="!(bind.FileVersion.VectorizerExe)" 
+             Manufacturer="HiveLLM Contributors" 
+             UpgradeCode="A1B2C3D4-E5F6-4A5B-9C8D-7E6F5A4B3C2D">
+        
+        <Package InstallerVersion="500" 
+                 Compressed="yes" 
+                 InstallScope="perMachine" 
+                 Description="Vectorizer - High-Performance Vector Database" 
+                 Comments="Install Vectorizer vector database and search engine" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of Vectorizer is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <!-- Feature set -->
+        <Feature Id="ProductFeature" Title="Vectorizer" Level="1">
+            <ComponentGroupRef Id="BinariesComponentGroup" />
+            <ComponentGroupRef Id="ConfigComponentGroup" />
+            <ComponentGroupRef Id="PathComponentGroup" />
+        </Feature>
+
+        <!-- Installation directory -->
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="Vectorizer">
+                    <Directory Id="BinDir" Name="bin" />
+                </Directory>
+            </Directory>
+            
+            <Directory Id="CommonAppDataFolder">
+                <Directory Id="AppDataFolder" Name="Vectorizer">
+                    <Directory Id="ConfigFolder" Name="config" />
+                    <Directory Id="DataFolder" Name="data" />
+                </Directory>
+            </Directory>
+            
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Vectorizer" />
+            </Directory>
+        </Directory>
+
+        <!-- Binaries Component Group -->
+        <ComponentGroup Id="BinariesComponentGroup" Directory="BinDir">
+            <Component Id="VectorizerExeComponent" Guid="B1C2D3E4-F5A6-4B5C-9D8E-7F6A5B4C3D2E">
+                <File Id="VectorizerExe" 
+                      Source="$(var.CargoTargetBinDir)\vectorizer.exe" 
+                      KeyPath="yes" />
+            </Component>
+            
+            <Component Id="VectorizerCliExeComponent" Guid="C2D3E4F5-A6B7-4C5D-9E8F-7A6B5C4D3E2F">
+                <File Id="VectorizerCliExe" 
+                      Source="$(var.CargoTargetBinDir)\vectorizer-cli.exe" 
+                      KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+
+        <!-- Configuration Component Group -->
+        <ComponentGroup Id="ConfigComponentGroup" Directory="ConfigFolder">
+            <Component Id="ConfigFileComponent" Guid="D3E4F5A6-B7C8-4D5E-9F8A-7B6C5D4E3F2A">
+                <File Id="ConfigFile" 
+                      Source="config.example.yml" 
+                      Name="config.yml" 
+                      KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+
+        <!-- PATH Environment Variable Component Group -->
+        <ComponentGroup Id="PathComponentGroup" Directory="BinDir">
+            <Component Id="PathEnvComponent" Guid="E4F5A6B7-C8D9-4E5F-9A8B-7C6D5E4F3A2B">
+                <Environment Id="PATH" 
+                             Name="PATH" 
+                             Value="[BinDir]" 
+                             Permanent="no" 
+                             Part="last" 
+                             Action="set" 
+                             System="yes" />
+                <CreateFolder />
+            </Component>
+        </ComponentGroup>
+
+        <!-- Start Menu Shortcuts -->
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="F5A6B7C8-D9E0-4F5A-9B8C-7D6E5F4A3B2C">
+                <Shortcut Id="VectorizerShortcut"
+                          Name="Vectorizer CLI"
+                          Description="Vectorizer Command Line Interface"
+                          Target="[BinDir]vectorizer-cli.exe"
+                          WorkingDirectory="INSTALLFOLDER" />
+                
+                <RemoveFolder Id="CleanUpShortCut" On="uninstall" />
+                <RegistryValue Root="HKCU" 
+                               Key="Software\Vectorizer" 
+                               Name="installed" 
+                               Type="integer" 
+                               Value="1" 
+                               KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
+
+        <!-- UI Configuration -->
+        <UIRef Id="WixUI_InstallDir" />
+        <UIRef Id="WixUI_ErrorProgressText" />
+        
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+        
+        <!-- License -->
+        <WixVariable Id="WixUILicenseRtf" Value="wix\License.rtf" />
+        
+        <!-- Banner and Dialog images -->
+        <WixVariable Id="WixUIBannerBmp" Value="wix\banner.bmp" />
+        <WixVariable Id="WixUIDialogBmp" Value="wix\dialog.bmp" />
+    </Product>
+</Wix>
+

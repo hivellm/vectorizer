@@ -5,8 +5,6 @@
 //! - BERT/MPNet models (more accurate)
 //! - E5 models (optimized for retrieval)
 
-use super::EmbeddingProvider;
-use crate::error::{Result, VectorizerError};
 #[cfg(feature = "candle-models")]
 use candle_core::{Device, Tensor};
 #[cfg(feature = "candle-models")]
@@ -19,6 +17,9 @@ use hf_hub::api::sync::ApiBuilder;
 use serde_json;
 #[cfg(feature = "candle-models")]
 use tokenizers::Tokenizer;
+
+use super::EmbeddingProvider;
+use crate::error::{Result, VectorizerError};
 
 /// Available real models for download and use
 #[derive(Debug, Clone, Copy)]

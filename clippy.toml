@@ -1,0 +1,6 @@
+# Vectorizer Clippy Configuration
+# Based on Qdrant's linting standards
+
+# For Rust 1.88+ compatibility
+large-error-threshold = 256
+

@@ -1,11 +1,12 @@
 //! Batch Operations Validation
-//! 
+//!
 //! This module provides validation utilities for batch operations,
 //! including input validation, data integrity checks, and constraint validation.
 
 use std::collections::HashSet;
+
+use super::{BatchConfig, BatchError, BatchErrorType, SearchQuery, VectorUpdate};
 use crate::models::Vector;
-use super::{BatchConfig, BatchError, BatchErrorType, VectorUpdate, SearchQuery};
 
 /// Validator for batch operations
 pub struct BatchValidator {
@@ -131,7 +132,10 @@ impl BatchValidator {
         }
 
         // Check for invalid characters
-        if !collection.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !collection
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(BatchError::new(
                 "validation".to_string(),
                 BatchErrorType::InvalidCollection,
@@ -188,7 +192,8 @@ impl BatchValidator {
                 BatchErrorType::InvalidVectorData,
                 format!(
                     "Vector dimension {} exceeds maximum allowed dimension 10000 for vector at index {}",
-                    vector.data.len(), index
+                    vector.data.len(),
+                    index
                 ),
                 Some(vector.id.clone()),
             ));
@@ -212,7 +217,11 @@ impl BatchValidator {
         Ok(())
     }
 
-    fn validate_vector_update(&self, update: &VectorUpdate, index: usize) -> Result<(), BatchError> {
+    fn validate_vector_update(
+        &self,
+        update: &VectorUpdate,
+        index: usize,
+    ) -> Result<(), BatchError> {
         // Validate vector ID
         self.validate_vector_id(&update.id, index)?;
 
@@ -233,7 +242,8 @@ impl BatchValidator {
                     BatchErrorType::InvalidVectorData,
                     format!(
                         "Vector dimension {} exceeds maximum allowed dimension 10000 for update at index {}",
-                        data.len(), index
+                        data.len(),
+                        index
                     ),
                     Some(update.id.clone()),
                 ));
@@ -286,7 +296,10 @@ impl BatchValidator {
             return Err(BatchError::new(
                 "validation".to_string(),
                 BatchErrorType::InvalidQuery,
-                format!("Search query must have either vector or text at index {}", index),
+                format!(
+                    "Search query must have either vector or text at index {}",
+                    index
+                ),
                 None,
             ));
         }
@@ -308,7 +321,8 @@ impl BatchValidator {
                     BatchErrorType::InvalidQuery,
                     format!(
                         "Query vector dimension {} exceeds maximum allowed dimension 10000 at index {}",
-                        vector.len(), index
+                        vector.len(),
+                        index
                     ),
                     None,
                 ));
@@ -347,7 +361,8 @@ impl BatchValidator {
                     BatchErrorType::InvalidQuery,
                     format!(
                         "Query text length {} exceeds maximum allowed length 10000 at index {}",
-                        text.len(), index
+                        text.len(),
+                        index
                     ),
                     None,
                 ));
@@ -396,13 +411,16 @@ impl BatchValidator {
 
     fn validate_unique_ids(&self, vectors: &[Vector]) -> Result<(), BatchError> {
         let mut seen_ids = HashSet::new();
-        
+
         for (index, vector) in vectors.iter().enumerate() {
             if !seen_ids.insert(&vector.id) {
                 return Err(BatchError::new(
                     "validation".to_string(),
                     BatchErrorType::InvalidVectorId,
-                    format!("Duplicate vector ID '{}' found at index {}", vector.id, index),
+                    format!(
+                        "Duplicate vector ID '{}' found at index {}",
+                        vector.id, index
+                    ),
                     Some(vector.id.clone()),
                 ));
             }
@@ -413,13 +431,16 @@ impl BatchValidator {
 
     fn validate_unique_update_ids(&self, updates: &[VectorUpdate]) -> Result<(), BatchError> {
         let mut seen_ids = HashSet::new();
-        
+
         for (index, update) in updates.iter().enumerate() {
             if !seen_ids.insert(&update.id) {
                 return Err(BatchError::new(
                     "validation".to_string(),
                     BatchErrorType::InvalidVectorId,
-                    format!("Duplicate update ID '{}' found at index {}", update.id, index),
+                    format!(
+                        "Duplicate update ID '{}' found at index {}",
+                        update.id, index
+                    ),
                     Some(update.id.clone()),
                 ));
             }
@@ -430,7 +451,7 @@ impl BatchValidator {
 
     fn validate_unique_delete_ids(&self, vector_ids: &[String]) -> Result<(), BatchError> {
         let mut seen_ids = HashSet::new();
-        
+
         for (index, id) in vector_ids.iter().enumerate() {
             if !seen_ids.insert(id) {
                 return Err(BatchError::new(
@@ -451,7 +472,9 @@ impl BatchValidator {
         }
 
         let vector_dimension = vectors[0].data.len();
-        let estimated_memory = self.config.estimate_memory_usage(vectors.len(), vector_dimension);
+        let estimated_memory = self
+            .config
+            .estimate_memory_usage(vectors.len(), vector_dimension);
 
         if estimated_memory > self.config.max_memory_usage_mb {
             return Err(BatchError::new(
@@ -495,7 +518,7 @@ pub fn validate_collection_name(collection: &str) -> Result<(), BatchError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Vector, Payload};
+    use crate::models::{Payload, Vector};
 
     fn create_test_vector(id: &str, dimension: usize) -> Vector {
         let mut payload_data = serde_json::Map::new();
@@ -522,14 +545,30 @@ mod tests {
         let validator = BatchValidator::new(BatchConfig::default());
 
         // Valid names
-        assert!(validator.validate_collection_name("test_collection").is_ok());
-        assert!(validator.validate_collection_name("test-collection").is_ok());
+        assert!(
+            validator
+                .validate_collection_name("test_collection")
+                .is_ok()
+        );
+        assert!(
+            validator
+                .validate_collection_name("test-collection")
+                .is_ok()
+        );
         assert!(validator.validate_collection_name("test123").is_ok());
 
         // Invalid names
         assert!(validator.validate_collection_name("").is_err());
-        assert!(validator.validate_collection_name("test collection").is_err());
-        assert!(validator.validate_collection_name("test@collection").is_err());
+        assert!(
+            validator
+                .validate_collection_name("test collection")
+                .is_err()
+        );
+        assert!(
+            validator
+                .validate_collection_name("test@collection")
+                .is_err()
+        );
     }
 
     #[test]
@@ -556,7 +595,11 @@ mod tests {
 
         // Invalid vector ID
         let invalid_id_vector = create_test_vector("", 384);
-        assert!(validator.validate_vector_data(&invalid_id_vector, 0).is_err());
+        assert!(
+            validator
+                .validate_vector_data(&invalid_id_vector, 0)
+                .is_err()
+        );
 
         // Empty vector data
         let empty_vector = Vector {
@@ -612,7 +655,11 @@ mod tests {
             threshold: Some(0.8),
             filters: std::collections::HashMap::new(),
         };
-        assert!(validator.validate_search_query(&valid_vector_query, 0).is_ok());
+        assert!(
+            validator
+                .validate_search_query(&valid_vector_query, 0)
+                .is_ok()
+        );
 
         // Valid query with text
         let valid_text_query = SearchQuery {
@@ -622,7 +669,11 @@ mod tests {
             threshold: Some(0.8),
             filters: std::collections::HashMap::new(),
         };
-        assert!(validator.validate_search_query(&valid_text_query, 0).is_ok());
+        assert!(
+            validator
+                .validate_search_query(&valid_text_query, 0)
+                .is_ok()
+        );
 
         // Invalid query (no vector or text)
         let invalid_query = SearchQuery {
@@ -642,7 +693,11 @@ mod tests {
             threshold: Some(0.8),
             filters: std::collections::HashMap::new(),
         };
-        assert!(validator.validate_search_query(&invalid_limit_query, 0).is_err());
+        assert!(
+            validator
+                .validate_search_query(&invalid_limit_query, 0)
+                .is_err()
+        );
 
         // Invalid threshold
         let invalid_threshold_query = SearchQuery {
@@ -652,7 +707,11 @@ mod tests {
             threshold: Some(1.5),
             filters: std::collections::HashMap::new(),
         };
-        assert!(validator.validate_search_query(&invalid_threshold_query, 0).is_err());
+        assert!(
+            validator
+                .validate_search_query(&invalid_threshold_query, 0)
+                .is_err()
+        );
     }
 
     #[test]

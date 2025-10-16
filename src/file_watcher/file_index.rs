@@ -3,8 +3,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 /// Mapping between file and collection with vector information
 /// OPTIMIZED: Removed vector_ids storage to save memory (can query from store when needed)
@@ -33,12 +34,7 @@ impl FileIndex {
     }
 
     /// Add a mapping between file and collection
-    pub fn add_mapping(
-        &mut self,
-        file_path: PathBuf,
-        collection_name: String,
-        last_hash: String,
-    ) {
+    pub fn add_mapping(&mut self, file_path: PathBuf, collection_name: String, last_hash: String) {
         let mapping = CollectionVectorMapping {
             collection_name: collection_name.clone(),
             last_hash,
@@ -192,7 +188,6 @@ pub struct FileIndexStats {
 /// Thread-safe file index
 pub type FileIndexArc = Arc<RwLock<FileIndex>>;
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,6 +261,9 @@ mod tests {
         let json = index.to_json().unwrap();
         let deserialized = FileIndex::from_json(&json).unwrap();
 
-        assert_eq!(index.get_stats().total_files, deserialized.get_stats().total_files);
+        assert_eq!(
+            index.get_stats().total_files,
+            deserialized.get_stats().total_files
+        );
     }
 }
