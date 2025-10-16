@@ -321,7 +321,7 @@ async fn install_service() {
             .unwrap_or_else(|_| PathBuf::from("/var/lib/vectorizer"))
             .display()
             .to_string();
-        
+
         let service_content = format!(
             r"[Unit]
 Description=Vectorizer Server
