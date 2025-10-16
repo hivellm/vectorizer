@@ -1,7 +1,8 @@
-# Specifications Index - Vectorizer
+# Specifications Index - Vectorizer Documentation
 
-**Last Updated**: January 6, 2025 - **UPDATED WITH v0.3.1 INTELLIGENT SEARCH**  
-**Status**: Intelligent Search Implementation Complete - Production Ready
+**Version**: 0.9.0  
+**Last Updated**: 2025-10-16 - **StreamableHTTP MCP Transport**  
+**Status**: ✅ Production Ready
 
 ## 📋 Overview
 
