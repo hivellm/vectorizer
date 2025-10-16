@@ -445,6 +445,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         let gpu_config = GpuConfig::default();
@@ -470,6 +471,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         let gpu_config = GpuConfig::default();
@@ -502,6 +504,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: Default::default(),
             compression: Default::default(),
+            normalization: None,
         };
 
         let gpu_config = GpuConfig::default();

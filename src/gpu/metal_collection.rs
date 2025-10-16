@@ -500,8 +500,9 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::None,
-            compression: crate::models::CompressionConfig::None,
+            quantization: Default::default(),
+            compression: Default::default(),
+            normalization: None,
         };
 
         let gpu_config = GpuConfig::default();
@@ -522,8 +523,9 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::None,
-            compression: crate::models::CompressionConfig::None,
+            quantization: Default::default(),
+            compression: Default::default(),
+            normalization: None,
         };
 
         let gpu_config = GpuConfig::default();
@@ -553,8 +555,9 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::None,
-            compression: crate::models::CompressionConfig::None,
+            quantization: Default::default(),
+            compression: Default::default(),
+            normalization: None,
         };
 
         let gpu_config = GpuConfig::default();
