@@ -69,6 +69,27 @@ Code quality enforcement:
 
 **Trigger:** Push to main/develop, all PRs
 
+#### d) `.github/workflows/rust.yml`
+Multi-platform tests:
+
+- Tests on Linux, Windows, macOS
+- Uses cargo-nextest for parallel execution
+- Mold linker on Linux for faster builds
+- Automatic flaky test detection
+- JUnit report generation
+- Warning annotations for flaky tests
+
+**Trigger:** Push to main/develop, all PRs
+
+#### e) `.github/workflows/codespell.yml`
+Spell checking:
+
+- Automatic spell checking in code and docs
+- Skips binary files and generated code
+- Custom ignore list for technical terms
+
+**Trigger:** Push to main/develop, PRs
+
 ---
 
 ### 2. **Configuration Files** ✅
@@ -154,7 +175,21 @@ Universal Linux binary that works on any distribution.
 
 ---
 
-### 7. **Testing and Validation** ✅
+### 7. **Additional Quality Workflows** ✅
+
+#### `rust.yml` - Multi-Platform Tests
+- Runs tests on Linux, Windows, and macOS
+- Uses cargo-nextest for faster parallel test execution
+- Mold linker on Linux for 2-3x faster compilation
+- Automatic flaky test detection and reporting
+- JUnit XML reports for CI integration
+
+#### `codespell.yml` - Spell Checking
+- Validates spelling in code and documentation
+- Prevents typos in public-facing content
+- Configurable ignore lists for technical terms
+
+### 8. **Testing and Validation** ✅
 
 #### `scripts/test-release-setup.sh`
 Comprehensive local validation script that checks:

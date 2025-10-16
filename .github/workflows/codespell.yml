@@ -1,0 +1,27 @@
+---
+name: Codespell
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  codespell:
+    name: Check for spelling errors
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Codespell
+        run: python -m pip install --upgrade 'codespell[toml]'
+
+      - name: Run Codespell
+        run: codespell --skip="*.lock,*.json,target,node_modules,.git" --ignore-words-list="crate,ser,deser"
+
