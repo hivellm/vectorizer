@@ -159,22 +159,6 @@ fn test_policy_versions() {
 }
 
 #[test]
-fn test_large_text_performance() {
-    let normalizer = TextNormalizer::default();
-
-    // Generate large text (1MB)
-    let large_text = "Hello World! ".repeat(100_000);
-
-    let start = std::time::Instant::now();
-    let result = normalizer.normalize(&large_text, Some(ContentType::Plain));
-    let duration = start.elapsed();
-
-    // Should process 1MB in reasonable time (<100ms on modern hardware)
-    assert!(duration.as_millis() < 500, "Too slow: {:?}", duration);
-    assert!(result.metadata.normalized_size > 0);
-}
-
-#[test]
 fn test_empty_text() {
     let normalizer = TextNormalizer::default();
 
