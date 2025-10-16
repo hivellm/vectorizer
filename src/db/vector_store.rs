@@ -527,10 +527,6 @@ impl VectorStore {
         );
         Self {
             collections: Arc::new(DashMap::new()),
-            gpu_config: GpuConfig {
-                enabled: false,
-                ..Default::default()
-            },
             metal_config: Some(metal_config),
             vulkan_config: None,
             dx12_config: None,
@@ -549,10 +545,6 @@ impl VectorStore {
         );
         Self {
             collections: Arc::new(DashMap::new()),
-            gpu_config: GpuConfig {
-                enabled: false,
-                ..Default::default()
-            },
             metal_config: None,
             vulkan_config: Some(vulkan_config),
             dx12_config: None,
@@ -683,23 +675,6 @@ impl VectorStore {
                 eprintln!("🪟 DirectX 12 detected but integration pending...");
                 info!("DirectX 12 backend detected but not yet integrated");
                 // TODO: Implement DirectX12Collection (FASE 3)
-            }
-
-            GpuBackendType::CudaNative => {
-                #[cfg(feature = "cuda")]
-                {
-                    eprintln!("⚡ Initializing CUDA GPU backend...");
-                    info!("Initializing CUDA GPU backend...");
-                    let cuda_config = CudaConfig {
-                        enabled: true,
-                        ..Default::default()
-                    };
-                    eprintln!("✅ CUDA GPU initialized!");
-                    info!("✅ CUDA GPU initialized!");
-                    let store = Self::new_with_cuda_config(cuda_config);
-                    info!("⏸️  Auto-save will be enabled after collections load");
-                    return store;
-                }
             }
 
             GpuBackendType::Cpu => {
