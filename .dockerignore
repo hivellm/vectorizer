@@ -5,19 +5,37 @@
 .gitignore
 .gitattributes
 
-# Build artifacts
+# Build artifacts - MUST be excluded to avoid permission errors
 target/
+**/target/
+client-sdks/
+benchmark/
+devops/
+debian/
+gui/
+qdrant/
+dashboard/
+scripts/
+docs/
+sample/
 *.log
 *.tmp
 
-# Test files
+# Test files and benchmarks
 tests/
+**/tests/
 benchmark/
+benchmarks/
 
-# Documentation
+# Documentation and examples
 docs/
+**/docs/
+examples/
 *.md
 !README.md
+RELEASING.md
+CONTRIBUTING.md
+CHANGELOG.md
 
 # IDE files
 .vscode/
@@ -38,12 +56,30 @@ docs/
 .DS_Store
 Thumbs.db
 
-# Package files
+# Package files and artifacts
 *.tar.gz
 *.zip
 *.deb
 *.msi
 *.AppImage
+*.rpm
+artifacts/
+release/
+AppDir/
+wix/
+pkg/
+
+# Large directories that are not needed
+node_modules/
+**/node_modules/
+data/
+**/data/
+logs/
+**/logs/
+models/
+**/models/
+.cache/
+**/.cache/
 
 # Temporary files
 tmp/
