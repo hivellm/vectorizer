@@ -1,0 +1,7 @@
+# Vectorizer Rust Formatting Configuration
+# Based on Qdrant's formatting standards
+
+reorder_imports = true
+imports_granularity = "Module"
+group_imports = "StdExternalCrate"
+

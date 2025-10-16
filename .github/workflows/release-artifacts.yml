@@ -1,0 +1,296 @@
+name: Build and Publish Release Packages
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build for'
+        required: true
+        default: 'v0.9.1'
+
+jobs:
+  # =============================================================================
+  # BUILD LINUX BINARIES
+  # =============================================================================
+  build-linux-binaries:
+    name: Build Linux ${{ matrix.target }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          rustup default stable
+          rustup update
+          rustup show
+          cargo -Vv
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross-compilation tools
+        with:
+          target: ${{ matrix.target }}
+        if: contains(matrix.target, '-musl')
+        uses: taiki-e/setup-cross-toolchain-action@v1
+
+      - name: Build and publish
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer,vectorizer-cli
+          target: ${{ matrix.target }}
+          tar: all
+          zip: none
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # BUILD DEBIAN PACKAGE
+  # =============================================================================
+  build-debian-package:
+    name: Build Debian Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          rustup default stable
+          rustup update
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cross-compilation tools
+        with:
+          target: x86_64-unknown-linux-musl
+        uses: taiki-e/setup-cross-toolchain-action@v1
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build Debian Package
+        run: cargo deb --no-strip --target x86_64-unknown-linux-musl --features full
+
+      - name: Upload Debian package
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-unknown-linux-musl/debian/*.deb
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+
+  # =============================================================================
+  # BUILD APPIMAGE
+  # =============================================================================
+  build-appimage:
+    name: Build AppImage
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler libfuse2
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross-compilation tools
+        with:
+          target: x86_64-unknown-linux-musl
+        uses: taiki-e/setup-cross-toolchain-action@v1
+
+      - name: Build release binary
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl --features full
+
+      - name: Build AppImage
+        shell: bash
+        run: |
+          mkdir -p AppDir
+          cp target/x86_64-unknown-linux-musl/release/vectorizer .
+
+          curl -Lo linuxdeploy-x86_64.AppImage \
+              https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+          # Create a simple icon (you should provide a proper icon)
+          echo '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect fill="#4a90e2" width="256" height="256"/></svg>' > vectorizer.svg
+
+          ./linuxdeploy-x86_64.AppImage \
+              --appdir AppDir \
+              --executable vectorizer \
+              -d pkg/appimage/vectorizer.desktop \
+              -i vectorizer.svg \
+              --custom-apprun pkg/appimage/AppRun.sh
+
+          # Add config
+          mkdir -p AppDir/usr/share
+          cp config.example.yml AppDir/usr/share/config.yml
+
+          ./linuxdeploy-x86_64.AppImage \
+              --appdir AppDir \
+              --output appimage
+
+      - name: Upload AppImage
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: "vectorizer-x86_64.AppImage"
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+
+  # =============================================================================
+  # BUILD MACOS BINARIES
+  # =============================================================================
+  build-mac-binaries:
+    name: Build macOS ${{ matrix.target }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Install dependencies
+        run: |
+          brew update-reset
+          brew install gcc cmake protobuf-c
+          rustup default stable
+          rustup update
+          rustup show
+          cargo -Vv
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and publish
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer,vectorizer-cli
+          target: ${{ matrix.target }}
+          tar: all
+          zip: none
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # BUILD WINDOWS BINARIES
+  # =============================================================================
+  build-windows-binaries:
+    name: Build Windows x86_64
+    runs-on: windows-latest
+    
+    steps:
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: cargo build --release --locked --features full
+
+      - name: Build and publish
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer,vectorizer-cli
+          tar: none
+          zip: all
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # BUILD WINDOWS MSI INSTALLER
+  # =============================================================================
+  build-windows-msi:
+    name: Build Windows MSI Installer
+    runs-on: windows-latest
+    
+    steps:
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build binaries
+        run: cargo build --release --locked --features full
+
+      - name: Install WiX Toolset
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix --version
+
+      - name: Build MSI installer
+        env:
+          CargoTargetBinDir: ${{ github.workspace }}\target\release
+        run: |
+          wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
+
+      - name: Upload MSI
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: vectorizer.msi
+          asset_name: vectorizer-x86_64.msi
+          tag: ${{ github.ref }}
+          overwrite: true
+

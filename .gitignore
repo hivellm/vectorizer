@@ -79,3 +79,31 @@ vectorize-workspace.yml
 /cache/
 cache
 cache/
+qdrant/
+
+# Release artifacts
+*.tar.gz
+*.zip
+*.deb
+*.msi
+*.AppImage
+*.rpm
+release/
+artifacts/
+AppDir/
+linuxdeploy-*.AppImage
+vectorizer.spdx.json
+
+# Docker build cache
+.buildx-cache/
+
+# WiX build artifacts
+*.wixobj
+*.wixpdb
+
+# Debian package build
+debian/.debhelper/
+debian/vectorizer/
+debian/files
+debian/*.log
+debian/*.substvars

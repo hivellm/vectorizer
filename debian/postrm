@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+
+if [ "$1" = "purge" ]; then
+    # Remove data directories on purge
+    rm -rf /var/lib/vectorizer
+    rm -rf /var/log/vectorizer
+    rm -rf /etc/vectorizer
+    
+    # Remove user and group
+    if getent passwd vectorizer >/dev/null; then
+        userdel vectorizer 2>/dev/null || true
+    fi
+    
+    if getent group vectorizer >/dev/null; then
+        groupdel vectorizer 2>/dev/null || true
+    fi
+    
+    echo "Vectorizer and all data have been removed."
+fi
+
+#DEBHELPER#
+

@@ -259,3 +259,85 @@ required-features = ["benchmarks"]
 name = "complete_normalization_benchmark"
 path = "benchmark/scripts/complete_normalization_benchmark.rs"
 required-features = ["benchmarks"]
+
+# =============================================================================
+# WORKSPACE LINTS (Based on Qdrant standards)
+# =============================================================================
+[lints.clippy]
+cast_lossless = "warn"
+doc_link_with_quotes = "warn"
+enum_glob_use = "warn"
+explicit_into_iter_loop = "warn"
+filter_map_next = "warn"
+flat_map_option = "warn"
+from_iter_instead_of_collect = "warn"
+implicit_clone = "warn"
+inconsistent_struct_constructor = "warn"
+inefficient_to_string = "warn"
+manual_is_variant_and = "warn"
+manual_let_else = "warn"
+needless_continue = "warn"
+needless_raw_string_hashes = "warn"
+ptr_as_ptr = "warn"
+ref_option_ref = "warn"
+uninlined_format_args = "warn"
+unnecessary_wraps = "warn"
+unused_self = "warn"
+used_underscore_binding = "warn"
+match_wildcard_for_single_variants = "warn"
+needless_pass_by_ref_mut = "warn"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
+
+[lints.rustdoc]
+private_intra_doc_links = "allow"
+
+# =============================================================================
+# RELEASE PROFILES
+# =============================================================================
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+
+# Faster builds for CI
+[profile.ci]
+inherits = "release"
+debug-assertions = true
+lto = false
+opt-level = 0
+
+# Performance testing profile
+[profile.perf]
+inherits = "release"
+lto = false
+opt-level = 3
+codegen-units = 256
+
+[profile.dev]
+debug = "line-tables-only"
+
+# =============================================================================
+# DEBIAN PACKAGE METADATA
+# =============================================================================
+[package.metadata.deb]
+maintainer = "HiveLLM Contributors <info@hivellm.org>"
+depends = "$auto"
+license-file = ["LICENSE", "0"]
+section = "database"
+priority = "optional"
+extended-description = """\
+Vectorizer is a high-performance vector database and search engine built in Rust. \
+It provides semantic search, document indexing, and AI-powered applications support \
+with sub-3ms search times and comprehensive embedding model support.\
+"""
+assets = [
+    ["target/release/vectorizer", "usr/bin/", "755"],
+    ["target/release/vectorizer-cli", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/vectorizer/README", "644"],
+    ["config.example.yml", "etc/vectorizer/config.yml", "644"],
+]
+conf-files = ["/etc/vectorizer/config.yml"]
+maintainer-scripts = "debian/"
+systemd-units = { unit-name = "vectorizer", enable = false }

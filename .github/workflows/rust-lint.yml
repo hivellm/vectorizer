@@ -1,0 +1,58 @@
+name: Rust Lint and Format
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ '**' ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install minimal nightly (for rustfmt)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      - name: Install minimal stable (for clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy
+
+      - name: Update apt
+        run: sudo apt-get update
+
+      - name: Install dependencies
+        run: sudo apt-get install -y clang build-essential libssl-dev pkg-config protobuf-compiler
+
+      - name: Check code formatting
+        run: cargo +nightly fmt --all -- --check
+
+      - name: Check cargo clippy warnings
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Check cargo clippy warnings for all targets
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check cargo clippy warnings for all targets and features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
