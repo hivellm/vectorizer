@@ -288,7 +288,6 @@ mod tests {
         }
     }
 
-
     #[tokio::test]
     async fn test_blob_store_multiple() {
         let dir = tempdir().unwrap();

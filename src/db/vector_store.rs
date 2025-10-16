@@ -2529,7 +2529,6 @@ mod tests {
         ));
     }
 
-
     #[test]
     fn test_stats_functionality() {
         let store = VectorStore::new();

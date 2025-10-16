@@ -8,7 +8,6 @@ mod integration_tests {
     use crate::normalization::ContentHash;
     use crate::normalization::cache::{CacheConfig, CacheManager};
 
-
     #[tokio::test]
     async fn test_concurrent_cache_access() {
         let dir = tempdir().unwrap();
@@ -195,5 +194,4 @@ mod integration_tests {
         assert!(stats.compression_ratio > 5.0); // Should compress very well
         assert!(stats.space_saved > 8000);
     }
-
 }

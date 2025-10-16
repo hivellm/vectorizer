@@ -46,11 +46,6 @@ mod tests {
         assert!(true); // Placeholder assertion
     }
 
-
-
-
-
-
     #[test]
     fn test_summarize_text_empty_input() {
         let mut manager = SummarizationManager::with_default_config();
@@ -93,7 +88,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_get_summary_not_found() {
         let mut manager = SummarizationManager::with_default_config();
@@ -101,9 +95,6 @@ mod tests {
         let result = manager.get_summary("non-existent-id");
         assert!(result.is_none());
     }
-
-
-
 
     #[test]
     fn test_summarization_method_parsing() {
@@ -134,9 +125,6 @@ mod tests {
         assert_eq!(SummarizationMethod::Sentence.to_string(), "sentence");
         assert_eq!(SummarizationMethod::Abstractive.to_string(), "abstractive");
     }
-
-
-
 
     #[test]
     fn test_summary_persistence() {

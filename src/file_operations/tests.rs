@@ -2,7 +2,6 @@
 mod integration_tests {
     use super::super::*;
 
-
     #[tokio::test]
     async fn test_error_handling() {
         let ops = FileOperations::new();

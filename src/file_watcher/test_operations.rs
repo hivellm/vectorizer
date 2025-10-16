@@ -11,8 +11,6 @@ use super::{FileChangeEvent, FileChangeEventWithMetadata};
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;
 
-
-
 #[tokio::test]
 async fn test_should_process_file() {
     // Create vector store and embedding manager

@@ -279,5 +279,4 @@ mod tests {
             assert_eq!(retrieved.as_deref(), Some(text));
         }
     }
-
 }

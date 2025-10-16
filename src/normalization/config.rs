@@ -128,7 +128,6 @@ impl NormalizationConfig {
 mod tests {
     use super::*;
 
-
     #[test]
     fn test_conservative_config() {
         let config = NormalizationConfig::conservative();

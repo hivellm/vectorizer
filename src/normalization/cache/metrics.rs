@@ -315,5 +315,4 @@ mod tests {
         assert_eq!(stats.total_hits, 0);
         assert_eq!(stats.total_misses, 0);
     }
-
 }

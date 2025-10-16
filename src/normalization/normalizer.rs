@@ -346,7 +346,6 @@ mod tests {
         assert_eq!(result, "hello world test");
     }
 
-
     #[test]
     fn test_metadata() {
         let normalizer = TextNormalizer::default();

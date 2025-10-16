@@ -23,7 +23,6 @@ fn main() {
     assert_eq!(result.content_hash, result.content_hash); // Deterministic
 }
 
-
 #[test]
 fn test_storage_reduction() {
     let normalizer = TextNormalizer::new(NormalizationPolicy {
@@ -70,7 +69,6 @@ fn test_query_document_consistency() {
 
     assert_eq!(doc_lower.text.trim(), query_lower.trim());
 }
-
 
 #[test]
 fn test_unicode_edge_cases() {

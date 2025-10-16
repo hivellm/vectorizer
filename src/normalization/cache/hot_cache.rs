@@ -214,7 +214,6 @@ mod tests {
         assert_eq!(cache.get(&"key3"), None);
     }
 
-
     #[test]
     fn test_lfu_update() {
         let cache = LfuCache::new(1024);

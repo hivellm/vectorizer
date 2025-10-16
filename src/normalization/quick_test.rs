@@ -45,7 +45,6 @@ mod quick_validation {
         assert!(compression_ratio > 10.0, "Should achieve >10% compression");
     }
 
-
     #[test]
     fn test_normalization_levels() {
         let conservative = TextNormalizer::new(NormalizationPolicy {
@@ -75,7 +74,6 @@ mod quick_validation {
 
         println!("✅ Normalization levels working correctly!");
     }
-
 
     #[test]
     fn test_unicode_handling() {

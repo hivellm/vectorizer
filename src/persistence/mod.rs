@@ -354,8 +354,6 @@ mod tests {
     use super::*;
     use crate::models::{DistanceMetric, HnswConfig};
 
-
-
     #[test]
     fn test_persistence_manager_compression() {
         let dir = tempdir().unwrap();
