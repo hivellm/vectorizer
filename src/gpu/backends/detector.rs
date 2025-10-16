@@ -26,10 +26,10 @@ impl GpuBackendType {
     /// Get priority of backend (lower = higher priority)
     pub fn priority(&self) -> u8 {
         match self {
-            Self::Metal => 0,      // Best for Apple Silicon
-            Self::Vulkan => 1,     // Universal, AMD optimized
-            Self::DirectX12 => 2,  // Windows native
-            Self::Cpu => 255,      // Last resort
+            Self::Metal => 0,     // Best for Apple Silicon
+            Self::Vulkan => 1,    // Universal, AMD optimized
+            Self::DirectX12 => 2, // Windows native
+            Self::Cpu => 255,     // Last resort
         }
     }
 
