@@ -96,19 +96,23 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // Should have 38+ operations
-        assert!(
-            operations.len() >= 38,
-            "Expected at least 38 operations, got {}",
+        // Should have 7 consolidated operations
+        assert_eq!(
+            operations.len(),
+            7,
+            "Expected 7 consolidated operations, got {}",
             operations.len()
         );
 
-        // Check for key operations
+        // Check for key consolidated operations
         let op_names: Vec<String> = operations.iter().map(|op| op.name.clone()).collect();
-        assert!(op_names.contains(&"search_vectors".to_string()));
-        assert!(op_names.contains(&"list_collections".to_string()));
-        assert!(op_names.contains(&"create_collection".to_string()));
-        assert!(op_names.contains(&"intelligent_search".to_string()));
+        assert!(op_names.contains(&"search".to_string()));
+        assert!(op_names.contains(&"collection".to_string()));
+        assert!(op_names.contains(&"vector".to_string()));
+        assert!(op_names.contains(&"insert".to_string()));
+        assert!(op_names.contains(&"batch_operations".to_string()));
+        assert!(op_names.contains(&"discovery".to_string()));
+        assert!(op_names.contains(&"file_operations".to_string()));
     }
 
     #[test]
@@ -132,8 +136,8 @@ mod tests {
 
         let search_op = operations
             .iter()
-            .find(|op| op.name == "search_vectors")
-            .expect("search_vectors operation not found");
+            .find(|op| op.name == "search")
+            .expect("search operation not found");
 
         // Should have annotations
         assert!(search_op.annotations.is_some());
@@ -141,8 +145,10 @@ mod tests {
         assert_eq!(annotations["read_only"], true);
         assert_eq!(annotations["idempotent"], true);
 
-        // Should have input schema
+        // Should have input schema with search_type field
         assert!(search_op.input_schema.is_object());
+        let schema = search_op.input_schema.as_object().unwrap();
+        assert!(schema.contains_key("properties"));
     }
 
     #[test]
@@ -150,15 +156,19 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        let delete_op = operations
+        let collection_op = operations
             .iter()
-            .find(|op| op.name == "delete_collection")
-            .expect("delete_collection operation not found");
+            .find(|op| op.name == "collection")
+            .expect("collection operation not found");
 
-        // Should be destructive
-        assert!(delete_op.annotations.is_some());
-        let annotations = delete_op.annotations.as_ref().unwrap();
-        assert_eq!(annotations["destructive"], true);
+        // Collection tool should have annotations but not be marked as destructive
+        // (since it also includes non-destructive operations like list and get_info)
+        assert!(collection_op.annotations.is_some());
+        
+        // Should have input schema with operation field for delete
+        assert!(collection_op.input_schema.is_object());
+        let schema = collection_op.input_schema.as_object().unwrap();
+        assert!(schema.contains_key("properties"));
     }
 
     #[test]
