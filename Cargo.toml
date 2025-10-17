@@ -34,7 +34,7 @@ hnsw_rs = "0.3"
 # Intelligent search dependencies
 tantivy = "0.25"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
-fastembed = "5.2" # Embeddings + cross-encoder reranking
+fastembed = { version = "5.2", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
@@ -214,9 +214,10 @@ name = "vectorizer"
 path = "src/bin/vectorizer.rs"
 
 [features]
-default = ["gpu_real"]
+default = ["gpu_real", "fastembed"]
 gpu = []
 gpu_real = ["gpu"]
+fastembed = ["dep:fastembed"]
 metal = ["wgpu", "pollster", "bytemuck", "futures"]
 wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
 gpu-accel = ["wgpu-gpu"]

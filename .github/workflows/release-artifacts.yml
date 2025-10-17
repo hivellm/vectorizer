@@ -44,12 +44,16 @@ jobs:
           bin: vectorizer
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Use gpu_real for musl (avoids ONNX Runtime issues), default for others
+          features: ${{ contains(matrix.target, '-musl') && 'gpu_real' || 'default' }}
       - name: Build and publish vectorizer-cli
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Use gpu_real for musl (avoids ONNX Runtime issues), default for others
+          features: ${{ contains(matrix.target, '-musl') && 'gpu_real' || 'default' }}
       - name: Build Debian Package
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
