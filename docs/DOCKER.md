@@ -261,18 +261,57 @@ docker run -p 15002:15002 \
 
 ## Building from Source
 
+**Important**: Always use `-t` flag to name your image, otherwise it will be unnamed (`<none>`).
+
 ```bash
-# Single platform
+# Single platform (amd64)
 docker build -t vectorizer:local .
 
-# Multi-platform
-docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:local .
+# Single platform (arm64)
+docker build -t vectorizer:local-arm64 --platform linux/arm64 .
+
+# Multi-platform (requires buildx)
+docker buildx create --use  # First time only
+docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest --load .
 
 # With specific features
-docker build --build-arg FEATURES="wgpu-gpu" -t vectorizer:gpu .
+docker build -t vectorizer:gpu --build-arg FEATURES="wgpu-gpu" .
+
+# Tag with version
+docker build -t vectorizer:v0.9.6 -t vectorizer:latest .
+
+# Build and push to registry
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/YOUR_USERNAME/vectorizer:latest \
+  -t ghcr.io/YOUR_USERNAME/vectorizer:v0.9.6 \
+  --push .
 ```
 
 ## Troubleshooting
+
+### Image has no name (`<none>`)
+
+If you build without `-t` flag, the image will be unnamed:
+
+```bash
+# Wrong - image will be unnamed
+docker build .
+
+# Correct - image will be named
+docker build -t vectorizer:local .
+```
+
+To fix existing unnamed images:
+```bash
+# Find unnamed images
+docker images | grep "<none>"
+
+# Tag an unnamed image
+docker tag <image-id> vectorizer:local
+
+# Or rebuild with proper name
+docker build -t vectorizer:local .
+```
 
 ### Container exits immediately
 Check logs:

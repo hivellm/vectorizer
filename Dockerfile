@@ -1,5 +1,13 @@
 # Multi-stage Dockerfile for Vectorizer
 # Based on Qdrant's production-grade Docker build strategy
+#
+# Local build examples:
+#   docker build -t vectorizer:local .
+#   docker build -t vectorizer:v0.9.6 .
+#   docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest .
+#
+# Multi-platform build:
+#   docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/hivellm/vectorizer:latest --push .
 
 # Cross-compiling using Docker multi-platform builds
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
