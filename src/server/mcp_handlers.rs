@@ -92,15 +92,19 @@ pub async fn handle_mcp_tool(
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     match request.name.as_ref() {
-        // Unified Tools
-        "search" => handle_search_unified(request, store, embedding_manager).await,
-        "collection" => handle_collection_unified(request, store).await,
-        "vector" => handle_vector_unified(request, store, embedding_manager).await,
-        "insert" => handle_insert_unified(request, store, embedding_manager).await,
-        "batch_operations" => handle_batch_operations_unified(request, store, embedding_manager).await,
-        "discovery" => handle_discovery_unified(request, store, embedding_manager).await,
-        "file_operations" => handle_file_operations_unified(request, store, embedding_manager).await,
-        _ => Err(ErrorData::invalid_params("Unknown tool", None)),
+       // Unified Tools
+       "search" => handle_search_unified(request, store, embedding_manager).await,
+       "collection" => handle_collection_unified(request, store).await,
+       "vector" => handle_vector_unified(request, store, embedding_manager).await,
+       "insert" => handle_insert_unified(request, store, embedding_manager).await,
+       "batch_operations" => {
+           handle_batch_operations_unified(request, store, embedding_manager).await
+       }
+       "discovery" => handle_discovery_unified(request, store, embedding_manager).await,
+       "file_operations" => {
+           handle_file_operations_unified(request, store, embedding_manager).await
+       }
+       _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
 
@@ -128,7 +132,9 @@ async fn handle_search_unified(
         "intelligent" => handle_intelligent_search(request, store, embedding_manager).await,
         "semantic" => handle_semantic_search(request, store, embedding_manager).await,
         "contextual" => handle_contextual_search(request, store, embedding_manager).await,
-        "multi_collection" => handle_multi_collection_search(request, store, embedding_manager).await,
+        "multi_collection" => {
+            handle_multi_collection_search(request, store, embedding_manager).await
+        }
         "batch" => handle_batch_search_vectors(request, store, embedding_manager).await,
         "by_file_type" => handle_search_by_file_type(request, store, embedding_manager).await,
         _ => Err(ErrorData::internal_error(
@@ -644,7 +650,6 @@ async fn handle_batch_insert_texts(
     )]))
 }
 
-
 async fn handle_get_vector(
     request: CallToolRequestParam,
     store: Arc<VectorStore>,
@@ -772,7 +777,6 @@ async fn handle_update_vector(
         response.to_string(),
     )]))
 }
-
 
 async fn handle_insert_texts(
     request: CallToolRequestParam,
@@ -1005,7 +1009,6 @@ async fn handle_batch_delete_vectors(
         response.to_string(),
     )]))
 }
-
 
 // Intelligent Search Handlers
 

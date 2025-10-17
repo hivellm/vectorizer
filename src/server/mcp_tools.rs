@@ -148,7 +148,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
-        
+
         // 2. Unified Collection Tool
         Tool {
             name: Cow::Borrowed("collection"),

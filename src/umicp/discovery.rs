@@ -164,7 +164,7 @@ mod tests {
         // Collection tool should have annotations but not be marked as destructive
         // (since it also includes non-destructive operations like list and get_info)
         assert!(collection_op.annotations.is_some());
-        
+
         // Should have input schema with operation field for delete
         assert!(collection_op.input_schema.is_object());
         let schema = collection_op.input_schema.as_object().unwrap();
