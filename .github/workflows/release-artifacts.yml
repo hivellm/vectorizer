@@ -231,7 +231,9 @@ jobs:
 
           # Copy config and dashboard
           mkdir -p AppDir/usr/share/vectorizer/dashboard
-          cp config.example.yml AppDir/usr/share/config.yml
+          cp config.yml AppDir/usr/share/config.yml
+          cp config.exemple.yml AppDir/usr/share/config.exemple.yml
+          cp vectorize-workspace.example.yml AppDir/usr/share/vectorize-workspace.example.yml
           cp -r dashboard/* AppDir/usr/share/vectorizer/dashboard/
 
           ./linuxdeploy-x86_64.AppImage \

@@ -64,9 +64,16 @@
         <ComponentGroup Id="ConfigComponentGroup" Directory="ConfigFolder">
             <Component Id="ConfigFileComponent" Guid="D3E4F5A6-B7C8-4D5E-9F8A-7B6C5D4E3F2A">
                 <File Id="ConfigFile" 
-                      Source="config.example.yml" 
-                      Name="config.yml" 
+                      Source="config.yml" 
                       KeyPath="yes" />
+            </Component>
+            <Component Id="ConfigExampleComponent" Guid="B7C8D9E0-F1A2-4B5C-9D8E-7F6A5B4C3D2E">
+                <File Id="ConfigExampleFile" 
+                      Source="config.exemple.yml" />
+            </Component>
+            <Component Id="WorkspaceExampleComponent" Guid="A6B7C8D9-E0F1-4A5B-9C8D-7E6F5A4B3C2D">
+                <File Id="WorkspaceExampleFile" 
+                      Source="vectorize-workspace.example.yml" />
             </Component>
         </ComponentGroup>
 
