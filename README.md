@@ -2,7 +2,7 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.9.1 - UMICP v0.2.1 Integration**
+## ✨ **Version 0.9.6 - Docker Multi-Platform & Monorepo Support**
 
 ### 🎯 **Key Features**
 - **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint (NEW in v0.9.1)
