@@ -20,6 +20,7 @@
         <Feature Id="ProductFeature" Title="Vectorizer" Level="1">
             <ComponentGroupRef Id="BinariesComponentGroup" />
             <ComponentGroupRef Id="ConfigComponentGroup" />
+            <ComponentGroupRef Id="DashboardComponentGroup" />
             <ComponentGroupRef Id="PathComponentGroup" />
         </Feature>
 
@@ -35,6 +36,7 @@
                 <Directory Id="AppDataFolder" Name="Vectorizer">
                     <Directory Id="ConfigFolder" Name="config" />
                     <Directory Id="DataFolder" Name="data" />
+                    <Directory Id="DashboardFolder" Name="dashboard" />
                 </Directory>
             </Directory>
             
@@ -65,6 +67,31 @@
                       Source="config.example.yml" 
                       Name="config.yml" 
                       KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+
+        <!-- Dashboard Component Group -->
+        <ComponentGroup Id="DashboardComponentGroup" Directory="DashboardFolder">
+            <Component Id="DashboardIndexComponent" Guid="A1B2C3D4-E5F6-7A8B-9C0D-1E2F3A4B5C6D">
+                <File Id="IndexHtml" Source="dashboard\index.html" KeyPath="yes" />
+            </Component>
+            <Component Id="DashboardAppComponent" Guid="B2C3D4E5-F6A7-8B9C-0D1E-2F3A4B5C6D7E">
+                <File Id="AppJs" Source="dashboard\app.js" />
+            </Component>
+            <Component Id="DashboardApiComponent" Guid="C3D4E5F6-A7B8-9C0D-1E2F-3A4B5C6D7E8F">
+                <File Id="ApiClientJs" Source="dashboard\api-client.js" />
+            </Component>
+            <Component Id="DashboardSearchComponent" Guid="D4E5F6A7-B8C9-0D1E-2F3A-4B5C6D7E8F9A">
+                <File Id="SearchFunctionJs" Source="dashboard\search-function.js" />
+            </Component>
+            <Component Id="DashboardStylesComponent" Guid="E5F6A7B8-C9D0-1E2F-3A4B-5C6D7E8F9A0B">
+                <File Id="StylesCss" Source="dashboard\styles.css" />
+            </Component>
+            <Component Id="DashboardFaviconComponent" Guid="F6A7B8C9-D0E1-2F3A-4B5C-6D7E8F9A0B1C">
+                <File Id="FaviconIco" Source="dashboard\favicon.ico" />
+            </Component>
+            <Component Id="DashboardIconComponent" Guid="A7B8C9D0-E1F2-3A4B-5C6D-7E8F9A0B1C2D">
+                <File Id="IconPng" Source="dashboard\icon.png" />
             </Component>
         </ComponentGroup>
 

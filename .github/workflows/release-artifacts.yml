@@ -229,9 +229,10 @@ jobs:
               -i vectorizer.svg \
               --custom-apprun pkg/appimage/AppRun.sh
 
-          # Copy config
-          mkdir -p AppDir/usr/share
+          # Copy config and dashboard
+          mkdir -p AppDir/usr/share/vectorizer/dashboard
           cp config.example.yml AppDir/usr/share/config.yml
+          cp -r dashboard/* AppDir/usr/share/vectorizer/dashboard/
 
           ./linuxdeploy-x86_64.AppImage \
               --appdir AppDir \

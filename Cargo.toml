@@ -343,6 +343,13 @@ assets = [
     ["target/release/vectorizer-cli", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/vectorizer/README", "644"],
     ["config.example.yml", "etc/vectorizer/config.yml", "644"],
+    ["dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/app.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/api-client.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/search-function.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/styles.css", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/favicon.ico", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/icon.png", "usr/share/vectorizer/dashboard/", "644"],
 ]
 conf-files = ["/etc/vectorizer/config.yml"]
 maintainer-scripts = "debian/"
