@@ -69,17 +69,23 @@ AppDir/
 wix/
 pkg/
 
-# Large directories that are not needed
+# Large directories that are not needed (but NOT src/models which is source code!)
 node_modules/
 **/node_modules/
 data/
 **/data/
 logs/
 **/logs/
-models/
-**/models/
+# Exclude ML model directories but NOT src/models (source code)
+sample/models/
+client-sdks/*/models/
+!src/models/
 .cache/
 **/.cache/
+venv/
+**/venv/
+coverage/
+**/coverage/
 
 # Temporary files
 tmp/

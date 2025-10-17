@@ -106,15 +106,23 @@ RUN if [ "$USER_ID" != 0 ]; then \
 
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer "$APP"/vectorizer
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer.spdx.json "$APP"/vectorizer.spdx.json
-COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/config.example.yml "$APP"/config.yml
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/tools/entrypoint.sh "$APP"/entrypoint.sh
 
 WORKDIR "$APP"
 
+# Create data directories with proper permissions
+RUN mkdir -p data storage snapshots .logs && \
+    chown -R $USER_ID:$USER_ID data storage snapshots .logs
+
+# Volumes for persistent data
+VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots"]
+
 USER "$USER_ID:$USER_ID"
 
 ENV TZ=Etc/UTC \
-    RUN_MODE=production
+    RUN_MODE=production \
+    VECTORIZER_HOST=0.0.0.0 \
+    VECTORIZER_PORT=15002
 
 EXPOSE 15002
 EXPOSE 15003
