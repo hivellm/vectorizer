@@ -60,22 +60,50 @@ docker run -p 15002:15002 \
 
 Then in your `vectorize-workspace.yml`:
 ```yaml
-watch_directories:
-  - path: /workspace/vectorizer/src
-    collection: vectorizer-source
-    extensions: [rs, toml]
+global_settings:
+  file_watcher:
+    auto_discovery: true
+    enable_auto_update: true
+    hot_reload: true
+    watch_paths:
+      - /workspace
+
+projects:
+  - name: vectorizer
+    path: /workspace/vectorizer
+    description: Vectorizer - Vector database
+    collections:
+      - name: vectorizer-source
+        description: Rust source code
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+        exclude_patterns:
+          - "target/**"
     
-  - path: /workspace/governance/src
-    collection: governance-source
-    extensions: [ts, js]
+  - name: governance
+    path: /workspace/governance
+    description: Governance System
+    collections:
+      - name: governance-source
+        description: TypeScript source code
+        include_patterns:
+          - "src/**/*.ts"
+          - "**/*.json"
+        exclude_patterns:
+          - "node_modules/**"
     
-  - path: /workspace/task-queue/src
-    collection: task-queue-source
-    extensions: [rs, toml]
-    
-  - path: /workspace/docs
-    collection: monorepo-docs
-    extensions: [md]
+  - name: task-queue
+    path: /workspace/task-queue
+    description: Task Queue
+    collections:
+      - name: task-queue-source
+        description: Rust source code
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+        exclude_patterns:
+          - "target/**"
 ```
 
 **Security Note**: Mounting `../../` gives the container read access to all parent directories. Always use read-only (`:ro`) and be mindful of sensitive data.

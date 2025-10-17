@@ -1,82 +1,173 @@
 # Vectorizer Workspace Configuration Example
 # Copy this file to vectorize-workspace.yml and customize for your project
 
-# Workspace name (used for collection naming)
-name: my-workspace
+global_settings:
+  file_watcher:
+    auto_discovery: true
+    enable_auto_update: true
+    exclude_patterns: []
+    hot_reload: true
+    watch_paths:
+      - /workspace  # Root path to watch
 
-# Directories to watch and index
-watch_directories:
-  - path: ./src
-    collection: workspace-source
-    extensions:
-      - rs
-      - toml
-      - md
-    recursive: true
-    auto_create: true
+projects:
+  # Example: Single project
+  - name: my-project
+    path: /workspace/my-project
+    description: My Project - Description
+    collections:
+      - name: my-project-source
+        description: Source code
+        include_patterns:
+          - "src/**/*.rs"
+          - "src/**/*.toml"
+          - "**/*.json"
+        exclude_patterns:
+          - "target/**"
+          - "**/*.log"
+      
+      - name: my-project-docs
+        description: Documentation
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "node_modules/**"
 
-  - path: ./docs
-    collection: workspace-docs
-    extensions:
-      - md
-      - txt
-    recursive: true
-    auto_create: true
-
-# Example for HiveLLM Monorepo (when mounting ../../ as /workspace):
-# watch_directories:
-#   - path: /workspace/vectorizer/src
-#     collection: vectorizer-source
-#     extensions: [rs, toml]
-#     recursive: true
-#     auto_create: true
+# ============================================================================
+# HiveLLM Monorepo Example (when mounting ../../ as /workspace in Docker)
+# ============================================================================
 #
-#   - path: /workspace/governance/src
-#     collection: governance-source
-#     extensions: [ts, js, json]
-#     recursive: true
-#     auto_create: true
+# global_settings:
+#   file_watcher:
+#     auto_discovery: true
+#     enable_auto_update: true
+#     exclude_patterns: []
+#     hot_reload: true
+#     watch_paths:
+#       - /workspace
 #
-#   - path: /workspace/task-queue/src
-#     collection: task-queue-source
-#     extensions: [rs, toml]
-#     recursive: true
-#     auto_create: true
+# projects:
+#   - name: vectorizer
+#     path: /workspace/vectorizer
+#     description: Vectorizer - Vector database and search engine
+#     collections:
+#       - name: vectorizer-source
+#         description: Vectorizer Rust source code
+#         include_patterns:
+#           - "src/**/*.rs"
+#           - "**/*.toml"
+#           - "build.rs"
+#         exclude_patterns:
+#           - "target/**"
+#           - "data/**"
+#           - "logs/**"
+#       
+#       - name: vectorizer-docs
+#         description: Vectorizer documentation
+#         include_patterns:
+#           - "docs/**/*.md"
+#           - "*.md"
+#         exclude_patterns:
+#           - "target/**"
 #
-#   - path: /workspace/agent-framework/typescript
-#     collection: agent-framework-source
-#     extensions: [ts, json]
-#     recursive: true
-#     auto_create: true
+#   - name: governance
+#     path: /workspace/governance
+#     description: Governance System - Project management
+#     collections:
+#       - name: governance-source
+#         description: Governance TypeScript source code
+#         include_patterns:
+#           - "src/**/*.ts"
+#           - "src/**/*.js"
+#           - "**/*.json"
+#           - "scripts/**/*"
+#         exclude_patterns:
+#           - "node_modules/**"
+#           - "dist/**"
+#           - "*.db*"
+#       
+#       - name: governance-docs
+#         description: Governance documentation
+#         include_patterns:
+#           - "*.md"
+#           - "views/**/*.md"
+#         exclude_patterns:
+#           - "node_modules/**"
 #
-#   - path: /workspace/docs
-#     collection: monorepo-docs
-#     extensions: [md]
-#     recursive: true
-#     auto_create: true
-
-# File watcher settings
-file_watcher:
-  enabled: true
-  debounce_ms: 1000
-  max_file_size_mb: 10
-  ignore_patterns:
-    - "*.log"
-    - "*.tmp"
-    - "**/target/**"
-    - "**/node_modules/**"
-    - "**/.git/**"
-
-# Embedding configuration
-embedding:
-  provider: bm25
-  chunk_size: 512
-  chunk_overlap: 50
-
-# Collection defaults
-collection_defaults:
-  distance_metric: cosine
-  dimension: 384
-  hnsw:
-    m: 16
-    ef_construct: 200
+#   - name: task-queue
+#     path: /workspace/task-queue
+#     description: Task Queue - Distributed task processing
+#     collections:
+#       - name: task-queue-source
+#         description: Task Queue Rust source code
+#         include_patterns:
+#           - "src/**/*.rs"
+#           - "cli/**/*.rs"
+#           - "**/*.toml"
+#         exclude_patterns:
+#           - "target/**"
+#           - "data/**"
+#           - "logs/**"
+#       
+#       - name: task-queue-docs
+#         description: Task Queue documentation
+#         include_patterns:
+#           - "docs/**/*.md"
+#           - "*.md"
+#         exclude_patterns:
+#           - "target/**"
+#       
+#       - name: task-queue-sdk-typescript
+#         description: Task Queue TypeScript SDK
+#         include_patterns:
+#           - "sdks/typescript/**/*.ts"
+#           - "sdks/typescript/**/*.js"
+#           - "sdks/typescript/**/*.json"
+#         exclude_patterns:
+#           - "sdks/typescript/node_modules/**"
+#           - "sdks/typescript/coverage/**"
+#
+#   - name: transmutation
+#     path: /workspace/transmutation
+#     description: Transmutation - Document conversion engine
+#     collections:
+#       - name: transmutation-source
+#         description: Transmutation Rust source code
+#         include_patterns:
+#           - "src/**/*.rs"
+#           - "examples/**/*.rs"
+#           - "**/*.toml"
+#           - "build.rs"
+#         exclude_patterns:
+#           - "target/**"
+#           - "data/**"
+#       
+#       - name: transmutation-docs
+#         description: Transmutation documentation
+#         include_patterns:
+#           - "docs/**/*.md"
+#           - "*.md"
+#         exclude_patterns:
+#           - "target/**"
+#
+#   - name: umicp
+#     path: /workspace/umicp
+#     description: Universal Model Interface Communication Protocol
+#     collections:
+#       - name: umicp-cpp
+#         description: UMICP C++ implementation
+#         include_patterns:
+#           - "cpp/**/*.cpp"
+#           - "cpp/**/*.h"
+#           - "cpp/**/*.md"
+#         exclude_patterns:
+#           - "cpp/build/**"
+#       
+#       - name: umicp-docs
+#         description: UMICP documentation
+#         include_patterns:
+#           - "docs/**/*.md"
+#           - "*.md"
+#         exclude_patterns:
+#           - "bindings/**/target/**"
