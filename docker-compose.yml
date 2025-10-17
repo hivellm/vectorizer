@@ -13,6 +13,7 @@ services:
       - ./vectorizer-data:/vectorizer/data
       - ./vectorizer-storage:/vectorizer/storage
       - ./vectorizer-snapshots:/vectorizer/snapshots
+      - ./vectorizer-dashboard:/vectorizer/dashboard
       
       # Workspace configuration for Docker (paths are /workspace/*)
       # For local dev, use vectorize-workspace.yml with relative paths

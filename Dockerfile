@@ -111,11 +111,11 @@ COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/tools/entrypoint.sh "$
 WORKDIR "$APP"
 
 # Create data directories with proper permissions
-RUN mkdir -p data storage snapshots .logs && \
-    chown -R $USER_ID:$USER_ID data storage snapshots .logs
+RUN mkdir -p data storage snapshots dashboard .logs && \
+    chown -R $USER_ID:$USER_ID data storage snapshots dashboard .logs
 
 # Volumes for persistent data
-VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots"]
+VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots", "$APP/dashboard"]
 
 USER "$USER_ID:$USER_ID"
 

@@ -21,6 +21,7 @@ docker run -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
   -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
+  -v $(pwd)/vectorizer-dashboard:/vectorizer/dashboard \
   ghcr.io/hivellm/vectorizer:latest
 ```
 
@@ -39,6 +40,7 @@ docker run -d \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
   -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
+  -v $(pwd)/vectorizer-dashboard:/vectorizer/dashboard \
   -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
   -v $(pwd)/../../:/workspace:ro \
   -e VECTORIZER_HOST=0.0.0.0 \
@@ -242,6 +244,7 @@ volumes:
 │   └── vectorizer.vecdb      # Compressed archive
 ├── vectorizer-storage/       # Additional storage
 ├── vectorizer-snapshots/     # Automatic snapshots
+├── vectorizer-dashboard/     # Dashboard data and assets
 └── vectorize-workspace.yml   # Workspace configuration
 ```
 

@@ -20,6 +20,7 @@ services:
       - ./vectorizer-data:/vectorizer/data
       - ./vectorizer-storage:/vectorizer/storage
       - ./vectorizer-snapshots:/vectorizer/snapshots
+      - ./vectorizer-dashboard:/vectorizer/dashboard
       
       # Workspace configuration for Docker
       - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
