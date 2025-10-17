@@ -21,8 +21,8 @@ services:
       - ./vectorizer-storage:/vectorizer/storage
       - ./vectorizer-snapshots:/vectorizer/snapshots
       
-      # Workspace configuration
-      - ./vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro
+      # Workspace configuration for Docker
+      - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
       
       # Mount entire monorepo for development
       - ../../:/workspace:ro

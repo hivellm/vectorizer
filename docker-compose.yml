@@ -14,11 +14,14 @@ services:
       - ./vectorizer-storage:/vectorizer/storage
       - ./vectorizer-snapshots:/vectorizer/snapshots
       
-      # Workspace configuration (create from vectorize-workspace.example.yml)
-      - ./vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro
+      # Workspace configuration for Docker (paths are /workspace/*)
+      # For local dev, use vectorize-workspace.yml with relative paths
+      - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
       
-      # Mount entire monorepo (HiveLLM structure with vectorizer as subproject)
-      # Adjust path if your structure is different
+      # Mount parent directories for monorepo access
+      # Adjust the number of ../ based on your folder structure
+      # HiveLLM structure: vectorizer is in hivellm/vectorizer
+      # CMMV structure: cmmv projects are in ../cmmv/
       - ../../:/workspace:ro
     
     environment:

@@ -47,9 +47,9 @@ A high-performance vector database and search engine built in Rust, designed for
 git clone https://github.com/hivellm/vectorizer.git
 cd vectorizer
 
-# Create workspace config from example
-cp vectorize-workspace.example.yml vectorize-workspace.yml
-# Edit vectorize-workspace.yml with your projects
+# Create workspace config for Docker (container paths: /workspace/*)
+cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
+# Edit vectorize-workspace.docker.yml to match your monorepo structure
 
 # Start with Docker Compose
 docker-compose up -d

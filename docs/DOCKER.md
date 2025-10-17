@@ -25,13 +25,22 @@ docker run -p 15002:15002 \
 
 ### With Workspace Configuration
 
-1. Create your workspace config (if not exists):
+**Important**: Workspace paths are different for Docker vs. local execution:
+- **Local execution**: Use relative paths like `../../cmmv/cmmv`
+- **Docker execution**: Use container paths like `/workspace/cmmv/cmmv`
+
+1. Create workspace configs:
 ```bash
+# For local execution (relative paths)
 cp vectorize-workspace.example.yml vectorize-workspace.yml
-# Edit vectorize-workspace.yml with your project paths and collections
+
+# For Docker execution (container paths /workspace/*)
+cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
+
+# Edit both files according to your needs
 ```
 
-2. Run with workspace mounted (mounts the actual config file, not the example):
+2. Run with Docker (uses .docker.yml automatically):
 ```bash
 docker run -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \

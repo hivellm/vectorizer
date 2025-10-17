@@ -75,6 +75,7 @@ data
 
 !./vectorize-workspace.yml
 vectorize-workspace.yml
+vectorize-workspace.docker.yml
 /cache/
 cache
 cache/
