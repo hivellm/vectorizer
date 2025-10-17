@@ -42,6 +42,7 @@ jobs:
         with:
           bin: vectorizer,vectorizer-cli
           target: ${{ matrix.target }}
+          archive: $bin-$tag-$target
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Debian Package
         if: matrix.target == 'x86_64-unknown-linux-musl'
@@ -82,6 +83,7 @@ jobs:
         with:
           bin: vectorizer,vectorizer-cli
           target: ${{ matrix.target }}
+          archive: $bin-$tag-$target
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows-binaries:
@@ -103,6 +105,7 @@ jobs:
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer,vectorizer-cli
+          archive: $bin-$tag-$target
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows-msi:
