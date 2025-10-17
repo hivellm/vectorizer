@@ -92,19 +92,19 @@ pub async fn handle_mcp_tool(
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     match request.name.as_ref() {
-       // Unified Tools
-       "search" => handle_search_unified(request, store, embedding_manager).await,
-       "collection" => handle_collection_unified(request, store).await,
-       "vector" => handle_vector_unified(request, store, embedding_manager).await,
-       "insert" => handle_insert_unified(request, store, embedding_manager).await,
-       "batch_operations" => {
-           handle_batch_operations_unified(request, store, embedding_manager).await
-       }
-       "discovery" => handle_discovery_unified(request, store, embedding_manager).await,
-       "file_operations" => {
-           handle_file_operations_unified(request, store, embedding_manager).await
-       }
-       _ => Err(ErrorData::invalid_params("Unknown tool", None)),
+        // Unified Tools
+        "search" => handle_search_unified(request, store, embedding_manager).await,
+        "collection" => handle_collection_unified(request, store).await,
+        "vector" => handle_vector_unified(request, store, embedding_manager).await,
+        "insert" => handle_insert_unified(request, store, embedding_manager).await,
+        "batch_operations" => {
+            handle_batch_operations_unified(request, store, embedding_manager).await
+        }
+        "discovery" => handle_discovery_unified(request, store, embedding_manager).await,
+        "file_operations" => {
+            handle_file_operations_unified(request, store, embedding_manager).await
+        }
+        _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
 
