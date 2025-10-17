@@ -25,13 +25,13 @@ docker run -p 15002:15002 \
 
 ### With Workspace Configuration
 
-1. Create your workspace config:
+1. Create your workspace config (if not exists):
 ```bash
 cp vectorize-workspace.example.yml vectorize-workspace.yml
-# Edit vectorize-workspace.yml with your project paths
+# Edit vectorize-workspace.yml with your project paths and collections
 ```
 
-2. Run with workspace mounted:
+2. Run with workspace mounted (mounts the actual config file, not the example):
 ```bash
 docker run -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
