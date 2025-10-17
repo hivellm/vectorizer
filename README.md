@@ -310,12 +310,46 @@ Cursor IDE configuration:
 }
 ```
 
-**Available MCP Tools** (40+ tools):
-- **Core**: search_vectors, list_collections, embed_text, create_collection
-- **Intelligent**: intelligent_search, semantic_search, contextual_search
-- **File Ops**: get_file_content, list_files, get_file_summary
-- **Discovery**: discover, filter_collections, expand_queries
-- **Batch**: batch_insert, batch_search, batch_update, batch_delete
+**Available MCP Tools** (7 unified tools):
+
+### 1. `search` - Unified Search Interface
+Multiple search strategies in one tool:
+- `basic`: Simple vector search with similarity ranking
+- `intelligent`: AI-powered search with query expansion and MMR
+- `semantic`: Advanced reranking and similarity thresholds
+- `contextual`: Context-aware search with metadata filtering
+- `multi_collection`: Search across multiple collections
+- `batch`: Execute multiple search queries at once
+- `by_file_type`: Search filtered by file extensions
+
+### 2. `collection` - Collection Management
+Operations: `list`, `create`, `get_info`, `delete`
+
+### 3. `vector` - Vector CRUD
+Operations: `get`, `update`, `delete`
+
+### 4. `insert` - Insert Operations
+Types: `single` (one text), `batch` (multiple texts), `structured` (with IDs/metadata)
+
+### 5. `batch_operations` - Batch Operations
+Types: `update`, `delete`, `search` (batch processing of vectors)
+
+### 6. `discovery` - Discovery Pipeline
+10 operation types including:
+- `full_pipeline`: Complete discovery with filtering, scoring, expansion
+- `filter_collections`: Pre-filter by patterns
+- `expand_queries`: Generate query variations
+- `broad_discovery`, `semantic_focus`: Advanced search modes
+- Plus evidence compression and prompt generation tools
+
+### 7. `file_operations` - File Operations
+6 operation types:
+- `get_content`: Retrieve complete file
+- `list_files`: List files in collection
+- `get_summary`: Generate file summaries
+- `get_chunks`: Progressive chunk reading
+- `get_outline`: Project structure overview
+- `get_related`: Find related files by similarity
 
 ## 📦 **Client SDKs**
 

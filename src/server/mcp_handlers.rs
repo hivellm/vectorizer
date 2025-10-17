@@ -92,36 +92,193 @@ pub async fn handle_mcp_tool(
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     match request.name.as_ref() {
-        "search_vectors" => handle_search_vectors(request, store, embedding_manager).await,
-        "list_collections" => handle_list_collections(store).await,
-        "create_collection" => handle_create_collection(request, store).await,
-        "get_collection_info" => handle_get_collection_info(request, store).await,
-        "delete_collection" => handle_delete_collection(request, store).await,
-        "insert_text" => handle_insert_text(request, store, embedding_manager).await,
-        "batch_insert_texts" => handle_batch_insert_texts(request, store, embedding_manager).await,
-        "embed_text" => handle_embed_text(request, embedding_manager).await,
-        "get_vector" => handle_get_vector(request, store).await,
-        "delete_vectors" => handle_delete_vectors(request, store).await,
-        "update_vector" => handle_update_vector(request, store, embedding_manager).await,
-        "health_check" => handle_health_check().await,
-        "insert_texts" => handle_insert_texts(request, store, embedding_manager).await,
-        "batch_search_vectors" => {
-            handle_batch_search_vectors(request, store, embedding_manager).await
-        }
-        "batch_update_vectors" => {
-            handle_batch_update_vectors(request, store, embedding_manager).await
-        }
-        "batch_delete_vectors" => handle_batch_delete_vectors(request, store).await,
-        "get_indexing_progress" => handle_get_indexing_progress().await,
-        // Intelligent Search Tools
-        "intelligent_search" => handle_intelligent_search(request, store, embedding_manager).await,
-        "multi_collection_search" => {
-            handle_multi_collection_search(request, store, embedding_manager).await
-        }
-        "semantic_search" => handle_semantic_search(request, store, embedding_manager).await,
-        "contextual_search" => handle_contextual_search(request, store, embedding_manager).await,
-        // Discovery Tools (9 functions + 1 full pipeline)
-        "discover" => handle_discover(request, store, embedding_manager).await,
+        // Unified Tools
+        "search" => handle_search_unified(request, store, embedding_manager).await,
+        "collection" => handle_collection_unified(request, store).await,
+        "vector" => handle_vector_unified(request, store, embedding_manager).await,
+        "insert" => handle_insert_unified(request, store, embedding_manager).await,
+        "batch_operations" => handle_batch_operations_unified(request, store, embedding_manager).await,
+        "discovery" => handle_discovery_unified(request, store, embedding_manager).await,
+        "file_operations" => handle_file_operations_unified(request, store, embedding_manager).await,
+        _ => Err(ErrorData::invalid_params("Unknown tool", None)),
+    }
+}
+
+// =============================================
+// Unified Search Handler
+// =============================================
+
+async fn handle_search_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let search_type = args
+        .get("search_type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing search_type", None))?;
+
+    match search_type {
+        "basic" => handle_search_vectors(request, store, embedding_manager).await,
+        "intelligent" => handle_intelligent_search(request, store, embedding_manager).await,
+        "semantic" => handle_semantic_search(request, store, embedding_manager).await,
+        "contextual" => handle_contextual_search(request, store, embedding_manager).await,
+        "multi_collection" => handle_multi_collection_search(request, store, embedding_manager).await,
+        "batch" => handle_batch_search_vectors(request, store, embedding_manager).await,
+        "by_file_type" => handle_search_by_file_type(request, store, embedding_manager).await,
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown search_type: {}", search_type),
+            None,
+        )),
+    }
+}
+
+// =============================================
+// Unified Collection Handler
+// =============================================
+
+async fn handle_collection_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let operation = args
+        .get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing operation", None))?;
+
+    match operation {
+        "list" => handle_list_collections(store).await,
+        "create" => handle_create_collection(request, store).await,
+        "get_info" => handle_get_collection_info(request, store).await,
+        "delete" => handle_delete_collection(request, store).await,
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown operation: {}", operation),
+            None,
+        )),
+    }
+}
+
+// =============================================
+// Unified Vector Handler
+// =============================================
+
+async fn handle_vector_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let operation = args
+        .get("operation")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing operation", None))?;
+
+    match operation {
+        "get" => handle_get_vector(request, store).await,
+        "update" => handle_update_vector(request, store, embedding_manager).await,
+        "delete" => handle_delete_vectors(request, store).await,
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown operation: {}", operation),
+            None,
+        )),
+    }
+}
+
+// =============================================
+// Unified Insert Handler
+// =============================================
+
+async fn handle_insert_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let insert_type = args
+        .get("insert_type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing insert_type", None))?;
+
+    match insert_type {
+        "single" => handle_insert_text(request, store, embedding_manager).await,
+        "batch" => handle_batch_insert_texts(request, store, embedding_manager).await,
+        "structured" => handle_insert_texts(request, store, embedding_manager).await,
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown insert_type: {}", insert_type),
+            None,
+        )),
+    }
+}
+
+// =============================================
+// Unified Batch Operations Handler
+// =============================================
+
+async fn handle_batch_operations_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let batch_type = args
+        .get("batch_type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing batch_type", None))?;
+
+    match batch_type {
+        "update" => handle_batch_update_vectors(request, store, embedding_manager).await,
+        "delete" => handle_batch_delete_vectors(request, store).await,
+        "search" => handle_batch_search_vectors(request, store, embedding_manager).await,
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown batch_type: {}", batch_type),
+            None,
+        )),
+    }
+}
+
+// =============================================
+// Unified Discovery Handler
+// =============================================
+
+async fn handle_discovery_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let discovery_type = args
+        .get("discovery_type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing discovery_type", None))?;
+
+    match discovery_type {
+        "full_pipeline" => handle_discover(request, store, embedding_manager).await,
         "filter_collections" => handle_filter_collections(request, store).await,
         "score_collections" => handle_score_collections(request, store).await,
         "expand_queries" => handle_expand_queries(request).await,
@@ -131,19 +288,49 @@ pub async fn handle_mcp_tool(
         "compress_evidence" => handle_compress_evidence(request).await,
         "build_answer_plan" => handle_build_answer_plan(request).await,
         "render_llm_prompt" => handle_render_llm_prompt(request).await,
-        // File Operations Tools
-        "get_file_content" => handle_get_file_content(request, store).await,
-        "list_files_in_collection" => handle_list_files_in_collection(request, store).await,
-        "get_file_summary" => handle_get_file_summary(request, store).await,
-        "get_file_chunks_ordered" => handle_get_file_chunks_ordered(request, store).await,
-        "get_project_outline" => handle_get_project_outline(request, store).await,
-        "get_related_files" => handle_get_related_files(request, store, embedding_manager).await,
-        "search_by_file_type" => {
-            handle_search_by_file_type(request, store, embedding_manager).await
-        }
-        _ => Err(ErrorData::invalid_params("Unknown tool", None)),
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown discovery_type: {}", discovery_type),
+            None,
+        )),
     }
 }
+
+// =============================================
+// Unified File Operations Handler
+// =============================================
+
+async fn handle_file_operations_unified(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let operation_type = args
+        .get("operation_type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing operation_type", None))?;
+
+    match operation_type {
+        "get_content" => handle_get_file_content(request, store).await,
+        "list_files" => handle_list_files_in_collection(request, store).await,
+        "get_summary" => handle_get_file_summary(request, store).await,
+        "get_chunks" => handle_get_file_chunks_ordered(request, store).await,
+        "get_outline" => handle_get_project_outline(request, store).await,
+        "get_related" => handle_get_related_files(request, store, embedding_manager).await,
+        _ => Err(ErrorData::internal_error(
+            format!("Unknown operation_type: {}", operation_type),
+            None,
+        )),
+    }
+}
+
+// =============================================
+// Original Handler Functions (Unchanged)
+// =============================================
 
 async fn handle_search_vectors(
     request: CallToolRequestParam,
@@ -457,33 +644,6 @@ async fn handle_batch_insert_texts(
     )]))
 }
 
-async fn handle_embed_text(
-    request: CallToolRequestParam,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let text = args
-        .get("text")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing text", None))?;
-
-    let embedding = embedding_manager
-        .embed(text)
-        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
-
-    let response = json!({
-        "embedding": embedding,
-        "dimension": embedding.len(),
-        "provider": "bm25"
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
 
 async fn handle_get_vector(
     request: CallToolRequestParam,
@@ -613,17 +773,6 @@ async fn handle_update_vector(
     )]))
 }
 
-async fn handle_health_check() -> Result<CallToolResult, ErrorData> {
-    let response = json!({
-        "status": "healthy",
-        "service": "vectorizer",
-        "version": env!("CARGO_PKG_VERSION"),
-        "timestamp": chrono::Utc::now().to_rfc3339()
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
 
 async fn handle_insert_texts(
     request: CallToolRequestParam,
@@ -857,16 +1006,6 @@ async fn handle_batch_delete_vectors(
     )]))
 }
 
-async fn handle_get_indexing_progress() -> Result<CallToolResult, ErrorData> {
-    let response = json!({
-        "status": "no_indexing_in_progress",
-        "message": "No active indexing operations",
-        "collections": []
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
 
 // Intelligent Search Handlers
 
