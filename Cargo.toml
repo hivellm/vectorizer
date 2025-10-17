@@ -76,8 +76,8 @@ clap = { version = "4.5", features = ["derive"] }
 tar = "0.4"
 flate2 = "1.0"
 
-# HTTP client for status checks
-reqwest = { version = "0.12", features = ["json"] }
+# HTTP client for status checks (using rustls for musl compatibility)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
 # UMICP protocol integration (v0.2.1 with native JSON types + tool discovery)
 umicp-core = { version = "0.2.1", features = ["http2", "websocket"] }
