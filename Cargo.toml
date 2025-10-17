@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.9.20"
+version = "0.9.21"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
