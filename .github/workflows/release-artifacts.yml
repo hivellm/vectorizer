@@ -38,22 +38,41 @@ jobs:
         with:
           target: ${{ matrix.target }}
       
+      # For musl: build manually without default features to avoid ONNX Runtime
+      - name: Build musl binaries
+        if: contains(matrix.target, '-musl')
+        run: |
+          cargo build --release --target ${{ matrix.target }} --no-default-features --features gpu_real
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/vectorizer dist/vectorizer-${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/vectorizer-cli dist/vectorizer-cli-${{ matrix.target }}
+      
+      # For non-musl: use standard action with all features
       - name: Build and publish vectorizer
+        if: ${{ !contains(matrix.target, '-musl') }}
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          # Use gpu_real for musl (avoids ONNX Runtime issues), default for others
-          features: ${{ contains(matrix.target, '-musl') && 'gpu_real' || 'default' }}
       - name: Build and publish vectorizer-cli
+        if: ${{ !contains(matrix.target, '-musl') }}
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          # Use gpu_real for musl (avoids ONNX Runtime issues), default for others
-          features: ${{ contains(matrix.target, '-musl') && 'gpu_real' || 'default' }}
+      
+      # Upload musl binaries
+      - name: Upload musl binaries
+        if: contains(matrix.target, '-musl')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
       - name: Build Debian Package
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
