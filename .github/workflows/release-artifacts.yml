@@ -77,7 +77,7 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           cargo install cargo-deb
-          cargo deb --no-strip --target ${{ matrix.target }}
+          cargo deb --no-strip --target ${{ matrix.target }} --no-default-features --features gpu_real
       - name: Upload Debian package
         if: matrix.target == 'x86_64-unknown-linux-musl'
         uses: svenstaro/upload-release-action@v2
