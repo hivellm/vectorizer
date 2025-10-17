@@ -33,18 +33,25 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Install cross-compilation tools
-        with:
-          target: ${{ matrix.target }}
         if: startsWith(matrix.os, 'ubuntu') && contains(matrix.target, '-musl')
         uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
+        env:
+          # Use vendored OpenSSL for musl targets
+          OPENSSL_STATIC: ${{ contains(matrix.target, '-musl') && '1' || '' }}
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish vectorizer-cli
         uses: taiki-e/upload-rust-binary-action@v1
+        env:
+          # Use vendored OpenSSL for musl targets
+          OPENSSL_STATIC: ${{ contains(matrix.target, '-musl') && '1' || '' }}
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
