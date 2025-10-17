@@ -2,11 +2,12 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.9.6 - Docker Multi-Platform & Monorepo Support**
+## ✨ **Version 0.10.0 - MCP Tools Consolidation**
 
 ### 🎯 **Key Features**
-- **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint (NEW in v0.9.1)
-- **🔍 Tool Discovery**: GET `/umicp/discover` exposes all 38+ MCP tools with full schemas
+- **🎯 MCP Consolidation**: 7 unified MCP tools (reduced from 40+) - 83% reduction freeing slots for other servers
+- **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint
+- **🔍 Tool Discovery**: GET `/umicp/discover` exposes all MCP tools with full schemas
 - **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
 - **💾 Compact Storage (.vecdb)**: Unified compressed archives with 20-30% space savings and snapshot support
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images to Markdown
@@ -14,17 +15,18 @@ A high-performance vector database and search engine built in Rust, designed for
 - **Text Normalization System**: Content-aware normalization with 30-50% storage reduction
 - **Real-time File Watcher**: Automatic file monitoring and indexing
 - **Intelligent Search**: Advanced semantic search with multi-query generation
-- **File Operations**: 6 MCP tools for AI-powered file analysis
+- **File Operations**: Complete file management with summaries and analysis
 - **Multi-tier Cache**: LFU hot cache, mmap warm store, Zstandard cold storage
-- **Discovery Pipeline**: 9-stage semantic discovery with evidence compression
+- **Discovery Pipeline**: 10-type semantic discovery with evidence compression
 
 ### 🧪 **Quality Metrics**
-- ✅ **403 tests passing** (100% pass rate)
+- ✅ **402 tests passing** (100% pass rate, v0.10.0)
 - ⚡ **2.01s execution time**
 - 🎯 **Production-ready** with comprehensive coverage
 - 📄 **19 transmutation tests** (100% pass rate)
 - 💾 **30+ storage system tests** (compaction, snapshots, migration)
-- 🔄 **6 UMICP discovery tests** (100% pass rate)
+- 🔄 **3 UMICP discovery tests** (100% pass rate, updated for v0.10.0)
+- 🛠️ **32/33 MCP operations** manually validated (97% coverage)
 
 ## 🌟 **Core Capabilities**
 
@@ -273,7 +275,8 @@ See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.
 | **Search Speed** | < 3ms |
 | **Startup Time** | Non-blocking |
 | **Storage Reduction** | 30-50% with normalization |
-| **Test Coverage** | 366 tests, 100% pass rate |
+| **Test Coverage** | 402 tests, 100% pass rate |
+| **MCP Tools** | 7 unified (reduced from 40+) |
 | **Collections** | 107+ tested |
 | **PDF Conversion** | 98x faster than Docling |
 | **Document Formats** | 14 formats supported |
