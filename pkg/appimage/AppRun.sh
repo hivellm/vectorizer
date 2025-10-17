@@ -12,4 +12,3 @@ fi
 
 # Run vectorizer
 exec "${HERE}/usr/bin/vectorizer" "$@"
-
