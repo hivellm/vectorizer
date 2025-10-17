@@ -40,18 +40,12 @@ jobs:
       
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
-        env:
-          # Use vendored OpenSSL for musl targets
-          OPENSSL_STATIC: ${{ contains(matrix.target, '-musl') && '1' || '' }}
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish vectorizer-cli
         uses: taiki-e/upload-rust-binary-action@v1
-        env:
-          # Use vendored OpenSSL for musl targets
-          OPENSSL_STATIC: ${{ contains(matrix.target, '-musl') && '1' || '' }}
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
