@@ -127,75 +127,66 @@ docker run -p 15002:15002 \
 
 ## Docker Compose
 
-Create `docker-compose.yml`:
+### Production (Pre-built Image)
 
-```yaml
-version: '3.8'
+A `docker-compose.yml` file is already included in the repository. Just run:
 
-services:
-  vectorizer:
-    image: ghcr.io/hivellm/vectorizer:latest
-    ports:
-      - "15002:15002"
-    volumes:
-      - ./vectorizer-data:/vectorizer/data
-      - ./vectorizer-storage:/vectorizer/storage
-      - ./vectorizer-snapshots:/vectorizer/snapshots
-      - ./vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro
-      - ./src:/workspace/src:ro
-      - ./docs:/workspace/docs:ro
-    environment:
-      - VECTORIZER_HOST=0.0.0.0
-      - VECTORIZER_PORT=15002
-      - TZ=Etc/UTC
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:15002/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-```
-
-Run:
 ```bash
+# Start in background
 docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
 ```
 
-### Docker Compose for Monorepo
+The included `docker-compose.yml`:
+- Uses the published image from GitHub Container Registry
+- Mounts `../../` as `/workspace` for monorepo support
+- Includes health checks and resource limits
+- Persists data in `./vectorizer-data`, `./vectorizer-storage`, `./vectorizer-snapshots`
 
-For HiveLLM monorepo structure:
+### Development (Build from Source)
 
+For local development with live builds:
+
+```bash
+# Build and start
+docker-compose -f docker-compose.dev.yml up --build
+
+# Rebuild after code changes
+docker-compose -f docker-compose.dev.yml up --build --force-recreate
+
+# Stop
+docker-compose -f docker-compose.dev.yml down
+```
+
+The `docker-compose.dev.yml`:
+- Builds from local Dockerfile
+- Includes debug logging (`RUST_LOG=debug`)
+- Mounts logs directory
+- Higher resource limits for development
+
+### Customizing Docker Compose
+
+To customize the Docker Compose configuration:
+
+1. **Change timezone**: Edit `TZ` environment variable
+2. **Adjust resource limits**: Modify `deploy.resources` section
+3. **Mount different paths**: Edit volume mappings
+4. **Change ports**: Modify `ports` section
+
+Example: Use named volumes instead of bind mounts:
 ```yaml
-version: '3.8'
+volumes:
+  - vectorizer-data:/vectorizer/data
+  - vectorizer-storage:/vectorizer/storage
 
-services:
-  vectorizer:
-    image: ghcr.io/hivellm/vectorizer:latest
-    ports:
-      - "15002:15002"
-    volumes:
-      # Data volumes
-      - ./vectorizer-data:/vectorizer/data
-      - ./vectorizer-storage:/vectorizer/storage
-      - ./vectorizer-snapshots:/vectorizer/snapshots
-      
-      # Workspace config
-      - ./vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro
-      
-      # Mount entire monorepo (read-only)
-      - ../../:/workspace:ro
-    environment:
-      - VECTORIZER_HOST=0.0.0.0
-      - VECTORIZER_PORT=15002
-      - TZ=Etc/UTC
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:15002/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+volumes:
+  vectorizer-data:
+  vectorizer-storage:
 ```
 
 ## Volume Structure

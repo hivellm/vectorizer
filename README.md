@@ -40,6 +40,34 @@ A high-performance vector database and search engine built in Rust, designed for
 
 ## 🚀 **Quick Start**
 
+### Using Docker Compose (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/hivellm/vectorizer.git
+cd vectorizer
+
+# Create workspace config from example
+cp vectorize-workspace.example.yml vectorize-workspace.yml
+# Edit vectorize-workspace.yml with your projects
+
+# Start with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Access the services
+# - MCP Server: http://localhost:15002/mcp
+# - REST API: http://localhost:15002
+# - Dashboard: http://localhost:15002/
+# - UMICP Discovery: http://localhost:15002/umicp/discover
+```
+
+See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker documentation.
+
+### Building from Source
+
 ```bash
 # Clone the repository
 git clone https://github.com/hivellm/vectorizer.git

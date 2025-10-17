@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  vectorizer:
+    image: ghcr.io/hivellm/vectorizer:latest
+    container_name: vectorizer
+    ports:
+      - "15002:15002"  # MCP + REST API
+      - "15003:15003"  # Additional port
+    
+    volumes:
+      # Persistent data
+      - ./vectorizer-data:/vectorizer/data
+      - ./vectorizer-storage:/vectorizer/storage
+      - ./vectorizer-snapshots:/vectorizer/snapshots
+      
+      # Workspace configuration (create from vectorize-workspace.example.yml)
+      - ./vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro
+      
+      # Mount entire monorepo (HiveLLM structure with vectorizer as subproject)
+      # Adjust path if your structure is different
+      - ../../:/workspace:ro
+    
+    environment:
+      - VECTORIZER_HOST=0.0.0.0
+      - VECTORIZER_PORT=15002
+      - TZ=America/Sao_Paulo
+      - RUN_MODE=production
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15002/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (optional, adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '2.0'
+          memory: 2G
+
+# Create named volumes (optional, for better management)
+# volumes:
+#   vectorizer-data:
+#   vectorizer-storage:
+#   vectorizer-snapshots:
+
