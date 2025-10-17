@@ -40,28 +40,42 @@ A high-performance vector database and search engine built in Rust, designed for
 
 ## 🚀 **Quick Start**
 
-### Using Docker Compose (Recommended)
+### Using Docker (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/hivellm/vectorizer.git
 cd vectorizer
 
-# Create workspace config for Docker (container paths: /workspace/*)
+# Create Docker-specific workspace config
 cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
-# Edit vectorize-workspace.docker.yml to match your monorepo structure
+# Edit vectorize-workspace.docker.yml with /workspace/* paths
 
-# Start with Docker Compose
-docker-compose up -d
+# Run with monorepo access
+docker run -d \
+  --name vectorizer \
+  -p 15002:15002 \
+  -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -v $(pwd)/vectorizer-storage:/vectorizer/storage \
+  -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/../../:/workspace:ro \
+  --restart unless-stopped \
+  ghcr.io/hivellm/vectorizer:latest
 
 # View logs
-docker-compose logs -f
+docker logs -f vectorizer
 
 # Access the services
 # - MCP Server: http://localhost:15002/mcp
 # - REST API: http://localhost:15002
 # - Dashboard: http://localhost:15002/
 # - UMICP Discovery: http://localhost:15002/umicp/discover
+```
+
+**Alternative: Docker Compose**
+```bash
+docker-compose up -d
+docker-compose logs -f
 ```
 
 See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker documentation.

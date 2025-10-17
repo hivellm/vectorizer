@@ -20,8 +20,44 @@ Access:
 docker run -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
+  -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
   ghcr.io/hivellm/vectorizer:latest
 ```
+
+### With Monorepo Access (Recommended)
+
+```bash
+# Create Docker-specific workspace config first
+cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
+# Edit vectorize-workspace.docker.yml with /workspace/* paths
+
+# Run with monorepo access
+docker run -d \
+  --name vectorizer \
+  -p 15002:15002 \
+  -p 15003:15003 \
+  -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -v $(pwd)/vectorizer-storage:/vectorizer/storage \
+  -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
+  -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/../../:/workspace:ro \
+  -e VECTORIZER_HOST=0.0.0.0 \
+  -e VECTORIZER_PORT=15002 \
+  -e TZ=America/Sao_Paulo \
+  --restart unless-stopped \
+  ghcr.io/hivellm/vectorizer:latest
+
+# View logs
+docker logs -f vectorizer
+
+# Stop
+docker stop vectorizer && docker rm vectorizer
+```
+
+**Path mapping**:
+- Host: `../../` → Container: `/workspace/`
+- Host: `../../cmmv/cmmv` → Container: `/workspace/cmmv/cmmv`
+- Host: `../../hivellm/governance` → Container: `/workspace/hivellm/governance`
 
 ### With Workspace Configuration
 
