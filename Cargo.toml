@@ -40,15 +40,8 @@ rust-tfidf = "1.1" # TF-IDF similarity fallback
 # Linear algebra for basic matrix operations
 ndarray = "0.16"
 
-# GPU dependencies (real GPU processing)
-cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
-cc = { version = "1.2", features = ["parallel"] }
-
-# WebGPU/Metal dependencies (cross-platform GPU acceleration)
-wgpu = { version = "27.0", features = ["wgsl"], optional = true }
-pollster = { version = "0.4", optional = true }
-bytemuck = { version = "1.22", features = ["derive"], optional = true }
-futures = { version = "0.3", optional = true }
+# GPU acceleration via external hive-gpu crate only
+hive-gpu = { version = "0.1.6", optional = true }
 
 # Parallel processing
 rayon = "1.10"
@@ -106,12 +99,12 @@ regex = "1.10"
 jsonwebtoken = "9.3"
 uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
+lazy_static = "1.4"
 
 # CLI utilities
 sys-info = "0.9"
 
 # MCP (Model Context Protocol) dependencies
-futures-util = "0.3"
 tokio-tungstenite = "0.28"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
@@ -213,14 +206,45 @@ path = "src/bin/vectorizer-cli.rs"
 name = "vectorizer"
 path = "src/bin/vectorizer.rs"
 
+[[bin]]
+name = "test_basic_metal"
+path = "benchmark/scripts/test_basic_metal.rs"
+required-features = ["hive-gpu"]
+
+# [[bin]]
+# name = "metal_native_search_benchmark"
+# path = "benchmark/scripts/metal_native_search_benchmark.rs"
+# required-features = ["hive-gpu-metal"]
+
+[[bin]]
+name = "metal_hnsw_search_benchmark"
+path = "benchmark/scripts/metal_hnsw_search_benchmark.rs"
+required-features = ["hive-gpu"]
+
+[[bin]]
+name = "simple_metal_test"
+path = "benchmark/scripts/simple_metal_test.rs"
+required-features = ["hive-gpu"]
+
+[[bin]]
+name = "gpu_scale_benchmark"
+path = "benchmark/scripts/gpu_scale_benchmark.rs"
+required-features = ["hive-gpu-wgpu"]
+
 [features]
-default = ["gpu_real", "fastembed"]
-gpu = []
-gpu_real = ["gpu"]
+default = ["hive-gpu", "fastembed"]
 fastembed = ["dep:fastembed"]
-metal = ["wgpu", "pollster", "bytemuck", "futures"]
-wgpu-gpu = ["wgpu", "pollster", "bytemuck", "futures", "ctrlc"]
-gpu-accel = ["wgpu-gpu"]
+
+# GPU acceleration via external hive-gpu crate only
+hive-gpu = ["dep:hive-gpu"]
+hive-gpu-metal = ["hive-gpu", "hive-gpu/metal-native"]
+hive-gpu-cuda = ["hive-gpu", "hive-gpu/cuda"]
+hive-gpu-wgpu = ["hive-gpu", "hive-gpu/wgpu"]
+
+# Legacy features (deprecated - redirected to hive-gpu)
+metal-native = ["hive-gpu-metal"]
+cuda = ["hive-gpu-cuda"]
+gpu-accel = ["hive-gpu-metal"]
 benchmarks = []
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]

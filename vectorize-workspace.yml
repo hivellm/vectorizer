@@ -1,0 +1,1280 @@
+# HiveLLM Ecosystem Workspace
+projects:
+  # - name: "chat-hub"
+  #   path: "../chat-hub"
+  #   description: "Chat Hub - Real-time communication platform"
+  #   collections:
+  #     - name: "chat-hub-docs"
+  #       description: "Chat Hub documentation and guides"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "README.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "*.log"
+  #     - name: "chat-hub-source"
+  #       description: "Chat Hub source code and configuration"
+  #       include_patterns:
+  #         - "*.js"
+  #         - "*.json"
+  #         - "*.env*"
+  #         - "scripts/**/*"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "*.log"
+
+  # - name: "cursor-extension"
+  #   path: "../cursor-extension"
+  #   description: "Cursor Extension - AI-powered development tools"
+  #   collections:
+  #     - name: "cursor-extension-docs"
+  #       description: "Cursor Extension documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "packages/**/*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #     - name: "cursor-extension-source"
+  #       description: "Cursor Extension source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.js"
+  #         - "packages/**/*.ts"
+  #         - "packages/**/*.js"
+  #         - "*.json"
+  #         - "scripts/**/*"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "**/*.map"
+
+  # - name: "dev-tools"
+  #   path: "../dev-tools"
+  #   description: "Development Tools - Utilities and automation"
+  #   collections:
+  #     - name: "dev-tools-docs"
+  #       description: "Development tools documentation"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #     - name: "dev-tools-source"
+  #       description: "Development tools source code"
+  #       include_patterns:
+  #         - "**/*.ts"
+  #         - "**/*.js"
+  #         - "**/*.json"
+  #         - "scripts/**/*"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "gateway"
+  #   path: "../gateway"
+  #   description: "API Gateway - Centralized API management"
+  #   collections:
+  #     - name: "gateway-docs"
+  #       description: "Gateway documentation and API specs"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #     - name: "gateway-source"
+  #       description: "Gateway source code and configuration"
+  #       include_patterns:
+  #         - "**/*.ts"
+  #         - "**/*.js"
+  #         - "**/*.json"
+  #         - "*.env*"
+  #         - "scripts/**/*"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "governance"
+  #   path: "../governance"
+  #   description: "Governance System - Project management and oversight"
+  #   collections:
+  #     - name: "governance-docs"
+  #       description: "Governance documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "views/**/*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "governance-source"
+  #       description: "Governance system source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.js"
+  #         - "**/*.json"
+  #         - "scripts/**/*"
+  #         - "migrations/**/*"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "*.db*"
+
+  # - name: "py-env-security"
+  #   path: "../py-env-security"
+  #   description: "Python Environment Security - Security analysis tools"
+  #   collections:
+  #     - name: "py-security-docs"
+  #       description: "Python security tools documentation"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "__pycache__/**"
+  #         - "venv/**"
+  #     - name: "py-security-source"
+  #       description: "Python security tools source code"
+  #       include_patterns:
+  #         - "**/*.py"
+  #         - "**/*.toml"
+  #         - "**/*.txt"
+  #         - "**/*.json"
+  #         - "scripts/**/*"
+  #       exclude_patterns:
+  #         - "__pycache__/**"
+  #         - "venv/**"
+  #         - "*.log"
+
+  - name: "task-queue"
+    path: "../task-queue"
+    description: "Task Queue - Distributed task processing system"
+    collections:
+      - name: "task-queue-docs"
+        description: "Task queue documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+      - name: "task-queue-source"
+        description: "Task queue Rust source code"
+        include_patterns:
+          - "src/**/*.rs"
+          - "cli/**/*.rs"
+          - "**/*.toml"
+          - "**/*.json"
+          - "scripts/**/*"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "logs/**"
+      - name: "task-queue-dashboard"
+        description: "Task queue dashboard and web interface"
+        include_patterns:
+          - "dashboard/**/*.js"
+          - "dashboard/**/*.vue"
+          - "dashboard/**/*.html"
+          - "dashboard/**/*.css"
+        exclude_patterns:
+          - "dashboard/node_modules/**"
+      - name: "task-queue-sdk-typescript"
+        description: "Task Queue TypeScript/JavaScript SDK"
+        include_patterns:
+          - "sdks/typescript/**/*.ts"
+          - "sdks/typescript/**/*.js"
+          - "sdks/typescript/**/*.json"
+        exclude_patterns:
+          - "sdks/typescript/node_modules/**"
+          - "sdks/typescript/coverage/**"
+          - "sdks/typescript/**/*.map"
+      - name: "task-queue-sdk-python"
+        description: "Task Queue Python SDK"
+        include_patterns:
+          - "sdks/python/**/*.py"
+          - "sdks/python/**/*.txt"
+          - "sdks/python/**/*.toml"
+          - "sdks/python/**/*.md"
+        exclude_patterns:
+          - "sdks/python/**/__pycache__/**"
+          - "sdks/python/**/build/**"
+
+  # - name: "ts-workspace"
+  #   path: "../ts-workspace"
+  #   description: "TypeScript Workspace - Shared TypeScript utilities"
+  #   collections:
+  #     - name: "ts-workspace-docs"
+  #       description: "TypeScript workspace documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "packages/**/*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #     - name: "ts-workspace-source"
+  #       description: "TypeScript workspace source code"
+  #       include_patterns:
+  #         - "packages/**/*.ts"
+  #         - "packages/**/*.js"
+  #         - "**/*.json"
+  #         - "scripts/**/*"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "**/*.map"
+
+  # - name: "umicp"
+  #   path: "../umicp"
+  #   description: "Universal Model Interface Communication Protocol"
+  #   collections:
+  #     - name: "umicp-docs"
+  #       description: "UMICP documentation"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "bindings/**/target/**"
+  #     - name: "umicp-cpp"
+  #       description: "UMICP C++ implementation"
+  #       include_patterns:
+  #         - "cpp/**/*.cpp"
+  #         - "cpp/**/*.h"
+  #         - "cpp/**/*.md"
+  #       exclude_patterns:
+  #         - "cpp/build/**"
+  #         - "cpp/obj/**"
+  #     - name: "umicp-bindings-rust"
+  #       description: "UMICP Rust language bindings"
+  #       include_patterns:
+  #         - "bindings/**/*.rs"
+  #         - "bindings/**/*.toml"
+  #       exclude_patterns:
+  #         - "bindings/**/target/**"
+  #         - "bindings/**/Cargo.lock"
+  #     - name: "umicp-bindings-typescript"
+  #       description: "UMICP TypeScript/JavaScript language bindings"
+  #       include_patterns:
+  #         - "bindings/**/*.ts"
+  #         - "bindings/**/*.js"
+  #         - "bindings/**/*.json"
+  #       exclude_patterns:
+  #         - "bindings/**/node_modules/**"
+  #         - "bindings/**/dist/**"
+  #         - "bindings/**/*.map"
+  #     - name: "umicp-bindings-cpp"
+  #       description: "UMICP C++ language bindings"
+  #       include_patterns:
+  #         - "bindings/**/*.cc"
+  #         - "bindings/**/*.cpp"
+  #         - "bindings/**/*.h"
+  #         - "bindings/**/*.hpp"
+  #       exclude_patterns:
+  #         - "bindings/**/build/**"
+  #         - "bindings/**/obj/**"
+
+  - name: "vectorizer"
+    path: "."
+    description: "Vectorizer - Vector database and search engine"
+    collections:
+      - name: "vectorizer-docs"
+        description: "Vectorizer documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "node_modules/**"
+      - name: "vectorizer-source"
+        description: "Vectorizer Rust source code"
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+          - "**/*.json"
+          - "scripts/**/*"
+          - "build.rs"
+        exclude_patterns:
+          - "target/**"
+          - "data/**"
+          - "logs/**"
+      - name: "vectorizer-sdk-typescript"
+        description: "Vectorizer TypeScript/JavaScript SDK"
+        include_patterns:
+          - "client-sdks/**/*.ts"
+          - "client-sdks/**/*.js"
+          - "client-sdks/**/*.json"
+        exclude_patterns:
+          - "client-sdks/**/node_modules/**"
+          - "client-sdks/**/dist/**"
+          - "client-sdks/**/*.map"
+      - name: "vectorizer-sdk-python"
+        description: "Vectorizer Python SDK"
+        include_patterns:
+          - "client-sdks/**/*.py"
+          - "client-sdks/**/*.txt"
+          - "client-sdks/**/*.toml"
+        exclude_patterns:
+          - "client-sdks/**/__pycache__/**"
+          - "client-sdks/**/venv/**"
+          - "client-sdks/**/build/**"
+      - name: "vectorizer-sdk-rust"
+        description: "Vectorizer Rust SDK"
+        include_patterns:
+          - "client-sdks/**/*.rs"
+          - "client-sdks/**/*.toml"
+          - "client-sdks/**/*.json"
+        exclude_patterns:
+          - "client-sdks/**/target/**"
+          - "client-sdks/**/Cargo.lock"
+
+  # - name: "voxa"
+  #   path: "../voxa"
+  #   description: "Voxa - Voice AI assistant framework"
+  #   collections:
+  #     - name: "voxa-docs"
+  #       description: "Voxa documentation and guides"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "venv/**"
+  #         - "models/**"
+  #     - name: "voxa-source"
+  #       description: "Voxa Python source code"
+  #       include_patterns:
+  #         - "**/*.py"
+  #         - "**/*.json"
+  #         - "**/*.txt"
+  #         - "**/*.yml"
+  #         - "**/*.yaml"
+  #       exclude_patterns:
+  #         - "venv/**"
+  #         - "models/**"
+  #         - "__pycache__/**"
+  #         - "*.log"
+
+  # - name: "gov"
+  #   path: "../gov"
+  #   description: "Governance Documentation - BIPs, proposals, and governance documents"
+  #   collections:
+  #     - name: "gov-bips"
+  #       description: "Bitcoin Improvement Proposals (BIPs)"
+  #       include_patterns:
+  #         - "bips/**/*.md"
+  #         - "bips/**/*.json"
+  #         - "bips/**/*.txt"
+  #       exclude_patterns:
+  #         - "bips/draft/**"
+  #     - name: "gov-proposals"
+  #       description: "Governance proposals and voting records"
+  #       include_patterns:
+  #         - "proposals/**/*.md"
+  #         - "proposals/**/*.json"
+  #         - "snapshot/**/*.md"
+  #       exclude_patterns:
+  #         - "proposals/draft/**"
+  #     - name: "gov-meetings"
+  #       description: "Meeting minutes and governance records"
+  #       include_patterns:
+  #         - "minutes/**/*.md"
+  #         - "minutes/**/*.json"
+  #       exclude_patterns:
+  #         - "minutes/draft/**"
+  #     - name: "gov-teams"
+  #       description: "Team documentation and structure"
+  #       include_patterns:
+  #         - "teams/**/*.md"
+  #         - "teams/**/*.json"
+  #       exclude_patterns:
+  #         - "teams/inactive/**"
+  #     - name: "gov-guidelines"
+  #       description: "Governance guidelines and policies"
+  #       include_patterns:
+  #         - "guidelines/**/*.md"
+  #         - "docs/**/*.md"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "draft/**"
+  #     - name: "gov-metrics"
+  #       description: "Governance metrics and analytics"
+  #       include_patterns:
+  #         - "metrics/**/*.json"
+  #         - "schemas/**/*.json"
+  #       exclude_patterns:
+  #         - "metrics/temp/**"
+
+  # - name: "cmmv-core"
+  #   path: "../../cmmv/cmmv"
+  #   description: "CMMV Core - Main framework and utilities"
+  #   collections:
+  #     - name: "cmmv-core-docs"
+  #       description: "CMMV Core documentation and guides"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "i18n/**/*.md"
+  #         - "manifest-*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #     - name: "cmmv-core-source"
+  #       description: "CMMV Core source code and packages"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "packages/**/*.ts"
+  #         - "packages/**/*.js"
+  #         - "packages/**/*.json"
+  #         - "tools/**/*.ts"
+  #         - "*.json"
+  #         - "*.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "**/*.map"
+  #         - "test/**"
+  #     - name: "cmmv-core-config"
+  #       description: "CMMV Core configuration files"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "vitest.config.ts"
+  #         - "gulpfile.js"
+  #         - "lerna.json"
+  #         - "nodemon.json"
+  #         - "*.config.ts"
+  #         - "*.config.js"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+
+  # - name: "cmmv-admin"
+  #   path: "../../cmmv/cmmv-admin"
+  #   description: "CMMV Admin - Administrative interface and tools"
+  #   collections:
+  #     - name: "cmmv-admin-docs"
+  #       description: "CMMV Admin documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "README.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #     - name: "cmmv-admin-source"
+  #       description: "CMMV Admin source code"
+  #       include_patterns:
+  #         - "packages/**/*.ts"
+  #         - "packages/**/*.vue"
+  #         - "packages/**/*.js"
+  #         - "packages/**/*.json"
+  #         - "*.json"
+  #         - "*.ts"
+  #         - "*.js"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-admin-config"
+  #       description: "CMMV Admin configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "turbo.json"
+  #         - "pnpm-workspace.yaml"
+  #         - "eslint.config.ts"
+  #         - "nodemon.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+
+  # - name: "cmmv-ai"
+  #   path: "../../cmmv/cmmv-ai"
+  #   description: "CMMV AI - Artificial Intelligence integration"
+  #   collections:
+  #     - name: "cmmv-ai-docs"
+  #       description: "CMMV AI documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CHANGELOG.md"
+  #         - "CODE_OF_CONDUCT.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-ai-source"
+  #       description: "CMMV AI source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.py"
+  #         - "samples/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #         - "*.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-ai-config"
+  #       description: "CMMV AI configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "eslint.config.cjs"
+  #         - "vitest.config.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-blog"
+  #   path: "../../cmmv/cmmv-blog"
+  #   description: "CMMV Blog - Blog platform and content management"
+  #   collections:
+  #     - name: "cmmv-blog-docs"
+  #       description: "CMMV Blog documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CODE_OF_CONDUCT.md"
+  #         - "prompt-sample.txt"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "apps/**/node_modules/**"
+  #     - name: "cmmv-blog-apps"
+  #       description: "CMMV Blog applications"
+  #       include_patterns:
+  #         - "apps/**/*.vue"
+  #         - "apps/**/*.ts"
+  #         - "apps/**/*.js"
+  #         - "apps/**/*.png"
+  #         - "apps/**/*.json"
+  #       exclude_patterns:
+  #         - "apps/**/node_modules/**"
+  #         - "apps/**/dist/**"
+  #         - "apps/**/*.map"
+  #     - name: "cmmv-blog-packages"
+  #       description: "CMMV Blog packages and components"
+  #       include_patterns:
+  #         - "packages/**/*.ts"
+  #         - "packages/**/*.vue"
+  #         - "packages/**/*.json"
+  #         - "packages/**/*.html"
+  #         - "packages/**/*.css"
+  #       exclude_patterns:
+  #         - "packages/**/node_modules/**"
+  #         - "packages/**/dist/**"
+  #         - "packages/**/*.map"
+  #     - name: "cmmv-blog-config"
+  #       description: "CMMV Blog configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "turbo.json"
+  #         - "pnpm-workspace.yaml"
+  #         - "ecosystem.config.cjs"
+  #         - "nginx-sample.config"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "apps/**/node_modules/**"
+
+  # - name: "cmmv-blueprint"
+  #   path: "../../cmmv/cmmv-blueprint"
+  #   description: "CMMV Blueprint - Template and scaffolding system"
+  #   collections:
+  #     - name: "cmmv-blueprint-docs"
+  #       description: "CMMV Blueprint documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CODE_OF_CONDUCT.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #     - name: "cmmv-blueprint-source"
+  #       description: "CMMV Blueprint source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "packages/**/*.ts"
+  #         - "packages/**/*.js"
+  #         - "packages/**/*.json"
+  #         - "samples/**/*.ts"
+  #         - "tools/**/*.ts"
+  #         - "scripts/**/*.js"
+  #         - "*.json"
+  #         - "*.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-blueprint-config"
+  #       description: "CMMV Blueprint configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "vite.config.ts"
+  #         - "eslint.config.js"
+  #         - "gulpfile.js"
+  #         - "lerna.json"
+  #         - "nodemon.json"
+  #         - "mocha.opts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "packages/**/node_modules/**"
+
+  # - name: "cmmv-cli"
+  #   path: "../../cmmv/cmmv-cli"
+  #   description: "CMMV CLI - Command line interface tools"
+  #   collections:
+  #     - name: "cmmv-cli-docs"
+  #       description: "CMMV CLI documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CHANGELOG.md"
+  #         - "CODE_OF_CONDUCT.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-cli-source"
+  #       description: "CMMV CLI source code"
+  #       include_patterns:
+  #         - "lib/**/*.ts"
+  #         - "bin/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "release.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-cli-config"
+  #       description: "CMMV CLI configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "eslint.config.cjs"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-docs"
+  #   path: "../../cmmv/cmmv-docs"
+  #   description: "CMMV Documentation - Main documentation site"
+  #   collections:
+  #     - name: "cmmv-docs-content"
+  #       description: "CMMV documentation content"
+  #       include_patterns:
+  #         - "docs/**/*.md"
+  #         - "src/**/*.ts"
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-docs-config"
+  #       description: "CMMV documentation configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "eslint.config.cjs"
+  #         - "nginx.conf"
+  #         - "Dockerfile"
+  #         - "compose.yaml"
+  #         - "ecosystem-*.config.js"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-docs-en"
+  #   path: "../../cmmv/cmmv-docs-en"
+  #   description: "CMMV English Documentation - English language documentation"
+  #   collections:
+  #     - name: "cmmv-docs-en-content"
+  #       description: "CMMV English documentation content"
+  #       include_patterns:
+  #         - "**/*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+
+  # - name: "cmmv-docs-ptbr"
+  #   path: "../../cmmv/cmmv-docs-ptbr"
+  #   description: "CMMV Portuguese Documentation - Portuguese language documentation"
+  #   collections:
+  #     - name: "cmmv-docs-ptbr-content"
+  #       description: "CMMV Portuguese documentation content"
+  #       include_patterns:
+  #         - "**/*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+
+  # - name: "cmmv-elastic"
+  #   path: "../../cmmv/cmmv-elastic"
+  #   description: "CMMV Elastic - Elasticsearch integration"
+  #   collections:
+  #     - name: "cmmv-elastic-docs"
+  #       description: "CMMV Elastic documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CHANGELOG.md"
+  #         - "CODE_OF_CONDUCT.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-elastic-source"
+  #       description: "CMMV Elastic source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-elastic-config"
+  #       description: "CMMV Elastic configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "eslint.config.cjs"
+  #         - "vitest.config.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-encryptor"
+  #   path: "../../cmmv/cmmv-encryptor"
+  #   description: "CMMV Encryptor - Encryption and security utilities"
+  #   collections:
+  #     - name: "cmmv-encryptor-docs"
+  #       description: "CMMV Encryptor documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CHANGELOG.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-encryptor-source"
+  #       description: "CMMV Encryptor source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "scripts/**/*.js"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-encryptor-config"
+  #       description: "CMMV Encryptor configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "eslint.config.cjs"
+  #         - "vitest.config.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-events"
+  #   path: "../../cmmv/cmmv-events"
+  #   description: "CMMV Events - Event system and management"
+  #   collections:
+  #     - name: "cmmv-events-docs"
+  #       description: "CMMV Events documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "CHANGELOG.md"
+  #         - "CODE_OF_CONDUCT.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-events-source"
+  #       description: "CMMV Events source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "sample/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+  #     - name: "cmmv-events-config"
+  #       description: "CMMV Events configuration"
+  #       include_patterns:
+  #         - "tsconfig*.json"
+  #         - "eslint.config.cjs"
+  #         - "vitest.config.ts"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-formbuilder"
+  #   path: "../../cmmv/cmmv-formbuilder"
+  #   description: "CMMV FormBuilder - Dynamic form creation system"
+  #   collections:
+  #     - name: "cmmv-formbuilder-docs"
+  #       description: "CMMV FormBuilder documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-formbuilder-source"
+  #       description: "CMMV FormBuilder source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.js"
+  #         - "src/**/*.vue"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-inspector"
+  #   path: "../../cmmv/cmmv-inspector"
+  #   description: "CMMV Inspector - Code inspection and analysis tools"
+  #   collections:
+  #     - name: "cmmv-inspector-docs"
+  #       description: "CMMV Inspector documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-inspector-source"
+  #       description: "CMMV Inspector source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-mcp"
+  #   path: "../../cmmv/cmmv-mcp"
+  #   description: "CMMV MCP - Model Context Protocol integration"
+  #   collections:
+  #     - name: "cmmv-mcp-docs"
+  #       description: "CMMV MCP documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-mcp-source"
+  #       description: "CMMV MCP source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-middleware"
+  #   path: "../../cmmv/cmmv-middleware"
+  #   description: "CMMV Middleware - HTTP middleware components"
+  #   collections:
+  #     - name: "cmmv-middleware-docs"
+  #       description: "CMMV Middleware documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-middleware-source"
+  #       description: "CMMV Middleware source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-normalizer"
+  #   path: "../../cmmv/cmmv-normalizer"
+  #   description: "CMMV Normalizer - Data normalization utilities"
+  #   collections:
+  #     - name: "cmmv-normalizer-docs"
+  #       description: "CMMV Normalizer documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-normalizer-source"
+  #       description: "CMMV Normalizer source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-parallel"
+  #   path: "../../cmmv/cmmv-parallel"
+  #   description: "CMMV Parallel - Parallel processing utilities"
+  #   collections:
+  #     - name: "cmmv-parallel-docs"
+  #       description: "CMMV Parallel documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-parallel-source"
+  #       description: "CMMV Parallel source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-plugins"
+  #   path: "../../cmmv/cmmv-plugins"
+  #   description: "CMMV Plugins - Plugin system and extensions"
+  #   collections:
+  #     - name: "cmmv-plugins-docs"
+  #       description: "CMMV Plugins documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-plugins-config"
+  #       description: "CMMV Plugins configuration"
+  #       include_patterns:
+  #         - "**/*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+
+  # - name: "cmmv-queue"
+  #   path: "../../cmmv/cmmv-queue"
+  #   description: "CMMV Queue - Task queue and job processing"
+  #   collections:
+  #     - name: "cmmv-queue-docs"
+  #       description: "CMMV Queue documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-queue-source"
+  #       description: "CMMV Queue source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-server"
+  #   path: "../../cmmv/cmmv-server"
+  #   description: "CMMV Server - Main server implementation"
+  #   collections:
+  #     - name: "cmmv-server-docs"
+  #       description: "CMMV Server documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #         - "docs/**/*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-server-source"
+  #       description: "CMMV Server source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.js"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-server-cpp"
+  #   path: "../../cmmv/cmmv-server-cpp"
+  #   description: "CMMV Server C++ - C++ server implementation"
+  #   collections:
+  #     - name: "cmmv-server-cpp-docs"
+  #       description: "CMMV Server C++ documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-server-cpp-source"
+  #       description: "CMMV Server C++ source code"
+  #       include_patterns:
+  #         - "src/**/*.cpp"
+  #         - "src/**/*.h"
+  #         - "src/**/*.hpp"
+  #         - "src/**/*.js"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "build/**"
+
+  # - name: "cmmv-socialautoposts"
+  #   path: "../../cmmv/cmmv-socialautoposts"
+  #   description: "CMMV Social Auto Posts - Social media automation"
+  #   collections:
+  #     - name: "cmmv-socialautoposts-docs"
+  #       description: "CMMV Social Auto Posts documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-socialautoposts-source"
+  #       description: "CMMV Social Auto Posts source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.vue"
+  #         - "src/**/*.css"
+  #         - "src/**/*.png"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-test"
+  #   path: "../../cmmv/cmmv-test"
+  #   description: "CMMV Test - Testing utilities and frameworks"
+  #   collections:
+  #     - name: "cmmv-test-docs"
+  #       description: "CMMV Test documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-test-source"
+  #       description: "CMMV Test source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "tests/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-tsconfig"
+  #   path: "../../cmmv/cmmv-tsconfig"
+  #   description: "CMMV TypeScript Config - Shared TypeScript configurations"
+  #   collections:
+  #     - name: "cmmv-tsconfig-docs"
+  #       description: "CMMV TypeScript Config documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #     - name: "cmmv-tsconfig-config"
+  #       description: "CMMV TypeScript configuration files"
+  #       include_patterns:
+  #         - "**/*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+
+  # - name: "cmmv-typescript-blog"
+  #   path: "../../cmmv/cmmv-typescript-blog"
+  #   description: "CMMV TypeScript Blog - Blog implementation in TypeScript"
+  #   collections:
+  #     - name: "cmmv-typescript-blog-docs"
+  #       description: "CMMV TypeScript Blog documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-typescript-blog-source"
+  #       description: "CMMV TypeScript Blog source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "src/**/*.vue"
+  #         - "src/**/*.json"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-typescript-module"
+  #   path: "../../cmmv/cmmv-typescript-module"
+  #   description: "CMMV TypeScript Module - Reusable TypeScript module template"
+  #   collections:
+  #     - name: "cmmv-typescript-module-docs"
+  #       description: "CMMV TypeScript Module documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-typescript-module-source"
+  #       description: "CMMV TypeScript Module source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-typescript-starter"
+  #   path: "../../cmmv/cmmv-typescript-starter"
+  #   description: "CMMV TypeScript Starter - Project starter template"
+  #   collections:
+  #     - name: "cmmv-typescript-starter-docs"
+  #       description: "CMMV TypeScript Starter documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-typescript-starter-source"
+  #       description: "CMMV TypeScript Starter source code"
+  #       include_patterns:
+  #         - "src/**/*.ts"
+  #         - "*.json"
+  #         - "*.cjs"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-ui"
+  #   path: "../../cmmv/cmmv-ui"
+  #   description: "CMMV UI - User interface components and design system"
+  #   collections:
+  #     - name: "cmmv-ui-docs"
+  #       description: "CMMV UI documentation"
+  #       include_patterns:
+  #         - "*.md"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #     - name: "cmmv-ui-components"
+  #       description: "CMMV UI Vue components"
+  #       include_patterns:
+  #         - "src/**/*.vue"
+  #         - "src/**/*.ts"
+  #         - "src/**/*.png"
+  #         - "*.json"
+  #       exclude_patterns:
+  #         - "node_modules/**"
+  #         - "dist/**"
+  #         - "**/*.map"
+
+  # - name: "cmmv-vue"
+    # path: "../../cmmv/cmmv-vue"
+    # description: "CMMV Vue - Vue.js integration and utilities"
+    # collections:
+    #   - name: "cmmv-vue-docs"
+    #     description: "CMMV Vue documentation"
+    #     include_patterns:
+    #       - "*.md"
+    #     exclude_patterns:
+    #       - "node_modules/**"
+    #       - "dist/**"
+    #   - name: "cmmv-vue-source"
+    #     description: "CMMV Vue source code"
+    #     include_patterns:
+    #       - "src/**/*.ts"
+    #       - "src/**/*.vue"
+    #       - "*.json"
+    #       - "*.cjs"
+    #     exclude_patterns:
+    #       - "node_modules/**"
+    #       - "dist/**"
+    #       - "**/*.map"
+
+  - name: "mimir"
+    path: "/Users/caikpigosso/Library/Mobile Documents/com~apple~CloudDocs/Desenvolvimento/PPNetwork/mimir"
+    description: "Mimir - Sistema de gerenciamento de rede e agentes"
+    collections:
+      - name: "mimir-docs"
+        description: "Documentação do sistema Mimir"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+          - "README.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+          - "build/**"
+      
+      - name: "mimir-frontend"
+        description: "Frontend Next.js do Mimir"
+        include_patterns:
+          - "src/app/**/*.tsx"
+          - "src/app/**/*.ts"
+          - "src/components/**/*.tsx"
+          - "src/components/**/*.ts"
+          - "src/hooks/**/*.ts"
+          - "src/middleware/**/*.ts"
+          - "src/lib/**/*.ts"
+          - "src/config/**/*.ts"
+          - "*.ts"
+          - "*.tsx"
+          - "*.json"
+          - "*.js"
+          - "*.mjs"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+          - "build/**"
+          - "**/*.map"
+      
+      - name: "mimir-database"
+        description: "Schema e migrações do banco de dados"
+        include_patterns:
+          - "prisma/**/*.prisma"
+          - "prisma/**/*.sql"
+          - "prisma/**/*.js"
+          - "prisma/**/*.ts"
+          - "scripts/**/*.sql"
+          - "scripts/**/*.js"
+          - "scripts/**/*.ts"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+      
+      - name: "mimir-agents"
+        description: "Sistema de agentes e broker"
+        include_patterns:
+          - "src/broker/**/*.ts"
+          - "src/broker/**/*.js"
+          - "cmd/**/*.go"
+          - "cmd/**/*.mod"
+          - "cmd/**/*.sum"
+          - "agent-status-websocket-server.ts"
+          - "start-broker.ts"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+          - "build/**"
+      
+      - name: "mimir-scripts"
+        description: "Scripts de manutenção e backup"
+        include_patterns:
+          - "scripts/**/*.js"
+          - "scripts/**/*.ts"
+          - "scripts/**/*.sh"
+          - "scripts/**/*.sql"
+          - "*.sh"
+          - "entrypoint.sh"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+      
+      - name: "mimir-docker"
+        description: "Configurações Docker e deployment"
+        include_patterns:
+          - "docker-compose*.yml"
+          - "Dockerfile"
+          - "docker-init.sh"
+          - "entrypoint.sh"
+          - "*.env*"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"

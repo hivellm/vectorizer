@@ -91,8 +91,8 @@ impl StorageCompactor {
                     use crate::db::CollectionType;
                     let vectors = match collection_ref.deref() {
                         CollectionType::Cpu(c) => c.get_all_vectors(),
-                        #[cfg(feature = "wgpu-gpu")]
-                        _ => {
+                        #[cfg(feature = "hive-gpu")]
+                        CollectionType::HiveGpu(_) => {
                             warn!(
                                 "⚠️  GPU collections not yet supported for memory compaction, skipping '{}'",
                                 name
@@ -111,10 +111,18 @@ impl StorageCompactor {
 
                     let config = match collection_ref.deref() {
                         CollectionType::Cpu(c) => c.config().clone(),
-                        #[cfg(feature = "wgpu-gpu")]
-                        _ => {
+                        #[cfg(feature = "hive-gpu")]
+                        CollectionType::HiveGpu(c) => {
                             warn!(
                                 "⚠️  GPU collections not yet supported for memory compaction, skipping '{}'",
+                                name
+                            );
+                            c.config().clone()
+                        }
+                        #[cfg(not(feature = "hive-gpu"))]
+                        _ => {
+                            warn!(
+                                "⚠️  Unknown collection type for memory compaction, skipping '{}'",
                                 name
                             );
                             continue;

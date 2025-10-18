@@ -3,6 +3,7 @@
 pub mod auto_save;
 mod collection;
 pub mod collection_normalization;
+pub mod hive_gpu_collection;
 pub mod optimized_hnsw;
 mod vector_store;
 

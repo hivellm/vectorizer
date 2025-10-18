@@ -1278,8 +1278,8 @@ pub async fn load_workspace_collections(
                                                     "Collection '{}' already exists (maybe from lazy loading), loading vectors with HNSW anyway: {}",
                                                     collection.name, e
                                                 );
-                                                if let Ok(collection_ref) =
-                                                    store.get_collection(&collection.name)
+                                                if let Ok(mut collection_ref) =
+                                                    store.get_collection_mut(&collection.name)
                                                 {
                                                     info!(
                                                         "🔄 Loading {} vectors with HNSW index into existing collection '{}'...",
@@ -1306,8 +1306,8 @@ pub async fn load_workspace_collections(
                                             }
 
                                             // Collection created successfully - now load vectors with HNSW index
-                                            if let Ok(collection_ref) =
-                                                store.get_collection(&collection.name)
+                                            if let Ok(mut collection_ref) =
+                                                store.get_collection_mut(&collection.name)
                                             {
                                                 info!(
                                                     "🔄 Loading {} vectors with HNSW index into collection '{}'...",

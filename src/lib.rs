@@ -19,8 +19,9 @@ pub mod evaluation;
 pub mod file_loader;
 pub mod file_operations;
 pub mod file_watcher;
-#[cfg(feature = "wgpu-gpu")]
-pub mod gpu;
+// GPU module removed - using external hive-gpu crate
+#[cfg(feature = "hive-gpu")]
+pub mod gpu_adapter;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;

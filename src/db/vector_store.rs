@@ -12,35 +12,27 @@ use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
 use crate::error::{Result, VectorizerError};
-#[cfg(feature = "wgpu-gpu")]
-use crate::gpu::{DirectX12Collection, GpuConfig, MetalCollection, VulkanCollection};
+#[cfg(feature = "hive-gpu")]
+use crate::db::hive_gpu_collection::HiveGpuCollection;
+#[cfg(feature = "hive-gpu")]
+use crate::gpu_adapter::GpuAdapter;
 use crate::models::{CollectionConfig, CollectionMetadata, SearchResult, Vector};
 
 /// Enum to represent different collection types (CPU or GPU)
 pub enum CollectionType {
     /// CPU-based collection
     Cpu(Collection),
-    /// Metal-accelerated collection (Apple Silicon)
-    #[cfg(feature = "wgpu-gpu")]
-    Metal(MetalCollection),
-    /// Vulkan-accelerated collection (AMD/NVIDIA/Intel/Universal)
-    #[cfg(feature = "wgpu-gpu")]
-    Vulkan(VulkanCollection),
-    /// DirectX 12-accelerated collection (Windows)
-    #[cfg(feature = "wgpu-gpu")]
-    DirectX12(DirectX12Collection),
+    /// Hive-GPU collection (Metal, CUDA, WebGPU)
+    #[cfg(feature = "hive-gpu")]
+    HiveGpu(HiveGpuCollection),
 }
 
 impl std::fmt::Debug for CollectionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CollectionType::Cpu(c) => write!(f, "CollectionType::Cpu({})", c.name()),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => write!(f, "CollectionType::Metal({})", c.name()),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => write!(f, "CollectionType::Vulkan({})", c.name()),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => write!(f, "CollectionType::DirectX12({})", c.name()),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => write!(f, "CollectionType::HiveGpu({})", c.name()),
         }
     }
 }
@@ -50,12 +42,8 @@ impl CollectionType {
     pub fn name(&self) -> &str {
         match self {
             CollectionType::Cpu(c) => c.name(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.name(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.name(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.name(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.name(),
         }
     }
 
@@ -63,25 +51,19 @@ impl CollectionType {
     pub fn config(&self) -> &CollectionConfig {
         match self {
             CollectionType::Cpu(c) => c.config(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.config(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.config(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.config(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.config(),
         }
     }
 
     /// Add a vector to the collection
-    pub fn add_vector(&self, _id: String, vector: Vector) -> Result<()> {
+    pub fn add_vector(&mut self, _id: String, vector: Vector) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.insert(vector),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => pollster::block_on(c.add_vector(vector)),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => pollster::block_on(c.add_vector(vector)),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => pollster::block_on(c.add_vector(vector)),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => {
+                c.add_vector(vector).map(|_| ())
+            }
         }
     }
 
@@ -89,12 +71,8 @@ impl CollectionType {
     pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
         match self {
             CollectionType::Cpu(c) => c.search(query, limit),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => pollster::block_on(c.search(query, limit)),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => pollster::block_on(c.search(query, limit)),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => pollster::block_on(c.search(query, limit)),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.search(query, limit),
         }
     }
 
@@ -102,25 +80,19 @@ impl CollectionType {
     pub fn metadata(&self) -> CollectionMetadata {
         match self {
             CollectionType::Cpu(c) => c.metadata(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.metadata(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.metadata(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.metadata(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.metadata(),
         }
     }
 
     /// Delete a vector from the collection
-    pub fn delete_vector(&self, id: &str) -> Result<()> {
+    pub fn delete_vector(&mut self, id: &str) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.delete(id),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.remove_vector(id),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.remove_vector(id),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.remove_vector(id),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => {
+                c.remove_vector(id.to_string())
+            }
         }
     }
 
@@ -128,12 +100,8 @@ impl CollectionType {
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_vector(vector_id),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => pollster::block_on(c.get_vector(vector_id)),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => pollster::block_on(c.get_vector(vector_id)),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => pollster::block_on(c.get_vector(vector_id)),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.get_vector_by_id(vector_id),
         }
     }
 
@@ -141,12 +109,8 @@ impl CollectionType {
     pub fn vector_count(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.vector_count(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.vector_count(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.vector_count(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.vector_count(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.vector_count(),
         }
     }
 
@@ -154,12 +118,8 @@ impl CollectionType {
     pub fn estimated_memory_usage(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.estimated_memory_usage(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.estimated_memory_usage(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => c.estimated_memory_usage(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => c.estimated_memory_usage(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.estimated_memory_usage(),
         }
     }
 
@@ -167,16 +127,8 @@ impl CollectionType {
     pub fn get_all_vectors(&self) -> Vec<Vector> {
         match self {
             CollectionType::Cpu(c) => c.get_all_vectors(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => pollster::block_on(c.get_all_vectors()).unwrap_or_default(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(c) => {
-                pollster::block_on(c.get_all_vectors()).unwrap_or_default()
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(c) => {
-                pollster::block_on(c.get_all_vectors()).unwrap_or_default()
-            }
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.get_all_vectors(),
         }
     }
 
@@ -184,12 +136,8 @@ impl CollectionType {
     pub fn get_embedding_type(&self) -> String {
         match self {
             CollectionType::Cpu(c) => c.get_embedding_type(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.get_embedding_type(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_c) => "unknown".to_string(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_c) => "unknown".to_string(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.get_embedding_type(),
         }
     }
 
@@ -197,21 +145,8 @@ impl CollectionType {
     pub fn requantize_existing_vectors(&self) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.requantize_existing_vectors(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
-                warn!("Requantization not implemented for Metal collections yet");
-                Ok(())
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                warn!("Requantization not implemented for Vulkan collections yet");
-                Ok(())
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                warn!("Requantization not implemented for DirectX 12 collections yet");
-                Ok(())
-            }
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.requantize_existing_vectors(),
         }
     }
 
@@ -219,20 +154,10 @@ impl CollectionType {
     pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
         match self {
             CollectionType::Cpu(c) => c.calculate_memory_usage(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
-                // For GPU collections, return basic estimation
-                let total = self.estimated_memory_usage();
-                (total / 2, total / 2, total)
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                let total = self.estimated_memory_usage();
-                (total / 2, total / 2, total)
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                let total = self.estimated_memory_usage();
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => {
+                // For Hive-GPU collections, return basic estimation
+                let total = c.estimated_memory_usage();
                 (total / 2, total / 2, total)
             }
         }
@@ -242,43 +167,9 @@ impl CollectionType {
     pub fn get_size_info(&self) -> (String, String, String) {
         match self {
             CollectionType::Cpu(c) => c.get_size_info(),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
-                let total = self.estimated_memory_usage();
-                let format_bytes = |bytes: usize| -> String {
-                    if bytes >= 1024 * 1024 {
-                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-                    } else if bytes >= 1024 {
-                        format!("{:.1} KB", bytes as f64 / 1024.0)
-                    } else {
-                        format!("{} B", bytes)
-                    }
-                };
-                let index_size = format_bytes(total / 2);
-                let payload_size = format_bytes(total / 2);
-                let total_size = format_bytes(total);
-                (index_size, payload_size, total_size)
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                let total = self.estimated_memory_usage();
-                let format_bytes = |bytes: usize| -> String {
-                    if bytes >= 1024 * 1024 {
-                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-                    } else if bytes >= 1024 {
-                        format!("{:.1} KB", bytes as f64 / 1024.0)
-                    } else {
-                        format!("{} B", bytes)
-                    }
-                };
-                let index_size = format_bytes(total / 2);
-                let payload_size = format_bytes(total / 2);
-                let total_size = format_bytes(total);
-                (index_size, payload_size, total_size)
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                let total = self.estimated_memory_usage();
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => {
+                let total = c.estimated_memory_usage();
                 let format_bytes = |bytes: usize| -> String {
                     if bytes >= 1024 * 1024 {
                         format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
@@ -297,15 +188,14 @@ impl CollectionType {
     }
 
     /// Set embedding type
-    pub fn set_embedding_type(&self, embedding_type: String) {
+    pub fn set_embedding_type(&mut self, embedding_type: String) {
         match self {
             CollectionType::Cpu(c) => c.set_embedding_type(embedding_type),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(c) => c.set_embedding_type(embedding_type),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_c) => (),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_c) => (),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                // Hive-GPU doesn't need to track embedding types
+                debug!("Hive-GPU collections don't track embedding types: {}", embedding_type);
+            }
         }
     }
 
@@ -317,20 +207,10 @@ impl CollectionType {
     ) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_hnsw_index_from_dump(path, basename),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
-                warn!("Metal collections don't support HNSW dump loading yet");
-                Ok(()) // No-op for now
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                warn!("Vulkan collections don\'t support HNSW dump loading yet");
-                Ok(()) // No-op for now
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                warn!("DirectX 12 collections don\'t support HNSW dump loading yet");
-                Ok(()) // No-op for now
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                warn!("Hive-GPU collections don't support HNSW dump loading yet");
+                Ok(())
             }
         }
     }
@@ -339,42 +219,23 @@ impl CollectionType {
     pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.load_vectors_into_memory(vectors),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
-                warn!("Metal collections don't support vector loading into memory yet");
-                Ok(()) // No-op for now
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                warn!("Vulkan collections don\'t support vector loading into memory yet");
-                Ok(()) // No-op for now
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                warn!("DirectX 12 collections don\'t support vector loading into memory yet");
-                Ok(()) // No-op for now
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                warn!("Hive-GPU collections don't support vector loading into memory yet");
+                Ok(())
             }
         }
     }
 
     /// Fast load vectors
-    pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
+    pub fn fast_load_vectors(&mut self, vectors: Vec<Vector>) -> Result<()> {
         match self {
             CollectionType::Cpu(c) => c.fast_load_vectors(vectors),
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
-                warn!("Metal collections don't support fast vector loading yet");
-                Ok(()) // No-op for now
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                warn!("Vulkan collections don\'t support fast vector loading yet");
-                Ok(()) // No-op for now
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                warn!("DirectX 12 collections don\'t support fast vector loading yet");
-                Ok(()) // No-op for now
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => {
+                // Use batch insertion for better performance
+                c.add_vectors(vectors)?;
+                Ok(())
             }
         }
     }
@@ -385,15 +246,6 @@ impl CollectionType {
 pub struct VectorStore {
     /// Collections stored in a concurrent hash map
     collections: Arc<DashMap<String, CollectionType>>,
-    /// Metal GPU configuration
-    #[cfg(feature = "wgpu-gpu")]
-    metal_config: Option<GpuConfig>,
-    /// Vulkan GPU configuration
-    #[cfg(feature = "wgpu-gpu")]
-    vulkan_config: Option<GpuConfig>,
-    /// DirectX 12 GPU configuration
-    #[cfg(feature = "wgpu-gpu")]
-    dx12_config: Option<GpuConfig>,
     /// Auto-save enabled flag (prevents auto-save during initialization)
     auto_save_enabled: Arc<std::sync::atomic::AtomicBool>,
     /// Collections pending save (for batch persistence)
@@ -417,12 +269,6 @@ impl VectorStore {
 
         let store = Self {
             collections: Arc::new(DashMap::new()),
-            #[cfg(feature = "wgpu-gpu")]
-            metal_config: None,
-            #[cfg(feature = "wgpu-gpu")]
-            vulkan_config: None,
-            #[cfg(feature = "wgpu-gpu")]
-            dx12_config: None,
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
@@ -518,46 +364,24 @@ impl VectorStore {
         Ok(())
     }
 
-    /// Create a new vector store with Metal GPU configuration
-    #[cfg(feature = "wgpu-gpu")]
-    pub fn new_with_metal_config(metal_config: GpuConfig) -> Self {
-        info!(
-            "Creating new VectorStore with Metal GPU config: enabled={}",
-            metal_config.enabled
-        );
+    /// Create a new vector store with Hive-GPU configuration
+    #[cfg(feature = "hive-gpu")]
+    pub fn new_with_hive_gpu_config() -> Self {
+        info!("Creating new VectorStore with Hive-GPU configuration");
         Self {
             collections: Arc::new(DashMap::new()),
-            metal_config: Some(metal_config),
-            vulkan_config: None,
-            dx12_config: None,
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
-    /// Create a new vector store with Vulkan GPU configuration
-    #[cfg(feature = "wgpu-gpu")]
-    pub fn new_with_vulkan_config(vulkan_config: GpuConfig) -> Self {
-        info!(
-            "Creating new VectorStore with Vulkan GPU config: enabled={}",
-            vulkan_config.enabled
-        );
-        Self {
-            collections: Arc::new(DashMap::new()),
-            metal_config: None,
-            vulkan_config: Some(vulkan_config),
-            dx12_config: None,
-            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
-            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
-        }
-    }
 
     /// Create a new vector store with automatic GPU detection
-    /// Priority: Metal (Mac Silicon) > CUDA > CPU
+    /// Priority: Hive-GPU (Metal/CUDA/WebGPU) > CPU
     pub fn new_auto() -> Self {
         eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
+        info!("🔍 VectorStore::new_auto() called - starting GPU detection...");
 
         // Create store without loading collections (will be loaded in background task)
         let store = Self::new();
@@ -570,126 +394,38 @@ impl VectorStore {
 
         eprintln!("✅ VectorStore created (collections will be loaded in background)");
 
-        // 1. Try Metal first (Mac Silicon with wgpu-gpu feature)
-        #[cfg(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu"))]
+        // Try Hive-GPU first
+        #[cfg(feature = "hive-gpu")]
         {
-            eprintln!("🍎 Detecting Metal GPU on Mac Silicon...");
-            info!("🍎 Detecting Metal GPU on Mac Silicon...");
-            let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
-            if let Ok(_) = pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone())) {
-                eprintln!("✅ Metal GPU detected and enabled!");
-                info!("✅ Metal GPU detected and enabled!");
-                let store = Self::new_with_metal_config(metal_config);
+            eprintln!("🚀 Detecting Hive-GPU capabilities...");
+            info!("🚀 Detecting Hive-GPU capabilities...");
+            
+            // Try to create a GPU context
+            use hive_gpu::metal::MetalNativeContext;
+            if let Ok(_) = MetalNativeContext::new() {
+                eprintln!("✅ Hive-GPU detected and enabled!");
+                info!("✅ Hive-GPU detected and enabled!");
+                let store = Self::new_with_hive_gpu_config();
                 info!("⏸️  Auto-save will be enabled after collections load");
                 return store;
             } else {
-                eprintln!("⚠️ Metal GPU detection failed, falling back...");
-                warn!("⚠️ Metal GPU detection failed, falling back...");
+                eprintln!("⚠️ Hive-GPU detection failed, falling back to CPU...");
+                warn!("⚠️ Hive-GPU detection failed, falling back to CPU...");
             }
         }
 
-        #[cfg(not(all(target_os = "macos", target_arch = "aarch64", feature = "wgpu-gpu")))]
+        #[cfg(not(feature = "hive-gpu"))]
         {
-            eprintln!("⚠️ Metal not available (not Mac Silicon or wgpu-gpu feature not compiled)");
+            eprintln!("⚠️ Hive-GPU not available (hive-gpu feature not compiled)");
+            info!("⚠️ Hive-GPU not available (hive-gpu feature not compiled)");
         }
 
-        // 2. Return the store (auto-save will be enabled after collections load)
+        // Return the store (auto-save will be enabled after collections load)
         eprintln!("💻 Using CPU-only mode");
         info!("💻 Using CPU-only mode");
         store
     }
 
-    /// Universal GPU detection across all backends (Vulkan, DirectX, CUDA, Metal)
-    /// Priority: Metal (macOS) > Vulkan (AMD/Universal) > DirectX12 (Windows) > CUDA (NVIDIA) > CPU
-    #[cfg(feature = "wgpu-gpu")]
-    pub fn new_auto_universal() -> Self {
-        use crate::gpu::{GpuBackendType, detect_available_backends, select_best_backend};
-
-        //eprintln!("\n🌍 VectorStore::new_auto_universal() - Universal Multi-GPU Detection");
-        info!("🔍 Starting universal GPU backend detection...");
-
-        // Create store without loading collections (will be loaded in background task)
-        let store = Self::new();
-        info!("⏸️  Auto-save will be enabled after collections load");
-        eprintln!("✅ VectorStore created (collections will be loaded in background)");
-
-        // Detect all available backends
-        let available = detect_available_backends();
-
-        if available.is_empty() {
-            eprintln!("❌ No GPU backends detected - using CPU");
-            warn!("No GPU backends available");
-            let store = Self::new();
-            info!("⏸️  Auto-save will be enabled after collections load");
-            return store;
-        }
-
-        // Select best backend
-        let best = select_best_backend(&available);
-        eprintln!("🎯 Selected: {}", best);
-        info!("Selected backend: {}", best);
-
-        // Initialize VectorStore with the selected backend
-        match best {
-            GpuBackendType::Metal => {
-                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-                {
-                    eprintln!("🍎 Initializing Metal GPU backend...");
-                    let metal_config = crate::gpu::GpuConfig::for_metal_silicon();
-                    if let Ok(_) =
-                        pollster::block_on(crate::gpu::GpuContext::new(metal_config.clone()))
-                    {
-                        eprintln!("✅ Metal GPU initialized successfully!");
-                        info!("✅ Metal GPU initialized successfully!");
-                        let store = Self::new_with_metal_config(metal_config);
-                        info!("⏸️  Auto-save will be enabled after collections load");
-                        return store;
-                    } else {
-                        eprintln!("⚠️ Metal initialization failed - falling back");
-                        warn!("Metal GPU initialization failed");
-                    }
-                }
-            }
-
-            GpuBackendType::Vulkan => {
-                #[cfg(feature = "wgpu-gpu")]
-                {
-                    eprintln!("🔥 Initializing Vulkan GPU backend...");
-                    info!("Initializing Vulkan GPU backend...");
-                    let vulkan_config = crate::gpu::GpuConfig::default();
-                    eprintln!("✅ Vulkan GPU initialized!");
-                    info!("✅ Vulkan GPU initialized!");
-                    let store = Self::new_with_vulkan_config(vulkan_config);
-                    info!("⏸️  Auto-save will be enabled after collections load");
-                    return store;
-                }
-
-                #[cfg(not(feature = "wgpu-gpu"))]
-                {
-                    eprintln!("⚠️ Vulkan requires wgpu-gpu feature");
-                    warn!("Vulkan selected but wgpu-gpu feature not enabled");
-                }
-            }
-
-            GpuBackendType::DirectX12 => {
-                eprintln!("🪟 DirectX 12 detected but integration pending...");
-                info!("DirectX 12 backend detected but not yet integrated");
-                // TODO: Implement DirectX12Collection (FASE 3)
-            }
-
-            GpuBackendType::Cpu => {
-                eprintln!("💻 Using CPU backend");
-                info!("Using CPU backend");
-            }
-        }
-
-        // Fallback to CPU if GPU initialization failed
-        eprintln!("💻 Falling back to CPU backend");
-        warn!("GPU initialization failed, using CPU fallback");
-        let store = Self::new();
-        info!("⏸️  Auto-save will be enabled after collections load");
-        store
-    }
 
     /// Create a new collection
     pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
@@ -699,63 +435,40 @@ impl VectorStore {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        // Prioridade: Metal > Vulkan > DirectX12 > CUDA > CPU
-        #[cfg(feature = "wgpu-gpu")]
-        if let Some(ref metal_cfg) = self.metal_config {
-            if metal_cfg.enabled {
-                info!("Creating Metal GPU-accelerated collection '{}'", name);
-                let metal_collection = pollster::block_on(crate::gpu::MetalCollection::new(
-                    name.to_string(),
-                    config,
-                    metal_cfg.clone(),
-                ))?;
-                let collection = CollectionType::Metal(metal_collection);
-                self.collections.insert(name.to_string(), collection);
-                info!("Collection '{}' created successfully with Metal GPU", name);
-                return Ok(());
-            }
-        }
-
-        #[cfg(feature = "wgpu-gpu")]
-        if let Some(ref vulkan_cfg) = self.vulkan_config {
-            if vulkan_cfg.enabled {
-                info!("Creating Vulkan GPU-accelerated collection '{}'", name);
-                let vulkan_collection = pollster::block_on(crate::gpu::VulkanCollection::new(
-                    name.to_string(),
-                    config,
-                    vulkan_cfg.clone(),
-                ))?;
-                let collection = CollectionType::Vulkan(vulkan_collection);
-                self.collections.insert(name.to_string(), collection);
-                info!("Collection '{}' created successfully with Vulkan GPU", name);
-                return Ok(());
-            }
-        }
-
-        #[cfg(feature = "wgpu-gpu")]
-        if let Some(ref dx12_cfg) = self.dx12_config {
-            if dx12_cfg.enabled {
-                info!("Creating DirectX 12 GPU-accelerated collection '{}'", name);
-                let dx12_collection = pollster::block_on(crate::gpu::DirectX12Collection::new(
-                    name.to_string(),
-                    config,
-                    dx12_cfg.clone(),
-                ))?;
-                let collection = CollectionType::DirectX12(dx12_collection);
-                self.collections.insert(name.to_string(), collection);
-                info!(
-                    "Collection '{}' created successfully with DirectX 12 GPU",
-                    name
-                );
-                return Ok(());
+        // Try Hive-GPU first
+        #[cfg(feature = "hive-gpu")]
+        {
+            info!("Creating Hive-GPU collection '{}'", name);
+            use hive_gpu::GpuContext;
+            use hive_gpu::metal::MetalNativeContext;
+            
+            // Create GPU context (try to create from available backends)
+            match MetalNativeContext::new() {
+                Ok(ctx) => {
+                    let context = Arc::new(std::sync::Mutex::new(Box::new(ctx) as Box<dyn GpuContext + Send>));
+                    
+                    // Create Hive-GPU collection
+                    let hive_gpu_collection = HiveGpuCollection::new(
+                        name.to_string(),
+                        config.clone(),
+                        context,
+                    )?;
+                    
+                    let collection = CollectionType::HiveGpu(hive_gpu_collection);
+                    self.collections.insert(name.to_string(), collection);
+                    info!("Collection '{}' created successfully with Hive-GPU", name);
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!("Failed to create GPU context: {:?}, falling back to CPU", e);
+                }
             }
         }
 
         // Fallback to CPU
         debug!("Creating CPU-based collection '{}'", name);
-        let collection = CollectionType::Cpu(Collection::new(name.to_string(), config));
-
-        self.collections.insert(name.to_string(), collection);
+        let collection = Collection::new(name.to_string(), config);
+        self.collections.insert(name.to_string(), CollectionType::Cpu(collection));
 
         info!("Collection '{}' created successfully", name);
         Ok(())
@@ -813,7 +526,7 @@ impl VectorStore {
                     self.create_collection(name, config)?;
 
                     // Get the new collection
-                    let new_collection = self.get_collection(name)?;
+                    let mut new_collection = self.get_collection_mut(name)?;
 
                     // Apply quantization to existing vectors
                     for vector in existing_vectors {
@@ -1032,6 +745,20 @@ impl VectorStore {
         self.collections.contains_key(name)
     }
 
+    /// Get a mutable reference to a collection by name
+    pub fn get_collection_mut(
+        &self,
+        name: &str,
+    ) -> Result<impl std::ops::DerefMut<Target = CollectionType> + '_> {
+        // Ensure collection is loaded first
+        let _ = self.get_collection(name)?;
+        
+        // Now get mutable reference
+        self.collections
+            .get_mut(name)
+            .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
+    }
+
     pub fn list_collections(&self) -> Vec<String> {
         use std::collections::HashSet;
 
@@ -1075,23 +802,22 @@ impl VectorStore {
             collection_name
         );
 
-        let collection_ref = self.get_collection(collection_name)?;
+        let mut collection_ref = self.get_collection_mut(collection_name)?;
 
-        // Check if this is a GPU collection that needs async handling
+        // Check if this is a GPU collection that needs special handling
         match collection_ref.deref() {
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) | CollectionType::Vulkan(_) | CollectionType::DirectX12(_) => {
-                // For GPU collections, use sequential insertion to avoid async issues
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                // For Hive-GPU collections, use batch insertion
                 for vector in vectors {
                     collection_ref.add_vector(vector.id.clone(), vector)?;
                 }
             }
             _ => {
-                // For CPU collections, use parallel iteration for better performance
-                use rayon::prelude::*;
-                vectors
-                    .into_par_iter()
-                    .try_for_each(|vector| collection_ref.add_vector(vector.id.clone(), vector))?;
+                // For CPU collections, use sequential iteration
+                for vector in vectors {
+                    collection_ref.add_vector(vector.id.clone(), vector)?;
+                }
             }
         }
 
@@ -1108,7 +834,7 @@ impl VectorStore {
             vector.id, collection_name
         );
 
-        let collection_ref = self.get_collection(collection_name)?;
+        let mut collection_ref = self.get_collection_mut(collection_name)?;
         // For update, we delete and re-add (TODO: Add direct update method to CollectionType)
         collection_ref.delete_vector(&vector.id)?;
         collection_ref.add_vector(vector.id.clone(), vector)?;
@@ -1126,7 +852,7 @@ impl VectorStore {
             vector_id, collection_name
         );
 
-        let collection_ref = self.get_collection(collection_name)?;
+        let mut collection_ref = self.get_collection_mut(collection_name)?;
         collection_ref.delete_vector(vector_id)?;
 
         // Mark collection for auto-save
@@ -1171,45 +897,21 @@ impl VectorStore {
             persisted_vectors.len()
         );
 
-        let collection_ref = self.get_collection(collection_name)?;
+        let mut collection_ref = self.get_collection_mut(collection_name)?;
 
-        // TODO: Implement load_from_cache for CudaCollection and Metal
+        // TODO: Implement load_from_cache for MetalNativeCollection
         match &*collection_ref {
             CollectionType::Cpu(c) => {
                 c.load_from_cache(persisted_vectors)?;
                 // Requantize existing vectors if quantization is enabled
                 c.requantize_existing_vectors()?;
             }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
                 warn!(
-                    "Metal collections don't support cache loading yet - falling back to manual insertion"
+                    "Hive-GPU collections don't support cache loading yet - falling back to manual insertion"
                 );
-                // For now, manually insert vectors for Metal collections
-                for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                warn!(
-                    "Vulkan collections don't support cache loading yet - falling back to manual insertion"
-                );
-                // For now, manually insert vectors for Vulkan collections
-                for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                warn!(
-                    "DirectX 12 collections don't support cache loading yet - falling back to manual insertion"
-                );
-                // For now, manually insert vectors for DirectX 12 collections
+                // For now, manually insert vectors for Hive-GPU collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();
@@ -1238,43 +940,19 @@ impl VectorStore {
             hnsw_basename.is_some()
         );
 
-        let collection_ref = self.get_collection(collection_name)?;
+        let mut collection_ref = self.get_collection_mut(collection_name)?;
 
-        // TODO: Implement load_from_cache_with_hnsw_dump for CudaCollection and Metal
+        // TODO: Implement load_from_cache_with_hnsw_dump for MetalNativeCollection
         match &*collection_ref {
             CollectionType::Cpu(c) => {
                 c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?
             }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Metal(_) => {
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
                 warn!(
-                    "Metal collections don't support HNSW dump loading yet - falling back to manual insertion"
+                    "Hive-GPU collections don't support HNSW dump loading yet - falling back to manual insertion"
                 );
-                // For now, manually insert vectors for Metal collections
-                for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::Vulkan(_) => {
-                warn!(
-                    "Vulkan collections don't support HNSW dump loading yet - falling back to manual insertion"
-                );
-                // For now, manually insert vectors for Vulkan collections
-                for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
-            }
-            #[cfg(feature = "wgpu-gpu")]
-            CollectionType::DirectX12(_) => {
-                warn!(
-                    "DirectX 12 collections don't support HNSW dump loading yet - falling back to manual insertion"
-                );
-                // For now, manually insert vectors for DirectX 12 collections
+                // For now, manually insert vectors for Hive-GPU collections
                 for pv in persisted_vectors {
                     // Convert PersistedVector back to Vector
                     let vector: Vector = pv.into();
