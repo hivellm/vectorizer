@@ -5,6 +5,8 @@
 //! 2. Payloads contain content field
 //! 3. Intelligent search tools work correctly
 
+#![cfg(all(feature = "hive-gpu", target_os = "macos"))]
+
 use std::sync::Arc;
 
 use vectorizer::VectorStore;

@@ -221,7 +221,7 @@ impl HiveGpuCollection {
                 let vector = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
                 Ok(vector)
             }
-            Ok(None) => Err(VectorizerError::Other(format!("Vector '{}' not found", id))),
+            Ok(None) => Err(VectorizerError::VectorNotFound(id.to_string())),
             Err(e) => {
                 error!("Failed to get vector '{}' from GPU storage: {:?}", id, e);
                 Err(GpuAdapter::gpu_error_to_vectorizer_error(e))
@@ -236,10 +236,7 @@ impl HiveGpuCollection {
                 let vector = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
                 Ok(vector)
             }
-            Ok(None) => Err(VectorizerError::Other(format!(
-                "Vector at index {} not found",
-                index
-            ))),
+            Ok(None) => Err(VectorizerError::VectorNotFound(index.to_string())),
             Err(e) => {
                 error!(
                     "Failed to get vector at index {} from GPU storage: {:?}",
