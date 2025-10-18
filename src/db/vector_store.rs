@@ -2341,5 +2341,4 @@ mod tests {
         assert_eq!(metadata.config.dimension, 768);
         assert_eq!(metadata.config.metric, DistanceMetric::Cosine);
     }
-
 }
