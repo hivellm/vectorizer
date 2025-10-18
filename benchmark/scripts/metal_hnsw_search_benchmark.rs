@@ -2,10 +2,14 @@
 //! 
 //! Tests GPU-accelerated HNSW search performance using hive-gpu
 
+#[cfg(target_os = "macos")]
 use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext, GpuVectorStorage};
+#[cfg(target_os = "macos")]
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
+#[cfg(target_os = "macos")]
 use std::time::Instant;
 
+#[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Metal HNSW Search Benchmark");
     println!("==============================");
@@ -110,4 +114,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  - Search Throughput: {:.2} queries/sec", search_throughput);
     
     Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    eprintln!("⚠️  This benchmark is only available on macOS (Metal backend)");
+    std::process::exit(1);
 }

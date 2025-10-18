@@ -394,8 +394,8 @@ impl VectorStore {
 
         eprintln!("✅ VectorStore created (collections will be loaded in background)");
 
-        // Try Hive-GPU first
-        #[cfg(feature = "hive-gpu")]
+        // Try Hive-GPU first (Metal backend only on macOS)
+        #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
         {
             eprintln!("🚀 Detecting Hive-GPU capabilities...");
             info!("🚀 Detecting Hive-GPU capabilities...");
@@ -412,6 +412,12 @@ impl VectorStore {
                 eprintln!("⚠️ Hive-GPU detection failed, falling back to CPU...");
                 warn!("⚠️ Hive-GPU detection failed, falling back to CPU...");
             }
+        }
+
+        #[cfg(all(feature = "hive-gpu", not(target_os = "macos")))]
+        {
+            eprintln!("⚠️ Hive-GPU Metal backend only available on macOS, using CPU mode");
+            info!("⚠️ Hive-GPU Metal backend only available on macOS, using CPU mode");
         }
 
         #[cfg(not(feature = "hive-gpu"))]
@@ -435,8 +441,8 @@ impl VectorStore {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        // Try Hive-GPU first
-        #[cfg(feature = "hive-gpu")]
+        // Try Hive-GPU first (Metal backend only on macOS)
+        #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
         {
             info!("Creating Hive-GPU collection '{}'", name);
             use hive_gpu::GpuContext;
@@ -463,6 +469,11 @@ impl VectorStore {
                     warn!("Failed to create GPU context: {:?}, falling back to CPU", e);
                 }
             }
+        }
+
+        #[cfg(all(feature = "hive-gpu", not(target_os = "macos")))]
+        {
+            info!("Hive-GPU Metal backend only available on macOS, creating CPU collection for '{}'", name);
         }
 
         // Fallback to CPU

@@ -1,7 +1,12 @@
+#[cfg(target_os = "macos")]
 use vectorizer::error::Result;
+#[cfg(target_os = "macos")]
 use vectorizer::models::{Payload, CollectionConfig, HnswConfig, DistanceMetric, Vector};
+#[cfg(target_os = "macos")]
 use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext, GpuVectorStorage};
+#[cfg(target_os = "macos")]
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
+#[cfg(target_os = "macos")]
 use tracing::{info, error};
 
 // Test MCP integration
@@ -52,6 +57,7 @@ async fn test_mcp_integration() -> Result<()> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize tracing
@@ -62,18 +68,24 @@ async fn main() -> Result<()> {
     println!("🧪 Basic Metal Native Test");
     println!("==========================\n");
 
-    #[cfg(all(feature = "metal-native", target_os = "macos"))]
+    #[cfg(feature = "metal-native")]
     {
         test_basic_functionality().await?;
     }
 
-    #[cfg(not(all(feature = "metal-native", target_os = "macos")))]
+    #[cfg(not(feature = "metal-native"))]
     {
-        println!("❌ This test requires macOS with metal-native feature enabled");
+        println!("❌ This test requires metal-native feature enabled");
         return Ok(());
     }
 
     Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    eprintln!("⚠️  This benchmark is only available on macOS (Metal backend)");
+    std::process::exit(1);
 }
 
 #[cfg(all(feature = "metal-native", target_os = "macos"))]

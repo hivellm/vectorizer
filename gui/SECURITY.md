@@ -85,3 +85,4 @@ When migrating data between machines:
 - **Right to Erasure**: Users can delete all data by removing the config directory
 
 
+

@@ -2,10 +2,14 @@
 //! 
 //! Basic test to validate Metal Native collection creation and vector addition using hive-gpu
 
+#[cfg(target_os = "macos")]
 use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext, GpuVectorStorage};
+#[cfg(target_os = "macos")]
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
+#[cfg(target_os = "macos")]
 use std::time::Instant;
 
+#[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔧 Simple Metal Native Test");
     println!("==========================");
@@ -68,5 +72,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("🎉 All tests passed!");
     Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    eprintln!("⚠️  This benchmark is only available on macOS (Metal backend)");
+    std::process::exit(1);
 }
 

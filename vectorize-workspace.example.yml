@@ -9,7 +9,7 @@ global_settings:
     hot_reload: true
     watch_paths:
       - /workspace  # Root path to watch
-
+    
 projects:
   # Example: Single project
   - name: my-project
