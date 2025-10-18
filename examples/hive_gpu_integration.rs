@@ -3,11 +3,6 @@
 //! This example shows how to use hive-gpu for GPU-accelerated vector operations
 //! in the vectorizer project.
 
-#[cfg(feature = "hive-gpu")]
-use hive_gpu::{
-    GpuBackend, GpuContext, GpuDistanceMetric, GpuSearchResult, GpuVector, GpuVectorStorage,
-    HnswConfig as HiveGpuHnswConfig,
-};
 use vectorizer::error::Result;
 use vectorizer::gpu_adapter::GpuAdapter;
 use vectorizer::models::{DistanceMetric, HnswConfig, Payload, Vector};
@@ -35,7 +30,7 @@ async fn example_hive_gpu_integration() -> Result<()> {
 
     // Convert distance metric
     let gpu_metric = GpuAdapter::distance_metric_to_gpu_metric(DistanceMetric::Cosine);
-    println!("✅ Converted distance metric: {:?}", gpu_metric);
+    println!("✅ Converted distance metric: {gpu_metric:?}");
 
     // Convert HNSW config
     let hnsw_config = HnswConfig {
@@ -46,7 +41,7 @@ async fn example_hive_gpu_integration() -> Result<()> {
     };
 
     let gpu_config = GpuAdapter::hnsw_config_to_gpu_config(&hnsw_config);
-    println!("✅ Converted HNSW config: {:?}", gpu_config);
+    println!("✅ Converted HNSW config: {gpu_config:?}");
 
     // Note: In a real implementation, you would:
     // 1. Create a GPU context (Metal, CUDA, or wgpu)

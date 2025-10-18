@@ -4,10 +4,7 @@
 //! and that vectorizer can use hive-gpu for GPU acceleration.
 
 #[cfg(feature = "hive-gpu")]
-use hive_gpu::{
-    GpuBackend, GpuContext, GpuDistanceMetric, GpuSearchResult, GpuVector, GpuVectorStorage,
-};
-use vectorizer::error::Result;
+use hive_gpu::GpuDistanceMetric;
 use vectorizer::gpu_adapter::GpuAdapter;
 use vectorizer::models::{DistanceMetric, Vector};
 use vectorizer::{CollectionConfig, VectorStore};
@@ -325,7 +322,7 @@ mod hive_gpu_integration_tests {
         // Create a large number of vectors
         let vectors: Vec<Vector> = (0..1000)
             .map(|i| Vector {
-                id: format!("perf_vec_{}", i),
+                id: format!("perf_vec_{i}"),
                 data: vec![i as f32; 512],
                 payload: None,
             })

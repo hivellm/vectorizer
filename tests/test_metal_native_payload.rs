@@ -35,7 +35,7 @@ async fn test_metal_native_payload_retrieval() {
         normalization: None,
     };
 
-    println!("🆕 Creating fresh test collection: {}", test_collection);
+    println!("🆕 Creating fresh test collection: {test_collection}");
     store
         .create_collection(test_collection, config)
         .expect("Failed to create test collection");
@@ -61,12 +61,12 @@ async fn test_metal_native_payload_retrieval() {
     for (doc_id, content) in &test_docs {
         let embedding = embedding_manager.embed(content).expect("Failed to embed");
         let vector = vectorizer::models::Vector {
-            id: format!("test-{}", doc_id),
+            id: format!("test-{doc_id}"),
             data: embedding,
             payload: Some(vectorizer::models::Payload::new(serde_json::json!({
                 "content": content,
                 "doc_id": doc_id,
-                "file_path": format!("/test/{}.txt", doc_id),
+                "file_path": format!("/test/{doc_id}.txt"),
             }))),
         };
         test_vectors.push(vector);
@@ -92,10 +92,10 @@ async fn test_metal_native_payload_retrieval() {
 
     // Test 1: Simple search on test collection
     println!("\n📋 Test 1: Simple search on test collection");
-    println!("   Collection: {}", test_collection);
+    println!("   Collection: {test_collection}");
 
     let query = "database design";
-    println!("   Query: '{}'", query);
+    println!("   Query: '{query}'");
 
     // Embed query
     let query_embedding = embedding_manager
@@ -130,7 +130,7 @@ async fn test_metal_native_payload_retrieval() {
             if let Some(content) = payload.data.get("content").and_then(|v| v.as_str()) {
                 results_with_content += 1;
                 let preview = content.chars().take(60).collect::<String>();
-                println!("Content: \"{}...\"", preview);
+                println!("Content: \"{preview}...\"");
             } else {
                 println!("Content: ❌ (missing)");
             }
@@ -140,9 +140,9 @@ async fn test_metal_native_payload_retrieval() {
     }
 
     println!("\n   📊 Summary:");
-    println!("      - Valid results: {}", valid_results);
-    println!("      - With payload: {}", results_with_payload);
-    println!("      - With content: {}", results_with_content);
+    println!("      - Valid results: {valid_results}");
+    println!("      - With payload: {results_with_payload}");
+    println!("      - With content: {results_with_content}");
 
     // Validate results
     assert!(valid_results > 0, "❌ No valid results found");
@@ -214,7 +214,7 @@ async fn test_metal_native_payload_retrieval() {
                 if !result.content.is_empty() {
                     has_content_count += 1;
                     let preview = result.content.chars().take(60).collect::<String>();
-                    println!("Content: \"{}...\"", preview);
+                    println!("Content: \"{preview}...\"");
                 } else {
                     println!("Content: ❌ (empty)");
                 }
@@ -228,7 +228,7 @@ async fn test_metal_native_payload_retrieval() {
             );
 
             assert!(
-                response.results.len() > 0,
+                !response.results.is_empty(),
                 "❌ No results from intelligent search"
             );
             assert_eq!(
@@ -240,8 +240,8 @@ async fn test_metal_native_payload_retrieval() {
             println!("   ✅ Test 2 PASSED: Intelligent search returns content\n");
         }
         Err(e) => {
-            println!("   ❌ Test 2 FAILED: {}", e);
-            panic!("Intelligent search failed: {}", e);
+            println!("   ❌ Test 2 FAILED: {e}");
+            panic!("Intelligent search failed: {e}");
         }
     }
 
@@ -284,19 +284,19 @@ async fn test_metal_native_payload_retrieval() {
 
             println!("   📊 Distribution by collection:");
             for (collection, count) in &collection_distribution {
-                println!("      - {}: {} results", collection, count);
+                println!("      - {collection}: {count} results");
             }
 
             println!("\n   📊 Summary:");
             println!("      - Total results: {}", response.results.len());
-            println!("      - With content: {}", content_count);
+            println!("      - With content: {content_count}");
             println!(
                 "      - Collections represented: {}",
                 collection_distribution.len()
             );
 
             assert!(
-                response.results.len() > 0,
+                !response.results.is_empty(),
                 "❌ No results from multi-collection search"
             );
             assert!(content_count > 0, "❌ No results with content");
@@ -304,8 +304,8 @@ async fn test_metal_native_payload_retrieval() {
             println!("   ✅ Test 3 PASSED: Multi-collection search works\n");
         }
         Err(e) => {
-            println!("   ❌ Test 3 FAILED: {}", e);
-            panic!("Multi-collection search failed: {}", e);
+            println!("   ❌ Test 3 FAILED: {e}");
+            panic!("Multi-collection search failed: {e}");
         }
     }
 
@@ -326,10 +326,10 @@ async fn test_payload_structure() {
     println!("📂 Loading persisted collections...");
     match store.load_all_persisted_collections() {
         Ok(count) => {
-            println!("✅ Loaded {} collections from disk\n", count);
+            println!("✅ Loaded {count} collections from disk\n");
         }
         Err(e) => {
-            println!("⚠️  Failed to load collections: {}\n", e);
+            println!("⚠️  Failed to load collections: {e}\n");
         }
     }
 
@@ -357,7 +357,7 @@ async fn test_payload_structure() {
         .expect("Failed to set default provider");
 
     for collection_name in &mimir_collections {
-        println!("📂 Collection: {}", collection_name);
+        println!("📂 Collection: {collection_name}");
 
         // Get collection metadata
         if let Ok(collection) = store.get_collection(collection_name) {
@@ -374,7 +374,7 @@ async fn test_payload_structure() {
             let query_embedding = match embedding_manager.embed(query_text) {
                 Ok(emb) => emb,
                 Err(e) => {
-                    println!("   ❌ Embedding failed: {}\n", e);
+                    println!("   ❌ Embedding failed: {e}\n");
                     continue;
                 }
             };
@@ -405,13 +405,13 @@ async fn test_payload_structure() {
                                         }
                                     }
                                     "file_path" => {
-                                        println!("         - file_path: {}", value);
+                                        println!("         - file_path: {value}");
                                     }
                                     "chunk_index" => {
-                                        println!("         - chunk_index: {}", value);
+                                        println!("         - chunk_index: {value}");
                                     }
                                     _ => {
-                                        println!("         - {}: {:?}", key, value);
+                                        println!("         - {key}: {value:?}");
                                     }
                                 }
                             }
@@ -433,8 +433,8 @@ async fn test_payload_structure() {
                     println!("\n   ✅ All results have valid payloads");
                 }
                 Err(e) => {
-                    println!("   ❌ Search failed: {}", e);
-                    panic!("Search failed for collection {}", collection_name);
+                    println!("   ❌ Search failed: {e}");
+                    panic!("Search failed for collection {collection_name}");
                 }
             }
         }
