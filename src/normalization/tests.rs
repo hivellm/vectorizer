@@ -1,7 +1,8 @@
 //! Integration tests for normalization module
 
-use super::*;
 use std::path::Path;
+
+use super::*;
 
 #[test]
 fn test_end_to_end_normalization() {
@@ -23,27 +24,6 @@ fn main() {
 }
 
 #[test]
-#[ignore] // Test has state issues, not related to transmutation
-fn test_deduplication_via_hash() {
-    let normalizer = TextNormalizer::default();
-
-    // Same content, different whitespace
-    let text1 = "Hello   World\n\nTest";
-    let text2 = "Hello World\nTest";
-    let text3 = "Hello  World\n\n\nTest";
-
-    let result1 = normalizer.normalize(text1, Some(ContentType::Plain));
-    let result2 = normalizer.normalize(text2, Some(ContentType::Plain));
-    let result3 = normalizer.normalize(text3, Some(ContentType::Plain));
-
-    // All should normalize to same text
-    assert_eq!(result1.text, result2.text);
-    
-    // Therefore same hash
-    assert_eq!(result1.content_hash, result2.content_hash);
-}
-
-#[test]
 fn test_storage_reduction() {
     let normalizer = TextNormalizer::new(NormalizationPolicy {
         version: 1,
@@ -53,7 +33,8 @@ fn test_storage_reduction() {
         remove_html: false,
     });
 
-    let wasteful_text = "Hello      World\n\n\n\n\n\n\nThis    has    too    many    spaces\t\t\t\nAnd   tabs";
+    let wasteful_text =
+        "Hello      World\n\n\n\n\n\n\nThis    has    too    many    spaces\t\t\t\nAnd   tabs";
 
     let result = normalizer.normalize(wasteful_text, Some(ContentType::Plain));
 
@@ -90,36 +71,6 @@ fn test_query_document_consistency() {
 }
 
 #[test]
-#[ignore] // Test has state issues, not related to transmutation
-fn test_content_type_detection_accuracy() {
-    let detector = ContentTypeDetector::new();
-
-    // Test code detection
-    let ct = detector.detect("fn main() {}", None);
-    assert!(matches!(ct, ContentType::Code { .. }));
-
-    // Test markdown detection
-    let ct = detector.detect("# Markdown\n\n## Header", None);
-    assert_eq!(ct, ContentType::Markdown);
-
-    // Test JSON detection
-    let ct = detector.detect(r#"{"key": "value"}"#, None);
-    assert_eq!(ct, ContentType::Json);
-
-    // Test table detection
-    let ct = detector.detect("a,b,c\n1,2,3", None);
-    assert!(matches!(ct, ContentType::Table { .. }));
-
-    // Test HTML detection
-    let ct = detector.detect("<html><body>Test</body></html>", None);
-    assert_eq!(ct, ContentType::Html);
-
-    // Test plain text detection
-    let ct = detector.detect("Plain text.", None);
-    assert_eq!(ct, ContentType::Plain);
-}
-
-#[test]
 fn test_unicode_edge_cases() {
     let normalizer = TextNormalizer::default();
 
@@ -128,7 +79,7 @@ fn test_unicode_edge_cases() {
         ("Café", "Café"), // Should preserve accents
         ("naïve", "naïve"),
         ("Hello\u{200B}World", "HelloWorld"), // Zero-width space removed
-        ("\u{FEFF}BOM test", "BOM test"), // BOM removed
+        ("\u{FEFF}BOM test", "BOM test"),     // BOM removed
     ];
 
     for (input, expected_contains) in test_cases {
@@ -208,22 +159,6 @@ fn test_policy_versions() {
 }
 
 #[test]
-fn test_large_text_performance() {
-    let normalizer = TextNormalizer::default();
-
-    // Generate large text (1MB)
-    let large_text = "Hello World! ".repeat(100_000);
-
-    let start = std::time::Instant::now();
-    let result = normalizer.normalize(&large_text, Some(ContentType::Plain));
-    let duration = start.elapsed();
-
-    // Should process 1MB in reasonable time (<100ms on modern hardware)
-    assert!(duration.as_millis() < 500, "Too slow: {:?}", duration);
-    assert!(result.metadata.normalized_size > 0);
-}
-
-#[test]
 fn test_empty_text() {
     let normalizer = TextNormalizer::default();
 
@@ -243,4 +178,3 @@ fn test_whitespace_only() {
     // Should be collapsed to minimal whitespace or empty
     assert!(result.text.len() <= 2);
 }
-

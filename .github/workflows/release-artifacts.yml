@@ -1,0 +1,201 @@
+name: Build and publish release packages
+permissions:
+  contents: write
+on:
+  release:
+    # 'published' is triggered when publishing draft release, 'created' is not
+    types: [published]
+
+jobs:
+  # Separated Linux builds - each runs independently
+  # If one fails, others continue
+  
+  build-linux-x86_64-gnu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake
+          rustup default stable
+          rustup update
+      - name: Build and publish vectorizer
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer
+          target: x86_64-unknown-linux-gnu
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish vectorizer-cli
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer-cli
+          target: x86_64-unknown-linux-gnu
+          token: ${{ secrets.GITHUB_TOKEN }}
+  
+  build-linux-x86_64-musl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake
+          rustup default stable
+          rustup update
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: x86_64-unknown-linux-musl
+      - name: Build musl binaries
+        run: |
+          cargo build --release --target x86_64-unknown-linux-musl --no-default-features --features gpu_real
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/vectorizer dist/vectorizer-x86_64-unknown-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-x86_64-unknown-linux-musl
+      - name: Upload musl binaries
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+      - name: Build Debian Package
+        run: |
+          cargo install cargo-deb
+          cargo deb --no-strip --target x86_64-unknown-linux-musl --no-default-features --features gpu_real
+      - name: Upload Debian package
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-unknown-linux-musl/debian/*.deb
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+  
+  build-linux-aarch64-musl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake
+          rustup default stable
+          rustup update
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: aarch64-unknown-linux-musl
+      - name: Build musl binaries
+        run: |
+          cargo build --release --target aarch64-unknown-linux-musl --no-default-features --features gpu_real
+          mkdir -p dist
+          cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
+          cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl
+      - name: Upload musl binaries
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+
+  build-mac-binaries:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dependencies
+        run: |
+          brew update-reset
+          brew install gcc cmake
+          rustup default stable
+          rustup update
+          rustup show
+          cargo -Vv
+      - uses: actions/checkout@v5
+      - name: Build and publish vectorizer
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer
+          target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish vectorizer-cli
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer-cli
+          target: ${{ matrix.target }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows-binaries:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Build and publish vectorizer
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish vectorizer-cli
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer-cli
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Temporarily disabled - MSI build has issues
+  # build-windows-msi:
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - os: windows-latest
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Install minimal stable
+  #       uses: dtolnay/rust-toolchain@stable
+  #     - uses: actions/checkout@v5
+  #     - uses: Swatinem/rust-cache@v2
+  #
+  #     - name: Build release binaries
+  #       run: cargo build --release
+  #
+  #     - name: Install WiX Toolset
+  #       run: |
+  #         dotnet tool install --global wix --version 5.0.2
+  #         wix extension add -g WixToolset.UI.wixext
+  #         wix extension list
+  #         wix --version
+  #
+  #     - name: Build MSI installer
+  #       shell: pwsh
+  #       env:
+  #         CargoTargetBinDir: ${{ github.workspace }}\target\release
+  #       run: |
+  #         wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
+  #
+  #     - name: Upload MSI
+  #       uses: svenstaro/upload-release-action@v2
+  #       with:
+  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
+  #         file: vectorizer.msi
+  #         asset_name: vectorizer-x86_64.msi
+  #         tag: ${{ github.ref }}
+  #         overwrite: true

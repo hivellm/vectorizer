@@ -1,10 +1,11 @@
 //! Simple Search Engine Module
-//! 
+//!
 //! This module implements a simple search engine using basic text matching
 //! and similarity scoring without external dependencies.
 
-use crate::intelligent_search::{IntelligentSearchResult, Document, ScoreBreakdown};
 use std::collections::HashMap;
+
+use crate::intelligent_search::{Document, IntelligentSearchResult, ScoreBreakdown};
 
 /// Simple search engine using basic text matching
 pub struct SimpleSearchEngine {
@@ -20,7 +21,10 @@ impl SimpleSearchEngine {
     }
 
     /// Add documents to the search index
-    pub async fn add_documents(&mut self, documents: Vec<Document>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn add_documents(
+        &mut self,
+        documents: Vec<Document>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         for doc in documents {
             self.documents.insert(doc.id.clone(), doc);
         }
@@ -35,16 +39,16 @@ impl SimpleSearchEngine {
         max_results: usize,
     ) -> Result<Vec<IntelligentSearchResult>, Box<dyn std::error::Error>> {
         let mut results = Vec::new();
-        
+
         for doc in self.documents.values() {
             // Check collection filter
             if !collections.is_empty() && !collections.contains(&doc.collection) {
                 continue;
             }
-            
+
             // Calculate similarity score
             let score = self.calculate_score(&doc.content, query);
-            
+
             if score > 0.0 {
                 let score_breakdown = ScoreBreakdown {
                     relevance: score,
@@ -52,7 +56,7 @@ impl SimpleSearchEngine {
                     technical_bonus: 0.0, // Simplified for now
                     final_score: score,
                 };
-                
+
                 results.push(IntelligentSearchResult {
                     content: doc.content.clone(),
                     score,
@@ -63,11 +67,11 @@ impl SimpleSearchEngine {
                 });
             }
         }
-        
+
         // Sort by score and limit results
         results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
         results.truncate(max_results);
-        
+
         Ok(results)
     }
 
@@ -75,14 +79,15 @@ impl SimpleSearchEngine {
     fn calculate_score(&self, content: &str, query: &str) -> f32 {
         let query_lower = query.to_lowercase();
         let content_lower = content.to_lowercase();
-        
+
         // Simple word overlap scoring
         let query_words: std::collections::HashSet<&str> = query_lower.split_whitespace().collect();
-        let content_words: std::collections::HashSet<&str> = content_lower.split_whitespace().collect();
-        
+        let content_words: std::collections::HashSet<&str> =
+            content_lower.split_whitespace().collect();
+
         let intersection = query_words.intersection(&content_words).count();
         let union = query_words.union(&content_words).count();
-        
+
         if union == 0 {
             0.0
         } else {
@@ -94,11 +99,11 @@ impl SimpleSearchEngine {
     fn calculate_term_frequency(&self, content: &str, query: &str) -> f32 {
         let query_lower = query.to_lowercase();
         let content_lower = content.to_lowercase();
-        
+
         let query_words: Vec<&str> = query_lower.split_whitespace().collect();
         let mut total_frequency = 0.0;
         let mut term_count = 0;
-        
+
         for word in &query_words {
             let frequency = content_lower.matches(word).count() as f32;
             if frequency > 0.0 {
@@ -106,7 +111,7 @@ impl SimpleSearchEngine {
                 term_count += 1;
             }
         }
-        
+
         if term_count == 0 {
             0.0
         } else {
@@ -118,17 +123,17 @@ impl SimpleSearchEngine {
     fn calculate_collection_relevance(&self, collection: &str, query: &str) -> f32 {
         let query_lower = query.to_lowercase();
         let collection_lower = collection.to_lowercase();
-        
+
         // Check if collection name contains query terms
         let query_words: Vec<&str> = query_lower.split_whitespace().collect();
         let mut matches = 0;
-        
+
         for word in &query_words {
             if collection_lower.contains(word) {
                 matches += 1;
             }
         }
-        
+
         if query_words.is_empty() {
             0.0
         } else {
@@ -143,7 +148,8 @@ impl SimpleSearchEngine {
 
     /// Get documents by collection
     pub fn get_documents_by_collection(&self, collection: &str) -> Vec<&Document> {
-        self.documents.values()
+        self.documents
+            .values()
             .filter(|doc| doc.collection == collection)
             .collect()
     }
@@ -157,8 +163,9 @@ impl Default for SimpleSearchEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     #[test]
     fn test_simple_search_engine_creation() {
@@ -169,10 +176,13 @@ mod tests {
     #[tokio::test]
     async fn test_add_documents() {
         let mut engine = SimpleSearchEngine::new();
-        
+
         let mut metadata = HashMap::new();
-        metadata.insert("author".to_string(), serde_json::Value::String("John Doe".to_string()));
-        
+        metadata.insert(
+            "author".to_string(),
+            serde_json::Value::String("John Doe".to_string()),
+        );
+
         let documents = vec![
             Document {
                 id: "doc1".to_string(),
@@ -187,7 +197,7 @@ mod tests {
                 metadata,
             },
         ];
-        
+
         let result = engine.add_documents(documents).await;
         assert!(result.is_ok());
         assert_eq!(engine.get_document_count(), 2);
@@ -196,24 +206,27 @@ mod tests {
     #[tokio::test]
     async fn test_search() {
         let mut engine = SimpleSearchEngine::new();
-        
+
         let mut metadata = HashMap::new();
-        metadata.insert("author".to_string(), serde_json::Value::String("John Doe".to_string()));
-        
-        let documents = vec![
-            Document {
-                id: "doc1".to_string(),
-                content: "This is a test document about vectorizer".to_string(),
-                collection: "test".to_string(),
-                metadata,
-            },
-        ];
-        
+        metadata.insert(
+            "author".to_string(),
+            serde_json::Value::String("John Doe".to_string()),
+        );
+
+        let documents = vec![Document {
+            id: "doc1".to_string(),
+            content: "This is a test document about vectorizer".to_string(),
+            collection: "test".to_string(),
+            metadata,
+        }];
+
         engine.add_documents(documents).await.unwrap();
-        
-        let results = engine.search("vectorizer", vec!["test".to_string()], 10).await;
+
+        let results = engine
+            .search("vectorizer", vec!["test".to_string()], 10)
+            .await;
         assert!(results.is_ok());
-        
+
         let results = results.unwrap();
         assert!(!results.is_empty());
         assert_eq!(results[0].doc_id, "doc1");
@@ -222,10 +235,10 @@ mod tests {
     #[test]
     fn test_calculate_score() {
         let engine = SimpleSearchEngine::new();
-        
+
         let score = engine.calculate_score("vectorizer is a vector database", "vectorizer");
         assert!(score > 0.0);
-        
+
         let score2 = engine.calculate_score("completely different content", "vectorizer");
         assert_eq!(score2, 0.0);
     }
@@ -233,26 +246,31 @@ mod tests {
     #[test]
     fn test_calculate_term_frequency() {
         let engine = SimpleSearchEngine::new();
-        
-        let tf_score = engine.calculate_term_frequency("vectorizer is a vector database", "vectorizer database");
+
+        let tf_score = engine
+            .calculate_term_frequency("vectorizer is a vector database", "vectorizer database");
         assert!(tf_score > 0.0);
     }
 
     #[test]
     fn test_calculate_collection_relevance() {
         let engine = SimpleSearchEngine::new();
-        
-        let relevance_score = engine.calculate_collection_relevance("vectorizer-docs", "vectorizer documentation");
+
+        let relevance_score =
+            engine.calculate_collection_relevance("vectorizer-docs", "vectorizer documentation");
         assert!(relevance_score > 0.0);
     }
 
     #[tokio::test]
     async fn test_get_documents_by_collection() {
         let mut engine = SimpleSearchEngine::new();
-        
+
         let mut metadata = HashMap::new();
-        metadata.insert("author".to_string(), serde_json::Value::String("John Doe".to_string()));
-        
+        metadata.insert(
+            "author".to_string(),
+            serde_json::Value::String("John Doe".to_string()),
+        );
+
         let documents = vec![
             Document {
                 id: "doc1".to_string(),
@@ -267,13 +285,13 @@ mod tests {
                 metadata,
             },
         ];
-        
+
         engine.add_documents(documents).await.unwrap();
-        
+
         let test1_docs = engine.get_documents_by_collection("test1");
         assert_eq!(test1_docs.len(), 1);
         assert_eq!(test1_docs[0].id, "doc1");
-        
+
         let test2_docs = engine.get_documents_by_collection("test2");
         assert_eq!(test2_docs.len(), 1);
         assert_eq!(test2_docs[0].id, "doc2");

@@ -2,8 +2,9 @@
 //!
 //! Provides fast, collision-resistant content hashing using BLAKE3.
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
 
 /// Content hash (BLAKE3, 32 bytes)
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -234,12 +235,7 @@ mod tests {
     #[test]
     fn test_vector_key() {
         let hash = ContentHash::from_bytes([0u8; 32]);
-        let key = VectorKey::new(
-            hash,
-            "all-MiniLM-L6-v2".to_string(),
-            384,
-            1,
-        );
+        let key = VectorKey::new(hash, "all-MiniLM-L6-v2".to_string(), 384, 1);
 
         // Test serialization
         let bytes = key.to_bytes();
@@ -271,8 +267,10 @@ mod tests {
             .collect();
 
         // Check all hashes are unique
-        let unique_count = hashes.iter().collect::<std::collections::HashSet<_>>().len();
+        let unique_count = hashes
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
         assert_eq!(unique_count, 1000);
     }
 }
-

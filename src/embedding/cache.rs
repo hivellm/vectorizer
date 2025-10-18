@@ -6,32 +6,31 @@
 //! - Parallel cache population
 //! - Arrow/Parquet support for analytics
 
-use anyhow::Result;
-use memmap2::Mmap;
-use parking_lot::RwLock;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tracing::{debug, info};
-use xxhash_rust::xxh3::xxh3_64;
 
+use anyhow::Result;
 #[cfg(feature = "arrow")]
 use arrow::array::{Float32Array, StringArray};
 #[cfg(feature = "arrow")]
 use arrow::datatypes::{DataType, Field, Schema};
 #[cfg(feature = "arrow")]
 use arrow::record_batch::RecordBatch;
-
+use memmap2::Mmap;
+use parking_lot::RwLock;
 #[cfg(feature = "parquet")]
 use parquet::arrow::ArrowWriter;
 #[cfg(feature = "parquet")]
 use parquet::basic::Compression;
 #[cfg(feature = "parquet")]
 use parquet::file::properties::WriterProperties;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
+use xxhash_rust::xxh3::xxh3_64;
 
 /// Cache entry metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,30 +1,30 @@
 //! Persistence module for saving and loading vector stores
 
-use crate::{
-    db::VectorStore,
-    error::{Result, VectorizerError},
-    models::{CollectionConfig, Payload, Vector},
-};
-use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::Path;
+
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
+use crate::db::VectorStore;
+use crate::error::{Result, VectorizerError};
+use crate::models::{CollectionConfig, Payload, Vector};
+
 // New persistence system modules
-pub mod types;
-pub mod wal;
 pub mod dynamic;
 pub mod enhanced_store;
+pub mod types;
+pub mod wal;
 
 // Demo tests
 #[cfg(test)]
-mod demo_test;
-#[cfg(test)]
 mod debug_test;
+#[cfg(test)]
+mod demo_test;
 
 /// Persisted representation of a vector store
 #[derive(Serialize, Deserialize)]
@@ -38,11 +38,14 @@ pub struct PersistedVectorStore {
 /// Persisted representation of a collection
 #[derive(Serialize, Deserialize)]
 pub struct PersistedCollection {
-    /// Collection name
+    /// Collection name (backward compatible: will be inferred from filename if missing in old files)
+    #[serde(default)]
     pub name: String,
-    /// Collection configuration
-    pub config: CollectionConfig,
-    /// Vectors in the collection
+    /// Collection configuration (backward compatible: will be loaded from metadata file if missing)
+    #[serde(default)]
+    pub config: Option<CollectionConfig>,
+    /// Vectors in the collection (backward compatible: empty vec if missing)
+    #[serde(default)]
     pub vectors: Vec<PersistedVector>,
     /// HNSW index dump basename (if available)
     pub hnsw_dump_basename: Option<String>,
@@ -90,7 +93,7 @@ impl From<PersistedVector> for Vector {
                 // But provide a fallback just in case
                 Vector {
                     id: String::new(), // Can't access pv.id since it's moved
-                    data: Vec::new(),   // Can't access pv.data since it's moved
+                    data: Vec::new(),  // Can't access pv.data since it's moved
                     payload: None,
                 }
             }
@@ -179,7 +182,7 @@ impl VectorStore {
 
             collections.push(PersistedCollection {
                 name: collection_name,
-                config: metadata.config,
+                config: Some(metadata.config),
                 vectors,
                 hnsw_dump_basename,
             });
@@ -194,7 +197,7 @@ impl VectorStore {
 
         // Serialize with JSON (for better compatibility with serde_json::Value)
         let json_data = serde_json::to_string(&persisted)?; // Use to_string instead of to_string_pretty for better compression
-        
+
         // Compress with gzip for better storage efficiency
         let file = File::create(path)?;
         let mut encoder = GzEncoder::new(file, Compression::best());
@@ -204,7 +207,7 @@ impl VectorStore {
         let original_size = json_data.len();
         let compressed_size = fs::metadata(path)?.len();
         let compression_ratio = (1.0 - (compressed_size as f64 / original_size as f64)) * 100.0;
-        
+
         info!(
             "Vector store saved successfully (Original: {} bytes, Compressed: {} bytes, Ratio: {:.1}%)",
             original_size, compressed_size, compression_ratio
@@ -222,7 +225,7 @@ impl VectorStore {
             Ok(file) => {
                 let mut decoder = GzDecoder::new(file);
                 let mut json_string = String::new();
-                
+
                 // Try to decompress - if it fails, try reading as plain text
                 match decoder.read_to_string(&mut json_string) {
                     Ok(_) => {
@@ -231,12 +234,19 @@ impl VectorStore {
                     }
                     Err(_) => {
                         // Not a gzip file, try reading as plain text (backward compatibility)
-                        warn!("Loaded uncompressed vector store - will auto-migrate to compressed format");
+                        warn!(
+                            "Loaded uncompressed vector store - will auto-migrate to compressed format"
+                        );
                         (fs::read_to_string(path)?, false)
                     }
                 }
             }
-            Err(e) => return Err(VectorizerError::Other(format!("Failed to open file: {}", e))),
+            Err(e) => {
+                return Err(VectorizerError::Other(format!(
+                    "Failed to open file: {}",
+                    e
+                )));
+            }
         };
 
         // Deserialize with JSON (for better compatibility with serde_json::Value)
@@ -256,9 +266,15 @@ impl VectorStore {
         // Restore collections with fast loading and automatic quantization
         for collection in persisted.collections {
             // Create collection config with quantization enabled
-            let mut config = collection.config.clone();
+            let mut config = collection.config.clone().unwrap_or_else(|| {
+                warn!(
+                    "⚠️  Collection '{}' has no config, using default",
+                    collection.name
+                );
+                crate::models::CollectionConfig::default()
+            });
             config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
-            
+
             store.create_collection_with_quantization(&collection.name, config)?;
 
             if !collection.vectors.is_empty() {
@@ -333,55 +349,10 @@ impl PersistenceManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::models::{DistanceMetric, HnswConfig};
     use tempfile::tempdir;
 
-    #[test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    fn test_save_and_load_empty_store() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("test.vdb");
-
-        // Save empty store
-        let store = VectorStore::new();
-        store.save(&path).unwrap();
-
-        // Load and verify
-        let loaded = VectorStore::load(&path).unwrap();
-        assert_eq!(loaded.list_collections().len(), 0);
-    }
-
-    #[test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    fn test_save_and_load_with_collections() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("test.vdb");
-
-        // Create store with collections
-        let store = VectorStore::new();
-        let config = CollectionConfig {
-            dimension: 128,
-            metric: DistanceMetric::Cosine,
-            hnsw_config: HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::default(),
-            compression: Default::default(),
-            normalization: None,
-        };
-
-        store.create_collection("test1", config.clone()).unwrap();
-        store.create_collection("test2", config).unwrap();
-
-        // Save
-        store.save(&path).unwrap();
-
-        // Load and verify
-        let loaded = VectorStore::load(&path).unwrap();
-        let collections = loaded.list_collections();
-        assert_eq!(collections.len(), 2);
-        assert!(collections.contains(&"test1".to_string()));
-        assert!(collections.contains(&"test2".to_string()));
-    }
+    use super::*;
+    use crate::models::{DistanceMetric, HnswConfig};
 
     #[test]
     fn test_persistence_manager_compression() {

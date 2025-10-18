@@ -6,20 +6,19 @@
 use std::collections::HashSet;
 use std::fs;
 use std::time::Instant;
+
 use tracing_subscriber;
 use vectorizer::VectorStore;
+use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};
+use vectorizer::document_loader::{DocumentLoader, LoaderConfig};
+use vectorizer::embedding::{
+    BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding,
+    SvdEmbedding, TfIdfEmbedding,
+};
 #[cfg(feature = "candle-models")]
 use vectorizer::embedding::{RealModelEmbedder, RealModelType};
-use vectorizer::{
-    db::{OptimizedHnswConfig, OptimizedHnswIndex},
-    document_loader::{DocumentLoader, LoaderConfig},
-    embedding::{
-        BertEmbedding, Bm25Embedding, EmbeddingManager, EmbeddingProvider, MiniLmEmbedding,
-        SvdEmbedding, TfIdfEmbedding,
-    },
-    evaluation::{EvaluationMetrics, QueryResult, evaluate_search_quality},
-    parallel::{ParallelConfig, init_parallel_env},
-};
+use vectorizer::evaluation::{EvaluationMetrics, QueryResult, evaluate_search_quality};
+use vectorizer::parallel::{ParallelConfig, init_parallel_env};
 
 /// Simple document collection for benchmarking
 struct BenchmarkDataset {

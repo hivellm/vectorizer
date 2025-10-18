@@ -47,7 +47,7 @@ impl GpuAdapter {
             }).unwrap_or_default(),
         }
     }
-    
+
     /// Convert hive-gpu GpuVector to vectorizer Vector
     pub fn gpu_vector_to_vector(gpu_vector: &HiveGpuVector) -> Vector {
         Vector {
@@ -66,7 +66,7 @@ impl GpuAdapter {
             },
         }
     }
-    
+
     /// Convert vectorizer distance metric to hive-gpu metric
     pub fn distance_metric_to_gpu_metric(metric: crate::models::DistanceMetric) -> HiveGpuDistanceMetric {
         match metric {
@@ -75,7 +75,7 @@ impl GpuAdapter {
             crate::models::DistanceMetric::DotProduct => HiveGpuDistanceMetric::DotProduct,
         }
     }
-    
+
     /// Convert hive-gpu distance metric to vectorizer metric
     pub fn gpu_metric_to_distance_metric(gpu_metric: HiveGpuDistanceMetric) -> crate::models::DistanceMetric {
         match gpu_metric {
@@ -84,7 +84,7 @@ impl GpuAdapter {
             HiveGpuDistanceMetric::DotProduct => crate::models::DistanceMetric::DotProduct,
         }
     }
-    
+
     /// Convert vectorizer HNSW config to hive-gpu config
     pub fn hnsw_config_to_gpu_config(config: &crate::models::HnswConfig) -> HiveGpuHnswConfig {
         HiveGpuHnswConfig {
@@ -96,7 +96,7 @@ impl GpuAdapter {
             seed: config.seed,
         }
     }
-    
+
     /// Convert hive-gpu HNSW config to vectorizer config
     pub fn gpu_config_to_hnsw_config(gpu_config: &HiveGpuHnswConfig) -> crate::models::HnswConfig {
         crate::models::HnswConfig {
@@ -106,7 +106,7 @@ impl GpuAdapter {
             seed: gpu_config.seed,
         }
     }
-    
+
     /// Convert hive-gpu error to vectorizer error
     pub fn gpu_error_to_vectorizer_error(error: HiveGpuError) -> VectorizerError {
         match error {
@@ -136,7 +136,7 @@ impl GpuAdapter {
             HiveGpuError::Other(msg) => VectorizerError::Other(msg),
         }
     }
-    
+
     /// Convert vectorizer error to hive-gpu error
     pub fn vectorizer_error_to_gpu_error(error: VectorizerError) -> HiveGpuError {
         match error {
@@ -146,5 +146,72 @@ impl GpuAdapter {
             VectorizerError::Other(msg) => HiveGpuError::Other(msg),
             _ => HiveGpuError::Other(format!("Unknown error: {:?}", error)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Vector, Payload, DistanceMetric, HnswConfig};
+
+    #[test]
+    fn test_vector_conversion() {
+        let vector = Vector::new("test_id".to_string(), vec![1.0, 2.0, 3.0]);
+        let gpu_vector = GpuAdapter::vector_to_gpu_vector(&vector);
+        
+        assert_eq!(gpu_vector.id, "test_id");
+        assert_eq!(gpu_vector.data, vec![1.0, 2.0, 3.0]);
+        assert!(gpu_vector.metadata.is_empty());
+        
+        let converted_back = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
+        assert_eq!(converted_back.id, vector.id);
+        assert_eq!(converted_back.data, vector.data);
+        assert_eq!(converted_back.payload, vector.payload);
+    }
+
+    #[test]
+    fn test_vector_with_payload() {
+        let payload = Payload::new(serde_json::json!({
+            "title": "Test Document",
+            "content": "This is a test"
+        }));
+        let vector = Vector::with_payload("test_id".to_string(), vec![1.0, 2.0, 3.0], payload);
+        let gpu_vector = GpuAdapter::vector_to_gpu_vector(&vector);
+        
+        assert_eq!(gpu_vector.metadata.get("title"), Some(&"Test Document".to_string()));
+        assert_eq!(gpu_vector.metadata.get("content"), Some(&"This is a test".to_string()));
+    }
+
+    #[test]
+    fn test_distance_metric_conversion() {
+        let cpu_metric = DistanceMetric::Cosine;
+        let gpu_metric = GpuAdapter::distance_metric_to_gpu_metric(cpu_metric);
+        let converted_back = GpuAdapter::gpu_metric_to_distance_metric(gpu_metric);
+        
+        assert_eq!(converted_back, DistanceMetric::Cosine);
+    }
+
+    #[test]
+    fn test_hnsw_config_conversion() {
+        let cpu_config = HnswConfig {
+            m: 16,
+            ef_construction: 200,
+            ef_search: 50,
+            seed: Some(42),
+        };
+        
+        let gpu_config = GpuAdapter::hnsw_config_to_gpu_config(&cpu_config);
+        assert_eq!(gpu_config.max_connections, 16);
+        assert_eq!(gpu_config.ef_construction, 200);
+        assert_eq!(gpu_config.ef_search, 50);
+        assert_eq!(gpu_config.seed, Some(42));
+        assert_eq!(gpu_config.max_level, 8);
+        assert_eq!(gpu_config.level_multiplier, 0.5);
+        
+        let converted_back = GpuAdapter::gpu_config_to_hnsw_config(&gpu_config);
+        assert_eq!(converted_back.m, cpu_config.m);
+        assert_eq!(converted_back.ef_construction, cpu_config.ef_construction);
+        assert_eq!(converted_back.ef_search, cpu_config.ef_search);
+        assert_eq!(converted_back.seed, cpu_config.seed);
     }
 }

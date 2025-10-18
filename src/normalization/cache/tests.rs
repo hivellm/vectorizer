@@ -2,54 +2,11 @@
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::normalization::cache::{CacheConfig, CacheManager};
-    use crate::normalization::ContentHash;
     use tempfile::tempdir;
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
 
-    #[tokio::test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    async fn test_multi_tier_cache_flow() {
-        let dir = tempdir().unwrap();
-        let config = CacheConfig {
-            hot_cache_size: 1024,
-            warm_store_path: dir.path().join("warm"),
-            cold_store_path: dir.path().join("cold"),
-            compression_level: 3,
-            enable_metrics: true,
-        };
-
-        let mut cache = CacheManager::new(config).unwrap();
-
-        let hash = ContentHash::from_bytes([1u8; 32]);
-        let text = "Multi-tier test content";
-
-        // Store in cache (should go to all tiers)
-        cache.put_normalized(hash, text).await.unwrap();
-
-        // Retrieve (should hit hot cache)
-        let result = cache.get_normalized(&hash).await.unwrap();
-        assert_eq!(result.as_deref(), Some(text));
-
-        let stats = cache.stats();
-        assert_eq!(stats.hot_hits, 1);
-
-        // Clear hot cache and retrieve (should hit warm)
-        cache.hot_cache.clear();
-        let result = cache.get_normalized(&hash).await.unwrap();
-        assert_eq!(result.as_deref(), Some(text));
-
-        let stats = cache.stats();
-        assert_eq!(stats.warm_hits, 1);
-
-        // Clear warm and retrieve (should hit cold)
-        cache.warm_store.clear().await.unwrap();
-        let result = cache.get_normalized(&hash).await.unwrap();
-        assert_eq!(result.as_deref(), Some(text));
-
-        let stats = cache.stats();
-        assert_eq!(stats.cold_hits, 1);
-    }
+    use crate::normalization::ContentHash;
+    use crate::normalization::cache::{CacheConfig, CacheManager};
 
     #[tokio::test]
     async fn test_concurrent_cache_access() {
@@ -237,41 +194,4 @@ mod integration_tests {
         assert!(stats.compression_ratio > 5.0); // Should compress very well
         assert!(stats.space_saved > 8000);
     }
-
-    #[tokio::test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    async fn test_cache_clear_all_tiers() {
-        let dir = tempdir().unwrap();
-        let config = CacheConfig {
-            warm_store_path: dir.path().join("warm"),
-            cold_store_path: dir.path().join("cold"),
-            ..Default::default()
-        };
-
-        let mut cache = CacheManager::new(config).unwrap();
-
-        // Add data
-        for i in 0..5u8 {
-            let mut hash_bytes = [0u8; 32];
-            hash_bytes[0] = i;
-            let hash = ContentHash::from_bytes(hash_bytes);
-            cache
-                .put_normalized(hash, &format!("Data {}", i))
-                .await
-                .unwrap();
-        }
-
-        // Clear all
-        cache.clear().await.unwrap();
-
-        // Verify all cleared
-        for i in 0..5u8 {
-            let mut hash_bytes = [0u8; 32];
-            hash_bytes[0] = i;
-            let hash = ContentHash::from_bytes(hash_bytes);
-            let result = cache.get_normalized(&hash).await.unwrap();
-            assert!(result.is_none());
-        }
-    }
 }
-

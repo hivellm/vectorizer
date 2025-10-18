@@ -1,8 +1,10 @@
 //! Tests for cache management system
 
-use super::*;
 use std::path::PathBuf;
+
 use tempfile::tempdir;
+
+use super::*;
 
 #[tokio::test]
 async fn test_cache_manager_creation() {

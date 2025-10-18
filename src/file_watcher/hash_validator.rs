@@ -3,8 +3,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
-use sha2::{Sha256, Digest};
 
 /// Hash validator for file content changes
 pub struct HashValidator {
@@ -56,22 +57,25 @@ impl HashValidator {
     }
 
     /// Check if file content has changed
-    pub async fn has_content_changed(&self, path: &std::path::Path) -> Result<bool, std::io::Error> {
+    pub async fn has_content_changed(
+        &self,
+        path: &std::path::Path,
+    ) -> Result<bool, std::io::Error> {
         if !self.enabled {
             return Ok(true); // Always consider changed if validation is disabled
         }
 
         let current_hash = self.calculate_hash(path).await?;
-        
+
         let mut hashes = self.file_hashes.write().await;
         let previous_hash = hashes.get(path).cloned();
-        
+
         let changed = previous_hash.as_ref() != Some(&current_hash);
-        
+
         if changed {
             hashes.insert(path.to_path_buf(), current_hash);
         }
-        
+
         Ok(changed)
     }
 
@@ -122,7 +126,10 @@ impl HashValidator {
     }
 
     /// Initialize hashes for a directory
-    pub async fn initialize_directory_hashes(&self, dir_path: &std::path::Path) -> Result<usize, std::io::Error> {
+    pub async fn initialize_directory_hashes(
+        &self,
+        dir_path: &std::path::Path,
+    ) -> Result<usize, std::io::Error> {
         if !self.enabled {
             return Ok(0);
         }
@@ -151,7 +158,11 @@ impl HashValidator {
     }
 
     /// Validate hash for a file without updating cache
-    pub async fn validate_hash(&self, path: &std::path::Path, expected_hash: &str) -> Result<bool, std::io::Error> {
+    pub async fn validate_hash(
+        &self,
+        path: &std::path::Path,
+        expected_hash: &str,
+    ) -> Result<bool, std::io::Error> {
         if !self.enabled {
             return Ok(true);
         }
@@ -169,9 +180,11 @@ impl Default for HashValidator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use tempfile::tempdir;
     use std::fs;
+
+    use tempfile::tempdir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_hash_validator_creation() {
@@ -184,14 +197,14 @@ mod tests {
     async fn test_hash_validator_disabled() {
         let validator = HashValidator::with_enabled(false);
         assert!(!validator.is_enabled());
-        
+
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("test.txt");
         fs::write(&file_path, "test content").unwrap();
 
         let hash = validator.calculate_hash(&file_path).await.unwrap();
         assert_eq!(hash, "disabled");
-        
+
         let changed = validator.has_content_changed(&file_path).await.unwrap();
         assert!(changed); // Always true when disabled
     }
@@ -201,13 +214,13 @@ mod tests {
         let validator = HashValidator::new();
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         fs::write(&file_path, "test content").unwrap();
         let hash1 = validator.calculate_hash(&file_path).await.unwrap();
-        
+
         fs::write(&file_path, "different content").unwrap();
         let hash2 = validator.calculate_hash(&file_path).await.unwrap();
-        
+
         assert_ne!(hash1, hash2);
     }
 
@@ -216,16 +229,16 @@ mod tests {
         let validator = HashValidator::new();
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         // First check - should be changed (no previous hash)
         fs::write(&file_path, "test content").unwrap();
         let changed1 = validator.has_content_changed(&file_path).await.unwrap();
         assert!(changed1);
-        
+
         // Second check - should not be changed (same content)
         let changed2 = validator.has_content_changed(&file_path).await.unwrap();
         assert!(!changed2);
-        
+
         // Third check - should be changed (different content)
         fs::write(&file_path, "different content").unwrap();
         let changed3 = validator.has_content_changed(&file_path).await.unwrap();
@@ -237,21 +250,21 @@ mod tests {
         let validator = HashValidator::new();
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         fs::write(&file_path, "test content").unwrap();
-        
+
         // Update hash
         validator.update_hash(&file_path).await.unwrap();
         assert_eq!(validator.cached_hashes_count().await, 1);
-        
+
         // Get hash
         let hash = validator.get_hash(&file_path).await.unwrap();
         assert!(!hash.is_empty());
-        
+
         // Remove hash
         validator.remove_hash(&file_path).await;
         assert_eq!(validator.cached_hashes_count().await, 0);
-        
+
         // Clear all hashes
         validator.update_hash(&file_path).await.unwrap();
         assert_eq!(validator.cached_hashes_count().await, 1);
@@ -263,17 +276,20 @@ mod tests {
     async fn test_directory_initialization() {
         let validator = HashValidator::new();
         let temp_dir = tempdir().unwrap();
-        
+
         // Create test files
         fs::write(temp_dir.path().join("file1.txt"), "content1").unwrap();
         fs::write(temp_dir.path().join("file2.txt"), "content2").unwrap();
         fs::write(temp_dir.path().join("file3.txt"), "content3").unwrap();
-        
+
         // Initialize directory hashes
-        let count = validator.initialize_directory_hashes(temp_dir.path()).await.unwrap();
+        let count = validator
+            .initialize_directory_hashes(temp_dir.path())
+            .await
+            .unwrap();
         assert_eq!(count, 3);
         assert_eq!(validator.cached_hashes_count().await, 3);
-        
+
         // Get cached paths
         let paths = validator.get_cached_paths().await;
         assert_eq!(paths.len(), 3);
@@ -284,16 +300,22 @@ mod tests {
         let validator = HashValidator::new();
         let temp_dir = tempdir().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         fs::write(&file_path, "test content").unwrap();
         let correct_hash = validator.calculate_hash(&file_path).await.unwrap();
-        
+
         // Validate with correct hash
-        let valid1 = validator.validate_hash(&file_path, &correct_hash).await.unwrap();
+        let valid1 = validator
+            .validate_hash(&file_path, &correct_hash)
+            .await
+            .unwrap();
         assert!(valid1);
-        
+
         // Validate with incorrect hash
-        let valid2 = validator.validate_hash(&file_path, "wrong_hash").await.unwrap();
+        let valid2 = validator
+            .validate_hash(&file_path, "wrong_hash")
+            .await
+            .unwrap();
         assert!(!valid2);
     }
 }

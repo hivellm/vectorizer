@@ -1,14 +1,16 @@
-use super::cache::FileLevelCache;
-use super::errors::{FileOperationError, FileOperationResult};
-use super::types::*;
-use chrono::Utc;
-use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
+
+use chrono::Utc;
+use serde_json::json;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
+
+use super::cache::FileLevelCache;
+use super::errors::{FileOperationError, FileOperationResult};
+use super::types::*;
 use crate::VectorStore;
 
 // Constants
@@ -75,29 +77,36 @@ impl FileOperations {
         }
 
         // Get VectorStore
-        let store = self.store.as_ref()
-            .ok_or_else(|| FileOperationError::VectorStoreError("VectorStore not initialized".to_string()))?;
+        let store = self.store.as_ref().ok_or_else(|| {
+            FileOperationError::VectorStoreError("VectorStore not initialized".to_string())
+        })?;
 
         // Get collection
-        let coll = store.get_collection(collection)
-            .map_err(|e| FileOperationError::CollectionNotFound {
+        let coll = store.get_collection(collection).map_err(|e| {
+            FileOperationError::CollectionNotFound {
                 collection: collection.to_string(),
-            })?;
+            }
+        })?;
 
         // Get all vectors from collection
         let all_vectors = coll.get_all_vectors();
-        
+
         // Filter vectors by file_path in metadata
-        let mut file_chunks: Vec<_> = all_vectors.into_iter()
+        let mut file_chunks: Vec<_> = all_vectors
+            .into_iter()
             .filter_map(|v| {
                 if let Some(payload) = &v.payload {
                     if let Some(metadata) = payload.data.get("metadata") {
                         if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
                             if fp == file_path {
-                                let chunk_index = metadata.get("chunk_index")
+                                let chunk_index = metadata
+                                    .get("chunk_index")
                                     .and_then(|v| v.as_u64())
-                                    .unwrap_or(0) as usize;
-                                let content = payload.data.get("content")
+                                    .unwrap_or(0)
+                                    as usize;
+                                let content = payload
+                                    .data
+                                    .get("content")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("")
                                     .to_string();
@@ -121,7 +130,8 @@ impl FileOperations {
         file_chunks.sort_by_key(|(index, _, _)| *index);
 
         // Reconstruct file content
-        let content = file_chunks.iter()
+        let content = file_chunks
+            .iter()
             .map(|(_, content, _)| content.as_str())
             .collect::<Vec<_>>()
             .join("\n");
@@ -153,7 +163,7 @@ impl FileOperations {
             metadata: metadata.clone(),
             cached_at: std::time::Instant::now(),
         };
-        
+
         self.cache.put_file_content(cache_key, cached_file).await;
 
         Ok(FileContent {
@@ -182,26 +192,29 @@ impl FileOperations {
         );
 
         // Get VectorStore
-        let store = self.store.as_ref()
-            .ok_or_else(|| FileOperationError::VectorStoreError("VectorStore not initialized".to_string()))?;
+        let store = self.store.as_ref().ok_or_else(|| {
+            FileOperationError::VectorStoreError("VectorStore not initialized".to_string())
+        })?;
 
         // Get collection
-        let coll = store.get_collection(collection)
-            .map_err(|e| FileOperationError::CollectionNotFound {
+        let coll = store.get_collection(collection).map_err(|e| {
+            FileOperationError::CollectionNotFound {
                 collection: collection.to_string(),
-            })?;
+            }
+        })?;
 
         // Get all vectors
         let all_vectors = coll.get_all_vectors();
-        
+
         // Group by file_path
         let mut file_map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
-        
+
         for vector in all_vectors {
             if let Some(payload) = &vector.payload {
                 if let Some(metadata) = payload.data.get("metadata") {
                     if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                        file_map.entry(file_path.to_string())
+                        file_map
+                            .entry(file_path.to_string())
                             .or_insert_with(Vec::new)
                             .push(metadata.clone());
                     }
@@ -213,35 +226,35 @@ impl FileOperations {
         let mut files: Vec<FileInfo> = file_map
             .into_iter()
             .filter_map(|(path, chunks)| {
-                let file_type = Path::new(&path)
-                    .extension()?
-                    .to_str()?
-                    .to_string();
-                
+                let file_type = Path::new(&path).extension()?.to_str()?.to_string();
+
                 // Apply filters
                 if let Some(types) = &filter.filter_by_type {
                     if !types.contains(&file_type) {
                         return None;
                     }
                 }
-                
+
                 if let Some(min_chunks) = filter.min_chunks {
                     if chunks.len() < min_chunks {
                         return None;
                     }
                 }
-                
+
                 // Estimate size from chunks
-                let size_estimate_kb = chunks.iter()
+                let size_estimate_kb = chunks
+                    .iter()
                     .filter_map(|c| c.get("chunk_size")?.as_u64())
-                    .sum::<u64>() as f64 / 1024.0;
-                
-                let last_indexed = chunks.iter()
+                    .sum::<u64>() as f64
+                    / 1024.0;
+
+                let last_indexed = chunks
+                    .iter()
                     .filter_map(|c| c.get("indexed_at")?.as_str())
                     .max()
                     .unwrap_or("unknown")
                     .to_string();
-                
+
                 Some(FileInfo {
                     path,
                     file_type,
@@ -300,11 +313,16 @@ impl FileOperations {
         }
 
         // Get file content first
-        let file_content = self.get_file_content(collection, file_path, ABSOLUTE_MAX_SIZE_KB).await?;
+        let file_content = self
+            .get_file_content(collection, file_path, ABSOLUTE_MAX_SIZE_KB)
+            .await?;
 
         // Generate extractive summary
         let extractive = if matches!(summary_type, SummaryType::Extractive | SummaryType::Both) {
-            Some(Self::generate_extractive_summary(&file_content.content, max_sentences))
+            Some(Self::generate_extractive_summary(
+                &file_content.content,
+                max_sentences,
+            ))
         } else {
             None
         };
@@ -346,7 +364,7 @@ impl FileOperations {
             .filter(|s| !s.is_empty() && s.len() > 20) // Filter out short fragments
             .take(max_sentences)
             .collect();
-        
+
         sentences.join(". ") + if !sentences.is_empty() { "." } else { "" }
     }
 
@@ -354,31 +372,43 @@ impl FileOperations {
         let mut outline = String::new();
         let mut key_sections = Vec::new();
         let mut key_points = Vec::new();
-        
+
         // Extract headers (markdown style)
         for line in content.lines() {
             let trimmed = line.trim();
-            
+
             // Markdown headers
             if trimmed.starts_with('#') {
                 outline.push_str(line);
                 outline.push('\n');
-                
+
                 let section = trimmed.trim_start_matches('#').trim();
                 if !section.is_empty() && key_sections.len() < 10 {
                     key_sections.push(section.to_string());
                 }
             }
-            
+
             // Key points (lines with important keywords)
-            let important_keywords = ["important", "note:", "warning:", "critical", "must", "required", "TODO", "FIXME"];
-            if important_keywords.iter().any(|kw| trimmed.to_lowercase().contains(kw)) {
+            let important_keywords = [
+                "important",
+                "note:",
+                "warning:",
+                "critical",
+                "must",
+                "required",
+                "TODO",
+                "FIXME",
+            ];
+            if important_keywords
+                .iter()
+                .any(|kw| trimmed.to_lowercase().contains(kw))
+            {
                 if trimmed.len() > 20 && trimmed.len() < 200 && key_points.len() < 10 {
                     key_points.push(trimmed.to_string());
                 }
             }
         }
-        
+
         StructuralSummary {
             outline,
             key_sections,
@@ -445,9 +475,7 @@ impl FileOperations {
 
     /// Detect programming language from file extension
     fn detect_language(file_path: &str) -> Option<String> {
-        let ext = Path::new(file_path)
-            .extension()
-            .and_then(|e| e.to_str())?;
+        let ext = Path::new(file_path).extension().and_then(|e| e.to_str())?;
 
         let language = match ext {
             "rs" => "rust",
@@ -494,9 +522,9 @@ impl FileOperations {
         // Sort
         match filter.sort_by {
             SortBy::Name => files.sort_by(|a, b| a.path.cmp(&b.path)),
-            SortBy::Size => files.sort_by(|a, b| {
-                b.size_estimate_kb.partial_cmp(&a.size_estimate_kb).unwrap()
-            }),
+            SortBy::Size => {
+                files.sort_by(|a, b| b.size_estimate_kb.partial_cmp(&a.size_estimate_kb).unwrap())
+            }
             SortBy::Chunks => files.sort_by(|a, b| b.chunk_count.cmp(&a.chunk_count)),
             SortBy::Recent => files.sort_by(|a, b| b.last_indexed.cmp(&a.last_indexed)),
         }
@@ -534,37 +562,46 @@ impl FileOperations {
         Self::validate_file_path(file_path)?;
 
         // Get VectorStore
-        let store = self.store.as_ref()
-            .ok_or_else(|| FileOperationError::VectorStoreError("VectorStore not initialized".to_string()))?;
+        let store = self.store.as_ref().ok_or_else(|| {
+            FileOperationError::VectorStoreError("VectorStore not initialized".to_string())
+        })?;
 
         // Get collection
-        let coll = store.get_collection(collection)
-            .map_err(|e| FileOperationError::CollectionNotFound {
+        let coll = store.get_collection(collection).map_err(|e| {
+            FileOperationError::CollectionNotFound {
                 collection: collection.to_string(),
-            })?;
+            }
+        })?;
 
         // Get all vectors and filter by file_path
         let all_vectors = coll.get_all_vectors();
-        let mut file_chunks: Vec<_> = all_vectors.into_iter()
+        let mut file_chunks: Vec<_> = all_vectors
+            .into_iter()
             .filter_map(|v| {
                 if let Some(payload) = &v.payload {
                     if let Some(metadata) = payload.data.get("metadata") {
                         if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
                             if fp == file_path {
-                                let chunk_index = metadata.get("chunk_index")
+                                let chunk_index = metadata
+                                    .get("chunk_index")
                                     .and_then(|v| v.as_u64())
-                                    .unwrap_or(0) as usize;
-                                let content = payload.data.get("content")
+                                    .unwrap_or(0)
+                                    as usize;
+                                let content = payload
+                                    .data
+                                    .get("content")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("")
                                     .to_string();
-                                let line_start = metadata.get("line_start")
+                                let line_start = metadata
+                                    .get("line_start")
                                     .and_then(|v| v.as_u64())
                                     .map(|v| v as usize);
-                                let line_end = metadata.get("line_end")
+                                let line_end = metadata
+                                    .get("line_end")
                                     .and_then(|v| v.as_u64())
                                     .map(|v| v as usize);
-                                
+
                                 return Some((chunk_index, content, line_start, line_end));
                             }
                         }
@@ -595,12 +632,14 @@ impl FileOperations {
             .map(|(index, content, line_start, line_end)| {
                 let (prev_hint, next_hint) = if include_context {
                     let prev = if *index > 0 {
-                        file_chunks.get(index - 1)
+                        file_chunks
+                            .get(index - 1)
                             .map(|(_, c, _, _)| c.chars().take(50).collect::<String>())
                     } else {
                         None
                     };
-                    let next = file_chunks.get(index + 1)
+                    let next = file_chunks
+                        .get(index + 1)
                         .map(|(_, c, _, _)| c.chars().take(50).collect::<String>());
                     (prev, next)
                 } else {
@@ -648,15 +687,17 @@ impl FileOperations {
         );
 
         // Get file list first
-        let file_list = self.list_files_in_collection(
-            collection,
-            FileListFilter {
-                filter_by_type: None,
-                min_chunks: None,
-                max_results: None,
-                sort_by: SortBy::Name,
-            },
-        ).await?;
+        let file_list = self
+            .list_files_in_collection(
+                collection,
+                FileListFilter {
+                    filter_by_type: None,
+                    min_chunks: None,
+                    max_results: None,
+                    sort_by: SortBy::Name,
+                },
+            )
+            .await?;
 
         // Build directory tree
         let mut root = DirectoryNode2 {
@@ -669,12 +710,19 @@ impl FileOperations {
         };
 
         // Key file patterns
-        let key_patterns = vec!["README", "LICENSE", "Cargo.toml", "package.json", "pyproject.toml", "go.mod"];
+        let key_patterns = vec![
+            "README",
+            "LICENSE",
+            "Cargo.toml",
+            "package.json",
+            "pyproject.toml",
+            "go.mod",
+        ];
 
         for file in &file_list.files {
             let path = file.path.replace("\\", "/");
             let parts: Vec<&str> = path.split('/').collect();
-            
+
             // Skip if depth exceeds max_depth
             if parts.len() > max_depth {
                 continue;
@@ -688,8 +736,9 @@ impl FileOperations {
 
                 if is_last {
                     // It's a file
-                    let is_key = highlight_key_files && key_patterns.iter().any(|p| part.contains(p));
-                    
+                    let is_key =
+                        highlight_key_files && key_patterns.iter().any(|p| part.contains(p));
+
                     let summary = if include_summaries && is_key {
                         // Get summary for key files
                         self.get_file_summary(collection, &file.path, SummaryType::Extractive, 3)
@@ -711,11 +760,12 @@ impl FileOperations {
                 } else {
                     // It's a directory
                     let dir_name = part.to_string();
-                    
+
                     // Find or create directory
-                    let dir_index = current.children.iter()
-                        .position(|n| n.name == dir_name && matches!(n.node_type, NodeType::Directory));
-                    
+                    let dir_index = current.children.iter().position(|n| {
+                        n.name == dir_name && matches!(n.node_type, NodeType::Directory)
+                    });
+
                     if let Some(idx) = dir_index {
                         current = &mut current.children[idx];
                     } else {
@@ -735,7 +785,9 @@ impl FileOperations {
         }
 
         // Collect key files
-        let key_files: Vec<String> = file_list.files.iter()
+        let key_files: Vec<String> = file_list
+            .files
+            .iter()
             .filter(|f| key_patterns.iter().any(|p| f.path.contains(p)))
             .map(|f| f.path.clone())
             .collect();
@@ -761,7 +813,11 @@ impl FileOperations {
     }
 
     fn count_directories(node: &DirectoryNode2) -> usize {
-        let mut count = if matches!(node.node_type, NodeType::Directory) { 1 } else { 0 };
+        let mut count = if matches!(node.node_type, NodeType::Directory) {
+            1
+        } else {
+            0
+        };
         for child in &node.children {
             count += Self::count_directories(child);
         }
@@ -791,21 +847,25 @@ impl FileOperations {
         );
 
         // Get VectorStore
-        let store = self.store.as_ref()
-            .ok_or_else(|| FileOperationError::VectorStoreError("VectorStore not initialized".to_string()))?;
+        let store = self.store.as_ref().ok_or_else(|| {
+            FileOperationError::VectorStoreError("VectorStore not initialized".to_string())
+        })?;
 
         // Get collection
-        let coll = store.get_collection(collection)
-            .map_err(|e| FileOperationError::CollectionNotFound {
+        let coll = store.get_collection(collection).map_err(|e| {
+            FileOperationError::CollectionNotFound {
                 collection: collection.to_string(),
-            })?;
+            }
+        })?;
 
         // Generate embedding for query
-        let query_embedding = embedding_manager.embed(query)
-            .map_err(|e| FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e)))?;
+        let query_embedding = embedding_manager.embed(query).map_err(|e| {
+            FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
+        })?;
 
         // Search in collection
-        let search_results = coll.search(&query_embedding, limit * 3) // Get more results to filter
+        let search_results = coll
+            .search(&query_embedding, limit * 3) // Get more results to filter
             .map_err(|e| FileOperationError::VectorStoreError(format!("Search failed: {}", e)))?;
 
         // Filter by file type and build results
@@ -821,7 +881,7 @@ impl FileOperations {
                 if let Some(metadata) = payload.data.get("metadata") {
                     if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
                         let file_type = Self::detect_file_type(file_path);
-                        
+
                         // Check if file type matches
                         if file_types.contains(&file_type) {
                             let content = if return_full_files && !seen_files.contains(file_path) {
@@ -834,7 +894,9 @@ impl FileOperations {
                                 None
                             };
 
-                            let chunk_content = payload.data.get("content")
+                            let chunk_content = payload
+                                .data
+                                .get("content")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
@@ -887,27 +949,33 @@ impl FileOperations {
         Self::validate_file_path(file_path)?;
 
         // Get the file content to create a representative embedding
-        let file_content = self.get_file_content(collection, file_path, ABSOLUTE_MAX_SIZE_KB).await?;
+        let file_content = self
+            .get_file_content(collection, file_path, ABSOLUTE_MAX_SIZE_KB)
+            .await?;
 
         // Create a query from first few chunks (or summary)
         let query_text = file_content.content.chars().take(1000).collect::<String>();
 
         // Get VectorStore
-        let store = self.store.as_ref()
-            .ok_or_else(|| FileOperationError::VectorStoreError("VectorStore not initialized".to_string()))?;
+        let store = self.store.as_ref().ok_or_else(|| {
+            FileOperationError::VectorStoreError("VectorStore not initialized".to_string())
+        })?;
 
         // Get collection
-        let coll = store.get_collection(collection)
-            .map_err(|e| FileOperationError::CollectionNotFound {
+        let coll = store.get_collection(collection).map_err(|e| {
+            FileOperationError::CollectionNotFound {
                 collection: collection.to_string(),
-            })?;
+            }
+        })?;
 
         // Generate embedding
-        let query_embedding = embedding_manager.embed(&query_text)
-            .map_err(|e| FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e)))?;
+        let query_embedding = embedding_manager.embed(&query_text).map_err(|e| {
+            FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
+        })?;
 
         // Search for similar chunks
-        let search_results = coll.search(&query_embedding, limit * 5)
+        let search_results = coll
+            .search(&query_embedding, limit * 5)
             .map_err(|e| FileOperationError::VectorStoreError(format!("Search failed: {}", e)))?;
 
         // Group by file and calculate average similarity
@@ -974,9 +1042,18 @@ impl FileOperations {
         let related_type = Self::detect_file_type(related);
 
         if source_type == related_type {
-            format!("Similar {} file with {:.1}% semantic similarity", source_type, score * 100.0)
+            format!(
+                "Similar {} file with {:.1}% semantic similarity",
+                source_type,
+                score * 100.0
+            )
         } else {
-            format!("Related {} file (from {}) with {:.1}% semantic similarity", related_type, source_type, score * 100.0)
+            format!(
+                "Related {} file (from {}) with {:.1}% semantic similarity",
+                related_type,
+                source_type,
+                score * 100.0
+            )
         }
     }
 
@@ -1032,9 +1109,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_detect_language() {
-        assert_eq!(FileOperations::detect_language("main.rs"), Some("rust".to_string()));
-        assert_eq!(FileOperations::detect_language("app.py"), Some("python".to_string()));
-        assert_eq!(FileOperations::detect_language("config.toml"), Some("toml".to_string()));
+        assert_eq!(
+            FileOperations::detect_language("main.rs"),
+            Some("rust".to_string())
+        );
+        assert_eq!(
+            FileOperations::detect_language("app.py"),
+            Some("python".to_string())
+        );
+        assert_eq!(
+            FileOperations::detect_language("config.toml"),
+            Some("toml".to_string())
+        );
         assert_eq!(FileOperations::detect_language("unknown.xyz"), None);
     }
 
@@ -1042,7 +1128,7 @@ mod tests {
     async fn test_extractive_summary() {
         let content = "This is a test. This is another sentence with more content. Short. This is a third meaningful sentence.";
         let summary = FileOperations::generate_extractive_summary(content, 2);
-        
+
         // Should have 2 sentences (filtered by length > 20)
         assert!(summary.contains("another sentence"));
         assert!(summary.contains("meaningful sentence"));
@@ -1060,12 +1146,11 @@ Important: This is a critical point.
 ## Subsection 2
 Note: Another important detail.
         "#;
-        
+
         let summary = FileOperations::generate_structural_summary(content);
-        
+
         assert!(summary.outline.contains("# Main Title"));
         assert!(summary.key_sections.contains(&"Main Title".to_string()));
         assert!(summary.key_points.len() > 0);
     }
 }
-

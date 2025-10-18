@@ -1,7 +1,9 @@
 use std::time::Instant;
 use vectorizer::error::Result;
-use vectorizer::gpu::MetalNativeCollection;
+use vectorizer::db::hive_gpu_collection::HiveGpuCollection;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Vector, HnswConfig};
+use hive_gpu::metal::MetalNativeContext;
+use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -34,9 +36,11 @@ async fn main() -> Result<()> {
             ..Default::default()
         };
 
-        let mut collection = MetalNativeCollection::new_with_name_and_config(
-            &format!("gpu_search_benchmark_{}", vector_count),
-            config
+        let context = Arc::new(Mutex::new(Box::new(MetalNativeContext::new()?) as Box<dyn hive_gpu::GpuContext + Send>));
+        let mut collection = HiveGpuCollection::new(
+            format!("gpu_search_benchmark_{}", vector_count),
+            config,
+            context
         )?;
 
         // Generate test vectors

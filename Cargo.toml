@@ -1,8 +1,6 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "vectorizer"
-version = "0.8.0"
+version = "0.10.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -36,15 +34,11 @@ hnsw_rs = "0.3"
 # Intelligent search dependencies
 tantivy = "0.25"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
-fastembed = "5.2" # Embeddings + cross-encoder reranking
+fastembed = { version = "5.2", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
 ndarray = "0.16"
-
-# GPU dependencies (real GPU processing)
-cudarc = { version = "0.17", features = ["cuda-12080"], optional = true }
-cc = { version = "1.2", features = ["parallel"] }
 
 # GPU acceleration via external hive-gpu crate only
 hive-gpu = { version = "0.1.6", optional = true }
@@ -75,11 +69,15 @@ clap = { version = "4.5", features = ["derive"] }
 tar = "0.4"
 flate2 = "1.0"
 
-# HTTP client for status checks
-reqwest = { version = "0.12", features = ["json"] }
+# HTTP client for status checks (using rustls for musl compatibility)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
-# UMICP protocol integration
-umicp-core = { version = "0.1", features = ["http2", "websocket"] }
+# OpenSSL-sys with vendored feature for musl static linking
+# This compiles OpenSSL from source, avoiding system dependency issues
+openssl-sys = { version = "0.9", features = ["vendored"] }
+
+# UMICP protocol integration (v0.2.1 with native JSON types + tool discovery)
+umicp-core = { version = "0.2.1", features = ["http2", "websocket"] }
 
 # System utilities
 whoami = "1.5"
@@ -90,6 +88,7 @@ lz4_flex = "0.11"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
+zip = { version = "6.0", features = ["zstd", "deflate"] }
 
 # Text normalization dependencies
 blake3 = "1.5"
@@ -124,16 +123,19 @@ arrow = { version = "56", optional = true }
 parquet = { version = "56", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.8", features = ["server", "macros", "transport-sse-server"] }
+rmcp = { version = "0.8.1", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.16.1"
+hyper = { version = "1.7", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
 
 [build-dependencies]
 cc = { version = "1.2", features = ["parallel"] }
+winres = "0.1"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -141,55 +143,60 @@ proptest = "1.4"
 tempfile = "3.8"
 reqwest = { version = "0.12", features = ["json"] }
 
-[[bin]]
-name = "benchmark_embeddings"
-path = "benchmark/scripts/benchmark_embeddings.rs"
-required-features = ["benchmarks"]
+# Disabled benchmarks - need refactoring for current API
+# [[bin]]
+# name = "benchmark_embeddings"
+# path = "benchmark/scripts/benchmark_embeddings.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "gpu_benchmark"
+# path = "benchmark/scripts/gpu_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "quantization_benchmark"
+# path = "benchmark/scripts/quantization_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "core_operations_benchmark"
+# path = "benchmark/scripts/core_operations_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "dimension_comparison_benchmark"
+# path = "benchmark/scripts/dimension_comparison_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "combined_optimization_benchmark"
+# path = "benchmark/scripts/combined_optimization_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "scale_benchmark"
+# path = "benchmark/scripts/scale_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "patched_benchmark"
+# path = "benchmark/scripts/patched_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "large_scale_benchmark"
+# path = "benchmark/scripts/large_scale_benchmark.rs"
+# required-features = ["benchmarks"]
 
 [[bin]]
-name = "gpu_benchmark"
-path = "benchmark/scripts/gpu_benchmark.rs"
-required-features = ["benchmarks"]
+name = "storage_benchmark"
+path = "benchmark/scripts/storage_benchmark.rs"
 
-[[bin]]
-name = "quantization_benchmark"
-path = "benchmark/scripts/quantization_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "core_operations_benchmark"
-path = "benchmark/scripts/core_operations_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "dimension_comparison_benchmark"
-path = "benchmark/scripts/dimension_comparison_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "combined_optimization_benchmark"
-path = "benchmark/scripts/combined_optimization_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "scale_benchmark"
-path = "benchmark/scripts/scale_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "patched_benchmark"
-path = "benchmark/scripts/patched_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "large_scale_benchmark"
-path = "benchmark/scripts/large_scale_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "diagnostic_benchmark"
-path = "benchmark/scripts/diagnostic_benchmark.rs"
-required-features = ["benchmarks"]
+# [[bin]]
+# name = "diagnostic_benchmark"
+# path = "benchmark/scripts/diagnostic_benchmark.rs"
+# required-features = ["benchmarks"]
 
 [[bin]]
 name = "vectorizer-cli"
@@ -204,20 +211,36 @@ name = "test_basic_metal"
 path = "benchmark/scripts/test_basic_metal.rs"
 required-features = ["hive-gpu"]
 
+# [[bin]]
+# name = "metal_native_search_benchmark"
+# path = "benchmark/scripts/metal_native_search_benchmark.rs"
+# required-features = ["hive-gpu-metal"]
+
 [[bin]]
-name = "metal_native_search_benchmark"
-path = "benchmark/scripts/metal_native_search_benchmark.rs"
-required-features = ["metal-native"]
+name = "metal_hnsw_search_benchmark"
+path = "benchmark/scripts/metal_hnsw_search_benchmark.rs"
+required-features = ["hive-gpu"]
+
+[[bin]]
+name = "simple_metal_test"
+path = "benchmark/scripts/simple_metal_test.rs"
+required-features = ["hive-gpu"]
+
+[[bin]]
+name = "gpu_scale_benchmark"
+path = "benchmark/scripts/gpu_scale_benchmark.rs"
+required-features = ["hive-gpu-wgpu"]
 
 [features]
-default = []
-gpu = []
-gpu_real = ["gpu"]
+default = ["hive-gpu", "fastembed"]
+fastembed = ["dep:fastembed"]
+
 # GPU acceleration via external hive-gpu crate only
 hive-gpu = ["dep:hive-gpu"]
 hive-gpu-metal = ["hive-gpu", "hive-gpu/metal-native"]
 hive-gpu-cuda = ["hive-gpu", "hive-gpu/cuda"]
 hive-gpu-wgpu = ["hive-gpu", "hive-gpu/wgpu"]
+
 # Legacy features (deprecated - redirected to hive-gpu)
 metal-native = ["hive-gpu-metal"]
 cuda = ["hive-gpu-cuda"]
@@ -252,76 +275,108 @@ full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
 
 
 
+# [[bin]]
+# name = "gpu_scale_benchmark"
+# path = "benchmark/scripts/gpu_scale_benchmark.rs"
+# required-features = ["wgpu-gpu"]
+#
+# [[bin]]
+# name = "cache_benchmark"
+# path = "benchmark/scripts/cache_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "complete_normalization_benchmark"
+# path = "benchmark/scripts/complete_normalization_benchmark.rs"
+# required-features = ["benchmarks"]
 
-[[bin]]
-name = "metal_native_test"
-path = "benchmark/scripts/metal_native_test.rs"
-required-features = ["metal-native"]
+# =============================================================================
+# WORKSPACE LINTS (Based on Qdrant standards)
+# =============================================================================
+[lints.clippy]
+cast_lossless = "warn"
+doc_link_with_quotes = "warn"
+enum_glob_use = "warn"
+explicit_into_iter_loop = "warn"
+filter_map_next = "warn"
+flat_map_option = "warn"
+from_iter_instead_of_collect = "warn"
+implicit_clone = "warn"
+inconsistent_struct_constructor = "warn"
+inefficient_to_string = "warn"
+manual_is_variant_and = "warn"
+manual_let_else = "warn"
+needless_continue = "warn"
+needless_raw_string_hashes = "warn"
+ptr_as_ptr = "warn"
+ref_option_ref = "warn"
+uninlined_format_args = "warn"
+unnecessary_wraps = "warn"
+unused_self = "warn"
+used_underscore_binding = "warn"
+match_wildcard_for_single_variants = "warn"
+needless_pass_by_ref_mut = "warn"
 
-[[bin]]
-name = "metal_native_pure_benchmark"
-path = "benchmark/scripts/metal_native_pure_benchmark.rs"
-required-features = ["metal-native"]
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
-[[bin]]
-name = "metal_native_hnsw_benchmark"
-path = "benchmark/scripts/metal_native_hnsw_benchmark.rs"
-required-features = ["metal-native"]
+[lints.rustdoc]
+private_intra_doc_links = "allow"
 
-[[bin]]
-name = "metal_native_comprehensive_benchmark"
-path = "benchmark/scripts/metal_native_comprehensive_benchmark.rs"
-required-features = ["metal-native"]
+# =============================================================================
+# RELEASE PROFILES
+# =============================================================================
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
 
-[[bin]]
-name = "test_10k_limit"
-path = "benchmark/scripts/test_10k_limit.rs"
-required-features = ["hive-gpu"]
+# Faster builds for CI
+[profile.ci]
+inherits = "release"
+debug-assertions = true
+lto = false
+opt-level = 0
 
-[[bin]]
-name = "optimized_metal_benchmark"
-path = "benchmark/scripts/optimized_metal_benchmark.rs"
-required-features = ["metal-native"]
+# Performance testing profile
+[profile.perf]
+inherits = "release"
+lto = false
+opt-level = 3
+codegen-units = 256
 
-[[bin]]
-name = "vram_validation_benchmark"
-path = "benchmark/scripts/vram_validation_benchmark.rs"
-required-features = ["metal-native"]
+[profile.dev]
+debug = "line-tables-only"
 
-[[bin]]
-name = "scale_512d_benchmark"
-path = "benchmark/scripts/scale_512d_benchmark.rs"
-required-features = ["metal-native"]
-
-[[bin]]
-name = "quick_benchmark"
-path = "benchmark/scripts/quick_benchmark.rs"
-
-[[bin]]
-name = "minimal_benchmark"
-path = "benchmark/scripts/minimal_benchmark.rs"
-
-[[bin]]
-name = "simple_metal_test"
-path = "benchmark/scripts/simple_metal_test.rs"
-required-features = ["hive-gpu"]
-
-[[bin]]
-name = "metal_hnsw_search_benchmark"
-path = "benchmark/scripts/metal_hnsw_search_benchmark.rs"
-required-features = ["hive-gpu"]
-
-[[bin]]
-name = "gpu_scale_benchmark"
-path = "benchmark/scripts/gpu_scale_benchmark.rs"
-required-features = ["hive-gpu-wgpu"]
-
-[[bin]]
-name = "cache_benchmark"
-path = "benchmark/scripts/cache_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "complete_normalization_benchmark"
-path = "benchmark/scripts/complete_normalization_benchmark.rs"
-required-features = ["benchmarks"]
+# =============================================================================
+# DEBIAN PACKAGE METADATA
+# =============================================================================
+[package.metadata.deb]
+maintainer = "HiveLLM Contributors <info@hivellm.org>"
+depends = "$auto"
+license-file = ["LICENSE", "0"]
+section = "database"
+priority = "optional"
+extended-description = """\
+Vectorizer is a high-performance vector database and search engine built in Rust. \
+It provides semantic search, document indexing, and AI-powered applications support \
+with sub-3ms search times and comprehensive embedding model support.\
+"""
+assets = [
+    ["target/release/vectorizer", "usr/bin/", "755"],
+    ["target/release/vectorizer-cli", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/vectorizer/README", "644"],
+    ["config.yml", "etc/vectorizer/config.yml", "644"],
+    ["config.example.yml", "etc/vectorizer/", "644"],
+    ["vectorize-workspace.example.yml", "etc/vectorizer/", "644"],
+    ["dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/app.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/api-client.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/search-function.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/styles.css", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/favicon.ico", "usr/share/vectorizer/dashboard/", "644"],
+    ["dashboard/icon.png", "usr/share/vectorizer/dashboard/", "644"],
+]
+conf-files = ["/etc/vectorizer/config.yml"]
+maintainer-scripts = "debian/"
+systemd-units = { unit-name = "vectorizer", enable = false }

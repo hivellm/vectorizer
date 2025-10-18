@@ -1,7 +1,6 @@
 # Rust build artifacts
 /target/
 /models/
-Cargo.lock
 
 # IDE files
 .idea/
@@ -76,8 +75,35 @@ data
 
 !./vectorize-workspace.yml
 vectorize-workspace.yml
-#hive-gpu
-hive-gpu/
+vectorize-workspace.docker.yml
 /cache/
 cache
 cache/
+qdrant/
+
+# Release artifacts
+*.tar.gz
+*.zip
+*.deb
+*.msi
+*.AppImage
+*.rpm
+release/
+artifacts/
+AppDir/
+linuxdeploy-*.AppImage
+vectorizer.spdx.json
+
+# Docker build cache
+.buildx-cache/
+
+# WiX build artifacts
+*.wixobj
+*.wixpdb
+
+# Debian package build
+debian/.debhelper/
+debian/vectorizer/
+debian/files
+debian/*.log
+debian/*.substvars

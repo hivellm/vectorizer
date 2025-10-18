@@ -1,7 +1,8 @@
 //! Type definitions for transmutation integration
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Information about a page in a paginated document
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,4 +68,3 @@ impl ConvertedDocument {
         self.page_info.as_ref().map(|pages| pages.len())
     }
 }
-

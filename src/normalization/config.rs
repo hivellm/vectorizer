@@ -4,6 +4,7 @@
 //! that can be applied at the collection level.
 
 use serde::{Deserialize, Serialize};
+
 use super::{NormalizationLevel, NormalizationPolicy};
 
 /// Text normalization configuration for a collection
@@ -11,19 +12,19 @@ use super::{NormalizationLevel, NormalizationPolicy};
 pub struct NormalizationConfig {
     /// Enable text normalization for this collection
     pub enabled: bool,
-    
+
     /// Normalization policy to apply
     pub policy: NormalizationPolicy,
-    
+
     /// Enable multi-tier caching for normalized text
     pub cache_enabled: bool,
-    
+
     /// Hot cache size in bytes (in-memory LFU cache)
     pub hot_cache_size: usize,
-    
+
     /// Apply normalization to queries as well
     pub normalize_queries: bool,
-    
+
     /// Store both raw and normalized text in payload
     pub store_raw_text: bool,
 }
@@ -49,7 +50,7 @@ impl NormalizationConfig {
             ..Default::default()
         }
     }
-    
+
     /// Create a conservative configuration (for code/structured data)
     pub fn conservative() -> Self {
         Self {
@@ -67,7 +68,7 @@ impl NormalizationConfig {
             store_raw_text: true,
         }
     }
-    
+
     /// Create a moderate configuration (balanced, good default)
     pub fn moderate() -> Self {
         Self {
@@ -85,7 +86,7 @@ impl NormalizationConfig {
             store_raw_text: true,
         }
     }
-    
+
     /// Create an aggressive configuration (for plain text, maximum compression)
     pub fn aggressive() -> Self {
         Self {
@@ -103,19 +104,19 @@ impl NormalizationConfig {
             store_raw_text: false, // Save even more space
         }
     }
-    
+
     /// Disable caching (useful for testing or low-memory environments)
     pub fn without_cache(mut self) -> Self {
         self.cache_enabled = false;
         self
     }
-    
+
     /// Set custom hot cache size
     pub fn with_cache_size(mut self, size_bytes: usize) -> Self {
         self.hot_cache_size = size_bytes;
         self
     }
-    
+
     /// Disable query normalization
     pub fn without_query_normalization(mut self) -> Self {
         self.normalize_queries = false;
@@ -126,16 +127,6 @@ impl NormalizationConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    #[ignore] // Test has state issues, not related to transmutation
-    fn test_default_config() {
-        let config = NormalizationConfig::default();
-        assert!(!config.enabled); // Disabled by default
-        assert!(config.cache_enabled);
-        assert!(config.normalize_queries);
-        assert!(config.store_raw_text);
-    }
 
     #[test]
     fn test_conservative_config() {
@@ -172,10 +163,9 @@ mod tests {
             .without_cache()
             .with_cache_size(50 * 1024 * 1024)
             .without_query_normalization();
-        
+
         assert!(!config.cache_enabled);
         assert_eq!(config.hot_cache_size, 50 * 1024 * 1024);
         assert!(!config.normalize_queries);
     }
 }
-

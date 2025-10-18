@@ -2,10 +2,12 @@
 //!
 //! Handles loading, saving, and validation of CLI configuration files
 
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
 use super::CliConfig;
 use crate::error::{Result, VectorizerError};
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Configuration file format
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -241,6 +243,7 @@ impl ConfigManager {
                 log_to_file: config_file.logging.log_to_file,
                 log_file: config_file.logging.log_file.map(PathBuf::from),
             },
+            storage: crate::storage::StorageConfig::default(),
         }
     }
 
@@ -285,8 +288,9 @@ impl ConfigManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_config_file_default() {

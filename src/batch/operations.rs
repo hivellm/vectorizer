@@ -3,20 +3,19 @@
 //! Defines the structures and traits for various batch operations (insert, update, delete, search),
 //! and a manager to orchestrate them.
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
+use super::{
+    BatchConfig, BatchError, BatchErrorType, BatchProcessor, BatchStatus, SearchQuery, VectorUpdate,
+};
 use crate::db::VectorStore;
 use crate::embedding::EmbeddingManager;
-use crate::models::{Vector, SearchResult};
 use crate::error::Result;
-
-use super::{
-    BatchConfig, BatchError, BatchStatus, BatchErrorType, 
-    VectorUpdate, SearchQuery, BatchProcessor
-};
+use crate::models::{SearchResult, Vector};
 
 /// Type alias for batch operation results
 pub type BatchResult<T> = std::result::Result<T, BatchError>;
@@ -52,9 +51,15 @@ impl BatchOperationTrait for BatchInsertOperation {
     type Input = Vec<Vector>;
     type Output = Vec<String>;
 
-    fn operation_id(&self) -> &str { &self.id }
-    fn collection_name(&self) -> &str { &self.collection }
-    fn is_atomic(&self) -> bool { self.atomic }
+    fn operation_id(&self) -> &str {
+        &self.id
+    }
+    fn collection_name(&self) -> &str {
+        &self.collection
+    }
+    fn is_atomic(&self) -> bool {
+        self.atomic
+    }
 
     async fn execute(
         &self,
@@ -62,12 +67,14 @@ impl BatchOperationTrait for BatchInsertOperation {
         _vector_store: Arc<VectorStore>, // Not directly used here, passed to processor
         _embedding_manager: Arc<RwLock<EmbeddingManager>>, // Not directly used here
     ) -> BatchResult<Self::Output> {
-        processor.batch_insert(
-            self.collection.clone(),
-            self.vectors.clone(),
-            Some(self.atomic),
-            self.vector_dimension,
-        ).await
+        processor
+            .batch_insert(
+                self.collection.clone(),
+                self.vectors.clone(),
+                Some(self.atomic),
+                self.vector_dimension,
+            )
+            .await
     }
 }
 
@@ -84,9 +91,15 @@ impl BatchOperationTrait for BatchUpdateOperation {
     type Input = Vec<VectorUpdate>;
     type Output = Vec<String>;
 
-    fn operation_id(&self) -> &str { &self.id }
-    fn collection_name(&self) -> &str { &self.collection }
-    fn is_atomic(&self) -> bool { self.atomic }
+    fn operation_id(&self) -> &str {
+        &self.id
+    }
+    fn collection_name(&self) -> &str {
+        &self.collection
+    }
+    fn is_atomic(&self) -> bool {
+        self.atomic
+    }
 
     async fn execute(
         &self,
@@ -94,11 +107,13 @@ impl BatchOperationTrait for BatchUpdateOperation {
         _vector_store: Arc<VectorStore>,
         _embedding_manager: Arc<RwLock<EmbeddingManager>>,
     ) -> BatchResult<Self::Output> {
-        processor.batch_update(
-            self.collection.clone(),
-            self.updates.clone(),
-            Some(self.atomic),
-        ).await
+        processor
+            .batch_update(
+                self.collection.clone(),
+                self.updates.clone(),
+                Some(self.atomic),
+            )
+            .await
     }
 }
 
@@ -115,9 +130,15 @@ impl BatchOperationTrait for BatchDeleteOperation {
     type Input = Vec<String>;
     type Output = Vec<String>;
 
-    fn operation_id(&self) -> &str { &self.id }
-    fn collection_name(&self) -> &str { &self.collection }
-    fn is_atomic(&self) -> bool { self.atomic }
+    fn operation_id(&self) -> &str {
+        &self.id
+    }
+    fn collection_name(&self) -> &str {
+        &self.collection
+    }
+    fn is_atomic(&self) -> bool {
+        self.atomic
+    }
 
     async fn execute(
         &self,
@@ -125,11 +146,13 @@ impl BatchOperationTrait for BatchDeleteOperation {
         _vector_store: Arc<VectorStore>,
         _embedding_manager: Arc<RwLock<EmbeddingManager>>,
     ) -> BatchResult<Self::Output> {
-        processor.batch_delete(
-            self.collection.clone(),
-            self.vector_ids.clone(),
-            Some(self.atomic),
-        ).await
+        processor
+            .batch_delete(
+                self.collection.clone(),
+                self.vector_ids.clone(),
+                Some(self.atomic),
+            )
+            .await
     }
 }
 
@@ -146,9 +169,15 @@ impl BatchOperationTrait for BatchSearchOperation {
     type Input = Vec<SearchQuery>;
     type Output = Vec<Vec<SearchResult>>;
 
-    fn operation_id(&self) -> &str { &self.id }
-    fn collection_name(&self) -> &str { &self.collection }
-    fn is_atomic(&self) -> bool { self.atomic }
+    fn operation_id(&self) -> &str {
+        &self.id
+    }
+    fn collection_name(&self) -> &str {
+        &self.collection
+    }
+    fn is_atomic(&self) -> bool {
+        self.atomic
+    }
 
     async fn execute(
         &self,
@@ -156,11 +185,13 @@ impl BatchOperationTrait for BatchSearchOperation {
         _vector_store: Arc<VectorStore>,
         _embedding_manager: Arc<RwLock<EmbeddingManager>>,
     ) -> BatchResult<Self::Output> {
-        processor.batch_search(
-            self.collection.clone(),
-            self.queries.clone(),
-            Some(self.atomic),
-        ).await
+        processor
+            .batch_search(
+                self.collection.clone(),
+                self.queries.clone(),
+                Some(self.atomic),
+            )
+            .await
     }
 }
 
@@ -189,11 +220,13 @@ impl BatchOperationManager {
         &self,
         operation: &T,
     ) -> BatchResult<T::Output> {
-        operation.execute(
-            &self.processor,
-            self.vector_store.clone(),
-            self.embedding_manager.clone(),
-        ).await
+        operation
+            .execute(
+                &self.processor,
+                self.vector_store.clone(),
+                self.embedding_manager.clone(),
+            )
+            .await
     }
 
     /// Get active operations

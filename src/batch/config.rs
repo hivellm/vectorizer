@@ -1,5 +1,5 @@
 //! Batch Operations Configuration
-//! 
+//!
 //! Configuration management for batch operations including performance tuning,
 //! resource limits, and operational parameters.
 
@@ -10,40 +10,40 @@ use serde::{Deserialize, Serialize};
 pub struct BatchConfig {
     /// Maximum number of vectors per batch operation
     pub max_batch_size: usize,
-    
+
     /// Maximum memory usage in MB for batch operations
     pub max_memory_usage_mb: usize,
-    
+
     /// Number of parallel workers for processing
     pub parallel_workers: usize,
-    
+
     /// Size of chunks for streaming large batches
     pub chunk_size: usize,
-    
+
     /// Whether operations should be atomic by default
     pub atomic_by_default: bool,
-    
+
     /// Whether to report progress during long operations
     pub progress_reporting: bool,
-    
+
     /// Number of retry attempts for failed operations
     pub error_retry_attempts: usize,
-    
+
     /// Delay between retry attempts in milliseconds
     pub error_retry_delay_ms: u64,
-    
+
     /// Timeout for individual batch operations in seconds
     pub operation_timeout_seconds: u64,
-    
+
     /// Whether to enable performance metrics collection
     pub enable_metrics: bool,
-    
+
     /// Maximum concurrent batch operations
     pub max_concurrent_batches: usize,
-    
+
     /// Whether to enable compression for large payloads
     pub enable_compression: bool,
-    
+
     /// Compression threshold in bytes
     pub compression_threshold_bytes: usize,
 }
@@ -179,7 +179,7 @@ impl BatchConfig {
         let vector_data = vector_count * vector_dimension * 4;
         let metadata_overhead = vector_count * 512; // Average metadata size
         let processing_overhead = vector_count * 64; // Processing overhead
-        
+
         (vector_data + metadata_overhead + processing_overhead) / (1024 * 1024) // Convert to MB
     }
 
@@ -232,7 +232,7 @@ mod tests {
         let mut config = BatchConfig::default();
         config.max_batch_size = 0;
         assert!(config.validate().is_err());
-        
+
         config = BatchConfig::default();
         config.chunk_size = config.max_batch_size + 1;
         assert!(config.validate().is_err());
@@ -252,7 +252,7 @@ mod tests {
         let config = BatchConfig::default();
         let memory_usage = config.estimate_memory_usage(1000, 384);
         assert!(memory_usage > 0);
-        
+
         assert!(!config.would_exceed_memory_limit(100, 384));
         // This might exceed depending on the default memory limit
         // assert!(config.would_exceed_memory_limit(100000, 384));
@@ -261,10 +261,10 @@ mod tests {
     #[test]
     fn test_chunk_size_calculation() {
         let config = BatchConfig::default();
-        
+
         // Small batch should use full size
         assert_eq!(config.get_chunk_size_for_batch(50), 50);
-        
+
         // Large batch should use configured chunk size
         assert_eq!(config.get_chunk_size_for_batch(2000), config.chunk_size);
     }

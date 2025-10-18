@@ -1,9 +1,13 @@
 //! Vector operations for file watcher
 
 use std::sync::Arc;
+
 use tokio::sync::RwLock;
-use crate::{VectorStore, embedding::EmbeddingManager, document_loader::{DocumentLoader, LoaderConfig}};
+
+use crate::VectorStore;
+use crate::embedding::EmbeddingManager;
 use crate::error::{Result, VectorizerError};
+use crate::file_loader::{FileLoader, LoaderConfig};
 
 /// Vector operations for file watcher
 pub struct VectorOperations {
@@ -26,16 +30,26 @@ impl VectorOperations {
     }
 
     /// Process file change event
-    pub async fn process_file_change(&self, event: &crate::file_watcher::FileChangeEventWithMetadata) -> Result<()> {
-        tracing::info!("🔍 PROCESS: Processing file change event: {:?}", event.event);
+    pub async fn process_file_change(
+        &self,
+        event: &crate::file_watcher::FileChangeEventWithMetadata,
+    ) -> Result<()> {
+        tracing::info!(
+            "🔍 PROCESS: Processing file change event: {:?}",
+            event.event
+        );
         match &event.event {
-            crate::file_watcher::FileChangeEvent::Created(path) | crate::file_watcher::FileChangeEvent::Modified(path) => {
+            crate::file_watcher::FileChangeEvent::Created(path)
+            | crate::file_watcher::FileChangeEvent::Modified(path) => {
                 // Skip events with empty paths (ignored events like Access)
                 if path.as_os_str().is_empty() || path.to_string_lossy().is_empty() {
-                    tracing::debug!("⏭️ PROCESS: Skipping event with empty path (ignored event): {:?}", path);
+                    tracing::debug!(
+                        "⏭️ PROCESS: Skipping event with empty path (ignored event): {:?}",
+                        path
+                    );
                     return Ok(());
                 }
-                
+
                 tracing::info!("🔍 PROCESS: Indexing file: {:?}", path);
                 self.index_file_from_path(path).await?;
                 tracing::info!("✅ PROCESS: Successfully indexed file: {:?}", path);
@@ -46,33 +60,51 @@ impl VectorOperations {
                 tracing::info!("✅ PROCESS: Successfully removed file: {:?}", path);
             }
             crate::file_watcher::FileChangeEvent::Renamed(old_path, new_path) => {
-                tracing::info!("🔍 PROCESS: Renaming file from {:?} to {:?}", old_path, new_path);
+                tracing::info!(
+                    "🔍 PROCESS: Renaming file from {:?} to {:?}",
+                    old_path,
+                    new_path
+                );
                 // Remove from old path and add to new path
                 self.remove_file_from_path(old_path).await?;
                 self.index_file_from_path(new_path).await?;
-                tracing::info!("✅ PROCESS: Successfully renamed file from {:?} to {:?}", old_path, new_path);
+                tracing::info!(
+                    "✅ PROCESS: Successfully renamed file from {:?} to {:?}",
+                    old_path,
+                    new_path
+                );
             }
         }
         Ok(())
     }
 
     /// Index file content using DocumentLoader
-    pub async fn index_file(&self, file_path: &str, content: &str, collection_name: &str) -> Result<()> {
+    pub async fn index_file(
+        &self,
+        file_path: &str,
+        content: &str,
+        collection_name: &str,
+    ) -> Result<()> {
         // Create a temporary directory to process with DocumentLoader
         let temp_dir = std::env::temp_dir().join(format!("temp_dir_{}", uuid::Uuid::new_v4()));
-        tokio::fs::create_dir_all(&temp_dir).await
+        tokio::fs::create_dir_all(&temp_dir)
+            .await
             .map_err(|e| VectorizerError::IoError(e))?;
-        
+
         // Write content to temporary file
-        let temp_file_path = temp_dir.join(std::path::Path::new(file_path).file_name().unwrap_or(std::ffi::OsStr::new("temp_file")));
-        tokio::fs::write(&temp_file_path, content).await
+        let temp_file_path = temp_dir.join(
+            std::path::Path::new(file_path)
+                .file_name()
+                .unwrap_or(std::ffi::OsStr::new("temp_file")),
+        );
+        tokio::fs::write(&temp_file_path, content)
+            .await
             .map_err(|e| VectorizerError::IoError(e))?;
-        
+
         // Create LoaderConfig for this file
-        let loader_config = LoaderConfig {
+        let mut loader_config = LoaderConfig {
             max_chunk_size: 2048,
             chunk_overlap: 256,
-            allowed_extensions: vec![],
             include_patterns: vec!["*".to_string()], // Include all files
             exclude_patterns: vec![],
             embedding_dimension: 512, // Default dimension
@@ -80,24 +112,43 @@ impl VectorOperations {
             collection_name: collection_name.to_string(),
             max_file_size: 10 * 1024 * 1024, // 10MB
         };
-        
-        // Create DocumentLoader and process the file
-        let mut loader = DocumentLoader::new(loader_config);
-        
-        // Process the file using load_project_async
-        match loader.load_project_async(&temp_dir.to_string_lossy(), &self.vector_store).await {
+
+        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+        loader_config.ensure_hardcoded_excludes();
+
+        // Create FileLoader and process the file
+        let embedding_manager = {
+            let guard = self.embedding_manager.read().await;
+            // Create new embedding manager for this operation
+            let mut em = EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            em.register_provider("bm25".to_string(), Box::new(bm25));
+            em.set_default_provider("bm25").unwrap();
+            em
+        };
+        let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
+
+        // Process the file
+        match loader
+            .load_and_index_project(&temp_dir.to_string_lossy(), &self.vector_store)
+            .await
+        {
             Ok(_) => {
-                tracing::info!("Successfully indexed file: {} in collection: {}", file_path, collection_name);
-            },
+                tracing::info!(
+                    "Successfully indexed file: {} in collection: {}",
+                    file_path,
+                    collection_name
+                );
+            }
             Err(e) => {
                 tracing::warn!("Failed to index file {}: {}", file_path, e);
                 return Err(VectorizerError::IndexError(e.to_string()));
             }
         }
-        
+
         // Clean up temporary directory
         let _ = tokio::fs::remove_dir_all(&temp_dir).await;
-        
+
         Ok(())
     }
 
@@ -105,18 +156,31 @@ impl VectorOperations {
     pub async fn remove_file(&self, file_path: &str, collection_name: &str) -> Result<()> {
         // Remove vector by ID (file path)
         self.vector_store.delete(collection_name, file_path)?;
-        
-        tracing::info!("Removed file: {} from collection: {}", file_path, collection_name);
+
+        tracing::info!(
+            "Removed file: {} from collection: {}",
+            file_path,
+            collection_name
+        );
         Ok(())
     }
 
     /// Update file in index
-    pub async fn update_file(&self, file_path: &str, content: &str, collection_name: &str) -> Result<()> {
+    pub async fn update_file(
+        &self,
+        file_path: &str,
+        content: &str,
+        collection_name: &str,
+    ) -> Result<()> {
         // For now, just re-index the file (remove and add again)
         self.remove_file(file_path, collection_name).await?;
         self.index_file(file_path, content, collection_name).await?;
-        
-        tracing::info!("Updated file: {} in collection: {}", file_path, collection_name);
+
+        tracing::info!(
+            "Updated file: {} in collection: {}",
+            file_path,
+            collection_name
+        );
         Ok(())
     }
 
@@ -140,21 +204,28 @@ impl VectorOperations {
         }
 
         // Destination file keeps original filename
-        let dest_file = temp_dir.join(path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("file")));
+        let dest_file = temp_dir.join(
+            path.file_name()
+                .unwrap_or_else(|| std::ffi::OsStr::new("file")),
+        );
         match tokio::fs::copy(path, &dest_file).await {
             Ok(_) => {}
             Err(e) => {
-                tracing::warn!("Failed to copy file {:?} to temp {:?}: {}", path, dest_file, e);
+                tracing::warn!(
+                    "Failed to copy file {:?} to temp {:?}: {}",
+                    path,
+                    dest_file,
+                    e
+                );
                 let _ = tokio::fs::remove_dir_all(&temp_dir).await;
                 return Ok(());
             }
         }
 
         // Build loader config
-        let loader_config = LoaderConfig {
+        let mut loader_config = LoaderConfig {
             max_chunk_size: 2048,
             chunk_overlap: 256,
-            allowed_extensions: vec![],
             include_patterns: vec!["*".to_string()],
             exclude_patterns: vec![],
             embedding_dimension: 512,
@@ -163,8 +234,21 @@ impl VectorOperations {
             max_file_size: self.config.max_file_size as usize,
         };
 
-        let mut loader = DocumentLoader::new(loader_config);
-        match loader.load_project_async(&temp_dir.to_string_lossy(), &self.vector_store).await {
+        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
+        loader_config.ensure_hardcoded_excludes();
+
+        let embedding_manager = {
+            let mut em = EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            em.register_provider("bm25".to_string(), Box::new(bm25));
+            em.set_default_provider("bm25").unwrap();
+            em
+        };
+        let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
+        match loader
+            .load_and_index_project(&temp_dir.to_string_lossy(), &self.vector_store)
+            .await
+        {
             Ok(_) => {
                 tracing::info!("Successfully indexed file via temp copy: {:?}", path);
             }
@@ -182,7 +266,8 @@ impl VectorOperations {
     /// Remove file from index by path
     async fn remove_file_from_path(&self, path: &std::path::Path) -> Result<()> {
         let collection_name = self.determine_collection_name(path);
-        self.remove_file(&path.to_string_lossy(), &collection_name).await?;
+        self.remove_file(&path.to_string_lossy(), &collection_name)
+            .await?;
         Ok(())
     }
 
@@ -196,7 +281,7 @@ impl VectorOperations {
     pub fn determine_collection_name(&self, path: &std::path::Path) -> String {
         // Extract meaningful parts from path for collection name
         let path_str = path.to_string_lossy();
-        
+
         // Try to match against known project patterns from vectorize-workspace.yml
         if path_str.contains("/docs/") {
             if path_str.contains("/architecture/") {
@@ -261,7 +346,8 @@ impl VectorOperations {
                 if components.len() >= 2 {
                     // Use last two components as collection name
                     let last_two: Vec<_> = components.iter().rev().take(2).collect();
-                    format!("{}-{}", 
+                    format!(
+                        "{}-{}",
                         last_two[1].as_os_str().to_string_lossy(),
                         last_two[0].as_os_str().to_string_lossy()
                     )

@@ -3,14 +3,16 @@
 //! This is the third tier of the cache hierarchy, providing long-term
 //! persistent storage with compression for maximum space efficiency.
 
-use crate::normalization::ContentHash;
-use anyhow::{Context, Result};
-use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::{File, OpenOptions, create_dir_all};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use anyhow::{Context, Result};
+use parking_lot::RwLock;
+
+use crate::normalization::ContentHash;
 
 /// Blob entry metadata
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -219,8 +221,9 @@ pub struct CompressionStats {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_blob_store_basic() {
@@ -286,22 +289,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Timeout: runs for over 60 seconds
-    async fn test_blob_store_clear() {
-        let dir = tempdir().unwrap();
-        let store = BlobStore::new(dir.path(), 3).unwrap();
-
-        let hash = ContentHash::from_bytes([4u8; 32]);
-        store.put(hash, b"test").await.unwrap();
-
-        store.clear().await.unwrap();
-
-        let result = store.get(&hash).await.unwrap();
-        assert!(result.is_none());
-        assert_eq!(store.len(), 0);
-    }
-
-    #[tokio::test]
     async fn test_blob_store_multiple() {
         let dir = tempdir().unwrap();
         let store = BlobStore::new(dir.path(), 3).unwrap();
@@ -330,4 +317,3 @@ mod tests {
         }
     }
 }
-

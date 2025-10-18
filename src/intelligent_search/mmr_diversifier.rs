@@ -1,10 +1,11 @@
 //! MMR (Maximal Marginal Relevance) Diversifier Module
-//! 
+//!
 //! This module implements MMR diversification to balance relevance and diversity
 //! in search results, preventing redundant content.
 
-use crate::intelligent_search::IntelligentSearchResult;
 use std::collections::HashSet;
+
+use crate::intelligent_search::IntelligentSearchResult;
 
 /// MMR diversifier for balancing relevance and diversity
 pub struct MMRDiversifier {
@@ -40,7 +41,7 @@ impl MMRDiversifier {
         // MMR selection for remaining results
         while diversified.len() < max_results && !remaining.is_empty() {
             let best_idx = self.select_best_mmr_result(&remaining, &diversified);
-            
+
             let result = remaining.remove(best_idx);
             diversified.push(result);
         }
@@ -60,10 +61,10 @@ impl MMRDiversifier {
         for (i, candidate) in candidates.iter().enumerate() {
             let relevance_score = candidate.score;
             let max_similarity = self.calculate_max_similarity(candidate, selected);
-            
+
             // MMR score: λ * relevance - (1-λ) * max_similarity
             let mmr_score = self.lambda * relevance_score - (1.0 - self.lambda) * max_similarity;
-            
+
             if mmr_score > best_score {
                 best_score = mmr_score;
                 best_idx = i;
@@ -84,12 +85,10 @@ impl MMRDiversifier {
         }
 
         let mut max_sim: f32 = 0.0;
-        
+
         for selected_result in selected {
-            let similarity = self.calculate_content_similarity(
-                &candidate.content,
-                &selected_result.content,
-            );
+            let similarity =
+                self.calculate_content_similarity(&candidate.content, &selected_result.content);
             max_sim = max_sim.max(similarity);
         }
 
@@ -132,8 +131,9 @@ impl Default for MMRDiversifier {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     fn create_test_result(id: &str, content: &str, score: f32) -> IntelligentSearchResult {
         IntelligentSearchResult {
@@ -163,11 +163,11 @@ mod tests {
         let mut diversifier = MMRDiversifier::new(0.5);
         diversifier.set_lambda(0.8);
         assert_eq!(diversifier.get_lambda(), 0.8);
-        
+
         // Test clamping
         diversifier.set_lambda(1.5);
         assert_eq!(diversifier.get_lambda(), 1.0);
-        
+
         diversifier.set_lambda(-0.5);
         assert_eq!(diversifier.get_lambda(), 0.0);
     }
@@ -183,9 +183,7 @@ mod tests {
     #[test]
     fn test_diversify_zero_max_results() {
         let diversifier = MMRDiversifier::new(0.7);
-        let results = vec![
-            create_test_result("doc1", "content about vectorizer", 0.9),
-        ];
+        let results = vec![create_test_result("doc1", "content about vectorizer", 0.9)];
         let diversified = diversifier.diversify(&results, 0);
         assert!(diversified.is_empty());
     }
@@ -193,9 +191,7 @@ mod tests {
     #[test]
     fn test_diversify_single_result() {
         let diversifier = MMRDiversifier::new(0.7);
-        let results = vec![
-            create_test_result("doc1", "content about vectorizer", 0.9),
-        ];
+        let results = vec![create_test_result("doc1", "content about vectorizer", 0.9)];
         let diversified = diversifier.diversify(&results, 5);
         assert_eq!(diversified.len(), 1);
         assert_eq!(diversified[0].doc_id, "doc1");
@@ -211,7 +207,7 @@ mod tests {
         ];
         let diversified = diversifier.diversify(&results, 2);
         assert_eq!(diversified.len(), 2);
-        
+
         // Results should be diversified (not necessarily in score order due to MMR)
         assert_eq!(diversified.len(), 2);
         assert!(diversified.iter().all(|r| r.score > 0.0));
@@ -220,25 +216,25 @@ mod tests {
     #[test]
     fn test_calculate_content_similarity() {
         let diversifier = MMRDiversifier::new(0.7);
-        
+
         // Identical content
         let sim1 = diversifier.calculate_content_similarity(
             "vectorizer is a vector database",
-            "vectorizer is a vector database"
+            "vectorizer is a vector database",
         );
         assert_eq!(sim1, 1.0);
-        
+
         // Similar content
         let sim2 = diversifier.calculate_content_similarity(
             "vectorizer is a vector database",
-            "vectorizer database for vectors"
+            "vectorizer database for vectors",
         );
         assert!(sim2 > 0.0 && sim2 < 1.0);
-        
+
         // Different content
         let sim3 = diversifier.calculate_content_similarity(
             "vectorizer is a vector database",
-            "completely different content"
+            "completely different content",
         );
         assert_eq!(sim3, 0.0);
     }
@@ -251,7 +247,7 @@ mod tests {
             create_test_result("doc1", "vectorizer is great", 0.9),
             create_test_result("doc2", "database performance", 0.7),
         ];
-        
+
         let max_sim = diversifier.calculate_max_similarity(&candidate, &selected);
         assert!(max_sim > 0.0);
     }
@@ -260,23 +256,23 @@ mod tests {
     fn test_lambda_effect_on_diversification() {
         // High lambda (more relevance-focused)
         let relevance_focused = MMRDiversifier::new(0.9);
-        
+
         // Low lambda (more diversity-focused)
         let diversity_focused = MMRDiversifier::new(0.1);
-        
+
         let results = vec![
             create_test_result("doc1", "vectorizer is a vector database", 0.9),
             create_test_result("doc2", "vectorizer performance benchmarks", 0.8),
             create_test_result("doc3", "completely different topic", 0.7),
         ];
-        
+
         let relevance_results = relevance_focused.diversify(&results, 2);
         let diversity_results = diversity_focused.diversify(&results, 2);
-        
+
         // Both should return 2 results
         assert_eq!(relevance_results.len(), 2);
         assert_eq!(diversity_results.len(), 2);
-        
+
         // Results might be different due to different lambda values
         // (exact order depends on similarity calculations)
     }

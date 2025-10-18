@@ -2,8 +2,9 @@
 //!
 //! Detects content type to apply appropriate normalization strategies.
 
-use regex::Regex;
 use std::path::Path;
+
+use regex::Regex;
 
 /// Content type classification for normalization
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -209,7 +210,11 @@ impl ContentTypeDetector {
             return false;
         }
 
-        let non_empty_lines: Vec<&str> = lines.iter().filter(|l| !l.trim().is_empty()).copied().collect();
+        let non_empty_lines: Vec<&str> = lines
+            .iter()
+            .filter(|l| !l.trim().is_empty())
+            .copied()
+            .collect();
         if non_empty_lines.len() < 3 {
             return false;
         }
@@ -226,10 +231,7 @@ impl ContentTypeDetector {
             if counts.len() >= 3 {
                 // Check consistency (at least 70% of lines have same delimiter count)
                 let most_common_count = Self::most_common(&counts);
-                let consistent_count = counts
-                    .iter()
-                    .filter(|&&c| c == most_common_count)
-                    .count();
+                let consistent_count = counts.iter().filter(|&&c| c == most_common_count).count();
 
                 if consistent_count as f64 / counts.len() as f64 >= 0.7 {
                     return true;
@@ -242,7 +244,11 @@ impl ContentTypeDetector {
 
     /// Detect table format
     fn detect_table_format(&self, lines: &[&str]) -> TableFormat {
-        let non_empty: Vec<&str> = lines.iter().filter(|l| !l.trim().is_empty()).copied().collect();
+        let non_empty: Vec<&str> = lines
+            .iter()
+            .filter(|l| !l.trim().is_empty())
+            .copied()
+            .collect();
         if non_empty.is_empty() {
             return TableFormat::Csv;
         }
@@ -408,4 +414,3 @@ fn main() {}
         assert_eq!(detector.detect(plain, None), ContentType::Plain);
     }
 }
-

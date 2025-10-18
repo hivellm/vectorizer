@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  vectorizer-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PROFILE=release
+        - FEATURES=
+    
+    container_name: vectorizer-dev
+    
+    ports:
+      - "15002:15002"  # MCP + REST API
+      - "15003:15003"  # Additional port
+    
+    volumes:
+      # Persistent data
+      - ./vectorizer-data:/vectorizer/data
+      - ./vectorizer-storage:/vectorizer/storage
+      - ./vectorizer-snapshots:/vectorizer/snapshots
+      - ./vectorizer-dashboard:/vectorizer/dashboard
+      
+      # Workspace configuration for Docker
+      - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
+      
+      # Mount entire monorepo for development
+      - ../../:/workspace:ro
+      
+      # Mount logs for debugging
+      - ./logs:/vectorizer/.logs
+    
+    environment:
+      - VECTORIZER_HOST=0.0.0.0
+      - VECTORIZER_PORT=15002
+      - TZ=America/Sao_Paulo
+      - RUN_MODE=development
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15002/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # For development, allow more resources
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'
+          memory: 8G
+        reservations:
+          cpus: '4.0'
+          memory: 4G
+

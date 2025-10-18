@@ -85,14 +85,34 @@ pub enum VectorizerError {
     /// Other errors
     #[error("{0}")]
     Other(String),
-    
+
     /// UMICP protocol error
     #[error("UMICP error: {0}")]
     UmicpError(#[from] umicp_core::error::UmicpError),
-    
+
     /// Transmutation document conversion error
     #[error("Transmutation error: {0}")]
     TransmutationError(String),
+
+    /// Storage error (for .vecdb operations)
+    #[error("Storage error: {0}")]
+    Storage(String),
+
+    /// Configuration error (alias)
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
+    /// Serialization error (string-based)
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+
+    /// Deserialization error (string-based)
+    #[error("Deserialization error: {0}")]
+    Deserialization(String),
+
+    /// IO error (alias for convenience)
+    #[error("IO error: {0}")]
+    Io(std::io::Error),
 }
 
 /// Result type alias for Vectorizer operations

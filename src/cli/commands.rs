@@ -2,17 +2,19 @@
 //!
 //! Implements the business logic for each CLI command
 
+use std::path::PathBuf;
+
+use serde_yaml;
+use tracing::{error, info, warn};
+
 use super::{
     ApiKeyCommands, CliConfig, CollectionCommands, ConfigCommands, DbCommands, ServerCommands,
     UserCommands,
 };
 use crate::auth::{AuthManager, Permission, Role};
 use crate::db::VectorStore;
-use crate::models::QuantizationConfig;
 use crate::error::Result;
-use serde_yaml;
-// PathBuf is used in function parameters
-use tracing::{error, info, warn};
+use crate::models::QuantizationConfig;
 
 /// Handle server management commands
 pub async fn handle_server_command(command: ServerCommands, config: &CliConfig) -> Result<()> {
@@ -476,9 +478,7 @@ pub async fn handle_db_command(command: DbCommands, _config: &CliConfig) -> Resu
         DbCommands::Optimize {
             rebuild_indexes,
             cleanup,
-        } => {
-            Ok(())
-        }
+        } => Ok(()),
     }
 }
 
@@ -635,4 +635,259 @@ pub async fn handle_status_command(detailed: bool, config: &CliConfig) -> Result
     info!("System Status: OK");
 
     Ok(())
+}
+
+/// Handle snapshot management commands
+pub async fn handle_snapshot_command(
+    command: super::SnapshotCommands,
+    config: &CliConfig,
+) -> Result<()> {
+    use crate::storage::SnapshotManager;
+
+    let data_dir = PathBuf::from("./data");
+    let snapshots_path = config.storage.snapshots.path.clone();
+    let max_snapshots = config.storage.snapshots.max_snapshots;
+    let retention_days = config.storage.snapshots.retention_days;
+
+    let manager = SnapshotManager::new(&data_dir, &snapshots_path, max_snapshots, retention_days);
+
+    match command {
+        super::SnapshotCommands::List { detailed } => {
+            info!("📸 Listing snapshots...");
+
+            let snapshots = manager.list_snapshots()?;
+
+            if snapshots.is_empty() {
+                info!("No snapshots found");
+                return Ok(());
+            }
+
+            info!("Found {} snapshots:", snapshots.len());
+            for snapshot in &snapshots {
+                info!("  ID: {}", snapshot.id);
+                info!("    Created: {}", snapshot.created_at);
+                info!("    Size: {:.2} MB", snapshot.size_mb());
+                info!("    Age: {} hours", snapshot.age_hours());
+
+                if detailed {
+                    info!("    Path: {:?}", snapshot.path);
+                    info!("    Version: {}", snapshot.index_version);
+                }
+                info!("");
+            }
+
+            Ok(())
+        }
+
+        super::SnapshotCommands::Create { description } => {
+            info!("📸 Creating snapshot...");
+
+            let snapshot = manager.create_snapshot()?;
+
+            info!("✅ Snapshot created successfully:");
+            info!("  ID: {}", snapshot.id);
+            info!("  Size: {:.2} MB", snapshot.size_mb());
+
+            if let Some(desc) = description {
+                info!("  Description: {}", desc);
+            }
+
+            Ok(())
+        }
+
+        super::SnapshotCommands::Restore { id, force } => {
+            info!("🔄 Restoring from snapshot: {}", id);
+
+            if !force {
+                warn!("⚠️  This will overwrite current data. Use --force to confirm.");
+                return Ok(());
+            }
+
+            manager.restore_snapshot(&id)?;
+            info!("✅ Snapshot restored successfully");
+
+            Ok(())
+        }
+
+        super::SnapshotCommands::Delete { id } => {
+            info!("🗑️  Deleting snapshot: {}", id);
+
+            if manager.delete_snapshot(&id)? {
+                info!("✅ Snapshot deleted");
+            } else {
+                warn!("⚠️  Snapshot not found: {}", id);
+            }
+
+            Ok(())
+        }
+
+        super::SnapshotCommands::Cleanup { dry_run } => {
+            info!("🧹 Cleaning up old snapshots...");
+
+            if dry_run {
+                info!("DRY RUN - No changes will be made");
+
+                let snapshots = manager.list_snapshots()?;
+                let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days as i64);
+
+                let to_delete: Vec<_> =
+                    snapshots.iter().filter(|s| s.created_at < cutoff).collect();
+
+                info!("Would delete {} snapshots:", to_delete.len());
+                for snapshot in to_delete {
+                    info!("  - {} ({})", snapshot.id, snapshot.created_at);
+                }
+            } else {
+                let deleted = manager.cleanup_old_snapshots()?;
+                info!("✅ Cleaned up {} old snapshots", deleted);
+            }
+
+            Ok(())
+        }
+    }
+}
+
+/// Handle storage management commands
+pub async fn handle_storage_command(
+    command: super::StorageCommands,
+    config: &CliConfig,
+) -> Result<()> {
+    use crate::storage::{
+        StorageCompactor, StorageFormat, StorageMigrator, StorageReader, detect_format,
+    };
+
+    let data_dir = PathBuf::from("./data");
+
+    match command {
+        super::StorageCommands::Info { detailed } => {
+            info!("💾 Storage Information:");
+
+            let format = detect_format(&data_dir);
+            info!("  Format: {:?}", format);
+
+            match format {
+                StorageFormat::Compact => match StorageReader::new(&data_dir) {
+                    Ok(reader) => {
+                        let index = reader.index()?;
+
+                        info!("  Collections: {}", index.collection_count());
+                        info!("  Total vectors: {}", index.total_vectors());
+                        info!("  Original size: {} MB", index.total_size / 1_048_576);
+                        info!(
+                            "  Compressed size: {} MB",
+                            index.compressed_size / 1_048_576
+                        );
+                        info!(
+                            "  Compression ratio: {:.2}%",
+                            index.compression_ratio * 100.0
+                        );
+                        info!(
+                            "  Space saved: {} MB",
+                            (index.total_size.saturating_sub(index.compressed_size)) / 1_048_576
+                        );
+
+                        if detailed {
+                            info!("\n  Collections:");
+                            for collection in &index.collections {
+                                info!("    {}:", collection.name);
+                                info!("      Vectors: {}", collection.vector_count);
+                                info!("      Dimension: {}", collection.dimension);
+                                info!("      Files: {}", collection.files.len());
+                                info!("      Size: {} MB", collection.total_size() / 1_048_576);
+                            }
+                        }
+
+                        let stats = reader.cache_stats()?;
+                        info!("\n  Cache:");
+                        info!("    Entries: {}", stats.entry_count);
+                        info!("    Size: {} MB", stats.total_size_bytes / 1_048_576);
+                        info!("    Utilization: {:.1}%", stats.utilization());
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to read storage: {}", e);
+                    }
+                },
+                StorageFormat::Legacy => {
+                    info!("  Using legacy file structure");
+                    info!("  Run 'vectorizer storage migrate' to convert to .vecdb format");
+                }
+            }
+
+            Ok(())
+        }
+
+        super::StorageCommands::Migrate { force, level } => {
+            info!("🔄 Starting storage migration...");
+
+            let migrator = StorageMigrator::new(&data_dir, level);
+
+            if !migrator.needs_migration() && !force {
+                info!("✅ Already using .vecdb format");
+                return Ok(());
+            }
+
+            let result = migrator.migrate()?;
+
+            info!("✅ Migration completed:");
+            info!("  Collections migrated: {}", result.collections_migrated);
+            info!("  {}", result.message);
+
+            if let Some(backup_path) = result.backup_path {
+                info!("  Backup: {:?}", backup_path);
+            }
+
+            Ok(())
+        }
+
+        super::StorageCommands::Verify { fix } => {
+            info!("🔍 Verifying storage integrity...");
+
+            let format = detect_format(&data_dir);
+
+            match format {
+                StorageFormat::Compact => {
+                    let compactor = StorageCompactor::new(&data_dir, 3, 1000);
+                    let is_valid = compactor.verify_integrity()?;
+
+                    if is_valid {
+                        info!("✅ Storage integrity verified");
+                    } else {
+                        error!("❌ Storage integrity check failed");
+
+                        if fix {
+                            warn!("🔧 Attempting to fix...");
+                            // Try to rebuild the archive
+                            compactor.compact_all()?;
+                            info!("✅ Storage rebuilt");
+                        }
+                    }
+                }
+                StorageFormat::Legacy => {
+                    info!("ℹ️  Using legacy format (no verification needed)");
+                }
+            }
+
+            Ok(())
+        }
+
+        super::StorageCommands::Compact { force } => {
+            info!("🗜️  Compacting storage...");
+
+            let mut compactor = StorageCompactor::new(&data_dir, 3, 1000);
+
+            if !force && !compactor.should_compact() {
+                info!("ℹ️  Compaction not needed (use --force to compact anyway)");
+                info!("  Pending operations: {}", compactor.pending_operations());
+                return Ok(());
+            }
+
+            let index = compactor.force_compact()?;
+
+            info!("✅ Compaction completed:");
+            info!("  Collections: {}", index.collection_count());
+            info!("  Compression: {:.2}%", index.compression_ratio * 100.0);
+
+            Ok(())
+        }
+    }
 }

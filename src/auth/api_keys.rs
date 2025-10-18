@@ -2,14 +2,16 @@
 //!
 //! Provides secure API key generation, storage, and validation
 
-use crate::auth::ApiKey;
-use crate::error::{Result, VectorizerError};
-// serde traits are used in the ApiKey struct
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::Arc;
+
+// serde traits are used in the ApiKey struct
+use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
+use crate::auth::ApiKey;
+use crate::error::{Result, VectorizerError};
 
 /// API Key manager for secure key operations
 #[derive(Debug)]

@@ -14,15 +14,13 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
+
 use serde::{Deserialize, Serialize};
 use tracing_subscriber;
-
-use vectorizer::{
-    VectorStore,
-    db::{OptimizedHnswConfig, OptimizedHnswIndex},
-    embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider},
-    models::{CollectionConfig, DistanceMetric, HnswConfig, Vector, Payload},
-};
+use vectorizer::VectorStore;
+use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};
+use vectorizer::embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider};
+use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector};
 
 /// Enhanced metrics with diagnostic info
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,8 +199,16 @@ fn benchmark_hnsw_vs_flat(
         p50_latency_us: percentile(&hnsw_latencies, 50),
         p95_latency_us: percentile(&hnsw_latencies, 95),
         p99_latency_us: percentile(&hnsw_latencies, 99),
-        min_latency_us: hnsw_latencies.iter().copied().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
-        max_latency_us: hnsw_latencies.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
+        min_latency_us: hnsw_latencies
+            .iter()
+            .copied()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
+        max_latency_us: hnsw_latencies
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
         memory_before_mb: 0.0,
         memory_after_mb: 0.0,
         memory_delta_mb: 0.0,
@@ -226,8 +232,16 @@ fn benchmark_hnsw_vs_flat(
         p50_latency_us: percentile(&flat_latencies, 50),
         p95_latency_us: percentile(&flat_latencies, 95),
         p99_latency_us: percentile(&flat_latencies, 99),
-        min_latency_us: flat_latencies.iter().copied().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
-        max_latency_us: flat_latencies.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
+        min_latency_us: flat_latencies
+            .iter()
+            .copied()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
+        max_latency_us: flat_latencies
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
         memory_before_mb: 0.0,
         memory_after_mb: 0.0,
         memory_delta_mb: 0.0,
@@ -241,10 +255,14 @@ fn benchmark_hnsw_vs_flat(
     results.push(hnsw_metrics);
     results.push(flat_metrics);
 
-    println!("  ✅ HNSW: {:.2} QPS, {:.0} μs avg, {:.0} nodes visited avg",
-             results[0].throughput_ops_per_sec, results[0].avg_latency_us, results[0].avg_visited_nodes);
-    println!("  ✅ Flat:  {:.2} QPS, {:.0} μs avg, {:.0} nodes visited",
-             results[1].throughput_ops_per_sec, results[1].avg_latency_us, results[1].avg_visited_nodes);
+    println!(
+        "  ✅ HNSW: {:.2} QPS, {:.0} μs avg, {:.0} nodes visited avg",
+        results[0].throughput_ops_per_sec, results[0].avg_latency_us, results[0].avg_visited_nodes
+    );
+    println!(
+        "  ✅ Flat:  {:.2} QPS, {:.0} μs avg, {:.0} nodes visited",
+        results[1].throughput_ops_per_sec, results[1].avg_latency_us, results[1].avg_visited_nodes
+    );
 
     Ok(results)
 }
@@ -315,20 +333,31 @@ fn benchmark_ef_search_sweep(
             p50_latency_us: percentile(&latencies, 50),
             p95_latency_us: percentile(&latencies, 95),
             p99_latency_us: percentile(&latencies, 99),
-            min_latency_us: latencies.iter().copied().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
-            max_latency_us: latencies.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
+            min_latency_us: latencies
+                .iter()
+                .copied()
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap_or(0.0),
+            max_latency_us: latencies
+                .iter()
+                .copied()
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap_or(0.0),
             memory_before_mb: 0.0,
             memory_after_mb: 0.0,
             memory_delta_mb: 0.0,
-            avg_visited_nodes: visited_counts.iter().sum::<usize>() as f64 / visited_counts.len() as f64,
+            avg_visited_nodes: visited_counts.iter().sum::<usize>() as f64
+                / visited_counts.len() as f64,
             total_visited_nodes: visited_counts.iter().sum::<usize>() as u64,
             ef_search,
             is_warm: true,
             search_type: "hnsw".to_string(),
         };
 
-        println!("    ✅ {:.2} QPS, {:.0} μs avg, {:.0} nodes visited avg",
-                 metrics.throughput_ops_per_sec, metrics.avg_latency_us, metrics.avg_visited_nodes);
+        println!(
+            "    ✅ {:.2} QPS, {:.0} μs avg, {:.0} nodes visited avg",
+            metrics.throughput_ops_per_sec, metrics.avg_latency_us, metrics.avg_visited_nodes
+        );
 
         results.push(metrics);
     }
@@ -407,13 +436,22 @@ fn benchmark_warm_vs_cold(
         dimension,
         total_operations: cold_latencies.len(),
         total_time_ms: cold_latencies.iter().sum::<f64>() / 1000.0,
-        throughput_ops_per_sec: cold_latencies.len() as f64 / (cold_latencies.iter().sum::<f64>() / 1000.0 / 1000.0),
+        throughput_ops_per_sec: cold_latencies.len() as f64
+            / (cold_latencies.iter().sum::<f64>() / 1000.0 / 1000.0),
         avg_latency_us: cold_latencies.iter().sum::<f64>() / cold_latencies.len() as f64,
         p50_latency_us: percentile(&cold_latencies, 50),
         p95_latency_us: percentile(&cold_latencies, 95),
         p99_latency_us: percentile(&cold_latencies, 99),
-        min_latency_us: cold_latencies.iter().copied().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
-        max_latency_us: cold_latencies.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
+        min_latency_us: cold_latencies
+            .iter()
+            .copied()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
+        max_latency_us: cold_latencies
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
         memory_before_mb: 0.0,
         memory_after_mb: 0.0,
         memory_delta_mb: 0.0,
@@ -431,13 +469,22 @@ fn benchmark_warm_vs_cold(
         dimension,
         total_operations: warm_latencies.len(),
         total_time_ms: warm_latencies.iter().sum::<f64>() / 1000.0,
-        throughput_ops_per_sec: warm_latencies.len() as f64 / (warm_latencies.iter().sum::<f64>() / 1000.0 / 1000.0),
+        throughput_ops_per_sec: warm_latencies.len() as f64
+            / (warm_latencies.iter().sum::<f64>() / 1000.0 / 1000.0),
         avg_latency_us: warm_latencies.iter().sum::<f64>() / warm_latencies.len() as f64,
         p50_latency_us: percentile(&warm_latencies, 50),
         p95_latency_us: percentile(&warm_latencies, 95),
         p99_latency_us: percentile(&warm_latencies, 99),
-        min_latency_us: warm_latencies.iter().copied().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
-        max_latency_us: warm_latencies.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0),
+        min_latency_us: warm_latencies
+            .iter()
+            .copied()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
+        max_latency_us: warm_latencies
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(0.0),
         memory_before_mb: 0.0,
         memory_after_mb: 0.0,
         memory_delta_mb: 0.0,
@@ -451,8 +498,14 @@ fn benchmark_warm_vs_cold(
     results.push(cold_metrics);
     results.push(warm_metrics);
 
-    println!("  ✅ Cold: {:.2} QPS, {:.0} μs avg", results[0].throughput_ops_per_sec, results[0].avg_latency_us);
-    println!("  ✅ Warm: {:.2} QPS, {:.0} μs avg", results[1].throughput_ops_per_sec, results[1].avg_latency_us);
+    println!(
+        "  ✅ Cold: {:.2} QPS, {:.0} μs avg",
+        results[0].throughput_ops_per_sec, results[0].avg_latency_us
+    );
+    println!(
+        "  ✅ Warm: {:.2} QPS, {:.0} μs avg",
+        results[1].throughput_ops_per_sec, results[1].avg_latency_us
+    );
 
     let speedup = results[0].avg_latency_us / results[1].avg_latency_us;
     println!("  ✅ Warm cache speedup: {:.2}x", speedup);
@@ -465,7 +518,10 @@ fn generate_test_vectors(
     num_vectors: usize,
     dimension: usize,
 ) -> Result<Vec<(String, Vec<f32>)>, Box<dyn std::error::Error>> {
-    println!("🔧 Generating {} test vectors (dimension {})...", num_vectors, dimension);
+    println!(
+        "🔧 Generating {} test vectors (dimension {})...",
+        num_vectors, dimension
+    );
 
     let mut vectors = Vec::new();
 
@@ -534,7 +590,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create report
     let report = DiagnosticReport {
-        timestamp: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        timestamp: chrono::Utc::now()
+            .format("%Y-%m-%d %H:%M:%S UTC")
+            .to_string(),
         dataset_size: 1_000_000, // Max tested
         dimension,
         hnsw_vs_flat_comparison: all_results.clone(),
@@ -564,11 +622,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=========================");
 
     // Analyze HNSW efficiency
-    let hnsw_results: Vec<_> = report.hnsw_vs_flat_comparison.iter()
+    let hnsw_results: Vec<_> = report
+        .hnsw_vs_flat_comparison
+        .iter()
         .filter(|m| m.search_type == "hnsw")
         .collect();
 
-    let flat_results: Vec<_> = report.hnsw_vs_flat_comparison.iter()
+    let flat_results: Vec<_> = report
+        .hnsw_vs_flat_comparison
+        .iter()
         .filter(|m| m.search_type == "flat")
         .collect();
 
@@ -577,10 +639,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let scan_ratio = hnsw.avg_visited_nodes / flat.avg_visited_nodes;
 
         println!("Dataset {}k vectors:", hnsw.dataset_size / 1000);
-        println!("  HNSW latency: {:.0} μs ({:.2} QPS)", hnsw.avg_latency_us, hnsw.throughput_ops_per_sec);
-        println!("  Flat latency:  {:.0} μs ({:.2} QPS)", flat.avg_latency_us, flat.throughput_ops_per_sec);
+        println!(
+            "  HNSW latency: {:.0} μs ({:.2} QPS)",
+            hnsw.avg_latency_us, hnsw.throughput_ops_per_sec
+        );
+        println!(
+            "  Flat latency:  {:.0} μs ({:.2} QPS)",
+            flat.avg_latency_us, flat.throughput_ops_per_sec
+        );
         println!("  HNSW efficiency: {:.1}x speedup", efficiency);
-        println!("  Nodes visited: {:.0} avg (HNSW) vs {:.0} (Flat)", hnsw.avg_visited_nodes, flat.avg_visited_nodes);
+        println!(
+            "  Nodes visited: {:.0} avg (HNSW) vs {:.0} (Flat)",
+            hnsw.avg_visited_nodes, flat.avg_visited_nodes
+        );
         println!("  Scan ratio: {:.3}", scan_ratio);
 
         if scan_ratio > 0.5 {
@@ -608,7 +679,9 @@ fn generate_diagnostic_report(report: &DiagnosticReport) -> String {
     md.push_str("| Dataset | Search Type | Throughput (QPS) | Latency (μs) | Nodes Visited | Efficiency |\n");
     md.push_str("|---------|-------------|------------------|--------------|---------------|------------|\n");
 
-    let hnsw_vs_flat: Vec<_> = report.hnsw_vs_flat_comparison.iter()
+    let hnsw_vs_flat: Vec<_> = report
+        .hnsw_vs_flat_comparison
+        .iter()
         .filter(|m| m.search_type == "hnsw" || m.search_type == "flat")
         .collect();
 
@@ -643,7 +716,9 @@ fn generate_diagnostic_report(report: &DiagnosticReport) -> String {
     md.push_str("| Cache State | Throughput (QPS) | Latency (μs) | Speedup |\n");
     md.push_str("|-------------|------------------|--------------|---------|\n");
 
-    let warm_cold: Vec<_> = report.warm_vs_cold_comparison.iter()
+    let warm_cold: Vec<_> = report
+        .warm_vs_cold_comparison
+        .iter()
         .filter(|m| m.is_warm || !m.is_warm)
         .collect();
 

@@ -1,13 +1,15 @@
 //! Incremental indexing system
 
-use super::*;
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use sha2::{Digest, Sha256};
 use tokio::fs;
 use tokio::sync::Mutex as AsyncMutex;
 use tokio::time::{Duration, Instant};
 use walkdir::WalkDir;
+
+use super::*;
 
 /// Incremental indexing processor
 pub struct IncrementalProcessor {

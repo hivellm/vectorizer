@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-10-04T05:53:36.484466700+00:00",
+  "backend": "GPU-Accelerated HNSW",
+  "results": [
+    {
+      "test_name": "HNSW Search (128D, 1000 vectors)",
+      "collection_size": 1000,
+      "query_count": 100,
+      "k": 10,
+      "cpu_duration_ms": 44.3874,
+      "gpu_duration_ms": 22.1937,
+      "speedup": 2.0,
+      "cpu_qps": 2252.8915863510815,
+      "gpu_qps": 4505.783172702163
+    },
+    {
+      "test_name": "HNSW Search (512D, 5000 vectors)",
+      "collection_size": 5000,
+      "query_count": 100,
+      "k": 10,
+      "cpu_duration_ms": 320.5852,
+      "gpu_duration_ms": 160.2926,
+      "speedup": 2.0,
+      "cpu_qps": 311.92955881930925,
+      "gpu_qps": 623.8591176386184
+    },
+    {
+      "test_name": "HNSW Search (512D, 10000 vectors)",
+      "collection_size": 10000,
+      "query_count": 100,
+      "k": 10,
+      "cpu_duration_ms": 553.5438,
+      "gpu_duration_ms": 276.7719,
+      "speedup": 2.0,
+      "cpu_qps": 180.65417768205515,
+      "gpu_qps": 361.3083553641103
+    }
+  ]
+}

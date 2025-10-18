@@ -9,42 +9,25 @@ pub enum FileOperationError {
     },
 
     #[error("File too large: {size_kb}KB exceeds limit of {max_size_kb}KB")]
-    FileTooLarge {
-        size_kb: usize,
-        max_size_kb: usize,
-    },
+    FileTooLarge { size_kb: usize, max_size_kb: usize },
 
     #[error("Invalid file path: {path} - {reason}")]
-    InvalidPath {
-        path: String,
-        reason: String,
-    },
+    InvalidPath { path: String, reason: String },
 
     #[error("Invalid parameter '{param}': {reason}")]
-    InvalidParameter {
-        param: String,
-        reason: String,
-    },
+    InvalidParameter { param: String, reason: String },
 
     #[error("Collection not found: {collection}")]
-    CollectionNotFound {
-        collection: String,
-    },
+    CollectionNotFound { collection: String },
 
     #[error("No chunks found for file: {file_path}")]
-    NoChunksFound {
-        file_path: String,
-    },
+    NoChunksFound { file_path: String },
 
     #[error("Cache error: {message}")]
-    CacheError {
-        message: String,
-    },
+    CacheError { message: String },
 
     #[error("Summarization error: {message}")]
-    SummarizationError {
-        message: String,
-    },
+    SummarizationError { message: String },
 
     #[error("Vector store error: {0}")]
     VectorStoreError(String),
@@ -57,4 +40,3 @@ pub enum FileOperationError {
 }
 
 pub type FileOperationResult<T> = Result<T, FileOperationError>;
-

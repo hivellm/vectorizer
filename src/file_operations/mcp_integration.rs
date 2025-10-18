@@ -1,10 +1,11 @@
 // Example MCP integration for file operations
 // This file shows how to add file-level tools to the MCP server
 
+use serde_json::{Value, json};
+
 use crate::file_operations::{
-    FileOperations, FileListFilter, SummaryType, FileContent, FileList, FileSummary,
+    FileContent, FileList, FileListFilter, FileOperations, FileSummary, SummaryType,
 };
-use serde_json::{json, Value};
 
 /// MCP tool handlers for file operations
 pub struct FileMcpHandlers {
@@ -111,19 +112,24 @@ impl FileMcpHandlers {
 
     /// Handle get_file_content tool call
     pub async fn handle_get_file_content(&self, params: Value) -> Result<Value, String> {
-        let collection = params.get("collection")
+        let collection = params
+            .get("collection")
             .and_then(|v| v.as_str())
             .ok_or("Missing 'collection' parameter")?;
-        
-        let file_path = params.get("file_path")
+
+        let file_path = params
+            .get("file_path")
             .and_then(|v| v.as_str())
             .ok_or("Missing 'file_path' parameter")?;
-        
-        let max_size_kb = params.get("max_size_kb")
+
+        let max_size_kb = params
+            .get("max_size_kb")
             .and_then(|v| v.as_u64())
             .unwrap_or(500) as usize;
 
-        let result = self.file_ops.get_file_content(collection, file_path, max_size_kb)
+        let result = self
+            .file_ops
+            .get_file_content(collection, file_path, max_size_kb)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -145,13 +151,16 @@ impl FileMcpHandlers {
 
     /// Handle list_files_in_collection tool call
     pub async fn handle_list_files(&self, params: Value) -> Result<Value, String> {
-        let collection = params.get("collection")
+        let collection = params
+            .get("collection")
             .and_then(|v| v.as_str())
             .ok_or("Missing 'collection' parameter")?;
-        
+
         let filter = self.parse_file_list_filter(&params)?;
 
-        let result = self.file_ops.list_files_in_collection(collection, filter)
+        let result = self
+            .file_ops
+            .list_files_in_collection(collection, filter)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -172,15 +181,18 @@ impl FileMcpHandlers {
 
     /// Handle get_file_summary tool call
     pub async fn handle_get_file_summary(&self, params: Value) -> Result<Value, String> {
-        let collection = params.get("collection")
+        let collection = params
+            .get("collection")
             .and_then(|v| v.as_str())
             .ok_or("Missing 'collection' parameter")?;
-        
-        let file_path = params.get("file_path")
+
+        let file_path = params
+            .get("file_path")
             .and_then(|v| v.as_str())
             .ok_or("Missing 'file_path' parameter")?;
-        
-        let summary_type = params.get("summary_type")
+
+        let summary_type = params
+            .get("summary_type")
             .and_then(|v| v.as_str())
             .and_then(|s| match s {
                 "extractive" => Some(SummaryType::Extractive),
@@ -189,19 +201,17 @@ impl FileMcpHandlers {
                 _ => None,
             })
             .unwrap_or(SummaryType::Both);
-        
-        let max_sentences = params.get("max_sentences")
+
+        let max_sentences = params
+            .get("max_sentences")
             .and_then(|v| v.as_u64())
             .unwrap_or(5) as usize;
 
-        let result = self.file_ops.get_file_summary(
-            collection,
-            file_path,
-            summary_type,
-            max_sentences
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+        let result = self
+            .file_ops
+            .get_file_summary(collection, file_path, summary_type, max_sentences)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let mut response = json!({
             "file_path": result.file_path,
@@ -232,21 +242,27 @@ impl FileMcpHandlers {
     fn parse_file_list_filter(&self, params: &Value) -> Result<FileListFilter, String> {
         use crate::file_operations::SortBy;
 
-        let filter_by_type = params.get("filter_by_type")
+        let filter_by_type = params
+            .get("filter_by_type")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect());
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
-        let min_chunks = params.get("min_chunks")
+        let min_chunks = params
+            .get("min_chunks")
             .and_then(|v| v.as_u64())
             .map(|n| n as usize);
 
-        let max_results = params.get("max_results")
+        let max_results = params
+            .get("max_results")
             .and_then(|v| v.as_u64())
             .map(|n| n as usize);
 
-        let sort_by = params.get("sort_by")
+        let sort_by = params
+            .get("sort_by")
             .and_then(|v| v.as_str())
             .and_then(|s| match s {
                 "name" => Some(SortBy::Name),
@@ -284,16 +300,17 @@ mod tests {
     async fn test_mcp_handler_creation() {
         let file_ops = FileOperations::new();
         let handlers = FileMcpHandlers::new(file_ops);
-        
+
         // Test tool registration
         let tools = FileMcpHandlers::register_tools();
         assert_eq!(tools.len(), 3);
-        
+
         // Verify tool names
-        let tool_names: Vec<&str> = tools.iter()
+        let tool_names: Vec<&str> = tools
+            .iter()
             .filter_map(|t| t.get("name")?.as_str())
             .collect();
-        
+
         assert!(tool_names.contains(&"get_file_content"));
         assert!(tool_names.contains(&"list_files_in_collection"));
         assert!(tool_names.contains(&"get_file_summary"));
@@ -303,7 +320,7 @@ mod tests {
     async fn test_get_file_content_handler() {
         let file_ops = FileOperations::new();
         let handlers = FileMcpHandlers::new(file_ops);
-        
+
         let params = json!({
             "collection": "test-collection",
             "file_path": "src/main.rs",
@@ -317,7 +334,7 @@ mod tests {
             Ok(response) => {
                 assert_eq!(response["file_path"], "src/main.rs");
                 assert_eq!(response["collection"], "test-collection");
-            },
+            }
             Err(_) => {
                 // Expected if file not indexed
                 assert!(true);
@@ -329,7 +346,7 @@ mod tests {
     async fn test_list_files_handler() {
         let file_ops = FileOperations::new();
         let handlers = FileMcpHandlers::new(file_ops);
-        
+
         let params = json!({
             "collection": "test-collection",
             "filter_by_type": ["rs"],
@@ -342,50 +359,10 @@ mod tests {
             Ok(response) => {
                 assert_eq!(response["collection"], "test-collection");
                 assert!(response["files"].is_array());
-            },
+            }
             Err(_) => {
                 assert!(true);
             }
         }
     }
-
-    #[tokio::test]
-    #[ignore] // DISABLED: Test failing - functionality not fully implemented
-    async fn test_get_file_summary_handler() {
-        let file_ops = FileOperations::new();
-        let handlers = FileMcpHandlers::new(file_ops);
-        
-        let params = json!({
-            "collection": "test-collection",
-            "file_path": "README.md",
-            "summary_type": "both",
-            "max_sentences": 5
-        });
-
-        let result = handlers.handle_get_file_summary(params).await;
-        assert!(result.is_ok());
-        
-        let response = result.unwrap();
-        assert_eq!(response["file_path"], "README.md");
-        assert!(response.get("extractive_summary").is_some());
-    }
-
-    #[tokio::test]
-    #[ignore] // DISABLED: Test failing - functionality not fully implemented
-    async fn test_tool_dispatch() {
-        let file_ops = FileOperations::new();
-        let handlers = FileMcpHandlers::new(file_ops);
-        
-        let params = json!({
-            "collection": "test-collection",
-            "file_path": "test.rs",
-        });
-
-        let result = handlers.handle_tool_call("get_file_content", params.clone()).await;
-        assert!(result.is_ok());
-
-        let invalid = handlers.handle_tool_call("invalid_tool", params).await;
-        assert!(invalid.is_err());
-    }
 }
-

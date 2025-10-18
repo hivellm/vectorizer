@@ -1,48 +1,45 @@
 //! Batch Operations Module - Phase 6
-//! 
+//!
 //! This module implements high-performance batch operations for vector management,
 //! enabling AI models to perform multiple operations in a single API call.
-//! 
+//!
 //! Key features:
 //! - Batch insert, update, delete, and search operations
 //! - Atomic transactions (all succeed or all fail)
 //! - Parallel processing with configurable workers
 //! - Memory-efficient streaming for large batches
 //! - Comprehensive error handling and reporting
-//! 
+//!
 //! Performance targets:
 //! - 10,000 vectors/second batch insert
 //! - 10x throughput improvement over individual operations
 //! - <100ms latency for batches up to 1,000 operations
 
-pub mod processor;
-pub mod operations;
 pub mod config;
 pub mod error;
+pub mod operations;
 pub mod parallel;
+pub mod processor;
 pub mod validation;
 
-use std::sync::Arc;
 use std::collections::HashMap;
-use tokio::sync::RwLock;
+use std::sync::Arc;
+
+pub use config::BatchConfig;
+pub use error::{BatchError, BatchErrorType, BatchResult, BatchStatus};
+pub use operations::{
+    BatchDeleteOperation, BatchInsertOperation, BatchOperationManager, BatchSearchOperation,
+    BatchUpdateOperation,
+};
+pub use parallel::ParallelProcessor;
+pub use processor::BatchProcessor;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
+pub use validation::BatchValidator;
 
 use crate::db::VectorStore;
 use crate::embedding::EmbeddingManager;
 use crate::models::Vector;
-
-pub use processor::BatchProcessor;
-pub use config::BatchConfig;
-pub use error::{BatchError, BatchResult, BatchStatus, BatchErrorType};
-pub use operations::{
-    BatchInsertOperation,
-    BatchUpdateOperation, 
-    BatchDeleteOperation,
-    BatchSearchOperation,
-    BatchOperationManager,
-};
-pub use parallel::ParallelProcessor;
-pub use validation::BatchValidator;
 
 /// Batch operation types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,7 +141,7 @@ mod tests {
             data: Some(vec![0.1, 0.2, 0.3]),
             metadata: Some(HashMap::new()),
         };
-        
+
         assert_eq!(update.id, "test_id");
         assert_eq!(update.data, Some(vec![0.1, 0.2, 0.3]));
     }
@@ -158,7 +155,7 @@ mod tests {
             threshold: Some(0.8),
             filters: HashMap::new(),
         };
-        
+
         assert_eq!(query.limit, 10);
         assert_eq!(query.threshold, Some(0.8));
     }

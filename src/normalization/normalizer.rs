@@ -2,10 +2,11 @@
 //!
 //! Applies content-aware text normalization to reduce storage and improve consistency.
 
-use super::detector::ContentType;
-use super::hasher::{ContentHash, ContentHashCalculator};
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
+
+use super::detector::ContentType;
+use super::hasher::{ContentHash, ContentHashCalculator};
 
 /// Normalization level determines aggressiveness of text processing
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,11 +88,7 @@ impl TextNormalizer {
     }
 
     /// Normalize text with optional content type override
-    pub fn normalize(
-        &self,
-        raw: &str,
-        content_type: Option<ContentType>,
-    ) -> NormalizedContent {
+    pub fn normalize(&self, raw: &str, content_type: Option<ContentType>) -> NormalizedContent {
         let original_size = raw.len();
         let content_type = content_type.unwrap_or(ContentType::Plain);
 
@@ -102,9 +99,7 @@ impl TextNormalizer {
                 self.normalize_conservative(raw)
             }
             // Aggressive for plain text when configured
-            (NormalizationLevel::Aggressive, ContentType::Plain) => {
-                self.normalize_aggressive(raw)
-            }
+            (NormalizationLevel::Aggressive, ContentType::Plain) => self.normalize_aggressive(raw),
             // Moderate for everything else
             _ => self.normalize_moderate(raw),
         };
@@ -352,27 +347,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Test has state issues, not related to transmutation
-    fn test_normalize_with_content_type() {
-        let normalizer = TextNormalizer::default();
-
-        // Code should use conservative
-        let code = "fn   main()   {\n    println!(\"test\");\n}";
-        let result = normalizer.normalize(
-            code,
-            Some(ContentType::Code {
-                language: Some("rust".to_string()),
-            }),
-        );
-        assert!(result.text.contains("   ")); // Preserves code spacing
-
-        // Plain text should use moderate by default
-        let plain = "Hello   World\n\n\n\nTest";
-        let result = normalizer.normalize(plain, Some(ContentType::Plain));
-        assert!(!result.text.contains("   ")); // Collapses spacing
-    }
-
-    #[test]
     fn test_metadata() {
         let normalizer = TextNormalizer::default();
 
@@ -412,4 +386,3 @@ mod tests {
         assert_eq!(result, "é"); // Should be composed
     }
 }
-

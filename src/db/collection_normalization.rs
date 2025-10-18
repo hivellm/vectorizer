@@ -3,13 +3,13 @@
 //! This module provides helper methods to integrate text normalization
 //! with vector collections.
 
-use crate::{
-    error::Result,
-    models::{CollectionConfig, Payload, Vector},
-    normalization::{NormalizationPipeline, ProcessedDocument},
-};
-use serde_json::json;
 use std::path::Path;
+
+use serde_json::json;
+
+use crate::error::Result;
+use crate::models::{CollectionConfig, Payload, Vector};
+use crate::normalization::{NormalizationPipeline, ProcessedDocument};
 
 /// Helper methods for working with normalized text in collections
 pub struct CollectionNormalizationHelper {
@@ -89,11 +89,7 @@ impl CollectionNormalizationHelper {
     /// Enrich payload with normalization metadata
     ///
     /// Adds normalized_text, original_text, content_type, and content_hash to payload
-    pub fn enrich_payload(
-        &self,
-        mut payload: Payload,
-        processed: &ProcessedDocument,
-    ) -> Payload {
+    pub fn enrich_payload(&self, mut payload: Payload, processed: &ProcessedDocument) -> Payload {
         if let Some(pipeline) = &self.pipeline {
             // Add normalization metadata to payload
             if let Some(original) = &processed.original_text {
@@ -137,9 +133,10 @@ impl CollectionNormalizationHelper {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::tempdir;
+
     use super::*;
     use crate::normalization::NormalizationConfig;
-    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_helper_no_normalization() {
@@ -227,4 +224,3 @@ mod tests {
         assert_eq!(enriched.data["file_path"], "/test/file.txt");
     }
 }
-

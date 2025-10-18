@@ -6,16 +6,18 @@
 //! deterministic placeholder embeddings. This allows the benchmark to run
 //! end-to-end when the `onnx-models` feature is enabled.
 
-use anyhow::Result as AnyhowResult;
-use crate::error::{Result, VectorizerError};
-// use ndarray::Array1;
-use parking_lot::RwLock;
 // use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use anyhow::Result as AnyhowResult;
+// use ndarray::Array1;
+use parking_lot::RwLock;
 use tracing::info;
 use xxhash_rust::xxh3::xxh3_64;
+
+use crate::error::{Result, VectorizerError};
 
 /// ONNX model types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -236,8 +238,9 @@ impl OnnxEmbedder {
 
 /// Benchmark utilities for ONNX models
 pub mod benchmark {
-    use super::*;
     use std::time::Instant;
+
+    use super::*;
 
     pub fn benchmark_onnx_throughput(
         model_type: OnnxModelType,
@@ -273,13 +276,11 @@ pub mod benchmark {
 
 impl crate::embedding::EmbeddingProvider for OnnxEmbedder {
     fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
-        OnnxEmbedder::embed_batch(self, texts)
-            .map_err(|e| VectorizerError::Other(e.to_string()))
+        OnnxEmbedder::embed_batch(self, texts).map_err(|e| VectorizerError::Other(e.to_string()))
     }
 
     fn embed(&self, text: &str) -> Result<Vec<f32>> {
-        OnnxEmbedder::embed(self, text)
-            .map_err(|e| VectorizerError::Other(e.to_string()))
+        OnnxEmbedder::embed(self, text).map_err(|e| VectorizerError::Other(e.to_string()))
     }
 
     fn dimension(&self) -> usize {

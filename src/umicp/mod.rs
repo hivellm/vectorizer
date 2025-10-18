@@ -1,13 +1,18 @@
 //! UMICP Protocol Integration for Vectorizer
-//! 
+//!
 //! This module provides UMICP protocol support for the vectorizer,
 //! enabling high-performance streaming communication over HTTP.
+//!
+//! Version 0.2.1: Native JSON types + Tool Discovery
 
 use axum::response::Json;
 use serde_json::Value;
 
+pub mod discovery;
 pub mod handlers;
 pub mod transport;
+
+pub use discovery::VectorizerDiscoveryService;
 
 /// UMICP server state
 #[derive(Clone)]

@@ -6,12 +6,13 @@ pub mod commands;
 pub mod config;
 pub mod utils;
 
-pub use commands::*;
-// Re-export CliConfig directly since it's defined in this module
-pub use utils::*;
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+pub use commands::*;
+use tracing::warn;
+// Re-export CliConfig directly since it's defined in this module
+pub use utils::*;
 
 /// Vectorizer CLI - Administrative tools for the vector database
 #[derive(Parser)]
@@ -70,6 +71,16 @@ pub enum Commands {
     Config {
         #[command(subcommand)]
         action: ConfigCommands,
+    },
+    /// Snapshot management commands
+    Snapshot {
+        #[command(subcommand)]
+        action: SnapshotCommands,
+    },
+    /// Storage management commands
+    Storage {
+        #[command(subcommand)]
+        action: StorageCommands,
     },
 }
 
@@ -283,6 +294,76 @@ pub enum ConfigCommands {
     },
 }
 
+/// Snapshot management commands
+#[derive(Subcommand)]
+pub enum SnapshotCommands {
+    /// List all available snapshots
+    List {
+        /// Show detailed information
+        #[arg(short, long)]
+        detailed: bool,
+    },
+    /// Create a new snapshot
+    Create {
+        /// Optional snapshot description
+        #[arg(short, long)]
+        description: Option<String>,
+    },
+    /// Restore from a snapshot
+    Restore {
+        /// Snapshot ID to restore from
+        #[arg(short, long)]
+        id: String,
+        /// Force restore without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Delete a snapshot
+    Delete {
+        /// Snapshot ID to delete
+        #[arg(short, long)]
+        id: String,
+    },
+    /// Clean up old snapshots
+    Cleanup {
+        /// Dry run (show what would be deleted)
+        #[arg(long)]
+        dry_run: bool,
+    },
+}
+
+/// Storage management commands
+#[derive(Subcommand)]
+pub enum StorageCommands {
+    /// Show storage information and statistics
+    Info {
+        /// Show detailed statistics
+        #[arg(short, long)]
+        detailed: bool,
+    },
+    /// Migrate from legacy format to .vecdb
+    Migrate {
+        /// Force migration even if already migrated
+        #[arg(short, long)]
+        force: bool,
+        /// Compression level (1-22)
+        #[arg(long, default_value = "3")]
+        level: i32,
+    },
+    /// Verify storage integrity
+    Verify {
+        /// Fix issues if possible
+        #[arg(long)]
+        fix: bool,
+    },
+    /// Compact storage manually
+    Compact {
+        /// Force compaction
+        #[arg(short, long)]
+        force: bool,
+    },
+}
+
 /// CLI configuration
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CliConfig {
@@ -294,6 +375,9 @@ pub struct CliConfig {
     pub database: DatabaseConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
+    /// Storage configuration
+    #[serde(default)]
+    pub storage: crate::storage::StorageConfig,
 }
 
 /// Server configuration for CLI
@@ -351,6 +435,7 @@ impl Default for CliConfig {
                 log_to_file: false,
                 log_file: None,
             },
+            storage: crate::storage::StorageConfig::default(),
         }
     }
 }
@@ -388,6 +473,12 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Config { action } => {
             handle_config_command(action, &config).await?;
         }
+        Commands::Snapshot { action } => {
+            commands::handle_snapshot_command(action, &config).await?;
+        }
+        Commands::Storage { action } => {
+            commands::handle_storage_command(action, &config).await?;
+        }
     }
 
     Ok(())
@@ -408,9 +499,14 @@ fn init_logging(verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
 fn load_config(path: &PathBuf) -> Result<CliConfig, Box<dyn std::error::Error>> {
     if path.exists() {
         let content = std::fs::read_to_string(path)?;
-        let config: CliConfig = serde_yaml::from_str(&content)
-            .map_err(|e| crate::error::VectorizerError::YamlError(e))?;
-        Ok(config)
+        // Try to parse, but fall back to default if it fails
+        match serde_yaml::from_str::<CliConfig>(&content) {
+            Ok(config) => Ok(config),
+            Err(e) => {
+                warn!("Failed to parse config file, using defaults: {}", e);
+                Ok(CliConfig::default())
+            }
+        }
     } else {
         // Return default configuration
         Ok(CliConfig::default())

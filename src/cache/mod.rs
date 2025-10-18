@@ -3,12 +3,13 @@
 //! This module provides intelligent cache management and incremental indexing
 //! capabilities to optimize startup times and resource usage.
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -54,7 +55,7 @@ pub enum CacheError {
 
     #[error("Cache is locked by another process")]
     Locked,
-    
+
     #[error("An unexpected error occurred: {0}")]
     Other(String),
 }
