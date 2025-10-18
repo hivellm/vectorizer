@@ -2355,7 +2355,9 @@ mod tests {
             normalization: None,
         };
 
-        store.create_collection("error_test", config).unwrap();
+        // Use unique collection name to avoid conflicts in parallel test execution
+        let test_collection = format!("error_test_{}", std::process::id());
+        store.create_collection(&test_collection, config).unwrap();
 
         // Test operations on non-existent collection
         let result = store.insert("non_existent", vec![]);
@@ -2377,16 +2379,16 @@ mod tests {
         ));
 
         // Test operations on non-existent vector
-        let result = store.get_vector("error_test", "non_existent");
+        let result = store.get_vector(&test_collection, "non_existent");
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
 
         let result = store.update(
-            "error_test",
+            &test_collection,
             Vector::new("non_existent".to_string(), vec![1.0, 2.0, 3.0]),
         );
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
 
-        let result = store.delete("error_test", "non_existent");
+        let result = store.delete(&test_collection, "non_existent");
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
     }
 }
