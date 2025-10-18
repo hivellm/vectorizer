@@ -1,20 +1,20 @@
 #[cfg(target_os = "macos")]
-use vectorizer::error::Result;
-#[cfg(target_os = "macos")]
-use vectorizer::models::{Payload, CollectionConfig, HnswConfig, DistanceMetric, Vector};
-#[cfg(target_os = "macos")]
-use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext, GpuVectorStorage};
-#[cfg(target_os = "macos")]
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
 #[cfg(target_os = "macos")]
-use tracing::{info, error};
+use hive_gpu::{GpuContext, GpuDistanceMetric, GpuVector, GpuVectorStorage};
+#[cfg(target_os = "macos")]
+use tracing::{error, info};
+#[cfg(target_os = "macos")]
+use vectorizer::error::Result;
+#[cfg(target_os = "macos")]
+use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, Vector};
 
 // Test MCP integration
 #[cfg(feature = "metal-native")]
 #[tokio::test]
 async fn test_mcp_integration() -> Result<()> {
-    use vectorizer::{VectorStore, CollectionConfig, DistanceMetric};
     use vectorizer::models::HnswConfig;
+    use vectorizer::{CollectionConfig, DistanceMetric, VectorStore};
 
     // Initialize tracing
     tracing_subscriber::fmt()
@@ -31,7 +31,10 @@ async fn test_mcp_integration() -> Result<()> {
     let config = CollectionConfig {
         dimension: 128,
         metric: DistanceMetric::Cosine,
-        hnsw_config: HnswConfig { m: 16, ..Default::default() },
+        hnsw_config: HnswConfig {
+            m: 16,
+            ..Default::default()
+        },
         ..Default::default()
     };
 
@@ -91,18 +94,19 @@ fn main() {
 #[cfg(all(feature = "metal-native", target_os = "macos"))]
 async fn test_basic_functionality() -> Result<()> {
     use std::time::Instant;
+
     // Using hive-gpu instead of local GPU module
-    use vectorizer::models::{Vector, DistanceMetric};
+    use vectorizer::models::{DistanceMetric, Vector};
 
     // Test 1: Create collection
     println!("📊 Test 1: Create Collection");
     println!("----------------------------");
-    
+
     let start = Instant::now();
     let context = MetalNativeContext::new()?;
     let mut collection = context.create_storage(128, GpuDistanceMetric::Cosine)?;
     let elapsed = start.elapsed();
-    
+
     println!("  ✅ Collection created: {:?}", elapsed);
     println!("  Dimension: 128D");
     println!("  Metric: Cosine");
@@ -111,18 +115,18 @@ async fn test_basic_functionality() -> Result<()> {
     // Test 2: Add a single vector
     println!("📊 Test 2: Add Single Vector");
     println!("----------------------------");
-    
+
     let test_vector = Vector {
         id: "test_vector".to_string(),
         data: (0..128).map(|i| i as f32 * 0.01).collect(),
         payload: None,
     };
-    
+
     let start = Instant::now();
     let indices = collection.add_vectors(&[test_vector.clone()])?;
     let index = indices[0];
     let elapsed = start.elapsed();
-    
+
     println!("  ✅ Vector added at index {}: {:?}", index, elapsed);
     println!("  Vector count: {}", collection.vector_count());
     println!();
@@ -130,24 +134,27 @@ async fn test_basic_functionality() -> Result<()> {
     // Test 3: Get vector back
     println!("📊 Test 3: Retrieve Vector");
     println!("--------------------------");
-    
+
     let start = Instant::now();
     let retrieved = collection.get_vector(index)?;
     let elapsed = start.elapsed();
-    
+
     println!("  ✅ Vector retrieved: {:?}", elapsed);
     println!("  ID matches: {}", retrieved.id == test_vector.id);
-    println!("  Data length matches: {}", retrieved.data.len() == test_vector.data.len());
+    println!(
+        "  Data length matches: {}",
+        retrieved.data.len() == test_vector.data.len()
+    );
     println!();
 
     // Test 4: Get vector by ID
     println!("📊 Test 4: Get Vector by ID");
     println!("---------------------------");
-    
+
     let start = Instant::now();
     let retrieved_by_id = collection.get_vector_by_id("test_vector")?;
     let elapsed = start.elapsed();
-    
+
     println!("  ✅ Vector retrieved by ID: {:?}", elapsed);
     println!("  ID matches: {}", retrieved_by_id.id == test_vector.id);
     println!();
@@ -155,24 +162,30 @@ async fn test_basic_functionality() -> Result<()> {
     // Test 5: Remove vector
     println!("📊 Test 5: Remove Vector");
     println!("------------------------");
-    
+
     let start = Instant::now();
     collection.remove_vector("test_vector".to_string())?;
     let elapsed = start.elapsed();
-    
+
     println!("  ✅ Vector removed: {:?}", elapsed);
-    println!("  Vector count after removal: {}", collection.vector_count());
+    println!(
+        "  Vector count after removal: {}",
+        collection.vector_count()
+    );
     println!();
 
     // Test 6: Try to get removed vector (should fail - not found)
     println!("📊 Test 6: Verify Vector Removal");
     println!("---------------------------------");
-    
+
     match collection.get_vector_by_id("test_vector") {
         Ok(_) => println!("  ❌ ERROR: Vector should have been removed"),
-        Err(e) => println!("  ✅ Vector correctly removed: {}", e.to_string().contains("not found")),
+        Err(e) => println!(
+            "  ✅ Vector correctly removed: {}",
+            e.to_string().contains("not found")
+        ),
     }
-    
+
     println!();
 
     // Test 7: Add multiple vectors and test GPU search
@@ -200,7 +213,11 @@ async fn test_basic_functionality() -> Result<()> {
         collection.add_vectors(&[vector.clone()])?;
     }
     let elapsed = start.elapsed();
-    info!("  ✅ Added {} vectors for search test: {:?}", test_vectors.len(), elapsed);
+    info!(
+        "  ✅ Added {} vectors for search test: {:?}",
+        test_vectors.len(),
+        elapsed
+    );
 
     // Test GPU search - search for the first vector
     println!("📊 Test 8: GPU Full Search");
@@ -211,11 +228,18 @@ async fn test_basic_functionality() -> Result<()> {
     let search_results = collection.search(query_vector, 3)?;
     let elapsed = start.elapsed();
 
-    info!("  ✅ GPU search completed: {} results in {:?}", search_results.len(), elapsed);
+    info!(
+        "  ✅ GPU search completed: {} results in {:?}",
+        search_results.len(),
+        elapsed
+    );
     info!("  Best match distance: {:.6}", search_results[0].1);
 
     // The first result should be very close (exact match)
-    assert!(search_results[0].1 < 0.001, "First result should be exact match");
+    assert!(
+        search_results[0].1 < 0.001,
+        "First result should be exact match"
+    );
     info!("  ✅ Search accuracy verified");
 
     println!();
@@ -227,7 +251,10 @@ async fn test_basic_functionality() -> Result<()> {
     let config_512d = CollectionConfig {
         dimension: 512,
         metric: DistanceMetric::Cosine,
-        hnsw_config: HnswConfig { m: 16, ..Default::default() },
+        hnsw_config: HnswConfig {
+            m: 16,
+            ..Default::default()
+        },
         ..Default::default()
     };
 
@@ -258,7 +285,11 @@ async fn test_basic_functionality() -> Result<()> {
     let search_results_512d = collection_512d.search(query_512d, 3)?;
     let elapsed = start.elapsed();
 
-    info!("  ✅ 512D GPU search completed: {} results in {:?}", search_results_512d.len(), elapsed);
+    info!(
+        "  ✅ 512D GPU search completed: {} results in {:?}",
+        search_results_512d.len(),
+        elapsed
+    );
     if !search_results_512d.is_empty() {
         info!("  🎯 Best distance: {:.6}", search_results_512d[0].1);
     }
@@ -272,14 +303,21 @@ async fn test_basic_functionality() -> Result<()> {
     // Test k=0
     println!("Testing k=0...");
     let empty_results = collection.search(query_vector, 0)?;
-    info!("  ✅ k=0 returned {} results (expected 0)", empty_results.len());
+    info!(
+        "  ✅ k=0 returned {} results (expected 0)",
+        empty_results.len()
+    );
     assert_eq!(empty_results.len(), 0);
 
     // Test k > vector_count
     println!("Testing k > vector_count...");
     let large_k_results = collection.search(query_vector, 100)?;
     let actual_vector_count = collection.vector_count();
-    info!("  ✅ k=100 returned {} results, collection has {} vectors", large_k_results.len(), actual_vector_count);
+    info!(
+        "  ✅ k=100 returned {} results, collection has {} vectors",
+        large_k_results.len(),
+        actual_vector_count
+    );
     assert_eq!(large_k_results.len(), actual_vector_count);
 
     // Test with invalid query dimensions (should fail gracefully)
@@ -287,7 +325,10 @@ async fn test_basic_functionality() -> Result<()> {
     let wrong_dim_query = vec![1.0; 64]; // 64D instead of 128D
     match collection.search(&wrong_dim_query, 1) {
         Ok(_) => panic!("Should have failed with dimension mismatch"),
-        Err(e) => info!("  ✅ Correctly failed with dimension mismatch: {}", e.to_string().contains("DimensionMismatch")),
+        Err(e) => info!(
+            "  ✅ Correctly failed with dimension mismatch: {}",
+            e.to_string().contains("DimensionMismatch")
+        ),
     }
 
     // Test concurrent searches (simulate MCP load)
@@ -332,7 +373,10 @@ async fn test_basic_functionality() -> Result<()> {
 
     info!("🔍 Simulating MCP search call...");
     let mcp_results = collection.search(&mcp_query, mcp_k)?;
-    info!("✅ MCP simulation successful: {} results", mcp_results.len());
+    info!(
+        "✅ MCP simulation successful: {} results",
+        mcp_results.len()
+    );
 
     // Test 12: Discovery-like search with embedding manager
     println!("\n📊 Test 12: Discovery-like Search (with Embedding)");
@@ -355,7 +399,10 @@ async fn test_basic_functionality() -> Result<()> {
 
     // Search with the embedding (like discovery does)
     let discovery_results = collection.search(&query_embedding, 3)?;
-    info!("✅ Discovery-like search successful: {} results", discovery_results.len());
+    info!(
+        "✅ Discovery-like search successful: {} results",
+        discovery_results.len()
+    );
 
     // Test 13: 512D Discovery-like search (real MCP scenario)
     println!("\n📊 Test 13: 512D Discovery-like Search (Real MCP Scenario)");
@@ -367,10 +414,16 @@ async fn test_basic_functionality() -> Result<()> {
     embedding_manager_512d.set_default_provider("bm25")?;
 
     let query_embedding_512d = embedding_manager_512d.embed(text_query)?;
-    info!("✅ 512D Embedding created: {} dimensions", query_embedding_512d.len());
+    info!(
+        "✅ 512D Embedding created: {} dimensions",
+        query_embedding_512d.len()
+    );
 
     let discovery_512d_results = collection_512d.search(&query_embedding_512d, 3)?;
-    info!("✅ 512D Discovery-like search successful: {} results", discovery_512d_results.len());
+    info!(
+        "✅ 512D Discovery-like search successful: {} results",
+        discovery_512d_results.len()
+    );
 
     println!("🎉 All MCP and discovery simulations completed successfully!");
     println!("🎉 If this works but real MCP crashes, the issue is in MCP integration!");
@@ -387,14 +440,20 @@ async fn test_basic_functionality() -> Result<()> {
 
     // Check if we have any loaded collections
     let collections = store.list_collections();
-    info!("📊 VectorStore has {} collections loaded", collections.len());
+    info!(
+        "📊 VectorStore has {} collections loaded",
+        collections.len()
+    );
 
     if collections.is_empty() {
         info!("⚠️ No collections loaded, creating test collection...");
         let config = CollectionConfig {
             dimension: 128,
             metric: DistanceMetric::Cosine,
-            hnsw_config: HnswConfig { m: 16, ..Default::default() },
+            hnsw_config: HnswConfig {
+                m: 16,
+                ..Default::default()
+            },
             ..Default::default()
         };
 
@@ -416,9 +475,16 @@ async fn test_basic_functionality() -> Result<()> {
     // Now test search like MCP does
     let query = vec![0.1; 128];
     for collection_name in &collections {
-        info!("🔍 Testing MCP-like search on collection '{}'", collection_name);
+        info!(
+            "🔍 Testing MCP-like search on collection '{}'",
+            collection_name
+        );
         let results = store.search(collection_name, &query, 3)?;
-        info!("✅ MCP-like search on '{}' successful: {} results", collection_name, results.len());
+        info!(
+            "✅ MCP-like search on '{}' successful: {} results",
+            collection_name,
+            results.len()
+        );
     }
 
     // Test with embedding manager like discovery
@@ -429,12 +495,22 @@ async fn test_basic_functionality() -> Result<()> {
 
     let text_query = "server test query for MCP simulation";
     let query_embedding = embedding_manager.embed(text_query)?;
-    info!("✅ Server embedding created: {} dimensions", query_embedding.len());
+    info!(
+        "✅ Server embedding created: {} dimensions",
+        query_embedding.len()
+    );
 
     for collection_name in &collections {
-        info!("🔍 Testing discovery-like search on collection '{}'", collection_name);
+        info!(
+            "🔍 Testing discovery-like search on collection '{}'",
+            collection_name
+        );
         let results = store.search(collection_name, &query_embedding, 3)?;
-        info!("✅ Discovery-like search on '{}' successful: {} results", collection_name, results.len());
+        info!(
+            "✅ Discovery-like search on '{}' successful: {} results",
+            collection_name,
+            results.len()
+        );
     }
 
     println!("🎉 Server-like VectorStore tests completed successfully!");
@@ -448,7 +524,7 @@ async fn test_basic_functionality() -> Result<()> {
     // Collections have different dimensions, but MCP uses same embedding size
     info!("🐛 Reproducing the exact MCP crash scenario...");
 
-    let wrong_dim_query_64 = vec![0.1; 64];   // 64D query
+    let wrong_dim_query_64 = vec![0.1; 64]; // 64D query
     let wrong_dim_query_128 = vec![0.1; 128]; // 128D query
 
     // Try searching 64D query on 128D collection (should fail gracefully)
@@ -458,7 +534,10 @@ async fn test_basic_functionality() -> Result<()> {
             panic!("Dimension mismatch should have failed");
         }
         Err(e) => {
-            info!("✅ 64D→128D dimension mismatch correctly failed: {}", e.to_string());
+            info!(
+                "✅ 64D→128D dimension mismatch correctly failed: {}",
+                e.to_string()
+            );
         }
     }
 
@@ -469,12 +548,17 @@ async fn test_basic_functionality() -> Result<()> {
             panic!("Dimension mismatch should have failed");
         }
         Err(e) => {
-            info!("✅ 128D→512D dimension mismatch correctly failed: {}", e.to_string());
+            info!(
+                "✅ 128D→512D dimension mismatch correctly failed: {}",
+                e.to_string()
+            );
         }
     }
 
     println!("🎯 CRASH REPRODUCTION SUCCESSFUL!");
-    println!("🎯 The bug is: MCP creates embeddings with fixed dimensions but collections have different dimensions");
+    println!(
+        "🎯 The bug is: MCP creates embeddings with fixed dimensions but collections have different dimensions"
+    );
     println!("🎯 Solution: MCP needs to create embeddings matching each collection's dimension");
 
     Ok(())

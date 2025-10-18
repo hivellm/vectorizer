@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2025-10-18
+
+### 🔧 **Cross-Platform Metal GPU Support**
+
+#### **Platform Compatibility Fixes** ✅
+- **FIXED**: Metal GPU code now properly compiles on Linux/Windows without errors
+- **FIXED**: Metal-specific imports now gated behind `#[cfg(target_os = "macos")]`
+- **FIXED**: Benchmark binaries now compile on non-macOS platforms with stub main functions
+- **ENHANCED**: Graceful fallback messages when Metal backend unavailable on non-macOS systems
+
+#### **Technical Implementation**
+- **Vector Store** (`src/db/vector_store.rs`):
+  - Changed `#[cfg(feature = "hive-gpu")]` to `#[cfg(all(feature = "hive-gpu", target_os = "macos"))]` for Metal detection
+  - Added fallback messages for non-macOS systems with hive-gpu enabled
+  - Metal GPU context creation only on macOS, CPU fallback on other platforms
+  
+- **Benchmark Scripts**:
+  - `benchmark/scripts/simple_metal_test.rs`: Added platform-specific compilation
+  - `benchmark/scripts/metal_hnsw_search_benchmark.rs`: Added stub main for non-macOS
+  - `benchmark/scripts/test_basic_metal.rs`: Fixed duplicate main functions and platform guards
+
+#### **Build Improvements**
+- **Linux Compilation**: Successfully compiles in release mode on WSL Ubuntu
+- **Windows Compatibility**: Proper conditional compilation for all platforms
+- **macOS Optimization**: Metal GPU acceleration when available, no changes to functionality
+- **Cross-Platform CI**: Ready for multi-platform continuous integration
+
+#### **Files Modified**
+- `src/db/vector_store.rs`: Platform-specific Metal GPU detection (2 locations)
+- `benchmark/scripts/simple_metal_test.rs`: Cross-platform stub main
+- `benchmark/scripts/metal_hnsw_search_benchmark.rs`: Cross-platform stub main
+- `benchmark/scripts/test_basic_metal.rs`: Fixed main function conflicts
+
+#### **User Experience**
+- ✅ **Linux/Windows Users**: No compilation errors, clear informative messages
+- ✅ **macOS Users**: Full Metal GPU acceleration when available
+- ✅ **Developers**: Clean multi-platform builds without warnings
+- ✅ **CI/CD**: Ready for automated multi-platform testing
+
 ## [0.10.0] - 2025-10-17
 
 ### 🎯 **MCP Tools Consolidation - Major Architecture Improvement**

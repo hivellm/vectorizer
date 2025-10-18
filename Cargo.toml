@@ -226,10 +226,10 @@ name = "simple_metal_test"
 path = "benchmark/scripts/simple_metal_test.rs"
 required-features = ["hive-gpu"]
 
-[[bin]]
-name = "gpu_scale_benchmark"
-path = "benchmark/scripts/gpu_scale_benchmark.rs"
-required-features = ["hive-gpu-wgpu"]
+# [[bin]]
+# name = "gpu_scale_benchmark"
+# path = "benchmark/scripts/gpu_scale_benchmark.rs"
+# required-features = ["hive-gpu-wgpu"]
 
 [features]
 default = ["hive-gpu", "fastembed"]

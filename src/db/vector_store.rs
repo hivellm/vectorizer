@@ -11,9 +11,9 @@ use dashmap::DashMap;
 use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
-use crate::error::{Result, VectorizerError};
 #[cfg(feature = "hive-gpu")]
 use crate::db::hive_gpu_collection::HiveGpuCollection;
+use crate::error::{Result, VectorizerError};
 #[cfg(feature = "hive-gpu")]
 use crate::gpu_adapter::GpuAdapter;
 use crate::models::{CollectionConfig, CollectionMetadata, SearchResult, Vector};
@@ -61,9 +61,7 @@ impl CollectionType {
         match self {
             CollectionType::Cpu(c) => c.insert(vector),
             #[cfg(feature = "hive-gpu")]
-            CollectionType::HiveGpu(c) => {
-                c.add_vector(vector).map(|_| ())
-            }
+            CollectionType::HiveGpu(c) => c.add_vector(vector).map(|_| ()),
         }
     }
 
@@ -90,9 +88,7 @@ impl CollectionType {
         match self {
             CollectionType::Cpu(c) => c.delete(id),
             #[cfg(feature = "hive-gpu")]
-            CollectionType::HiveGpu(c) => {
-                c.remove_vector(id.to_string())
-            }
+            CollectionType::HiveGpu(c) => c.remove_vector(id.to_string()),
         }
     }
 
@@ -194,7 +190,10 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(_) => {
                 // Hive-GPU doesn't need to track embedding types
-                debug!("Hive-GPU collections don't track embedding types: {}", embedding_type);
+                debug!(
+                    "Hive-GPU collections don't track embedding types: {}",
+                    embedding_type
+                );
             }
         }
     }
@@ -376,7 +375,6 @@ impl VectorStore {
         }
     }
 
-
     /// Create a new vector store with automatic GPU detection
     /// Priority: Hive-GPU (Metal/CUDA/WebGPU) > CPU
     pub fn new_auto() -> Self {
@@ -399,7 +397,7 @@ impl VectorStore {
         {
             eprintln!("🚀 Detecting Hive-GPU capabilities...");
             info!("🚀 Detecting Hive-GPU capabilities...");
-            
+
             // Try to create a GPU context
             use hive_gpu::metal::MetalNativeContext;
             if let Ok(_) = MetalNativeContext::new() {
@@ -432,7 +430,6 @@ impl VectorStore {
         store
     }
 
-
     /// Create a new collection
     pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
         debug!("Creating collection '{}' with config: {:?}", name, config);
@@ -447,19 +444,18 @@ impl VectorStore {
             info!("Creating Hive-GPU collection '{}'", name);
             use hive_gpu::GpuContext;
             use hive_gpu::metal::MetalNativeContext;
-            
+
             // Create GPU context (try to create from available backends)
             match MetalNativeContext::new() {
                 Ok(ctx) => {
-                    let context = Arc::new(std::sync::Mutex::new(Box::new(ctx) as Box<dyn GpuContext + Send>));
-                    
+                    let context = Arc::new(std::sync::Mutex::new(
+                        Box::new(ctx) as Box<dyn GpuContext + Send>
+                    ));
+
                     // Create Hive-GPU collection
-                    let hive_gpu_collection = HiveGpuCollection::new(
-                        name.to_string(),
-                        config.clone(),
-                        context,
-                    )?;
-                    
+                    let hive_gpu_collection =
+                        HiveGpuCollection::new(name.to_string(), config.clone(), context)?;
+
                     let collection = CollectionType::HiveGpu(hive_gpu_collection);
                     self.collections.insert(name.to_string(), collection);
                     info!("Collection '{}' created successfully with Hive-GPU", name);
@@ -473,13 +469,17 @@ impl VectorStore {
 
         #[cfg(all(feature = "hive-gpu", not(target_os = "macos")))]
         {
-            info!("Hive-GPU Metal backend only available on macOS, creating CPU collection for '{}'", name);
+            info!(
+                "Hive-GPU Metal backend only available on macOS, creating CPU collection for '{}'",
+                name
+            );
         }
 
         // Fallback to CPU
         debug!("Creating CPU-based collection '{}'", name);
         let collection = Collection::new(name.to_string(), config);
-        self.collections.insert(name.to_string(), CollectionType::Cpu(collection));
+        self.collections
+            .insert(name.to_string(), CollectionType::Cpu(collection));
 
         info!("Collection '{}' created successfully", name);
         Ok(())
@@ -763,7 +763,7 @@ impl VectorStore {
     ) -> Result<impl std::ops::DerefMut<Target = CollectionType> + '_> {
         // Ensure collection is loaded first
         let _ = self.get_collection(name)?;
-        
+
         // Now get mutable reference
         self.collections
             .get_mut(name)

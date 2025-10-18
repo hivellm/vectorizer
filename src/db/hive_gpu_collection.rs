@@ -3,18 +3,22 @@
 //! This module provides a wrapper around hive-gpu for integration with VectorStore.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::anyhow;
 use chrono::Utc;
+use hive_gpu::{GpuContext, GpuVectorStorage};
 use tracing::{debug, error, info, warn};
 
 use crate::error::{Result, VectorizerError};
-use crate::models::{CollectionConfig, CollectionMetadata, DistanceMetric, HnswConfig, SearchResult, Vector};
-use crate::gpu_adapter::{GpuAdapter, HiveGpuVector, HiveGpuDistanceMetric, HiveGpuSearchResult, HiveGpuError};
-use hive_gpu::{GpuContext, GpuVectorStorage};
-use std::sync::Mutex;
+use crate::gpu_adapter::{
+    GpuAdapter, HiveGpuDistanceMetric, HiveGpuError, HiveGpuSearchResult, HiveGpuVector,
+};
+use crate::models::{
+    CollectionConfig, CollectionMetadata, CompressionConfig, DistanceMetric, HnswConfig,
+    QuantizationConfig, SearchResult, Vector,
+};
 
 /// Hive-GPU Collection wrapper
 pub struct HiveGpuCollection {
@@ -35,19 +39,27 @@ impl HiveGpuCollection {
     ) -> Result<Self> {
         let dimension = config.dimension;
         let gpu_metric = GpuAdapter::distance_metric_to_gpu_metric(config.metric);
-        
+
         // Create GPU storage
-        let raw_storage = context.lock().unwrap().create_storage(dimension, gpu_metric)
+        let raw_storage = context
+            .lock()
+            .unwrap()
+            .create_storage(dimension, gpu_metric)
             .map_err(|e| {
                 error!("Failed to create GPU storage: {:?}", e);
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
         // Cast to Box<dyn GpuVectorStorage + Send>
         let storage = Arc::new(Mutex::new(unsafe {
-            std::mem::transmute::<Box<dyn GpuVectorStorage>, Box<dyn GpuVectorStorage + Send>>(raw_storage)
+            std::mem::transmute::<Box<dyn GpuVectorStorage>, Box<dyn GpuVectorStorage + Send>>(
+                raw_storage,
+            )
         }));
 
-        info!("Created Hive-GPU collection '{}' with dimension {}", name, dimension);
+        info!(
+            "Created Hive-GPU collection '{}' with dimension {}",
+            name, dimension
+        );
 
         Ok(Self {
             name,
@@ -93,16 +105,23 @@ impl HiveGpuCollection {
         let gpu_vector = GpuAdapter::vector_to_gpu_vector(&vector);
 
         // Add to GPU storage
-        let indices = self.storage.lock().unwrap().add_vectors(&[gpu_vector])
+        let indices = self
+            .storage
+            .lock()
+            .unwrap()
+            .add_vectors(&[gpu_vector])
             .map_err(|e| {
                 error!("Failed to add vector to GPU storage: {:?}", e);
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
 
         self.vector_count += 1;
-        
-        debug!("Added vector '{}' to GPU collection '{}'", vector.id, self.name);
-        
+
+        debug!(
+            "Added vector '{}' to GPU collection '{}'",
+            vector.id, self.name
+        );
+
         Ok(indices[0])
     }
 
@@ -123,21 +142,30 @@ impl HiveGpuCollection {
         }
 
         // Convert to GPU vectors
-        let gpu_vectors: Vec<HiveGpuVector> = vectors.iter()
+        let gpu_vectors: Vec<HiveGpuVector> = vectors
+            .iter()
             .map(|v| GpuAdapter::vector_to_gpu_vector(v))
             .collect();
 
         // Add to GPU storage in batch
-        let indices = self.storage.lock().unwrap().add_vectors(&gpu_vectors)
+        let indices = self
+            .storage
+            .lock()
+            .unwrap()
+            .add_vectors(&gpu_vectors)
             .map_err(|e| {
                 error!("Failed to add vectors to GPU storage: {:?}", e);
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
 
         self.vector_count += vectors.len();
-        
-        debug!("Added {} vectors to GPU collection '{}'", vectors.len(), self.name);
-        
+
+        debug!(
+            "Added {} vectors to GPU collection '{}'",
+            vectors.len(),
+            self.name
+        );
+
         Ok(indices)
     }
 
@@ -155,24 +183,33 @@ impl HiveGpuCollection {
         }
 
         // Perform GPU search
-        let gpu_results = self.storage.lock().unwrap().search(query, limit)
+        let gpu_results = self
+            .storage
+            .lock()
+            .unwrap()
+            .search(query, limit)
             .map_err(|e| {
                 error!("GPU search failed: {:?}", e);
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
 
         // Convert results to SearchResult format
-        let results: Vec<SearchResult> = gpu_results.into_iter()
+        let results: Vec<SearchResult> = gpu_results
+            .into_iter()
             .map(|result| SearchResult {
                 id: result.id,
                 score: result.score,
-                vector: None, // GPU doesn't return full vectors by default
+                vector: None,  // GPU doesn't return full vectors by default
                 payload: None, // Will be populated if needed
             })
             .collect();
 
-        debug!("GPU search returned {} results for query in collection '{}'", results.len(), self.name);
-        
+        debug!(
+            "GPU search returned {} results for query in collection '{}'",
+            results.len(),
+            self.name
+        );
+
         Ok(results)
     }
 
@@ -184,9 +221,7 @@ impl HiveGpuCollection {
                 let vector = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
                 Ok(vector)
             }
-            Ok(None) => {
-                Err(VectorizerError::Other(format!("Vector '{}' not found", id)))
-            }
+            Ok(None) => Err(VectorizerError::Other(format!("Vector '{}' not found", id))),
             Err(e) => {
                 error!("Failed to get vector '{}' from GPU storage: {:?}", id, e);
                 Err(GpuAdapter::gpu_error_to_vectorizer_error(e))
@@ -201,11 +236,15 @@ impl HiveGpuCollection {
                 let vector = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
                 Ok(vector)
             }
-            Ok(None) => {
-                Err(VectorizerError::Other(format!("Vector at index {} not found", index)))
-            }
+            Ok(None) => Err(VectorizerError::Other(format!(
+                "Vector at index {} not found",
+                index
+            ))),
             Err(e) => {
-                error!("Failed to get vector at index {} from GPU storage: {:?}", index, e);
+                error!(
+                    "Failed to get vector at index {} from GPU storage: {:?}",
+                    index, e
+                );
                 Err(GpuAdapter::gpu_error_to_vectorizer_error(e))
             }
         }
@@ -213,7 +252,10 @@ impl HiveGpuCollection {
 
     /// Remove a vector by ID
     pub fn remove_vector(&mut self, id: String) -> Result<()> {
-        self.storage.lock().unwrap().remove_vectors(&[id.clone()])
+        self.storage
+            .lock()
+            .unwrap()
+            .remove_vectors(&[id.clone()])
             .map_err(|e| {
                 error!("Failed to remove vector '{}' from GPU storage: {:?}", id, e);
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
@@ -223,7 +265,10 @@ impl HiveGpuCollection {
             self.vector_count -= 1;
         }
 
-        debug!("Removed vector '{}' from GPU collection '{}'", id, self.name);
+        debug!(
+            "Removed vector '{}' from GPU collection '{}'",
+            id, self.name
+        );
         Ok(())
     }
 
@@ -244,10 +289,10 @@ impl HiveGpuCollection {
         // Estimate based on vector count and dimension
         let vector_size = self.dimension * std::mem::size_of::<f32>();
         let total_size = self.vector_count * vector_size;
-        
+
         // Add overhead for GPU storage and indexing
         let overhead = (total_size as f64 * 0.3) as usize; // 30% overhead
-        
+
         total_size + overhead
     }
 
@@ -255,10 +300,12 @@ impl HiveGpuCollection {
     pub fn get_all_vectors(&self) -> Vec<Vector> {
         // This is expensive for GPU collections, so we limit it
         let max_vectors = 10000; // Limit to prevent memory issues
-        
+
         if self.vector_count > max_vectors {
-            warn!("Collection '{}' has {} vectors, limiting get_all_vectors to {}", 
-                  self.name, self.vector_count, max_vectors);
+            warn!(
+                "Collection '{}' has {} vectors, limiting get_all_vectors to {}",
+                self.name, self.vector_count, max_vectors
+            );
         }
 
         let limit = self.vector_count.min(max_vectors);
@@ -288,19 +335,25 @@ impl HiveGpuCollection {
     pub fn clear(&mut self) -> Result<()> {
         // Create new storage with same config
         let gpu_metric = GpuAdapter::distance_metric_to_gpu_metric(self.config.metric);
-        
-        let raw_storage = self.context.lock().unwrap().create_storage(self.dimension, gpu_metric)
+
+        let raw_storage = self
+            .context
+            .lock()
+            .unwrap()
+            .create_storage(self.dimension, gpu_metric)
             .map_err(|e| {
                 error!("Failed to recreate GPU storage: {:?}", e);
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
         // Cast to Box<dyn GpuVectorStorage + Send>
         self.storage = Arc::new(Mutex::new(unsafe {
-            std::mem::transmute::<Box<dyn GpuVectorStorage>, Box<dyn GpuVectorStorage + Send>>(raw_storage)
+            std::mem::transmute::<Box<dyn GpuVectorStorage>, Box<dyn GpuVectorStorage + Send>>(
+                raw_storage,
+            )
         }));
 
         self.vector_count = 0;
-        
+
         debug!("Cleared all vectors from GPU collection '{}'", self.name);
         Ok(())
     }
@@ -334,8 +387,8 @@ mod tests {
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
-            quantization: None,
-            compression: None,
+            quantization: QuantizationConfig::default(),
+            compression: CompressionConfig::default(),
             normalization: None,
         };
 

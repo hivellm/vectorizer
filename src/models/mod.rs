@@ -85,7 +85,7 @@ fn dequantize_from_u8(quantized: &[u8], min_val: f32, max_val: f32) -> Vec<f32> 
 }
 
 /// Arbitrary JSON payload associated with a vector
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Payload {
     /// The payload data as a JSON value
     #[serde(flatten)]
