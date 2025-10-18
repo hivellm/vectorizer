@@ -12,9 +12,9 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, 
 // Test MCP integration
 #[cfg(feature = "metal-native")]
 #[tokio::test]
-async fn test_mcp_integration() -> Result<()> {
-    use vectorizer::models::HnswConfig;
-    use vectorizer::{CollectionConfig, DistanceMetric, VectorStore};
+async fn test_mcp_integration() -> vectorizer::error::Result<()> {
+    use vectorizer::models::{DistanceMetric, HnswConfig, Vector};
+    use vectorizer::{CollectionConfig, VectorStore};
 
     // Initialize tracing
     tracing_subscriber::fmt()
@@ -43,11 +43,11 @@ async fn test_mcp_integration() -> Result<()> {
     // Add some vectors
     for i in 0..5 {
         let mut data = vec![0.0; 128];
-        for j in 0..128 {
-            data[j] = ((i as f32).sin() * (j as f32).cos() * 0.001) + (i as f32 * 0.0001);
+        for (j, item) in data.iter_mut().enumerate().take(128) {
+            *item = ((i as f32).sin() * (j as f32).cos() * 0.001) + (i as f32 * 0.0001);
         }
-        let vector = Vector::new(format!("mcp_vec_{}", i), data);
-        store.insert("mcp_test_collection", vector)?;
+        let vector = Vector::new(format!("mcp_vec_{i}"), data);
+        store.insert("mcp_test_collection", vec![vector])?;
     }
 
     println!("✅ MCP collection created and populated");
