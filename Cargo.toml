@@ -96,7 +96,7 @@ unicode-normalization = "0.1"
 regex = "1.10"
 
 # Authentication and security
-jsonwebtoken = "9.3"
+jsonwebtoken = "10.1"
 uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
 lazy_static = "1.4"
