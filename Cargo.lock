@@ -6936,9 +6936,9 @@ dependencies = [
 
 [[package]]
 name = "umicp-core"
-version = "0.2.1"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1ccc4fab6aba91e718c5c4abd1cc0ea824ea99d88bd7746cd1d4def938b33eb"
+checksum = "011d3be8c6a322f3b511ba120190abe977fad7bdbac589109e7b4d90bdaf4190"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6962,6 +6962,7 @@ dependencies = [
  "tower",
  "tracing",
  "tungstenite 0.24.0",
+ "url",
  "uuid",
 ]
 
