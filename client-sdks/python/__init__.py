@@ -28,7 +28,7 @@ from .models import (
     CollectionInfo
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 

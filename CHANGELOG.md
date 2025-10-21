@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-10-21
+
 ### Fixed
 - **Docker Virtual Path Support**: Removed path traversal and absolute path validation from `get_file_content` and related file operations. Since these functions only use file paths as metadata search keys (not for filesystem access), they now accept any path format including `..` and absolute paths. This fixes issues in Docker environments with virtual workspace addressing.
 - **File Content Reconstruction**: Fixed issue where `get_file_content` was returning duplicate content due to chunk overlap. Now automatically detects overlap between consecutive chunks (sliding window) and properly reconstructs files by removing the overlapping portions.
+
+### Changed
+- **Build Performance**: Disabled automatic compilation of benchmark binaries (`storage_benchmark`, `test_basic_metal`, `metal_hnsw_search_benchmark`, `simple_metal_test`). These can now be built explicitly with `--features benchmarks` when needed, significantly reducing normal build times.
 
 ## [1.0.0] - 2025-10-21
 
