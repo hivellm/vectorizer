@@ -6,12 +6,6 @@ mod integration_tests {
     async fn test_error_handling() {
         let ops = FileOperations::new();
 
-        // Invalid path
-        let result = ops
-            .get_file_content("test-collection", "../etc/passwd", 500)
-            .await;
-        assert!(result.is_err());
-
         // Invalid size limit
         let result = ops
             .get_file_content("test-collection", "valid/path.rs", 10000)
@@ -21,6 +15,10 @@ mod integration_tests {
         // Empty path
         let result = ops.get_file_content("test-collection", "", 500).await;
         assert!(result.is_err());
+        
+        // Note: Paths with .. or absolute paths are now valid because
+        // file_path is only used as a metadata search key, not for filesystem access.
+        // This allows Docker environments with virtual workspace paths to work correctly.
     }
 
     #[tokio::test]

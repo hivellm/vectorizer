@@ -418,22 +418,6 @@ impl FileOperations {
 
     /// Validate file path for security
     fn validate_file_path(path: &str) -> FileOperationResult<()> {
-        // Prevent directory traversal
-        if path.contains("..") {
-            return Err(FileOperationError::InvalidPath {
-                path: path.to_string(),
-                reason: "Path contains directory traversal".to_string(),
-            });
-        }
-
-        // Ensure relative path
-        if path.starts_with('/') || path.starts_with('\\') {
-            return Err(FileOperationError::InvalidPath {
-                path: path.to_string(),
-                reason: "Absolute paths not allowed".to_string(),
-            });
-        }
-
         // Check for empty path
         if path.trim().is_empty() {
             return Err(FileOperationError::InvalidPath {
@@ -442,6 +426,11 @@ impl FileOperations {
             });
         }
 
+        // NOTE: We do NOT validate for directory traversal (..) or absolute paths
+        // because file_path is only used as a metadata search key, not for
+        // actual filesystem access. This allows Docker environments with
+        // virtual workspace paths to work correctly.
+        
         Ok(())
     }
 
@@ -1081,14 +1070,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_file_path() {
-        // Valid paths
+        // Valid paths - now includes paths with .. and absolute paths
+        // because they're just used as metadata search keys
         assert!(FileOperations::validate_file_path("src/main.rs").is_ok());
         assert!(FileOperations::validate_file_path("docs/README.md").is_ok());
+        assert!(FileOperations::validate_file_path("../etc/passwd").is_ok());
+        assert!(FileOperations::validate_file_path("/absolute/path").is_ok());
+        assert!(FileOperations::validate_file_path("./relative/../path").is_ok());
 
-        // Invalid paths
-        assert!(FileOperations::validate_file_path("../etc/passwd").is_err());
-        assert!(FileOperations::validate_file_path("/absolute/path").is_err());
+        // Only invalid path is empty
         assert!(FileOperations::validate_file_path("").is_err());
+        assert!(FileOperations::validate_file_path("   ").is_err());
     }
 
     #[tokio::test]
