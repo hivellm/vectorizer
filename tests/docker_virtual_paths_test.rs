@@ -25,25 +25,19 @@ async fn test_docker_virtual_paths_acceptance() {
         // NOT with InvalidPath
         match result {
             Err(FileOperationError::InvalidPath { .. }) => {
-                panic!(
-                    "Path '{}' should be valid but was rejected as invalid",
-                    path
-                );
+                panic!("Path '{path}' should be valid but was rejected as invalid");
             }
             Err(FileOperationError::VectorStoreError(_))
             | Err(FileOperationError::CollectionNotFound { .. })
             | Err(FileOperationError::FileNotFound { .. }) => {
                 // Expected - VectorStore is not initialized in this test
-                println!(
-                    "✓ Path '{}' passed validation (failed later as expected)",
-                    path
-                );
+                println!("✓ Path '{path}' passed validation (failed later as expected)");
             }
             Err(e) => {
-                println!("✓ Path '{}' passed validation (error: {:?})", path, e);
+                println!("✓ Path '{path}' passed validation (error: {e:?})");
             }
             Ok(_) => {
-                println!("✓ Path '{}' passed validation and returned content", path);
+                println!("✓ Path '{path}' passed validation and returned content");
             }
         }
     }
@@ -100,10 +94,10 @@ async fn test_normal_paths_still_work() {
         // Should not fail with InvalidPath
         match result {
             Err(FileOperationError::InvalidPath { .. }) => {
-                panic!("Normal path '{}' should be valid", path);
+                panic!("Normal path '{path}' should be valid");
             }
             _ => {
-                println!("✓ Normal path '{}' is valid", path);
+                println!("✓ Normal path '{path}' is valid");
             }
         }
     }
