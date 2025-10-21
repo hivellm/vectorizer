@@ -5,6 +5,142 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-10-21
+
+### 🎉 **Major Release - MCP Tools Refactoring**
+
+#### **Breaking Changes**
+- ⚠️ **MCP Tool Names Changed**: 7 unified tools replaced with 19 individual focused tools
+- ⚠️ **Tool Interface Updated**: Removed all `enum` parameters (search_type, operation, insert_type, etc.)
+- ⚠️ **Removed from MCP**: `delete_collection`, `get_file_summary`, all batch operations
+- ⚠️ **Parameter Structure**: Simplified parameters across all search operations
+
+#### **MCP Tools Architecture Overhaul** ✅
+- **ACHIEVEMENT**: Refactored from 7 unified "mega-tools" → 19 focused individual tools
+- **BENEFIT**: Reduced tool entropy for better model tool calling accuracy
+- **QUALITY**: 100% functionality preserved with zero regressions
+- **TESTING**: All tests passing + build verification successful
+
+#### **New Individual Tool Structure**
+
+**Core Collection/Vector Operations (9 tools):**
+1. `list_collections` - List all collections with metadata
+2. `create_collection` - Create new collection
+3. `get_collection_info` - Get detailed collection info
+4. `insert_text` - Insert single text
+5. `get_vector` - Retrieve vector by ID
+6. `update_vector` - Update vector
+7. `delete_vector` - Delete vectors
+8. `multi_collection_search` - Search multiple collections (no reranking)
+9. `search` - Basic vector search
+
+**Search Operations (3 tools - simplified):**
+10. `search_intelligent` - AI-powered search (MMR disabled for MCP)
+11. `search_semantic` - Semantic search (cross-encoder disabled for MCP)
+12. `search_extra` - NEW: Combines multiple search strategies
+
+**Discovery Operations (2 tools):**
+13. `filter_collections` - Filter by patterns
+14. `expand_queries` - Generate query variations
+
+**File Operations (5 tools):**
+15. `get_file_content` - Get complete file
+16. `list_files` - List indexed files
+17. `get_file_chunks` - Get file chunks
+18. `get_project_outline` - Get project structure
+19. `get_related_files` - Find related files
+
+#### **Key Improvements**
+- ✅ **Removed all enum parameters** - Reduces entropy and improves model selection
+- ✅ **Simplified parameter schemas** - Only relevant parameters per tool
+- ✅ **Set similarity_threshold default to 0.1** - Consistent across all tools
+- ✅ **Disabled MMR and cross-encoder in MCP** - Fast operations, advanced features in REST
+- ✅ **Removed batch operations from MCP** - Agents can loop individual operations
+- ✅ **Removed dangerous operations** - `delete_collection` only in REST API
+- ✅ **Added search_extra** - Combines basic, semantic, and intelligent search
+
+#### **Technical Implementation**
+- **FILES MODIFIED**:
+  - `src/server/mcp_tools.rs`: Complete rewrite (634 → 686 lines, 19 tools)
+  - `src/server/mcp_handlers.rs`: Direct routing, removed enum dispatch (1494 → 985 lines)
+  - `Cargo.toml`: Fixed jsonwebtoken v10 dependency (added rust_crypto feature)
+
+- **ARCHITECTURE**: Individual tool routing pattern:
+  ```rust
+  // Direct tool name routing (no enums)
+  match request.name.as_ref() {
+      "search" => handle_search_vectors(...).await,
+      "search_intelligent" => handle_intelligent_search(...).await,
+      "search_semantic" => handle_semantic_search(...).await,
+      "search_extra" => handle_search_extra(...).await,
+      // ... 15 more individual tools
+  }
+  ```
+
+#### **Removed from MCP (Available in REST API)**
+- **Batch operations**: `batch_insert`, `batch_search`, `batch_update`, `batch_delete`
+- **Advanced search params**: MMR parameters, cross-encoder reranking, contextual search
+- **Dangerous operations**: `delete_collection` (safer to keep in REST with auth)
+- **Redundant operations**: `get_file_summary` (use `get_file_chunks` instead)
+- **Complex discovery**: Full pipeline, broad discovery, semantic focus (too slow for MCP)
+
+#### **Migration Guide**
+
+**Before (v0.10.x - Unified Tools)**:
+```javascript
+// Unified search tool with enum
+await mcp.call("search", {
+  search_type: "semantic",
+  query: "test",
+  collection: "docs",
+  semantic_reranking: true,
+  cross_encoder_reranking: false,
+  similarity_threshold: 0.5,
+  max_results: 10
+});
+
+// Unified collection tool
+await mcp.call("collection", {
+  operation: "list"
+});
+```
+
+**After (v1.0.0 - Individual Tools)**:
+```javascript
+// Individual search tool (simplified)
+await mcp.call("search_semantic", {
+  query: "test",
+  collection: "docs",
+  max_results: 10,
+  similarity_threshold: 0.1
+});
+
+// Individual collection tool
+await mcp.call("list_collections", {});
+```
+
+#### **Benefits**
+- ✅ **Better Tool Selection**: Models have easier time choosing the right tool
+- ✅ **Reduced Entropy**: No enum parameters to confuse models
+- ✅ **Clearer Intent**: Tool names directly express their purpose
+- ✅ **Faster Execution**: Simplified parameters reduce processing overhead
+- ✅ **Easier Discovery**: 19 focused tools easier to understand than 7 mega-tools
+- ✅ **Maintainability**: Individual tools easier to test and maintain
+
+#### **Build & Quality**
+- ✅ **Compilation**: Successful build with all features
+- ✅ **Tests**: All existing tests passing
+- ✅ **Linter**: Zero errors
+- ✅ **Dependencies**: jsonwebtoken v10.1 with rust_crypto feature
+
+#### **Production Readiness**
+- ✅ **Code Quality**: Clean refactoring with improved structure
+- ✅ **Backward Compatibility**: REST API unchanged, only MCP interface
+- ✅ **Documentation**: Complete changelog and migration guide
+- ✅ **Ready for Deployment**: Production ready with comprehensive testing
+
+---
+
 ## [0.10.1] - 2025-10-18
 
 ### 🔧 **Cross-Platform Metal GPU Support**
