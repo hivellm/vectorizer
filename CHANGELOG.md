@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-10-21
+
+### Fixed
+- **Build Configuration**: Removed non-existent `gpu_real` feature from musl builds in release workflow and test scripts. Musl builds now correctly use `--no-default-features` only, as intended for minimal static builds.
+
 ## [1.0.1] - 2025-10-21
 
 ### Fixed
