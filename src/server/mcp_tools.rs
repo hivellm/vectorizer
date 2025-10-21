@@ -418,6 +418,10 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             input_schema: json!({
                 "type": "object",
                 "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Query to filter collections (collection names or keywords)"
+                    },
                     "include": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -429,7 +433,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                         "description": "Exclude patterns (optional)"
                     }
                 },
-                "required": []
+                "required": ["query"]
             }).as_object().unwrap().clone().into(),
             output_schema: None,
             icons: None,
