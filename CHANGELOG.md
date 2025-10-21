@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Docker Virtual Path Support**: Removed path traversal and absolute path validation from `get_file_content` and related file operations. Since these functions only use file paths as metadata search keys (not for filesystem access), they now accept any path format including `..` and absolute paths. This fixes issues in Docker environments with virtual workspace addressing.
+
 ## [1.0.0] - 2025-10-21
 
 ### 🎉 **Major Release - MCP Tools Refactoring**
