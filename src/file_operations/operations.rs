@@ -129,12 +129,34 @@ impl FileOperations {
         // Sort by chunk_index
         file_chunks.sort_by_key(|(index, _, _)| *index);
 
-        // Reconstruct file content
-        let content = file_chunks
-            .iter()
-            .map(|(_, content, _)| content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n");
+        // Reconstruct file content by detecting and removing overlap between chunks
+        // Chunks use sliding window with overlap for context
+        let content = if file_chunks.len() == 1 {
+            // Single chunk - use as is
+            file_chunks[0].1.clone()
+        } else {
+            // Multiple chunks - detect overlap automatically by comparing consecutive chunks
+            let mut reconstructed = String::new();
+            
+            for (idx, (_, chunk_content, _)) in file_chunks.iter().enumerate() {
+                if idx == 0 {
+                    // First chunk - use entire content
+                    reconstructed.push_str(chunk_content);
+                } else {
+                    // Detect overlap with previous chunk by finding longest common suffix/prefix
+                    let prev_chunk = &file_chunks[idx - 1].1;
+                    let overlap_size = Self::detect_chunk_overlap(prev_chunk, chunk_content);
+                    
+                    // Skip the overlap portion
+                    let skip = std::cmp::min(overlap_size, chunk_content.len());
+                    
+                    if skip < chunk_content.len() {
+                        reconstructed.push_str(&chunk_content[skip..]);
+                    }
+                }
+            }
+            reconstructed
+        };
 
         // Check size limit
         let size_kb = content.len() as f64 / 1024.0;
@@ -451,6 +473,34 @@ impl FileOperations {
         }
 
         Ok(())
+    }
+
+    /// Detect overlap between consecutive chunks by finding longest common substring
+    /// at the end of prev_chunk and start of curr_chunk
+    fn detect_chunk_overlap(prev_chunk: &str, curr_chunk: &str) -> usize {
+        // Maximum reasonable overlap to check (default chunk_overlap from config)
+        let max_overlap = std::cmp::min(512, std::cmp::min(prev_chunk.len(), curr_chunk.len()));
+        
+        // Start from maximum possible overlap and work backwards
+        for overlap_size in (1..=max_overlap).rev() {
+            // Ensure we're at UTF-8 boundaries
+            if !prev_chunk.is_char_boundary(prev_chunk.len().saturating_sub(overlap_size)) {
+                continue;
+            }
+            if !curr_chunk.is_char_boundary(overlap_size) {
+                continue;
+            }
+            
+            let prev_suffix = &prev_chunk[prev_chunk.len().saturating_sub(overlap_size)..];
+            let curr_prefix = &curr_chunk[..overlap_size];
+            
+            if prev_suffix == curr_prefix {
+                return overlap_size;
+            }
+        }
+        
+        // No overlap detected
+        0
     }
 
     /// Detect file type from extension
