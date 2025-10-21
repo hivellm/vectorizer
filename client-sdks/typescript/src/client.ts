@@ -933,7 +933,7 @@ export class VectorizerClient {
     level?: string;
   }): Promise<{ logs: string[] }> {
     this.logger.debug('Getting logs', params);
-    return this.transport.get('/api/logs', params);
+    return this.transport.get('/api/logs', params ? { params } : undefined);
   }
 
   /**
@@ -987,7 +987,7 @@ export class VectorizerClient {
   /**
    * Get server configuration (GUI endpoint).
    */
-  async getConfig(): Promise<Record<string, any>> {
+  async getServerConfig(): Promise<Record<string, any>> {
     this.logger.debug('Getting server configuration');
     return this.transport.get('/api/config');
   }
