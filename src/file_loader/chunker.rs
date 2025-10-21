@@ -50,7 +50,7 @@ impl Chunker {
                     c.is_whitespace() || c == '.' || c == '!' || c == '?' || c == '\n'
                 }) {
                     end = start + pos + 1;
-                    
+
                     // Ensure the new end is still at a UTF-8 character boundary
                     while end > start && !text.is_char_boundary(end) {
                         end -= 1;

@@ -15,7 +15,7 @@ mod integration_tests {
         // Empty path
         let result = ops.get_file_content("test-collection", "", 500).await;
         assert!(result.is_err());
-        
+
         // Note: Paths with .. or absolute paths are now valid because
         // file_path is only used as a metadata search key, not for filesystem access.
         // This allows Docker environments with virtual workspace paths to work correctly.
