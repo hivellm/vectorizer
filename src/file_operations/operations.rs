@@ -129,12 +129,34 @@ impl FileOperations {
         // Sort by chunk_index
         file_chunks.sort_by_key(|(index, _, _)| *index);
 
-        // Reconstruct file content
-        let content = file_chunks
-            .iter()
-            .map(|(_, content, _)| content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n");
+        // Reconstruct file content by detecting and removing overlap between chunks
+        // Chunks use sliding window with overlap for context
+        let content = if file_chunks.len() == 1 {
+            // Single chunk - use as is
+            file_chunks[0].1.clone()
+        } else {
+            // Multiple chunks - detect overlap automatically by comparing consecutive chunks
+            let mut reconstructed = String::new();
+
+            for (idx, (_, chunk_content, _)) in file_chunks.iter().enumerate() {
+                if idx == 0 {
+                    // First chunk - use entire content
+                    reconstructed.push_str(chunk_content);
+                } else {
+                    // Detect overlap with previous chunk by finding longest common suffix/prefix
+                    let prev_chunk = &file_chunks[idx - 1].1;
+                    let overlap_size = Self::detect_chunk_overlap(prev_chunk, chunk_content);
+
+                    // Skip the overlap portion
+                    let skip = std::cmp::min(overlap_size, chunk_content.len());
+
+                    if skip < chunk_content.len() {
+                        reconstructed.push_str(&chunk_content[skip..]);
+                    }
+                }
+            }
+            reconstructed
+        };
 
         // Check size limit
         let size_kb = content.len() as f64 / 1024.0;
@@ -418,22 +440,6 @@ impl FileOperations {
 
     /// Validate file path for security
     fn validate_file_path(path: &str) -> FileOperationResult<()> {
-        // Prevent directory traversal
-        if path.contains("..") {
-            return Err(FileOperationError::InvalidPath {
-                path: path.to_string(),
-                reason: "Path contains directory traversal".to_string(),
-            });
-        }
-
-        // Ensure relative path
-        if path.starts_with('/') || path.starts_with('\\') {
-            return Err(FileOperationError::InvalidPath {
-                path: path.to_string(),
-                reason: "Absolute paths not allowed".to_string(),
-            });
-        }
-
         // Check for empty path
         if path.trim().is_empty() {
             return Err(FileOperationError::InvalidPath {
@@ -441,6 +447,11 @@ impl FileOperations {
                 reason: "Path cannot be empty".to_string(),
             });
         }
+
+        // NOTE: We do NOT validate for directory traversal (..) or absolute paths
+        // because file_path is only used as a metadata search key, not for
+        // actual filesystem access. This allows Docker environments with
+        // virtual workspace paths to work correctly.
 
         Ok(())
     }
@@ -462,6 +473,34 @@ impl FileOperations {
         }
 
         Ok(())
+    }
+
+    /// Detect overlap between consecutive chunks by finding longest common substring
+    /// at the end of prev_chunk and start of curr_chunk
+    fn detect_chunk_overlap(prev_chunk: &str, curr_chunk: &str) -> usize {
+        // Maximum reasonable overlap to check (default chunk_overlap from config)
+        let max_overlap = std::cmp::min(512, std::cmp::min(prev_chunk.len(), curr_chunk.len()));
+
+        // Start from maximum possible overlap and work backwards
+        for overlap_size in (1..=max_overlap).rev() {
+            // Ensure we're at UTF-8 boundaries
+            if !prev_chunk.is_char_boundary(prev_chunk.len().saturating_sub(overlap_size)) {
+                continue;
+            }
+            if !curr_chunk.is_char_boundary(overlap_size) {
+                continue;
+            }
+
+            let prev_suffix = &prev_chunk[prev_chunk.len().saturating_sub(overlap_size)..];
+            let curr_prefix = &curr_chunk[..overlap_size];
+
+            if prev_suffix == curr_prefix {
+                return overlap_size;
+            }
+        }
+
+        // No overlap detected
+        0
     }
 
     /// Detect file type from extension
@@ -1081,14 +1120,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_file_path() {
-        // Valid paths
+        // Valid paths - now includes paths with .. and absolute paths
+        // because they're just used as metadata search keys
         assert!(FileOperations::validate_file_path("src/main.rs").is_ok());
         assert!(FileOperations::validate_file_path("docs/README.md").is_ok());
+        assert!(FileOperations::validate_file_path("../etc/passwd").is_ok());
+        assert!(FileOperations::validate_file_path("/absolute/path").is_ok());
+        assert!(FileOperations::validate_file_path("./relative/../path").is_ok());
 
-        // Invalid paths
-        assert!(FileOperations::validate_file_path("../etc/passwd").is_err());
-        assert!(FileOperations::validate_file_path("/absolute/path").is_err());
+        // Only invalid path is empty
         assert!(FileOperations::validate_file_path("").is_err());
+        assert!(FileOperations::validate_file_path("   ").is_err());
     }
 
     #[tokio::test]
