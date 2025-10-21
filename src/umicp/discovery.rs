@@ -96,23 +96,43 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // Should have 7 consolidated operations
+        // Should have 19 individual focused operations
         assert_eq!(
             operations.len(),
-            7,
-            "Expected 7 consolidated operations, got {}",
+            19,
+            "Expected 19 individual operations, got {}",
             operations.len()
         );
 
-        // Check for key consolidated operations
+        // Check for key individual operations
         let op_names: Vec<String> = operations.iter().map(|op| op.name.clone()).collect();
+        
+        // Core operations
+        assert!(op_names.contains(&"list_collections".to_string()));
+        assert!(op_names.contains(&"create_collection".to_string()));
+        assert!(op_names.contains(&"get_collection_info".to_string()));
+        assert!(op_names.contains(&"insert_text".to_string()));
+        assert!(op_names.contains(&"get_vector".to_string()));
+        assert!(op_names.contains(&"update_vector".to_string()));
+        assert!(op_names.contains(&"delete_vector".to_string()));
         assert!(op_names.contains(&"search".to_string()));
-        assert!(op_names.contains(&"collection".to_string()));
-        assert!(op_names.contains(&"vector".to_string()));
-        assert!(op_names.contains(&"insert".to_string()));
-        assert!(op_names.contains(&"batch_operations".to_string()));
-        assert!(op_names.contains(&"discovery".to_string()));
-        assert!(op_names.contains(&"file_operations".to_string()));
+        assert!(op_names.contains(&"multi_collection_search".to_string()));
+        
+        // Search operations
+        assert!(op_names.contains(&"search_intelligent".to_string()));
+        assert!(op_names.contains(&"search_semantic".to_string()));
+        assert!(op_names.contains(&"search_extra".to_string()));
+        
+        // Discovery operations
+        assert!(op_names.contains(&"filter_collections".to_string()));
+        assert!(op_names.contains(&"expand_queries".to_string()));
+        
+        // File operations
+        assert!(op_names.contains(&"get_file_content".to_string()));
+        assert!(op_names.contains(&"list_files".to_string()));
+        assert!(op_names.contains(&"get_file_chunks".to_string()));
+        assert!(op_names.contains(&"get_project_outline".to_string()));
+        assert!(op_names.contains(&"get_related_files".to_string()));
     }
 
     #[test]
@@ -142,30 +162,37 @@ mod tests {
         // Should have annotations
         assert!(search_op.annotations.is_some());
         let annotations = search_op.annotations.as_ref().unwrap();
-        assert_eq!(annotations["read_only"], true);
-        assert_eq!(annotations["idempotent"], true);
+        assert_eq!(annotations.get("read_only"), Some(&serde_json::json!(true)));
+        assert_eq!(annotations.get("idempotent"), Some(&serde_json::json!(true)));
 
-        // Should have input schema with search_type field
+        // Should have input schema with query and collection fields (no search_type enum)
         assert!(search_op.input_schema.is_object());
         let schema = search_op.input_schema.as_object().unwrap();
         assert!(schema.contains_key("properties"));
+        
+        // Verify required fields
+        let properties = schema.get("properties").unwrap().as_object().unwrap();
+        assert!(properties.contains_key("query"));
+        assert!(properties.contains_key("collection"));
     }
 
     #[test]
-    fn test_delete_collection_operation() {
+    fn test_get_collection_info_operation() {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
         let collection_op = operations
             .iter()
-            .find(|op| op.name == "collection")
-            .expect("collection operation not found");
+            .find(|op| op.name == "get_collection_info")
+            .expect("get_collection_info operation not found");
 
-        // Collection tool should have annotations but not be marked as destructive
-        // (since it also includes non-destructive operations like list and get_info)
+        // get_collection_info should be read-only and idempotent
         assert!(collection_op.annotations.is_some());
+        let annotations = collection_op.annotations.as_ref().unwrap();
+        assert_eq!(annotations.get("read_only"), Some(&serde_json::json!(true)));
+        assert_eq!(annotations.get("idempotent"), Some(&serde_json::json!(true)));
 
-        // Should have input schema with operation field for delete
+        // Should have input schema with name field
         assert!(collection_op.input_schema.is_object());
         let schema = collection_op.input_schema.as_object().unwrap();
         assert!(schema.contains_key("properties"));
