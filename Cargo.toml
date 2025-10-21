@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "0.10.1"
+version = "1.0.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -72,12 +72,8 @@ flate2 = "1.0"
 # HTTP client for status checks (using rustls for musl compatibility)
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
-# OpenSSL-sys with vendored feature for musl static linking
-# This compiles OpenSSL from source, avoiding system dependency issues
-openssl-sys = { version = "0.9", features = ["vendored"] }
-
-# UMICP protocol integration (v0.2.1 with native JSON types + tool discovery)
-umicp-core = { version = "0.2.1", features = ["http2", "websocket"] }
+# UMICP protocol integration (v0.2.3 with native JSON types + tool discovery)
+umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 
 # System utilities
 whoami = "1.5"
@@ -96,7 +92,7 @@ unicode-normalization = "0.1"
 regex = "1.10"
 
 # Authentication and security
-jsonwebtoken = "9.3"
+jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
 lazy_static = "1.4"

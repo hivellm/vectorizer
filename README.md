@@ -2,11 +2,18 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 0.10.1 - Cross-Platform Metal GPU Support**
+## ✨ **Version 1.0.0 - Production Ready**
+
+### 🎉 **Major Release - MCP Tools Refactoring**
+- **🎯 MCP Architecture**: 19 focused individual tools (refactored from 7 unified mega-tools)
+- **⚡ Reduced Entropy**: Removed all enum parameters for better model tool calling
+- **🔧 Simplified Interface**: Only relevant parameters per tool
+- **🚀 Better Performance**: Disabled MMR/cross-encoder in MCP (still available in REST)
+- **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
 
 ### 🎯 **Key Features**
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
-- **🎯 MCP Consolidation**: 7 unified MCP tools (reduced from 40+) - 83% reduction freeing slots for other servers
+- **🎯 MCP Tools**: 19 focused individual tools for better model integration
 - **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint
 - **🔍 Tool Discovery**: GET `/umicp/discover` exposes all MCP tools with full schemas
 - **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
@@ -21,13 +28,13 @@ A high-performance vector database and search engine built in Rust, designed for
 - **Discovery Pipeline**: 10-type semantic discovery with evidence compression
 
 ### 🧪 **Quality Metrics**
-- ✅ **402 tests passing** (100% pass rate, v0.10.0)
-- ⚡ **2.01s execution time**
+- ✅ **All tests passing** (100% pass rate, v1.0.0)
+- ⚡ **Fast execution** with optimized test suite
 - 🎯 **Production-ready** with comprehensive coverage
 - 📄 **19 transmutation tests** (100% pass rate)
 - 💾 **30+ storage system tests** (compaction, snapshots, migration)
-- 🔄 **3 UMICP discovery tests** (100% pass rate, updated for v0.10.0)
-- 🛠️ **32/33 MCP operations** manually validated (97% coverage)
+- 🔄 **UMICP discovery tests** (100% pass rate)
+- 🛠️ **19 MCP tools** fully tested and validated
 
 ## 🌟 **Core Capabilities**
 
@@ -174,23 +181,45 @@ curl -X POST http://localhost:15002/collections/docs/search \
 
 ## 🧠 **Advanced Search Capabilities**
 
-### **Intelligent Search**
-- Multi-query generation (4-8 variations)
-- Domain expansion with technical terms
-- MMR diversification for diverse results
-- Cross-collection search with reranking
+### **MCP Search Tools (v1.0.0)**
 
-### **Search Methods**
-- `intelligent_search`: Multi-query with domain expansion
-- `semantic_search`: High-precision with similarity thresholds
-- `multi_collection_search`: Cross-collection with deduplication
-- `contextual_search`: Metadata filtering with context-aware ranking
+#### **Basic Search** (`search`)
+- Simple vector similarity search
+- Configurable similarity threshold (default: 0.1)
+- Fast and efficient for direct queries
+- Single collection focus
 
-### **Discovery Pipeline**
-- 9-stage pipeline: Filtering → Expansion → Search → Ranking → Compression
-- README promotion for documentation
-- Evidence compression with citations
-- LLM-ready prompt generation
+#### **Intelligent Search** (`search_intelligent`)
+- AI-powered query expansion
+- Automatic deduplication across results
+- Domain-specific term expansion
+- Cross-collection search support
+- Optimized for MCP (MMR disabled for speed)
+
+#### **Semantic Search** (`search_semantic`)
+- Advanced semantic reranking
+- Precision-focused results
+- Configurable similarity thresholds
+- Optimized for MCP (cross-encoder disabled for speed)
+
+#### **Combined Search** (`search_extra`) - NEW in v1.0.0
+- Concatenates results from multiple strategies
+- Combines: basic + semantic + intelligent
+- Automatic deduplication
+- Best of all search methods in one call
+
+#### **Multi-Collection Search** (`multi_collection_search`)
+- Search across multiple collections simultaneously
+- Results grouped by collection
+- Configurable limits per collection
+- Simplified for MCP (no cross-collection reranking)
+
+### **Discovery Tools (Simplified)**
+- `filter_collections`: Filter collections by name patterns
+- `expand_queries`: Generate query variations (definition, features, architecture)
+
+### **REST API Only (Advanced Features)**
+For complex operations requiring MMR, cross-encoder reranking, batch processing, or full discovery pipeline, use the REST API which provides all advanced features without MCP limitations.
 
 ## 📚 **Configuration**
 
@@ -287,8 +316,8 @@ See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.
 | **Search Speed** | < 3ms (CPU), < 1ms (Metal GPU) |
 | **Startup Time** | Non-blocking |
 | **Storage Reduction** | 30-50% with normalization |
-| **Test Coverage** | 402 tests, 100% pass rate |
-| **MCP Tools** | 7 unified (reduced from 40+) |
+| **Test Coverage** | All tests passing, 100% pass rate |
+| **MCP Tools** | 19 focused individual tools |
 | **Collections** | 107+ tested |
 | **PDF Conversion** | 98x faster than Docling |
 | **Document Formats** | 14 formats supported |
@@ -327,46 +356,41 @@ Cursor IDE configuration:
 }
 ```
 
-**Available MCP Tools** (7 unified tools):
+**Available MCP Tools** (19 individual tools):
 
-### 1. `search` - Unified Search Interface
-Multiple search strategies in one tool:
-- `basic`: Simple vector search with similarity ranking
-- `intelligent`: AI-powered search with query expansion and MMR
-- `semantic`: Advanced reranking and similarity thresholds
-- `contextual`: Context-aware search with metadata filtering
-- `multi_collection`: Search across multiple collections
-- `batch`: Execute multiple search queries at once
-- `by_file_type`: Search filtered by file extensions
+### **Core Collection/Vector Operations (9 tools)**
+1. `list_collections` - List all collections with metadata
+2. `create_collection` - Create new collection (name, dimension, metric)
+3. `get_collection_info` - Get detailed collection information
+4. `insert_text` - Insert single text with automatic embedding
+5. `get_vector` - Retrieve vector by ID
+6. `update_vector` - Update vector text/metadata
+7. `delete_vector` - Delete vectors by ID
+8. `multi_collection_search` - Search across multiple collections
+9. `search` - Basic vector similarity search
 
-### 2. `collection` - Collection Management
-Operations: `list`, `create`, `get_info`, `delete`
+### **Search Operations (3 tools)**
+10. `search_intelligent` - AI-powered search with query expansion and deduplication
+11. `search_semantic` - Semantic search with basic reranking
+12. `search_extra` - Combined search using multiple strategies (basic, semantic, intelligent)
 
-### 3. `vector` - Vector CRUD
-Operations: `get`, `update`, `delete`
+### **Discovery Operations (2 tools)**
+13. `filter_collections` - Filter collections by name patterns
+14. `expand_queries` - Generate query variations for broader coverage
 
-### 4. `insert` - Insert Operations
-Types: `single` (one text), `batch` (multiple texts), `structured` (with IDs/metadata)
+### **File Operations (5 tools)**
+15. `get_file_content` - Retrieve complete file content
+16. `list_files` - List indexed files with filtering and sorting
+17. `get_file_chunks` - Retrieve file chunks in original order
+18. `get_project_outline` - Generate hierarchical project structure
+19. `get_related_files` - Find semantically related files
 
-### 5. `batch_operations` - Batch Operations
-Types: `update`, `delete`, `search` (batch processing of vectors)
-
-### 6. `discovery` - Discovery Pipeline
-10 operation types including:
-- `full_pipeline`: Complete discovery with filtering, scoring, expansion
-- `filter_collections`: Pre-filter by patterns
-- `expand_queries`: Generate query variations
-- `broad_discovery`, `semantic_focus`: Advanced search modes
-- Plus evidence compression and prompt generation tools
-
-### 7. `file_operations` - File Operations
-6 operation types:
-- `get_content`: Retrieve complete file
-- `list_files`: List files in collection
-- `get_summary`: Generate file summaries
-- `get_chunks`: Progressive chunk reading
-- `get_outline`: Project structure overview
-- `get_related`: Find related files by similarity
+### **Key Improvements in v1.0.0**
+- ✅ **No enum parameters** - Direct tool selection by name
+- ✅ **Simplified parameters** - Only relevant parameters per tool
+- ✅ **Better model accuracy** - Reduced entropy improves tool calling
+- ✅ **Faster execution** - Disabled slow features (MMR, cross-encoder) in MCP
+- ✅ **Enhanced security** - Dangerous operations restricted to REST API
 
 ## 📦 **Client SDKs**
 
