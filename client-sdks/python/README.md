@@ -252,4 +252,4 @@ MIT License - see LICENSE file for details.
 ## Support
 
 - GitHub Issues: https://github.com/cmmv-hive/vectorizer/issues
-- Email: team@cmmv-hive.org
+- Email: team@hivellm.org

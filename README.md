@@ -2,9 +2,14 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 1.0.0 - Production Ready**
+## ✨ **Version 1.0.1 - Bug Fixes & Performance**
 
-### 🎉 **Major Release - MCP Tools Refactoring**
+### 🐛 **Latest Updates (v1.0.1)**
+- **🐳 Docker Virtual Paths**: Fixed support for virtual workspace paths with `..` and absolute paths
+- **📄 File Reconstruction**: Fixed duplicate content issue in `get_file_content` by auto-detecting chunk overlap
+- **⚡ Build Performance**: Disabled benchmark binaries from automatic compilation (30%+ faster builds)
+
+### 🎉 **Major Release - MCP Tools Refactoring (v1.0.0)**
 - **🎯 MCP Architecture**: 19 focused individual tools (refactored from 7 unified mega-tools)
 - **⚡ Reduced Entropy**: Removed all enum parameters for better model tool calling
 - **🔧 Simplified Interface**: Only relevant parameters per tool

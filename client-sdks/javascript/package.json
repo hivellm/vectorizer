@@ -1,6 +1,6 @@
 {
   "name": "@hivellm/vectorizer-client-js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "JavaScript client for Hive Vectorizer - High-performance vector database",
   "main": "dist/index.js",
   "files": [
