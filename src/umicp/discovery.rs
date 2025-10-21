@@ -106,7 +106,7 @@ mod tests {
 
         // Check for key individual operations
         let op_names: Vec<String> = operations.iter().map(|op| op.name.clone()).collect();
-        
+
         // Core operations
         assert!(op_names.contains(&"list_collections".to_string()));
         assert!(op_names.contains(&"create_collection".to_string()));
@@ -117,16 +117,16 @@ mod tests {
         assert!(op_names.contains(&"delete_vector".to_string()));
         assert!(op_names.contains(&"search".to_string()));
         assert!(op_names.contains(&"multi_collection_search".to_string()));
-        
+
         // Search operations
         assert!(op_names.contains(&"search_intelligent".to_string()));
         assert!(op_names.contains(&"search_semantic".to_string()));
         assert!(op_names.contains(&"search_extra".to_string()));
-        
+
         // Discovery operations
         assert!(op_names.contains(&"filter_collections".to_string()));
         assert!(op_names.contains(&"expand_queries".to_string()));
-        
+
         // File operations
         assert!(op_names.contains(&"get_file_content".to_string()));
         assert!(op_names.contains(&"list_files".to_string()));
@@ -163,13 +163,16 @@ mod tests {
         assert!(search_op.annotations.is_some());
         let annotations = search_op.annotations.as_ref().unwrap();
         assert_eq!(annotations.get("read_only"), Some(&serde_json::json!(true)));
-        assert_eq!(annotations.get("idempotent"), Some(&serde_json::json!(true)));
+        assert_eq!(
+            annotations.get("idempotent"),
+            Some(&serde_json::json!(true))
+        );
 
         // Should have input schema with query and collection fields (no search_type enum)
         assert!(search_op.input_schema.is_object());
         let schema = search_op.input_schema.as_object().unwrap();
         assert!(schema.contains_key("properties"));
-        
+
         // Verify required fields
         let properties = schema.get("properties").unwrap().as_object().unwrap();
         assert!(properties.contains_key("query"));
@@ -190,7 +193,10 @@ mod tests {
         assert!(collection_op.annotations.is_some());
         let annotations = collection_op.annotations.as_ref().unwrap();
         assert_eq!(annotations.get("read_only"), Some(&serde_json::json!(true)));
-        assert_eq!(annotations.get("idempotent"), Some(&serde_json::json!(true)));
+        assert_eq!(
+            annotations.get("idempotent"),
+            Some(&serde_json::json!(true))
+        );
 
         // Should have input schema with name field
         assert!(collection_op.input_schema.is_object());
