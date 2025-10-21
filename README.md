@@ -181,23 +181,45 @@ curl -X POST http://localhost:15002/collections/docs/search \
 
 ## 🧠 **Advanced Search Capabilities**
 
-### **Intelligent Search**
-- Multi-query generation (4-8 variations)
-- Domain expansion with technical terms
-- MMR diversification for diverse results
-- Cross-collection search with reranking
+### **MCP Search Tools (v1.0.0)**
 
-### **Search Methods**
-- `intelligent_search`: Multi-query with domain expansion
-- `semantic_search`: High-precision with similarity thresholds
-- `multi_collection_search`: Cross-collection with deduplication
-- `contextual_search`: Metadata filtering with context-aware ranking
+#### **Basic Search** (`search`)
+- Simple vector similarity search
+- Configurable similarity threshold (default: 0.1)
+- Fast and efficient for direct queries
+- Single collection focus
 
-### **Discovery Pipeline**
-- 9-stage pipeline: Filtering → Expansion → Search → Ranking → Compression
-- README promotion for documentation
-- Evidence compression with citations
-- LLM-ready prompt generation
+#### **Intelligent Search** (`search_intelligent`)
+- AI-powered query expansion
+- Automatic deduplication across results
+- Domain-specific term expansion
+- Cross-collection search support
+- Optimized for MCP (MMR disabled for speed)
+
+#### **Semantic Search** (`search_semantic`)
+- Advanced semantic reranking
+- Precision-focused results
+- Configurable similarity thresholds
+- Optimized for MCP (cross-encoder disabled for speed)
+
+#### **Combined Search** (`search_extra`) - NEW in v1.0.0
+- Concatenates results from multiple strategies
+- Combines: basic + semantic + intelligent
+- Automatic deduplication
+- Best of all search methods in one call
+
+#### **Multi-Collection Search** (`multi_collection_search`)
+- Search across multiple collections simultaneously
+- Results grouped by collection
+- Configurable limits per collection
+- Simplified for MCP (no cross-collection reranking)
+
+### **Discovery Tools (Simplified)**
+- `filter_collections`: Filter collections by name patterns
+- `expand_queries`: Generate query variations (definition, features, architecture)
+
+### **REST API Only (Advanced Features)**
+For complex operations requiring MMR, cross-encoder reranking, batch processing, or full discovery pipeline, use the REST API which provides all advanced features without MCP limitations.
 
 ## 📚 **Configuration**
 
