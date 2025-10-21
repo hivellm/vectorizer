@@ -92,250 +92,41 @@ pub async fn handle_mcp_tool(
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     match request.name.as_ref() {
-        // Unified Tools
-        "search" => handle_search_unified(request, store, embedding_manager).await,
-        "collection" => handle_collection_unified(request, store).await,
-        "vector" => handle_vector_unified(request, store, embedding_manager).await,
-        "insert" => handle_insert_unified(request, store, embedding_manager).await,
-        "batch_operations" => {
-            handle_batch_operations_unified(request, store, embedding_manager).await
+        // Core Collection/Vector Operations
+        "list_collections" => handle_list_collections(store).await,
+        "create_collection" => handle_create_collection(request, store).await,
+        "get_collection_info" => handle_get_collection_info(request, store).await,
+        "insert_text" => handle_insert_text(request, store, embedding_manager).await,
+        "get_vector" => handle_get_vector(request, store).await,
+        "update_vector" => handle_update_vector(request, store, embedding_manager).await,
+        "delete_vector" => handle_delete_vectors(request, store).await,
+        "multi_collection_search" => {
+            handle_multi_collection_search(request, store, embedding_manager).await
         }
-        "discovery" => handle_discovery_unified(request, store, embedding_manager).await,
-        "file_operations" => {
-            handle_file_operations_unified(request, store, embedding_manager).await
-        }
+        "search" => handle_search_vectors(request, store, embedding_manager).await,
+        
+        // Search Operations
+        "search_intelligent" => handle_intelligent_search(request, store, embedding_manager).await,
+        "search_semantic" => handle_semantic_search(request, store, embedding_manager).await,
+        "search_extra" => handle_search_extra(request, store, embedding_manager).await,
+        
+        // Discovery Operations
+        "filter_collections" => handle_filter_collections(request, store).await,
+        "expand_queries" => handle_expand_queries(request).await,
+        
+        // File Operations
+        "get_file_content" => handle_get_file_content(request, store).await,
+        "list_files" => handle_list_files_in_collection(request, store).await,
+        "get_file_chunks" => handle_get_file_chunks_ordered(request, store).await,
+        "get_project_outline" => handle_get_project_outline(request, store).await,
+        "get_related_files" => handle_get_related_files(request, store, embedding_manager).await,
+        
         _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
 
 // =============================================
-// Unified Search Handler
-// =============================================
-
-async fn handle_search_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let search_type = args
-        .get("search_type")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing search_type", None))?;
-
-    match search_type {
-        "basic" => handle_search_vectors(request, store, embedding_manager).await,
-        "intelligent" => handle_intelligent_search(request, store, embedding_manager).await,
-        "semantic" => handle_semantic_search(request, store, embedding_manager).await,
-        "contextual" => handle_contextual_search(request, store, embedding_manager).await,
-        "multi_collection" => {
-            handle_multi_collection_search(request, store, embedding_manager).await
-        }
-        "batch" => handle_batch_search_vectors(request, store, embedding_manager).await,
-        "by_file_type" => handle_search_by_file_type(request, store, embedding_manager).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown search_type: {}", search_type),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Unified Collection Handler
-// =============================================
-
-async fn handle_collection_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let operation = args
-        .get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing operation", None))?;
-
-    match operation {
-        "list" => handle_list_collections(store).await,
-        "create" => handle_create_collection(request, store).await,
-        "get_info" => handle_get_collection_info(request, store).await,
-        "delete" => handle_delete_collection(request, store).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown operation: {}", operation),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Unified Vector Handler
-// =============================================
-
-async fn handle_vector_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let operation = args
-        .get("operation")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing operation", None))?;
-
-    match operation {
-        "get" => handle_get_vector(request, store).await,
-        "update" => handle_update_vector(request, store, embedding_manager).await,
-        "delete" => handle_delete_vectors(request, store).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown operation: {}", operation),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Unified Insert Handler
-// =============================================
-
-async fn handle_insert_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let insert_type = args
-        .get("insert_type")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing insert_type", None))?;
-
-    match insert_type {
-        "single" => handle_insert_text(request, store, embedding_manager).await,
-        "batch" => handle_batch_insert_texts(request, store, embedding_manager).await,
-        "structured" => handle_insert_texts(request, store, embedding_manager).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown insert_type: {}", insert_type),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Unified Batch Operations Handler
-// =============================================
-
-async fn handle_batch_operations_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let batch_type = args
-        .get("batch_type")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing batch_type", None))?;
-
-    match batch_type {
-        "update" => handle_batch_update_vectors(request, store, embedding_manager).await,
-        "delete" => handle_batch_delete_vectors(request, store).await,
-        "search" => handle_batch_search_vectors(request, store, embedding_manager).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown batch_type: {}", batch_type),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Unified Discovery Handler
-// =============================================
-
-async fn handle_discovery_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let discovery_type = args
-        .get("discovery_type")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing discovery_type", None))?;
-
-    match discovery_type {
-        "full_pipeline" => handle_discover(request, store, embedding_manager).await,
-        "filter_collections" => handle_filter_collections(request, store).await,
-        "score_collections" => handle_score_collections(request, store).await,
-        "expand_queries" => handle_expand_queries(request).await,
-        "broad_discovery" => handle_broad_discovery(request, store, embedding_manager).await,
-        "semantic_focus" => handle_semantic_focus(request, store, embedding_manager).await,
-        "promote_readme" => handle_promote_readme(request).await,
-        "compress_evidence" => handle_compress_evidence(request).await,
-        "build_answer_plan" => handle_build_answer_plan(request).await,
-        "render_llm_prompt" => handle_render_llm_prompt(request).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown discovery_type: {}", discovery_type),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Unified File Operations Handler
-// =============================================
-
-async fn handle_file_operations_unified(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let operation_type = args
-        .get("operation_type")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing operation_type", None))?;
-
-    match operation_type {
-        "get_content" => handle_get_file_content(request, store).await,
-        "list_files" => handle_list_files_in_collection(request, store).await,
-        "get_summary" => handle_get_file_summary(request, store).await,
-        "get_chunks" => handle_get_file_chunks_ordered(request, store).await,
-        "get_outline" => handle_get_project_outline(request, store).await,
-        "get_related" => handle_get_related_files(request, store, embedding_manager).await,
-        _ => Err(ErrorData::internal_error(
-            format!("Unknown operation_type: {}", operation_type),
-            None,
-        )),
-    }
-}
-
-// =============================================
-// Original Handler Functions (Unchanged)
+// Handler Functions
 // =============================================
 
 async fn handle_search_vectors(
@@ -525,29 +316,6 @@ async fn handle_get_collection_info(
     )]))
 }
 
-async fn handle_delete_collection(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let name = args
-        .get("name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing name", None))?;
-
-    store.delete_collection(name).map_err(|e| {
-        ErrorData::internal_error(format!("Failed to delete collection: {}", e), None)
-    })?;
-
-    let response = json!({"status": "deleted", "name": name});
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
 
 async fn handle_insert_text(
     request: CallToolRequestParam,
@@ -604,51 +372,6 @@ async fn handle_insert_text(
     )]))
 }
 
-async fn handle_batch_insert_texts(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let collection_name = args
-        .get("collection_name")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing collection_name", None))?;
-
-    let texts = args
-        .get("texts")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| ErrorData::invalid_params("Missing texts array", None))?;
-
-    let mut vectors = Vec::new();
-    for text_value in texts {
-        if let Some(text) = text_value.as_str() {
-            let embedding = embedding_manager
-                .embed(text)
-                .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
-
-            let vector_id = uuid::Uuid::new_v4().to_string();
-            vectors.push(crate::models::Vector::new(vector_id, embedding));
-        }
-    }
-
-    store
-        .insert(collection_name, vectors.clone())
-        .map_err(|e| ErrorData::internal_error(format!("Batch insert failed: {}", e), None))?;
-
-    let response = json!({
-        "status": "batch_inserted",
-        "collection": collection_name,
-        "count": vectors.len()
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
 
 async fn handle_get_vector(
     request: CallToolRequestParam,
@@ -778,237 +501,6 @@ async fn handle_update_vector(
     )]))
 }
 
-async fn handle_insert_texts(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let collection = args
-        .get("collection")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
-
-    let texts = args
-        .get("texts")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| ErrorData::invalid_params("Missing texts array", None))?;
-
-    let mut vectors = Vec::new();
-    for text_obj in texts {
-        if let Some(obj) = text_obj.as_object() {
-            let id = obj
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| ErrorData::invalid_params("Missing id in text object", None))?;
-            let text = obj
-                .get("text")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| ErrorData::invalid_params("Missing text in text object", None))?;
-            let metadata = obj.get("metadata").cloned();
-
-            let embedding = embedding_manager
-                .embed(text)
-                .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
-
-            let payload = if let Some(meta) = metadata {
-                crate::models::Payload::new(meta)
-            } else {
-                crate::models::Payload::new(json!({}))
-            };
-
-            vectors.push(crate::models::Vector::with_payload(
-                id.to_string(),
-                embedding,
-                payload,
-            ));
-        }
-    }
-
-    store
-        .insert(collection, vectors.clone())
-        .map_err(|e| ErrorData::internal_error(format!("Insert failed: {}", e), None))?;
-
-    let response = json!({
-        "status": "inserted",
-        "collection": collection,
-        "count": vectors.len()
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
-
-async fn handle_batch_search_vectors(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let collection = args
-        .get("collection")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
-
-    let queries = args
-        .get("queries")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| ErrorData::invalid_params("Missing queries array", None))?;
-
-    let mut all_results = Vec::new();
-
-    for query_obj in queries {
-        if let Some(obj) = query_obj.as_object() {
-            let query = obj
-                .get("query")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| ErrorData::invalid_params("Missing query in query object", None))?;
-            let limit = obj.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
-
-            let embedding = embedding_manager
-                .embed(query)
-                .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
-
-            let results = store
-                .search(collection, &embedding, limit)
-                .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
-
-            all_results.push(json!({
-                "query": query,
-                "results": results.iter().map(|r| json!({
-                    "id": r.id,
-                    "score": r.score,
-                    "payload": r.payload
-                })).collect::<Vec<_>>()
-            }));
-        }
-    }
-
-    let response = json!({
-        "collection": collection,
-        "searches": all_results,
-        "total_searches": all_results.len()
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
-
-async fn handle_batch_update_vectors(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-    embedding_manager: Arc<EmbeddingManager>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let collection = args
-        .get("collection")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
-
-    let updates = args
-        .get("updates")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| ErrorData::invalid_params("Missing updates array", None))?;
-
-    let mut updated_count = 0;
-
-    for update_obj in updates {
-        if let Some(obj) = update_obj.as_object() {
-            let vector_id = obj
-                .get("vector_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    ErrorData::invalid_params("Missing vector_id in update object", None)
-                })?;
-
-            if let Some(text) = obj.get("text").and_then(|v| v.as_str()) {
-                let embedding = embedding_manager.embed(text).map_err(|e| {
-                    ErrorData::internal_error(format!("Embedding failed: {}", e), None)
-                })?;
-
-                let metadata = obj.get("metadata").cloned();
-                let payload = if let Some(meta) = metadata {
-                    crate::models::Payload::new(meta)
-                } else {
-                    crate::models::Payload::new(json!({}))
-                };
-
-                if store
-                    .update(
-                        collection,
-                        crate::models::Vector::with_payload(
-                            vector_id.to_string(),
-                            embedding,
-                            payload,
-                        ),
-                    )
-                    .is_ok()
-                {
-                    updated_count += 1;
-                }
-            }
-        }
-    }
-
-    let response = json!({
-        "status": "updated",
-        "collection": collection,
-        "count": updated_count
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
-
-async fn handle_batch_delete_vectors(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let collection = args
-        .get("collection")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
-
-    let vector_ids = args
-        .get("vector_ids")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| ErrorData::invalid_params("Missing vector_ids array", None))?;
-
-    let mut deleted_count = 0;
-    for id_value in vector_ids {
-        if let Some(id) = id_value.as_str() {
-            if store.delete(collection, id).is_ok() {
-                deleted_count += 1;
-            }
-        }
-    }
-
-    let response = json!({
-        "status": "deleted",
-        "collection": collection,
-        "count": deleted_count
-    });
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}
 
 // Intelligent Search Handlers
 
@@ -1047,29 +539,14 @@ async fn handle_intelligent_search(
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
 
-    let technical_focus = args
-        .get("technical_focus")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-
-    let mmr_enabled = args
-        .get("mmr_enabled")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-
-    let mmr_lambda = args
-        .get("mmr_lambda")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(0.7) as f32;
-
     let tool = IntelligentSearchTool {
         query: query.to_string(),
         collections,
         max_results: Some(max_results),
         domain_expansion: Some(domain_expansion),
-        technical_focus: Some(technical_focus),
-        mmr_enabled: Some(mmr_enabled),
-        mmr_lambda: Some(mmr_lambda),
+        technical_focus: Some(true),
+        mmr_enabled: Some(false),  // Disabled for MCP
+        mmr_lambda: Some(0.7),
     };
 
     // Create handler with collection-specific embedding managers
@@ -1120,17 +597,12 @@ async fn handle_multi_collection_search(
         .and_then(|v| v.as_u64())
         .unwrap_or(20) as usize;
 
-    let cross_collection_reranking = args
-        .get("cross_collection_reranking")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-
     let tool = MultiCollectionSearchTool {
         query: query.to_string(),
         collections,
         max_per_collection: Some(max_per_collection),
         max_total_results: Some(max_total_results),
-        cross_collection_reranking: Some(cross_collection_reranking),
+        cross_collection_reranking: Some(false),  // Disabled for MCP
     };
 
     let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
@@ -1174,27 +646,17 @@ async fn handle_semantic_search(
         .and_then(|v| v.as_u64())
         .unwrap_or(10) as usize;
 
-    let semantic_reranking = args
-        .get("semantic_reranking")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-
-    let cross_encoder_reranking = args
-        .get("cross_encoder_reranking")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-
     let similarity_threshold = args
         .get("similarity_threshold")
         .and_then(|v| v.as_f64())
-        .unwrap_or(0.5) as f32;
+        .unwrap_or(0.1) as f32;
 
     let tool = SemanticSearchTool {
         query: query.to_string(),
         collection: collection.to_string(),
         max_results: Some(max_results),
-        semantic_reranking: Some(semantic_reranking),
-        cross_encoder_reranking: Some(cross_encoder_reranking),
+        semantic_reranking: Some(true),
+        cross_encoder_reranking: Some(false),  // Disabled for MCP
         similarity_threshold: Some(similarity_threshold),
     };
 
@@ -1212,7 +674,8 @@ async fn handle_semantic_search(
     )]))
 }
 
-async fn handle_contextual_search(
+// New search_extra handler - combines multiple search strategies
+async fn handle_search_extra(
     request: CallToolRequestParam,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
@@ -1232,50 +695,150 @@ async fn handle_contextual_search(
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
 
-    let context_filters = args
-        .get("context_filters")
-        .and_then(|v| v.as_object())
-        .map(|obj| {
-            obj.iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect::<std::collections::HashMap<String, serde_json::Value>>()
-        });
+    let strategies = args
+        .get("strategies")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec!["basic".to_string(), "semantic".to_string()]);
 
     let max_results = args
         .get("max_results")
         .and_then(|v| v.as_u64())
         .unwrap_or(10) as usize;
 
-    let context_reranking = args
-        .get("context_reranking")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-
-    let context_weight = args
-        .get("context_weight")
+    let similarity_threshold = args
+        .get("similarity_threshold")
         .and_then(|v| v.as_f64())
-        .unwrap_or(0.3) as f32;
+        .unwrap_or(0.1) as f32;
 
-    let tool = ContextualSearchTool {
-        query: query.to_string(),
-        collection: collection.to_string(),
-        context_filters,
-        max_results: Some(max_results),
-        context_reranking: Some(context_reranking),
-        context_weight: Some(context_weight),
-    };
+    let mut all_results: Vec<serde_json::Value> = Vec::new();
+    let mut seen_ids = std::collections::HashSet::new();
 
-    let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
-    let response = handler
-        .handle_contextual_search(tool)
-        .await
-        .map_err(|e| ErrorData::internal_error(format!("Contextual search failed: {}", e), None))?;
+    // Execute each strategy and collect results
+    for strategy in &strategies {
+        match strategy.as_str() {
+            "basic" => {
+                // Basic search
+                let coll = store.get_collection(collection).map_err(|e| {
+                    ErrorData::internal_error(format!("Collection not found: {}", e), None)
+                })?;
+                let embedding_type = coll.get_embedding_type();
+                let dimension = coll.config().dimension;
+                let coll_emb_manager =
+                    create_embedding_manager_for_collection(&embedding_type, dimension)
+                        .map_err(|e| {
+                            ErrorData::internal_error(
+                                format!("Failed to create embedding manager: {}", e),
+                                None,
+                            )
+                        })?;
+                let embedding = coll_emb_manager.embed(query).map_err(|e| {
+                    ErrorData::internal_error(format!("Embedding failed: {}", e), None)
+                })?;
+                let results = store
+                    .search(collection, &embedding, max_results)
+                    .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
+                
+                for result in results {
+                    if !seen_ids.contains(&result.id) {
+                        seen_ids.insert(result.id.clone());
+                        all_results.push(json!({
+                            "id": result.id,
+                            "score": result.score,
+                            "payload": result.payload,
+                            "strategy": "basic"
+                        }));
+                    }
+                }
+            }
+            "semantic" => {
+                // Semantic search
+                let tool = SemanticSearchTool {
+                    query: query.to_string(),
+                    collection: collection.to_string(),
+                    max_results: Some(max_results),
+                    semantic_reranking: Some(true),
+                    cross_encoder_reranking: Some(false),
+                    similarity_threshold: Some(similarity_threshold),
+                };
+                let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
+                let response = handler.handle_semantic_search(tool).await.map_err(|e| {
+                    ErrorData::internal_error(format!("Semantic search failed: {}", e), None)
+                })?;
+                
+                for result in response.results {
+                    if !seen_ids.contains(&result.doc_id) {
+                        seen_ids.insert(result.doc_id.clone());
+                        all_results.push(json!({
+                            "id": result.doc_id,
+                            "score": result.score,
+                            "content": result.content,
+                            "collection": result.collection,
+                            "metadata": result.metadata,
+                            "strategy": "semantic"
+                        }));
+                    }
+                }
+            }
+            "intelligent" => {
+                // Intelligent search (single collection)
+                let tool = IntelligentSearchTool {
+                    query: query.to_string(),
+                    collections: Some(vec![collection.to_string()]),
+                    max_results: Some(max_results),
+                    domain_expansion: Some(true),
+                    technical_focus: Some(true),
+                    mmr_enabled: Some(false),
+                    mmr_lambda: Some(0.7),
+                };
+                let handler = MCPToolHandler::new_with_store(store.clone());
+                let response = handler.handle_intelligent_search(tool).await.map_err(|e| {
+                    ErrorData::internal_error(format!("Intelligent search failed: {}", e), None)
+                })?;
+                
+                for result in response.results {
+                    if !seen_ids.contains(&result.doc_id) {
+                        seen_ids.insert(result.doc_id.clone());
+                        all_results.push(json!({
+                            "id": result.doc_id,
+                            "score": result.score,
+                            "content": result.content,
+                            "collection": result.collection,
+                            "metadata": result.metadata,
+                            "strategy": "intelligent"
+                        }));
+                    }
+                }
+            }
+            _ => continue, // Skip unknown strategies
+        }
+    }
 
-    let json_response = serde_json::to_value(response)
-        .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
+    // Sort by score descending
+    all_results.sort_by(|a, b| {
+        let score_a = a.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+        let score_b = b.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+        score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    
+    // Limit total results
+    all_results.truncate(max_results * 2); // Allow more since we're combining strategies
+
+    let response = json!({
+        "query": query,
+        "collection": collection,
+        "strategies_used": strategies,
+        "results": all_results,
+        "total": all_results.len()
+    });
 
     Ok(CallToolResult::success(vec![Content::text(
-        json_response.to_string(),
+        response.to_string(),
     )]))
 }
 
@@ -1419,75 +982,3 @@ async fn handle_list_files_in_collection(
     )]))
 }
 
-async fn handle_get_file_summary(
-    request: CallToolRequestParam,
-    store: Arc<VectorStore>,
-) -> Result<CallToolResult, ErrorData> {
-    let args = request
-        .arguments
-        .as_ref()
-        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
-
-    let collection = args
-        .get("collection")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
-
-    let file_path = args
-        .get("file_path")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ErrorData::invalid_params("Missing file_path", None))?;
-
-    let summary_type = args
-        .get("summary_type")
-        .and_then(|v| v.as_str())
-        .and_then(|s| match s {
-            "extractive" => Some(SummaryType::Extractive),
-            "structural" => Some(SummaryType::Structural),
-            "both" => Some(SummaryType::Both),
-            _ => None,
-        })
-        .unwrap_or(SummaryType::Both);
-
-    let max_sentences = args
-        .get("max_sentences")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(5) as usize;
-
-    // Initialize FileOperations WITH STORE
-    let file_ops = FileOperations::with_store(store);
-
-    // Get summary
-    let result = file_ops
-        .get_file_summary(collection, file_path, summary_type, max_sentences)
-        .await
-        .map_err(|e| {
-            ErrorData::internal_error(format!("Failed to get file summary: {}", e), None)
-        })?;
-
-    let mut response = json!({
-        "file_path": result.file_path,
-        "metadata": {
-            "chunk_count": result.metadata.chunk_count,
-            "file_type": result.metadata.file_type,
-            "summary_method": result.metadata.summary_method,
-        },
-        "generated_at": result.generated_at,
-    });
-
-    if let Some(extractive) = result.extractive_summary {
-        response["extractive_summary"] = json!(extractive);
-    }
-
-    if let Some(structural) = result.structural_summary {
-        response["structural_summary"] = json!({
-            "outline": structural.outline,
-            "key_sections": structural.key_sections,
-            "key_points": structural.key_points,
-        });
-    }
-
-    Ok(CallToolResult::success(vec![Content::text(
-        response.to_string(),
-    )]))
-}

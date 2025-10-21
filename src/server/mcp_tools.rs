@@ -1,4 +1,4 @@
-//! MCP Tools definitions - Unified Interface
+//! MCP Tools definitions - Individual Focused Tools
 
 use std::borrow::Cow;
 
@@ -7,42 +7,256 @@ use serde_json::json;
 
 pub fn get_mcp_tools() -> Vec<Tool> {
     vec![
-        // 1. Unified Search Tool
+        // =============================================
+        // Core Collection/Vector Operations (9 tools)
+        // =============================================
+        
+        // 1. List Collections
         Tool {
-            name: Cow::Borrowed("search"),
-            title: Some("Unified Search".to_string()),
+            name: Cow::Borrowed("list_collections"),
+            title: Some("List Collections".to_string()),
             description: Some(Cow::Borrowed(
-                "Unified search interface supporting multiple search strategies. \n\n\
-                Available types:\n\
-                - 'basic': Simple vector search with similarity ranking\n\
-                - 'intelligent': AI-powered search with query expansion, MMR diversification, and deduplication\n\
-                - 'semantic': Advanced semantic search with reranking algorithms and similarity thresholds\n\
-                - 'contextual': Context-aware search with metadata filtering and contextual reranking\n\
-                - 'multi_collection': Search across multiple collections with cross-collection ranking\n\
-                - 'batch': Execute multiple search queries in a single batch operation\n\
-                - 'by_file_type': Semantic search filtered by specific file extensions\n\n\
-                Each type has specific parameters. See schema for details."
+                "List all available collections with metadata including vector count, dimension, and configuration."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 2. Create Collection
+        Tool {
+            name: Cow::Borrowed("create_collection"),
+            title: Some("Create Collection".to_string()),
+            description: Some(Cow::Borrowed(
+                "Create a new vector collection with specified dimension and distance metric."
             )),
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "search_type": {
+                    "name": {
                         "type": "string",
-                        "enum": ["basic", "intelligent", "semantic", "contextual", "multi_collection", "batch", "by_file_type"],
-                        "description": "Search strategy to use"
+                        "description": "Collection name"
                     },
-                    "query": {
+                    "dimension": {
+                        "type": "integer",
+                        "description": "Vector dimension"
+                    },
+                    "metric": {
                         "type": "string",
-                        "description": "Search query (required for all types except batch)"
+                        "description": "Distance metric: 'cosine' or 'euclidean'",
+                        "default": "cosine"
+                    }
+                },
+                "required": ["name", "dimension"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // 3. Get Collection Info
+        Tool {
+            name: Cow::Borrowed("get_collection_info"),
+            title: Some("Get Collection Info".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get detailed information about a specific collection including stats and configuration."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Collection name"
+                    }
+                },
+                "required": ["name"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 4. Insert Text
+        Tool {
+            name: Cow::Borrowed("insert_text"),
+            title: Some("Insert Text".to_string()),
+            description: Some(Cow::Borrowed(
+                "Insert a single text into a collection with automatic embedding generation."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection_name": {
+                        "type": "string",
+                        "description": "Collection name"
                     },
+                    "text": {
+                        "type": "string",
+                        "description": "Text to insert"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Optional metadata"
+                    }
+                },
+                "required": ["collection_name", "text"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // 5. Get Vector
+        Tool {
+            name: Cow::Borrowed("get_vector"),
+            title: Some("Get Vector".to_string()),
+            description: Some(Cow::Borrowed(
+                "Retrieve a specific vector by ID from a collection."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
                     "collection": {
                         "type": "string",
-                        "description": "Collection name (required for basic, semantic, contextual, batch, by_file_type)"
+                        "description": "Collection name"
+                    },
+                    "vector_id": {
+                        "type": "string",
+                        "description": "Vector ID"
+                    }
+                },
+                "required": ["collection", "vector_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 6. Update Vector
+        Tool {
+            name: Cow::Borrowed("update_vector"),
+            title: Some("Update Vector".to_string()),
+            description: Some(Cow::Borrowed(
+                "Update an existing vector with new text and/or metadata."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "vector_id": {
+                        "type": "string",
+                        "description": "Vector ID"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "New text content"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Optional metadata"
+                    }
+                },
+                "required": ["collection", "vector_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // 7. Delete Vector
+        Tool {
+            name: Cow::Borrowed("delete_vector"),
+            title: Some("Delete Vector".to_string()),
+            description: Some(Cow::Borrowed(
+                "Delete one or more vectors by ID from a collection."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "vector_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of vector IDs to delete"
+                    }
+                },
+                "required": ["collection", "vector_ids"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // 8. Multi-Collection Search
+        Tool {
+            name: Cow::Borrowed("multi_collection_search"),
+            title: Some("Multi-Collection Search".to_string()),
+            description: Some(Cow::Borrowed(
+                "Search across multiple collections simultaneously with results from each."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
                     },
                     "collections": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Array of collection names (for intelligent, multi_collection)"
+                        "description": "Array of collection names to search"
+                    },
+                    "max_per_collection": {
+                        "type": "integer",
+                        "description": "Maximum results per collection",
+                        "default": 5
+                    },
+                    "max_total_results": {
+                        "type": "integer",
+                        "description": "Total maximum results",
+                        "default": 20
+                    },
+                    "similarity_threshold": {
+                        "type": "number",
+                        "description": "Minimum similarity score 0.0-1.0",
+                        "default": 0.1
+                    }
+                },
+                "required": ["query", "collections"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 9. Basic Search
+        Tool {
+            name: Cow::Borrowed("search"),
+            title: Some("Basic Vector Search".to_string()),
+            description: Some(Cow::Borrowed(
+                "Basic vector similarity search in a single collection."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
                     },
                     "limit": {
                         "type": "integer",
@@ -51,579 +265,417 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                         "minimum": 1,
                         "maximum": 100
                     },
-                    "max_results": {
-                        "type": "integer",
-                        "description": "Maximum results (for intelligent, semantic, contextual)",
-                        "default": 10
-                    },
-                    "max_per_collection": {
-                        "type": "integer",
-                        "description": "Max results per collection (for multi_collection)",
-                        "default": 5
-                    },
-                    "max_total_results": {
-                        "type": "integer",
-                        "description": "Total max results (for multi_collection)",
-                        "default": 20
-                    },
-                    "domain_expansion": {
-                        "type": "boolean",
-                        "description": "Enable domain-specific query expansion (intelligent)",
-                        "default": true
-                    },
-                    "technical_focus": {
-                        "type": "boolean",
-                        "description": "Prioritize technical content (intelligent)",
-                        "default": true
-                    },
-                    "mmr_enabled": {
-                        "type": "boolean",
-                        "description": "Enable MMR diversification (intelligent)",
-                        "default": true
-                    },
-                    "mmr_lambda": {
-                        "type": "number",
-                        "description": "MMR balance parameter 0.0-1.0 (intelligent)",
-                        "default": 0.7
-                    },
-                    "semantic_reranking": {
-                        "type": "boolean",
-                        "description": "Enable semantic reranking (semantic)",
-                        "default": true
-                    },
-                    "cross_encoder_reranking": {
-                        "type": "boolean",
-                        "description": "Enable cross-encoder reranking (semantic)",
-                        "default": false
-                    },
                     "similarity_threshold": {
                         "type": "number",
-                        "description": "Minimum similarity score 0.0-1.0 (semantic)",
-                        "default": 0.5
-                    },
-                    "context_filters": {
-                        "type": "object",
-                        "description": "Metadata filters (contextual)"
-                    },
-                    "context_reranking": {
-                        "type": "boolean",
-                        "description": "Enable context-aware reranking (contextual)",
-                        "default": true
-                    },
-                    "context_weight": {
-                        "type": "number",
-                        "description": "Weight of context factors 0.0-1.0 (contextual)",
-                        "default": 0.3
-                    },
-                    "cross_collection_reranking": {
-                        "type": "boolean",
-                        "description": "Enable cross-collection reranking (multi_collection)",
-                        "default": true
-                    },
-                    "queries": {
-                        "type": "array",
-                        "description": "Array of query objects for batch search",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "query": {"type": "string"},
-                                "limit": {"type": "integer", "default": 10}
-                            }
-                        }
-                    },
-                    "file_types": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "File extensions to search (by_file_type)"
-                    },
-                    "return_full_files": {
-                        "type": "boolean",
-                        "description": "Return complete file content (by_file_type)",
-                        "default": false
+                        "description": "Minimum similarity score 0.0-1.0",
+                        "default": 0.1
                     }
                 },
-                "required": ["search_type"]
+                "required": ["query", "collection"]
             }).as_object().unwrap().clone().into(),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
 
-        // 2. Unified Collection Tool
-        Tool {
-            name: Cow::Borrowed("collection"),
-            title: Some("Collection Management".to_string()),
-            description: Some(Cow::Borrowed(
-                "Unified interface for collection management operations.\n\n\
-                Available types:\n\
-                - 'list': List all available collections with metadata\n\
-                - 'create': Create a new vector collection\n\
-                - 'get_info': Get detailed information about a specific collection\n\
-                - 'delete': Delete a collection permanently\n\n\
-                Each type has specific parameters. See schema for details."
-            )),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "enum": ["list", "create", "get_info", "delete"],
-                        "description": "Collection operation to perform"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Collection name (required for create, get_info, delete)"
-                    },
-                    "dimension": {
-                        "type": "integer",
-                        "description": "Vector dimension (required for create)"
-                    },
-                    "metric": {
-                        "type": "string",
-                        "enum": ["cosine", "euclidean"],
-                        "description": "Distance metric (for create)",
-                        "default": "cosine"
-                    }
-                },
-                "required": ["operation"]
-            }).as_object().unwrap().clone().into(),
-            output_schema: None,
-            icons: None,
-            annotations: Some(ToolAnnotations::new().read_only(false)),
-        },
+        // =============================================
+        // Search Operations (3 tools)
+        // =============================================
 
-        // 3. Unified Vector Tool
+        // 10. Intelligent Search
         Tool {
-            name: Cow::Borrowed("vector"),
-            title: Some("Vector Operations".to_string()),
+            name: Cow::Borrowed("search_intelligent"),
+            title: Some("Intelligent Search".to_string()),
             description: Some(Cow::Borrowed(
-                "Unified interface for vector CRUD operations.\n\n\
-                Available types:\n\
-                - 'get': Retrieve a specific vector by ID\n\
-                - 'update': Update an existing vector with new text/metadata\n\
-                - 'delete': Delete specific vectors by their IDs\n\n\
-                Each type has specific parameters. See schema for details."
+                "AI-powered search with automatic query expansion and result deduplication across collections."
             )),
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "operation": {
-                        "type": "string",
-                        "enum": ["get", "update", "delete"],
-                        "description": "Vector operation to perform"
-                    },
-                    "collection": {
-                        "type": "string",
-                        "description": "Collection name (required for all operations)"
-                    },
-                    "vector_id": {
-                        "type": "string",
-                        "description": "Vector ID (required for get, update)"
-                    },
-                    "vector_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Array of vector IDs (required for delete)"
-                    },
-                    "text": {
-                        "type": "string",
-                        "description": "New text content (for update)"
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "description": "Optional metadata (for update)"
-                    }
-                },
-                "required": ["operation", "collection"]
-            }).as_object().unwrap().clone().into(),
-            output_schema: None,
-            icons: None,
-            annotations: Some(ToolAnnotations::new().read_only(false)),
-        },
-
-        // 4. Unified Insert Tool
-        Tool {
-            name: Cow::Borrowed("insert"),
-            title: Some("Insert Operations".to_string()),
-            description: Some(Cow::Borrowed(
-                "Unified interface for inserting data into collections.\n\n\
-                Available types:\n\
-                - 'single': Insert a single text with automatic embedding\n\
-                - 'batch': Insert multiple texts in a batch operation\n\
-                - 'structured': Insert texts with explicit IDs and metadata\n\n\
-                Each type has specific parameters. See schema for details."
-            )),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "insert_type": {
-                        "type": "string",
-                        "enum": ["single", "batch", "structured"],
-                        "description": "Type of insert operation"
-                    },
-                    "collection": {
-                        "type": "string",
-                        "description": "Collection name (required for all types)"
-                    },
-                    "collection_name": {
-                        "type": "string",
-                        "description": "Collection name (alias for single type)"
-                    },
-                    "text": {
-                        "type": "string",
-                        "description": "Text to insert (required for single)"
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "description": "Optional metadata (for single)"
-                    },
-                    "texts": {
-                        "type": "array",
-                        "description": "Array of texts (for batch) or objects (for structured)",
-                        "items": {
-                            "oneOf": [
-                                {"type": "string"},
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "id": {"type": "string"},
-                                        "text": {"type": "string"},
-                                        "metadata": {"type": "object"}
-                                    },
-                                    "required": ["id", "text"]
-                                }
-                            ]
-                        }
-                    }
-                },
-                "required": ["insert_type"]
-            }).as_object().unwrap().clone().into(),
-            output_schema: None,
-            icons: None,
-            annotations: Some(ToolAnnotations::new().read_only(false)),
-        },
-
-        // 5. Unified Batch Operations Tool
-        Tool {
-            name: Cow::Borrowed("batch_operations"),
-            title: Some("Batch Operations".to_string()),
-            description: Some(Cow::Borrowed(
-                "Unified interface for batch vector operations.\n\n\
-                Available types:\n\
-                - 'update': Update multiple vectors in a single operation\n\
-                - 'delete': Delete multiple vectors in a single operation\n\
-                - 'search': Execute multiple search queries in a batch\n\n\
-                Each type has specific parameters. See schema for details."
-            )),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "batch_type": {
-                        "type": "string",
-                        "enum": ["update", "delete", "search"],
-                        "description": "Type of batch operation"
-                    },
-                    "collection": {
-                        "type": "string",
-                        "description": "Collection name (required for all types)"
-                    },
-                    "updates": {
-                        "type": "array",
-                        "description": "Array of update objects (for update)",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "vector_id": {"type": "string"},
-                                "text": {"type": "string"},
-                                "metadata": {"type": "object"}
-                            },
-                            "required": ["vector_id"]
-                        }
-                    },
-                    "vector_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Array of vector IDs to delete (for delete)"
-                    },
-                    "queries": {
-                        "type": "array",
-                        "description": "Array of query objects (for search)",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "query": {"type": "string"},
-                                "limit": {"type": "integer", "default": 10}
-                            },
-                            "required": ["query"]
-                        }
-                    }
-                },
-                "required": ["batch_type", "collection"]
-            }).as_object().unwrap().clone().into(),
-            output_schema: None,
-            icons: None,
-            annotations: Some(ToolAnnotations::new().read_only(false)),
-        },
-
-        // 6. Unified Discovery Tool
-        Tool {
-            name: Cow::Borrowed("discovery"),
-            title: Some("Discovery Pipeline".to_string()),
-            description: Some(Cow::Borrowed(
-                "Unified interface for discovery pipeline and utilities.\n\n\
-                Available types:\n\
-                - 'full_pipeline': Complete discovery pipeline with filtering, scoring, expansion, search, ranking, compression, and prompt generation\n\
-                - 'filter_collections': Pre-filter collections by name patterns with stopword removal\n\
-                - 'score_collections': Rank collections by relevance using name match, term boost, and signals\n\
-                - 'expand_queries': Generate query variations (definition, features, architecture, API, performance)\n\
-                - 'broad_discovery': Multi-query broad search with MMR diversification and deduplication\n\
-                - 'semantic_focus': Deep semantic search in specific collection with reranking\n\
-                - 'promote_readme': Boost README files to the top of search results\n\
-                - 'compress_evidence': Extract key sentences with citations from chunks\n\
-                - 'build_answer_plan': Organize bullets into structured sections\n\
-                - 'render_llm_prompt': Generate compact, structured prompt for LLM\n\n\
-                Each type has specific parameters. See schema for details."
-            )),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "discovery_type": {
-                        "type": "string",
-                        "enum": ["full_pipeline", "filter_collections", "score_collections", "expand_queries", "broad_discovery", "semantic_focus", "promote_readme", "compress_evidence", "build_answer_plan", "render_llm_prompt"],
-                        "description": "Type of discovery operation"
-                    },
                     "query": {
                         "type": "string",
-                        "description": "Search query (required for most types)"
+                        "description": "Search query"
                     },
-                    "include_collections": {
+                    "collections": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Collections to include (for full_pipeline, filter_collections)"
+                        "description": "Array of collection names (optional, searches all if omitted)"
                     },
-                    "exclude_collections": {
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return",
+                        "default": 10
+                    },
+                    "domain_expansion": {
+                        "type": "boolean",
+                        "description": "Enable domain-specific query expansion",
+                        "default": true
+                    },
+                    "similarity_threshold": {
+                        "type": "number",
+                        "description": "Minimum similarity score 0.0-1.0",
+                        "default": 0.1
+                    }
+                },
+                "required": ["query"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 11. Semantic Search
+        Tool {
+            name: Cow::Borrowed("search_semantic"),
+            title: Some("Semantic Search".to_string()),
+            description: Some(Cow::Borrowed(
+                "Semantic search with basic reranking for better relevance."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return",
+                        "default": 10
+                    },
+                    "similarity_threshold": {
+                        "type": "number",
+                        "description": "Minimum similarity score 0.0-1.0",
+                        "default": 0.1
+                    }
+                },
+                "required": ["query", "collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 12. Extra Search (Combined)
+        Tool {
+            name: Cow::Borrowed("search_extra"),
+            title: Some("Combined Search".to_string()),
+            description: Some(Cow::Borrowed(
+                "Combined search that concatenates results from multiple search strategies (basic, intelligent, semantic)."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "strategies": {
                         "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Collections to exclude (for full_pipeline, filter_collections)"
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Search strategies to combine: 'basic', 'intelligent', 'semantic'",
+                        "default": ["basic", "semantic"]
                     },
-                    "max_bullets": {
+                    "max_results": {
                         "type": "integer",
-                        "default": 20,
-                        "description": "Maximum evidence bullets (for full_pipeline, compress_evidence)"
+                        "description": "Maximum results per strategy",
+                        "default": 10
                     },
-                    "broad_k": {
-                        "type": "integer",
-                        "default": 50,
-                        "description": "Broad search results (for full_pipeline)"
-                    },
-                    "focus_k": {
-                        "type": "integer",
-                        "default": 15,
-                        "description": "Focus search results per collection (for full_pipeline)"
-                    },
+                    "similarity_threshold": {
+                        "type": "number",
+                        "description": "Minimum similarity score 0.0-1.0",
+                        "default": 0.1
+                    }
+                },
+                "required": ["query", "collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // =============================================
+        // Discovery Operations (2 tools)
+        // =============================================
+
+        // 13. Filter Collections
+        Tool {
+            name: Cow::Borrowed("filter_collections"),
+            title: Some("Filter Collections".to_string()),
+            description: Some(Cow::Borrowed(
+                "Filter collections by name patterns with include/exclude support."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
                     "include": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Include patterns (for filter_collections)"
+                        "description": "Include patterns (optional)"
                     },
                     "exclude": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Exclude patterns (for filter_collections)"
-                    },
-                    "name_match_weight": {
-                        "type": "number",
-                        "default": 0.4,
-                        "description": "Weight for name matching (for score_collections)"
-                    },
-                    "term_boost_weight": {
-                        "type": "number",
-                        "default": 0.3,
-                        "description": "Weight for term boost (for score_collections)"
-                    },
-                    "signal_boost_weight": {
-                        "type": "number",
-                        "default": 0.3,
-                        "description": "Weight for signals (for score_collections)"
-                    },
-                    "max_expansions": {
-                        "type": "integer",
-                        "default": 8,
-                        "description": "Maximum expansions (for expand_queries)"
-                    },
-                    "include_definition": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Include definition queries (for expand_queries)"
-                    },
-                    "include_features": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Include features queries (for expand_queries)"
-                    },
-                    "include_architecture": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Include architecture queries (for expand_queries)"
-                    },
-                    "queries": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Array of search queries (for broad_discovery, semantic_focus)"
-                    },
-                    "k": {
-                        "type": "integer",
-                        "description": "Maximum results (for broad_discovery, semantic_focus)"
-                    },
-                    "collection": {
-                        "type": "string",
-                        "description": "Target collection name (for semantic_focus)"
-                    },
-                    "chunks": {
-                        "type": "array",
-                        "description": "Array of scored chunks (for promote_readme, compress_evidence)"
-                    },
-                    "max_per_doc": {
-                        "type": "integer",
-                        "default": 3,
-                        "description": "Max bullets per document (for compress_evidence)"
-                    },
-                    "bullets": {
-                        "type": "array",
-                        "description": "Array of evidence bullets (for build_answer_plan)"
-                    },
-                    "plan": {
-                        "type": "object",
-                        "description": "Answer plan with sections and bullets (for render_llm_prompt)"
+                        "description": "Exclude patterns (optional)"
                     }
                 },
-                "required": ["discovery_type"]
+                "required": []
             }).as_object().unwrap().clone().into(),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
 
-        // 7. Unified File Operations Tool
+        // 14. Expand Queries
         Tool {
-            name: Cow::Borrowed("file_operations"),
-            title: Some("File Operations".to_string()),
+            name: Cow::Borrowed("expand_queries"),
+            title: Some("Expand Queries".to_string()),
             description: Some(Cow::Borrowed(
-                "Unified interface for file operations in collections.\n\n\
-                Available types:\n\
-                - 'get_content': Retrieve complete file content from a collection\n\
-                - 'list_files': List all indexed files in a collection with metadata\n\
-                - 'get_summary': Get extractive or structural summary of an indexed file\n\
-                - 'get_chunks': Retrieve chunks in original file order for progressive reading\n\
-                - 'get_outline': Generate hierarchical project structure overview\n\
-                - 'get_related': Find semantically related files using vector similarity\n\n\
-                Each type has specific parameters. See schema for details."
+                "Generate query variations and expansions for broader search coverage."
             )),
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "operation_type": {
+                    "query": {
                         "type": "string",
-                        "enum": ["get_content", "list_files", "get_summary", "get_chunks", "get_outline", "get_related"],
-                        "description": "Type of file operation"
+                        "description": "Base query to expand"
                     },
+                    "max_expansions": {
+                        "type": "integer",
+                        "description": "Maximum number of expansions",
+                        "default": 8
+                    },
+                    "include_definition": {
+                        "type": "boolean",
+                        "description": "Include definition queries",
+                        "default": true
+                    },
+                    "include_features": {
+                        "type": "boolean",
+                        "description": "Include features queries",
+                        "default": true
+                    },
+                    "include_architecture": {
+                        "type": "boolean",
+                        "description": "Include architecture queries",
+                        "default": true
+                    }
+                },
+                "required": ["query"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // =============================================
+        // File Operations (5 tools)
+        // =============================================
+
+        // 15. Get File Content
+        Tool {
+            name: Cow::Borrowed("get_file_content"),
+            title: Some("Get File Content".to_string()),
+            description: Some(Cow::Borrowed(
+                "Retrieve complete file content from a collection."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
                     "collection": {
                         "type": "string",
-                        "description": "Collection name (required for all types)"
+                        "description": "Collection name"
                     },
                     "file_path": {
                         "type": "string",
-                        "description": "File path (required for get_content, get_summary, get_chunks, get_related)"
+                        "description": "File path"
                     },
                     "max_size_kb": {
                         "type": "integer",
-                        "description": "Maximum file size in KB (for get_content)",
+                        "description": "Maximum file size in KB",
                         "default": 500,
                         "minimum": 1,
                         "maximum": 5000
+                    }
+                },
+                "required": ["collection", "file_path"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 16. List Files
+        Tool {
+            name: Cow::Borrowed("list_files"),
+            title: Some("List Files".to_string()),
+            description: Some(Cow::Borrowed(
+                "List all indexed files in a collection with metadata and filters."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
                     },
                     "filter_by_type": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Filter by file types (for list_files)"
+                        "description": "Filter by file extensions (e.g., ['rs', 'ts'])"
                     },
                     "min_chunks": {
                         "type": "integer",
-                        "description": "Minimum number of chunks (for list_files)"
+                        "description": "Minimum number of chunks"
                     },
                     "max_results": {
                         "type": "integer",
-                        "description": "Maximum number of results (for list_files, get_related)",
+                        "description": "Maximum number of results",
                         "default": 100
                     },
                     "sort_by": {
                         "type": "string",
-                        "enum": ["name", "size", "chunks", "recent"],
-                        "description": "Sort order (for list_files)",
+                        "description": "Sort order: 'name', 'size', 'chunks', or 'recent'",
                         "default": "name"
-                    },
-                    "summary_type": {
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 17. Get File Chunks
+        Tool {
+            name: Cow::Borrowed("get_file_chunks"),
+            title: Some("Get File Chunks".to_string()),
+            description: Some(Cow::Borrowed(
+                "Retrieve file chunks in original order for progressive reading."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
                         "type": "string",
-                        "enum": ["extractive", "structural", "both"],
-                        "description": "Type of summary (for get_summary)",
-                        "default": "both"
+                        "description": "Collection name"
                     },
-                    "max_sentences": {
-                        "type": "integer",
-                        "description": "Maximum sentences for extractive summary (for get_summary)",
-                        "default": 5,
-                        "minimum": 1,
-                        "maximum": 20
+                    "file_path": {
+                        "type": "string",
+                        "description": "File path"
                     },
                     "start_chunk": {
                         "type": "integer",
-                        "description": "Starting chunk index (for get_chunks)",
+                        "description": "Starting chunk index",
                         "default": 0,
                         "minimum": 0
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "Number of chunks to retrieve (for get_chunks)",
+                        "description": "Number of chunks to retrieve",
                         "default": 10,
                         "minimum": 1,
                         "maximum": 50
                     },
                     "include_context": {
                         "type": "boolean",
-                        "description": "Include prev/next chunk hints (for get_chunks)",
+                        "description": "Include prev/next chunk hints",
                         "default": false
+                    }
+                },
+                "required": ["collection", "file_path"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 18. Get Project Outline
+        Tool {
+            name: Cow::Borrowed("get_project_outline"),
+            title: Some("Get Project Outline".to_string()),
+            description: Some(Cow::Borrowed(
+                "Generate hierarchical project structure overview from indexed files."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
                     },
                     "max_depth": {
                         "type": "integer",
-                        "description": "Maximum directory depth (for get_outline)",
+                        "description": "Maximum directory depth",
                         "default": 5,
                         "minimum": 1,
                         "maximum": 10
                     },
                     "include_summaries": {
                         "type": "boolean",
-                        "description": "Include file summaries in outline (for get_outline)",
+                        "description": "Include file summaries in outline",
                         "default": false
                     },
                     "highlight_key_files": {
                         "type": "boolean",
-                        "description": "Highlight important files like README (for get_outline)",
+                        "description": "Highlight important files like README",
                         "default": true
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 19. Get Related Files
+        Tool {
+            name: Cow::Borrowed("get_related_files"),
+            title: Some("Get Related Files".to_string()),
+            description: Some(Cow::Borrowed(
+                "Find semantically related files using vector similarity."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "file_path": {
+                        "type": "string",
+                        "description": "File path"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results",
+                        "default": 10
                     },
                     "similarity_threshold": {
                         "type": "number",
-                        "description": "Minimum similarity score 0.0-1.0 (for get_related)",
+                        "description": "Minimum similarity score 0.0-1.0",
                         "default": 0.6,
                         "minimum": 0.0,
                         "maximum": 1.0
                     },
                     "include_reason": {
                         "type": "boolean",
-                        "description": "Include explanation of why files are related (for get_related)",
+                        "description": "Include explanation of why files are related",
                         "default": true
                     }
                 },
-                "required": ["operation_type", "collection"]
+                "required": ["collection", "file_path"]
             }).as_object().unwrap().clone().into(),
             output_schema: None,
             icons: None,
