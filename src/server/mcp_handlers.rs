@@ -104,23 +104,23 @@ pub async fn handle_mcp_tool(
             handle_multi_collection_search(request, store, embedding_manager).await
         }
         "search" => handle_search_vectors(request, store, embedding_manager).await,
-        
+
         // Search Operations
         "search_intelligent" => handle_intelligent_search(request, store, embedding_manager).await,
         "search_semantic" => handle_semantic_search(request, store, embedding_manager).await,
         "search_extra" => handle_search_extra(request, store, embedding_manager).await,
-        
+
         // Discovery Operations
         "filter_collections" => handle_filter_collections(request, store).await,
         "expand_queries" => handle_expand_queries(request).await,
-        
+
         // File Operations
         "get_file_content" => handle_get_file_content(request, store).await,
         "list_files" => handle_list_files_in_collection(request, store).await,
         "get_file_chunks" => handle_get_file_chunks_ordered(request, store).await,
         "get_project_outline" => handle_get_project_outline(request, store).await,
         "get_related_files" => handle_get_related_files(request, store, embedding_manager).await,
-        
+
         _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
@@ -316,7 +316,6 @@ async fn handle_get_collection_info(
     )]))
 }
 
-
 async fn handle_insert_text(
     request: CallToolRequestParam,
     store: Arc<VectorStore>,
@@ -371,7 +370,6 @@ async fn handle_insert_text(
         response.to_string(),
     )]))
 }
-
 
 async fn handle_get_vector(
     request: CallToolRequestParam,
@@ -501,7 +499,6 @@ async fn handle_update_vector(
     )]))
 }
 
-
 // Intelligent Search Handlers
 
 async fn handle_intelligent_search(
@@ -545,7 +542,7 @@ async fn handle_intelligent_search(
         max_results: Some(max_results),
         domain_expansion: Some(domain_expansion),
         technical_focus: Some(true),
-        mmr_enabled: Some(false),  // Disabled for MCP
+        mmr_enabled: Some(false), // Disabled for MCP
         mmr_lambda: Some(0.7),
     };
 
@@ -602,7 +599,7 @@ async fn handle_multi_collection_search(
         collections,
         max_per_collection: Some(max_per_collection),
         max_total_results: Some(max_total_results),
-        cross_collection_reranking: Some(false),  // Disabled for MCP
+        cross_collection_reranking: Some(false), // Disabled for MCP
     };
 
     let handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
@@ -656,7 +653,7 @@ async fn handle_semantic_search(
         collection: collection.to_string(),
         max_results: Some(max_results),
         semantic_reranking: Some(true),
-        cross_encoder_reranking: Some(false),  // Disabled for MCP
+        cross_encoder_reranking: Some(false), // Disabled for MCP
         similarity_threshold: Some(similarity_threshold),
     };
 
@@ -730,20 +727,23 @@ async fn handle_search_extra(
                 let embedding_type = coll.get_embedding_type();
                 let dimension = coll.config().dimension;
                 let coll_emb_manager =
-                    create_embedding_manager_for_collection(&embedding_type, dimension)
-                        .map_err(|e| {
+                    create_embedding_manager_for_collection(&embedding_type, dimension).map_err(
+                        |e| {
                             ErrorData::internal_error(
                                 format!("Failed to create embedding manager: {}", e),
                                 None,
                             )
-                        })?;
+                        },
+                    )?;
                 let embedding = coll_emb_manager.embed(query).map_err(|e| {
                     ErrorData::internal_error(format!("Embedding failed: {}", e), None)
                 })?;
                 let results = store
                     .search(collection, &embedding, max_results)
-                    .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
-                
+                    .map_err(|e| {
+                        ErrorData::internal_error(format!("Search failed: {}", e), None)
+                    })?;
+
                 for result in results {
                     if !seen_ids.contains(&result.id) {
                         seen_ids.insert(result.id.clone());
@@ -770,7 +770,7 @@ async fn handle_search_extra(
                 let response = handler.handle_semantic_search(tool).await.map_err(|e| {
                     ErrorData::internal_error(format!("Semantic search failed: {}", e), None)
                 })?;
-                
+
                 for result in response.results {
                     if !seen_ids.contains(&result.doc_id) {
                         seen_ids.insert(result.doc_id.clone());
@@ -800,7 +800,7 @@ async fn handle_search_extra(
                 let response = handler.handle_intelligent_search(tool).await.map_err(|e| {
                     ErrorData::internal_error(format!("Intelligent search failed: {}", e), None)
                 })?;
-                
+
                 for result in response.results {
                     if !seen_ids.contains(&result.doc_id) {
                         seen_ids.insert(result.doc_id.clone());
@@ -823,9 +823,11 @@ async fn handle_search_extra(
     all_results.sort_by(|a, b| {
         let score_a = a.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
         let score_b = b.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
-        score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+        score_b
+            .partial_cmp(&score_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
-    
+
     // Limit total results
     all_results.truncate(max_results * 2); // Allow more since we're combining strategies
 
@@ -981,4 +983,3 @@ async fn handle_list_files_in_collection(
         response.to_string(),
     )]))
 }
-

@@ -10,7 +10,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
         // =============================================
         // Core Collection/Vector Operations (9 tools)
         // =============================================
-        
+
         // 1. List Collections
         Tool {
             name: Cow::Borrowed("list_collections"),
