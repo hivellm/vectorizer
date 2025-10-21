@@ -7494,7 +7494,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer"
-version = "0.10.1"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
