@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: hive-vectorizer
-Version: 0.4.0
+Version: 1.0.0
 Summary: Python SDK for Hive Vectorizer - Semantic search and vector operations with UMICP protocol support
 Author-email: HiveLLM Team <team@hivellm.org>
 License-Expression: MIT
