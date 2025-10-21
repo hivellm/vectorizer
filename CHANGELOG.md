@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Docker Virtual Path Support**: Removed path traversal and absolute path validation from `get_file_content` and related file operations. Since these functions only use file paths as metadata search keys (not for filesystem access), they now accept any path format including `..` and absolute paths. This fixes issues in Docker environments with virtual workspace addressing.
+- **File Content Reconstruction**: Fixed issue where `get_file_content` was returning duplicate content due to chunk overlap. Now automatically detects overlap between consecutive chunks (sliding window) and properly reconstructs files by removing the overlapping portions.
 
 ## [1.0.0] - 2025-10-21
 
