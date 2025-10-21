@@ -2,6 +2,17 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [1.0.0] - 2025-10-21
+
+### Changed
+- **Version Sync**: Updated to v1.0.0 to match Vectorizer server release
+- **Server Compatibility**: Compatible with Vectorizer v1.0.0 (19 individual MCP tools)
+- **No Breaking Changes**: REST API remains unchanged, full backward compatibility
+- **Production Ready**: Stable release aligned with server v1.0.0
+
+### Note
+This release maintains full compatibility with Vectorizer REST API. The MCP refactoring in server v1.0.0 does not affect SDK functionality as SDKs use REST/UMICP protocols.
+
 ## [0.4.2] - 2025-10-15
 
 ### Added
