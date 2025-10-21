@@ -49,7 +49,7 @@ jobs:
           target: x86_64-unknown-linux-musl
       - name: Build musl binaries
         run: |
-          cargo build --release --target x86_64-unknown-linux-musl --no-default-features --features gpu_real
+          cargo build --release --target x86_64-unknown-linux-musl --no-default-features
           mkdir -p dist
           cp target/x86_64-unknown-linux-musl/release/vectorizer dist/vectorizer-x86_64-unknown-linux-musl
           cp target/x86_64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-x86_64-unknown-linux-musl
@@ -64,7 +64,7 @@ jobs:
       - name: Build Debian Package
         run: |
           cargo install cargo-deb
-          cargo deb --no-strip --target x86_64-unknown-linux-musl --no-default-features --features gpu_real
+          cargo deb --no-strip --target x86_64-unknown-linux-musl --no-default-features
       - name: Upload Debian package
         uses: svenstaro/upload-release-action@v2
         with:
@@ -90,7 +90,7 @@ jobs:
           target: aarch64-unknown-linux-musl
       - name: Build musl binaries
         run: |
-          cargo build --release --target aarch64-unknown-linux-musl --no-default-features --features gpu_real
+          cargo build --release --target aarch64-unknown-linux-musl --no-default-features
           mkdir -p dist
           cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
           cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl

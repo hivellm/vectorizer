@@ -39,10 +39,10 @@ for target in "${TARGETS[@]}"; do
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     
-    echo "  Command: cargo build --release --target $target --no-default-features --features gpu_real"
+    echo "  Command: cargo build --release --target $target --no-default-features"
     echo ""
     
-    if cargo build --release --target "$target" --no-default-features --features gpu_real; then
+    if cargo build --release --target "$target" --no-default-features; then
         echo ""
         echo -e "${GREEN}✅ Build succeeded for $target${NC}"
         echo ""

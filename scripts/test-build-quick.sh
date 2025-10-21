@@ -6,10 +6,10 @@ echo ""
 
 # Just check if the build would work (cargo check is much faster than build)
 echo "🔍 Running cargo check with musl configuration..."
-echo "   Command: cargo check --no-default-features --features gpu_real"
+echo "   Command: cargo check --no-default-features"
 echo ""
 
-if cargo check --no-default-features --features gpu_real; then
+if cargo check --no-default-features; then
     echo ""
     echo "✅ Configuration is valid! The build should work in CI."
     echo ""
