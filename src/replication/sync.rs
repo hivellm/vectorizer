@@ -284,5 +284,207 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Checksum mismatch"));
     }
+
+    #[tokio::test]
+    async fn test_snapshot_with_multiple_collections() {
+        let store1 = VectorStore::new();
+
+        // Create multiple collections
+        for col_idx in 0..3 {
+            let config = crate::models::CollectionConfig {
+                dimension: 3,
+                metric: crate::models::DistanceMetric::Cosine,
+                hnsw_config: crate::models::HnswConfig::default(),
+                quantization: crate::models::QuantizationConfig::None,
+                compression: Default::default(),
+                normalization: None,
+            };
+            let col_name = format!("collection_{}", col_idx);
+            store1.create_collection(&col_name, config).unwrap();
+
+            // Insert vectors in each collection
+            for i in 0..5 {
+                let vec = crate::models::Vector {
+                    id: format!("vec_{}", i),
+                    data: vec![i as f32, col_idx as f32, 0.0],
+                    payload: None,
+                };
+                store1.insert(&col_name, vec![vec]).unwrap();
+            }
+        }
+
+        // Create snapshot
+        let snapshot = create_snapshot(&store1, 200).await.unwrap();
+
+        // Apply to new store
+        let store2 = VectorStore::new();
+        let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
+
+        assert_eq!(offset, 200);
+        assert_eq!(store2.list_collections().len(), 3);
+
+        // Verify each collection
+        for col_idx in 0..3 {
+            let col_name = format!("collection_{}", col_idx);
+            let collection = store2.get_collection(&col_name).unwrap();
+            assert_eq!(collection.vector_count(), 5);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_with_payloads() {
+        let store1 = VectorStore::new();
+
+        let config = crate::models::CollectionConfig {
+            dimension: 3,
+            metric: crate::models::DistanceMetric::Cosine,
+            hnsw_config: crate::models::HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::None,
+            compression: Default::default(),
+            normalization: None,
+        };
+        store1.create_collection("payload_test", config).unwrap();
+
+        // Insert vectors with different payload types
+        let vec1 = crate::models::Vector {
+            id: "vec1".to_string(),
+            data: vec![1.0, 0.0, 0.0],
+            payload: Some(crate::models::Payload {
+                data: serde_json::json!({"type": "string", "value": "test"}),
+            }),
+        };
+
+        let vec2 = crate::models::Vector {
+            id: "vec2".to_string(),
+            data: vec![0.0, 1.0, 0.0],
+            payload: Some(crate::models::Payload {
+                data: serde_json::json!({"type": "number", "value": 123}),
+            }),
+        };
+
+        let vec3 = crate::models::Vector {
+            id: "vec3".to_string(),
+            data: vec![0.0, 0.0, 1.0],
+            payload: None, // No payload
+        };
+
+        store1.insert("payload_test", vec![vec1, vec2, vec3]).unwrap();
+
+        // Snapshot
+        let snapshot = create_snapshot(&store1, 100).await.unwrap();
+
+        // Apply
+        let store2 = VectorStore::new();
+        apply_snapshot(&store2, &snapshot).await.unwrap();
+
+        // Verify payloads preserved
+        let v1 = store2.get_vector("payload_test", "vec1").unwrap();
+        assert!(v1.payload.is_some());
+
+        let v3 = store2.get_vector("payload_test", "vec3").unwrap();
+        assert!(v3.payload.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_with_different_metrics() {
+        let store1 = VectorStore::new();
+
+        // Euclidean
+        let config_euclidean = crate::models::CollectionConfig {
+            dimension: 3,
+            metric: crate::models::DistanceMetric::Euclidean,
+            hnsw_config: crate::models::HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::None,
+            compression: Default::default(),
+            normalization: None,
+        };
+        store1.create_collection("euclidean", config_euclidean).unwrap();
+
+        // DotProduct
+        let config_dot = crate::models::CollectionConfig {
+            dimension: 3,
+            metric: crate::models::DistanceMetric::DotProduct,
+            hnsw_config: crate::models::HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::None,
+            compression: Default::default(),
+            normalization: None,
+        };
+        store1.create_collection("dotproduct", config_dot).unwrap();
+
+        // Insert vectors
+        let vec = crate::models::Vector {
+            id: "test".to_string(),
+            data: vec![1.0, 2.0, 3.0],
+            payload: None,
+        };
+        store1.insert("euclidean", vec![vec.clone()]).unwrap();
+        store1.insert("dotproduct", vec![vec]).unwrap();
+
+        // Snapshot
+        let snapshot = create_snapshot(&store1, 50).await.unwrap();
+
+        // Apply
+        let store2 = VectorStore::new();
+        apply_snapshot(&store2, &snapshot).await.unwrap();
+
+        // Verify metrics preserved
+        let euc_col = store2.get_collection("euclidean").unwrap();
+        assert_eq!(euc_col.config().metric, crate::models::DistanceMetric::Euclidean);
+
+        let dot_col = store2.get_collection("dotproduct").unwrap();
+        assert_eq!(dot_col.config().metric, crate::models::DistanceMetric::DotProduct);
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_empty_store() {
+        let store1 = VectorStore::new();
+
+        // Create snapshot of empty store
+        let snapshot = create_snapshot(&store1, 0).await.unwrap();
+        assert!(!snapshot.is_empty()); // Metadata still exists
+
+        // Apply to new store
+        let store2 = VectorStore::new();
+        let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
+
+        assert_eq!(offset, 0);
+        assert_eq!(store2.list_collections().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_snapshot_metadata_fields() {
+        let store = VectorStore::new();
+
+        // Create collection with data
+        let config = crate::models::CollectionConfig {
+            dimension: 3,
+            metric: crate::models::DistanceMetric::Cosine,
+            hnsw_config: crate::models::HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::None,
+            compression: Default::default(),
+            normalization: None,
+        };
+        store.create_collection("meta_test", config).unwrap();
+
+        let vec1 = crate::models::Vector {
+            id: "vec1".to_string(),
+            data: vec![1.0, 0.0, 0.0],
+            payload: None,
+        };
+        store.insert("meta_test", vec![vec1]).unwrap();
+
+        // Create snapshot
+        let snapshot = create_snapshot(&store, 999).await.unwrap();
+
+        // Deserialize metadata to verify fields
+        let metadata: SnapshotMetadata = bincode::deserialize(&snapshot).unwrap();
+        
+        assert_eq!(metadata.offset, 999);
+        assert_eq!(metadata.total_collections, 1);
+        assert_eq!(metadata.total_vectors, 1);
+        assert!(!metadata.compressed);
+        assert!(metadata.checksum > 0);
+        assert!(metadata.timestamp > 0);
+    }
 }
 

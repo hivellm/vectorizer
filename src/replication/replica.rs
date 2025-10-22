@@ -346,3 +346,78 @@ fn current_timestamp() -> u64 {
         .as_millis() as u64
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::VectorStore;
+    use crate::replication::{NodeRole, ReplicationConfig};
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_replica_creation_and_initial_state() {
+        let store = Arc::new(VectorStore::new());
+        let config = ReplicationConfig {
+            role: NodeRole::Replica,
+            bind_address: None,
+            master_address: Some("127.0.0.1:7000".parse().unwrap()),
+            heartbeat_interval: 5,
+            replica_timeout: 30,
+            log_size: 1000,
+            reconnect_interval: 5,
+        };
+
+        let replica = ReplicaNode::new(config, store);
+
+        // Test initial state
+        assert_eq!(replica.get_offset(), 0);
+        assert!(!replica.is_connected());
+
+        // Test initial stats
+        let stats = replica.get_stats();
+        assert_eq!(stats.replica_offset, 0);
+        assert_eq!(stats.total_replicated, 0);
+        assert_eq!(stats.total_bytes, 0);
+        assert!(!stats.connected);
+        assert_eq!(stats.master_offset, 0);
+    }
+
+    #[test]
+    fn test_parse_distance_metric_variants() {
+        // Test all variants
+        assert_eq!(
+            parse_distance_metric("euclidean"),
+            crate::models::DistanceMetric::Euclidean
+        );
+        assert_eq!(
+            parse_distance_metric("EUCLIDEAN"),
+            crate::models::DistanceMetric::Euclidean
+        );
+        assert_eq!(
+            parse_distance_metric("cosine"),
+            crate::models::DistanceMetric::Cosine
+        );
+        assert_eq!(
+            parse_distance_metric("COSINE"),
+            crate::models::DistanceMetric::Cosine
+        );
+        assert_eq!(
+            parse_distance_metric("dotproduct"),
+            crate::models::DistanceMetric::DotProduct
+        );
+        assert_eq!(
+            parse_distance_metric("dot_product"),
+            crate::models::DistanceMetric::DotProduct
+        );
+        assert_eq!(
+            parse_distance_metric("DOT_PRODUCT"),
+            crate::models::DistanceMetric::DotProduct
+        );
+        
+        // Test default (unknown)
+        assert_eq!(
+            parse_distance_metric("unknown"),
+            crate::models::DistanceMetric::Cosine
+        );
+    }
+}
+

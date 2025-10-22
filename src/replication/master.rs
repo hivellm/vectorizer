@@ -392,3 +392,72 @@ fn current_timestamp() -> u64 {
         .as_millis() as u64
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::VectorStore;
+    use crate::replication::{NodeRole, ReplicationConfig, VectorOperation, CollectionConfigData};
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_master_creation_and_initial_state() {
+        let store = Arc::new(VectorStore::new());
+        let config = ReplicationConfig {
+            role: NodeRole::Master,
+            bind_address: Some("127.0.0.1:0".parse().unwrap()),
+            master_address: None,
+            heartbeat_interval: 5,
+            replica_timeout: 30,
+            log_size: 1000,
+            reconnect_interval: 5,
+        };
+
+        let result = MasterNode::new(config, store);
+        assert!(result.is_ok());
+        
+        let master = result.unwrap();
+        
+        // Test initial stats
+        let stats = master.get_stats();
+        assert_eq!(stats.master_offset, 0);
+        assert!(!stats.connected);
+        
+        // Test initial replicas
+        let replicas = master.get_replicas();
+        assert_eq!(replicas.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_master_replicate_increments_offset() {
+        let store = Arc::new(VectorStore::new());
+        let config = ReplicationConfig {
+            role: NodeRole::Master,
+            bind_address: Some("127.0.0.1:0".parse().unwrap()),
+            master_address: None,
+            heartbeat_interval: 5,
+            replica_timeout: 30,
+            log_size: 1000,
+            reconnect_interval: 5,
+        };
+
+        let master = MasterNode::new(config, store).unwrap();
+
+        // Replicate operations
+        for i in 0..10 {
+            let op = VectorOperation::InsertVector {
+                collection: "test".to_string(),
+                id: format!("vec_{}", i),
+                vector: vec![i as f32; 64],
+                payload: None,
+            };
+            let offset = master.replicate(op);
+            assert_eq!(offset, i + 1);
+        }
+
+        // Check final stats
+        let stats = master.get_stats();
+        assert_eq!(stats.master_offset, 10);
+    }
+}
+
+

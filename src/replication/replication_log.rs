@@ -211,5 +211,138 @@ mod tests {
         // Try to get from offset 2 (too old, oldest is 6)
         assert!(log.get_operations(2).is_none());
     }
+
+    #[test]
+    fn test_clear_log() {
+        let log = ReplicationLog::new(100);
+
+        // Add operations
+        for i in 0..50 {
+            log.append(VectorOperation::InsertVector {
+                collection: "test".to_string(),
+                id: format!("vec_{}", i),
+                vector: vec![i as f32; 64],
+                payload: None,
+            });
+        }
+
+        assert_eq!(log.size(), 50);
+        assert_eq!(log.current_offset(), 50);
+
+        // Clear log
+        log.clear();
+
+        assert_eq!(log.size(), 0);
+        assert_eq!(log.current_offset(), 0);
+        assert!(log.get_operations(0).is_none());
+    }
+
+    #[test]
+    fn test_all_vector_operation_types() {
+        let log = ReplicationLog::new(100);
+
+        // CreateCollection
+        log.append(VectorOperation::CreateCollection {
+            name: "test".to_string(),
+            config: super::super::types::CollectionConfigData {
+                dimension: 128,
+                metric: "cosine".to_string(),
+            },
+        });
+
+        // InsertVector with payload
+        log.append(VectorOperation::InsertVector {
+            collection: "test".to_string(),
+            id: "vec1".to_string(),
+            vector: vec![1.0; 128],
+            payload: Some(b"payload".to_vec()),
+        });
+
+        // InsertVector without payload
+        log.append(VectorOperation::InsertVector {
+            collection: "test".to_string(),
+            id: "vec2".to_string(),
+            vector: vec![2.0; 128],
+            payload: None,
+        });
+
+        // UpdateVector with vector
+        log.append(VectorOperation::UpdateVector {
+            collection: "test".to_string(),
+            id: "vec1".to_string(),
+            vector: Some(vec![3.0; 128]),
+            payload: None,
+        });
+
+        // UpdateVector with payload only
+        log.append(VectorOperation::UpdateVector {
+            collection: "test".to_string(),
+            id: "vec1".to_string(),
+            vector: None,
+            payload: Some(b"new_payload".to_vec()),
+        });
+
+        // DeleteVector
+        log.append(VectorOperation::DeleteVector {
+            collection: "test".to_string(),
+            id: "vec2".to_string(),
+        });
+
+        // DeleteCollection
+        log.append(VectorOperation::DeleteCollection {
+            name: "test".to_string(),
+        });
+
+        assert_eq!(log.size(), 7);
+        assert_eq!(log.current_offset(), 7);
+
+        // Retrieve all operations (offset > 0)
+        if let Some(ops) = log.get_operations(0) {
+            assert_eq!(ops.len(), 7);
+        }
+    }
+
+    #[test]
+    fn test_log_at_exact_capacity() {
+        let log = ReplicationLog::new(5);
+
+        // Add exactly max_size operations
+        for i in 0..5 {
+            log.append(VectorOperation::CreateCollection {
+                name: format!("test{}", i),
+                config: super::super::types::CollectionConfigData {
+                    dimension: 128,
+                    metric: "cosine".to_string(),
+                },
+            });
+        }
+
+        assert_eq!(log.size(), 5);
+        assert_eq!(log.current_offset(), 5);
+
+        // Should be able to get all (offsets > 0, which are 1-5)
+        if let Some(ops) = log.get_operations(0) {
+            assert_eq!(ops.len(), 5);
+        }
+
+        // Add one more - should evict oldest
+        log.append(VectorOperation::CreateCollection {
+            name: "test6".to_string(),
+            config: super::super::types::CollectionConfigData {
+                dimension: 128,
+                metric: "cosine".to_string(),
+            },
+        });
+
+        assert_eq!(log.size(), 5); // Still 5
+        assert_eq!(log.current_offset(), 6);
+
+        // Offset 0 might be too old now (oldest is 2)
+        // Offset 1 should work
+        if let Some(ops) = log.get_operations(1) {
+            assert_eq!(ops.len(), 5); // 2, 3, 4, 5, 6
+            assert_eq!(ops[0].offset, 2);
+        }
+    }
 }
 
