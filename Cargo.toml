@@ -85,6 +85,7 @@ memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
 zip = { version = "6.0", features = ["zstd", "deflate"] }
+crc32fast = "1.4" # For replication checksums
 
 # Text normalization dependencies
 blake3 = "1.5"

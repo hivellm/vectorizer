@@ -251,6 +251,8 @@ pub struct VectorStore {
     pending_saves: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
     /// Background save task handle
     save_task_handle: Arc<std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Global metadata (for replication config, etc.)
+    metadata: Arc<DashMap<String, String>>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -271,6 +273,7 @@ impl VectorStore {
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+            metadata: Arc::new(DashMap::new()),
         };
 
         // Check for automatic migration on startup
@@ -372,6 +375,7 @@ impl VectorStore {
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+            metadata: Arc::new(DashMap::new()),
         }
     }
 
@@ -992,7 +996,28 @@ impl VectorStore {
             total_memory_bytes,
         }
     }
+
+    /// Get metadata value by key
+    pub fn get_metadata(&self, key: &str) -> Option<String> {
+        self.metadata.get(key).map(|v| v.value().clone())
+    }
+
+    /// Set metadata value
+    pub fn set_metadata(&self, key: &str, value: String) {
+        self.metadata.insert(key.to_string(), value);
+    }
+
+    /// Remove metadata value
+    pub fn remove_metadata(&self, key: &str) -> Option<String> {
+        self.metadata.remove(key).map(|(_, v)| v)
+    }
+
+    /// List all metadata keys
+    pub fn list_metadata_keys(&self) -> Vec<String> {
+        self.metadata.iter().map(|entry| entry.key().clone()).collect()
+    }
 }
+
 
 impl Default for VectorStore {
     fn default() -> Self {
