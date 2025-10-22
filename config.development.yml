@@ -1,0 +1,151 @@
+# Vectorizer Development Configuration
+# Optimized for local development and testing
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+server:
+  host: "127.0.0.1"
+  port: 15002
+  mcp_port: 15002
+  data_dir: "./data"
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+logging:
+  level: "debug"                  # Development: verbose logging
+  format: "text"                  # Development: readable format
+  log_requests: true
+  log_responses: true             # Development: log responses
+  log_errors: true
+
+# =============================================================================
+# REPLICATION CONFIGURATION (for testing)
+# =============================================================================
+replication:
+  enabled: false
+  role: "standalone"
+  heartbeat_interval_secs: 1      # Development: faster heartbeat
+  replica_timeout_secs: 10
+  log_size: 10000                 # Development: smaller log
+  reconnect_interval_secs: 1
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATION
+# =============================================================================
+performance:
+  cpu:
+    max_threads: 4                # Development: fewer threads
+    enable_simd: true
+    memory_pool_size_mb: 512      # Development: 512MB pool
+  batch:
+    default_size: 10
+    max_size: 100
+    parallel_processing: true
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+storage:
+  compression:
+    enabled: true
+    format: "zstd"
+    level: 1                      # Development: faster compression
+  compaction:
+    auto_compact: true
+    batch_size: 100
+  snapshots:
+    enabled: true
+    interval_hours: 24            # Development: daily snapshots
+    max_snapshots: 3
+    retention_days: 1
+    path: "./data/snapshots"
+
+# =============================================================================
+# COLLECTION DEFAULTS
+# =============================================================================
+collections:
+  defaults:
+    dimension: 128                # Development: smaller dimensions
+    metric: "cosine"
+    quantization:
+      type: "sq"
+      sq:
+        bits: 8
+    embedding:
+      model: "bm25"
+    index:
+      type: "hnsw"
+      hnsw:
+        m: 8                      # Development: smaller index
+        ef_construction: 100
+        ef_search: 32
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+api:
+  rest:
+    enabled: true
+    cors_enabled: true
+    max_request_size_mb: 10
+    timeout_seconds: 30
+  mcp:
+    enabled: true
+    port: 15002
+    max_connections: 10           # Development: fewer connections
+
+# =============================================================================
+# WORKSPACE CONFIGURATION
+# =============================================================================
+workspace:
+  enabled: true
+  auto_load_collections: false    # Development: manual loading
+  default_workspace_file: "./vectorize-workspace.yml"
+
+# =============================================================================
+# FILE WATCHER
+# =============================================================================
+file_watcher:
+  enabled: true                   # Development: auto-reload
+  debounce_delay_ms: 500
+  min_file_size_bytes: 1
+  max_file_size_bytes: 1048576    # Development: 1MB max
+  hash_validation_enabled: true
+  collection_name: "dev-files"
+
+# =============================================================================
+# NORMALIZATION
+# =============================================================================
+normalization:
+  enabled: true
+  level: "conservative"
+  line_endings:
+    normalize_crlf: true
+    normalize_cr: true
+    collapse_multiple_newlines: true
+    trim_trailing_whitespace: true
+  content_detection:
+    enabled: true
+    preserve_code_structure: true
+    preserve_markdown_format: true
+  cache:
+    enabled: true
+    max_entries: 1000             # Development: smaller cache
+    ttl_seconds: 600
+  stages:
+    on_file_read: true
+    on_chunk_creation: true
+    on_payload_return: true
+    on_cache_load: true
+
+# =============================================================================
+# TRANSMUTATION
+# =============================================================================
+transmutation:
+  enabled: true
+  max_file_size_mb: 10            # Development: smaller files
+  conversion_timeout_secs: 60
+  preserve_images: false
+

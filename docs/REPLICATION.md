@@ -107,43 +107,88 @@ Vectorizer implements **Master-Replica replication** inspired by Redis and Synap
 
 ## Configuration
 
-### Master Configuration
+Replication can be configured via:
+1. **YAML configuration file** (`config.yml`)
+2. **Environment variables**
+3. **REST API** (`POST /replication/configure`)
 
-```json
-{
-  "replication": {
-    "role": "master",
-    "bind_address": "0.0.0.0:7001",
-    "heartbeat_interval": 5,
-    "log_size": 1000000
-  }
-}
+### Configuration via YAML
+
+**Master Node** (`config.yml`):
+```yaml
+replication:
+  enabled: true
+  role: "master"
+  bind_address: "0.0.0.0:7001"
+  heartbeat_interval_secs: 5
+  replica_timeout_secs: 30
+  log_size: 1000000
 ```
 
-### Replica Configuration
+**Replica Node** (`config.yml`):
+```yaml
+replication:
+  enabled: true
+  role: "replica"
+  master_address: "192.168.1.10:7001"
+  reconnect_interval_secs: 5
+```
 
-```json
-{
-  "replication": {
-    "role": "replica",
-    "master_address": "127.0.0.1:7001",
-    "heartbeat_interval": 5,
-    "reconnect_interval": 5
-  }
-}
+### Configuration via Environment Variables
+
+```bash
+# Master Node
+export REPLICATION_ROLE=master
+export REPLICATION_BIND_ADDRESS=0.0.0.0:7001
+export REPLICATION_HEARTBEAT_INTERVAL=5
+export REPLICATION_LOG_SIZE=1000000
+
+# Replica Node
+export REPLICATION_ROLE=replica
+export REPLICATION_MASTER_ADDRESS=192.168.1.10:7001
+export REPLICATION_RECONNECT_INTERVAL=5
 ```
 
 ### Configuration Parameters
 
-| Parameter            | Type   | Default   | Description                        |
-|---------------------|--------|-----------|-------------------------------------|
-| `role`              | string | standalone| Node role: master, replica, standalone |
-| `bind_address`      | string | -         | TCP address for master to listen   |
-| `master_address`    | string | -         | Master address for replica to connect |
-| `heartbeat_interval`| u64    | 5         | Heartbeat interval in seconds      |
-| `replica_timeout`   | u64    | 30        | Replica timeout in seconds         |
-| `log_size`          | usize  | 1000000   | Replication log size (operations)  |
-| `reconnect_interval`| u64    | 5         | Auto-reconnect interval in seconds |
+| Parameter                    | Type   | Default     | Description                               |
+|-----------------------------|--------|-------------|-------------------------------------------|
+| `enabled`                   | bool   | false       | Enable/disable replication                |
+| `role`                      | string | standalone  | Node role: master, replica, standalone    |
+| `bind_address`              | string | -           | TCP address for master to listen (master) |
+| `master_address`            | string | -           | Master address to connect (replica)       |
+| `heartbeat_interval_secs`   | u64    | 5           | Heartbeat interval in seconds             |
+| `replica_timeout_secs`      | u64    | 30          | Replica timeout in seconds                |
+| `log_size`                  | usize  | 1000000     | Replication log size (operations)         |
+| `reconnect_interval_secs`   | u64    | 5           | Auto-reconnect interval in seconds        |
+
+### Quick Start Examples
+
+**Example 1: Development Environment**
+
+```bash
+# Terminal 1: Master
+cp config.development.yml config.yml
+# Edit config.yml:
+# replication:
+#   enabled: true
+#   role: "master"
+#   bind_address: "127.0.0.1:7001"
+./vectorizer
+
+# Terminal 2: Replica
+cp config.development.yml config-replica.yml
+# Edit config-replica.yml:
+# replication:
+#   enabled: true
+#   role: "replica"
+#   master_address: "127.0.0.1:7001"
+./vectorizer --config config-replica.yml
+```
+
+**Example 2: Production Environment**
+
+See `config.production.yml` for production-optimized settings.
 
 ---
 
