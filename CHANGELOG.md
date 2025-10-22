@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-10-22
+
 ### Added
 - **Master-Replica Replication System** - Complete implementation inspired by Synap and Redis
   - Master node with TCP server and replication log
