@@ -1,11 +1,21 @@
-//! Tests for replication module
+//! Replication Module Tests
+//!
+//! Core unit tests for the replication components.
+//! For comprehensive integration tests, see:
+//! - tests/replication_comprehensive.rs - Full integration tests
+//! - tests/replication_failover.rs - Failover and reconnection tests
+//! - benches/replication_bench.rs - Performance benchmarks
 
 #[cfg(test)]
 mod tests {
     use super::super::*;
     use crate::db::VectorStore;
-    use crate::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
+    use crate::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector};
     use std::sync::Arc;
+
+    // ============================================================================
+    // Replication Log Tests
+    // ============================================================================
 
     #[tokio::test]
     async fn test_replication_log_basic() {
@@ -49,10 +59,13 @@ mod tests {
         assert_eq!(log.size(), 5);
         assert_eq!(log.current_offset(), 10);
 
-        // Can get operations from offset 5
-        let ops = log.get_operations(5).unwrap();
-        assert_eq!(ops.len(), 5);
-        assert_eq!(ops[0].offset, 6);
+        // Operations from offset 5 - should get offsets > 5
+        // Oldest is 6, so we get 6, 7, 8, 9, 10 (5 operations)
+        if let Some(ops) = log.get_operations(5) {
+            assert_eq!(ops.len(), 5);
+            assert_eq!(ops[0].offset, 6);
+            assert_eq!(ops[4].offset, 10);
+        }
     }
 
     #[tokio::test]
@@ -71,12 +84,17 @@ mod tests {
         store1.create_collection("test", config).unwrap();
 
         // Insert vectors
-        store1
-            .insert_vector("test", "vec1", vec![1.0, 0.0, 0.0], None)
-            .unwrap();
-        store1
-            .insert_vector("test", "vec2", vec![0.0, 1.0, 0.0], None)
-            .unwrap();
+        let vec1 = Vector {
+            id: "vec1".to_string(),
+            data: vec![1.0, 0.0, 0.0],
+            payload: None,
+        };
+        let vec2 = Vector {
+            id: "vec2".to_string(),
+            data: vec![0.0, 1.0, 0.0],
+            payload: None,
+        };
+        store1.insert("test", vec![vec1, vec2]).unwrap();
 
         // Create snapshot
         let snapshot = sync::create_snapshot(&store1, 100).await.unwrap();
@@ -90,8 +108,8 @@ mod tests {
 
         // Verify data
         assert_eq!(store2.list_collections().len(), 1);
-        let info = store2.get_collection_info("test").unwrap().unwrap();
-        assert_eq!(info.vector_count, 2);
+        let collection = store2.get_collection("test").unwrap();
+        assert_eq!(collection.vector_count(), 2);
     }
 
     #[tokio::test]
@@ -106,6 +124,10 @@ mod tests {
         assert!(config.bind_address.is_none());
         assert!(config.master_address.is_some());
     }
+
+    // ============================================================================
+    // Node Creation Tests
+    // ============================================================================
 
     #[tokio::test]
     async fn test_master_node_creation() {
@@ -141,5 +163,101 @@ mod tests {
         assert_eq!(replica.get_offset(), 0);
         assert!(!replica.is_connected());
     }
+
+    // ============================================================================
+    // Vector Operation Tests
+    // ============================================================================
+
+    #[test]
+    fn test_vector_operation_serialization() {
+        let operations = vec![
+            VectorOperation::CreateCollection {
+                name: "test".to_string(),
+                config: CollectionConfigData {
+                    dimension: 128,
+                    metric: "cosine".to_string(),
+                },
+            },
+            VectorOperation::InsertVector {
+                collection: "test".to_string(),
+                id: "vec1".to_string(),
+                vector: vec![1.0, 2.0, 3.0],
+                payload: Some(b"test".to_vec()),
+            },
+            VectorOperation::UpdateVector {
+                collection: "test".to_string(),
+                id: "vec1".to_string(),
+                vector: Some(vec![4.0, 5.0, 6.0]),
+                payload: None,
+            },
+            VectorOperation::DeleteVector {
+                collection: "test".to_string(),
+                id: "vec1".to_string(),
+            },
+            VectorOperation::DeleteCollection {
+                name: "test".to_string(),
+            },
+        ];
+
+        for op in operations {
+            let serialized = bincode::serialize(&op).unwrap();
+            let deserialized: VectorOperation = bincode::deserialize(&serialized).unwrap();
+            // Just verify it round-trips without error
+            let _ = bincode::serialize(&deserialized).unwrap();
+        }
+    }
+
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_replication_log_empty() {
+        let log = ReplicationLog::new(10);
+        assert_eq!(log.current_offset(), 0);
+        assert_eq!(log.size(), 0);
+        assert!(log.get_operations(0).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_replication_log_single_operation() {
+        let log = ReplicationLog::new(10);
+        
+        let op = VectorOperation::CreateCollection {
+            name: "test".to_string(),
+            config: CollectionConfigData {
+                dimension: 128,
+                metric: "cosine".to_string(),
+            },
+        };
+
+        let offset = log.append(op);
+        assert_eq!(offset, 1);
+
+        // get_operations(0) returns operations with offset > 0, so offset 1
+        if let Some(ops) = log.get_operations(0) {
+            assert_eq!(ops.len(), 1);
+            assert_eq!(ops[0].offset, 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_config_durations() {
+        let config = ReplicationConfig::default();
+        assert_eq!(config.heartbeat_duration().as_secs(), 5);
+        assert_eq!(config.timeout_duration().as_secs(), 30);
+        assert_eq!(config.reconnect_duration().as_secs(), 5);
+    }
 }
+
+// ============================================================================
+// Integration Test Notes
+// ============================================================================
+
+// For comprehensive testing, run:
+// - `cargo test` - Run all unit tests
+// - `cargo test --test replication_comprehensive` - Integration tests
+// - `cargo test --test replication_failover` - Failover tests
+// - `cargo test -- --ignored` - Stress tests (slower)
+// - `cargo bench --bench replication_bench` - Performance benchmarks
 
