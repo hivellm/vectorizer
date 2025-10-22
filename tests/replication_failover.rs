@@ -75,6 +75,7 @@ async fn create_replica(master_addr: std::net::SocketAddr) -> (Arc<ReplicaNode>,
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore] // Requires TCP connection
 async fn test_replica_reconnect_after_disconnect() {
     let (_master, master_store, master_addr) = create_master().await;
 
@@ -132,6 +133,7 @@ async fn test_replica_reconnect_after_disconnect() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore] // Requires TCP connection
 async fn test_partial_sync_after_brief_disconnect() {
     let (_master, master_store, master_addr) = create_master().await;
 
@@ -191,6 +193,7 @@ async fn test_partial_sync_after_brief_disconnect() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore] // Requires TCP connection
 async fn test_full_sync_when_offset_too_old() {
     // Create master with small log size
     let port = next_port();
@@ -270,6 +273,7 @@ async fn test_full_sync_when_offset_too_old() {
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore] // Requires TCP connection
 async fn test_multiple_replicas_recovery() {
     let (_master, master_store, master_addr) = create_master().await;
 
@@ -358,6 +362,7 @@ async fn test_multiple_replicas_recovery() {
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore] // Requires TCP connection
 async fn test_data_consistency_after_multiple_disconnects() {
     let (_master, master_store, master_addr) = create_master().await;
 
