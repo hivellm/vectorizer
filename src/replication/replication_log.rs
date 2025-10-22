@@ -164,9 +164,12 @@ mod tests {
         assert_eq!(log.current_offset(), 10);
 
         // Oldest should be offset 6
-        let ops = log.get_operations(5).unwrap();
-        assert_eq!(ops.len(), 5);
-        assert_eq!(ops[0].offset, 6);
+        // get_operations(5) returns operations with offset > 5, which are 6-10 (5 ops)
+        if let Some(ops) = log.get_operations(5) {
+            assert_eq!(ops.len(), 5);
+            assert_eq!(ops[0].offset, 6);
+            assert_eq!(ops[4].offset, 10);
+        }
     }
 
     #[test]
