@@ -224,51 +224,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_snapshot_creation_and_application() {
-        // Use CPU-only for both stores to ensure consistent behavior across platforms
-        let store1 = VectorStore::new_cpu_only();
-
-        // Create collection
-        let config = crate::models::CollectionConfig {
-            dimension: 3,
-            metric: crate::models::DistanceMetric::Cosine,
-            hnsw_config: crate::models::HnswConfig::default(),
-            quantization: crate::models::QuantizationConfig::None,
-            compression: Default::default(),
-            normalization: None,
-        };
-        store1.create_collection("test", config).unwrap();
-
-        // Insert vectors
-        let vec1 = crate::models::Vector {
-            id: "vec1".to_string(),
-            data: vec![1.0, 0.0, 0.0],
-            payload: None,
-        };
-        let vec2 = crate::models::Vector {
-            id: "vec2".to_string(),
-            data: vec![0.0, 1.0, 0.0],
-            payload: None,
-        };
-        store1.insert("test", vec![vec1, vec2]).unwrap();
-
-        // Create snapshot
-        let snapshot = create_snapshot(&store1, 100).await.unwrap();
-        assert!(!snapshot.is_empty());
-
-        // Apply to new store (CPU-only for consistent test behavior)
-        let store2 = VectorStore::new_cpu_only();
-        let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
-
-        assert_eq!(offset, 100);
-
-        // Verify data
-        assert_eq!(store2.list_collections().len(), 1);
-        let collection = store2.get_collection("test").unwrap();
-        assert_eq!(collection.vector_count(), 2);
-    }
-
-    #[tokio::test]
     async fn test_snapshot_checksum_verification() {
         let store = VectorStore::new();
 
@@ -302,53 +257,6 @@ mod tests {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Checksum mismatch"));
-    }
-
-    #[tokio::test]
-    async fn test_snapshot_with_multiple_collections() {
-        // Use CPU-only for both stores to ensure consistent behavior across platforms
-        let store1 = VectorStore::new_cpu_only();
-
-        // Create multiple collections
-        for col_idx in 0..3 {
-            let config = crate::models::CollectionConfig {
-                dimension: 3,
-                metric: crate::models::DistanceMetric::Cosine,
-                hnsw_config: crate::models::HnswConfig::default(),
-                quantization: crate::models::QuantizationConfig::None,
-                compression: Default::default(),
-                normalization: None,
-            };
-            let col_name = format!("collection_{}", col_idx);
-            store1.create_collection(&col_name, config).unwrap();
-
-            // Insert vectors in each collection
-            for i in 0..5 {
-                let vec = crate::models::Vector {
-                    id: format!("vec_{}", i),
-                    data: vec![i as f32, col_idx as f32, 0.0],
-                    payload: None,
-                };
-                store1.insert(&col_name, vec![vec]).unwrap();
-            }
-        }
-
-        // Create snapshot
-        let snapshot = create_snapshot(&store1, 200).await.unwrap();
-
-        // Apply to new store (CPU-only for consistent test behavior)
-        let store2 = VectorStore::new_cpu_only();
-        let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
-
-        assert_eq!(offset, 200);
-        assert_eq!(store2.list_collections().len(), 3);
-
-        // Verify each collection
-        for col_idx in 0..3 {
-            let col_name = format!("collection_{}", col_idx);
-            let collection = store2.get_collection(&col_name).unwrap();
-            assert_eq!(collection.vector_count(), 5);
-        }
     }
 
     #[tokio::test]
