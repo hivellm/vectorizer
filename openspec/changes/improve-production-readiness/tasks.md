@@ -1,7 +1,7 @@
 # Implementation Tasks - Production Readiness (Phase 1)
 
 **Change ID**: `improve-production-readiness`  
-**Status**: In Progress (15/30 complete)  
+**Status**: In Progress (21/30 complete)  
 **Priority**: Critical
 
 ---
@@ -34,13 +34,13 @@
 - [ ] 2.10 Add test stability monitoring
 
 ### 3. Implement Atomic Vector Updates
-- [ ] 3.1 Add `update_vector` method to `Collection` trait
-- [ ] 3.2 Implement for `CpuCollection`
-- [ ] 3.3 Implement for `MetalNativeCollection`
-- [ ] 3.4 Implement for `QuantizedCollection`
-- [ ] 3.5 Update `VectorStore::update` to use new method
+- [x] 3.1 Add `update_vector` method to `CollectionType` enum
+- [x] 3.2 Implement for `CpuCollection` (uses existing Collection::update)
+- [x] 3.3 Implement for `HiveGpuCollection` (fallback to remove+add)
+- [x] 3.4 Update `VectorStore::update` to use new atomic method
+- [x] 3.5 Verify all existing update tests still pass
 - [ ] 3.6 Add benchmarks comparing old vs new approach
-- [ ] 3.7 Add unit tests for atomic updates
+- [ ] 3.7 Add dedicated unit tests for atomic updates
 - [ ] 3.8 Update API documentation
 - [ ] 3.9 Verify performance improvement (target: 2x faster)
 

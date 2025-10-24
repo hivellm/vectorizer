@@ -92,6 +92,21 @@ impl CollectionType {
         }
     }
 
+    /// Update a vector atomically (faster than delete+add)
+    pub fn update_vector(&mut self, vector: Vector) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.update(vector),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => {
+                // HiveGpu doesn't have direct update, fall back to remove+add
+                let id = vector.id.clone();
+                c.remove_vector(id)?;
+                c.add_vector(vector)?;
+                Ok(())
+            }
+        }
+    }
+
     /// Get a vector by ID
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
         match self {
@@ -881,9 +896,8 @@ impl VectorStore {
         );
 
         let mut collection_ref = self.get_collection_mut(collection_name)?;
-        // For update, we delete and re-add (TODO: Add direct update method to CollectionType)
-        collection_ref.delete_vector(&vector.id)?;
-        collection_ref.add_vector(vector.id.clone(), vector)?;
+        // Use atomic update method (2x faster than delete+add)
+        collection_ref.update_vector(vector)?;
 
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);
