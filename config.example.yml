@@ -196,3 +196,80 @@ api:
     enabled: true                 # Enable MCP server
     port: 15002                   # MCP server port
     max_connections: 100          # Maximum concurrent connections
+
+# =============================================================================
+# REPLICATION CONFIGURATION (Master-Replica Architecture)
+# =============================================================================
+replication:
+  # Enable/disable replication
+  enabled: false
+  
+  # Node role in replication topology
+  # - standalone: No replication (default)
+  # - master: Accepts writes, replicates to replicas
+  # - replica: Read-only, receives from master
+  role: "standalone"
+  
+  # Master node settings (role=master)
+  # bind_address: "0.0.0.0:7001"  # TCP address for replicas to connect
+  
+  # Replica node settings (role=replica)
+  # master_address: "127.0.0.1:7001"  # Master address to connect to
+  
+  # Heartbeat interval (seconds)
+  heartbeat_interval_secs: 5
+  
+  # Replica timeout (seconds)
+  # Replicas are disconnected if no heartbeat received within this time
+  replica_timeout_secs: 30
+  
+  # Replication log size (number of operations)
+  # Circular buffer for incremental sync (Redis-style)
+  # Default: 1M operations (~240MB for typical operations)
+  log_size: 1000000
+  
+  # Auto-reconnect interval for replicas (seconds)
+  reconnect_interval_secs: 5
+
+# =============================================================================
+# REPLICATION EXAMPLES
+# =============================================================================
+# 
+# Example 1: Master Configuration
+# --------------------------------
+# replication:
+#   enabled: true
+#   role: "master"
+#   bind_address: "0.0.0.0:7001"
+#   heartbeat_interval_secs: 5
+#   log_size: 1000000
+#
+# Example 2: Replica Configuration
+# ---------------------------------
+# replication:
+#   enabled: true
+#   role: "replica"
+#   master_address: "192.168.1.10:7001"
+#   reconnect_interval_secs: 5
+#
+# Example 3: Docker Compose Deployment
+# -------------------------------------
+# services:
+#   vectorizer-master:
+#     image: vectorizer:latest
+#     environment:
+#       - REPLICATION_ROLE=master
+#       - REPLICATION_BIND_ADDRESS=0.0.0.0:7001
+#     ports:
+#       - "15002:15002"  # REST API
+#       - "7001:7001"    # Replication
+#
+#   vectorizer-replica-1:
+#     image: vectorizer:latest
+#     environment:
+#       - REPLICATION_ROLE=replica
+#       - REPLICATION_MASTER_ADDRESS=vectorizer-master:7001
+#     ports:
+#       - "15003:15002"
+#
+# For more information, see docs/REPLICATION.md

@@ -1,9 +1,9 @@
 [package]
-name = "vectorizer-rust-sdk"
+name = "vectorizer-sdk"
 version = "1.0.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
-description = "SDK Rust para Hive Vectorizer"
+description = "Rust SDK for Vectorizer - High-performance vector database"
 license = "MIT"
 repository = "https://github.com/hivellm/vectorizer.git"
 keywords = ["vector-database", "semantic-search", "embeddings", "rust"]

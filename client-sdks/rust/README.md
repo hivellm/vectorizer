@@ -1,6 +1,13 @@
 # Vectorizer Rust SDK
 
-High-performance Rust client for the Hive Vectorizer vector database.
+[![Crates.io](https://img.shields.io/crates/v/vectorizer-sdk.svg)](https://crates.io/crates/vectorizer-sdk)
+[![Documentation](https://docs.rs/vectorizer-sdk/badge.svg)](https://docs.rs/vectorizer-sdk)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+High-performance Rust SDK for Vectorizer vector database.
+
+**Package**: `vectorizer-sdk`  
+**Version**: 1.0.0
 
 ## ✅ Status: Ready for Crate Publication
 
@@ -12,8 +19,13 @@ High-performance Rust client for the Hive Vectorizer vector database.
 
 ## Quick Start
 
+```toml
+[dependencies]
+vectorizer-sdk = "1.0.0"
+```
+
 ```rust
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -114,7 +126,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-vectorizer-rust-sdk = "0.4.0"
+vectorizer-sdk = "0.4.0"
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```
@@ -125,7 +137,7 @@ Enable the UMICP feature for high-performance protocol support:
 
 ```toml
 [dependencies]
-vectorizer-rust-sdk = { version = "0.4.0", features = ["umicp"] }
+vectorizer-sdk = { version = "0.4.0", features = ["umicp"] }
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```

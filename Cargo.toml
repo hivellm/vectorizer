@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.0.2"
+version = "1.1.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -85,6 +85,7 @@ memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
 zip = { version = "6.0", features = ["zstd", "deflate"] }
+crc32fast = "1.4" # For replication checksums
 
 # Text normalization dependencies
 blake3 = "1.5"
@@ -134,10 +135,14 @@ cc = { version = "1.2", features = ["parallel"] }
 winres = "0.1"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 proptest = "1.4"
 tempfile = "3.8"
 reqwest = { version = "0.12", features = ["json"] }
+
+[[bench]]
+name = "replication_bench"
+harness = false
 
 # Disabled benchmarks - need refactoring for current API
 # [[bin]]

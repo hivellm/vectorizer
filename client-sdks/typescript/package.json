@@ -1,7 +1,7 @@
 {
-  "name": "@hivellm/vectorizer-client",
+  "name": "@hivellm/vectorizer-sdk",
   "version": "1.0.1",
-  "description": "TypeScript client for Hive Vectorizer - High-performance vector database",
+  "description": "TypeScript SDK for Vectorizer - High-performance vector database",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
