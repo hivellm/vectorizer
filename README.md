@@ -10,7 +10,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🐛 Bug Fixes**: Resolved collection filtering issues in MCP intelligent search
 
 ### 🎉 **Previous Updates (v1.1.0)**
-- **🔄 Master-Replica Replication**: Complete replication system inspired by Redis
+- **🔄 Master-Replica Replication (BETA)**: Replication system inspired by Redis - currently in beta
 - **⚡ High Availability**: Automatic failover and intelligent sync mechanisms
 - **📦 SDK Standardization**: All client SDKs renamed to follow `vectorizer-sdk` convention
 - **🐍 Python SDK**: Published to PyPI as `vectorizer-sdk` v1.0.1 (PEP 625 compliant)
@@ -24,12 +24,13 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
 
 ### 🎯 **Key Features**
-- **🔄 Master-Replica Replication**: Production-ready replication system with automatic failover
+- **🔄 Master-Replica Replication (BETA)**: Replication system with automatic failover (currently in beta - see docs)
   - Full sync via snapshot with CRC32 checksum verification
   - Partial sync via incremental replication log
   - Circular replication log (1M operations buffer)
   - Auto-reconnect with exponential backoff
   - REST API endpoints for replication management
+  - ⚠️ Known issues with snapshot synchronization - use with caution
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
 - **🎯 MCP Tools**: 19 focused individual tools for better model integration
 - **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint
@@ -364,11 +365,13 @@ See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.
 - **Research Papers**: Automatic PDF indexing with page-level metadata
 - **Legal Documents**: DOCX/PDF processing with precise page tracking
 
-## 🔄 **Master-Replica Replication**
+## 🔄 **Master-Replica Replication** ⚠️ **BETA**
+
+> **⚠️ BETA WARNING**: The replication system is currently in beta. While core functionality works, there are known issues with snapshot synchronization. Use in production with caution and monitor closely. See [GitHub Issues](https://github.com/hivellm/vectorizer/issues) for current status.
 
 ### Overview
 
-Vectorizer v1.1.0 introduces a production-ready master-replica replication system inspired by Redis, enabling high availability and horizontal read scaling.
+Vectorizer v1.1.0 introduces a master-replica replication system inspired by Redis, enabling high availability and horizontal read scaling.
 
 ### Features
 
