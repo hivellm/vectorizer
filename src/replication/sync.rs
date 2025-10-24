@@ -225,7 +225,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_snapshot_creation_and_application() {
-        let store1 = VectorStore::new();
+        // Use CPU-only for both stores to ensure consistent behavior across platforms
+        let store1 = VectorStore::new_cpu_only();
 
         // Create collection
         let config = crate::models::CollectionConfig {
@@ -305,7 +306,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_snapshot_with_multiple_collections() {
-        let store1 = VectorStore::new();
+        // Use CPU-only for both stores to ensure consistent behavior across platforms
+        let store1 = VectorStore::new_cpu_only();
 
         // Create multiple collections
         for col_idx in 0..3 {
@@ -351,7 +353,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_snapshot_with_payloads() {
-        let store1 = VectorStore::new();
+        // Use CPU-only for both stores to ensure consistent behavior across platforms
+        let store1 = VectorStore::new_cpu_only();
 
         let config = crate::models::CollectionConfig {
             dimension: 3,
