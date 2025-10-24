@@ -22,12 +22,12 @@
 - [ ] 1.11 Update client SDKs with new stats response
 
 ### 2. Enable Ignored Tests
-- [ ] 2.1 Identify why tests are ignored (document findings)
-- [ ] 2.2 Fix `test_replica_full_sync_process`
-- [ ] 2.3 Fix `test_replica_handles_master_restart`
-- [ ] 2.4 Fix `test_replica_init`
-- [ ] 2.5 Fix remaining 11 ignored tests
-- [ ] 2.6 Remove `#[ignore]` attributes
+- [x] 2.1 Identify why tests are ignored (document findings)
+- [x] 2.2 Fix `test_replica_full_sync_process`
+- [x] 2.3 Fix `test_replica_handles_master_restart`
+- [x] 2.4 Fix `test_replica_init`
+- [ ] 2.5 Fix remaining 6 failed tests (9/15 passing, 6 failing)
+- [x] 2.6 Remove `#[ignore]` attributes
 - [ ] 2.7 Update CI configuration to run all tests
 - [ ] 2.8 Verify 100% pass rate on all platforms
 - [ ] 2.9 Add test stability monitoring
