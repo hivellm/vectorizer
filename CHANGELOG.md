@@ -5,9 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.2] - 2025-10-24
 
 ### Fixed
+- **MCP Search Intelligent**: Fixed `search_intelligent` MCP tool to properly handle collection filtering
+  - **Issue**: Collections parameter was not being properly passed to internal search functions
+  - **Impact**: MCP intelligent search was not respecting collection filters when specified
+  - **Solution**: Updated search implementation to correctly filter results by specified collections
+  - **Tests**: Verified collection filtering works correctly across all MCP search tools
+
+### Changed
+- **Improved Search Performance**: Enhanced intelligent search query expansion and result ranking
+- **Better Collection Filtering**: All MCP search operations now properly respect collection filters
+
+## [Unreleased]
+
+### Added
+- **Production Readiness - Phase 1**: Complete replication statistics and monitoring (see proposal: `openspec/changes/improve-production-readiness`)
+  - Enhanced `ReplicationStats` with 7 new fields: `role`, `bytes_sent`, `bytes_received`, `last_sync`, `operations_pending`, `snapshot_size`, `connected_replicas`
+  - Enhanced `ReplicaInfo` with health tracking: `host`, `port`, `status`, `last_heartbeat`, `operations_synced`
+  - Added `ReplicaStatus` enum with 4 states: Connected, Syncing, Lagging, Disconnected
+  - Implemented automatic health status detection based on lag and heartbeat
+  - **API Changes**: `/replication/status`, `/replication/stats`, `/replication/replicas` now return complete structures
+  - **Tests**: Added 12 unit tests + 8 integration tests (all passing)
+  - **Documentation**: Updated REPLICATION.md with v1.2.0 API examples
+  - **Backwards Compatible**: Legacy fields maintained for existing SDK compatibility
+
+### Fixed
+- **Replication API TODOs**: Removed 3 TODO markers from `replication_handlers.rs` - now fully implemented
+- **Stats Retrieval**: `/replication/status` returns complete stats object instead of null
+- **Replica List**: `/replication/replicas` returns proper structure instead of placeholder
 - **vector_count() consistency**: Fixed `Collection::vector_count()` to use persistent counter instead of in-memory HashMap length
   - **Issue**: `vector_count()` was counting from HashMap which could be 0 when vectors are unloaded/quantized
   - **Impact**: Replication snapshot tests were failing on macOS (expected 2 vectors, got 0)

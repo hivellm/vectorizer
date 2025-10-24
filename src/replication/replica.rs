@@ -300,11 +300,16 @@ impl ReplicaNode {
                 debug!("Updated vector {} in collection {}", id, collection);
             }
             VectorOperation::DeleteVector { collection, id } => {
-                self.vector_store
-                    .delete(collection, id)
-                    .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                info!(
+                    "Replica applying delete operation: {} from {}",
+                    id, collection
+                );
+                self.vector_store.delete(collection, id).map_err(|e| {
+                    error!("Failed to delete vector {} from {}: {}", id, collection, e);
+                    ReplicationError::InvalidOperation(e.to_string())
+                })?;
 
-                debug!("Deleted vector {} from collection {}", id, collection);
+                info!("Deleted vector {} from collection {}", id, collection);
             }
         }
 
@@ -316,14 +321,19 @@ impl ReplicaNode {
         let state = self.state.read();
 
         ReplicationStats {
+            role: crate::replication::NodeRole::Replica,
+            lag_ms: current_timestamp().saturating_sub(state.last_heartbeat),
+            bytes_sent: 0, // Replicas don't send data
+            bytes_received: state.total_bytes,
+            last_sync: UNIX_EPOCH + Duration::from_millis(state.last_heartbeat),
+            operations_pending: 0,    // Would need master offset to calculate
+            snapshot_size: 0,         // Not tracked by replica
+            connected_replicas: None, // Only master has replicas
+            // Legacy fields
             master_offset: 0, // Not tracked by replica
             replica_offset: state.offset,
             lag_operations: 0, // Would need master offset to calculate
-            lag_ms: current_timestamp().saturating_sub(state.last_heartbeat),
             total_replicated: state.total_replicated,
-            total_bytes: state.total_bytes,
-            last_heartbeat: state.last_heartbeat,
-            connected: state.connected,
         }
     }
 
@@ -385,8 +395,8 @@ mod tests {
         let stats = replica.get_stats();
         assert_eq!(stats.replica_offset, 0);
         assert_eq!(stats.total_replicated, 0);
-        assert_eq!(stats.total_bytes, 0);
-        assert!(!stats.connected);
+        assert_eq!(stats.bytes_received, 0); // New field for bytes received
+        assert_eq!(stats.role, crate::replication::NodeRole::Replica);
         assert_eq!(stats.master_offset, 0);
     }
 

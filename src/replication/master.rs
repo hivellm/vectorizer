@@ -234,6 +234,14 @@ impl MasterNode {
                         error!("Failed to send to replica {}: {}", replica_id, e);
                         break;
                     }
+
+                    // Update replica offset after successful send
+                    if let ReplicationCommand::Operation(ref op) = cmd {
+                        let mut replicas = replicas.write();
+                        if let Some(replica) = replicas.get_mut(&replica_id) {
+                            replica.offset = op.offset;
+                        }
+                    }
                 }
             }
         }
@@ -349,15 +357,22 @@ impl MasterNode {
             total_lag += master_offset.saturating_sub(replica.offset);
         }
 
+        let num_replicas = replicas.len();
+
         ReplicationStats {
+            role: crate::replication::NodeRole::Master,
+            lag_ms: 0,                          // Master doesn't lag
+            bytes_sent: total_replicated * 100, // Approximate
+            bytes_received: 0,                  // Master doesn't receive
+            last_sync: SystemTime::now(),
+            operations_pending: 0, // Master doesn't have pending ops
+            snapshot_size: 0,      // Would need to track
+            connected_replicas: Some(num_replicas),
+            // Legacy fields
             master_offset,
             replica_offset: 0, // Not applicable for master
             lag_operations: total_lag,
-            lag_ms: 0,
             total_replicated,
-            total_bytes: 0,
-            last_heartbeat: current_timestamp(),
-            connected: !replicas.is_empty(),
         }
     }
 
@@ -374,12 +389,15 @@ impl MasterNode {
 
                 ReplicaInfo {
                     id: r.id.clone(),
-                    address: r.address,
+                    host: r.address.ip().to_string(),
+                    port: r.address.port(),
+                    status: crate::replication::ReplicaStatus::Connected,
+                    lag_ms,
+                    last_heartbeat: UNIX_EPOCH + std::time::Duration::from_millis(r.last_heartbeat),
+                    operations_synced: r.offset,
+                    address: Some(r.address),
                     offset: r.offset,
                     lag_operations: lag_ops,
-                    lag_ms,
-                    connected: true,
-                    last_heartbeat: r.last_heartbeat,
                 }
             })
             .collect()
@@ -422,7 +440,7 @@ mod tests {
         // Test initial stats
         let stats = master.get_stats();
         assert_eq!(stats.master_offset, 0);
-        assert!(!stats.connected);
+        assert_eq!(stats.connected_replicas, Some(0)); // No replicas connected
 
         // Test initial replicas
         let replicas = master.get_replicas();

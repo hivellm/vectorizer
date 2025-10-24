@@ -200,23 +200,39 @@ See `config.production.yml` for production-optimized settings.
 GET /replication/status
 ```
 
-**Response:**
+**Response (v1.2.0+):**
 ```json
 {
   "role": "Master",
   "enabled": true,
   "stats": {
+    "role": "master",
+    "lag_ms": 0,
+    "bytes_sent": 1048576,
+    "bytes_received": 0,
+    "last_sync": 1729612800,
+    "operations_pending": 0,
+    "snapshot_size": 524288,
+    "connected_replicas": 2,
     "master_offset": 1523,
     "replica_offset": 0,
     "lag_operations": 0,
-    "lag_ms": 0,
-    "total_replicated": 1523,
-    "total_bytes": 1048576,
-    "last_heartbeat": 1729612800000,
-    "connected": true
-  }
+    "total_replicated": 1523
+  },
+  "replicas": []
 }
 ```
+
+**Note**: New fields added in v1.2.0:
+- `role`: Node role (master/replica)
+- `bytes_sent`: Total bytes sent (master only)
+- `bytes_received`: Total bytes received  
+- `last_sync`: Last sync timestamp (Unix seconds)
+- `operations_pending`: Operations waiting to replicate
+- `snapshot_size`: Size of last snapshot in bytes
+- `connected_replicas`: Number of connected replicas (master only)
+
+Legacy fields maintained for backwards compatibility.
 
 ### Configure Replication
 
@@ -253,22 +269,42 @@ GET /replication/stats
 GET /replication/replicas
 ```
 
-**Response:**
+**Response (v1.2.0+):**
 ```json
 {
   "replicas": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "address": "192.168.1.10:54321",
-      "offset": 1500,
-      "lag_operations": 23,
+      "host": "192.168.1.10",
+      "port": 6381,
+      "status": "Connected",
       "lag_ms": 150,
-      "connected": true,
-      "last_heartbeat": 1729612800000
+      "last_heartbeat": 1729612800,
+      "operations_synced": 1500,
+      "address": "192.168.1.10:6381",
+      "offset": 1500,
+      "lag_operations": 23
     }
-  ]
+  ],
+  "count": 1,
+  "message": "Replica list will populate when replication is actively running"
 }
 ```
+
+**Replica Status Values:**
+- `Connected`: Replica is healthy and syncing normally
+- `Syncing`: Replica is performing initial sync
+- `Lagging`: Replica lag exceeds 1000ms threshold
+- `Disconnected`: No heartbeat received for 60+ seconds
+
+**Note**: New fields added in v1.2.0:
+- `host`: Replica IP address
+- `port`: Replica port number
+- `status`: Health status enum
+- `operations_synced`: Total operations successfully synced
+- `last_heartbeat`: Unix timestamp of last heartbeat
+
+Legacy fields maintained for backwards compatibility.
 
 ---
 

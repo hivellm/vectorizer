@@ -32,25 +32,38 @@ pub struct ReplicationStatusResponse {
 pub async fn get_replication_status(
     State(state): State<VectorizerServer>,
 ) -> Result<Json<ReplicationStatusResponse>, (StatusCode, String)> {
-    // Check if replication is configured (stored in VectorStore metadata)
-    let role_str = state
-        .store
-        .get_metadata("replication_role")
-        .unwrap_or_else(|| "standalone".to_string());
+    // Check if replication nodes are configured
+    let (role, enabled, stats, replicas) = if let Some(master) = &state.master_node {
+        // Master node is configured
+        let stats = master.get_stats();
+        let replicas = master.get_replicas();
+        ("Master", true, Some(stats), Some(replicas))
+    } else if let Some(replica) = &state.replica_node {
+        // Replica node is configured
+        let stats = replica.get_stats();
+        ("Replica", true, Some(stats), None)
+    } else {
+        // Fallback to metadata for backwards compatibility
+        let role_str = state
+            .store
+            .get_metadata("replication_role")
+            .unwrap_or_else(|| "standalone".to_string());
 
-    let role = match role_str.as_str() {
-        "master" => crate::replication::NodeRole::Master,
-        "replica" => crate::replication::NodeRole::Replica,
-        _ => crate::replication::NodeRole::Standalone,
+        let role = match role_str.as_str() {
+            "master" | "Master" => "Master",
+            "replica" | "Replica" => "Replica",
+            _ => "Standalone",
+        };
+
+        let enabled = role != "Standalone";
+        (role, enabled, None, None)
     };
 
-    let enabled = role != crate::replication::NodeRole::Standalone;
-
     let response = ReplicationStatusResponse {
-        role: format!("{:?}", role),
+        role: role.to_string(),
         enabled,
-        stats: None,    // TODO: Implement stats retrieval
-        replicas: None, // TODO: Implement replica list
+        stats,
+        replicas,
     };
 
     Ok(Json(response))
@@ -119,45 +132,37 @@ pub async fn configure_replication(
 pub async fn get_replication_stats(
     State(state): State<VectorizerServer>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    // Check if replication is enabled
-    let role_str = state
-        .store
-        .get_metadata("replication_role")
-        .unwrap_or_else(|| "standalone".to_string());
-
-    if role_str == "standalone" {
+    // Get stats from actual replication nodes
+    let stats = if let Some(master) = &state.master_node {
+        master.get_stats()
+    } else if let Some(replica) = &state.replica_node {
+        replica.get_stats()
+    } else {
         return Err((
             StatusCode::BAD_REQUEST,
             "Replication not enabled".to_string(),
         ));
-    }
+    };
 
-    // TODO: Implement actual stats retrieval from MasterNode/ReplicaNode
-    Ok(Json(json!({
-        "role": role_str,
-        "message": "Replication stats not yet implemented. Server restart with replication enabled required."
-    })))
+    Ok(Json(json!(stats)))
 }
 
 /// List connected replicas (master only)
 pub async fn list_replicas(
     State(state): State<VectorizerServer>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let role_str = state
-        .store
-        .get_metadata("replication_role")
-        .unwrap_or_else(|| "standalone".to_string());
-
-    if role_str != "master" {
+    // Get replica list from actual master node
+    let replicas = if let Some(master) = &state.master_node {
+        master.get_replicas()
+    } else {
         return Err((
             StatusCode::BAD_REQUEST,
             "This endpoint is only available on master nodes".to_string(),
         ));
-    }
+    };
 
-    // TODO: Implement actual replica list from MasterNode
     Ok(Json(json!({
-        "replicas": [],
-        "message": "Replica listing not yet implemented. Server restart with replication enabled required."
+        "replicas": replicas,
+        "count": replicas.len()
     })))
 }

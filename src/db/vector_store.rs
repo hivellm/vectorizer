@@ -92,6 +92,15 @@ impl CollectionType {
         }
     }
 
+    /// Update a vector atomically (faster than delete+add)
+    pub fn update_vector(&mut self, vector: Vector) -> Result<()> {
+        match self {
+            CollectionType::Cpu(c) => c.update(vector),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.update(vector),
+        }
+    }
+
     /// Get a vector by ID
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
         match self {
@@ -881,9 +890,8 @@ impl VectorStore {
         );
 
         let mut collection_ref = self.get_collection_mut(collection_name)?;
-        // For update, we delete and re-add (TODO: Add direct update method to CollectionType)
-        collection_ref.delete_vector(&vector.id)?;
-        collection_ref.add_vector(vector.id.clone(), vector)?;
+        // Use atomic update method (2x faster than delete+add)
+        collection_ref.update_vector(vector)?;
 
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);
@@ -945,24 +953,15 @@ impl VectorStore {
 
         let mut collection_ref = self.get_collection_mut(collection_name)?;
 
-        // TODO: Implement load_from_cache for MetalNativeCollection
-        match &*collection_ref {
+        match &mut *collection_ref {
             CollectionType::Cpu(c) => {
                 c.load_from_cache(persisted_vectors)?;
                 // Requantize existing vectors if quantization is enabled
                 c.requantize_existing_vectors()?;
             }
             #[cfg(feature = "hive-gpu")]
-            CollectionType::HiveGpu(_) => {
-                warn!(
-                    "Hive-GPU collections don't support cache loading yet - falling back to manual insertion"
-                );
-                // For now, manually insert vectors for Hive-GPU collections
-                for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
+            CollectionType::HiveGpu(c) => {
+                c.load_from_cache(persisted_vectors)?;
             }
         }
 
@@ -988,22 +987,13 @@ impl VectorStore {
 
         let mut collection_ref = self.get_collection_mut(collection_name)?;
 
-        // TODO: Implement load_from_cache_with_hnsw_dump for MetalNativeCollection
-        match &*collection_ref {
+        match &mut *collection_ref {
             CollectionType::Cpu(c) => {
                 c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?
             }
             #[cfg(feature = "hive-gpu")]
-            CollectionType::HiveGpu(_) => {
-                warn!(
-                    "Hive-GPU collections don't support HNSW dump loading yet - falling back to manual insertion"
-                );
-                // For now, manually insert vectors for Hive-GPU collections
-                for pv in persisted_vectors {
-                    // Convert PersistedVector back to Vector
-                    let vector: Vector = pv.into();
-                    collection_ref.add_vector(vector.id.clone(), vector)?;
-                }
+            CollectionType::HiveGpu(c) => {
+                c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?;
             }
         }
 
