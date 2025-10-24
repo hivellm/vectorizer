@@ -2,14 +2,14 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 1.1.2 - MCP Intelligent Search Fix**
+## ✨ **Version 1.1.2 - MCP Search Enhancements**
 
 ### 🎉 **Latest Updates (v1.1.2)**
-- **🔍 Fixed MCP Intelligent Search**: Corrected `search_intelligent` tool collection filtering and query expansion
+- **🔍 MCP Search Fix**: Fixed `search_intelligent` to properly handle collection filtering
+- **⚡ Improved Performance**: Enhanced intelligent search with better query expansion
+- **🐛 Bug Fixes**: Resolved collection filtering issues in MCP intelligent search
 
-## ✨ **Version 1.1.0 - Replication & SDK Standardization**
-
-### 🎉 **Latest Updates (v1.1.0)**
+### 🎉 **Previous Updates (v1.1.0)**
 - **🔄 Master-Replica Replication**: Complete replication system inspired by Redis
 - **⚡ High Availability**: Automatic failover and intelligent sync mechanisms
 - **📦 SDK Standardization**: All client SDKs renamed to follow `vectorizer-sdk` convention

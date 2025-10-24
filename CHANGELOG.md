@@ -5,16 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
 ## [1.1.2] - 2025-10-24
 
 ### Fixed
-- **MCP Intelligent Search**: Fixed `search_intelligent` tool to properly handle collection filtering and query expansion
-  - **Issue**: Intelligent search was not correctly processing collections parameter
-  - **Impact**: Queries across multiple collections were not working as expected
-  - **Solution**: Improved collection handling logic and query expansion algorithm
-  - **Tests**: All MCP tools tests passing
+- **MCP Search Intelligent**: Fixed `search_intelligent` MCP tool to properly handle collection filtering
+  - **Issue**: Collections parameter was not being properly passed to internal search functions
+  - **Impact**: MCP intelligent search was not respecting collection filters when specified
+  - **Solution**: Updated search implementation to correctly filter results by specified collections
+  - **Tests**: Verified collection filtering works correctly across all MCP search tools
+
+### Changed
+- **Improved Search Performance**: Enhanced intelligent search query expansion and result ranking
+- **Better Collection Filtering**: All MCP search operations now properly respect collection filters
+
+## [Unreleased]
 
 ### Added
 - **Production Readiness - Phase 1**: Complete replication statistics and monitoring (see proposal: `openspec/changes/improve-production-readiness`)
