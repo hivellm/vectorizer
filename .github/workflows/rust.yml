@@ -56,7 +56,7 @@ jobs:
       issues: write
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest  ]
+        os: [ ubuntu-latest, windows-latest ]
     steps:
       - name: Download test report
         uses: actions/download-artifact@v5
