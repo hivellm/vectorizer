@@ -1025,4 +1025,96 @@ mod tests {
         let result = collection.get_vector("v1");
         assert!(matches!(result, Err(VectorizerError::VectorNotFound(_))));
     }
+
+    #[test]
+    fn test_vector_count_with_quantization() {
+        // Create collection WITH quantization enabled
+        let config = CollectionConfig {
+            dimension: 3,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::SQ { bits: 8 }, // QUANTIZED!
+            compression: Default::default(),
+            normalization: None,
+        };
+        let collection = Collection::new("quantized_test".to_string(), config);
+
+        // Insert vectors
+        let vec1 = Vector::new("vec1".to_string(), vec![1.0, 0.0, 0.0]);
+        let vec2 = Vector::new("vec2".to_string(), vec![0.0, 1.0, 0.0]);
+        let vec3 = Vector::new("vec3".to_string(), vec![0.0, 0.0, 1.0]);
+
+        collection.insert_batch(vec![vec1, vec2, vec3]).unwrap();
+
+        // Vector count MUST be correct even with quantization
+        assert_eq!(
+            collection.vector_count(),
+            3,
+            "Vector count should be 3 even with quantization enabled"
+        );
+
+        // Delete one vector
+        collection.delete("vec2").unwrap();
+        assert_eq!(
+            collection.vector_count(),
+            2,
+            "Vector count should be 2 after deleting one quantized vector"
+        );
+    }
+
+    #[test]
+    fn test_vector_count_consistency_quantized_vs_normal() {
+        // Test that vector_count() works the same for quantized and non-quantized collections
+
+        // Collection 1: WITH quantization
+        let config_quantized = CollectionConfig {
+            dimension: 3,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
+            compression: Default::default(),
+            normalization: None,
+        };
+        let collection_quantized = Collection::new("quantized".to_string(), config_quantized);
+
+        // Collection 2: WITHOUT quantization
+        let config_normal = CollectionConfig {
+            dimension: 3,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::None,
+            compression: Default::default(),
+            normalization: None,
+        };
+        let collection_normal = Collection::new("normal".to_string(), config_normal);
+
+        // Insert same vectors to both
+        let vectors = vec![
+            Vector::new("v1".to_string(), vec![1.0, 0.0, 0.0]),
+            Vector::new("v2".to_string(), vec![0.0, 1.0, 0.0]),
+            Vector::new("v3".to_string(), vec![0.0, 0.0, 1.0]),
+            Vector::new("v4".to_string(), vec![1.0, 1.0, 0.0]),
+            Vector::new("v5".to_string(), vec![0.5, 0.5, 0.5]),
+        ];
+
+        collection_quantized.insert_batch(vectors.clone()).unwrap();
+        collection_normal.insert_batch(vectors).unwrap();
+
+        // Both should have the same count
+        assert_eq!(
+            collection_quantized.vector_count(),
+            5,
+            "Quantized collection should have 5 vectors"
+        );
+        assert_eq!(
+            collection_normal.vector_count(),
+            5,
+            "Normal collection should have 5 vectors"
+        );
+        assert_eq!(
+            collection_quantized.vector_count(),
+            collection_normal.vector_count(),
+            "Both collections should have the same vector count"
+        );
+    }
 }
