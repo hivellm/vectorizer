@@ -390,8 +390,8 @@ mod tests {
         let stats = replica.get_stats();
         assert_eq!(stats.replica_offset, 0);
         assert_eq!(stats.total_replicated, 0);
-        assert_eq!(stats.total_bytes, 0);
-        assert!(!stats.connected);
+        assert_eq!(stats.bytes_received, 0); // New field for bytes received
+        assert_eq!(stats.role, crate::replication::NodeRole::Replica);
         assert_eq!(stats.master_offset, 0);
     }
 

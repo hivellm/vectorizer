@@ -432,7 +432,7 @@ mod tests {
         // Test initial stats
         let stats = master.get_stats();
         assert_eq!(stats.master_offset, 0);
-        assert!(!stats.connected);
+        assert_eq!(stats.connected_replicas, Some(0)); // No replicas connected
 
         // Test initial replicas
         let replicas = master.get_replicas();
