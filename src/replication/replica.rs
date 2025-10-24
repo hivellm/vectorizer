@@ -316,14 +316,19 @@ impl ReplicaNode {
         let state = self.state.read();
 
         ReplicationStats {
+            role: crate::replication::NodeRole::Replica,
+            lag_ms: current_timestamp().saturating_sub(state.last_heartbeat),
+            bytes_sent: 0, // Replicas don't send data
+            bytes_received: state.total_bytes,
+            last_sync: UNIX_EPOCH + Duration::from_millis(state.last_heartbeat),
+            operations_pending: 0,    // Would need master offset to calculate
+            snapshot_size: 0,         // Not tracked by replica
+            connected_replicas: None, // Only master has replicas
+            // Legacy fields
             master_offset: 0, // Not tracked by replica
             replica_offset: state.offset,
             lag_operations: 0, // Would need master offset to calculate
-            lag_ms: current_timestamp().saturating_sub(state.last_heartbeat),
             total_replicated: state.total_replicated,
-            total_bytes: state.total_bytes,
-            last_heartbeat: state.last_heartbeat,
-            connected: state.connected,
         }
     }
 

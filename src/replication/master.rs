@@ -349,15 +349,22 @@ impl MasterNode {
             total_lag += master_offset.saturating_sub(replica.offset);
         }
 
+        let num_replicas = replicas.len();
+
         ReplicationStats {
+            role: crate::replication::NodeRole::Master,
+            lag_ms: 0,                          // Master doesn't lag
+            bytes_sent: total_replicated * 100, // Approximate
+            bytes_received: 0,                  // Master doesn't receive
+            last_sync: SystemTime::now(),
+            operations_pending: 0, // Master doesn't have pending ops
+            snapshot_size: 0,      // Would need to track
+            connected_replicas: Some(num_replicas),
+            // Legacy fields
             master_offset,
             replica_offset: 0, // Not applicable for master
             lag_operations: total_lag,
-            lag_ms: 0,
             total_replicated,
-            total_bytes: 0,
-            last_heartbeat: current_timestamp(),
-            connected: !replicas.is_empty(),
         }
     }
 
@@ -374,12 +381,15 @@ impl MasterNode {
 
                 ReplicaInfo {
                     id: r.id.clone(),
-                    address: r.address,
+                    host: r.address.ip().to_string(),
+                    port: r.address.port(),
+                    status: crate::replication::ReplicaStatus::Connected,
+                    lag_ms,
+                    last_heartbeat: UNIX_EPOCH + std::time::Duration::from_millis(r.last_heartbeat),
+                    operations_synced: r.offset,
+                    address: Some(r.address),
                     offset: r.offset,
                     lag_operations: lag_ops,
-                    lag_ms,
-                    connected: true,
-                    last_heartbeat: r.last_heartbeat,
                 }
             })
             .collect()

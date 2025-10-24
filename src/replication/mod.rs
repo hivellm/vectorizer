@@ -27,6 +27,6 @@ pub use master::MasterNode;
 pub use replica::ReplicaNode;
 pub use replication_log::ReplicationLog;
 pub use types::{
-    CollectionConfigData, NodeRole, ReplicaInfo, ReplicationCommand, ReplicationError,
-    ReplicationOperation, ReplicationResult, ReplicationStats, VectorOperation,
+    CollectionConfigData, NodeRole, ReplicaInfo, ReplicaStatus, ReplicationCommand,
+    ReplicationError, ReplicationOperation, ReplicationResult, ReplicationStats, VectorOperation,
 };
