@@ -190,26 +190,25 @@ impl MCPToolHandler {
             .collections
             .unwrap_or_else(|| self.store.list_collections());
 
-        // Intelligently prioritize collections based on semantic similarity
-        let collections = if all_collections.len() > 10 {
-            // If we have many collections, use semantic prioritization
-            match self
-                .prioritize_collections_semantically(&tool.query, &all_collections, 20)
-                .await
-            {
-                Ok(prioritized) => prioritized,
-                Err(e) => {
-                    tracing::warn!(
-                        "Semantic prioritization failed: {}, using all collections",
-                        e
-                    );
-                    all_collections.clone()
-                }
-            }
+        // DISABLED: Semantic prioritization causes timeout with many collections (114+)
+        // Limit collections to avoid timeout with large numbers
+        let max_collections_limit = 20;
+        let collections = if all_collections.len() > max_collections_limit {
+            tracing::warn!(
+                "Too many collections ({}), limiting to first {} for performance",
+                all_collections.len(),
+                max_collections_limit
+            );
+            all_collections.iter().take(max_collections_limit).cloned().collect()
         } else {
-            // If we have few collections, use all of them
             all_collections.clone()
         };
+        
+        tracing::info!(
+            "Intelligent search using {} collections (total available: {})",
+            collections.len(),
+            all_collections.len()
+        );
 
         let mut all_results = Vec::new();
         let mut total_queries = 0;

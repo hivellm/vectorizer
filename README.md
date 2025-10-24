@@ -2,6 +2,11 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
+## ✨ **Version 1.1.2 - MCP Intelligent Search Fix**
+
+### 🎉 **Latest Updates (v1.1.2)**
+- **🔍 Fixed MCP Intelligent Search**: Corrected `search_intelligent` tool collection filtering and query expansion
+
 ## ✨ **Version 1.1.0 - Replication & SDK Standardization**
 
 ### 🎉 **Latest Updates (v1.1.0)**

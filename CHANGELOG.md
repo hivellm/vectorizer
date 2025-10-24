@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2025-10-24
+
+### Fixed
+- **MCP Intelligent Search**: Fixed `search_intelligent` tool to properly handle collection filtering and query expansion
+  - **Issue**: Intelligent search was not correctly processing collections parameter
+  - **Impact**: Queries across multiple collections were not working as expected
+  - **Solution**: Improved collection handling logic and query expansion algorithm
+  - **Tests**: All MCP tools tests passing
+
 ### Added
 - **Production Readiness - Phase 1**: Complete replication statistics and monitoring (see proposal: `openspec/changes/improve-production-readiness`)
   - Enhanced `ReplicationStats` with 7 new fields: `role`, `bytes_sent`, `bytes_received`, `last_sync`, `operations_pending`, `snapshot_size`, `connected_replicas`
