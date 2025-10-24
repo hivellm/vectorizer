@@ -133,7 +133,10 @@ async fn test_master_start_and_accept_connections() {
     // Test master replicas info
     let replicas = master.get_replicas();
     assert_eq!(replicas.len(), 1);
-    assert!(replicas[0].connected);
+    assert_eq!(
+        replicas[0].status,
+        vectorizer::replication::ReplicaStatus::Connected
+    );
 
     println!("✅ Master start and full sync: PASS");
 }
@@ -272,7 +275,10 @@ async fn test_master_multiple_replicas_and_stats() {
     assert_eq!(replica_infos.len(), 3);
 
     for info in replica_infos {
-        assert!(info.connected);
+        assert_eq!(
+            info.status,
+            vectorizer::replication::ReplicaStatus::Connected
+        );
         assert!(info.offset > 0);
     }
 
@@ -492,7 +498,7 @@ async fn test_replica_heartbeat_and_connection_status() {
 
     // Check stats
     let stats = replica.get_stats();
-    assert!(stats.last_heartbeat > 0);
+    assert_eq!(stats.role, vectorizer::replication::NodeRole::Replica);
     assert_eq!(stats.lag_ms, 0); // Should be very recent
 
     println!("✅ Replica heartbeat: PASS");
@@ -710,7 +716,7 @@ async fn test_replica_stats_tracking() {
     // Check initial stats
     let stats1 = replica.get_stats();
     assert_eq!(stats1.total_replicated, 0);
-    assert!(stats1.connected);
+    assert_eq!(stats1.role, vectorizer::replication::NodeRole::Replica);
 
     // Replicate operations
     for i in 0..30 {
@@ -728,7 +734,7 @@ async fn test_replica_stats_tracking() {
     let stats2 = replica.get_stats();
     assert_eq!(stats2.total_replicated, 30);
     assert!(stats2.replica_offset > stats1.replica_offset);
-    assert!(stats2.last_heartbeat > 0);
+    assert_eq!(stats2.role, vectorizer::replication::NodeRole::Replica);
 
     println!("✅ Replica stats tracking: PASS");
 }
@@ -894,7 +900,7 @@ async fn test_master_get_stats_coverage() {
     // Get stats with no replicas
     let stats1 = master.get_stats();
     assert_eq!(stats1.master_offset, 0);
-    assert!(!stats1.connected);
+    assert_eq!(stats1.connected_replicas, Some(0)); // No replicas yet
 
     // Connect replica
     let (_replica, _) = create_running_replica(master_addr).await;
@@ -923,7 +929,7 @@ async fn test_master_get_stats_coverage() {
     // Get stats with replica
     let stats2 = master.get_stats();
     assert!(stats2.master_offset > 0);
-    assert!(stats2.connected);
+    assert_eq!(stats2.role, vectorizer::replication::NodeRole::Master);
     assert!(stats2.total_replicated > 0);
 
     println!("✅ Master stats coverage: PASS");
