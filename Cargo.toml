@@ -144,6 +144,10 @@ reqwest = { version = "0.12", features = ["json"] }
 name = "replication_bench"
 harness = false
 
+[[bench]]
+name = "update_bench"
+harness = false
+
 # Disabled benchmarks - need refactoring for current API
 # [[bin]]
 # name = "benchmark_embeddings"
