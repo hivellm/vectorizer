@@ -300,11 +300,16 @@ impl ReplicaNode {
                 debug!("Updated vector {} in collection {}", id, collection);
             }
             VectorOperation::DeleteVector { collection, id } => {
-                self.vector_store
-                    .delete(collection, id)
-                    .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                info!(
+                    "Replica applying delete operation: {} from {}",
+                    id, collection
+                );
+                self.vector_store.delete(collection, id).map_err(|e| {
+                    error!("Failed to delete vector {} from {}: {}", id, collection, e);
+                    ReplicationError::InvalidOperation(e.to_string())
+                })?;
 
-                debug!("Deleted vector {} from collection {}", id, collection);
+                info!("Deleted vector {} from collection {}", id, collection);
             }
         }
 

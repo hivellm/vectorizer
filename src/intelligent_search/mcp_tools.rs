@@ -199,11 +199,15 @@ impl MCPToolHandler {
                 all_collections.len(),
                 max_collections_limit
             );
-            all_collections.iter().take(max_collections_limit).cloned().collect()
+            all_collections
+                .iter()
+                .take(max_collections_limit)
+                .cloned()
+                .collect()
         } else {
             all_collections.clone()
         };
-        
+
         tracing::info!(
             "Intelligent search using {} collections (total available: {})",
             collections.len(),
