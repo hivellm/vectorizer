@@ -614,21 +614,21 @@ async fn test_replica_delete_operations() {
     }
 
     // Now connect replica - should trigger full sync
-    let (_replica, replica_store) = create_running_replica(master_addr).await;
+    let (replica, replica_store) = create_running_replica(master_addr).await;
 
     // Wait for full sync to complete and verify connection
     sleep(Duration::from_secs(2)).await;
-
+    
     // Check replica connection status
-    println!("Replica connected: {}", _replica.is_connected());
-    println!("Replica offset: {}", _replica.get_offset());
-
+    println!("Replica connected: {}", replica.is_connected());
+    println!("Replica offset: {}", replica.get_offset());
+    
     // Wait additional time for sync
     sleep(Duration::from_secs(3)).await;
 
     // Debug: List what collections exist
     let collections = replica_store.list_collections();
-    println!("Collections in replica: {:?}", collections);
+    println!("Collections in replica: {collections:?}");
 
     // Verify replica received snapshot
     assert!(
@@ -660,8 +660,8 @@ async fn test_replica_delete_operations() {
     sleep(Duration::from_secs(2)).await;
 
     // Check if replica is still connected
-    println!("Replica connected: {}", _replica.is_connected());
-    println!("Replica offset: {}", _replica.get_offset());
+    println!("Replica connected: {}", replica.is_connected());
+    println!("Replica offset: {}", replica.get_offset());
 
     // Verify deletes replicated
     let collection = replica_store.get_collection("delete_test").unwrap();

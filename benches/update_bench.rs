@@ -23,7 +23,7 @@ fn create_test_store_with_vectors(count: usize) -> (VectorStore, String) {
     let vectors: Vec<Vector> = (0..count)
         .map(|i| {
             let data: Vec<f32> = (0..128).map(|j| ((i + j) as f32) / 128.0).collect();
-            Vector::new(format!("vec_{}", i), data)
+            Vector::new(format!("vec_{i}"), data)
         })
         .collect();
 
@@ -46,7 +46,7 @@ fn bench_atomic_update(c: &mut Criterion) {
                 b.iter(|| {
                     let idx = counter % size;
                     let data: Vec<f32> = (0..128).map(|j| ((idx + j + 1) as f32) / 128.0).collect();
-                    let vector = Vector::new(format!("vec_{}", idx), data);
+                    let vector = Vector::new(format!("vec_{idx}"), data);
 
                     store.update(&collection_name, black_box(vector)).unwrap();
                     counter += 1;

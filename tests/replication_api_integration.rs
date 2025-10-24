@@ -1,12 +1,10 @@
 //! Integration tests for replication REST API endpoints
 
-use serde_json::Value;
-
 #[tokio::test]
 async fn test_replication_status_endpoint_standalone() {
     // Create a test server (standalone mode by default)
     let store = std::sync::Arc::new(vectorizer::VectorStore::new());
-    let embedding_manager = std::sync::Arc::new(vectorizer::embedding::EmbeddingManager::new());
+    let _embedding_manager = std::sync::Arc::new(vectorizer::embedding::EmbeddingManager::new());
 
     // Verify standalone role
     let role = store
