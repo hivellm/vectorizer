@@ -5,9 +5,10 @@
 //! - Incremental sync
 //! - Checksum verification
 
-use crate::db::VectorStore;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
+
+use crate::db::VectorStore;
 
 /// Snapshot metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,14 +41,15 @@ pub async fn create_snapshot(store: &VectorStore, offset: u64) -> Result<Vec<u8>
 
             // Get all vectors from collection
             let all_vectors = collection.get_all_vectors();
-            
+
             // Convert to (id, data, payload) format
             let vectors: Vec<(String, Vec<f32>, Option<Vec<u8>>)> = all_vectors
                 .into_iter()
                 .map(|v| {
-                    let payload = v.payload.as_ref().map(|p| {
-                        serde_json::to_vec(&p.data).unwrap_or_default()
-                    });
+                    let payload = v
+                        .payload
+                        .as_ref()
+                        .map(|p| serde_json::to_vec(&p.data).unwrap_or_default());
                     (v.id, v.data, payload)
                 })
                 .collect();
@@ -143,7 +145,8 @@ pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64,
 
         // Insert vectors
         let vector_count = collection.vectors.len();
-        let vectors: Vec<crate::models::Vector> = collection.vectors
+        let vectors: Vec<crate::models::Vector> = collection
+            .vectors
             .into_iter()
             .map(|(id, data, payload)| {
                 let payload_obj = payload.map(|p| crate::models::Payload {
@@ -157,13 +160,28 @@ pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64,
             })
             .collect();
 
-        let _ = store.insert(&collection.name, vectors);
+        // Insert vectors and verify
+        if let Err(e) = store.insert(&collection.name, vectors) {
+            return Err(format!(
+                "Failed to insert vectors into collection {}: {}",
+                collection.name, e
+            ));
+        }
 
-        debug!(
-            "Applied collection: {} with {} vectors",
-            collection.name,
-            vector_count
-        );
+        // Verify insertion succeeded
+        if let Ok(col) = store.get_collection(&collection.name) {
+            debug!(
+                "Applied collection: {} with {} vectors (verified: {})",
+                collection.name,
+                vector_count,
+                col.vector_count()
+            );
+        } else {
+            return Err(format!(
+                "Failed to verify collection {} after insertion",
+                collection.name
+            ));
+        }
     }
 
     info!("Snapshot applied successfully");
@@ -237,8 +255,8 @@ mod tests {
         let snapshot = create_snapshot(&store1, 100).await.unwrap();
         assert!(!snapshot.is_empty());
 
-        // Apply to new store
-        let store2 = VectorStore::new();
+        // Apply to new store (CPU-only for consistent test behavior)
+        let store2 = VectorStore::new_cpu_only();
         let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
 
         assert_eq!(offset, 100);
@@ -262,7 +280,7 @@ mod tests {
             normalization: None,
         };
         store.create_collection("test", config).unwrap();
-        
+
         let vec1 = crate::models::Vector {
             id: "vec1".to_string(),
             data: vec![1.0, 0.0, 0.0],
@@ -316,8 +334,8 @@ mod tests {
         // Create snapshot
         let snapshot = create_snapshot(&store1, 200).await.unwrap();
 
-        // Apply to new store
-        let store2 = VectorStore::new();
+        // Apply to new store (CPU-only for consistent test behavior)
+        let store2 = VectorStore::new_cpu_only();
         let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
 
         assert_eq!(offset, 200);
@@ -368,7 +386,9 @@ mod tests {
             payload: None, // No payload
         };
 
-        store1.insert("payload_test", vec![vec1, vec2, vec3]).unwrap();
+        store1
+            .insert("payload_test", vec![vec1, vec2, vec3])
+            .unwrap();
 
         // Snapshot
         let snapshot = create_snapshot(&store1, 100).await.unwrap();
@@ -398,7 +418,9 @@ mod tests {
             compression: Default::default(),
             normalization: None,
         };
-        store1.create_collection("euclidean", config_euclidean).unwrap();
+        store1
+            .create_collection("euclidean", config_euclidean)
+            .unwrap();
 
         // DotProduct
         let config_dot = crate::models::CollectionConfig {
@@ -429,10 +451,16 @@ mod tests {
 
         // Verify metrics preserved
         let euc_col = store2.get_collection("euclidean").unwrap();
-        assert_eq!(euc_col.config().metric, crate::models::DistanceMetric::Euclidean);
+        assert_eq!(
+            euc_col.config().metric,
+            crate::models::DistanceMetric::Euclidean
+        );
 
         let dot_col = store2.get_collection("dotproduct").unwrap();
-        assert_eq!(dot_col.config().metric, crate::models::DistanceMetric::DotProduct);
+        assert_eq!(
+            dot_col.config().metric,
+            crate::models::DistanceMetric::DotProduct
+        );
     }
 
     #[tokio::test]
@@ -443,8 +471,8 @@ mod tests {
         let snapshot = create_snapshot(&store1, 0).await.unwrap();
         assert!(!snapshot.is_empty()); // Metadata still exists
 
-        // Apply to new store
-        let store2 = VectorStore::new();
+        // Apply to new store (CPU-only for consistent test behavior)
+        let store2 = VectorStore::new_cpu_only();
         let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
 
         assert_eq!(offset, 0);
@@ -478,7 +506,7 @@ mod tests {
 
         // Deserialize metadata to verify fields
         let metadata: SnapshotMetadata = bincode::deserialize(&snapshot).unwrap();
-        
+
         assert_eq!(metadata.offset, 999);
         assert_eq!(metadata.total_collections, 1);
         assert_eq!(metadata.total_vectors, 1);
@@ -487,4 +515,3 @@ mod tests {
         assert!(metadata.timestamp > 0);
     }
 }
-

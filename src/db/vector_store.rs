@@ -282,6 +282,21 @@ impl VectorStore {
         store
     }
 
+    /// Create a new empty vector store with CPU-only collections (for testing)
+    /// This bypasses GPU detection and ensures consistent behavior across platforms
+    #[cfg(test)]
+    pub fn new_cpu_only() -> Self {
+        info!("Creating new VectorStore (CPU-only mode for testing)");
+
+        Self {
+            collections: Arc::new(DashMap::new()),
+            auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+            metadata: Arc::new(DashMap::new()),
+        }
+    }
+
     /// Check storage format and perform automatic migration if needed
     fn check_and_migrate_storage(&self) {
         use std::fs;
@@ -436,15 +451,26 @@ impl VectorStore {
 
     /// Create a new collection
     pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
+        self.create_collection_internal(name, config, true)
+    }
+
+    /// Create a collection with option to disable GPU (for testing)
+    #[cfg(test)]
+    pub fn create_collection_cpu_only(&self, name: &str, config: CollectionConfig) -> Result<()> {
+        self.create_collection_internal(name, config, false)
+    }
+
+    /// Internal collection creation with GPU control
+    fn create_collection_internal(&self, name: &str, config: CollectionConfig, allow_gpu: bool) -> Result<()> {
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
         if self.collections.contains_key(name) {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        // Try Hive-GPU first (Metal backend only on macOS)
+        // Try Hive-GPU first (Metal backend only on macOS) if allowed
         #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
-        {
+        if allow_gpu {
             info!("Creating Hive-GPU collection '{}'", name);
             use hive_gpu::GpuContext;
             use hive_gpu::metal::MetalNativeContext;
@@ -1014,10 +1040,12 @@ impl VectorStore {
 
     /// List all metadata keys
     pub fn list_metadata_keys(&self) -> Vec<String> {
-        self.metadata.iter().map(|entry| entry.key().clone()).collect()
+        self.metadata
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 }
-
 
 impl Default for VectorStore {
     fn default() -> Self {
