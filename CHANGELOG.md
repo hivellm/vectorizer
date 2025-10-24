@@ -7,6 +7,145 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-10-24
+
+### 🔄 **Master-Replica Replication System**
+
+Complete replication system inspired by Redis, enabling high availability and horizontal scaling.
+
+#### **Replication Features**
+- **Master Node**: TCP server with replication log and snapshot support
+- **Replica Node**: Auto-reconnect with intelligent sync mechanisms
+- **Full Sync**: Snapshot-based synchronization with CRC32 checksum verification
+- **Partial Sync**: Incremental updates via circular replication log (1M operations)
+- **Automatic Failover**: Exponential backoff reconnection (1s → 60s max)
+- **REST API**: Complete replication management endpoints
+
+#### **Performance Metrics**
+- Replication log append: 4-12M operations/second
+- Snapshot creation: ~250ms for 10K vectors (128D)
+- Snapshot application: ~400ms for 10K vectors
+- Typical replication lag: <10ms
+
+#### **Configuration**
+```yaml
+replication:
+  enabled: true
+  mode: "master"  # or "replica"
+  master:
+    host: "0.0.0.0"
+    port: 6380
+    repl_backlog_size: 1048576
+  replica:
+    master_host: "localhost"
+    master_port: 6380
+    read_only: true
+```
+
+#### **REST API Endpoints**
+- `GET /api/v1/replication/status` - Get replication status
+- `POST /api/v1/replication/sync` - Trigger manual sync
+- `POST /api/v1/replication/promote` - Promote replica to master
+- `GET /api/v1/replication/metrics` - Get replication metrics
+
+#### **Testing**
+- 38 comprehensive tests (unit, integration, failover)
+- 7 performance benchmarks
+- Production and development configuration presets
+
+#### **Documentation**
+- `docs/REPLICATION.md` - Complete architecture and deployment guide (450+ lines)
+- `docs/REPLICATION_TESTS.md` - Test suite documentation with benchmarks (312+ lines)
+- `docs/REPLICATION_COVERAGE.md` - Coverage report showing 95%+ on testable logic (222+ lines)
+- `config.production.yml` - Production-optimized settings
+- `config.development.yml` - Development-optimized settings
+
+### 🎉 **Client SDK Standardization - Breaking Changes**
+
+#### **BREAKING CHANGE**: All client SDKs renamed for consistency
+
+**Python SDK v1.0.1** ✅ **Published to PyPI**
+- **Package renamed**: `hive-vectorizer` → `vectorizer_sdk` (PEP 625 compliant)
+- **PyPI**: https://pypi.org/project/vectorizer-sdk/
+- **Installation**: `pip install vectorizer-sdk`
+- **Import**: `from vectorizer_sdk import VectorizerClient`
+
+**TypeScript SDK v1.0.1**
+- **Package renamed**: `@hivellm/vectorizer-client` → `@hivellm/vectorizer-sdk`
+- **Installation**: `npm install @hivellm/vectorizer-sdk`
+- **Import**: `import { VectorizerClient } from '@hivellm/vectorizer-sdk'`
+
+**Rust SDK v1.0.0**
+- **Package renamed**: `vectorizer-rust-sdk` → `vectorizer-sdk`
+- **Crate**: https://crates.io/crates/vectorizer-sdk (ready for publish)
+- **Installation**: `cargo add vectorizer-sdk`
+- **Import**: `use vectorizer_sdk::*;`
+
+**JavaScript SDK v1.0.1**
+- **Package renamed**: `@hivellm/vectorizer-client-js` → `@hivellm/vectorizer-sdk-js`
+- **Installation**: `npm install @hivellm/vectorizer-sdk-js`
+- **Import**: `const { VectorizerClient } = require('@hivellm/vectorizer-sdk-js')`
+
+### Changed
+
+- **README Updates**: All SDK READMEs updated with:
+  - Standardized titles: "Vectorizer [Language] SDK"
+  - Package badges (PyPI/npm/crates.io)
+  - Updated installation instructions
+  - Corrected package names throughout documentation
+  
+- **Package Metadata**: Updated `package.json`, `Cargo.toml`, and `pyproject.toml` files with new names
+
+- **Git Tags Created**:
+  - `python-sdk-v1.0.1`
+  - `typescript-sdk-v1.0.1`
+  - `rust-sdk-v1.0.0`
+  - `javascript-sdk-v1.0.1`
+
+### Migration Guide
+
+**Python**:
+```bash
+# Before
+pip install hive-vectorizer
+
+# After (v1.0.1)
+pip install vectorizer-sdk
+```
+
+**TypeScript**:
+```bash
+# Before
+npm install @hivellm/vectorizer-client
+
+# After (v1.0.1)
+npm install @hivellm/vectorizer-sdk
+```
+
+**Rust**:
+```bash
+# Before
+cargo add vectorizer-rust-sdk
+
+# After (v1.0.0)
+cargo add vectorizer-sdk
+```
+
+**JavaScript**:
+```bash
+# Before
+npm install @hivellm/vectorizer-client-js
+
+# After (v1.0.1)
+npm install @hivellm/vectorizer-sdk-js
+```
+
+### Notes
+
+- All SDKs maintain backward-compatible APIs
+- Only package names changed, functionality unchanged
+- Python SDK is PEP 625 compliant with underscore naming
+
 ## [1.1.1] - 2025-10-22
 
 ### Added

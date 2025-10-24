@@ -2,12 +2,14 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 1.0.1 - Bug Fixes & Performance**
+## ✨ **Version 1.1.0 - Replication & SDK Standardization**
 
-### 🐛 **Latest Updates (v1.0.1)**
-- **🐳 Docker Virtual Paths**: Fixed support for virtual workspace paths with `..` and absolute paths
-- **📄 File Reconstruction**: Fixed duplicate content issue in `get_file_content` by auto-detecting chunk overlap
-- **⚡ Build Performance**: Disabled benchmark binaries from automatic compilation (30%+ faster builds)
+### 🎉 **Latest Updates (v1.1.0)**
+- **🔄 Master-Replica Replication**: Complete replication system inspired by Redis
+- **⚡ High Availability**: Automatic failover and intelligent sync mechanisms
+- **📦 SDK Standardization**: All client SDKs renamed to follow `vectorizer-sdk` convention
+- **🐍 Python SDK**: Published to PyPI as `vectorizer-sdk` v1.0.1 (PEP 625 compliant)
+- **📝 Updated READMEs**: All SDK documentation updated with badges and installation instructions
 
 ### 🎉 **Major Release - MCP Tools Refactoring (v1.0.0)**
 - **🎯 MCP Architecture**: 19 focused individual tools (refactored from 7 unified mega-tools)
@@ -17,6 +19,12 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
 
 ### 🎯 **Key Features**
+- **🔄 Master-Replica Replication**: Production-ready replication system with automatic failover
+  - Full sync via snapshot with CRC32 checksum verification
+  - Partial sync via incremental replication log
+  - Circular replication log (1M operations buffer)
+  - Auto-reconnect with exponential backoff
+  - REST API endpoints for replication management
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
 - **🎯 MCP Tools**: 19 focused individual tools for better model integration
 - **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint
@@ -236,6 +244,19 @@ vectorizer:
   default_dimension: 512
   default_metric: "cosine"
 
+# Replication configuration (NEW in v1.1.0)
+replication:
+  enabled: false
+  mode: "master"  # or "replica"
+  master:
+    host: "0.0.0.0"
+    port: 6380
+    repl_backlog_size: 1048576  # 1MB circular buffer
+  replica:
+    master_host: "localhost"
+    master_port: 6380
+    read_only: true
+
 # Text normalization (v0.5.0)
 normalization:
   enabled: true
@@ -338,9 +359,82 @@ See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.
 - **Research Papers**: Automatic PDF indexing with page-level metadata
 - **Legal Documents**: DOCX/PDF processing with precise page tracking
 
+## 🔄 **Master-Replica Replication**
+
+### Overview
+
+Vectorizer v1.1.0 introduces a production-ready master-replica replication system inspired by Redis, enabling high availability and horizontal read scaling.
+
+### Features
+
+- **Full Sync**: Complete data synchronization via snapshots with CRC32 verification
+- **Partial Sync**: Incremental updates via circular replication log (1M operations)
+- **Automatic Failover**: Auto-reconnect with exponential backoff (1s → 60s max)
+- **Real-time Replication**: Sub-10ms typical replication lag
+- **REST API Management**: Complete replication control via HTTP endpoints
+
+### Quick Start
+
+**Master Node**:
+```yaml
+# config.production.yml
+replication:
+  enabled: true
+  mode: "master"
+  master:
+    host: "0.0.0.0"
+    port: 6380
+```
+
+**Replica Node**:
+```yaml
+# config.production.yml
+replication:
+  enabled: true
+  mode: "replica"
+  replica:
+    master_host: "master.example.com"
+    master_port: 6380
+    read_only: true
+```
+
+### REST API Endpoints
+
+```bash
+# Get replication status
+GET /api/v1/replication/status
+
+# Trigger manual sync (replica only)
+POST /api/v1/replication/sync
+
+# Promote replica to master
+POST /api/v1/replication/promote
+
+# Get replication metrics
+GET /api/v1/replication/metrics
+```
+
+### Performance Metrics
+
+- **Replication Log Append**: 4-12M operations/second
+- **Snapshot Creation**: ~250ms for 10K vectors (128D)
+- **Snapshot Application**: ~400ms for 10K vectors
+- **Typical Replication Lag**: <10ms
+
+### Documentation
+
+- **[Replication Guide](./docs/REPLICATION.md)** - Complete architecture and deployment guide
+- **[Test Suite](./docs/REPLICATION_TESTS.md)** - 38 comprehensive tests with benchmarks
+- **[Coverage Report](./docs/REPLICATION_COVERAGE.md)** - 95%+ coverage on testable logic
+- **[Production Config](./config.production.yml)** - Production-optimized settings
+- **[Development Config](./config.development.yml)** - Development-optimized settings
+
 ## 📚 **Documentation**
 
 - **[API Reference](./docs/api/)** - REST API documentation
+- **[Replication Guide](./docs/REPLICATION.md)** - Master-replica replication system
+  - [Test Suite](./docs/REPLICATION_TESTS.md) - 38 comprehensive tests
+  - [Coverage Report](./docs/REPLICATION_COVERAGE.md) - 95%+ coverage
 - **[Transmutation Integration](./docs/specs/transmutation_integration.md)** - Document conversion guide
 - **[MCP Integration](./docs/specs/MCP_INTEGRATION.md)** - Model Context Protocol guide
 - **[Technical Specs](./docs/specs/)** - Complete technical documentation
@@ -399,10 +493,28 @@ Cursor IDE configuration:
 
 ## 📦 **Client SDKs**
 
-- **Python**: `pip install vectorizer-client`
-- **TypeScript**: `npm install @hivellm/vectorizer-client-ts`
-- **JavaScript**: `npm install @hivellm/vectorizer-client-js`
-- **Rust**: `cargo add vectorizer-rust-sdk`
+All SDKs now follow standardized naming convention:
+
+- **Python**: `pip install vectorizer-sdk` ✅ **Published to PyPI**
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk`
+- **Rust**: `cargo add vectorizer-sdk`
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js`
+
+### Installation Examples
+
+```bash
+# Python (Published to PyPI)
+pip install vectorizer-sdk
+
+# TypeScript
+npm install @hivellm/vectorizer-sdk
+
+# Rust
+cargo add vectorizer-sdk
+
+# JavaScript
+npm install @hivellm/vectorizer-sdk-js
+```
 
 ## 📄 **License**
 
