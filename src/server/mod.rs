@@ -42,6 +42,8 @@ pub struct VectorizerServer {
         Arc<tokio::sync::Mutex<Option<crate::file_watcher::FileWatcherSystem>>>,
     pub metrics_collector: Arc<MetricsCollector>,
     pub auto_save_manager: Option<Arc<crate::db::AutoSaveManager>>,
+    pub master_node: Option<Arc<crate::replication::MasterNode>>,
+    pub replica_node: Option<Arc<crate::replication::ReplicaNode>>,
     background_task: Arc<
         tokio::sync::Mutex<
             Option<(
@@ -571,6 +573,8 @@ impl VectorizerServer {
             file_watcher_system: watcher_system_for_server,
             metrics_collector: Arc::new(MetricsCollector::new()),
             auto_save_manager: Some(auto_save_manager),
+            master_node: None,
+            replica_node: None,
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
                 cancel_tx,

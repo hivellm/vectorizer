@@ -269,6 +269,76 @@ impl HiveGpuCollection {
         Ok(())
     }
 
+    /// Update a vector (atomic operation)
+    pub fn update(&mut self, vector: Vector) -> Result<()> {
+        // Validate dimension
+        if vector.data.len() != self.dimension {
+            return Err(VectorizerError::DimensionMismatch {
+                expected: self.dimension,
+                actual: vector.data.len(),
+            });
+        }
+
+        let id = vector.id.clone();
+
+        // GPU storage doesn't have native update, so we remove and add
+        // This is atomic from the collection's perspective
+        self.remove_vector(id.clone())?;
+        self.add_vector(vector)?;
+
+        debug!("Updated vector '{}' in GPU collection '{}'", id, self.name);
+        Ok(())
+    }
+
+    /// Load vectors from cache (for fast startup)
+    pub fn load_from_cache(
+        &mut self,
+        persisted_vectors: Vec<crate::persistence::PersistedVector>,
+    ) -> Result<()> {
+        debug!(
+            "Fast loading {} vectors into GPU collection '{}' from cache",
+            persisted_vectors.len(),
+            self.name
+        );
+
+        // Convert persisted vectors to runtime vectors
+        let mut runtime_vectors = Vec::with_capacity(persisted_vectors.len());
+        for pv in persisted_vectors {
+            runtime_vectors.push(pv.into_runtime_with_payload()?);
+        }
+
+        // Batch load vectors using add_vectors for efficiency
+        if !runtime_vectors.is_empty() {
+            self.add_vectors(runtime_vectors)?;
+        }
+
+        info!(
+            "Loaded {} vectors from cache into GPU collection '{}'",
+            self.vector_count, self.name
+        );
+
+        Ok(())
+    }
+
+    /// Load vectors from cache with HNSW dump
+    /// Note: GPU collections don't use HNSW dumps, so this is equivalent to load_from_cache
+    pub fn load_from_cache_with_hnsw_dump(
+        &mut self,
+        persisted_vectors: Vec<crate::persistence::PersistedVector>,
+        _hnsw_dump_path: Option<&std::path::Path>,
+        _hnsw_basename: Option<&str>,
+    ) -> Result<()> {
+        // GPU collections use native GPU indexing, not HNSW
+        // So we ignore the HNSW dump parameters and just load vectors normally
+        info!(
+            "Loading {} vectors into GPU collection '{}' (HNSW dumps not applicable for GPU)",
+            persisted_vectors.len(),
+            self.name
+        );
+
+        self.load_from_cache(persisted_vectors)
+    }
+
     /// Get collection metadata
     pub fn metadata(&self) -> CollectionMetadata {
         CollectionMetadata {

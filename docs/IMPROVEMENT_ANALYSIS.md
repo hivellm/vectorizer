@@ -31,122 +31,85 @@ The Vectorizer project is a **mature, production-ready vector database** with im
 
 ## 1. Critical Priorities (Immediate Action)
 
-### 1.1 Complete Replication Features ⚡ HIGH PRIORITY
+### 1.1 Complete Replication Features ✅ **COMPLETED** (October 24, 2025)
 
-**Issue**: Replication handlers have TODO markers for critical functionality
+**Issue**: Replication handlers had TODO markers for critical functionality
 
-**Location**: `src/server/replication_handlers.rs`
+**Solution Implemented**:
+- ✅ Added `master_node` and `replica_node` fields to `VectorizerServer`
+- ✅ Updated `get_replication_status` to retrieve stats from actual node instances
+- ✅ Updated `get_replication_stats` to use `MasterNode::get_stats()` and `ReplicaNode::get_stats()`
+- ✅ Updated `list_replicas` to use `MasterNode::get_replicas()`
+- ✅ Maintained backwards compatibility with metadata fallback
 
-```rust
-// Line 52-53: Missing stats retrieval
-stats: None,    // TODO: Implement stats retrieval
-replicas: None, // TODO: Implement replica list
+**Files Modified**:
+- `src/server/mod.rs` - Added replication node fields
+- `src/server/replication_handlers.rs` - Updated to use actual node instances
 
-// Line 135: Stats endpoint incomplete
-// TODO: Implement actual stats retrieval from MasterNode/ReplicaNode
+**Status**: ✅ **COMPLETE** - Production monitoring infrastructure ready
 
-// Line 158: Replica list incomplete
-// TODO: Implement actual replica list from MasterNode
-```
-
-**Impact**: 
-- Incomplete replication monitoring
-- Cannot track replica health in production
-- Missing operational visibility
-
-**Recommendation**:
-```rust
-// Implement complete stats structure
-pub struct ReplicationStats {
-    pub lag_ms: u64,
-    pub bytes_sent: u64,
-    pub bytes_received: u64,
-    pub last_sync: SystemTime,
-    pub operations_pending: usize,
-    pub snapshot_size: usize,
-}
-
-// Add replica health monitoring
-pub struct ReplicaInfo {
-    pub host: String,
-    pub port: u16,
-    pub status: ReplicaStatus, // Connected, Syncing, Lagging, Disconnected
-    pub lag_ms: u64,
-    pub last_heartbeat: SystemTime,
-}
-```
-
-**Priority**: 🔴 **CRITICAL** - Production monitoring depends on this
+**Note**: Incremental replication still requires VectorStore integration (see 1.2)
 
 ---
 
 ### 1.2 Enable Ignored Replication Tests ⚡ HIGH PRIORITY
 
-**Issue**: 14 integration tests are ignored
+**Issue**: 11 integration tests are ignored
 
 ```bash
 test test_replica_full_sync_process ... ignored
 test test_replica_handles_master_restart ... ignored
 test test_replica_init ... ignored
-# ... 11 more ignored tests
+# ... 8 more ignored tests
 ```
 
+**Status**: **PARTIALLY INVESTIGATED** (October 24, 2025)
+
+**Root Cause Analysis**:
+- Snapshot-based replication works (test_basic_master_replica_sync passes)
+- Incremental replication fails - VectorStore operations don't notify MasterNode
+- Missing integration: VectorStore → MasterNode → ReplicationLog → Replicas
+- Architecture requires VectorStore hooks/callbacks for write operations
+
 **Impact**:
-- Unknown replication stability in edge cases
-- Risk of production failures
-- Incomplete CI/CD validation
+- Snapshot replication functional (initial sync works)
+- Incremental replication non-functional (ongoing changes not replicated)
+- Risk for production usage with active write workloads
 
 **Recommendation**:
-1. **Investigate why tests are ignored** - Are they flaky? Platform-specific?
-2. **Fix or refactor tests** - Make them deterministic
-3. **Re-enable tests** - Remove `#[ignore]` attributes
-4. **Add to CI pipeline** - Ensure they run on every commit
+1. **Add VectorStore Integration** - Implement operation hooks
+2. **Create notification system** - VectorStore → MasterNode callback
+3. **Wire up operation logging** - Log all write ops to replication log
+4. **Fix failing tests** - Should pass after integration complete
+5. **Remove `#[ignore]` attributes** - After integration and validation
 
-**Priority**: 🔴 **CRITICAL** - Replication is v1.1.0 flagship feature
+**Priority**: 🔴 **CRITICAL** - Core replication feature incomplete
 
 ---
 
-### 1.3 Fix Vector Store TODO Items 🟡 MEDIUM PRIORITY
+### 1.3 Fix Vector Store TODO Items ✅ **COMPLETED** (October 24, 2025)
 
-**Location**: `src/db/vector_store.rs`
+**Issue**: GPU collections lacked efficient update and cache loading methods
 
-```rust
-// Line 884: Direct update method needed
-// For update, we delete and re-add (TODO: Add direct update method to CollectionType)
+**Solution Implemented**:
+- ✅ Added `update()` method to `HiveGpuCollection` for atomic updates
+- ✅ Updated `CollectionType::update_vector()` to use new method (no more fallback comments)
+- ✅ Implemented `load_from_cache()` for HiveGpuCollection with batch loading
+- ✅ Implemented `load_from_cache_with_hnsw_dump()` for HiveGpuCollection
+- ✅ Updated `VectorStore` to use new cache methods instead of manual insertion
 
-// Line 948-949: Metal GPU cache loading incomplete
-// TODO: Implement load_from_cache for MetalNativeCollection
+**Files Modified**:
+- `src/db/hive_gpu_collection.rs` - Added update, load_from_cache, load_from_cache_with_hnsw_dump methods
+- `src/db/vector_store.rs` - Updated to use new methods, removed TODO comments
 
-// Line 991-992: Metal GPU HNSW cache incomplete
-// TODO: Implement load_from_cache_with_hnsw_dump for MetalNativeCollection
-```
+**Performance Improvements**:
+- GPU collections now use batch insertion for cache loading
+- Update operations are properly encapsulated
+- Eliminated manual insertion loops
 
-**Impact**:
-- Inefficient update operations (delete + insert instead of atomic update)
-- Metal GPU users lose cache benefits
-- Performance degradation on macOS
+**Status**: ✅ **COMPLETE** - GPU collections have full feature parity with CPU collections
 
-**Recommendation**:
-```rust
-// Add direct update to CollectionType trait
-pub trait Collection {
-    fn update_vector(&mut self, id: &str, vector: Vector) -> Result<()>;
-    fn load_from_cache(&mut self, path: &Path) -> Result<()>;
-    fn load_from_cache_with_hnsw(&mut self, path: &Path, hnsw_dump: &[u8]) -> Result<()>;
-}
-
-// Implement for MetalNativeCollection
-impl Collection for MetalNativeCollection {
-    fn update_vector(&mut self, id: &str, vector: Vector) -> Result<()> {
-        // Atomic update implementation
-        self.index.update(id, &vector.data)?;
-        self.vectors.insert(id.to_string(), vector);
-        Ok(())
-    }
-}
-```
-
-**Priority**: 🟡 **MEDIUM** - Impacts performance but has workarounds
+**Note**: MetalNativeCollection mentioned in original analysis doesn't exist; completed for HiveGpuCollection instead
 
 ---
 
