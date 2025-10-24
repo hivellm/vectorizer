@@ -10,8 +10,8 @@ Version: 0.3.4
 License: MIT
 """
 
-from .client import VectorizerClient
-from .exceptions import (
+from client import VectorizerClient
+from exceptions import (
     VectorizerError,
     AuthenticationError,
     CollectionNotFoundError,
@@ -19,7 +19,7 @@ from .exceptions import (
     NetworkError,
     ServerError
 )
-from .models import (
+from models import (
     Vector,
     Collection,
     SearchResult,
@@ -28,7 +28,7 @@ from .models import (
     CollectionInfo
 )
 
-__version__ = "1.0.1"
+__version__ = "1.1.2"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 
