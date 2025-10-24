@@ -20,13 +20,13 @@ High-performance TypeScript client for the Hive Vectorizer vector database.
 ## Installation
 
 ```bash
-npm install @hivellm/vectorizer-client
+npm install @hivellm/vectorizer-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { VectorizerClient } from '@hivellm/vectorizer-client';
+import { VectorizerClient } from '@hivellm/vectorizer-sdk';
 
 // Create client
 const client = new VectorizerClient({
@@ -245,7 +245,7 @@ import {
   ValidationError,
   NetworkError,
   ServerError
-} from '@hivellm/vectorizer-client';
+} from '@hivellm/vectorizer-sdk';
 
 try {
   await client.createCollection({

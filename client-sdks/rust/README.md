@@ -114,7 +114,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-vectorizer-rust-sdk = "0.4.0"
+vectorizer-sdk = "0.4.0"
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```
@@ -125,7 +125,7 @@ Enable the UMICP feature for high-performance protocol support:
 
 ```toml
 [dependencies]
-vectorizer-rust-sdk = { version = "0.4.0", features = ["umicp"] }
+vectorizer-sdk = { version = "0.4.0", features = ["umicp"] }
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```

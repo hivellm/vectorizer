@@ -24,13 +24,13 @@ High-performance JavaScript client for the Hive Vectorizer vector database.
 ## Installation
 
 ```bash
-npm install @hivellm/vectorizer-client-js
+npm install @hivellm/vectorizer-sdk-js
 ```
 
 ## Quick Start
 
 ```javascript
-import { VectorizerClient } from '@hivellm/vectorizer-client-js';
+import { VectorizerClient } from '@hivellm/vectorizer-sdk-js';
 
 // Create client
 const client = new VectorizerClient({
@@ -282,7 +282,7 @@ import {
   ValidationError,
   NetworkError,
   ServerError
-} from '@hivellm/vectorizer-client-js';
+} from '@hivellm/vectorizer-sdk-js';
 
 try {
   await client.createCollection({
@@ -314,19 +314,19 @@ The SDK is available in multiple formats:
 ### Node.js (CommonJS)
 
 ```javascript
-const { VectorizerClient } = require('@hivellm/vectorizer-client-js');
+const { VectorizerClient } = require('@hivellm/vectorizer-sdk-js');
 ```
 
 ### ES Modules
 
 ```javascript
-import { VectorizerClient } from '@hivellm/vectorizer-client-js';
+import { VectorizerClient } from '@hivellm/vectorizer-sdk-js';
 ```
 
 ### Browser (UMD)
 
 ```html
-<script src="https://unpkg.com/@hivellm/vectorizer-client-js/dist/index.umd.min.js"></script>
+<script src="https://unpkg.com/@hivellm/vectorizer-sdk-js/dist/index.umd.min.js"></script>
 <script>
   const client = new VectorizerClient.VectorizerClient({
     baseURL: 'http://localhost:15001'
