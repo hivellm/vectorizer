@@ -24,6 +24,21 @@ These gaps pose **significant production risk** and must be resolved before wide
 
 ---
 
+## Scope
+
+This proposal focuses **only on Phase 1 critical replication improvements**. Additional improvements have been split into separate, focused proposals for better manageability.
+
+### Related Proposals
+- `add-performance-benchmarks` - Benchmark infrastructure
+- `add-monitoring-observability` - Metrics and tracing
+- `standardize-error-handling` - Error type system
+- `expand-integration-tests` - Test coverage expansion
+- `add-advanced-security` - Security enhancements
+- `add-query-caching` - Performance optimization
+- `add-production-documentation` - Operational guides
+
+---
+
 ## What Changes
 
 ### Critical (Immediate - Weeks 1-2)

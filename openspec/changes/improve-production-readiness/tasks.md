@@ -45,7 +45,23 @@
 
 ---
 
-## Phase 2: Important Improvements (Months 1-2)
+---
+
+## Related Proposals
+
+Phase 1 focuses only on critical replication improvements. Additional improvements are tracked in separate proposals:
+
+- `add-performance-benchmarks` - Re-enable 15+ disabled benchmarks (25 tasks)
+- `add-monitoring-observability` - Prometheus + OpenTelemetry (38 tasks)
+- `standardize-error-handling` - Centralized error types (30 tasks)
+- `expand-integration-tests` - Comprehensive test suite (40 tasks)
+- `add-advanced-security` - Rate limiting + RBAC + TLS (32 tasks)
+- `add-query-caching` - LRU query result cache (25 tasks)
+- `add-production-documentation` - Production guides and runbooks (30 tasks)
+
+---
+
+## Phase 2: Important Improvements (Months 1-2) - MOVED TO SEPARATE PROPOSALS
 
 ### 4. Re-enable Performance Benchmarks
 - [ ] 4.1 Create `benches/` directory structure
