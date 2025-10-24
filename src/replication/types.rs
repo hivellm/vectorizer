@@ -2,8 +2,9 @@
 //!
 //! Defines the core types used in master-replica replication
 
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Node role in replication topology
@@ -23,10 +24,7 @@ pub enum NodeRole {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReplicationCommand {
     /// Full sync - initial snapshot transfer
-    FullSync {
-        snapshot_data: Vec<u8>,
-        offset: u64,
-    },
+    FullSync { snapshot_data: Vec<u8>, offset: u64 },
 
     /// Partial sync - incremental updates from offset
     PartialSync {
@@ -38,16 +36,10 @@ pub enum ReplicationCommand {
     Operation(ReplicationOperation),
 
     /// Heartbeat - keep connection alive, measure lag
-    Heartbeat {
-        master_offset: u64,
-        timestamp: u64,
-    },
+    Heartbeat { master_offset: u64, timestamp: u64 },
 
     /// Acknowledge - replica confirms receipt
-    Ack {
-        replica_id: String,
-        offset: u64,
-    },
+    Ack { replica_id: String, offset: u64 },
 }
 
 /// Operation to be replicated
@@ -67,9 +59,7 @@ pub enum VectorOperation {
         config: CollectionConfigData,
     },
     /// Delete a collection
-    DeleteCollection {
-        name: String,
-    },
+    DeleteCollection { name: String },
     /// Insert vector into collection
     InsertVector {
         collection: String,
@@ -85,10 +75,7 @@ pub enum VectorOperation {
         payload: Option<Vec<u8>>,
     },
     /// Delete vector from collection
-    DeleteVector {
-        collection: String,
-        id: String,
-    },
+    DeleteVector { collection: String, id: String },
 }
 
 /// Serializable collection configuration
@@ -160,5 +147,3 @@ pub enum ReplicationError {
 }
 
 pub type ReplicationResult<T> = Result<T, ReplicationError>;
-
-

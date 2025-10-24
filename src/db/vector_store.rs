@@ -461,7 +461,12 @@ impl VectorStore {
     }
 
     /// Internal collection creation with GPU control
-    fn create_collection_internal(&self, name: &str, config: CollectionConfig, allow_gpu: bool) -> Result<()> {
+    fn create_collection_internal(
+        &self,
+        name: &str,
+        config: CollectionConfig,
+        allow_gpu: bool,
+    ) -> Result<()> {
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
         if self.collections.contains_key(name) {

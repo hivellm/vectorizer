@@ -30,4 +30,3 @@ pub use types::{
     CollectionConfigData, NodeRole, ReplicaInfo, ReplicationCommand, ReplicationError,
     ReplicationOperation, ReplicationResult, ReplicationStats, VectorOperation,
 };
-

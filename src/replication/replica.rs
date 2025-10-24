@@ -7,19 +7,21 @@
 //! - Auto-reconnect on disconnect
 //! - Read-only enforcement
 
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use parking_lot::RwLock;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio::time::sleep;
+use tracing::{debug, error, info, warn};
+
 use super::config::ReplicationConfig;
 use super::types::{
     ReplicationCommand, ReplicationError, ReplicationOperation, ReplicationResult,
     ReplicationStats, VectorOperation,
 };
 use crate::db::VectorStore;
-use parking_lot::RwLock;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
-use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
 
 /// Replica Node - Read-only node that receives from master
 pub struct ReplicaNode {
@@ -72,7 +74,10 @@ impl ReplicaNode {
             ReplicationError::Connection("No master address configured".to_string())
         })?;
 
-        info!("Replica node starting, connecting to master at {}", master_addr);
+        info!(
+            "Replica node starting, connecting to master at {}",
+            master_addr
+        );
 
         loop {
             match self.connect_and_sync(master_addr).await {
@@ -205,7 +210,10 @@ impl ReplicaNode {
     }
 
     /// Receive a command from master
-    async fn receive_command(&self, stream: &mut TcpStream) -> ReplicationResult<ReplicationCommand> {
+    async fn receive_command(
+        &self,
+        stream: &mut TcpStream,
+    ) -> ReplicationResult<ReplicationCommand> {
         let mut len_buf = [0u8; 4];
         stream.read_exact(&mut len_buf).await?;
         let len = u32::from_be_bytes(len_buf) as usize;
@@ -348,10 +356,11 @@ fn current_timestamp() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::db::VectorStore;
     use crate::replication::{NodeRole, ReplicationConfig};
-    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_replica_creation_and_initial_state() {
@@ -412,7 +421,7 @@ mod tests {
             parse_distance_metric("DOT_PRODUCT"),
             crate::models::DistanceMetric::DotProduct
         );
-        
+
         // Test default (unknown)
         assert_eq!(
             parse_distance_metric("unknown"),
@@ -420,4 +429,3 @@ mod tests {
         );
     }
 }
-

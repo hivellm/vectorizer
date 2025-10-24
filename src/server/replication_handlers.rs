@@ -12,8 +12,8 @@ use super::VectorizerServer;
 /// Request to configure replication
 #[derive(Debug, Deserialize)]
 pub struct ConfigureReplicationRequest {
-    pub role: String, // "master", "replica", or "standalone"
-    pub bind_address: Option<String>, // For master
+    pub role: String,                   // "master", "replica", or "standalone"
+    pub bind_address: Option<String>,   // For master
     pub master_address: Option<String>, // For replica
     pub heartbeat_interval: Option<u64>,
     pub log_size: Option<usize>,
@@ -49,7 +49,7 @@ pub async fn get_replication_status(
     let response = ReplicationStatusResponse {
         role: format!("{:?}", role),
         enabled,
-        stats: None, // TODO: Implement stats retrieval
+        stats: None,    // TODO: Implement stats retrieval
         replicas: None, // TODO: Implement replica list
     };
 
@@ -72,27 +72,37 @@ pub async fn configure_replication(
             return Err((
                 StatusCode::BAD_REQUEST,
                 format!("Invalid role: {}", request.role),
-            ))
+            ));
         }
     };
 
     // Store configuration in VectorStore metadata
-    state.store.set_metadata("replication_role", format!("{:?}", role));
+    state
+        .store
+        .set_metadata("replication_role", format!("{:?}", role));
 
     if let Some(bind_addr) = &request.bind_address {
-        state.store.set_metadata("replication_bind_address", bind_addr.clone());
+        state
+            .store
+            .set_metadata("replication_bind_address", bind_addr.clone());
     }
 
     if let Some(master_addr) = &request.master_address {
-        state.store.set_metadata("replication_master_address", master_addr.clone());
+        state
+            .store
+            .set_metadata("replication_master_address", master_addr.clone());
     }
 
     if let Some(interval) = request.heartbeat_interval {
-        state.store.set_metadata("replication_heartbeat_interval", interval.to_string());
+        state
+            .store
+            .set_metadata("replication_heartbeat_interval", interval.to_string());
     }
 
     if let Some(log_size) = request.log_size {
-        state.store.set_metadata("replication_log_size", log_size.to_string());
+        state
+            .store
+            .set_metadata("replication_log_size", log_size.to_string());
     }
 
     info!("Replication configured successfully. Role: {:?}", role);
@@ -151,4 +161,3 @@ pub async fn list_replicas(
         "message": "Replica listing not yet implemented. Server restart with replication enabled required."
     })))
 }
-

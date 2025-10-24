@@ -7,12 +7,15 @@
 //! - Multiple replica recovery
 //! - Data consistency after failover
 
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
+
 use tokio::time::sleep;
 use vectorizer::db::VectorStore;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector};
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
+};
 use vectorizer::replication::{MasterNode, NodeRole, ReplicaNode, ReplicationConfig};
 
 static FAILOVER_PORT: AtomicU16 = AtomicU16::new(45000);
@@ -23,7 +26,7 @@ fn next_port() -> u16 {
 
 async fn create_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::SocketAddr) {
     let port = next_port();
-    let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap();
+    let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {
         role: NodeRole::Master,
@@ -111,7 +114,7 @@ async fn test_replica_reconnect_after_disconnect() {
     // Note: In a real scenario, we would drop the replica and create a new one
     drop(replica);
     println!("Replica disconnected");
-    
+
     sleep(Duration::from_secs(2)).await;
 
     // Insert more data while replica is disconnected
@@ -121,7 +124,7 @@ async fn test_replica_reconnect_after_disconnect() {
         payload: None,
     };
     master_store.insert("test", vec![vec2]).unwrap();
-    
+
     // Recreate replica (simulates reconnection)
     let (_new_replica, new_replica_store) = create_replica(master_addr).await;
     sleep(Duration::from_secs(2)).await;
@@ -155,13 +158,13 @@ async fn test_partial_sync_after_brief_disconnect() {
     // Insert 10 vectors
     for i in 0..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
-    
+
     sleep(Duration::from_millis(500)).await;
 
     // Verify sync
@@ -175,7 +178,7 @@ async fn test_partial_sync_after_brief_disconnect() {
     // Insert a few more while disconnected
     for i in 10..15 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -197,7 +200,7 @@ async fn test_partial_sync_after_brief_disconnect() {
 async fn test_full_sync_when_offset_too_old() {
     // Create master with small log size
     let port = next_port();
-    let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap();
+    let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {
         role: NodeRole::Master,
@@ -230,13 +233,13 @@ async fn test_full_sync_when_offset_too_old() {
     master_store.create_collection("test", col_config).unwrap();
 
     // Start replica
-    let (replica, replica_store) = create_replica(addr).await;
+    let (replica, _replica_store) = create_replica(addr).await;
     sleep(Duration::from_secs(1)).await;
 
     // Insert 3 vectors
     for i in 0..3 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -251,7 +254,7 @@ async fn test_full_sync_when_offset_too_old() {
     // Insert many more vectors (exceed log size)
     for i in 3..20 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -293,7 +296,7 @@ async fn test_multiple_replicas_recovery() {
     for i in 0..3 {
         let (replica, store) = create_replica(master_addr).await;
         replicas.push((replica, store));
-        println!("Replica {} created", i);
+        println!("Replica {i} created");
         sleep(Duration::from_millis(100)).await;
     }
 
@@ -302,7 +305,7 @@ async fn test_multiple_replicas_recovery() {
     // Insert data
     for i in 0..5 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -315,7 +318,7 @@ async fn test_multiple_replicas_recovery() {
     for (i, (_replica, store)) in replicas.iter().enumerate() {
         let collection = store.get_collection("test").unwrap();
         assert_eq!(collection.vector_count(), 5);
-        println!("Replica {} verified: 5 vectors", i);
+        println!("Replica {i} verified: 5 vectors");
     }
 
     // Disconnect all replicas
@@ -323,13 +326,13 @@ async fn test_multiple_replicas_recovery() {
         drop(replica);
     }
     println!("All replicas disconnected");
-    
+
     sleep(Duration::from_millis(200)).await;
 
     // Insert more data
     for i in 5..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -341,7 +344,7 @@ async fn test_multiple_replicas_recovery() {
     for i in 0..3 {
         let (_replica, store) = create_replica(master_addr).await;
         new_replicas.push(store);
-        println!("New replica {} created", i);
+        println!("New replica {i} created");
         sleep(Duration::from_millis(100)).await;
     }
 
@@ -351,7 +354,7 @@ async fn test_multiple_replicas_recovery() {
     for (i, store) in new_replicas.iter().enumerate() {
         let collection = store.get_collection("test").unwrap();
         assert_eq!(collection.vector_count(), 10);
-        println!("New replica {} caught up: 10 vectors", i);
+        println!("New replica {i} caught up: 10 vectors");
     }
 
     println!("✅ All replicas recovered successfully!");
@@ -378,13 +381,13 @@ async fn test_data_consistency_after_multiple_disconnects() {
     master_store.create_collection("test", config).unwrap();
 
     // Initial sync
-    let (replica, replica_store) = create_replica(master_addr).await;
+    let (replica, _replica_store) = create_replica(master_addr).await;
     sleep(Duration::from_secs(1)).await;
 
     // Phase 1: Insert and sync
     for i in 0..5 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
             payload: None,
         };
@@ -399,7 +402,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
     // Phase 2: Insert more
     for i in 5..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
             payload: None,
         };
@@ -407,7 +410,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
     }
 
     // Reconnect
-    let (replica2, replica_store2) = create_replica(master_addr).await;
+    let (replica2, _replica_store2) = create_replica(master_addr).await;
     sleep(Duration::from_secs(1)).await;
 
     // Disconnect again
@@ -417,7 +420,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
     // Phase 3: Insert even more
     for i in 10..15 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
             payload: None,
         };
@@ -448,4 +451,3 @@ async fn test_data_consistency_after_multiple_disconnects() {
     assert_eq!(master_ids, replica_ids);
     println!("✅ Data consistency maintained after multiple disconnects!");
 }
-

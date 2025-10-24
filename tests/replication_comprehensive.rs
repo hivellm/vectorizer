@@ -7,12 +7,15 @@
 //! - Failover and reconnection tests
 //! - Performance benchmarks
 
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
+
 use tokio::time::sleep;
 use vectorizer::db::VectorStore;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector};
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+};
 use vectorizer::replication::{
     MasterNode, NodeRole, ReplicaNode, ReplicationConfig, ReplicationLog, VectorOperation,
 };
@@ -27,7 +30,7 @@ fn next_port() -> u16 {
 /// Create a master node for testing
 async fn create_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::SocketAddr) {
     let port = next_port();
-    let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap();
+    let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {
         role: NodeRole::Master,
@@ -90,7 +93,7 @@ async fn test_replication_log_append_and_retrieve() {
     // Append operations
     for i in 0..10 {
         let op = VectorOperation::CreateCollection {
-            name: format!("collection_{}", i),
+            name: format!("collection_{i}"),
             config: vectorizer::replication::CollectionConfigData {
                 dimension: 128,
                 metric: "cosine".to_string(),
@@ -118,7 +121,7 @@ async fn test_replication_log_circular_buffer() {
     for i in 0..20 {
         let op = VectorOperation::InsertVector {
             collection: "test".to_string(),
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             vector: vec![i as f32; 128],
             payload: None,
         };
@@ -152,8 +155,8 @@ async fn test_replication_log_concurrent_access() {
         let handle = tokio::spawn(async move {
             for i in 0..100 {
                 let op = VectorOperation::InsertVector {
-                    collection: format!("col_{}", thread_id),
-                    id: format!("vec_{}_{}", thread_id, i),
+                    collection: format!("col_{thread_id}"),
+                    id: format!("vec_{thread_id}_{i}"),
                     vector: vec![thread_id as f32; 64],
                     payload: None,
                 };
@@ -214,7 +217,7 @@ async fn test_basic_master_replica_sync() {
 
     // Verify collection exists on replica
     assert_eq!(replica_store.list_collections().len(), 1);
-    
+
     // Verify vectors are replicated
     let collection = replica_store.get_collection("test").unwrap();
     assert_eq!(collection.vector_count(), 2);
@@ -243,7 +246,7 @@ async fn test_incremental_replication() {
     // Insert vectors incrementally on master
     for i in 0..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
             payload: None,
         };
@@ -324,7 +327,9 @@ async fn test_stress_high_volume_replication() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("stress_test", config).unwrap();
+    master_store
+        .create_collection("stress_test", config)
+        .unwrap();
 
     // Create replica
     let (_replica, replica_store) = create_replica(master_addr).await;
@@ -339,7 +344,7 @@ async fn test_stress_high_volume_replication() {
             let idx = batch * batch_size + i;
             let data: Vec<f32> = (0..128).map(|j| (idx + j) as f32 * 0.01).collect();
             vectors.push(Vector {
-                id: format!("vec_{}", idx),
+                id: format!("vec_{idx}"),
                 data,
                 payload: Some(Payload {
                     data: serde_json::json!({"batch": batch, "index": i}),
@@ -347,7 +352,7 @@ async fn test_stress_high_volume_replication() {
             });
         }
         master_store.insert("stress_test", vectors).unwrap();
-        
+
         if batch % 10 == 0 {
             println!("Inserted {} vectors", (batch + 1) * batch_size);
         }
@@ -360,7 +365,7 @@ async fn test_stress_high_volume_replication() {
     // Verify all vectors replicated
     let master_collection = master_store.get_collection("stress_test").unwrap();
     let replica_collection = replica_store.get_collection("stress_test").unwrap();
-    
+
     assert_eq!(master_collection.vector_count(), 10000);
     assert_eq!(replica_collection.vector_count(), 10000);
     println!("✅ All 10,000 vectors replicated successfully!");
@@ -380,7 +385,9 @@ async fn test_stress_concurrent_operations() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("concurrent", config).unwrap();
+    master_store
+        .create_collection("concurrent", config)
+        .unwrap();
 
     // Create replica
     let (_replica, replica_store) = create_replica(master_addr).await;
@@ -393,8 +400,10 @@ async fn test_stress_concurrent_operations() {
         let handle = tokio::spawn(async move {
             for i in 0..100 {
                 let vec = Vector {
-                    id: format!("task_{}_vec_{}", task_id, i),
-                    data: (0..64).map(|j| (task_id * 100 + i + j) as f32 * 0.01).collect(),
+                    id: format!("task_{task_id}_vec_{i}"),
+                    data: (0..64)
+                        .map(|j| (task_id * 100 + i + j) as f32 * 0.01)
+                        .collect(),
                     payload: None,
                 };
                 store_clone.insert("concurrent", vec![vec]).unwrap();
@@ -414,7 +423,7 @@ async fn test_stress_concurrent_operations() {
     // Verify total count
     let master_collection = master_store.get_collection("concurrent").unwrap();
     let replica_collection = replica_store.get_collection("concurrent").unwrap();
-    
+
     assert_eq!(master_collection.vector_count(), 1000);
     assert_eq!(replica_collection.vector_count(), 1000);
     println!("✅ All 1000 concurrent operations replicated!");
@@ -444,7 +453,7 @@ async fn test_snapshot_with_large_vectors() {
     for i in 0..100 {
         let data: Vec<f32> = (0..1536).map(|j| (i + j) as f32 * 0.001).collect();
         vectors.push(Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data,
             payload: Some(Payload {
                 data: serde_json::json!({"index": i}),
@@ -498,7 +507,7 @@ async fn test_snapshot_checksum_integrity() {
     store.insert("test", vec![vec1]).unwrap();
 
     // Create snapshot
-        let mut snapshot = vectorizer::replication::sync::create_snapshot(&store, 0)
+    let mut snapshot = vectorizer::replication::sync::create_snapshot(&store, 0)
         .await
         .unwrap();
 
@@ -534,7 +543,7 @@ fn test_replication_config_defaults() {
 fn test_replication_config_master() {
     let addr = "0.0.0.0:7001".parse().unwrap();
     let config = ReplicationConfig::master(addr);
-    
+
     assert_eq!(config.role, NodeRole::Master);
     assert_eq!(config.bind_address, Some(addr));
     assert!(config.master_address.is_none());
@@ -544,9 +553,8 @@ fn test_replication_config_master() {
 fn test_replication_config_replica() {
     let addr = "127.0.0.1:7001".parse().unwrap();
     let config = ReplicationConfig::replica(addr);
-    
+
     assert_eq!(config.role, NodeRole::Replica);
     assert_eq!(config.master_address, Some(addr));
     assert!(config.bind_address.is_none());
 }
-

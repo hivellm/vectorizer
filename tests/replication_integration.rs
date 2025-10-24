@@ -3,12 +3,15 @@
 //! These tests actually run the TCP server and client to achieve >95% coverage
 //! for master.rs and replica.rs modules.
 
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
+
 use tokio::time::sleep;
 use vectorizer::db::VectorStore;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector};
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+};
 use vectorizer::replication::{
     MasterNode, NodeRole, ReplicaNode, ReplicationConfig, VectorOperation,
 };
@@ -22,7 +25,7 @@ fn next_port() -> u16 {
 /// Helper to create and start a master node
 async fn create_running_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::SocketAddr) {
     let port = next_port();
-    let addr: std::net::SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap();
+    let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {
         role: NodeRole::Master,
@@ -101,7 +104,7 @@ async fn test_master_start_and_accept_connections() {
     // Insert some vectors
     for i in 0..5 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -110,12 +113,16 @@ async fn test_master_start_and_accept_connections() {
 
     // Now connect replica - should trigger full sync
     let (_replica, replica_store) = create_running_replica(master_addr).await;
-    
+
     // Wait for full sync to complete
     sleep(Duration::from_secs(2)).await;
 
     // Verify replica received snapshot
-    assert!(replica_store.list_collections().contains(&"pre_sync".to_string()));
+    assert!(
+        replica_store
+            .list_collections()
+            .contains(&"pre_sync".to_string())
+    );
     let collection = replica_store.get_collection("pre_sync").unwrap();
     assert_eq!(collection.vector_count(), 5);
 
@@ -127,7 +134,7 @@ async fn test_master_start_and_accept_connections() {
     let replicas = master.get_replicas();
     assert_eq!(replicas.len(), 1);
     assert!(replicas[0].connected);
-    
+
     println!("✅ Master start and full sync: PASS");
 }
 
@@ -149,8 +156,10 @@ async fn test_master_replicate_operations() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("test", config.clone()).unwrap();
-    
+    master_store
+        .create_collection("test", config.clone())
+        .unwrap();
+
     // Trigger replication explicitly
     master.replicate(VectorOperation::CreateCollection {
         name: "test".to_string(),
@@ -165,7 +174,7 @@ async fn test_master_replicate_operations() {
     // Now insert vectors and replicate them
     for i in 0..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
             payload: Some(Payload {
                 data: serde_json::json!({"index": i}),
@@ -174,10 +183,11 @@ async fn test_master_replicate_operations() {
         master_store.insert("test", vec![vec.clone()]).unwrap();
 
         // Replicate the operation
-        let payload_bytes = vec.payload.as_ref().map(|p| {
-            serde_json::to_vec(&p.data).unwrap()
-        });
-        
+        let payload_bytes = vec
+            .payload
+            .as_ref()
+            .map(|p| serde_json::to_vec(&p.data).unwrap());
+
         master.replicate(VectorOperation::InsertVector {
             collection: "test".to_string(),
             id: vec.id,
@@ -221,7 +231,7 @@ async fn test_master_multiple_replicas_and_stats() {
     for i in 0..3 {
         let (replica, store) = create_running_replica(master_addr).await;
         replicas.push((replica, store));
-        println!("Replica {} connected", i);
+        println!("Replica {i} connected");
         sleep(Duration::from_millis(200)).await;
     }
 
@@ -231,7 +241,7 @@ async fn test_master_multiple_replicas_and_stats() {
     // Insert data
     for i in 0..20 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -239,7 +249,7 @@ async fn test_master_multiple_replicas_and_stats() {
 
         master.replicate(VectorOperation::InsertVector {
             collection: "multi".to_string(),
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             vector: vec![i as f32, 0.0, 0.0],
             payload: None,
         });
@@ -250,7 +260,7 @@ async fn test_master_multiple_replicas_and_stats() {
     // Verify all replicas got the data
     for (i, (_replica, store)) in replicas.iter().enumerate() {
         let collection = store.get_collection("multi").unwrap();
-        assert_eq!(collection.vector_count(), 20, "Replica {} mismatch", i);
+        assert_eq!(collection.vector_count(), 20, "Replica {i} mismatch");
     }
 
     // Test master stats with multiple replicas
@@ -260,7 +270,7 @@ async fn test_master_multiple_replicas_and_stats() {
     // Test get_replicas with multiple replicas
     let replica_infos = master.get_replicas();
     assert_eq!(replica_infos.len(), 3);
-    
+
     for info in replica_infos {
         assert!(info.connected);
         assert!(info.offset > 0);
@@ -291,7 +301,7 @@ async fn test_replica_full_sync_on_connect() {
 
     for i in 0..50 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
             payload: None,
         };
@@ -339,7 +349,7 @@ async fn test_replica_partial_sync_on_reconnect() {
     // Insert some data
     for i in 0..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -349,7 +359,13 @@ async fn test_replica_partial_sync_on_reconnect() {
     sleep(Duration::from_millis(500)).await;
 
     let offset_before = replica1.get_offset();
-    assert_eq!(replica_store1.get_collection("partial").unwrap().vector_count(), 10);
+    assert_eq!(
+        replica_store1
+            .get_collection("partial")
+            .unwrap()
+            .vector_count(),
+        10
+    );
 
     // Disconnect replica
     drop(replica1);
@@ -359,7 +375,7 @@ async fn test_replica_partial_sync_on_reconnect() {
     // Insert more data while disconnected (but within log window)
     for i in 10..15 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -398,7 +414,7 @@ async fn test_replica_apply_all_operation_types() {
         normalization: None,
     };
     master_store.create_collection("ops_test", config).unwrap();
-    
+
     master.replicate(VectorOperation::CreateCollection {
         name: "ops_test".to_string(),
         config: vectorizer::replication::CollectionConfigData {
@@ -448,7 +464,11 @@ async fn test_replica_apply_all_operation_types() {
     sleep(Duration::from_millis(300)).await;
 
     // Verify operations were applied on replica
-    assert!(replica_store.list_collections().contains(&"ops_test".to_string()));
+    assert!(
+        replica_store
+            .list_collections()
+            .contains(&"ops_test".to_string())
+    );
 
     println!("✅ All operation types applied: PASS");
 }
@@ -492,7 +512,9 @@ async fn test_replica_incremental_operations() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("incremental", config).unwrap();
+    master_store
+        .create_collection("incremental", config)
+        .unwrap();
 
     // Connect replica
     let (replica, replica_store) = create_running_replica(master_addr).await;
@@ -503,11 +525,13 @@ async fn test_replica_incremental_operations() {
     // Send operations one by one (tests incremental replication)
     for i in 0..20 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
-        master_store.insert("incremental", vec![vec.clone()]).unwrap();
+        master_store
+            .insert("incremental", vec![vec.clone()])
+            .unwrap();
 
         master.replicate(VectorOperation::InsertVector {
             collection: "incremental".to_string(),
@@ -551,11 +575,13 @@ async fn test_replica_delete_operations() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("delete_test", config).unwrap();
+    master_store
+        .create_collection("delete_test", config)
+        .unwrap();
 
     for i in 0..10 {
         let vec = Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
@@ -572,11 +598,13 @@ async fn test_replica_delete_operations() {
 
     // Delete some vectors
     for i in 0..5 {
-        master_store.delete("delete_test", &format!("vec_{}", i)).unwrap();
-        
+        master_store
+            .delete("delete_test", &format!("vec_{i}"))
+            .unwrap();
+
         master.replicate(VectorOperation::DeleteVector {
             collection: "delete_test".to_string(),
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
         });
     }
 
@@ -588,7 +616,7 @@ async fn test_replica_delete_operations() {
 
     // Delete entire collection
     master_store.delete_collection("delete_test").unwrap();
-    
+
     master.replicate(VectorOperation::DeleteCollection {
         name: "delete_test".to_string(),
     });
@@ -596,7 +624,11 @@ async fn test_replica_delete_operations() {
     sleep(Duration::from_millis(500)).await;
 
     // Verify collection deleted on replica
-    assert!(!replica_store.list_collections().contains(&"delete_test".to_string()));
+    assert!(
+        !replica_store
+            .list_collections()
+            .contains(&"delete_test".to_string())
+    );
 
     println!("✅ Replica delete operations: PASS");
 }
@@ -615,7 +647,9 @@ async fn test_replica_update_operations() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("update_test", config).unwrap();
+    master_store
+        .create_collection("update_test", config)
+        .unwrap();
 
     // Insert initial vector
     let vec1 = Vector {
@@ -630,7 +664,9 @@ async fn test_replica_update_operations() {
     sleep(Duration::from_secs(1)).await;
 
     // Verify initial sync
-    let vector = replica_store.get_vector("update_test", "updatable").unwrap();
+    let vector = replica_store
+        .get_vector("update_test", "updatable")
+        .unwrap();
     assert_eq!(vector.data, vec![1.0, 0.0, 0.0]);
 
     // Update the vector
@@ -644,7 +680,9 @@ async fn test_replica_update_operations() {
     sleep(Duration::from_millis(500)).await;
 
     // Verify update replicated
-    let updated_vector = replica_store.get_vector("update_test", "updatable").unwrap();
+    let updated_vector = replica_store
+        .get_vector("update_test", "updatable")
+        .unwrap();
     assert_eq!(updated_vector.data, vec![9.0, 9.0, 9.0]);
 
     println!("✅ Replica update operations: PASS");
@@ -678,7 +716,7 @@ async fn test_replica_stats_tracking() {
     for i in 0..30 {
         master.replicate(VectorOperation::InsertVector {
             collection: "stats".to_string(),
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             vector: vec![i as f32, 0.0, 0.0],
             payload: None,
         });
@@ -727,13 +765,15 @@ async fn test_large_payload_replication() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("large_payload", config).unwrap();
+    master_store
+        .create_collection("large_payload", config)
+        .unwrap();
 
     let (_replica, replica_store) = create_running_replica(master_addr).await;
     sleep(Duration::from_secs(1)).await;
 
     // Insert vector with large payload
-    let large_data = (0..1000).map(|i| format!("item_{}", i)).collect::<Vec<_>>();
+    let large_data = (0..1000).map(|i| format!("item_{i}")).collect::<Vec<_>>();
     let vec = Vector {
         id: "large".to_string(),
         data: vec![1.0, 2.0, 3.0],
@@ -741,8 +781,10 @@ async fn test_large_payload_replication() {
             data: serde_json::json!({"items": large_data}),
         }),
     };
-    
-    master_store.insert("large_payload", vec![vec.clone()]).unwrap();
+
+    master_store
+        .insert("large_payload", vec![vec.clone()])
+        .unwrap();
 
     let payload_bytes = serde_json::to_vec(&serde_json::json!({"items": large_data})).unwrap();
     master.replicate(VectorOperation::InsertVector {
@@ -781,7 +823,9 @@ async fn test_different_distance_metrics() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("cosine", config_cosine).unwrap();
+    master_store
+        .create_collection("cosine", config_cosine)
+        .unwrap();
     master.replicate(VectorOperation::CreateCollection {
         name: "cosine".to_string(),
         config: vectorizer::replication::CollectionConfigData {
@@ -799,7 +843,9 @@ async fn test_different_distance_metrics() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("euclidean", config_euclidean).unwrap();
+    master_store
+        .create_collection("euclidean", config_euclidean)
+        .unwrap();
     master.replicate(VectorOperation::CreateCollection {
         name: "euclidean".to_string(),
         config: vectorizer::replication::CollectionConfigData {
@@ -817,7 +863,9 @@ async fn test_different_distance_metrics() {
         compression: Default::default(),
         normalization: None,
     };
-    master_store.create_collection("dotproduct", config_dot).unwrap();
+    master_store
+        .create_collection("dotproduct", config_dot)
+        .unwrap();
     master.replicate(VectorOperation::CreateCollection {
         name: "dotproduct".to_string(),
         config: vectorizer::replication::CollectionConfigData {
@@ -880,4 +928,3 @@ async fn test_master_get_stats_coverage() {
 
     println!("✅ Master stats coverage: PASS");
 }
-

@@ -8,10 +8,11 @@
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::super::*;
     use crate::db::VectorStore;
     use crate::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector};
-    use std::sync::Arc;
 
     // ============================================================================
     // Replication Log Tests
@@ -222,7 +223,7 @@ mod tests {
     #[tokio::test]
     async fn test_replication_log_single_operation() {
         let log = ReplicationLog::new(10);
-        
+
         let op = VectorOperation::CreateCollection {
             name: "test".to_string(),
             config: CollectionConfigData {
@@ -260,4 +261,3 @@ mod tests {
 // - `cargo test --test replication_failover` - Failover tests
 // - `cargo test -- --ignored` - Stress tests (slower)
 // - `cargo bench --bench replication_bench` - Performance benchmarks
-

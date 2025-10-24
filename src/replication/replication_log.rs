@@ -3,10 +3,12 @@
 //! Similar to Redis replication backlog, stores recent operations
 //! for partial resync when replicas reconnect.
 
-use super::types::{ReplicationOperation, VectorOperation};
-use parking_lot::RwLock;
 use std::collections::VecDeque;
+
+use parking_lot::RwLock;
 use tracing::debug;
+
+use super::types::{ReplicationOperation, VectorOperation};
 
 /// Circular replication log
 pub struct ReplicationLog {
@@ -44,7 +46,7 @@ impl ReplicationLog {
         };
 
         let mut ops = self.operations.write();
-        
+
         // If at capacity, remove oldest
         if ops.len() >= self.max_size {
             ops.pop_front();
@@ -345,4 +347,3 @@ mod tests {
         }
     }
 }
-

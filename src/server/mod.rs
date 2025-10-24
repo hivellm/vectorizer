@@ -767,10 +767,22 @@ impl VectorizerServer {
                 post(rest_handlers::search_by_file_type),
             )
             // Replication routes
-            .route("/replication/status", get(replication_handlers::get_replication_status))
-            .route("/replication/configure", post(replication_handlers::configure_replication))
-            .route("/replication/stats", get(replication_handlers::get_replication_stats))
-            .route("/replication/replicas", get(replication_handlers::list_replicas))
+            .route(
+                "/replication/status",
+                get(replication_handlers::get_replication_status),
+            )
+            .route(
+                "/replication/configure",
+                post(replication_handlers::configure_replication),
+            )
+            .route(
+                "/replication/stats",
+                get(replication_handlers::get_replication_stats),
+            )
+            .route(
+                "/replication/replicas",
+                get(replication_handlers::list_replicas),
+            )
             // Dashboard - serve static files
             .nest_service("/dashboard", ServeDir::new("dashboard"))
             .fallback_service(ServeDir::new("dashboard"))

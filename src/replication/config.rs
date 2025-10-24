@@ -1,8 +1,9 @@
 //! Replication configuration
 
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::Duration;
+
+use serde::{Deserialize, Serialize};
 
 /// Replication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,4 +98,3 @@ impl ReplicationConfig {
         Duration::from_secs(self.reconnect_interval)
     }
 }
-

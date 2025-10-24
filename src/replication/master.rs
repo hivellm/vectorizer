@@ -7,6 +7,18 @@
 //! - Handles full and partial sync
 //! - Heartbeat mechanism
 
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use parking_lot::RwLock;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc;
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
+
 use super::config::ReplicationConfig;
 use super::replication_log::ReplicationLog;
 use super::types::{
@@ -14,16 +26,6 @@ use super::types::{
     ReplicationStats, VectorOperation,
 };
 use crate::db::VectorStore;
-use parking_lot::RwLock;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
-use uuid::Uuid;
 
 /// Master Node - Accepts writes and replicates to replica nodes
 pub struct MasterNode {
@@ -79,10 +81,9 @@ impl MasterNode {
 
     /// Start listening for replica connections
     pub async fn start(&self) -> ReplicationResult<()> {
-        let bind_addr = self
-            .config
-            .bind_address
-            .ok_or_else(|| ReplicationError::Connection("No bind address configured".to_string()))?;
+        let bind_addr = self.config.bind_address.ok_or_else(|| {
+            ReplicationError::Connection("No bind address configured".to_string())
+        })?;
 
         info!("Master node starting on {}", bind_addr);
 
@@ -178,9 +179,7 @@ impl MasterNode {
         let need_full_sync = if replica_offset == 0 {
             true
         } else {
-            replication_log
-                .get_operations(replica_offset)
-                .is_none()
+            replication_log.get_operations(replica_offset).is_none()
         };
 
         if need_full_sync {
@@ -266,7 +265,9 @@ impl MasterNode {
         let offset = self.replication_log.append(operation.clone());
 
         // Send to replication task
-        let _ = self.replication_tx.send(ReplicationMessage::Operation(operation));
+        let _ = self
+            .replication_tx
+            .send(ReplicationMessage::Operation(operation));
 
         offset
     }
@@ -394,10 +395,11 @@ fn current_timestamp() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::db::VectorStore;
-    use crate::replication::{NodeRole, ReplicationConfig, VectorOperation, CollectionConfigData};
-    use std::sync::Arc;
+    use crate::replication::{CollectionConfigData, NodeRole, ReplicationConfig, VectorOperation};
 
     #[tokio::test]
     async fn test_master_creation_and_initial_state() {
@@ -414,14 +416,14 @@ mod tests {
 
         let result = MasterNode::new(config, store);
         assert!(result.is_ok());
-        
+
         let master = result.unwrap();
-        
+
         // Test initial stats
         let stats = master.get_stats();
         assert_eq!(stats.master_offset, 0);
         assert!(!stats.connected);
-        
+
         // Test initial replicas
         let replicas = master.get_replicas();
         assert_eq!(replicas.len(), 0);
@@ -459,5 +461,3 @@ mod tests {
         assert_eq!(stats.master_offset, 10);
     }
 }
-
-
