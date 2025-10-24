@@ -1,6 +1,12 @@
-# Hive Vectorizer TypeScript Client SDK
+# Vectorizer TypeScript SDK
 
-High-performance TypeScript client for the Hive Vectorizer vector database.
+[![npm version](https://badge.fury.io/js/%40hivellm%2Fvectorizer-sdk.svg)](https://www.npmjs.com/package/@hivellm/vectorizer-sdk)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+High-performance TypeScript SDK for Vectorizer vector database.
+
+**Package**: `@hivellm/vectorizer-sdk`  
+**Version**: 1.0.1
 
 ## Features
 
@@ -20,13 +26,16 @@ High-performance TypeScript client for the Hive Vectorizer vector database.
 ## Installation
 
 ```bash
-npm install @hivellm/vectorizer-client
+npm install @hivellm/vectorizer-sdk
+
+# Or specific version
+npm install @hivellm/vectorizer-sdk@1.0.1
 ```
 
 ## Quick Start
 
 ```typescript
-import { VectorizerClient } from '@hivellm/vectorizer-client';
+import { VectorizerClient } from '@hivellm/vectorizer-sdk';
 
 // Create client
 const client = new VectorizerClient({
@@ -245,7 +254,7 @@ import {
   ValidationError,
   NetworkError,
   ServerError
-} from '@hivellm/vectorizer-client';
+} from '@hivellm/vectorizer-sdk';
 
 try {
   await client.createCollection({
