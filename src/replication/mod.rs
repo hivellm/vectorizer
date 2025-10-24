@@ -22,6 +22,9 @@ pub mod types;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod stats_tests;
+
 pub use config::ReplicationConfig;
 pub use master::MasterNode;
 pub use replica::ReplicaNode;
