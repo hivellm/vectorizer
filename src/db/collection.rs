@@ -376,15 +376,8 @@ impl Collection {
 
     /// Get the number of vectors in the collection
     pub fn vector_count(&self) -> usize {
-        // Count from whichever storage is being used
-        if matches!(
-            self.config.quantization,
-            crate::models::QuantizationConfig::SQ { bits: 8 }
-        ) {
-            self.quantized_vectors.lock().unwrap().len()
-        } else {
-            self.vectors.lock().unwrap().len()
-        }
+        // Use persistent vector count (maintains count even when vectors are unloaded)
+        *self.vector_count.read()
     }
 
     /// Requantize existing vectors if quantization is enabled (parallel processing)

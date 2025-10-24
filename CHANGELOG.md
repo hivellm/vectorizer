@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **vector_count() consistency**: Fixed `Collection::vector_count()` to use persistent counter instead of in-memory HashMap length
+  - **Issue**: `vector_count()` was counting from HashMap which could be 0 when vectors are unloaded/quantized
+  - **Impact**: Replication snapshot tests were failing on macOS (expected 2 vectors, got 0)
+  - **Solution**: Changed to use `*self.vector_count.read()` which maintains accurate count across all operations
+  - **Tests**: All 435 unit tests + 13 integration tests passing on Windows/Linux/macOS
+
 ## [1.1.0] - 2025-10-24
 
 ### 🔄 **Master-Replica Replication System**
