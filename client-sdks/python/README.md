@@ -1,11 +1,19 @@
-# Hive Vectorizer Python SDK
+# Vectorizer Python SDK
 
-A comprehensive Python client library for the Hive Vectorizer service.
+[![PyPI version](https://badge.fury.io/py/vectorizer-sdk.svg)](https://pypi.org/project/vectorizer-sdk/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/vectorizer-sdk.svg)](https://pypi.org/project/vectorizer-sdk/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+A comprehensive Python SDK for the Vectorizer semantic search service.
+
+**Package**: `vectorizer_sdk` (PEP 625 compliant)  
+**Version**: 1.0.1  
+**PyPI**: https://pypi.org/project/vectorizer-sdk/
 
 ## Features
 
 - **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
-- **UMICP Protocol**: High-performance protocol using umicp-python package
+- **UMICP Protocol**: High-performance protocol using umicp-sdk package (v0.3.2+)
 - **Vector Operations**: Insert, search, and manage vectors
 - **Collection Management**: Create, delete, and monitor collections  
 - **Semantic Search**: Find similar content using embeddings
@@ -20,7 +28,11 @@ A comprehensive Python client library for the Hive Vectorizer service.
 ## Installation
 
 ```bash
-pip install hive-vectorizer
+# Install from PyPI
+pip install vectorizer-sdk
+
+# Or specific version
+pip install vectorizer-sdk==1.0.1
 ```
 
 ## Quick Start
@@ -186,7 +198,7 @@ Use HTTP when:
 #### Installing with UMICP Support
 
 ```bash
-pip install hive-vectorizer umicp-python
+pip install vectorizer-sdk umicp-python
 ```
 
 ## Testing
