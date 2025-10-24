@@ -234,6 +234,14 @@ impl MasterNode {
                         error!("Failed to send to replica {}: {}", replica_id, e);
                         break;
                     }
+
+                    // Update replica offset after successful send
+                    if let ReplicationCommand::Operation(ref op) = cmd {
+                        let mut replicas = replicas.write();
+                        if let Some(replica) = replicas.get_mut(&replica_id) {
+                            replica.offset = op.offset;
+                        }
+                    }
                 }
             }
         }

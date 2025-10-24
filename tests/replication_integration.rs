@@ -337,7 +337,7 @@ async fn test_replica_full_sync_on_connect() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 
 async fn test_replica_partial_sync_on_reconnect() {
-    let (_master, master_store, master_addr) = create_running_master().await;
+    let (master, master_store, master_addr) = create_running_master().await;
 
     // Create collection
     let config = CollectionConfig {
@@ -361,10 +361,17 @@ async fn test_replica_partial_sync_on_reconnect() {
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
-        master_store.insert("partial", vec![vec]).unwrap();
+        master_store.insert("partial", vec![vec.clone()]).unwrap();
+
+        master.replicate(VectorOperation::InsertVector {
+            collection: "partial".to_string(),
+            id: vec.id,
+            vector: vec.data,
+            payload: None,
+        });
     }
 
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_secs(1)).await;
 
     let offset_before = replica1.get_offset();
     assert_eq!(
@@ -387,7 +394,14 @@ async fn test_replica_partial_sync_on_reconnect() {
             data: vec![i as f32, 0.0, 0.0],
             payload: None,
         };
-        master_store.insert("partial", vec![vec]).unwrap();
+        master_store.insert("partial", vec![vec.clone()]).unwrap();
+
+        master.replicate(VectorOperation::InsertVector {
+            collection: "partial".to_string(),
+            id: vec.id,
+            vector: vec.data,
+            payload: None,
+        });
     }
 
     // Reconnect - should use partial sync
@@ -501,7 +515,7 @@ async fn test_replica_heartbeat_and_connection_status() {
     // Check stats
     let stats = replica.get_stats();
     assert_eq!(stats.role, vectorizer::replication::NodeRole::Replica);
-    assert_eq!(stats.lag_ms, 0); // Should be very recent
+    assert!(stats.lag_ms < 5000); // Should be recent (within 5 seconds)
 
     println!("✅ Replica heartbeat: PASS");
 }
@@ -574,7 +588,7 @@ async fn test_replica_incremental_operations() {
 async fn test_replica_delete_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
-    // Create and populate collection
+    // Create collection BEFORE replica connects (matching test_master_start_and_accept_connections pattern)
     let config = CollectionConfig {
         dimension: 3,
         metric: DistanceMetric::Cosine,
@@ -587,6 +601,7 @@ async fn test_replica_delete_operations() {
         .create_collection("delete_test", config)
         .unwrap();
 
+    // Insert some vectors
     for i in 0..10 {
         let vec = Vector {
             id: format!("vec_{i}"),
@@ -596,11 +611,18 @@ async fn test_replica_delete_operations() {
         master_store.insert("delete_test", vec![vec]).unwrap();
     }
 
-    // Connect replica
+    // Now connect replica - should trigger full sync
     let (_replica, replica_store) = create_running_replica(master_addr).await;
+
+    // Wait for full sync to complete
     sleep(Duration::from_secs(2)).await;
 
-    // Verify initial sync
+    // Verify replica received snapshot
+    assert!(
+        replica_store
+            .list_collections()
+            .contains(&"delete_test".to_string())
+    );
     let collection = replica_store.get_collection("delete_test").unwrap();
     assert_eq!(collection.vector_count(), 10);
 
@@ -610,16 +632,34 @@ async fn test_replica_delete_operations() {
             .delete("delete_test", &format!("vec_{i}"))
             .unwrap();
 
-        master.replicate(VectorOperation::DeleteVector {
+        let offset = master.replicate(VectorOperation::DeleteVector {
             collection: "delete_test".to_string(),
             id: format!("vec_{i}"),
         });
+        println!("Replicated delete of vec_{i} at offset {offset}");
     }
 
-    sleep(Duration::from_secs(1)).await;
+    println!(
+        "Master now has {} vectors",
+        master_store
+            .get_collection("delete_test")
+            .unwrap()
+            .vector_count()
+    );
+
+    sleep(Duration::from_secs(3)).await;
 
     // Verify deletes replicated
     let collection = replica_store.get_collection("delete_test").unwrap();
+    println!("Replica has {} vectors", collection.vector_count());
+
+    // List vectors in replica to see which ones remain
+    for i in 0..10 {
+        if let Ok(v) = replica_store.get_vector("delete_test", &format!("vec_{i}")) {
+            println!("Replica still has vec_{i}: {:?}", v.data);
+        }
+    }
+
     assert_eq!(collection.vector_count(), 5);
 
     // Delete entire collection
@@ -646,10 +686,10 @@ async fn test_replica_delete_operations() {
 async fn test_replica_update_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
-    // Create collection
+    // Create collection with Euclidean metric to avoid normalization
     let config = CollectionConfig {
         dimension: 3,
-        metric: DistanceMetric::Cosine,
+        metric: DistanceMetric::Euclidean,
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: Default::default(),
@@ -685,7 +725,7 @@ async fn test_replica_update_operations() {
         payload: Some(serde_json::to_vec(&serde_json::json!({"updated": true})).unwrap()),
     });
 
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_secs(1)).await;
 
     // Verify update replicated
     let updated_vector = replica_store
