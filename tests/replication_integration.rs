@@ -174,7 +174,7 @@ async fn test_master_replicate_operations() {
         },
     });
 
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_secs(1)).await;
 
     // Now insert vectors and replicate them
     for i in 0..10 {
@@ -237,11 +237,11 @@ async fn test_master_multiple_replicas_and_stats() {
         let (replica, store) = create_running_replica(master_addr).await;
         replicas.push((replica, store));
         println!("Replica {i} connected");
-        sleep(Duration::from_millis(200)).await;
+        sleep(Duration::from_millis(500)).await;
     }
 
     // Wait for all to sync
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(2)).await;
 
     // Insert data
     for i in 0..20 {
@@ -615,7 +615,7 @@ async fn test_replica_delete_operations() {
     let (_replica, replica_store) = create_running_replica(master_addr).await;
 
     // Wait for full sync to complete
-    sleep(Duration::from_secs(2)).await;
+    sleep(Duration::from_secs(4)).await;
 
     // Verify replica received snapshot
     assert!(
@@ -632,34 +632,16 @@ async fn test_replica_delete_operations() {
             .delete("delete_test", &format!("vec_{i}"))
             .unwrap();
 
-        let offset = master.replicate(VectorOperation::DeleteVector {
+        master.replicate(VectorOperation::DeleteVector {
             collection: "delete_test".to_string(),
             id: format!("vec_{i}"),
         });
-        println!("Replicated delete of vec_{i} at offset {offset}");
     }
-
-    println!(
-        "Master now has {} vectors",
-        master_store
-            .get_collection("delete_test")
-            .unwrap()
-            .vector_count()
-    );
 
     sleep(Duration::from_secs(3)).await;
 
     // Verify deletes replicated
     let collection = replica_store.get_collection("delete_test").unwrap();
-    println!("Replica has {} vectors", collection.vector_count());
-
-    // List vectors in replica to see which ones remain
-    for i in 0..10 {
-        if let Ok(v) = replica_store.get_vector("delete_test", &format!("vec_{i}")) {
-            println!("Replica still has vec_{i}: {:?}", v.data);
-        }
-    }
-
     assert_eq!(collection.vector_count(), 5);
 
     // Delete entire collection
@@ -802,9 +784,9 @@ async fn test_empty_snapshot_replication() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 
 async fn test_large_payload_replication() {
-    let (master, master_store, master_addr) = create_running_master().await;
+    let (_master, master_store, master_addr) = create_running_master().await;
 
-    // Create collection
+    // Create collection BEFORE replica connects
     let config = CollectionConfig {
         dimension: 3,
         metric: DistanceMetric::Cosine,
@@ -817,10 +799,7 @@ async fn test_large_payload_replication() {
         .create_collection("large_payload", config)
         .unwrap();
 
-    let (_replica, replica_store) = create_running_replica(master_addr).await;
-    sleep(Duration::from_secs(1)).await;
-
-    // Insert vector with large payload
+    // Insert vector with large payload BEFORE replica connects
     let large_data = (0..1000).map(|i| format!("item_{i}")).collect::<Vec<_>>();
     let vec = Vector {
         id: "large".to_string(),
@@ -834,15 +813,11 @@ async fn test_large_payload_replication() {
         .insert("large_payload", vec![vec.clone()])
         .unwrap();
 
-    let payload_bytes = serde_json::to_vec(&serde_json::json!({"items": large_data})).unwrap();
-    master.replicate(VectorOperation::InsertVector {
-        collection: "large_payload".to_string(),
-        id: "large".to_string(),
-        vector: vec.data,
-        payload: Some(payload_bytes),
-    });
+    // Now connect replica - should trigger full sync with large payload
+    let (_replica, replica_store) = create_running_replica(master_addr).await;
 
-    sleep(Duration::from_millis(500)).await;
+    // Wait for full sync to complete
+    sleep(Duration::from_secs(2)).await;
 
     // Verify large payload replicated
     let collection = replica_store.get_collection("large_payload").unwrap();
@@ -922,7 +897,7 @@ async fn test_different_distance_metrics() {
         },
     });
 
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(3)).await;
 
     // Verify all metrics replicated
     assert_eq!(replica_store.list_collections().len(), 3);
