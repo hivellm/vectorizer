@@ -1,18 +1,19 @@
 # Implementation Tasks - Query Caching
 
 ## 1. Cache Implementation
-- [ ] 1.1 Verify `lru` dependency
-- [ ] 1.2 Create `src/cache/query_cache.rs`
-- [ ] 1.3 Define QueryCache struct
-- [ ] 1.4 Define QueryKey struct
-- [ ] 1.5 Implement get/insert methods
-- [ ] 1.6 Implement invalidation logic
+- [x] 1.1 Verify `lru` dependency (v0.16.1 already in Cargo.toml)
+- [x] 1.2 Create `src/cache/query_cache.rs`
+- [x] 1.3 Define QueryCache struct (with LRU + TTL support)
+- [x] 1.4 Define QueryKey struct (collection, query, limit, threshold)
+- [x] 1.5 Implement get/insert methods (with expiration check)
+- [x] 1.6 Implement invalidation logic (per-collection and global clear)
+- [x] 1.7 Add comprehensive tests (9 tests, all passing)
 
 ## 2. Configuration
-- [ ] 2.1 Configure cache size
-- [ ] 2.2 Configure TTL
-- [ ] 2.3 Add warmup logic
-- [ ] 2.4 Add to config.yml
+- [x] 2.1 Configure cache size (max_size: 1000)
+- [x] 2.2 Configure TTL (ttl_seconds: 300 = 5 min)
+- [x] 2.3 Add warmup logic (warmup_enabled flag)
+- [x] 2.4 Add to config.yml (in performance.query_cache section)
 
 ## 3. Integration
 - [ ] 3.1 Integrate with search endpoints

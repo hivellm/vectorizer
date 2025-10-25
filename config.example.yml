@@ -207,6 +207,13 @@ performance:
     default_size: 100             # Default batch size for operations
     max_size: 1000                # Maximum batch size
     parallel_processing: true     # Enable parallel batch processing
+  
+  # Query result caching
+  query_cache:
+    enabled: true                 # Enable LRU query result caching
+    max_size: 1000                # Maximum number of cached queries
+    ttl_seconds: 300              # Cache entry TTL (5 minutes)
+    warmup_enabled: false         # Enable cache warmup on startup
 
 # =============================================================================
 # WORKSPACE CONFIGURATION
