@@ -235,3 +235,76 @@ impl BatchOperationManager {
         HashMap::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Payload;
+
+    #[test]
+    fn test_batch_insert_operation_creation() {
+        let op = BatchInsertOperation {
+            id: "test_insert".to_string(),
+            collection: "test_coll".to_string(),
+            vectors: vec![],
+            atomic: true,
+            vector_dimension: 128,
+        };
+
+        assert_eq!(op.operation_id(), "test_insert");
+        assert_eq!(op.collection_name(), "test_coll");
+        assert!(op.is_atomic());
+    }
+
+    #[test]
+    fn test_batch_update_operation_creation() {
+        let op = BatchUpdateOperation {
+            id: "test_update".to_string(),
+            collection: "test_coll".to_string(),
+            updates: vec![],
+            atomic: false,
+        };
+
+        assert_eq!(op.operation_id(), "test_update");
+        assert_eq!(op.collection_name(), "test_coll");
+        assert!(!op.is_atomic());
+    }
+
+    #[test]
+    fn test_batch_delete_operation_creation() {
+        let op = BatchDeleteOperation {
+            id: "test_delete".to_string(),
+            collection: "test_coll".to_string(),
+            vector_ids: vec!["id1".to_string(), "id2".to_string()],
+            atomic: true,
+        };
+
+        assert_eq!(op.operation_id(), "test_delete");
+        assert_eq!(op.collection_name(), "test_coll");
+        assert!(op.is_atomic());
+        assert_eq!(op.vector_ids.len(), 2);
+    }
+
+    #[test]
+    fn test_batch_search_operation_creation() {
+        let query = SearchQuery {
+            query_vector: Some(vec![0.1; 128]),
+            query_text: None,
+            limit: 10,
+            threshold: Some(0.7),
+            filters: HashMap::new(),
+        };
+
+        let op = BatchSearchOperation {
+            id: "test_search".to_string(),
+            collection: "test_coll".to_string(),
+            queries: vec![query],
+            atomic: false,
+        };
+
+        assert_eq!(op.operation_id(), "test_search");
+        assert_eq!(op.collection_name(), "test_coll");
+        assert!(!op.is_atomic());
+        assert_eq!(op.queries.len(), 1);
+    }
+}
