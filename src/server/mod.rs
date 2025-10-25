@@ -52,6 +52,7 @@ pub struct VectorizerServer {
             )>,
         >,
     >,
+    system_collector_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl VectorizerServer {
@@ -62,6 +63,11 @@ impl VectorizerServer {
         // Initialize monitoring system
         if let Err(e) = crate::monitoring::init() {
             warn!("Failed to initialize monitoring system: {}", e);
+        }
+        
+        // Try to initialize OpenTelemetry (optional, graceful degradation)
+        if let Err(e) = crate::monitoring::telemetry::try_init("vectorizer", None) {
+            warn!("OpenTelemetry not available: {}", e);
         }
 
         // Initialize VectorStore with auto-save enabled
@@ -571,6 +577,12 @@ impl VectorizerServer {
         let _auto_save_handle = auto_save_manager.start();
         info!("✅ AutoSaveManager started (5min save + 1h snapshot intervals)");
 
+        // Start system metrics collector
+        info!("📊 Starting system metrics collector...");
+        let system_collector = crate::monitoring::SystemCollector::new(store_arc.clone());
+        let system_collector_handle = system_collector.start();
+        info!("✅ System metrics collector started");
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -584,6 +596,7 @@ impl VectorizerServer {
                 background_handle,
                 cancel_tx,
             )))),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(Some(system_collector_handle))),
         })
     }
 
@@ -635,7 +648,10 @@ impl VectorizerServer {
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
             .route("/stats", get(rest_handlers::get_stats))
-            .route("/prometheus/metrics", get(rest_handlers::get_prometheus_metrics))
+            .route(
+                "/prometheus/metrics",
+                get(rest_handlers::get_prometheus_metrics),
+            )
             .route(
                 "/indexing/progress",
                 get(rest_handlers::get_indexing_progress),
@@ -797,6 +813,7 @@ impl VectorizerServer {
             .nest_service("/dashboard", ServeDir::new("dashboard"))
             .fallback_service(ServeDir::new("dashboard"))
             .layer(CorsLayer::permissive())
+            .layer(axum::middleware::from_fn(crate::monitoring::correlation_middleware))
             .layer(axum::middleware::from_fn(
                 move |req: axum::extract::Request, next: axum::middleware::Next| {
                     let metrics = metrics_collector_2.clone();

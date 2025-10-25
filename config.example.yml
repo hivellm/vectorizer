@@ -34,6 +34,44 @@ logging:
   log_requests: true          # Log all requests
   log_responses: false        # Log responses (can be verbose)
   log_errors: true            # Log errors
+  
+  # Correlation ID tracking
+  correlation_id_enabled: true # Add correlation IDs to all requests
+
+# =============================================================================
+# MONITORING & TELEMETRY CONFIGURATION
+# =============================================================================
+monitoring:
+  # Prometheus metrics
+  prometheus:
+    enabled: true             # Enable Prometheus metrics export
+    endpoint: "/prometheus/metrics"  # Metrics endpoint path
+    
+  # System metrics collector
+  system_metrics:
+    enabled: true             # Enable periodic system metrics collection
+    interval_secs: 15         # Collection interval in seconds
+    
+  # OpenTelemetry distributed tracing
+  telemetry:
+    enabled: false            # Enable OpenTelemetry tracing (requires OTLP collector)
+    otlp_endpoint: "http://localhost:4317"  # OTLP gRPC endpoint
+    service_name: "vectorizer"               # Service name in traces
+    sampler: "always_on"      # Sampling strategy: always_on/always_off/parent_based
+    
+  # Metrics to track
+  metrics:
+    # Search metrics
+    search_enabled: true      # Track search requests, latency, results
+    
+    # Indexing metrics
+    indexing_enabled: true    # Track insert operations, vector/collection counts
+    
+    # Replication metrics
+    replication_enabled: true # Track replication lag, bytes sent/received
+    
+    # System metrics
+    system_enabled: true      # Track memory usage, cache hits, API errors
 
 # =============================================================================
 # DEFAULT COLLECTION CONFIGURATION

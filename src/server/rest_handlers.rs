@@ -67,12 +67,13 @@ pub async fn search_vectors_by_text(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::monitoring::metrics::METRICS;
-    
+
     // Start latency timer
-    let timer = METRICS.search_latency_seconds
+    let timer = METRICS
+        .search_latency_seconds
         .with_label_values(&[&collection_name, "text"])
         .start_timer();
-    
+
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
@@ -88,7 +89,8 @@ pub async fn search_vectors_by_text(
     let collection = match state.store.get_collection(&collection_name) {
         Ok(collection) => collection,
         Err(_) => {
-            METRICS.search_requests_total
+            METRICS
+                .search_requests_total
                 .with_label_values(&[&collection_name, "text", "error"])
                 .inc();
             drop(timer);
@@ -146,10 +148,12 @@ pub async fn search_vectors_by_text(
         .collect();
 
     // Record metrics
-    METRICS.search_requests_total
+    METRICS
+        .search_requests_total
         .with_label_values(&[&collection_name, "text", "success"])
         .inc();
-    METRICS.search_results_count
+    METRICS
+        .search_results_count
         .with_label_values(&[&collection_name, "text"])
         .observe(results.len() as f64);
     drop(timer); // Stop latency timer
@@ -575,10 +579,10 @@ pub async fn insert_text(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::monitoring::metrics::METRICS;
-    
+
     // Start latency timer
     let timer = METRICS.insert_latency_seconds.start_timer();
-    
+
     let collection_name = payload
         .get("collection")
         .and_then(|c| c.as_str())
@@ -639,22 +643,22 @@ pub async fn insert_text(
     };
 
     // Insert the vector using the store
-    let insert_result = state
-        .store
-        .insert(collection_name, vec![vector]);
-    
+    let insert_result = state.store.insert(collection_name, vec![vector]);
+
     // Record metrics and handle result
     match insert_result {
         Ok(_) => {
             info!("Vector inserted successfully with ID: {}", vector_id);
-            METRICS.insert_requests_total
+            METRICS
+                .insert_requests_total
                 .with_label_values(&[collection_name, "success"])
                 .inc();
             drop(timer);
-        },
+        }
         Err(e) => {
             error!("Failed to insert vector: {}", e);
-            METRICS.insert_requests_total
+            METRICS
+                .insert_requests_total
                 .with_label_values(&[collection_name, "error"])
                 .inc();
             drop(timer);
@@ -813,9 +817,10 @@ pub async fn intelligent_search(
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{IntelligentSearchRequest, RESTAPIHandler};
     use crate::monitoring::metrics::METRICS;
-    
+
     // Start latency timer
-    let timer = METRICS.search_latency_seconds
+    let timer = METRICS
+        .search_latency_seconds
         .with_label_values(&["*", "intelligent"])
         .start_timer();
 
@@ -869,23 +874,26 @@ pub async fn intelligent_search(
         Ok(response) => {
             // Record success metrics
             let result_count = response.results.len();
-            METRICS.search_requests_total
+            METRICS
+                .search_requests_total
                 .with_label_values(&["*", "intelligent", "success"])
                 .inc();
-            METRICS.search_results_count
+            METRICS
+                .search_results_count
                 .with_label_values(&["*", "intelligent"])
                 .observe(result_count as f64);
             drop(timer);
-            
+
             Ok(Json(serde_json::to_value(response).unwrap_or(json!({}))))
-        },
+        }
         Err(e) => {
             // Record error metrics
-            METRICS.search_requests_total
+            METRICS
+                .search_requests_total
                 .with_label_values(&["*", "intelligent", "error"])
                 .inc();
             drop(timer);
-            
+
             error!("Intelligent search error: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }

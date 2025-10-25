@@ -29,21 +29,25 @@
 //! timer.observe_duration();
 //! ```
 
+pub mod correlation;
 pub mod metrics;
 pub mod registry;
-
-pub use metrics::Metrics;
+pub mod system_collector;
+pub mod telemetry;
 
 use anyhow::Result;
+pub use correlation::{correlation_middleware, current_correlation_id, generate_correlation_id, CORRELATION_ID_HEADER};
+pub use metrics::Metrics;
 use prometheus::{Encoder, TextEncoder};
+pub use system_collector::{SystemCollector, SystemCollectorConfig};
 
 /// Initialize the global monitoring system
 pub fn init() -> Result<()> {
     tracing::info!("Initializing monitoring system");
-    
+
     // Initialize Prometheus registry
     registry::init()?;
-    
+
     tracing::info!("Monitoring system initialized successfully");
     Ok(())
 }
@@ -53,11 +57,11 @@ pub fn export_metrics() -> Result<String> {
     let registry = registry::get_registry();
     let registry_guard = registry.read();
     let metric_families = registry_guard.gather();
-    
+
     let encoder = TextEncoder::new();
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer)?;
-    
+
     Ok(String::from_utf8(buffer)?)
 }
 
@@ -76,9 +80,8 @@ mod tests {
         init().unwrap();
         let result = export_metrics();
         assert!(result.is_ok());
-        
+
         let metrics_text = result.unwrap();
         assert!(!metrics_text.is_empty());
     }
 }
-
