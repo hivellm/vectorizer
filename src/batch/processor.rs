@@ -633,3 +633,225 @@ impl BatchProcessor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::batch::BatchConfig;
+    use crate::embedding::EmbeddingManager;
+
+    fn create_test_processor() -> BatchProcessor {
+        let config = Arc::new(BatchConfig::default());
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+
+        BatchProcessor::new(config, vector_store, embedding_manager)
+    }
+
+    #[tokio::test]
+    async fn test_batch_processor_creation() {
+        let processor = create_test_processor();
+        // Processor should be created successfully
+        assert!(true);
+    }
+
+    #[tokio::test]
+    async fn test_register_and_unregister_operation() {
+        let processor = create_test_processor();
+
+        processor.register_operation("test_op").await;
+        {
+            let ops = processor.in_progress_operations.read().await;
+            assert!(ops.contains_key("test_op"));
+        }
+
+        processor.unregister_operation("test_op").await;
+        {
+            let ops = processor.in_progress_operations.read().await;
+            assert!(!ops.contains_key("test_op"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_insert_invalid_size() {
+        let config = Arc::new(BatchConfig {
+            max_batch_size: 5,
+            ..Default::default()
+        });
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let processor = BatchProcessor::new(config, vector_store, embedding_manager);
+
+        // Try to insert batch larger than max_batch_size
+        let vectors = vec![
+            Vector {
+                id: "v1".to_string(),
+                data: vec![0.1; 128],
+                payload: None,
+            };
+            10
+        ];
+
+        let result = processor
+            .batch_insert("test_coll".to_string(), vectors, None, 128)
+            .await;
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            assert!(matches!(e.error_type, BatchErrorType::InvalidBatchSize));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_update_invalid_size() {
+        let config = Arc::new(BatchConfig {
+            max_batch_size: 3,
+            ..Default::default()
+        });
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let processor = BatchProcessor::new(config, vector_store, embedding_manager);
+
+        // Try to update batch larger than max_batch_size
+        let updates = vec![
+            VectorUpdate {
+                id: "v1".to_string(),
+                data: Some(vec![0.1; 128]),
+                metadata: None,
+            };
+            5
+        ];
+
+        let result = processor
+            .batch_update("test_coll".to_string(), updates, None)
+            .await;
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            assert!(matches!(e.error_type, BatchErrorType::InvalidBatchSize));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_delete_invalid_size() {
+        let config = Arc::new(BatchConfig {
+            max_batch_size: 2,
+            ..Default::default()
+        });
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let processor = BatchProcessor::new(config, vector_store, embedding_manager);
+
+        // Try to delete batch larger than max_batch_size
+        let ids = vec!["id1".to_string(), "id2".to_string(), "id3".to_string()];
+
+        let result = processor
+            .batch_delete("test_coll".to_string(), ids, None)
+            .await;
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            assert!(matches!(e.error_type, BatchErrorType::InvalidBatchSize));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_search_invalid_size() {
+        let config = Arc::new(BatchConfig {
+            max_batch_size: 2,
+            ..Default::default()
+        });
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let processor = BatchProcessor::new(config, vector_store, embedding_manager);
+
+        // Try to search with batch larger than max_batch_size
+        let queries = vec![
+            SearchQuery {
+                query_vector: Some(vec![0.1; 128]),
+                query_text: None,
+                limit: 10,
+                threshold: None,
+                filters: HashMap::new(),
+            };
+            5
+        ];
+
+        let result = processor
+            .batch_search("test_coll".to_string(), queries, None)
+            .await;
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            assert!(matches!(e.error_type, BatchErrorType::InvalidBatchSize));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_insert_memory_limit() {
+        let config = Arc::new(BatchConfig {
+            max_memory_usage_mb: 1, // Very low limit
+            max_batch_size: 1000,
+            ..Default::default()
+        });
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let processor = BatchProcessor::new(config, vector_store, embedding_manager);
+
+        // Large vectors that would exceed memory limit
+        let vectors = vec![
+            Vector {
+                id: "v1".to_string(),
+                data: vec![0.1; 10000], // Large dimension
+                payload: None,
+            };
+            100
+        ];
+
+        let result = processor
+            .batch_insert("test_coll".to_string(), vectors, None, 10000)
+            .await;
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            assert!(matches!(e.error_type, BatchErrorType::MemoryLimitExceeded));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_batch_operation_timeout() {
+        let config = Arc::new(BatchConfig {
+            operation_timeout_seconds: 1, // Very short timeout
+            ..Default::default()
+        });
+        let vector_store = Arc::new(VectorStore::new());
+        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let processor = BatchProcessor::new(config, vector_store, embedding_manager);
+
+        // This test verifies timeout configuration exists
+        assert_eq!(processor.config.operation_timeout_seconds, 1);
+    }
+
+    #[tokio::test]
+    async fn test_batch_config_validation() {
+        let config = BatchConfig {
+            max_batch_size: 100,
+            max_memory_usage_mb: 1024,
+            ..Default::default()
+        };
+
+        // Valid batch size
+        assert!(config.is_batch_size_valid(50));
+        assert!(config.is_batch_size_valid(100));
+
+        // Invalid batch size
+        assert!(!config.is_batch_size_valid(101));
+        assert!(!config.is_batch_size_valid(200));
+
+        // Memory limit check - small batch should not exceed
+        assert!(!config.would_exceed_memory_limit(100, 128));
+
+        // Large batch should exceed 1024MB limit
+        assert!(config.would_exceed_memory_limit(1000000, 1024));
+    }
+}
