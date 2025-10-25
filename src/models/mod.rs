@@ -430,3 +430,6 @@ impl Payload {
 
 /// Collection metadata module for tracking indexed files
 pub mod collection_metadata;
+
+/// Qdrant compatibility models
+pub mod qdrant;
