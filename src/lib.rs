@@ -26,6 +26,7 @@ pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;
 pub mod models;
+pub mod monitoring;
 pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]

@@ -66,6 +66,13 @@ pub async fn search_vectors_by_text(
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
+    use crate::monitoring::metrics::METRICS;
+    
+    // Start latency timer
+    let timer = METRICS.search_latency_seconds
+        .with_label_values(&[&collection_name, "text"])
+        .start_timer();
+    
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
@@ -81,6 +88,10 @@ pub async fn search_vectors_by_text(
     let collection = match state.store.get_collection(&collection_name) {
         Ok(collection) => collection,
         Err(_) => {
+            METRICS.search_requests_total
+                .with_label_values(&[&collection_name, "text", "error"])
+                .inc();
+            drop(timer);
             return Ok(Json(json!({
                 "results": [],
                 "query": query,
@@ -133,6 +144,15 @@ pub async fn search_vectors_by_text(
             })
         })
         .collect();
+
+    // Record metrics
+    METRICS.search_requests_total
+        .with_label_values(&[&collection_name, "text", "success"])
+        .inc();
+    METRICS.search_results_count
+        .with_label_values(&[&collection_name, "text"])
+        .observe(results.len() as f64);
+    drop(timer); // Stop latency timer
 
     Ok(Json(json!({
         "results": results,
@@ -554,6 +574,11 @@ pub async fn insert_text(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
+    use crate::monitoring::metrics::METRICS;
+    
+    // Start latency timer
+    let timer = METRICS.insert_latency_seconds.start_timer();
+    
     let collection_name = payload
         .get("collection")
         .and_then(|c| c.as_str())
@@ -614,15 +639,28 @@ pub async fn insert_text(
     };
 
     // Insert the vector using the store
-    state
+    let insert_result = state
         .store
-        .insert(collection_name, vec![vector])
-        .map_err(|e| {
+        .insert(collection_name, vec![vector]);
+    
+    // Record metrics and handle result
+    match insert_result {
+        Ok(_) => {
+            info!("Vector inserted successfully with ID: {}", vector_id);
+            METRICS.insert_requests_total
+                .with_label_values(&[collection_name, "success"])
+                .inc();
+            drop(timer);
+        },
+        Err(e) => {
             error!("Failed to insert vector: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    info!("Vector inserted successfully with ID: {}", vector_id);
+            METRICS.insert_requests_total
+                .with_label_values(&[collection_name, "error"])
+                .inc();
+            drop(timer);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
 
     Ok(Json(json!({
         "message": "Text inserted successfully",
@@ -774,6 +812,12 @@ pub async fn intelligent_search(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{IntelligentSearchRequest, RESTAPIHandler};
+    use crate::monitoring::metrics::METRICS;
+    
+    // Start latency timer
+    let timer = METRICS.search_latency_seconds
+        .with_label_values(&["*", "intelligent"])
+        .start_timer();
 
     // Create handler with the actual server instances
     let handler = RESTAPIHandler::new_with_store(state.store.clone());
@@ -822,8 +866,26 @@ pub async fn intelligent_search(
     };
 
     match handler.handle_intelligent_search(request).await {
-        Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
+        Ok(response) => {
+            // Record success metrics
+            let result_count = response.results.len();
+            METRICS.search_requests_total
+                .with_label_values(&["*", "intelligent", "success"])
+                .inc();
+            METRICS.search_results_count
+                .with_label_values(&["*", "intelligent"])
+                .observe(result_count as f64);
+            drop(timer);
+            
+            Ok(Json(serde_json::to_value(response).unwrap_or(json!({}))))
+        },
         Err(e) => {
+            // Record error metrics
+            METRICS.search_requests_total
+                .with_label_values(&["*", "intelligent", "error"])
+                .inc();
+            drop(timer);
+            
             error!("Intelligent search error: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
@@ -2546,6 +2608,20 @@ pub async fn update_workspace_config(
         Err(e) => {
             error!("Failed to serialize workspace config to YAML: {}", e);
             Err(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+/// Handler to export Prometheus metrics
+pub async fn get_prometheus_metrics() -> Result<(StatusCode, String), (StatusCode, String)> {
+    match crate::monitoring::export_metrics() {
+        Ok(metrics) => Ok((StatusCode::OK, metrics)),
+        Err(e) => {
+            error!("Failed to export Prometheus metrics: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to export metrics: {}", e),
+            ))
         }
     }
 }

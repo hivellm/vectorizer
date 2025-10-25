@@ -59,6 +59,11 @@ impl VectorizerServer {
     pub async fn new() -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
 
+        // Initialize monitoring system
+        if let Err(e) = crate::monitoring::init() {
+            warn!("Failed to initialize monitoring system: {}", e);
+        }
+
         // Initialize VectorStore with auto-save enabled
         let vector_store = VectorStore::new_auto();
         let store_arc = Arc::new(vector_store);
@@ -630,6 +635,7 @@ impl VectorizerServer {
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
             .route("/stats", get(rest_handlers::get_stats))
+            .route("/prometheus/metrics", get(rest_handlers::get_prometheus_metrics))
             .route(
                 "/indexing/progress",
                 get(rest_handlers::get_indexing_progress),

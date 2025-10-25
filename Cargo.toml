@@ -127,6 +127,13 @@ lru = "0.16.1"
 hyper = { version = "1.7", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
+# Monitoring and Observability
+prometheus = "0.13"
+opentelemetry = { version = "0.27", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.27", features = ["metrics", "trace", "rt-tokio"] }
+opentelemetry-prometheus = "0.17"
+opentelemetry-otlp = { version = "0.27", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
 
