@@ -32,6 +32,7 @@ pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
 pub mod replication;
+pub mod security;
 pub mod server;
 pub mod storage;
 pub mod summarization;

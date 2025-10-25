@@ -3,13 +3,13 @@
 //! This module provides correlation ID tracking for distributed request tracing.
 //! Each request receives a unique ID that is propagated through all logs and traces.
 
-use axum::{
-    extract::Request,
-    http::{header::HeaderName, HeaderValue},
-    middleware::Next,
-    response::Response,
-};
 use std::sync::Arc;
+
+use axum::extract::Request;
+use axum::http::HeaderValue;
+use axum::http::header::HeaderName;
+use axum::middleware::Next;
+use axum::response::Response;
 use tokio::task_local;
 use uuid::Uuid;
 
@@ -64,9 +64,12 @@ pub fn current_correlation_id() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use axum::{body::Body, http::Request as HttpRequest, middleware};
-    use tower::ServiceExt; // for `oneshot`
+    use axum::body::Body;
+    use axum::http::Request as HttpRequest;
+    use axum::middleware;
+    use tower::ServiceExt;
+
+    use super::*; // for `oneshot`
 
     #[test]
     fn test_generate_correlation_id() {
@@ -112,7 +115,10 @@ mod tests {
         async fn handler() -> &'static str {
             // Get correlation ID from context
             let id = current_correlation_id();
-            assert!(id.is_some(), "Correlation ID should be available in handler");
+            assert!(
+                id.is_some(),
+                "Correlation ID should be available in handler"
+            );
             "ok"
         }
 
@@ -160,4 +166,3 @@ mod tests {
         assert_eq!(response_id, Some(test_id));
     }
 }
-

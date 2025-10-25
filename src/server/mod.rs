@@ -64,7 +64,7 @@ impl VectorizerServer {
         if let Err(e) = crate::monitoring::init() {
             warn!("Failed to initialize monitoring system: {}", e);
         }
-        
+
         // Try to initialize OpenTelemetry (optional, graceful degradation)
         if let Err(e) = crate::monitoring::telemetry::try_init("vectorizer", None) {
             warn!("OpenTelemetry not available: {}", e);
@@ -813,7 +813,9 @@ impl VectorizerServer {
             .nest_service("/dashboard", ServeDir::new("dashboard"))
             .fallback_service(ServeDir::new("dashboard"))
             .layer(CorsLayer::permissive())
-            .layer(axum::middleware::from_fn(crate::monitoring::correlation_middleware))
+            .layer(axum::middleware::from_fn(
+                crate::monitoring::correlation_middleware,
+            ))
             .layer(axum::middleware::from_fn(
                 move |req: axum::extract::Request, next: axum::middleware::Next| {
                     let metrics = metrics_collector_2.clone();

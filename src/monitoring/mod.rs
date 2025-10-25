@@ -36,7 +36,9 @@ pub mod system_collector;
 pub mod telemetry;
 
 use anyhow::Result;
-pub use correlation::{correlation_middleware, current_correlation_id, generate_correlation_id, CORRELATION_ID_HEADER};
+pub use correlation::{
+    CORRELATION_ID_HEADER, correlation_middleware, current_correlation_id, generate_correlation_id,
+};
 pub use metrics::Metrics;
 use prometheus::{Encoder, TextEncoder};
 pub use system_collector::{SystemCollector, SystemCollectorConfig};

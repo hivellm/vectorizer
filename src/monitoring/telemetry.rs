@@ -49,7 +49,9 @@ pub fn try_init(service_name: &str, otlp_endpoint: Option<String>) -> Result<()>
         "Attempting to initialize OpenTelemetry tracing with endpoint: {}",
         endpoint
     );
-    tracing::info!("Note: OpenTelemetry is optional. Server will continue if OTLP collector is not available.");
+    tracing::info!(
+        "Note: OpenTelemetry is optional. Server will continue if OTLP collector is not available."
+    );
 
     // For now, we just log that tracing is available but not enabled by default
     // Full OTLP integration requires additional setup and running collector
@@ -74,13 +76,19 @@ mod tests {
     #[test]
     fn test_try_init() {
         let result = try_init("vectorizer-test", None);
-        assert!(result.is_ok(), "try_init should always succeed (graceful degradation)");
+        assert!(
+            result.is_ok(),
+            "try_init should always succeed (graceful degradation)"
+        );
     }
 
     #[test]
     fn test_try_init_with_endpoint() {
         let result = try_init("vectorizer-test", Some("http://custom:4317".to_string()));
-        assert!(result.is_ok(), "try_init should succeed even with custom endpoint");
+        assert!(
+            result.is_ok(),
+            "try_init should succeed even with custom endpoint"
+        );
     }
 
     #[test]
@@ -90,5 +98,3 @@ mod tests {
         assert!(true);
     }
 }
-
-
