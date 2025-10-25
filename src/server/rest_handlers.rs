@@ -97,12 +97,7 @@ pub async fn search_vectors_by_text(
 
     // Check cache first
     use crate::cache::QueryKey;
-    let cache_key = QueryKey::new(
-        collection_name.clone(),
-        query.to_string(),
-        limit,
-        None,
-    );
+    let cache_key = QueryKey::new(collection_name.clone(), query.to_string(), limit, None);
 
     if let Some(cached_results) = state.query_cache.get(&cache_key) {
         drop(timer);
@@ -685,6 +680,9 @@ pub async fn insert_text(
                 .with_label_values(&[collection_name, "success"])
                 .inc();
             drop(timer);
+
+            // Invalidate cache for this collection
+            state.query_cache.invalidate_collection(collection_name);
         }
         Err(e) => {
             error!("Failed to insert vector: {}", e);
@@ -855,9 +853,6 @@ pub async fn intelligent_search(
         .with_label_values(&["*", "intelligent"])
         .start_timer();
 
-    // Create handler with the actual server instances
-    let handler = RESTAPIHandler::new_with_store(state.store.clone());
-
     // Extract parameters from JSON payload
     let query = payload
         .get("query")
@@ -890,6 +885,39 @@ pub async fn intelligent_search(
         .and_then(|l| l.as_f64())
         .map(|l| l as f32);
 
+    // Create cache key for intelligent search
+    use crate::cache::QueryKey;
+    let cache_key = QueryKey::new(
+        "*".to_string(), // Use "*" for multi-collection searches
+        format!(
+            "intelligent:{}:{}:{}:{}:{}:{}",
+            query,
+            collections
+                .as_ref()
+                .map(|c| c.join(","))
+                .unwrap_or_default(),
+            max_results.unwrap_or(10),
+            domain_expansion.unwrap_or(false),
+            technical_focus.unwrap_or(false),
+            mmr_enabled.unwrap_or(false)
+        ),
+        max_results.unwrap_or(10),
+        None,
+    );
+
+    // Check cache first
+    if let Some(cached_results) = state.query_cache.get(&cache_key) {
+        drop(timer);
+        METRICS
+            .search_requests_total
+            .with_label_values(&["*", "intelligent", "cached"])
+            .inc();
+        return Ok(Json(cached_results));
+    }
+
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
+
     // Create intelligent search request
     let request = IntelligentSearchRequest {
         query: query.to_string(),
@@ -915,7 +943,11 @@ pub async fn intelligent_search(
                 .observe(result_count as f64);
             drop(timer);
 
-            Ok(Json(serde_json::to_value(response).unwrap_or(json!({}))))
+            // Cache the results
+            let response_json = serde_json::to_value(response).unwrap_or(json!({}));
+            state.query_cache.insert(cache_key, response_json.clone());
+
+            Ok(Json(response_json))
         }
         Err(e) => {
             // Record error metrics
@@ -2552,6 +2584,9 @@ pub async fn restore_backup(
             .store
             .insert(collection_name, vectors_to_insert)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Invalidate cache for this collection
+        state.query_cache.invalidate_collection(collection_name);
 
         let collection = state
             .store

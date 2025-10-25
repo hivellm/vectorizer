@@ -12,7 +12,7 @@ fn main() {
         res.set("FileVersion", env!("CARGO_PKG_VERSION"));
 
         if let Err(e) = res.compile() {
-            eprintln!("Warning: Failed to compile Windows resource: {}", e);
+            eprintln!("Warning: Failed to compile Windows resource: {e}");
         }
     }
 }

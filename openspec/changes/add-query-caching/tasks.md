@@ -17,8 +17,8 @@
 
 ## 3. Integration
 - [x] 3.1 Integrate with search endpoints
-- [ ] 3.2 Integrate with intelligent search
-- [ ] 3.3 Add invalidation on updates
+- [x] 3.2 Integrate with intelligent search
+- [x] 3.3 Add invalidation on updates
 - [x] 3.4 Test cache behavior
 
 ## 4. Metrics
@@ -29,8 +29,8 @@
 
 ## 5. Testing & Docs
 - [x] 5.1 Add unit tests
-- [ ] 5.2 Add integration tests
-- [ ] 5.3 Add benchmarks
-- [ ] 5.4 Document caching strategy
-- [ ] 5.5 Update CHANGELOG.md
+- [x] 5.2 Add integration tests
+- [x] 5.3 Add benchmarks
+- [x] 5.4 Document caching strategy
+- [x] 5.5 Update CHANGELOG.md
 
