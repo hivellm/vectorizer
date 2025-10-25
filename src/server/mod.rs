@@ -44,6 +44,7 @@ pub struct VectorizerServer {
     pub auto_save_manager: Option<Arc<crate::db::AutoSaveManager>>,
     pub master_node: Option<Arc<crate::replication::MasterNode>>,
     pub replica_node: Option<Arc<crate::replication::ReplicaNode>>,
+    pub query_cache: Arc<crate::cache::QueryCache<serde_json::Value>>,
     background_task: Arc<
         tokio::sync::Mutex<
             Option<(
@@ -583,6 +584,11 @@ impl VectorizerServer {
         let system_collector_handle = system_collector.start();
         info!("✅ System metrics collector started");
 
+        // Initialize query cache
+        let cache_config = crate::cache::QueryCacheConfig::default();
+        let query_cache = Arc::new(crate::cache::QueryCache::new(cache_config));
+        info!("✅ Query cache initialized");
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -592,6 +598,7 @@ impl VectorizerServer {
             auto_save_manager: Some(auto_save_manager),
             master_node: None,
             replica_node: None,
+            query_cache,
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
                 cancel_tx,

@@ -16,19 +16,19 @@
 - [x] 2.4 Add to config.yml (in performance.query_cache section)
 
 ## 3. Integration
-- [ ] 3.1 Integrate with search endpoints
+- [x] 3.1 Integrate with search endpoints
 - [ ] 3.2 Integrate with intelligent search
 - [ ] 3.3 Add invalidation on updates
-- [ ] 3.4 Test cache behavior
+- [x] 3.4 Test cache behavior
 
 ## 4. Metrics
-- [ ] 4.1 Add cache hit/miss metrics
-- [ ] 4.2 Add eviction metrics
-- [ ] 4.3 Add size gauge
-- [ ] 4.4 Add to /health endpoint
+- [x] 4.1 Add cache hit/miss metrics
+- [x] 4.2 Add eviction metrics
+- [x] 4.3 Add size gauge
+- [x] 4.4 Add to /health endpoint
 
 ## 5. Testing & Docs
-- [ ] 5.1 Add unit tests
+- [x] 5.1 Add unit tests
 - [ ] 5.2 Add integration tests
 - [ ] 5.3 Add benchmarks
 - [ ] 5.4 Document caching strategy

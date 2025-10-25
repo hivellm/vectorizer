@@ -31,11 +31,21 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
         })
         .sum();
 
+    let cache_stats = state.query_cache.stats();
+
     Json(json!({
         "collections": collections.len(),
         "total_vectors": total_vectors,
         "uptime_seconds": state.start_time.elapsed().as_secs(),
-        "version": env!("CARGO_PKG_VERSION")
+        "version": env!("CARGO_PKG_VERSION"),
+        "cache": {
+            "size": cache_stats.size,
+            "capacity": cache_stats.capacity,
+            "hits": cache_stats.hits,
+            "misses": cache_stats.misses,
+            "evictions": cache_stats.evictions,
+            "hit_rate": cache_stats.hit_rate
+        }
     }))
 }
 
@@ -84,6 +94,24 @@ pub async fn search_vectors_by_text(
         "🔍 Searching for '{}' in collection '{}'",
         query, collection_name
     );
+
+    // Check cache first
+    use crate::cache::QueryKey;
+    let cache_key = QueryKey::new(
+        collection_name.clone(),
+        query.to_string(),
+        limit,
+        None,
+    );
+
+    if let Some(cached_results) = state.query_cache.get(&cache_key) {
+        drop(timer);
+        METRICS
+            .search_requests_total
+            .with_label_values(&[&collection_name, "text", "cached"])
+            .inc();
+        return Ok(Json(cached_results));
+    }
 
     // Get the collection
     let collection = match state.store.get_collection(&collection_name) {
@@ -147,6 +175,15 @@ pub async fn search_vectors_by_text(
         })
         .collect();
 
+    // Cache the results
+    let response_json = json!({
+        "results": results,
+        "query": query,
+        "limit": limit,
+        "collection": collection_name
+    });
+    state.query_cache.insert(cache_key, response_json.clone());
+
     // Record metrics
     METRICS
         .search_requests_total
@@ -158,13 +195,7 @@ pub async fn search_vectors_by_text(
         .observe(results.len() as f64);
     drop(timer); // Stop latency timer
 
-    Ok(Json(json!({
-        "results": results,
-        "query": query,
-        "limit": limit,
-        "collection": collection_name,
-        "total_results": results.len()
-    })))
+    Ok(Json(response_json))
 }
 
 pub async fn search_by_file(
