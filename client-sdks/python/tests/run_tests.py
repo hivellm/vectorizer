@@ -1,8 +1,8 @@
 """
-Configuração e execução de tests para o SDK Python.
+Configuration and test execution for the Python SDK.
 
-Este módulo fornece diferentes níveis de tests e configurações
-para validar o funcionamento do SDK Python do Hive Vectorizer.
+This module provides different test levels and configurations
+to validate the Hive Vectorizer Python SDK functionality.
 """
 
 import unittest
@@ -10,13 +10,13 @@ import sys
 import os
 import time
 
-# Adicionar o diretório pai ao path para importar os módulos do SDK
+# Add parent directory to path to import SDK modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parent_dir)
 
 
 class TestRunner:
-    """Classe para executar diferentes tipos de tests."""
+    """Class to execute different types of tests."""
     
     def __init__(self):
         self.test_results = {}
@@ -502,7 +502,7 @@ class TestRunner:
         
         print("\nDETAILS: Test details:")
         for test_name, result in self.test_results.items():
-            status_emoji = "OK" if result['success'] else "ERRO"
+            status_emoji = "OK" if result['success'] else "ERROR"
             duration = result.get('duration', 0)
             print(f"  {status_emoji} {test_name}: {result['status']} ({duration:.2f}s)")
         

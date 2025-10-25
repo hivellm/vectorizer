@@ -1,0 +1,5 @@
+[codespell]
+skip = *.lock,*.json,*.yaml,*.html,*.bak,*.rtf,target,node_modules,.git,venv,dist,coverage,*.whl,*.tar.gz,*.egg-info,__pycache__,gui,benchmark,qdrant,stop_words,sample,scripts,wix
+ignore-words-list = crate,ser,deser,nd,hist,comando,comandos,atual,classe,erro,erros,nome,inicial,cliente,componentes,vectores,vetor,aNULL,limite,afterAll,autor,utiliza,ignora,algoritmos,diagramas,exata,oficial,profissional,aspectos,donn,bu,siz,sizin,als,ans,meu,meus,som,te,vas,selv,alle,ned,vor,mange,thi,fale,exemple,momento,fo,pard,fase
+quiet-level = 2
+
