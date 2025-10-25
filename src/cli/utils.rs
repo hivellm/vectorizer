@@ -328,7 +328,7 @@ impl ProgressBar {
 
 #[cfg(test)]
 mod tests {
-    use tempfile::tempdir;
+    use tempfile::{NamedTempFile, tempdir};
 
     use super::*;
 
@@ -402,5 +402,145 @@ mod tests {
         // Test is mainly for compilation - actual output testing would be complex
         assert_eq!(pb.current, 100);
         assert_eq!(pb.total, 100);
+    }
+
+    #[test]
+    fn test_check_file_readable() {
+        use std::io::Write;
+
+        // Create a readable test file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "test content").unwrap();
+        temp_file.flush().unwrap();
+
+        let path = PathBuf::from(temp_file.path());
+        let result = CliUtils::check_file_readable(&path);
+        assert!(result.is_ok());
+
+        // Nonexistent file
+        let nonexistent = PathBuf::from("/nonexistent/file.txt");
+        let result = CliUtils::check_file_readable(&nonexistent);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_file_writable_new_file() {
+        let temp_dir = tempdir().unwrap();
+        let new_file = temp_dir.path().join("new_file.txt");
+
+        let result = CliUtils::check_file_writable(&new_file);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_system_info() {
+        let info = CliUtils::get_system_info();
+
+        assert!(!info.os.is_empty());
+        assert!(!info.arch.is_empty());
+        assert!(!info.rust_version.is_empty());
+    }
+
+    #[test]
+    fn test_check_system_requirements() {
+        let result = CliUtils::check_system_requirements();
+        // Should pass on any reasonable system
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_current_dir() {
+        let result = CliUtils::get_current_dir();
+        assert!(result.is_ok());
+
+        let current = result.unwrap();
+        assert!(current.exists());
+    }
+
+    #[test]
+    fn test_set_current_dir() {
+        let original = CliUtils::get_current_dir().unwrap();
+        let temp_dir = tempdir().unwrap();
+
+        // Change to temp directory
+        let result = CliUtils::set_current_dir(&temp_dir.path().to_path_buf());
+        assert!(result.is_ok());
+
+        // Change back
+        CliUtils::set_current_dir(&original).unwrap();
+    }
+
+    #[test]
+    fn test_generate_secure_string_different_lengths() {
+        let str8 = CliUtils::generate_secure_string(8).unwrap();
+        let str16 = CliUtils::generate_secure_string(16).unwrap();
+        let str64 = CliUtils::generate_secure_string(64).unwrap();
+
+        assert_eq!(str8.len(), 8);
+        assert_eq!(str16.len(), 16);
+        assert_eq!(str64.len(), 64);
+
+        // Should be different (randomness)
+        assert_ne!(str8, str16);
+    }
+
+    #[test]
+    fn test_generate_secure_string_uniqueness() {
+        let str1 = CliUtils::generate_secure_string(32).unwrap();
+        let str2 = CliUtils::generate_secure_string(32).unwrap();
+
+        // Two generated strings should be different
+        assert_ne!(str1, str2);
+    }
+
+    #[test]
+    fn test_is_elevated() {
+        // Just test that it returns a boolean
+        let elevated = CliUtils::is_elevated();
+        assert!(elevated == true || elevated == false);
+    }
+
+    #[test]
+    fn test_progress_bar_updates() {
+        let mut pb = ProgressBar::new(200);
+
+        assert_eq!(pb.current, 0);
+
+        pb.update(100);
+        assert_eq!(pb.current, 100);
+
+        pb.increment();
+        assert_eq!(pb.current, 101);
+
+        pb.increment();
+        assert_eq!(pb.current, 102);
+    }
+
+    #[test]
+    fn test_validate_port_edge_cases() {
+        // Valid ports
+        assert!(CliUtils::validate_port(1).is_ok());
+        assert!(CliUtils::validate_port(80).is_ok());
+        assert!(CliUtils::validate_port(443).is_ok());
+        assert!(CliUtils::validate_port(65535).is_ok());
+
+        // Invalid ports
+        assert!(CliUtils::validate_port(0).is_err());
+    }
+
+    #[test]
+    fn test_ensure_directory_invalid_path() {
+        use std::io::Write;
+
+        // Create a file, then try to use it as directory
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "not a directory").unwrap();
+        temp_file.flush().unwrap();
+
+        let path = PathBuf::from(temp_file.path());
+        let result = CliUtils::ensure_directory(&path);
+
+        // Should fail because path is a file, not a directory
+        assert!(result.is_err());
     }
 }
