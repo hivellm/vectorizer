@@ -291,9 +291,9 @@ mod tests {
     #[test]
     fn test_evaluate_search_quality_empty() {
         let query_results: Vec<(Vec<QueryResult>, HashSet<String>)> = vec![];
-        
+
         let metrics = evaluate_search_quality(query_results, 10);
-        
+
         // Empty results may produce NaN
         assert!(metrics.mean_average_precision.is_nan() || metrics.mean_average_precision == 0.0);
         assert!(metrics.mean_reciprocal_rank.is_nan() || metrics.mean_reciprocal_rank == 0.0);
