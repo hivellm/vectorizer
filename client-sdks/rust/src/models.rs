@@ -673,3 +673,104 @@ pub struct MultiCollectionSearchResponse {
     /// Search metadata
     pub metadata: Option<HashMap<String, serde_json::Value>>,
 }
+
+// ==================== REPLICATION MODELS ====================
+
+/// Status of a replica node
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ReplicaStatus {
+    /// Replica is connected and healthy
+    Connected,
+    /// Replica is syncing data
+    Syncing,
+    /// Replica is lagging behind master
+    Lagging,
+    /// Replica is disconnected
+    Disconnected,
+}
+
+/// Information about a replica node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplicaInfo {
+    /// Unique identifier for the replica
+    pub replica_id: String,
+    /// Hostname or IP address of the replica
+    pub host: String,
+    /// Port number of the replica
+    pub port: u16,
+    /// Current status of the replica
+    pub status: String,
+    /// Timestamp of last heartbeat
+    pub last_heartbeat: DateTime<Utc>,
+    /// Number of operations successfully synced
+    pub operations_synced: u64,
+    
+    // Legacy fields (backwards compatible)
+    /// Legacy: Current offset on replica (deprecated, use operations_synced)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u64>,
+    /// Legacy: Lag in operations (deprecated, use status)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lag: Option<u64>,
+}
+
+/// Statistics for replication status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplicationStats {
+    // New fields (v1.2.0+)
+    /// Role of the node: Master or Replica
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    /// Total bytes sent to replicas (Master only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_sent: Option<u64>,
+    /// Total bytes received from master (Replica only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_received: Option<u64>,
+    /// Timestamp of last synchronization
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_sync: Option<DateTime<Utc>>,
+    /// Number of operations pending replication
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operations_pending: Option<usize>,
+    /// Size of snapshot data in bytes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_size: Option<usize>,
+    /// Number of connected replicas (Master only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connected_replicas: Option<usize>,
+    
+    // Legacy fields (backwards compatible - always present)
+    /// Current offset on master node
+    pub master_offset: u64,
+    /// Current offset on replica node
+    pub replica_offset: u64,
+    /// Number of operations behind
+    pub lag_operations: u64,
+    /// Total operations replicated
+    pub total_replicated: u64,
+}
+
+/// Response for replication status endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplicationStatusResponse {
+    /// Overall status message
+    pub status: String,
+    /// Detailed replication statistics
+    pub stats: ReplicationStats,
+    /// Optional message with additional information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+/// Response for listing replicas
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplicaListResponse {
+    /// List of replica nodes
+    pub replicas: Vec<ReplicaInfo>,
+    /// Total count of replicas
+    pub count: usize,
+    /// Status message
+    pub message: String,
+}

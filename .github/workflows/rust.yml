@@ -36,8 +36,10 @@ jobs:
       uses: taiki-e/install-action@nextest
     - name: Build
       run: cargo build --tests --workspace
-    - name: Run tests
-      run: cargo nextest run --workspace
+    - name: Run unit and integration tests
+      run: cargo nextest run --workspace --all-features --all-targets
+    - name: Run doc tests
+      run: cargo test --workspace --doc --all-features
     - name: Upload test report
       uses: actions/upload-artifact@v4
       if: always()
@@ -45,6 +47,66 @@ jobs:
         name: junit-${{ matrix.os }}.xml
         path: target/nextest/default/junit.xml
         if-no-files-found: ignore
+
+  # Monitor test stability over time
+  test-stability:
+    runs-on: ubuntu-latest
+    needs: rust-tests
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download test reports
+        uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          pattern: junit-*.xml
+          merge-multiple: true
+      - name: Track test stability
+        run: |
+          mkdir -p .test-history
+          TIMESTAMP=$(date +%s)
+          
+          # Count test results
+          if [ -f junit-ubuntu-latest.xml ]; then
+            TOTAL=$(grep -o 'tests="[0-9]*"' junit-ubuntu-latest.xml | head -1 | grep -o '[0-9]*' || echo "0")
+            FAILURES=$(grep -o 'failures="[0-9]*"' junit-ubuntu-latest.xml | head -1 | grep -o '[0-9]*' || echo "0")
+            ERRORS=$(grep -o 'errors="[0-9]*"' junit-ubuntu-latest.xml | head -1 | grep -o '[0-9]*' || echo "0")
+            
+            echo "$TIMESTAMP,$TOTAL,$FAILURES,$ERRORS" >> .test-history/stability.csv
+            
+            # Keep last 100 runs only
+            tail -n 100 .test-history/stability.csv > .test-history/stability.csv.tmp
+            mv .test-history/stability.csv.tmp .test-history/stability.csv
+            
+            # Calculate pass rate
+            PASSED=$((TOTAL - FAILURES - ERRORS))
+            PASS_RATE=$((PASSED * 100 / TOTAL))
+            
+            echo "### Test Stability Report 📊" >> $GITHUB_STEP_SUMMARY
+            echo "- Total Tests: $TOTAL" >> $GITHUB_STEP_SUMMARY
+            echo "- Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- Failed: $FAILURES" >> $GITHUB_STEP_SUMMARY
+            echo "- Errors: $ERRORS" >> $GITHUB_STEP_SUMMARY
+            echo "- Pass Rate: ${PASS_RATE}%" >> $GITHUB_STEP_SUMMARY
+            
+            # Warning if pass rate < 95%
+            if [ $PASS_RATE -lt 95 ]; then
+              echo "::warning::Test pass rate below 95%: ${PASS_RATE}%"
+            fi
+          else
+            echo "::warning::No test report found for stability tracking"
+          fi
+      - name: Commit test history
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .test-history/
+          git diff --staged --quiet || git commit -m "chore: update test stability history [skip ci]"
+          git push
+        continue-on-error: true
 
   # Process test results and create issues for flaky tests
   process-results:

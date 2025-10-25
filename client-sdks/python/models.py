@@ -624,3 +624,109 @@ class MultiCollectionSearchResponse:
         """Allow extra fields from server."""
         if self.collections_searched is None:
             self.collections_searched = []
+
+
+# ===== REPLICATION MODELS =====
+
+@dataclass
+class ReplicaStatus:
+    """Status of a replica node."""
+    
+    status: str  # "Connected", "Syncing", "Lagging", "Disconnected"
+    
+    def __post_init__(self):
+        """Validate replica status."""
+        valid_statuses = ["Connected", "Syncing", "Lagging", "Disconnected"]
+        if self.status not in valid_statuses:
+            raise ValueError(f"Invalid replica status. Must be one of: {valid_statuses}")
+
+
+@dataclass
+class ReplicaInfo:
+    """Information about a replica node."""
+    
+    replica_id: str
+    host: str
+    port: int
+    status: str  # ReplicaStatus enum value
+    last_heartbeat: datetime
+    operations_synced: int
+    # Legacy fields (backwards compatible)
+    offset: Optional[int] = None
+    lag: Optional[int] = None
+    
+    def __post_init__(self):
+        """Validate replica info."""
+        if not self.replica_id:
+            raise ValueError("Replica ID cannot be empty")
+        if not self.host:
+            raise ValueError("Host cannot be empty")
+        if self.port <= 0 or self.port > 65535:
+            raise ValueError("Port must be between 1 and 65535")
+        if self.operations_synced < 0:
+            raise ValueError("Operations synced cannot be negative")
+
+
+@dataclass
+class ReplicationStats:
+    """Statistics for replication status."""
+    
+    # New fields (v1.2.0+)
+    role: Optional[str] = None  # "Master" or "Replica"
+    bytes_sent: Optional[int] = None
+    bytes_received: Optional[int] = None
+    last_sync: Optional[datetime] = None
+    operations_pending: Optional[int] = None
+    snapshot_size: Optional[int] = None
+    connected_replicas: Optional[int] = None  # Only for Master
+    
+    # Legacy fields (backwards compatible)
+    master_offset: int = 0
+    replica_offset: int = 0
+    lag_operations: int = 0
+    total_replicated: int = 0
+    
+    def __post_init__(self):
+        """Validate replication stats."""
+        if self.role is not None and self.role not in ["Master", "Replica"]:
+            raise ValueError("Role must be 'Master' or 'Replica'")
+        if self.bytes_sent is not None and self.bytes_sent < 0:
+            raise ValueError("Bytes sent cannot be negative")
+        if self.bytes_received is not None and self.bytes_received < 0:
+            raise ValueError("Bytes received cannot be negative")
+        if self.operations_pending is not None and self.operations_pending < 0:
+            raise ValueError("Operations pending cannot be negative")
+        if self.snapshot_size is not None and self.snapshot_size < 0:
+            raise ValueError("Snapshot size cannot be negative")
+        if self.connected_replicas is not None and self.connected_replicas < 0:
+            raise ValueError("Connected replicas cannot be negative")
+
+
+@dataclass
+class ReplicationStatusResponse:
+    """Response for replication status endpoint."""
+    
+    status: str
+    stats: ReplicationStats
+    message: Optional[str] = None
+    
+    def __post_init__(self):
+        """Validate replication status response."""
+        if not self.status:
+            raise ValueError("Status cannot be empty")
+
+
+@dataclass
+class ReplicaListResponse:
+    """Response for listing replicas."""
+    
+    replicas: List[ReplicaInfo]
+    count: int
+    message: str
+    
+    def __post_init__(self):
+        """Validate replica list response."""
+        if self.count < 0:
+            raise ValueError("Count cannot be negative")
+        if self.count != len(self.replicas):
+            raise ValueError("Count must match number of replicas")

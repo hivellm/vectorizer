@@ -48,6 +48,9 @@ client-sdks/*/target/
 coverage/
 *.lcov
 
+# Test stability tracking (managed by CI)
+.test-history/
+
 # Benchmark results
 benches/target/
 

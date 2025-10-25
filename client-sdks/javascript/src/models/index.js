@@ -13,3 +13,4 @@ export * from './search-request.js';
 export * from './collection-info.js';
 export * from './batch.js';
 export * from './summarization.js';
+export * from './replication.js';

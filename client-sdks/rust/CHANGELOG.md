@@ -2,6 +2,33 @@
 
 All notable changes to the Hive Vectorizer Rust SDK will be documented in this file.
 
+## [1.2.0] - 2025-10-25
+
+### Added
+- **Replication Models**: New data structures for replication monitoring
+  - `ReplicaStatus`: Enum for replica node status (Connected, Syncing, Lagging, Disconnected)
+  - `ReplicaInfo`: Struct for replica node details with all fields
+  - `ReplicationStats`: Enhanced statistics struct with new v1.2.0 fields:
+    - `role`: Node role (Master or Replica)
+    - `bytes_sent`: Total bytes sent to replicas
+    - `bytes_received`: Total bytes received from master
+    - `last_sync`: Timestamp of last synchronization
+    - `operations_pending`: Number of operations waiting to be replicated
+    - `snapshot_size`: Size of snapshot data
+    - `connected_replicas`: Number of connected replica nodes (Master only)
+  - `ReplicationStatusResponse`: Response struct for `/replication/status` endpoint
+  - `ReplicaListResponse`: Response struct for `/replication/replicas` endpoint
+
+### Changed
+- **Backwards Compatible**: All new replication fields are `Option<T>` to maintain compatibility with older servers
+- **Legacy Fields Maintained**: Existing replication fields continue to work and are non-optional for stability
+
+### Technical
+- Used `#[serde(skip_serializing_if = "Option::is_none")]` for new optional fields
+- Added comprehensive documentation for all new types
+- Used `DateTime<Utc>` from chrono for timestamp fields
+- Maintained strict typing and Rust best practices
+
 ## [1.0.0] - 2025-10-21
 
 ### Changed

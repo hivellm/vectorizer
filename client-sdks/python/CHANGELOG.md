@@ -2,6 +2,32 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [1.2.0] - 2025-10-25
+
+### Added
+- **Replication Models**: New data models for replication monitoring
+  - `ReplicaStatus`: Status enum for replica nodes (Connected, Syncing, Lagging, Disconnected)
+  - `ReplicaInfo`: Detailed information about replica nodes (host, port, status, heartbeat, operations synced)
+  - `ReplicationStats`: Enhanced statistics with new v1.2.0 fields:
+    - `role`: Node role (Master or Replica)
+    - `bytes_sent`: Total bytes sent to replicas
+    - `bytes_received`: Total bytes received from master
+    - `last_sync`: Timestamp of last synchronization
+    - `operations_pending`: Number of operations waiting to be replicated
+    - `snapshot_size`: Size of snapshot data
+    - `connected_replicas`: Number of connected replica nodes (Master only)
+  - `ReplicationStatusResponse`: Response structure for `/replication/status` endpoint
+  - `ReplicaListResponse`: Response structure for `/replication/replicas` endpoint
+
+### Changed
+- **Backwards Compatible**: All new replication fields are optional to maintain compatibility with older servers
+- **Legacy Fields Maintained**: Existing replication fields (`master_offset`, `replica_offset`, `lag_operations`, `total_replicated`) continue to work
+
+### Technical
+- Added comprehensive validation for new replication models
+- Enhanced type hints with proper Optional types for new fields
+- Maintained strict dataclass validation for all new models
+
 ## [1.0.0] - 2025-10-21
 
 ### Changed

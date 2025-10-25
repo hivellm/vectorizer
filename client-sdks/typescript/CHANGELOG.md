@@ -2,6 +2,33 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [1.2.0] - 2025-10-25
+
+### Added
+- **Replication Models**: New data models and types for replication monitoring
+  - `ReplicaStatus`: Enum for replica node status (Connected, Syncing, Lagging, Disconnected)
+  - `ReplicaInfo`: Interface for replica node details (host, port, status, heartbeat, operations synced)
+  - `ReplicationStats`: Enhanced interface with new v1.2.0 fields:
+    - `role`: Node role (Master or Replica)
+    - `bytes_sent`: Total bytes sent to replicas
+    - `bytes_received`: Total bytes received from master
+    - `last_sync`: Timestamp of last synchronization
+    - `operations_pending`: Number of operations waiting to be replicated
+    - `snapshot_size`: Size of snapshot data
+    - `connected_replicas`: Number of connected replica nodes (Master only)
+  - `ReplicationStatusResponse`: Interface for `/replication/status` endpoint response
+  - `ReplicaListResponse`: Interface for `/replication/replicas` endpoint response
+  - Validation functions: `isReplicaStatus()`, `validateReplicaInfo()`, `validateReplicationStats()`
+
+### Changed
+- **Backwards Compatible**: All new replication fields are optional to maintain compatibility with older servers
+- **Legacy Fields Maintained**: Existing replication fields (`master_offset`, `replica_offset`, `lag_operations`, `total_replicated`) continue to work
+
+### Technical
+- Added comprehensive type guards and validation functions for replication models
+- Enhanced TypeScript interfaces with proper optional types for new fields
+- Maintained strict type safety for all new models
+
 ## [1.0.0] - 2025-10-21
 
 ### Changed

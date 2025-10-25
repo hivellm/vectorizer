@@ -2,6 +2,33 @@
 
 All notable changes to the Hive Vectorizer JavaScript Client SDK will be documented in this file.
 
+## [1.2.0] - 2025-10-25
+
+### Added
+- **Replication Models**: New data models for replication monitoring
+  - `ReplicaStatus`: Status constants for replica nodes (Connected, Syncing, Lagging, Disconnected)
+  - `ReplicaInfo`: Object structure for replica node details
+  - `ReplicationStats`: Enhanced statistics with new v1.2.0 fields:
+    - `role`: Node role (Master or Replica)
+    - `bytes_sent`: Total bytes sent to replicas
+    - `bytes_received`: Total bytes received from master
+    - `last_sync`: Timestamp of last synchronization
+    - `operations_pending`: Number of operations waiting to be replicated
+    - `snapshot_size`: Size of snapshot data
+    - `connected_replicas`: Number of connected replica nodes (Master only)
+  - `ReplicationStatusResponse`: Response structure for `/replication/status` endpoint
+  - `ReplicaListResponse`: Response structure for `/replication/replicas` endpoint
+  - Validation functions: `isReplicaStatus()`, `validateReplicaInfo()`, `validateReplicationStats()`
+
+### Changed
+- **Backwards Compatible**: All new replication fields are optional to maintain compatibility with older servers
+- **Legacy Fields Maintained**: Existing replication fields continue to work
+
+### Technical
+- Added comprehensive JSDoc types for all replication models
+- Added validation functions with proper error checking
+- Maintained consistent API with TypeScript SDK
+
 ## [1.0.0] - 2025-10-21
 
 ### Changed

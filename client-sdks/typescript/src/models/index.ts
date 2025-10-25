@@ -14,3 +14,4 @@ export * from './collection-info';
 export * from './batch';
 export * from './summarization';
 export * from './intelligent-search';
+export * from './replication';
