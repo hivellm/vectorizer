@@ -488,4 +488,186 @@ mod tests {
         assert_eq!(checkpoint_op.operation_type(), "checkpoint");
         assert!(!checkpoint_op.is_data_modifying());
     }
+
+    #[test]
+    fn test_transaction_rollback() {
+        let mut transaction = Transaction::new(2, "collection2".to_string());
+
+        transaction.rollback();
+
+        assert_eq!(transaction.status, TransactionStatus::RolledBack);
+        assert!(transaction.is_completed());
+        assert!(transaction.completed_at.is_some());
+    }
+
+    #[test]
+    fn test_transaction_fail() {
+        let mut transaction = Transaction::new(3, "collection3".to_string());
+
+        transaction.fail();
+
+        assert_eq!(transaction.status, TransactionStatus::Failed);
+        assert!(transaction.is_completed());
+        assert!(transaction.completed_at.is_some());
+    }
+
+    #[test]
+    fn test_transaction_checksum() {
+        let transaction = Transaction::new(4, "collection4".to_string());
+
+        let checksum = transaction.calculate_checksum();
+
+        assert!(!checksum.is_empty());
+        assert!(checksum.len() > 0);
+    }
+
+    #[test]
+    fn test_metadata_data_checksum() {
+        let config = CollectionConfig::default();
+        let metadata = EnhancedCollectionMetadata::new_workspace(
+            "test".to_string(),
+            "project".to_string(),
+            "/path".to_string(),
+            config,
+        );
+
+        let checksum = metadata.calculate_data_checksum();
+
+        assert!(!checksum.is_empty());
+    }
+
+    #[test]
+    fn test_collection_type_equality() {
+        let t1 = CollectionType::Workspace;
+        let t2 = CollectionType::Workspace;
+        let t3 = CollectionType::Dynamic;
+
+        assert_eq!(t1, t2);
+        assert_ne!(t1, t3);
+    }
+
+    #[test]
+    fn test_collection_type_debug() {
+        let workspace = CollectionType::Workspace;
+        let debug_str = format!("{:?}", workspace);
+
+        assert!(debug_str.contains("Workspace"));
+    }
+
+    #[test]
+    fn test_collection_source_workspace() {
+        let source = CollectionSource::Workspace {
+            project_name: "test-project".to_string(),
+            config_path: "/path/to/config.yml".to_string(),
+        };
+
+        let debug_str = format!("{:?}", source);
+        assert!(debug_str.contains("test-project"));
+    }
+
+    #[test]
+    fn test_collection_source_dynamic() {
+        let source = CollectionSource::Dynamic {
+            created_by: Some("user123".to_string()),
+            api_endpoint: "/api/v1".to_string(),
+        };
+
+        let debug_str = format!("{:?}", source);
+        assert!(debug_str.contains("user123"));
+    }
+
+    #[test]
+    fn test_metadata_id_generation() {
+        let config = CollectionConfig::default();
+
+        let ws_metadata = EnhancedCollectionMetadata::new_workspace(
+            "test".to_string(),
+            "project".to_string(),
+            "/path".to_string(),
+            config.clone(),
+        );
+
+        assert_eq!(ws_metadata.id, "workspace-test");
+
+        let dyn_metadata = EnhancedCollectionMetadata::new_dynamic(
+            "test".to_string(),
+            None,
+            "/api".to_string(),
+            config,
+        );
+
+        assert_eq!(dyn_metadata.id, "dynamic-test");
+    }
+
+    #[test]
+    fn test_metadata_initial_state() {
+        let config = CollectionConfig::default();
+        let metadata = EnhancedCollectionMetadata::new_workspace(
+            "test".to_string(),
+            "project".to_string(),
+            "/path".to_string(),
+            config,
+        );
+
+        assert_eq!(metadata.vector_count, 0);
+        assert_eq!(metadata.document_count, 0);
+        assert_eq!(metadata.pending_operations, 0);
+        assert_eq!(metadata.index_version, 1);
+        assert!(metadata.data_checksum.is_none());
+        assert!(metadata.index_checksum.is_none());
+        assert!(metadata.last_validation.is_none());
+        assert!(metadata.compression_ratio.is_none());
+        assert!(metadata.memory_usage_mb.is_none());
+        assert!(metadata.last_transaction_id.is_none());
+    }
+
+    #[test]
+    fn test_transaction_status_equality() {
+        let status1 = TransactionStatus::InProgress;
+        let status2 = TransactionStatus::InProgress;
+        let status3 = TransactionStatus::Committed;
+
+        assert_eq!(status1, status2);
+        assert_ne!(status1, status3);
+    }
+
+    #[test]
+    fn test_operation_delete_vector() {
+        let delete_op = Operation::DeleteVector {
+            vector_id: "vec1".to_string(),
+        };
+
+        assert_eq!(delete_op.operation_type(), "delete_vector");
+        assert!(delete_op.is_data_modifying());
+    }
+
+    #[test]
+    fn test_operation_update_vector() {
+        let update_op = Operation::UpdateVector {
+            vector_id: "vec1".to_string(),
+            data: Some(vec![1.0, 2.0, 3.0]),
+            metadata: Some(HashMap::new()),
+        };
+
+        assert_eq!(update_op.operation_type(), "update_vector");
+        assert!(update_op.is_data_modifying());
+    }
+
+    #[test]
+    fn test_operation_create_collection() {
+        let create_op = Operation::CreateCollection {
+            config: CollectionConfig::default(),
+        };
+
+        assert_eq!(create_op.operation_type(), "create_collection");
+        assert!(create_op.is_data_modifying());
+    }
+
+    #[test]
+    fn test_operation_delete_collection() {
+        let delete_op = Operation::DeleteCollection;
+
+        assert_eq!(delete_op.operation_type(), "delete_collection");
+        assert!(delete_op.is_data_modifying());
+    }
 }
