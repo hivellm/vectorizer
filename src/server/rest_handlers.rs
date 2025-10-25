@@ -9,6 +9,8 @@ use serde_json::{Value, json};
 use tracing::{debug, error, info};
 
 use super::VectorizerServer;
+use super::error_middleware::{ErrorResponse, create_not_found_error, create_validation_error};
+use crate::error::VectorizerError;
 
 pub async fn health_check() -> Json<Value> {
     Json(json!({
@@ -425,15 +427,24 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
 pub async fn create_collection(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let name = payload
         .get("name")
         .and_then(|n| n.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("Missing required field: name", None))?;
     let dimension = payload
         .get("dimension")
         .and_then(|d| d.as_u64())
         .unwrap_or(512) as usize;
+
+    // Validate dimension
+    if dimension == 0 || dimension > 4096 {
+        return Err(create_validation_error(
+            "Dimension must be between 1 and 4096",
+            Some(json!({"provided_dimension": dimension})),
+        ));
+    }
+
     let metric = payload
         .get("metric")
         .and_then(|m| m.as_str())
@@ -451,7 +462,12 @@ pub async fn create_collection(
             "cosine" => crate::models::DistanceMetric::Cosine,
             "euclidean" => crate::models::DistanceMetric::Euclidean,
             "dot" => crate::models::DistanceMetric::DotProduct,
-            _ => crate::models::DistanceMetric::Cosine,
+            _ => {
+                return Err(create_validation_error(
+                    "Invalid metric. Must be 'cosine', 'euclidean', or 'dot'",
+                    Some(json!({"provided_metric": metric})),
+                ));
+            }
         },
         hnsw_config: crate::models::HnswConfig::default(),
         quantization: crate::models::QuantizationConfig::None,
@@ -465,14 +481,20 @@ pub async fn create_collection(
             info!("Collection '{}' created successfully", name);
             Ok(Json(json!({
                 "message": format!("Collection '{}' created successfully", name),
-                "collection": name,
-                "dimension": dimension,
-                "metric": metric
+                "collection": {
+                    "name": name,
+                    "dimension": dimension,
+                    "metric": metric
+                }
             })))
         }
+        Err(VectorizerError::CollectionAlreadyExists(_)) => Err(create_validation_error(
+            &format!("Collection '{}' already exists", name),
+            Some(json!({"collection_name": name})),
+        )),
         Err(e) => {
             error!("Failed to create collection '{}': {}", name, e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(ErrorResponse::from(e))
         }
     }
 }
@@ -480,7 +502,7 @@ pub async fn create_collection(
 pub async fn get_collection(
     State(state): State<VectorizerServer>,
     Path(name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     match state.store.get_collection(&name) {
         Ok(collection) => {
             let metadata = collection.metadata();
@@ -533,14 +555,18 @@ pub async fn get_collection(
                 "status": "ready"
             })))
         }
-        Err(_) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(ErrorResponse::new(
+            "collection_not_found".to_string(),
+            format!("Collection '{}' not found", name),
+            StatusCode::NOT_FOUND,
+        )),
     }
 }
 
 pub async fn delete_collection(
     State(_state): State<VectorizerServer>,
     Path(name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     info!("Deleting collection: {}", name);
 
     // For now, just return success
@@ -552,7 +578,7 @@ pub async fn delete_collection(
 pub async fn get_vector(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     match state.store.get_collection(&collection_name) {
         Ok(_collection) => {
             // For now, return mock data
@@ -564,7 +590,11 @@ pub async fn get_vector(
                 }
             })))
         }
-        Err(_) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(ErrorResponse::new(
+            "collection_not_found".to_string(),
+            format!("Collection '{}' not found", collection_name),
+            StatusCode::NOT_FOUND,
+        )),
     }
 }
 

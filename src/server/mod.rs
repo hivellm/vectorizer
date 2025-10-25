@@ -1,4 +1,5 @@
 mod discovery_handlers;
+pub mod error_middleware;
 pub mod file_operations_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;

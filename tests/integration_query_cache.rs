@@ -1,9 +1,7 @@
 //! Integration tests for query cache functionality
 
-use axum::http::StatusCode;
 use serde_json::json;
 use vectorizer::cache::QueryCache;
-use vectorizer::server::VectorizerServer;
 
 #[tokio::test]
 async fn test_query_cache_integration() {

@@ -42,13 +42,13 @@ fn benchmark_cache_get(c: &mut Criterion) {
     for i in 0..100 {
         let key = QueryKey::new(
             format!("collection_{}", i % 10),
-            format!("query_{}", i),
+            format!("query_{i}"),
             10,
             Some(0.5),
         );
         let value = json!({
             "results": [{"id": format!("id_{}", i), "score": 0.95}],
-            "query": format!("query_{}", i),
+            "query": format!("query_{i}"),
             "limit": 10,
             "collection": format!("collection_{}", i % 10)
         });
@@ -93,13 +93,13 @@ fn benchmark_cache_invalidation(c: &mut Criterion) {
     for i in 0..100 {
         let key = QueryKey::new(
             format!("collection_{}", i % 5),
-            format!("query_{}", i),
+            format!("query_{i}"),
             10,
             Some(0.5),
         );
         let value = json!({
             "results": [{"id": format!("id_{}", i), "score": 0.95}],
-            "query": format!("query_{}", i),
+            "query": format!("query_{i}"),
             "limit": 10,
             "collection": format!("collection_{}", i % 5)
         });
@@ -121,13 +121,13 @@ fn benchmark_cache_stats(c: &mut Criterion) {
     for i in 0..100 {
         let key = QueryKey::new(
             format!("collection_{}", i % 10),
-            format!("query_{}", i),
+            format!("query_{i}"),
             10,
             Some(0.5),
         );
         let value = json!({
             "results": [{"id": format!("id_{}", i), "score": 0.95}],
-            "query": format!("query_{}", i),
+            "query": format!("query_{i}"),
             "limit": 10,
             "collection": format!("collection_{}", i % 10)
         });
