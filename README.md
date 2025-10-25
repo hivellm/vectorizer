@@ -2,9 +2,12 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 1.1.2 - MCP Search Enhancements**
+## ✨ **Version 1.1.2 - Qdrant Compatibility Planning**
 
 ### 🎉 **Latest Updates (v1.1.2)**
+- **🎯 Qdrant Compatibility**: Comprehensive OpenSpec proposals for 100% Qdrant compatibility
+- **📋 9 Disaggregated Proposals**: REST API, gRPC, Collections, Search, Clustering, Clients, Migration, Advanced Features, Testing
+- **⚡ 364+ Implementation Tasks**: Complete roadmap covering all Qdrant functionality
 - **🔍 MCP Search Fix**: Fixed `search_intelligent` to properly handle collection filtering
 - **⚡ Improved Performance**: Enhanced intelligent search with better query expansion
 - **🐛 Bug Fixes**: Resolved collection filtering issues in MCP intelligent search
@@ -24,6 +27,15 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
 
 ### 🎯 **Key Features**
+- **🎯 Qdrant Compatibility (PLANNED)**: Complete compatibility with Qdrant API and functionality
+  - REST API v1.14.x compatibility with all endpoints
+  - gRPC interface for high-performance operations
+  - Collection management with aliases and snapshots
+  - Advanced search with filtering and scoring functions
+  - Clustering and distribution (sharding, replication)
+  - Client library compatibility testing
+  - Migration tools for seamless Qdrant → Vectorizer migration
+  - Advanced features: sparse vectors, hybrid search, quantization, geo-filtering
 - **🔄 Master-Replica Replication (BETA)**: Replication system with automatic failover (currently in beta - see docs)
   - Full sync via snapshot with CRC32 checksum verification
   - Partial sync via incremental replication log

@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2025-10-25
 
 ### Added
+- **Qdrant Compatibility Planning**: Comprehensive OpenSpec proposals for complete Qdrant compatibility
+  - **9 Disaggregated Proposals**: Created detailed implementation plans for all Qdrant functionality
+    - `add-qdrant-rest-api`: Complete REST API v1.14.x compatibility (47 tasks)
+    - `add-qdrant-grpc`: High-performance gRPC interface (36 tasks)
+    - `add-qdrant-collections`: Collection management with aliases and snapshots (36 tasks)
+    - `add-qdrant-search`: Advanced search with filtering and scoring (42 tasks)
+    - `add-qdrant-clustering`: Clustering and distribution (sharding, replication) (36 tasks)
+    - `add-qdrant-clients`: Client library compatibility testing (40 tasks)
+    - `add-qdrant-migration`: Migration tools for seamless Qdrant → Vectorizer migration (36 tasks)
+    - `add-qdrant-advanced-features`: Sparse vectors, hybrid search, quantization, geo-filtering (49 tasks)
+    - `add-qdrant-testing`: Comprehensive testing suite and validation (42 tasks)
+  - **364+ Implementation Tasks**: Complete roadmap covering 100% of Qdrant functionality
+  - **Clear Dependencies**: Well-defined implementation order and dependencies
+  - **OpenSpec Standards**: All proposals follow OpenSpec format with proposal.md, tasks.md, and specs/
+  - **Implementation Phases**: 
+    - Phase 1: REST API + Collections (foundation)
+    - Phase 2: Search + gRPC (core functionality)
+    - Phase 3: Clustering + Clients + Advanced Features
+    - Phase 4: Migration + Testing (validation)
+  - **Documentation**: Created `QDRANT_COMPATIBILITY_INDEX.md` for project overview
 - **Query Result Caching**: LRU cache for improved search performance (10-100x speedup for cached results)
   - **LRU Query Cache**: In-memory cache with configurable size (default: 1000 entries) and TTL (default: 5 minutes)
   - **Cache Integration**: Integrated with `search_vectors_by_text` endpoint for automatic caching
