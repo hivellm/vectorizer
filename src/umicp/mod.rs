@@ -12,6 +12,15 @@ pub mod discovery;
 pub mod handlers;
 pub mod transport;
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_umicp_module_exists() {
+        // Module compilation test
+        assert!(true);
+    }
+}
+
 pub use discovery::VectorizerDiscoveryService;
 
 /// UMICP server state
