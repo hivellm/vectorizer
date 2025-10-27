@@ -120,7 +120,7 @@ arrow = { version = "56", optional = true }
 parquet = { version = "56", optional = true }
 
 # MCP SDK
-rmcp = { version = "0.8.1", features = ["server", "macros", "transport-streamable-http-server"] }
+rmcp = { version = "0.8.3", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.16.1"
