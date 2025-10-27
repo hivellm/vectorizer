@@ -67,7 +67,7 @@ scopeguard = "1.2"
 # CLI
 clap = { version = "4.5", features = ["derive"] }
 tar = "0.4"
-flate2 = "1.0"
+flate2 = "1.1"
 
 # HTTP client for status checks (using rustls for musl compatibility)
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
