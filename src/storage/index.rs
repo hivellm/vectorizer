@@ -86,6 +86,8 @@ pub enum FileType {
     Config,
     /// Index files
     Index,
+    /// Tokenizer files (BM25 vocabulary)
+    Tokenizer,
     /// Other files
     Other,
 }
@@ -246,6 +248,8 @@ pub fn detect_file_type(path: &str) -> FileType {
         FileType::Vectors
     } else if path_lower.ends_with("_metadata.json") {
         FileType::Metadata
+    } else if path_lower.ends_with("_tokenizer.json") {
+        FileType::Tokenizer
     } else if path_lower.ends_with(".json")
         || path_lower.ends_with(".yaml")
         || path_lower.ends_with(".yml")

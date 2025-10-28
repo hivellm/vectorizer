@@ -221,6 +221,37 @@ impl StorageWriter {
                     });
             }
 
+            // CRITICAL: Include tokenizer file if it exists (for BM25 collections)
+            let tokenizer_path = self.data_dir.join(format!("{}_tokenizer.json", collection_name));
+            if tokenizer_path.exists() {
+                info!("   📖 Including tokenizer for BM25 collection '{}'", collection_name);
+                
+                match fs::read(&tokenizer_path) {
+                    Ok(tokenizer_data) => {
+                        let tokenizer_name = format!("{}_tokenizer.json", collection_name);
+                        
+                        zip.start_file(&tokenizer_name, options).map_err(|e| {
+                            VectorizerError::Storage(format!("Failed to start tokenizer file: {}", e))
+                        })?;
+                        zip.write_all(&tokenizer_data)
+                            .map_err(|e| VectorizerError::Io(e))?;
+
+                        collection_index.files.push(crate::storage::index::FileEntry {
+                            path: tokenizer_name,
+                            file_type: crate::storage::index::FileType::Tokenizer,
+                            size: tokenizer_data.len() as u64,
+                            compressed_size: tokenizer_data.len() as u64,
+                            checksum: String::new(),
+                        });
+                        
+                        info!("   ✅ Tokenizer included in archive");
+                    }
+                    Err(e) => {
+                        warn!("   ⚠️  Failed to read tokenizer file: {}", e);
+                    }
+                }
+            }
+
             info!(
                 "   Added collection '{}' with {} vectors",
                 collection_name, vector_count
