@@ -6,7 +6,6 @@ projects:
     collections:
       - name: "chat-hub-docs"
         dimension: 512
-        dimension: 384
         description: "Chat Hub documentation and guides"
         include_patterns:
           - "docs/**/*.md"
@@ -16,7 +15,6 @@ projects:
           - "*.log"
       - name: "chat-hub-source"
         dimension: 512
-        dimension: 384
         description: "Chat Hub source code and configuration"
         include_patterns:
           - "*.js"
@@ -33,7 +31,6 @@ projects:
     collections:
       - name: "cursor-extension-docs"
         dimension: 512
-        dimension: 384
         description: "Cursor Extension documentation"
         include_patterns:
           - "*.md"
@@ -43,7 +40,6 @@ projects:
           - "packages/**/node_modules/**"
       - name: "cursor-extension-source"
         dimension: 512
-        dimension: 384
         description: "Cursor Extension source code"
         include_patterns:
           - "src/**/*.ts"
@@ -63,7 +59,6 @@ projects:
     collections:
       - name: "dev-tools-docs"
         dimension: 512
-        dimension: 384
         description: "Development tools documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -72,7 +67,6 @@ projects:
           - "node_modules/**"
       - name: "dev-tools-source"
         dimension: 512
-        dimension: 384
         description: "Development tools source code"
         include_patterns:
           - "**/*.ts"
@@ -89,7 +83,6 @@ projects:
     collections:
       - name: "gateway-docs"
         dimension: 512
-        dimension: 384
         description: "Gateway documentation and API specs"
         include_patterns:
           - "docs/**/*.md"
@@ -98,7 +91,6 @@ projects:
           - "node_modules/**"
       - name: "gateway-source"
         dimension: 512
-        dimension: 384
         description: "Gateway source code and configuration"
         include_patterns:
           - "**/*.ts"
@@ -116,7 +108,6 @@ projects:
     collections:
       - name: "governance-docs"
         dimension: 512
-        dimension: 384
         description: "Governance documentation"
         include_patterns:
           - "*.md"
@@ -126,7 +117,6 @@ projects:
           - "dist/**"
       - name: "governance-source"
         dimension: 512
-        dimension: 384
         description: "Governance system source code"
         include_patterns:
           - "src/**/*.ts"
@@ -145,7 +135,6 @@ projects:
     collections:
       - name: "py-security-docs"
         dimension: 512
-        dimension: 384
         description: "Python security tools documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -155,7 +144,6 @@ projects:
           - "venv/**"
       - name: "py-security-source"
         dimension: 512
-        dimension: 384
         description: "Python security tools source code"
         include_patterns:
           - "**/*.py"
@@ -174,7 +162,6 @@ projects:
     collections:
       - name: "task-queue-docs"
         dimension: 512
-        dimension: 384
         description: "Task queue documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -184,7 +171,6 @@ projects:
           - "data/**"
       - name: "task-queue-source"
         dimension: 512
-        dimension: 384
         description: "Task queue Rust source code"
         include_patterns:
           - "src/**/*.rs"
@@ -198,7 +184,6 @@ projects:
           - "logs/**"
       - name: "task-queue-dashboard"
         dimension: 512
-        dimension: 384
         description: "Task queue dashboard and web interface"
         include_patterns:
           - "dashboard/**/*.js"
@@ -209,7 +194,6 @@ projects:
           - "dashboard/node_modules/**"
       - name: "task-queue-sdk-typescript"
         dimension: 512
-        dimension: 384
         description: "Task Queue TypeScript/JavaScript SDK"
         include_patterns:
           - "sdks/typescript/**/*.ts"
@@ -221,7 +205,6 @@ projects:
           - "sdks/typescript/**/*.map"
       - name: "task-queue-sdk-python"
         dimension: 512
-        dimension: 384
         description: "Task Queue Python SDK"
         include_patterns:
           - "sdks/python/**/*.py"
@@ -238,7 +221,6 @@ projects:
     collections:
       - name: "ts-workspace-docs"
         dimension: 512
-        dimension: 384
         description: "TypeScript workspace documentation"
         include_patterns:
           - "*.md"
@@ -248,7 +230,6 @@ projects:
           - "packages/**/node_modules/**"
       - name: "ts-workspace-source"
         dimension: 512
-        dimension: 384
         description: "TypeScript workspace source code"
         include_patterns:
           - "packages/**/*.ts"
@@ -266,7 +247,6 @@ projects:
     collections:
       - name: "umicp-docs"
         dimension: 512
-        dimension: 384
         description: "UMICP documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -275,7 +255,6 @@ projects:
           - "bindings/**/target/**"
       - name: "umicp-cpp"
         dimension: 512
-        dimension: 384
         description: "UMICP C++ implementation"
         include_patterns:
           - "cpp/**/*.cpp"
@@ -286,7 +265,6 @@ projects:
           - "cpp/obj/**"
       - name: "umicp-bindings-rust"
         dimension: 512
-        dimension: 384
         description: "UMICP Rust language bindings"
         include_patterns:
           - "bindings/**/*.rs"
@@ -296,7 +274,6 @@ projects:
           - "bindings/**/Cargo.lock"
       - name: "umicp-bindings-typescript"
         dimension: 512
-        dimension: 384
         description: "UMICP TypeScript/JavaScript language bindings"
         include_patterns:
           - "bindings/**/*.ts"
@@ -308,7 +285,6 @@ projects:
           - "bindings/**/*.map"
       - name: "umicp-bindings-cpp"
         dimension: 512
-        dimension: 384
         description: "UMICP C++ language bindings"
         include_patterns:
           - "bindings/**/*.cc"
@@ -325,7 +301,6 @@ projects:
     collections:
       - name: "vectorizer-docs"
         dimension: 512
-        dimension: 384
         description: "Vectorizer documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -336,7 +311,6 @@ projects:
           - "node_modules/**"
       - name: "vectorizer-source"
         dimension: 512
-        dimension: 384
         description: "Vectorizer Rust source code"
         include_patterns:
           - "src/**/*.rs"
@@ -350,7 +324,6 @@ projects:
           - "logs/**"
       - name: "vectorizer-sdk-typescript"
         dimension: 512
-        dimension: 384
         description: "Vectorizer TypeScript/JavaScript SDK"
         include_patterns:
           - "client-sdks/**/*.ts"
@@ -362,7 +335,6 @@ projects:
           - "client-sdks/**/*.map"
       - name: "vectorizer-sdk-python"
         dimension: 512
-        dimension: 384
         description: "Vectorizer Python SDK"
         include_patterns:
           - "client-sdks/**/*.py"
@@ -374,7 +346,6 @@ projects:
           - "client-sdks/**/build/**"
       - name: "vectorizer-sdk-rust"
         dimension: 512
-        dimension: 384
         description: "Vectorizer Rust SDK"
         include_patterns:
           - "client-sdks/**/*.rs"
@@ -390,7 +361,6 @@ projects:
     collections:
       - name: "voxa-docs"
         dimension: 512
-        dimension: 384
         description: "Voxa documentation and guides"
         include_patterns:
           - "docs/**/*.md"
@@ -400,7 +370,6 @@ projects:
           - "models/**"
       - name: "voxa-source"
         dimension: 512
-        dimension: 384
         description: "Voxa Python source code"
         include_patterns:
           - "**/*.py"
@@ -420,7 +389,6 @@ projects:
     collections:
       - name: "gov-bips"
         dimension: 512
-        dimension: 384
         description: "Bitcoin Improvement Proposals (BIPs)"
         include_patterns:
           - "bips/**/*.md"
@@ -430,7 +398,6 @@ projects:
           - "bips/draft/**"
       - name: "gov-proposals"
         dimension: 512
-        dimension: 384
         description: "Governance proposals and voting records"
         include_patterns:
           - "proposals/**/*.md"
@@ -440,7 +407,6 @@ projects:
           - "proposals/draft/**"
       - name: "gov-meetings"
         dimension: 512
-        dimension: 384
         description: "Meeting minutes and governance records"
         include_patterns:
           - "minutes/**/*.md"
@@ -449,7 +415,6 @@ projects:
           - "minutes/draft/**"
       - name: "gov-teams"
         dimension: 512
-        dimension: 384
         description: "Team documentation and structure"
         include_patterns:
           - "teams/**/*.md"
@@ -458,7 +423,6 @@ projects:
           - "teams/inactive/**"
       - name: "gov-guidelines"
         dimension: 512
-        dimension: 384
         description: "Governance guidelines and policies"
         include_patterns:
           - "guidelines/**/*.md"
@@ -468,7 +432,6 @@ projects:
           - "draft/**"
       - name: "gov-metrics"
         dimension: 512
-        dimension: 384
         description: "Governance metrics and analytics"
         include_patterns:
           - "metrics/**/*.json"
@@ -482,7 +445,6 @@ projects:
     collections:
       - name: "cmmv-core-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Core documentation and guides"
         include_patterns:
           - "*.md"
@@ -493,7 +455,6 @@ projects:
           - "packages/**/node_modules/**"
       - name: "cmmv-core-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Core source code and packages"
         include_patterns:
           - "src/**/*.ts"
@@ -510,7 +471,6 @@ projects:
           - "test/**"
       - name: "cmmv-core-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Core configuration files"
         include_patterns:
           - "tsconfig*.json"
@@ -530,7 +490,6 @@ projects:
     collections:
       - name: "cmmv-admin-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Admin documentation"
         include_patterns:
           - "*.md"
@@ -540,7 +499,6 @@ projects:
           - "packages/**/node_modules/**"
       - name: "cmmv-admin-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Admin source code"
         include_patterns:
           - "packages/**/*.ts"
@@ -556,7 +514,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-admin-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Admin configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -574,7 +531,6 @@ projects:
     collections:
       - name: "cmmv-ai-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV AI documentation"
         include_patterns:
           - "*.md"
@@ -585,7 +541,6 @@ projects:
           - "dist/**"
       - name: "cmmv-ai-source"
         dimension: 512
-        dimension: 384
         description: "CMMV AI source code"
         include_patterns:
           - "src/**/*.ts"
@@ -600,7 +555,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-ai-config"
         dimension: 512
-        dimension: 384
         description: "CMMV AI configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -616,7 +570,6 @@ projects:
     collections:
       - name: "cmmv-blog-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Blog documentation"
         include_patterns:
           - "*.md"
@@ -628,7 +581,6 @@ projects:
           - "apps/**/node_modules/**"
       - name: "cmmv-blog-apps"
         dimension: 512
-        dimension: 384
         description: "CMMV Blog applications"
         include_patterns:
           - "apps/**/*.vue"
@@ -642,7 +594,6 @@ projects:
           - "apps/**/*.map"
       - name: "cmmv-blog-packages"
         dimension: 512
-        dimension: 384
         description: "CMMV Blog packages and components"
         include_patterns:
           - "packages/**/*.ts"
@@ -656,7 +607,6 @@ projects:
           - "packages/**/*.map"
       - name: "cmmv-blog-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Blog configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -675,7 +625,6 @@ projects:
     collections:
       - name: "cmmv-blueprint-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Blueprint documentation"
         include_patterns:
           - "*.md"
@@ -685,7 +634,6 @@ projects:
           - "packages/**/node_modules/**"
       - name: "cmmv-blueprint-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Blueprint source code"
         include_patterns:
           - "src/**/*.ts"
@@ -703,7 +651,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-blueprint-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Blueprint configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -723,7 +670,6 @@ projects:
     collections:
       - name: "cmmv-cli-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV CLI documentation"
         include_patterns:
           - "*.md"
@@ -734,7 +680,6 @@ projects:
           - "dist/**"
       - name: "cmmv-cli-source"
         dimension: 512
-        dimension: 384
         description: "CMMV CLI source code"
         include_patterns:
           - "lib/**/*.ts"
@@ -748,7 +693,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-cli-config"
         dimension: 512
-        dimension: 384
         description: "CMMV CLI configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -763,7 +707,6 @@ projects:
     collections:
       - name: "cmmv-docs-content"
         dimension: 512
-        dimension: 384
         description: "CMMV documentation content"
         include_patterns:
           - "docs/**/*.md"
@@ -774,7 +717,6 @@ projects:
           - "dist/**"
       - name: "cmmv-docs-config"
         dimension: 512
-        dimension: 384
         description: "CMMV documentation configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -793,7 +735,6 @@ projects:
     collections:
       - name: "cmmv-docs-en-content"
         dimension: 512
-        dimension: 384
         description: "CMMV English documentation content"
         include_patterns:
           - "**/*.md"
@@ -806,7 +747,6 @@ projects:
     collections:
       - name: "cmmv-docs-ptbr-content"
         dimension: 512
-        dimension: 384
         description: "CMMV Portuguese documentation content"
         include_patterns:
           - "**/*.md"
@@ -819,7 +759,6 @@ projects:
     collections:
       - name: "cmmv-elastic-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Elastic documentation"
         include_patterns:
           - "*.md"
@@ -830,7 +769,6 @@ projects:
           - "dist/**"
       - name: "cmmv-elastic-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Elastic source code"
         include_patterns:
           - "src/**/*.ts"
@@ -842,7 +780,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-elastic-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Elastic configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -858,7 +795,6 @@ projects:
     collections:
       - name: "cmmv-encryptor-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Encryptor documentation"
         include_patterns:
           - "*.md"
@@ -868,7 +804,6 @@ projects:
           - "dist/**"
       - name: "cmmv-encryptor-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Encryptor source code"
         include_patterns:
           - "src/**/*.ts"
@@ -881,7 +816,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-encryptor-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Encryptor configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -897,7 +831,6 @@ projects:
     collections:
       - name: "cmmv-events-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Events documentation"
         include_patterns:
           - "*.md"
@@ -908,7 +841,6 @@ projects:
           - "dist/**"
       - name: "cmmv-events-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Events source code"
         include_patterns:
           - "src/**/*.ts"
@@ -921,7 +853,6 @@ projects:
           - "**/*.map"
       - name: "cmmv-events-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Events configuration"
         include_patterns:
           - "tsconfig*.json"
@@ -937,7 +868,6 @@ projects:
     collections:
       - name: "cmmv-formbuilder-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV FormBuilder documentation"
         include_patterns:
           - "*.md"
@@ -946,7 +876,6 @@ projects:
           - "dist/**"
       - name: "cmmv-formbuilder-source"
         dimension: 512
-        dimension: 384
         description: "CMMV FormBuilder source code"
         include_patterns:
           - "src/**/*.ts"
@@ -965,7 +894,6 @@ projects:
     collections:
       - name: "cmmv-inspector-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Inspector documentation"
         include_patterns:
           - "*.md"
@@ -974,7 +902,6 @@ projects:
           - "dist/**"
       - name: "cmmv-inspector-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Inspector source code"
         include_patterns:
           - "src/**/*.ts"
@@ -990,7 +917,6 @@ projects:
     collections:
       - name: "cmmv-mcp-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV MCP documentation"
         include_patterns:
           - "*.md"
@@ -999,7 +925,6 @@ projects:
           - "dist/**"
       - name: "cmmv-mcp-source"
         dimension: 512
-        dimension: 384
         description: "CMMV MCP source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1015,7 +940,6 @@ projects:
     collections:
       - name: "cmmv-middleware-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Middleware documentation"
         include_patterns:
           - "*.md"
@@ -1024,7 +948,6 @@ projects:
           - "dist/**"
       - name: "cmmv-middleware-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Middleware source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1040,7 +963,6 @@ projects:
     collections:
       - name: "cmmv-normalizer-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Normalizer documentation"
         include_patterns:
           - "*.md"
@@ -1049,7 +971,6 @@ projects:
           - "dist/**"
       - name: "cmmv-normalizer-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Normalizer source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1066,7 +987,6 @@ projects:
     collections:
       - name: "cmmv-parallel-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Parallel documentation"
         include_patterns:
           - "*.md"
@@ -1075,7 +995,6 @@ projects:
           - "dist/**"
       - name: "cmmv-parallel-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Parallel source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1092,7 +1011,6 @@ projects:
     collections:
       - name: "cmmv-plugins-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Plugins documentation"
         include_patterns:
           - "*.md"
@@ -1101,7 +1019,6 @@ projects:
           - "dist/**"
       - name: "cmmv-plugins-config"
         dimension: 512
-        dimension: 384
         description: "CMMV Plugins configuration"
         include_patterns:
           - "**/*.json"
@@ -1115,7 +1032,6 @@ projects:
     collections:
       - name: "cmmv-queue-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Queue documentation"
         include_patterns:
           - "*.md"
@@ -1124,7 +1040,6 @@ projects:
           - "dist/**"
       - name: "cmmv-queue-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Queue source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1141,7 +1056,6 @@ projects:
     collections:
       - name: "cmmv-server-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Server documentation"
         include_patterns:
           - "*.md"
@@ -1151,7 +1065,6 @@ projects:
           - "dist/**"
       - name: "cmmv-server-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Server source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1169,7 +1082,6 @@ projects:
     collections:
       - name: "cmmv-server-cpp-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Server C++ documentation"
         include_patterns:
           - "*.md"
@@ -1178,7 +1090,6 @@ projects:
           - "dist/**"
       - name: "cmmv-server-cpp-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Server C++ source code"
         include_patterns:
           - "src/**/*.cpp"
@@ -1197,7 +1108,6 @@ projects:
     collections:
       - name: "cmmv-socialautoposts-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Social Auto Posts documentation"
         include_patterns:
           - "*.md"
@@ -1206,7 +1116,6 @@ projects:
           - "dist/**"
       - name: "cmmv-socialautoposts-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Social Auto Posts source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1225,7 +1134,6 @@ projects:
     collections:
       - name: "cmmv-test-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV Test documentation"
         include_patterns:
           - "*.md"
@@ -1234,7 +1142,6 @@ projects:
           - "dist/**"
       - name: "cmmv-test-source"
         dimension: 512
-        dimension: 384
         description: "CMMV Test source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1251,7 +1158,6 @@ projects:
     collections:
       - name: "cmmv-tsconfig-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Config documentation"
         include_patterns:
           - "*.md"
@@ -1259,7 +1165,6 @@ projects:
           - "node_modules/**"
       - name: "cmmv-tsconfig-config"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript configuration files"
         include_patterns:
           - "**/*.json"
@@ -1272,7 +1177,6 @@ projects:
     collections:
       - name: "cmmv-typescript-blog-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Blog documentation"
         include_patterns:
           - "*.md"
@@ -1281,7 +1185,6 @@ projects:
           - "dist/**"
       - name: "cmmv-typescript-blog-source"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Blog source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1299,7 +1202,6 @@ projects:
     collections:
       - name: "cmmv-typescript-module-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Module documentation"
         include_patterns:
           - "*.md"
@@ -1308,7 +1210,6 @@ projects:
           - "dist/**"
       - name: "cmmv-typescript-module-source"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Module source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1324,7 +1225,6 @@ projects:
     collections:
       - name: "cmmv-typescript-starter-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Starter documentation"
         include_patterns:
           - "*.md"
@@ -1333,7 +1233,6 @@ projects:
           - "dist/**"
       - name: "cmmv-typescript-starter-source"
         dimension: 512
-        dimension: 384
         description: "CMMV TypeScript Starter source code"
         include_patterns:
           - "src/**/*.ts"
@@ -1350,7 +1249,6 @@ projects:
     collections:
       - name: "cmmv-ui-docs"
         dimension: 512
-        dimension: 384
         description: "CMMV UI documentation"
         include_patterns:
           - "*.md"
@@ -1359,7 +1257,6 @@ projects:
           - "dist/**"
       - name: "cmmv-ui-components"
         dimension: 512
-        dimension: 384
         description: "CMMV UI Vue components"
         include_patterns:
           - "src/**/*.vue"
