@@ -251,6 +251,38 @@ impl StorageWriter {
                     }
                 }
             }
+            
+            // CRITICAL: Include checksums file if it exists  
+            let checksums_path = self.data_dir.join(format!("{}_checksums.json", collection_name));
+            if checksums_path.exists() {
+                info!("   🔐 Including checksums for collection '{}'", collection_name);
+                
+                match fs::read(&checksums_path) {
+                    Ok(checksums_data) => {
+                        let checksums_name = format!("{}_checksums.json", collection_name);
+                        
+                        zip.start_file(&checksums_name, options).map_err(|e| {
+                            VectorizerError::Storage(format!("Failed to start checksums file: {}", e))
+                        })?;
+                        zip.write_all(&checksums_data)
+                            .map_err(|e| VectorizerError::Io(e))?;
+
+                        // Use Tokenizer type for checksums too (related to collection data integrity)
+                        collection_index.files.push(crate::storage::index::FileEntry {
+                            path: checksums_name,
+                            file_type: crate::storage::index::FileType::Other,
+                            size: checksums_data.len() as u64,
+                            compressed_size: checksums_data.len() as u64,
+                            checksum: String::new(),
+                        });
+                        
+                        info!("   ✅ Checksums included in archive");
+                    }
+                    Err(e) => {
+                        warn!("   ⚠️  Failed to read checksums file: {}", e);
+                    }
+                }
+            }
 
             info!(
                 "   Added collection '{}' with {} vectors",

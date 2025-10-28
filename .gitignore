@@ -109,4 +109,4 @@ debian/.debhelper/
 debian/vectorizer/
 debian/files
 debian/*.log
-debian/*.substvars
+debian/*.substvarsvenv/
