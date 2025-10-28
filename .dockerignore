@@ -37,16 +37,15 @@ wix
 *.log
 logs
 .logs
-data
-**/data
+# Exclude data directories but NOT src code
+/data
 snapshots
-**/snapshots
-storage
-**/storage
+# IMPORTANT: Do NOT exclude src/storage - it's source code!
+!src/storage
 
 # Test files and benchmarks
-tests
-**/tests
+# Keep source tests but exclude test artifacts
+/tests
 benchmarks
 coverage
 **/coverage
@@ -55,6 +54,8 @@ lcov-core.info
 coverage.json
 *.profdata
 *.profraw
+# IMPORTANT: Keep src/tests if they exist
+!src/tests
 
 # Documentation and examples (keep only essential)
 docs
