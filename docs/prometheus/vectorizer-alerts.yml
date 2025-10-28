@@ -1,0 +1,304 @@
+# Vectorizer Prometheus Alert Rules
+# Version: 1.2.0
+# Last Updated: October 25, 2025
+
+groups:
+  - name: vectorizer_search
+    interval: 30s
+    rules:
+      # High search latency (p95 > 100ms)
+      - alert: VectorizerHighSearchLatency
+        expr: histogram_quantile(0.95, rate(vectorizer_search_latency_seconds_bucket[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: search
+        annotations:
+          summary: "High search latency detected"
+          description: "95th percentile search latency is {{ $value | humanizeDuration }}s (threshold: 100ms)"
+          runbook: "https://docs.vectorizer.dev/runbooks/high-search-latency"
+
+      # Very high search latency (p99 > 500ms)
+      - alert: VectorizerCriticalSearchLatency
+        expr: histogram_quantile(0.99, rate(vectorizer_search_latency_seconds_bucket[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          component: search
+        annotations:
+          summary: "Critical search latency detected"
+          description: "99th percentile search latency is {{ $value | humanizeDuration }}s"
+
+      # Low search success rate
+      - alert: VectorizerLowSearchSuccessRate
+        expr: |
+          100 * sum(rate(vectorizer_search_requests_total{status="success"}[5m])) /
+          sum(rate(vectorizer_search_requests_total[5m])) < 95
+        for: 5m
+        labels:
+          severity: warning
+          component: search
+        annotations:
+          summary: "Low search success rate"
+          description: "Search success rate is {{ $value }}% (threshold: 95%)"
+
+  - name: vectorizer_indexing
+    interval: 30s
+    rules:
+      # High insert latency
+      - alert: VectorizerHighInsertLatency
+        expr: histogram_quantile(0.95, rate(vectorizer_insert_latency_seconds_bucket[5m])) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+          component: indexing
+        annotations:
+          summary: "High insert latency detected"
+          description: "95th percentile insert latency is {{ $value | humanizeDuration }}s"
+
+      # Failed inserts
+      - alert: VectorizerFailedInserts
+        expr: rate(vectorizer_insert_requests_total{status="error"}[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+          component: indexing
+        annotations:
+          summary: "Insert failures detected"
+          description: "{{ $value }} failed inserts per second"
+
+      # Rapid vector growth
+      - alert: VectorizerRapidVectorGrowth
+        expr: rate(vectorizer_vectors_total[1h]) > 100000
+        for: 10m
+        labels:
+          severity: info
+          component: indexing
+        annotations:
+          summary: "Rapid vector growth detected"
+          description: "Adding {{ $value }} vectors per hour"
+
+  - name: vectorizer_replication
+    interval: 30s
+    rules:
+      # High replication lag
+      - alert: VectorizerHighReplicationLag
+        expr: vectorizer_replication_lag_ms > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: replication
+        annotations:
+          summary: "High replication lag"
+          description: "Replication lag is {{ $value }}ms (threshold: 1000ms)"
+
+      # Critical replication lag
+      - alert: VectorizerCriticalReplicationLag
+        expr: vectorizer_replication_lag_ms > 10000
+        for: 2m
+        labels:
+          severity: critical
+          component: replication
+        annotations:
+          summary: "Critical replication lag"
+          description: "Replication lag is {{ $value }}ms (threshold: 10s)"
+
+      # Large operations backlog
+      - alert: VectorizerReplicationBacklog
+        expr: vectorizer_replication_operations_pending > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: replication
+        annotations:
+          summary: "Large replication backlog"
+          description: "{{ $value }} operations pending replication"
+
+      # High replication bandwidth
+      - alert: VectorizerHighReplicationBandwidth
+        expr: rate(vectorizer_replication_bytes_sent_total[5m]) > 10485760  # 10MB/s
+        for: 10m
+        labels:
+          severity: info
+          component: replication
+        annotations:
+          summary: "High replication bandwidth usage"
+          description: "Sending {{ $value | humanize }}B/s via replication"
+
+  - name: vectorizer_system
+    interval: 30s
+    rules:
+      # High memory usage
+      - alert: VectorizerHighMemoryUsage
+        expr: vectorizer_memory_usage_bytes > 4294967296  # 4GB
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanize }}B (threshold: 4GB)"
+
+      # Critical memory usage
+      - alert: VectorizerCriticalMemoryUsage
+        expr: vectorizer_memory_usage_bytes > 8589934592  # 8GB
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value | humanize }}B (threshold: 8GB)"
+
+      # Low cache hit rate
+      - alert: VectorizerLowCacheHitRate
+        expr: |
+          100 * sum(rate(vectorizer_cache_requests_total{result="hit"}[5m])) /
+          sum(rate(vectorizer_cache_requests_total[5m])) < 60
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value }}% (threshold: 60%)"
+
+      # High API error rate
+      - alert: VectorizerHighAPIErrorRate
+        expr: rate(vectorizer_api_errors_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "High API error rate"
+          description: "{{ $value }} API errors per second"
+
+  - name: vectorizer_availability
+    interval: 30s
+    rules:
+      # No search activity (potential issue)
+      - alert: VectorizerNoSearchActivity
+        expr: rate(vectorizer_search_requests_total[10m]) == 0
+        for: 30m
+        labels:
+          severity: info
+          component: availability
+        annotations:
+          summary: "No search activity detected"
+          description: "No searches in the last 30 minutes"
+
+      # No insert activity (potential issue)
+      - alert: VectorizerNoInsertActivity
+        expr: rate(vectorizer_insert_requests_total[10m]) == 0
+        for: 1h
+        labels:
+          severity: info
+          component: availability
+        annotations:
+          summary: "No insert activity detected"
+          description: "No inserts in the last hour"
+
+---
+
+## Alert Severity Levels
+
+| Severity | Response Time | Escalation | Examples |
+|----------|---------------|------------|----------|
+| **critical** | Immediate | Page on-call | Service down, data loss risk |
+| **warning** | 1 hour | Ticket + email | High latency, degraded performance |
+| **info** | Best effort | Log only | Unusual patterns, capacity planning |
+
+---
+
+## Alert Manager Configuration
+
+```yaml
+# alertmanager.yml
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'component']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts go to pager
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+      
+    # Warnings go to Slack
+    - match:
+        severity: warning
+      receiver: 'slack'
+      
+    # Info alerts just log
+    - match:
+        severity: info
+      receiver: 'null'
+
+receivers:
+  - name: 'default'
+    email_configs:
+      - to: 'ops@example.com'
+
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: '<your-pagerduty-key>'
+
+  - name: 'slack'
+    slack_configs:
+      - api_url: '<your-slack-webhook>'
+        channel: '#vectorizer-alerts'
+        
+  - name: 'null'
+```
+
+---
+
+## Testing Alert Rules
+
+### Test with promtool
+
+```bash
+# Validate syntax
+promtool check rules vectorizer-alerts.yml
+
+# Test alert evaluation
+promtool test rules vectorizer-alerts-test.yml
+```
+
+### Example Test File
+
+```yaml
+# vectorizer-alerts-test.yml
+rule_files:
+  - vectorizer-alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'vectorizer_search_latency_seconds_bucket{collection="test",search_type="text",le="0.1"}'
+        values: '100+0x10'  # Constant 100
+      - series: 'vectorizer_search_latency_seconds_bucket{collection="test",search_type="text",le="+Inf"}'
+        values: '1000+0x10'  # Constant 1000
+    
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: VectorizerHighSearchLatency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: search
+```
+
+---
+
+**For monitoring setup and usage, see**: `MONITORING.md`
+

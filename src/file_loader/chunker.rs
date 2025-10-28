@@ -123,3 +123,212 @@ impl Chunker {
         Ok(chunks)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn create_test_config() -> LoaderConfig {
+        LoaderConfig {
+            max_chunk_size: 100,
+            chunk_overlap: 20,
+            include_patterns: vec!["**/*.txt".to_string()],
+            exclude_patterns: vec![],
+            embedding_dimension: 512,
+            embedding_type: "bm25".to_string(),
+            collection_name: "test".to_string(),
+            max_file_size: 1024 * 1024,
+            allowed_extensions: vec!["txt".to_string()],
+        }
+    }
+
+    #[test]
+    fn test_chunker_creation() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        // Chunker should be created successfully
+        assert!(true);
+    }
+
+    #[test]
+    fn test_chunk_short_text() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let text = "This is a short text.";
+        let path = PathBuf::from("/test.txt");
+
+        let result = chunker.chunk_text(text, &path);
+        assert!(result.is_ok());
+
+        let chunks = result.unwrap();
+        assert!(!chunks.is_empty());
+        assert!(chunks[0].content.contains("This is a short text"));
+        assert_eq!(chunks[0].chunk_index, 0);
+    }
+
+    #[test]
+    fn test_chunk_long_text_with_overlap() {
+        let config = LoaderConfig {
+            max_chunk_size: 50,
+            chunk_overlap: 10,
+            ..create_test_config()
+        };
+        let chunker = Chunker::new(config);
+
+        let text = "word ".repeat(30); // 150 chars (5 * 30)
+        let path = PathBuf::from("/test.txt");
+
+        let result = chunker.chunk_text(&text, &path);
+        assert!(result.is_ok());
+
+        let chunks = result.unwrap();
+        assert!(chunks.len() > 1);
+
+        // Each chunk should be <= max_chunk_size
+        for chunk in &chunks {
+            assert!(chunk.content.len() <= 50);
+        }
+    }
+
+    #[test]
+    fn test_chunk_documents_empty() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let documents: Vec<(PathBuf, String)> = vec![];
+        let result = chunker.chunk_documents(&documents);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_chunk_documents_multiple() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let documents = vec![
+            (PathBuf::from("/file1.txt"), "Content of file 1".to_string()),
+            (PathBuf::from("/file2.txt"), "Content of file 2".to_string()),
+            (PathBuf::from("/file3.txt"), "Content of file 3".to_string()),
+        ];
+
+        let result = chunker.chunk_documents(&documents);
+        assert!(result.is_ok());
+
+        let chunks = result.unwrap();
+        assert_eq!(chunks.len(), 3);
+    }
+
+    #[test]
+    fn test_chunk_metadata() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let text = "Test content";
+        let path = PathBuf::from("/test.rs");
+
+        let chunks = chunker.chunk_text(text, &path).unwrap();
+        assert_eq!(chunks.len(), 1);
+
+        let chunk = &chunks[0];
+
+        // Check metadata
+        assert_eq!(chunk.metadata["file_path"], "/test.rs");
+        assert_eq!(chunk.metadata["chunk_index"], 0);
+        assert_eq!(chunk.metadata["file_extension"], "rs");
+        assert!(chunk.metadata.contains_key("chunk_size"));
+    }
+
+    #[test]
+    fn test_chunk_empty_text() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let text = "";
+        let path = PathBuf::from("/empty.txt");
+
+        let result = chunker.chunk_text(text, &path);
+        assert!(result.is_ok());
+
+        let chunks = result.unwrap();
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_chunk_whitespace_only() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let text = "   \n\t   \n   ";
+        let path = PathBuf::from("/whitespace.txt");
+
+        let result = chunker.chunk_text(text, &path);
+        assert!(result.is_ok());
+
+        // Should produce no chunks (only whitespace)
+        let chunks = result.unwrap();
+        assert_eq!(chunks.len(), 0);
+    }
+
+    #[test]
+    fn test_chunk_utf8_characters() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let text = "Hello 世界 🌍 émojis and special chars!";
+        let path = PathBuf::from("/utf8.txt");
+
+        let result = chunker.chunk_text(text, &path);
+        assert!(result.is_ok());
+
+        let chunks = result.unwrap();
+        assert!(!chunks.is_empty());
+        assert!(chunks[0].content.contains("世界"));
+        assert!(chunks[0].content.contains("🌍"));
+    }
+
+    #[test]
+    fn test_chunk_boundary_handling() {
+        let config = LoaderConfig {
+            max_chunk_size: 30,
+            chunk_overlap: 5,
+            ..create_test_config()
+        };
+        let chunker = Chunker::new(config);
+
+        // Text with clear sentence boundaries
+        let text = "First sentence here. Second sentence follows. Third one too.";
+        let path = PathBuf::from("/test.txt");
+
+        let result = chunker.chunk_text(text, &path);
+        assert!(result.is_ok());
+
+        let chunks = result.unwrap();
+
+        // Should break at sentence boundaries where possible
+        for chunk in &chunks {
+            assert!(!chunk.content.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_chunk_id_format() {
+        let config = create_test_config();
+        let chunker = Chunker::new(config);
+
+        let text = "Chunk content";
+        let path = PathBuf::from("/path/to/document.md");
+
+        let chunks = chunker.chunk_text(text, &path).unwrap();
+        assert_eq!(chunks.len(), 1);
+
+        // ID should be in format "file_path#chunk_index"
+        assert!(chunks[0].id.contains("/path/to/document.md"));
+        assert!(chunks[0].id.contains("#0"));
+    }
+}

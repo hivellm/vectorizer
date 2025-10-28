@@ -1,20 +1,31 @@
-global_settings:
-  file_watcher:
-    auto_discovery: true
-    enable_auto_update: true
-    exclude_patterns: []
-    hot_reload: true
-    watch_paths:
-      - .././ # Root path to watch
-
+# HiveLLM Ecosystem Workspace
 projects:
+  - name: "agent-framework"
+    path: "../agent-framework"
+    description: "Agent Framework - Multi-agent orchestration system"
+    collections:
+      - name: "agent-framework-docs"
+        description: "Agent Framework documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+          - "openspec/**/*.md"
+        exclude_patterns:
+          - "node_modules/**"
+      - name: "agent-framework-source"
+        description: "Agent Framework TypeScript source"
+        include_patterns:
+          - "typescript/**/*.ts"
+          - "typescript/**/*.json"
+        exclude_patterns:
+          - "node_modules/**"
+          - "typescript/node_modules/**"
+
   - name: "chat-hub"
     path: "../chat-hub"
     description: "Chat Hub - Real-time communication platform"
     collections:
       - name: "chat-hub-docs"
-        dimension: 512
-        metric: cosine
         description: "Chat Hub documentation and guides"
         include_patterns:
           - "docs/**/*.md"
@@ -23,8 +34,6 @@ projects:
           - "node_modules/**"
           - "*.log"
       - name: "chat-hub-source"
-        dimension: 512
-        metric: cosine
         description: "Chat Hub source code and configuration"
         include_patterns:
           - "*.js"
@@ -35,30 +44,83 @@ projects:
           - "node_modules/**"
           - "*.log"
 
+  - name: "classify"
+    path: "../classify"
+    description: "Classify - Text classification and analysis"
+    collections:
+      - name: "classify-docs"
+        description: "Classify documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "openspec/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "coverage/**"
+      - name: "classify-source"
+        description: "Classify TypeScript source"
+        include_patterns:
+          - "src/**/*.ts"
+          - "tests/**/*.ts"
+          - "**/*.json"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+          - "coverage/**"
+
+  - name: "compression-prompt"
+    path: "../compression-prompt"
+    description: "Compression Prompt - Prompt optimization and compression"
+    collections:
+      - name: "compression-prompt-docs"
+        description: "Compression Prompt documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+          - "paper/**/*.md"
+        exclude_patterns:
+          - "benchmarks/**"
+      - name: "compression-prompt-rust"
+        description: "Compression Prompt Rust implementation"
+        include_patterns:
+          - "rust/**/*.rs"
+          - "rust/**/*.toml"
+        exclude_patterns:
+          - "rust/target/**"
+      - name: "compression-prompt-python"
+        description: "Compression Prompt Python implementation"
+        include_patterns:
+          - "python/**/*.py"
+        exclude_patterns:
+          - "python/**/__pycache__/**"
+          - "python/**/venv/**"
+      - name: "compression-prompt-typescript"
+        description: "Compression Prompt TypeScript implementation"
+        include_patterns:
+          - "typescript/**/*.ts"
+          - "typescript/**/*.json"
+        exclude_patterns:
+          - "typescript/node_modules/**"
+
   - name: "cursor-extension"
     path: "../cursor-extension"
     description: "Cursor Extension - AI-powered development tools"
     collections:
       - name: "cursor-extension-docs"
-        dimension: 512
-        metric: cosine
         description: "Cursor Extension documentation"
         include_patterns:
           - "*.md"
           - "packages/**/*.md"
+          - "docs/**/*.md"
         exclude_patterns:
           - "node_modules/**"
           - "packages/**/node_modules/**"
       - name: "cursor-extension-source"
-        dimension: 512
-        metric: cosine
         description: "Cursor Extension source code"
         include_patterns:
           - "src/**/*.ts"
-          - "src/**/*.js"
           - "packages/**/*.ts"
-          - "packages/**/*.js"
-          - "*.json"
+          - "**/*.json"
           - "scripts/**/*"
         exclude_patterns:
           - "node_modules/**"
@@ -70,90 +132,166 @@ projects:
     description: "Development Tools - Utilities and automation"
     collections:
       - name: "dev-tools-docs"
-        dimension: 512
-        metric: cosine
         description: "Development tools documentation"
         include_patterns:
           - "docs/**/*.md"
           - "*.md"
         exclude_patterns:
           - "node_modules/**"
-      - name: "dev-tools-source"
-        dimension: 512
-        metric: cosine
-        description: "Development tools source code"
+
+  - name: "fusion"
+    path: "../fusion"
+    description: "Fusion - Multi-model integration framework"
+    collections:
+      - name: "fusion-docs"
+        description: "Fusion documentation"
         include_patterns:
-          - "**/*.ts"
-          - "**/*.js"
-          - "**/*.json"
-          - "scripts/**/*"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
+          - "docs/**/*.md"
+          - "openspec/**/*.md"
+          - "*.md"
 
   - name: "gateway"
     path: "../gateway"
     description: "API Gateway - Centralized API management"
     collections:
       - name: "gateway-docs"
-        dimension: 512
-        metric: cosine
         description: "Gateway documentation and API specs"
         include_patterns:
           - "docs/**/*.md"
           - "*.md"
         exclude_patterns:
           - "node_modules/**"
-      - name: "gateway-source"
-        dimension: 512
-        metric: cosine
-        description: "Gateway source code and configuration"
-        include_patterns:
-          - "**/*.ts"
-          - "**/*.js"
-          - "**/*.json"
-          - "*.env*"
-          - "scripts/**/*"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
 
   - name: "governance"
     path: "../governance"
     description: "Governance System - Project management and oversight"
     collections:
       - name: "governance-docs"
-        dimension: 512
-        metric: cosine
         description: "Governance documentation"
         include_patterns:
           - "*.md"
-          - "views/**/*.md"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
       - name: "governance-source"
-        dimension: 512
-        metric: cosine
         description: "Governance system source code"
         include_patterns:
           - "src/**/*.ts"
-          - "src/**/*.js"
           - "**/*.json"
           - "scripts/**/*"
-          - "migrations/**/*"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
           - "*.db*"
+
+  - name: "gov"
+    path: "../gov"
+    description: "Governance Documentation - BIPs, proposals, and governance"
+    collections:
+      - name: "gov-bips"
+        description: "Bitcoin Improvement Proposals"
+        include_patterns:
+          - "bips/**/*.md"
+          - "bips/**/*.json"
+        exclude_patterns:
+          - "bips/draft/**"
+      - name: "gov-proposals"
+        description: "Governance proposals and voting"
+        include_patterns:
+          - "proposals/**/*.md"
+          - "proposals/**/*.json"
+        exclude_patterns:
+          - "proposals/draft/**"
+      - name: "gov-guidelines"
+        description: "Governance guidelines"
+        include_patterns:
+          - "guidelines/**/*.md"
+          - "docs/**/*.md"
+          - "manuals/**/*.md"
+        exclude_patterns:
+          - "draft/**"
+
+  - name: "ide-reasoning"
+    path: "../ide/reasoning"
+    description: "IDE Reasoning - LLM reasoning engine with CUDA support"
+    collections:
+      - name: "ide-reasoning-docs"
+        description: "IDE Reasoning documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "models/**"
+      - name: "ide-reasoning-source"
+        description: "IDE Reasoning Rust source"
+        include_patterns:
+          - "src/**/*.rs"
+          - "examples/**/*.rs"
+          - "**/*.toml"
+        exclude_patterns:
+          - "target/**"
+          - "models/**"
+
+  - name: "lexum"
+    path: "../lexum"
+    description: "Lexum - Query language and execution engine"
+    collections:
+      - name: "lexum-docs"
+        description: "Lexum documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "openspec/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+          - "coverage/**"
+      - name: "lexum-core"
+        description: "Lexum core library"
+        include_patterns:
+          - "lexum-core/**/*.rs"
+          - "lexum-core/**/*.toml"
+        exclude_patterns:
+          - "target/**"
+      - name: "lexum-server"
+        description: "Lexum server implementation"
+        include_patterns:
+          - "lexum-server/**/*.rs"
+          - "lexum-server/**/*.toml"
+        exclude_patterns:
+          - "target/**"
+      - name: "lexum-cli"
+        description: "Lexum CLI tool"
+        include_patterns:
+          - "lexum-cli/**/*.rs"
+          - "lexum-cli/**/*.toml"
+        exclude_patterns:
+          - "target/**"
+
+  - name: "nexus"
+    path: "../nexus"
+    description: "Nexus - Central coordination and routing system"
+    collections:
+      - name: "nexus-docs"
+        description: "Nexus documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+      - name: "nexus-source"
+        description: "Nexus Rust source"
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+        exclude_patterns:
+          - "target/**"
 
   - name: "py-env-security"
     path: "../py-env-security"
     description: "Python Environment Security - Security analysis tools"
     collections:
       - name: "py-security-docs"
-        dimension: 512
-        metric: cosine
         description: "Python security tools documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -162,27 +300,63 @@ projects:
           - "__pycache__/**"
           - "venv/**"
       - name: "py-security-source"
-        dimension: 512
-        metric: cosine
         description: "Python security tools source code"
         include_patterns:
           - "**/*.py"
           - "**/*.toml"
-          - "**/*.txt"
-          - "**/*.json"
-          - "scripts/**/*"
         exclude_patterns:
           - "__pycache__/**"
           - "venv/**"
           - "*.log"
+
+  - name: "rulebook"
+    path: "../rulebook"
+    description: "Rulebook - Rule engine and validation system"
+    collections:
+      - name: "rulebook-docs"
+        description: "Rulebook documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "openspec/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "node_modules/**"
+          - "coverage/**"
+      - name: "rulebook-source"
+        description: "Rulebook TypeScript source"
+        include_patterns:
+          - "src/**/*.ts"
+          - "tests/**/*.ts"
+          - "**/*.json"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
+          - "coverage/**"
+
+  - name: "synap"
+    path: "../synap"
+    description: "Synap - Neural network and synaptic connections"
+    collections:
+      - name: "synap-docs"
+        description: "Synap documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+      - name: "synap-source"
+        description: "Synap Rust source"
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+        exclude_patterns:
+          - "target/**"
 
   - name: "task-queue"
     path: "../task-queue"
     description: "Task Queue - Distributed task processing system"
     collections:
       - name: "task-queue-docs"
-        dimension: 512
-        metric: cosine
         description: "Task queue documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -191,62 +365,72 @@ projects:
           - "target/**"
           - "data/**"
       - name: "task-queue-source"
-        dimension: 512
-        metric: cosine
         description: "Task queue Rust source code"
         include_patterns:
           - "src/**/*.rs"
           - "cli/**/*.rs"
           - "**/*.toml"
-          - "**/*.json"
-          - "scripts/**/*"
         exclude_patterns:
           - "target/**"
           - "data/**"
-          - "logs/**"
-      - name: "task-queue-dashboard"
-        dimension: 512
-        metric: cosine
-        description: "Task queue dashboard and web interface"
-        include_patterns:
-          - "dashboard/**/*.js"
-          - "dashboard/**/*.vue"
-          - "dashboard/**/*.html"
-          - "dashboard/**/*.css"
-        exclude_patterns:
-          - "dashboard/node_modules/**"
       - name: "task-queue-sdk-typescript"
-        dimension: 512
-        metric: cosine
-        description: "Task Queue TypeScript/JavaScript SDK"
+        description: "Task Queue TypeScript SDK"
         include_patterns:
           - "sdks/typescript/**/*.ts"
-          - "sdks/typescript/**/*.js"
           - "sdks/typescript/**/*.json"
         exclude_patterns:
           - "sdks/typescript/node_modules/**"
-          - "sdks/typescript/coverage/**"
-          - "sdks/typescript/**/*.map"
       - name: "task-queue-sdk-python"
-        dimension: 512
-        metric: cosine
         description: "Task Queue Python SDK"
         include_patterns:
           - "sdks/python/**/*.py"
-          - "sdks/python/**/*.txt"
-          - "sdks/python/**/*.toml"
-          - "sdks/python/**/*.md"
         exclude_patterns:
           - "sdks/python/**/__pycache__/**"
-          - "sdks/python/**/build/**"
+
+  - name: "transmutation"
+    path: "../transmutation"
+    description: "Transmutation - Code transformation and migration"
+    collections:
+      - name: "transmutation-docs"
+        description: "Transmutation documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "target/**"
+      - name: "transmutation-source"
+        description: "Transmutation Rust source"
+        include_patterns:
+          - "src/**/*.rs"
+          - "**/*.toml"
+        exclude_patterns:
+          - "target/**"
+
+  - name: "transmutation-lite"
+    path: "../transmutation-lite"
+    description: "Transmutation Lite - Lightweight transformation tools"
+    collections:
+      - name: "transmutation-lite-docs"
+        description: "Transmutation Lite documentation"
+        include_patterns:
+          - "docs/**/*.md"
+          - "*.md"
+        exclude_patterns:
+          - "node_modules/**"
+      - name: "transmutation-lite-source"
+        description: "Transmutation Lite TypeScript source"
+        include_patterns:
+          - "src/**/*.ts"
+          - "**/*.json"
+        exclude_patterns:
+          - "node_modules/**"
+          - "dist/**"
 
   - name: "ts-workspace"
     path: "../ts-workspace"
     description: "TypeScript Workspace - Shared TypeScript utilities"
     collections:
       - name: "ts-workspace-docs"
-        dimension: 512
-        metric: cosine
         description: "TypeScript workspace documentation"
         include_patterns:
           - "*.md"
@@ -255,14 +439,10 @@ projects:
           - "node_modules/**"
           - "packages/**/node_modules/**"
       - name: "ts-workspace-source"
-        dimension: 512
-        metric: cosine
         description: "TypeScript workspace source code"
         include_patterns:
           - "packages/**/*.ts"
-          - "packages/**/*.js"
           - "**/*.json"
-          - "scripts/**/*"
         exclude_patterns:
           - "node_modules/**"
           - "packages/**/node_modules/**"
@@ -273,53 +453,47 @@ projects:
     description: "Universal Model Interface Communication Protocol"
     collections:
       - name: "umicp-docs"
-        dimension: 512
-        metric: cosine
         description: "UMICP documentation"
         include_patterns:
           - "docs/**/*.md"
           - "*.md"
         exclude_patterns:
           - "bindings/**/target/**"
+          - "cpp/build/**"
+      - name: "umicp-elixir"
+        description: "UMICP Elixir implementation"
+        include_patterns:
+          - "lib/**/*.ex"
+          - "lib/**/*.exs"
+        exclude_patterns:
+          - "_build/**"
       - name: "umicp-cpp"
-        dimension: 512
-        metric: cosine
         description: "UMICP C++ implementation"
         include_patterns:
           - "cpp/**/*.cpp"
           - "cpp/**/*.h"
-          - "cpp/**/*.md"
+          - "cpp/**/*.hpp"
         exclude_patterns:
           - "cpp/build/**"
           - "cpp/obj/**"
-      - name: "umicp-bindings-rust"
-        dimension: 512
-        metric: cosine
-        description: "UMICP Rust language bindings"
+      - name: "umicp-sdk-rust"
+        description: "UMICP Rust SDK"
         include_patterns:
           - "bindings/**/*.rs"
           - "bindings/**/*.toml"
         exclude_patterns:
           - "bindings/**/target/**"
-          - "bindings/**/Cargo.lock"
-      - name: "umicp-bindings-typescript"
-        dimension: 512
-        metric: cosine
-        description: "UMICP TypeScript/JavaScript language bindings"
+      - name: "umicp-sdk-typescript"
+        description: "UMICP TypeScript SDK"
         include_patterns:
           - "bindings/**/*.ts"
-          - "bindings/**/*.js"
           - "bindings/**/*.json"
         exclude_patterns:
           - "bindings/**/node_modules/**"
           - "bindings/**/dist/**"
-          - "bindings/**/*.map"
-      - name: "umicp-bindings-cpp"
-        dimension: 512
-        metric: cosine
-        description: "UMICP C++ language bindings"
+      - name: "umicp-sdk-cpp"
+        description: "UMICP C++ SDK"
         include_patterns:
-          - "bindings/**/*.cc"
           - "bindings/**/*.cpp"
           - "bindings/**/*.h"
           - "bindings/**/*.hpp"
@@ -332,8 +506,6 @@ projects:
     description: "Vectorizer - Vector database and search engine"
     collections:
       - name: "vectorizer-docs"
-        dimension: 512
-        metric: cosine
         description: "Vectorizer documentation"
         include_patterns:
           - "docs/**/*.md"
@@ -341,426 +513,150 @@ projects:
         exclude_patterns:
           - "target/**"
           - "data/**"
-          - "node_modules/**"
       - name: "vectorizer-source"
-        dimension: 512
-        metric: cosine
         description: "Vectorizer Rust source code"
         include_patterns:
           - "src/**/*.rs"
           - "**/*.toml"
-          - "**/*.json"
-          - "scripts/**/*"
           - "build.rs"
         exclude_patterns:
           - "target/**"
           - "data/**"
-          - "logs/**"
       - name: "vectorizer-sdk-typescript"
-        dimension: 512
-        metric: cosine
-        description: "Vectorizer TypeScript/JavaScript SDK"
+        description: "Vectorizer TypeScript SDK"
         include_patterns:
           - "client-sdks/**/*.ts"
-          - "client-sdks/**/*.js"
           - "client-sdks/**/*.json"
         exclude_patterns:
           - "client-sdks/**/node_modules/**"
-          - "client-sdks/**/dist/**"
-          - "client-sdks/**/*.map"
       - name: "vectorizer-sdk-python"
-        dimension: 512
-        metric: cosine
         description: "Vectorizer Python SDK"
         include_patterns:
           - "client-sdks/**/*.py"
-          - "client-sdks/**/*.txt"
-          - "client-sdks/**/*.toml"
         exclude_patterns:
           - "client-sdks/**/__pycache__/**"
-          - "client-sdks/**/venv/**"
-          - "client-sdks/**/build/**"
-      - name: "vectorizer-sdk-rust"
-        dimension: 512
-        metric: cosine
-        description: "Vectorizer Rust SDK"
-        include_patterns:
-          - "client-sdks/**/*.rs"
-          - "client-sdks/**/*.toml"
-          - "client-sdks/**/*.json"
-        exclude_patterns:
-          - "client-sdks/**/target/**"
-          - "client-sdks/**/Cargo.lock"
 
   - name: "voxa"
     path: "../voxa"
     description: "Voxa - Voice AI assistant framework"
     collections:
       - name: "voxa-docs"
-        dimension: 512
-        metric: cosine
-        description: "Voxa documentation and guides"
+        description: "Voxa documentation"
         include_patterns:
           - "docs/**/*.md"
           - "*.md"
         exclude_patterns:
           - "venv/**"
-          - "models/**"
       - name: "voxa-source"
-        dimension: 512
-        metric: cosine
-        description: "Voxa Python source code"
+        description: "Voxa Python source"
         include_patterns:
           - "**/*.py"
-          - "**/*.json"
-          - "**/*.txt"
-          - "**/*.yml"
-          - "**/*.yaml"
         exclude_patterns:
           - "venv/**"
-          - "models/**"
           - "__pycache__/**"
-          - "*.log"
 
-  - name: "gov"
-    path: "../gov"
-    description: "Governance Documentation - BIPs, proposals, and governance documents"
-    collections:
-      - name: "gov-bips"
-        dimension: 512
-        metric: cosine
-        description: "Bitcoin Improvement Proposals (BIPs)"
-        include_patterns:
-          - "bips/**/*.md"
-          - "bips/**/*.json"
-          - "bips/**/*.txt"
-        exclude_patterns:
-          - "bips/draft/**"
-      - name: "gov-proposals"
-        dimension: 512
-        metric: cosine
-        description: "Governance proposals and voting records"
-        include_patterns:
-          - "proposals/**/*.md"
-          - "proposals/**/*.json"
-          - "snapshot/**/*.md"
-        exclude_patterns:
-          - "proposals/draft/**"
-      - name: "gov-meetings"
-        dimension: 512
-        metric: cosine
-        description: "Meeting minutes and governance records"
-        include_patterns:
-          - "minutes/**/*.md"
-          - "minutes/**/*.json"
-        exclude_patterns:
-          - "minutes/draft/**"
-      - name: "gov-teams"
-        dimension: 512
-        metric: cosine
-        description: "Team documentation and structure"
-        include_patterns:
-          - "teams/**/*.md"
-          - "teams/**/*.json"
-        exclude_patterns:
-          - "teams/inactive/**"
-      - name: "gov-guidelines"
-        dimension: 512
-        metric: cosine
-        description: "Governance guidelines and policies"
-        include_patterns:
-          - "guidelines/**/*.md"
-          - "docs/**/*.md"
-          - "*.md"
-        exclude_patterns:
-          - "draft/**"
-      - name: "gov-metrics"
-        dimension: 512
-        metric: cosine
-        description: "Governance metrics and analytics"
-        include_patterns:
-          - "metrics/**/*.json"
-          - "schemas/**/*.json"
-        exclude_patterns:
-          - "metrics/temp/**"
-
+  # CMMV Framework Projects
   - name: "cmmv-core"
     path: "../../cmmv/cmmv"
     description: "CMMV Core - Main framework and utilities"
     collections:
       - name: "cmmv-core-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Core documentation and guides"
+        description: "CMMV Core documentation"
         include_patterns:
           - "*.md"
           - "i18n/**/*.md"
-          - "manifest-*.md"
         exclude_patterns:
           - "node_modules/**"
           - "packages/**/node_modules/**"
       - name: "cmmv-core-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Core source code and packages"
+        description: "CMMV Core source code"
         include_patterns:
           - "src/**/*.ts"
           - "packages/**/*.ts"
-          - "packages/**/*.js"
           - "packages/**/*.json"
-          - "tools/**/*.ts"
-          - "*.json"
-          - "*.ts"
         exclude_patterns:
           - "node_modules/**"
           - "packages/**/node_modules/**"
           - "**/*.map"
-          - "test/**"
-      - name: "cmmv-core-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Core configuration files"
-        include_patterns:
-          - "tsconfig*.json"
-          - "vitest.config.ts"
-          - "gulpfile.js"
-          - "lerna.json"
-          - "nodemon.json"
-          - "*.config.ts"
-          - "*.config.js"
-        exclude_patterns:
-          - "node_modules/**"
-          - "packages/**/node_modules/**"
 
   - name: "cmmv-admin"
     path: "../../cmmv/cmmv-admin"
-    description: "CMMV Admin - Administrative interface and tools"
+    description: "CMMV Admin - Administrative interface"
     collections:
       - name: "cmmv-admin-docs"
-        dimension: 512
-        metric: cosine
         description: "CMMV Admin documentation"
         include_patterns:
           - "*.md"
-          - "README.md"
         exclude_patterns:
           - "node_modules/**"
-          - "packages/**/node_modules/**"
       - name: "cmmv-admin-source"
-        dimension: 512
-        metric: cosine
         description: "CMMV Admin source code"
         include_patterns:
           - "packages/**/*.ts"
           - "packages/**/*.vue"
-          - "packages/**/*.js"
           - "packages/**/*.json"
-          - "*.json"
-          - "*.ts"
-          - "*.js"
         exclude_patterns:
           - "node_modules/**"
           - "packages/**/node_modules/**"
           - "**/*.map"
-      - name: "cmmv-admin-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Admin configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "turbo.json"
-          - "pnpm-workspace.yaml"
-          - "eslint.config.ts"
-          - "nodemon.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "packages/**/node_modules/**"
 
   - name: "cmmv-ai"
     path: "../../cmmv/cmmv-ai"
     description: "CMMV AI - Artificial Intelligence integration"
     collections:
       - name: "cmmv-ai-docs"
-        dimension: 512
-        metric: cosine
         description: "CMMV AI documentation"
         include_patterns:
           - "*.md"
-          - "CHANGELOG.md"
-          - "CODE_OF_CONDUCT.md"
         exclude_patterns:
           - "node_modules/**"
-          - "dist/**"
       - name: "cmmv-ai-source"
-        dimension: 512
-        metric: cosine
         description: "CMMV AI source code"
         include_patterns:
           - "src/**/*.ts"
           - "src/**/*.py"
-          - "samples/**/*.ts"
-          - "tests/**/*.ts"
-          - "*.json"
-          - "*.ts"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
           - "**/*.map"
-      - name: "cmmv-ai-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV AI configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "eslint.config.cjs"
-          - "vitest.config.ts"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
 
   - name: "cmmv-blog"
     path: "../../cmmv/cmmv-blog"
-    description: "CMMV Blog - Blog platform and content management"
+    description: "CMMV Blog - Blog platform"
     collections:
       - name: "cmmv-blog-docs"
-        dimension: 512
-        metric: cosine
         description: "CMMV Blog documentation"
         include_patterns:
           - "*.md"
-          - "CODE_OF_CONDUCT.md"
-          - "prompt-sample.txt"
         exclude_patterns:
           - "node_modules/**"
-          - "packages/**/node_modules/**"
-          - "apps/**/node_modules/**"
-      - name: "cmmv-blog-apps"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Blog applications"
+      - name: "cmmv-blog-source"
+        description: "CMMV Blog source code"
         include_patterns:
           - "apps/**/*.vue"
           - "apps/**/*.ts"
-          - "apps/**/*.js"
-          - "apps/**/*.png"
-          - "apps/**/*.json"
-        exclude_patterns:
-          - "apps/**/node_modules/**"
-          - "apps/**/dist/**"
-          - "apps/**/*.map"
-      - name: "cmmv-blog-packages"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Blog packages and components"
-        include_patterns:
           - "packages/**/*.ts"
           - "packages/**/*.vue"
-          - "packages/**/*.json"
-          - "packages/**/*.html"
-          - "packages/**/*.css"
-        exclude_patterns:
-          - "packages/**/node_modules/**"
-          - "packages/**/dist/**"
-          - "packages/**/*.map"
-      - name: "cmmv-blog-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Blog configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "turbo.json"
-          - "pnpm-workspace.yaml"
-          - "ecosystem.config.cjs"
-          - "nginx-sample.config"
         exclude_patterns:
           - "node_modules/**"
-          - "packages/**/node_modules/**"
           - "apps/**/node_modules/**"
-
-  - name: "cmmv-blueprint"
-    path: "../../cmmv/cmmv-blueprint"
-    description: "CMMV Blueprint - Template and scaffolding system"
-    collections:
-      - name: "cmmv-blueprint-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Blueprint documentation"
-        include_patterns:
-          - "*.md"
-          - "CODE_OF_CONDUCT.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "packages/**/node_modules/**"
-      - name: "cmmv-blueprint-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Blueprint source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "packages/**/*.ts"
-          - "packages/**/*.js"
-          - "packages/**/*.json"
-          - "samples/**/*.ts"
-          - "tools/**/*.ts"
-          - "scripts/**/*.js"
-          - "*.json"
-          - "*.ts"
-        exclude_patterns:
-          - "node_modules/**"
-          - "packages/**/node_modules/**"
-          - "**/*.map"
-      - name: "cmmv-blueprint-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Blueprint configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "vite.config.ts"
-          - "eslint.config.js"
-          - "gulpfile.js"
-          - "lerna.json"
-          - "nodemon.json"
-          - "mocha.opts"
-        exclude_patterns:
-          - "node_modules/**"
           - "packages/**/node_modules/**"
 
   - name: "cmmv-cli"
     path: "../../cmmv/cmmv-cli"
-    description: "CMMV CLI - Command line interface tools"
+    description: "CMMV CLI - Command line interface"
     collections:
       - name: "cmmv-cli-docs"
-        dimension: 512
-        metric: cosine
         description: "CMMV CLI documentation"
         include_patterns:
           - "*.md"
-          - "CHANGELOG.md"
-          - "CODE_OF_CONDUCT.md"
         exclude_patterns:
           - "node_modules/**"
-          - "dist/**"
       - name: "cmmv-cli-source"
-        dimension: 512
-        metric: cosine
         description: "CMMV CLI source code"
         include_patterns:
           - "lib/**/*.ts"
           - "bin/**/*.ts"
-          - "tests/**/*.ts"
-          - "release.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-      - name: "cmmv-cli-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV CLI configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "eslint.config.cjs"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
@@ -770,54 +666,10 @@ projects:
     description: "CMMV Documentation - Main documentation site"
     collections:
       - name: "cmmv-docs-content"
-        dimension: 512
-        metric: cosine
         description: "CMMV documentation content"
         include_patterns:
           - "docs/**/*.md"
-          - "src/**/*.ts"
           - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-docs-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV documentation configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "eslint.config.cjs"
-          - "nginx.conf"
-          - "Dockerfile"
-          - "compose.yaml"
-          - "ecosystem-*.config.js"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-
-  - name: "cmmv-docs-en"
-    path: "../../cmmv/cmmv-docs-en"
-    description: "CMMV English Documentation - English language documentation"
-    collections:
-      - name: "cmmv-docs-en-content"
-        dimension: 512
-        metric: cosine
-        description: "CMMV English documentation content"
-        include_patterns:
-          - "**/*.md"
-        exclude_patterns:
-          - "node_modules/**"
-
-  - name: "cmmv-docs-ptbr"
-    path: "../../cmmv/cmmv-docs-ptbr"
-    description: "CMMV Portuguese Documentation - Portuguese language documentation"
-    collections:
-      - name: "cmmv-docs-ptbr-content"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Portuguese documentation content"
-        include_patterns:
-          - "**/*.md"
         exclude_patterns:
           - "node_modules/**"
 
@@ -825,579 +677,41 @@ projects:
     path: "../../cmmv/cmmv-elastic"
     description: "CMMV Elastic - Elasticsearch integration"
     collections:
-      - name: "cmmv-elastic-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Elastic documentation"
-        include_patterns:
-          - "*.md"
-          - "CHANGELOG.md"
-          - "CODE_OF_CONDUCT.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
       - name: "cmmv-elastic-source"
-        dimension: 512
-        metric: cosine
         description: "CMMV Elastic source code"
         include_patterns:
           - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-      - name: "cmmv-elastic-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Elastic configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "eslint.config.cjs"
-          - "vitest.config.ts"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
 
   - name: "cmmv-encryptor"
     path: "../../cmmv/cmmv-encryptor"
-    description: "CMMV Encryptor - Encryption and security utilities"
+    description: "CMMV Encryptor - Encryption utilities"
     collections:
-      - name: "cmmv-encryptor-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Encryptor documentation"
-        include_patterns:
-          - "*.md"
-          - "CHANGELOG.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
       - name: "cmmv-encryptor-source"
-        dimension: 512
-        metric: cosine
         description: "CMMV Encryptor source code"
         include_patterns:
           - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "scripts/**/*.js"
-          - "*.json"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
-          - "**/*.map"
-      - name: "cmmv-encryptor-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Encryptor configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "eslint.config.cjs"
-          - "vitest.config.ts"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-
-  - name: "cmmv-events"
-    path: "../../cmmv/cmmv-events"
-    description: "CMMV Events - Event system and management"
-    collections:
-      - name: "cmmv-events-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Events documentation"
-        include_patterns:
-          - "*.md"
-          - "CHANGELOG.md"
-          - "CODE_OF_CONDUCT.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-events-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Events source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "sample/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-      - name: "cmmv-events-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Events configuration"
-        include_patterns:
-          - "tsconfig*.json"
-          - "eslint.config.cjs"
-          - "vitest.config.ts"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-
-  - name: "cmmv-formbuilder"
-    path: "../../cmmv/cmmv-formbuilder"
-    description: "CMMV FormBuilder - Dynamic form creation system"
-    collections:
-      - name: "cmmv-formbuilder-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV FormBuilder documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-formbuilder-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV FormBuilder source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "src/**/*.js"
-          - "src/**/*.vue"
-          - "tests/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-inspector"
-    path: "../../cmmv/cmmv-inspector"
-    description: "CMMV Inspector - Code inspection and analysis tools"
-    collections:
-      - name: "cmmv-inspector-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Inspector documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-inspector-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Inspector source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-mcp"
-    path: "../../cmmv/cmmv-mcp"
-    description: "CMMV MCP - Model Context Protocol integration"
-    collections:
-      - name: "cmmv-mcp-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV MCP documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-mcp-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV MCP source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-middleware"
-    path: "../../cmmv/cmmv-middleware"
-    description: "CMMV Middleware - HTTP middleware components"
-    collections:
-      - name: "cmmv-middleware-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Middleware documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-middleware-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Middleware source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-normalizer"
-    path: "../../cmmv/cmmv-normalizer"
-    description: "CMMV Normalizer - Data normalization utilities"
-    collections:
-      - name: "cmmv-normalizer-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Normalizer documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-normalizer-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Normalizer source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-parallel"
-    path: "../../cmmv/cmmv-parallel"
-    description: "CMMV Parallel - Parallel processing utilities"
-    collections:
-      - name: "cmmv-parallel-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Parallel documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-parallel-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Parallel source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-plugins"
-    path: "../../cmmv/cmmv-plugins"
-    description: "CMMV Plugins - Plugin system and extensions"
-    collections:
-      - name: "cmmv-plugins-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Plugins documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-plugins-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Plugins configuration"
-        include_patterns:
-          - "**/*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-
-  - name: "cmmv-queue"
-    path: "../../cmmv/cmmv-queue"
-    description: "CMMV Queue - Task queue and job processing"
-    collections:
-      - name: "cmmv-queue-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Queue documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-queue-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Queue source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
 
   - name: "cmmv-server"
     path: "../../cmmv/cmmv-server"
     description: "CMMV Server - Main server implementation"
     collections:
       - name: "cmmv-server-docs"
-        dimension: 512
-        metric: cosine
         description: "CMMV Server documentation"
         include_patterns:
           - "*.md"
           - "docs/**/*.md"
         exclude_patterns:
           - "node_modules/**"
-          - "dist/**"
       - name: "cmmv-server-source"
-        dimension: 512
-        metric: cosine
         description: "CMMV Server source code"
         include_patterns:
           - "src/**/*.ts"
-          - "src/**/*.js"
-          - "tests/**/*.ts"
-          - "*.json"
         exclude_patterns:
           - "node_modules/**"
           - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-server-cpp"
-    path: "../../cmmv/cmmv-server-cpp"
-    description: "CMMV Server C++ - C++ server implementation"
-    collections:
-      - name: "cmmv-server-cpp-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Server C++ documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-server-cpp-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Server C++ source code"
-        include_patterns:
-          - "src/**/*.cpp"
-          - "src/**/*.h"
-          - "src/**/*.hpp"
-          - "src/**/*.js"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "build/**"
-
-  - name: "cmmv-socialautoposts"
-    path: "../../cmmv/cmmv-socialautoposts"
-    description: "CMMV Social Auto Posts - Social media automation"
-    collections:
-      - name: "cmmv-socialautoposts-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Social Auto Posts documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-socialautoposts-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Social Auto Posts source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "src/**/*.vue"
-          - "src/**/*.css"
-          - "src/**/*.png"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-test"
-    path: "../../cmmv/cmmv-test"
-    description: "CMMV Test - Testing utilities and frameworks"
-    collections:
-      - name: "cmmv-test-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Test documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-test-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV Test source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "tests/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-tsconfig"
-    path: "../../cmmv/cmmv-tsconfig"
-    description: "CMMV TypeScript Config - Shared TypeScript configurations"
-    collections:
-      - name: "cmmv-tsconfig-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Config documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-      - name: "cmmv-tsconfig-config"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript configuration files"
-        include_patterns:
-          - "**/*.json"
-        exclude_patterns:
-          - "node_modules/**"
-
-  - name: "cmmv-typescript-blog"
-    path: "../../cmmv/cmmv-typescript-blog"
-    description: "CMMV TypeScript Blog - Blog implementation in TypeScript"
-    collections:
-      - name: "cmmv-typescript-blog-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Blog documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-typescript-blog-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Blog source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "src/**/*.vue"
-          - "src/**/*.json"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-typescript-module"
-    path: "../../cmmv/cmmv-typescript-module"
-    description: "CMMV TypeScript Module - Reusable TypeScript module template"
-    collections:
-      - name: "cmmv-typescript-module-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Module documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-typescript-module-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Module source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-typescript-starter"
-    path: "../../cmmv/cmmv-typescript-starter"
-    description: "CMMV TypeScript Starter - Project starter template"
-    collections:
-      - name: "cmmv-typescript-starter-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Starter documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-typescript-starter-source"
-        dimension: 512
-        metric: cosine
-        description: "CMMV TypeScript Starter source code"
-        include_patterns:
-          - "src/**/*.ts"
-          - "*.json"
-          - "*.cjs"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-ui"
-    path: "../../cmmv/cmmv-ui"
-    description: "CMMV UI - User interface components and design system"
-    collections:
-      - name: "cmmv-ui-docs"
-        dimension: 512
-        metric: cosine
-        description: "CMMV UI documentation"
-        include_patterns:
-          - "*.md"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-      - name: "cmmv-ui-components"
-        dimension: 512
-        metric: cosine
-        description: "CMMV UI Vue components"
-        include_patterns:
-          - "src/**/*.vue"
-          - "src/**/*.ts"
-          - "src/**/*.png"
-          - "*.json"
-        exclude_patterns:
-          - "node_modules/**"
-          - "dist/**"
-          - "**/*.map"
-
-  - name: "cmmv-vue"
-    # path: "../../cmmv/cmmv-vue"
-    # description: "CMMV Vue - Vue.js integration and utilities"
-    # collections:
-    #   - name: "cmmv-vue-docs"
-    #     description: "CMMV Vue documentation"
-    #     include_patterns:
-    #       - "*.md"
-    #     exclude_patterns:
-    #       - "node_modules/**"
-    #       - "dist/**"
-    #   - name: "cmmv-vue-source"
-    #     description: "CMMV Vue source code"
-    #     include_patterns:
-    #       - "src/**/*.ts"
-    #       - "src/**/*.vue"
-    #       - "*.json"
-    #       - "*.cjs"
-    #     exclude_patterns:
-    #       - "node_modules/**"
-    #       - "dist/**"
-    #       - "**/*.map"

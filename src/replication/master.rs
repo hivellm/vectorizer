@@ -258,8 +258,16 @@ impl MasterNode {
         stream: &mut TcpStream,
         cmd: &ReplicationCommand,
     ) -> ReplicationResult<()> {
+        use crate::monitoring::metrics::METRICS;
+
         let data = bincode::serialize(cmd)?;
         let len = (data.len() as u32).to_be_bytes();
+
+        // Track bytes sent (4 bytes for length + data)
+        let total_bytes = 4 + data.len();
+        METRICS
+            .replication_bytes_sent_total
+            .inc_by(total_bytes as f64);
 
         stream.write_all(&len).await?;
         stream.write_all(&data).await?;
@@ -270,7 +278,12 @@ impl MasterNode {
 
     /// Replicate an operation to all replicas
     pub fn replicate(&self, operation: VectorOperation) -> u64 {
+        use crate::monitoring::metrics::METRICS;
+
         let offset = self.replication_log.append(operation.clone());
+
+        // Update operations pending metric
+        METRICS.replication_operations_pending.inc();
 
         // Send to replication task
         let _ = self
@@ -345,6 +358,8 @@ impl MasterNode {
 
     /// Get replication statistics
     pub fn get_stats(&self) -> ReplicationStats {
+        use crate::monitoring::metrics::METRICS;
+
         let replicas = self.replicas.read();
         let master_offset = self.replication_log.current_offset();
 
@@ -358,6 +373,15 @@ impl MasterNode {
         }
 
         let num_replicas = replicas.len();
+
+        // Update replication lag metric (average lag in operations, convert to approximate ms)
+        // Assuming ~1ms per operation as rough estimate
+        let avg_lag_ops = if num_replicas > 0 {
+            total_lag / num_replicas as u64
+        } else {
+            0
+        };
+        METRICS.replication_lag_ms.set(avg_lag_ops as f64);
 
         ReplicationStats {
             role: crate::replication::NodeRole::Master,

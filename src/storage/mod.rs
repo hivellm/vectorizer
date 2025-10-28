@@ -163,4 +163,72 @@ mod tests {
         assert_eq!(vecidx_path(data_dir), Path::new("/data/vectorizer.vecidx"));
         assert_eq!(snapshots_dir(data_dir), Path::new("/data/snapshots"));
     }
+
+    #[test]
+    fn test_storage_version() {
+        assert_eq!(STORAGE_VERSION, "1.0");
+    }
+
+    #[test]
+    fn test_file_constants() {
+        assert_eq!(VECDB_FILE, "vectorizer.vecdb");
+        assert_eq!(VECIDX_FILE, "vectorizer.vecidx");
+        assert_eq!(TEMP_SUFFIX, ".tmp");
+        assert_eq!(SNAPSHOT_DIR, "snapshots");
+    }
+
+    #[test]
+    fn test_detect_format_legacy_with_files() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a legacy format file
+        std::fs::write(
+            temp_dir.path().join("test_collection_vector_store.bin"),
+            b"legacy data",
+        )
+        .unwrap();
+
+        assert_eq!(detect_format(temp_dir.path()), StorageFormat::Legacy);
+    }
+
+    #[test]
+    fn test_storage_format_variants() {
+        assert_ne!(StorageFormat::Legacy, StorageFormat::Compact);
+        assert_eq!(StorageFormat::Legacy, StorageFormat::Legacy);
+        assert_eq!(StorageFormat::Compact, StorageFormat::Compact);
+    }
+
+    #[test]
+    fn test_load_or_initialize_new_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let non_existent = temp_dir.path().join("new_data_dir");
+
+        let result = load_or_initialize(&non_existent);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+        assert!(non_existent.exists());
+    }
+
+    #[test]
+    fn test_load_or_initialize_empty_directory() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let result = load_or_initialize(temp_dir.path());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_path_construction() {
+        let base = PathBuf::from("/custom/path");
+
+        let vecdb = vecdb_path(&base);
+        assert!(vecdb.to_str().unwrap().ends_with("vectorizer.vecdb"));
+
+        let vecidx = vecidx_path(&base);
+        assert!(vecidx.to_str().unwrap().ends_with("vectorizer.vecidx"));
+
+        let snapshots = snapshots_dir(&base);
+        assert!(snapshots.to_str().unwrap().ends_with("snapshots"));
+    }
 }

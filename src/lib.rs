@@ -5,8 +5,10 @@
 
 #![allow(warnings)]
 
+pub mod api;
 pub mod auth;
 pub mod batch;
+pub mod benchmark;
 pub mod cache;
 pub mod cli;
 pub mod config;
@@ -19,18 +21,24 @@ pub mod evaluation;
 pub mod file_loader;
 pub mod file_operations;
 pub mod file_watcher;
+pub mod guardrails;
 // GPU module removed - using external hive-gpu crate
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_adapter;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;
+pub mod ml;
 pub mod models;
+pub mod monitoring;
 pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
+pub mod processing;
 pub mod replication;
+pub mod search;
+pub mod security;
 pub mod server;
 pub mod storage;
 pub mod summarization;

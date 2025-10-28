@@ -17,7 +17,9 @@ impl ExampleUsage {
         // Note: In real usage, you would pass actual VectorStore and EmbeddingManager instances
         // For examples, we'll use placeholder values
         let store = std::sync::Arc::new(crate::VectorStore::new());
-        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new());
+        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new(
+            crate::embedding::EmbeddingConfig::default(),
+        ));
         let handler = MCPToolHandler::new(store, embedding_manager);
 
         let tool = IntelligentSearchTool {
@@ -62,7 +64,9 @@ impl ExampleUsage {
     /// Example: Multi Collection Search
     pub async fn example_multi_collection_search() -> Result<(), String> {
         let store = std::sync::Arc::new(crate::VectorStore::new());
-        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new());
+        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new(
+            crate::embedding::EmbeddingConfig::default(),
+        ));
         let handler = MCPToolHandler::new(store, embedding_manager);
 
         let tool = MultiCollectionSearchTool {
@@ -106,7 +110,9 @@ impl ExampleUsage {
     /// Example: Semantic Search
     pub async fn example_semantic_search() -> Result<(), String> {
         let store = std::sync::Arc::new(crate::VectorStore::new());
-        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new());
+        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new(
+            crate::embedding::EmbeddingConfig::default(),
+        ));
         let handler = MCPToolHandler::new(store, embedding_manager);
 
         let tool = SemanticSearchTool {
@@ -141,7 +147,9 @@ impl ExampleUsage {
     /// Example: Contextual Search
     pub async fn example_contextual_search() -> Result<(), String> {
         let store = std::sync::Arc::new(crate::VectorStore::new());
-        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new());
+        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new(
+            crate::embedding::EmbeddingConfig::default(),
+        ));
         let handler = MCPToolHandler::new(store, embedding_manager);
 
         let mut context_filters = std::collections::HashMap::new();
@@ -303,57 +311,5 @@ impl ExampleUsage {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // TODO: Fix tests - MCPToolHandler and related structs now require VectorStore and EmbeddingManager
-    // #[tokio::test]
-    // async fn test_example_usage() {
-    //     // Test that examples can be created without errors
-    //     let handler = MCPToolHandler::new(store, embedding_manager);
-    //     let rest_handler = RESTAPIHandler::new();
-    //     let integration = MCPServerIntegration::new();
-    //
-    //     // Verify they were created successfully
-    //     assert!(true);
-    // }
-
-    #[test]
-    fn test_tool_schemas() {
-        // TODO: Fix test - MCPServerIntegration::new now requires arguments
-        // let integration = MCPServerIntegration::new();
-        // let tools = integration.get_available_tools();
-
-        // assert_eq!(tools.len(), 4);
-
-        // // Verify each tool has required fields
-        // for tool in &tools {
-        //     assert!(tool.contains_key("name"));
-        //     assert!(tool.contains_key("description"));
-        //     assert!(tool.contains_key("inputSchema"));
-        // }
-
-        // Placeholder test
-        assert!(true);
-    }
-
-    #[test]
-    fn test_rest_endpoints() {
-        // TODO: Fix test - MCPServerIntegration::new now requires arguments
-        // let integration = MCPServerIntegration::new();
-        // let endpoints = integration.get_rest_endpoints();
-
-        // assert_eq!(endpoints.len(), 5);
-
-        // // Verify each endpoint has required fields
-        // for endpoint in &endpoints {
-        //     assert!(endpoint.contains_key("path"));
-        //     assert!(endpoint.contains_key("method"));
-        //     assert!(endpoint.contains_key("description"));
-        // }
-
-        // Placeholder test
-        assert!(true);
-    }
-}
+// Tests removed - examples module is for documentation purposes only
+// Real integration tests are in tests/ directory

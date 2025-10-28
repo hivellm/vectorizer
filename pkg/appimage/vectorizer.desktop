@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Vectorizer
-Comment=High-Performance Vector Database
-Exec=vectorizer
-Icon=vectorizer
-Categories=Development;Database;
-Terminal=false
-StartupNotify=true

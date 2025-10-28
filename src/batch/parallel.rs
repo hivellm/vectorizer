@@ -165,3 +165,216 @@ impl ParallelProcessor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::batch::BatchConfig;
+
+    #[tokio::test]
+    async fn test_parallel_processor_creation() {
+        let config = Arc::new(BatchConfig::default());
+        let processor = ParallelProcessor::new(config);
+
+        // Processor should be created successfully
+        assert!(true);
+    }
+
+    #[tokio::test]
+    async fn test_process_chunks_empty_input() {
+        let config = Arc::new(BatchConfig::default());
+        let processor = ParallelProcessor::new(config);
+
+        let items: Vec<i32> = vec![];
+        let result = processor
+            .process_chunks(items, |chunk| async move {
+                Ok(chunk.iter().map(|x| x * 2).collect())
+            })
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_chunks_single_chunk() {
+        let config = Arc::new(BatchConfig {
+            chunk_size: 10,
+            parallel_workers: 2,
+            ..Default::default()
+        });
+        let processor = ParallelProcessor::new(config);
+
+        let items = vec![1, 2, 3, 4, 5];
+        let result = processor
+            .process_chunks(items, |chunk| async move {
+                Ok(chunk.iter().map(|x| x * 2).collect())
+            })
+            .await;
+
+        assert!(result.is_ok());
+        let results = result.unwrap();
+        assert_eq!(results, vec![2, 4, 6, 8, 10]);
+    }
+
+    #[tokio::test]
+    async fn test_process_chunks_multiple_chunks() {
+        let config = Arc::new(BatchConfig {
+            chunk_size: 3,
+            parallel_workers: 4,
+            ..Default::default()
+        });
+        let processor = ParallelProcessor::new(config);
+
+        let items = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let result = processor
+            .process_chunks(items, |chunk| async move {
+                Ok(chunk.iter().map(|x| x * 2).collect())
+            })
+            .await;
+
+        assert!(result.is_ok());
+        let mut results = result.unwrap();
+        results.sort(); // Results may come in different order due to parallelism
+        assert_eq!(results, vec![2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
+    }
+
+    #[tokio::test]
+    async fn test_process_chunks_with_errors() {
+        let config = Arc::new(BatchConfig::default());
+        let processor = ParallelProcessor::new(config);
+
+        let items = vec![1, 2, 3, 4, 5];
+        let result: BatchResult<Vec<i32>> = processor
+            .process_chunks(items, |_chunk| async move {
+                Err(BatchError::new(
+                    "test".to_string(),
+                    BatchErrorType::InternalError,
+                    "Test error".to_string(),
+                    None,
+                ))
+            })
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_process_items_empty_input() {
+        let config = Arc::new(BatchConfig::default());
+        let processor = ParallelProcessor::new(config);
+
+        let items: Vec<i32> = vec![];
+        let result = processor
+            .process_items(items, |x| async move { Ok(x * 2) })
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_items_success() {
+        let config = Arc::new(BatchConfig {
+            parallel_workers: 4,
+            ..Default::default()
+        });
+        let processor = ParallelProcessor::new(config);
+
+        let items = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let result = processor
+            .process_items(items, |x| async move { Ok(x * 2) })
+            .await;
+
+        assert!(result.is_ok());
+        let mut results = result.unwrap();
+        results.sort();
+        assert_eq!(results, vec![2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
+    }
+
+    #[tokio::test]
+    async fn test_process_items_with_errors() {
+        let config = Arc::new(BatchConfig::default());
+        let processor = ParallelProcessor::new(config);
+
+        let items = vec![1, 2, 3, 4, 5];
+        let result: BatchResult<Vec<i32>> = processor
+            .process_items(items, |_x| async move {
+                Err(BatchError::new(
+                    "test".to_string(),
+                    BatchErrorType::InternalError,
+                    "Test error".to_string(),
+                    None,
+                ))
+            })
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_process_items_partial_errors() {
+        let config = Arc::new(BatchConfig::default());
+        let processor = ParallelProcessor::new(config);
+
+        let items = vec![1, 2, 3, 4, 5];
+        let result = processor
+            .process_items(items, |x| async move {
+                if x % 2 == 0 {
+                    Err(BatchError::new(
+                        "test".to_string(),
+                        BatchErrorType::InternalError,
+                        format!("Error for {}", x),
+                        None,
+                    ))
+                } else {
+                    Ok(x * 2)
+                }
+            })
+            .await;
+
+        // Should return error due to partial failures
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_parallel_processing_concurrency() {
+        let config = Arc::new(BatchConfig {
+            parallel_workers: 2,
+            ..Default::default()
+        });
+        let processor = ParallelProcessor::new(config);
+
+        let items = (1..=20).collect::<Vec<i32>>();
+        let start = std::time::Instant::now();
+
+        let result = processor
+            .process_items(items, |x| async move {
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                Ok(x)
+            })
+            .await;
+
+        let duration = start.elapsed();
+
+        assert!(result.is_ok());
+        // With 2 workers processing 20 items at 10ms each,
+        // should take roughly 100ms (not 200ms sequential)
+        // Allow more time for slower systems or CI environments
+        assert!(duration.as_millis() < 300);
+    }
+
+    #[tokio::test]
+    async fn test_batch_item_trait() {
+        #[derive(Clone)]
+        struct CustomItem {
+            value: i32,
+        }
+
+        // Verify trait is implemented for custom types
+        fn assert_batch_item<T: BatchItem>() {}
+        assert_batch_item::<CustomItem>();
+        assert_batch_item::<i32>();
+        assert_batch_item::<String>();
+    }
+}

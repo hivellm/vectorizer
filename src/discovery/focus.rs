@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use futures_util::future::TryFutureExt;
+
 use super::config::SemanticFocusConfig;
 use super::types::{ChunkMetadata, CollectionRef, DiscoveryError, DiscoveryResult, ScoredChunk};
 use crate::VectorStore;
@@ -24,9 +26,11 @@ pub async fn semantic_focus(
     // Search with all query variations
     for query in queries {
         // Embed the query
-        let query_embedding = embedding_manager
+        let embedding_result = embedding_manager
             .embed(query)
+            .await
             .map_err(|e| DiscoveryError::SearchError(format!("Embedding error: {}", e)))?;
+        let query_embedding = &embedding_result.embedding;
 
         // Search in the collection
         match store.search(&collection.name, &query_embedding, k * 2) {

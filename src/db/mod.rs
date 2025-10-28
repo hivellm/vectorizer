@@ -3,7 +3,10 @@
 pub mod auto_save;
 mod collection;
 pub mod collection_normalization;
+
+#[cfg(feature = "hive-gpu")]
 pub mod hive_gpu_collection;
+
 pub mod optimized_hnsw;
 mod vector_store;
 

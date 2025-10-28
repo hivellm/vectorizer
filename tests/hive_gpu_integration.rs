@@ -5,8 +5,11 @@
 
 #[cfg(feature = "hive-gpu")]
 use hive_gpu::GpuDistanceMetric;
+#[cfg(feature = "hive-gpu")]
 use vectorizer::gpu_adapter::GpuAdapter;
+#[cfg(feature = "hive-gpu")]
 use vectorizer::models::{DistanceMetric, Vector};
+#[cfg(feature = "hive-gpu")]
 use vectorizer::{CollectionConfig, VectorStore};
 
 #[cfg(feature = "hive-gpu")]
@@ -350,7 +353,8 @@ mod hive_gpu_integration_tests {
 
 #[cfg(not(feature = "hive-gpu"))]
 mod no_hive_gpu_tests {
-    use super::*;
+    use vectorizer::models::{DistanceMetric, Vector};
+    use vectorizer::{CollectionConfig, VectorStore};
 
     #[tokio::test]
     async fn test_fallback_to_cpu() {

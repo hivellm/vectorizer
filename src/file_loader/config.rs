@@ -23,6 +23,8 @@ pub struct LoaderConfig {
     pub collection_name: String,
     /// Maximum file size in bytes
     pub max_file_size: usize,
+    /// Allowed file extensions
+    pub allowed_extensions: Vec<String>,
 }
 
 impl LoaderConfig {
@@ -114,8 +116,8 @@ impl LoaderConfig {
 impl Default for LoaderConfig {
     fn default() -> Self {
         Self {
-            max_chunk_size: 2048,
-            chunk_overlap: 256,
+            max_chunk_size: 500,  // Reduced from 2048 to avoid text too long errors
+            chunk_overlap: 100,    // Reduced proportionally
             include_patterns: vec![
                 "**/*.md".to_string(),
                 "**/*.txt".to_string(),
@@ -129,6 +131,14 @@ impl Default for LoaderConfig {
             embedding_type: "bm25".to_string(),
             collection_name: "documents".to_string(),
             max_file_size: 1024 * 1024, // 1MB
+            allowed_extensions: vec![
+                "md".to_string(),
+                "txt".to_string(),
+                "json".to_string(),
+                "rs".to_string(),
+                "ts".to_string(),
+                "js".to_string(),
+            ],
         }
     }
 }
@@ -146,4 +156,137 @@ pub struct DocumentChunk {
     pub chunk_index: usize,
     /// Additional metadata
     pub metadata: HashMap<String, serde_json::Value>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_loader_config_default() {
+        let config = LoaderConfig::default();
+
+        assert_eq!(config.max_chunk_size, 2048);
+        assert_eq!(config.chunk_overlap, 256);
+        assert_eq!(config.embedding_dimension, 512);
+        assert_eq!(config.embedding_type, "bm25");
+        assert_eq!(config.collection_name, "documents");
+        assert_eq!(config.max_file_size, 1024 * 1024);
+
+        // Should have default include patterns
+        assert!(!config.include_patterns.is_empty());
+        assert!(config.include_patterns.contains(&"**/*.md".to_string()));
+
+        // Should have hardcoded exclude patterns
+        assert!(!config.exclude_patterns.is_empty());
+    }
+
+    #[test]
+    fn test_get_hardcoded_excludes() {
+        let excludes = LoaderConfig::get_hardcoded_excludes();
+
+        // Should include critical patterns
+        assert!(excludes.contains(&"**/.git/**".to_string()));
+        assert!(excludes.contains(&"**/target/**".to_string()));
+        assert!(excludes.contains(&"**/node_modules/**".to_string()));
+        assert!(excludes.contains(&"**/__pycache__/**".to_string()));
+        assert!(excludes.contains(&"**/*.vecdb".to_string()));
+
+        // Should be a reasonable number of patterns
+        assert!(excludes.len() > 30);
+    }
+
+    #[test]
+    fn test_ensure_hardcoded_excludes() {
+        let mut config = LoaderConfig {
+            max_chunk_size: 2048,
+            chunk_overlap: 256,
+            include_patterns: vec!["**/*.rs".to_string()],
+            exclude_patterns: vec!["**/custom_exclude/**".to_string()],
+            embedding_dimension: 512,
+            embedding_type: "bm25".to_string(),
+            collection_name: "test".to_string(),
+            max_file_size: 1024 * 1024,
+            allowed_extensions: vec!["rs".to_string()],
+        };
+
+        config.ensure_hardcoded_excludes();
+
+        // Should have custom pattern
+        assert!(
+            config
+                .exclude_patterns
+                .contains(&"**/custom_exclude/**".to_string())
+        );
+
+        // Should have hardcoded patterns
+        assert!(config.exclude_patterns.contains(&"**/.git/**".to_string()));
+        assert!(
+            config
+                .exclude_patterns
+                .contains(&"**/target/**".to_string())
+        );
+
+        // Should not have duplicates
+        let unique_count = config.exclude_patterns.len();
+        let mut deduped = config.exclude_patterns.clone();
+        deduped.sort();
+        deduped.dedup();
+        assert_eq!(unique_count, deduped.len());
+    }
+
+    #[test]
+    fn test_document_chunk_creation() {
+        let chunk = DocumentChunk {
+            id: "chunk_1".to_string(),
+            content: "This is a test chunk".to_string(),
+            file_path: "/path/to/file.txt".to_string(),
+            chunk_index: 0,
+            metadata: HashMap::new(),
+        };
+
+        assert_eq!(chunk.id, "chunk_1");
+        assert_eq!(chunk.content, "This is a test chunk");
+        assert_eq!(chunk.file_path, "/path/to/file.txt");
+        assert_eq!(chunk.chunk_index, 0);
+    }
+
+    #[test]
+    fn test_document_chunk_with_metadata() {
+        let mut metadata = HashMap::new();
+        metadata.insert("source".to_string(), serde_json::json!("test.txt"));
+        metadata.insert("language".to_string(), serde_json::json!("rust"));
+
+        let chunk = DocumentChunk {
+            id: "chunk_1".to_string(),
+            content: "fn main() {}".to_string(),
+            file_path: "/test.rs".to_string(),
+            chunk_index: 0,
+            metadata: metadata.clone(),
+        };
+
+        assert_eq!(chunk.metadata.len(), 2);
+        assert_eq!(chunk.metadata["source"], "test.txt");
+        assert_eq!(chunk.metadata["language"], "rust");
+    }
+
+    #[test]
+    fn test_loader_config_custom() {
+        let config = LoaderConfig {
+            max_chunk_size: 4096,
+            chunk_overlap: 512,
+            include_patterns: vec!["**/*.py".to_string()],
+            exclude_patterns: vec!["**/tests/**".to_string()],
+            embedding_dimension: 768,
+            embedding_type: "bert".to_string(),
+            collection_name: "python_docs".to_string(),
+            max_file_size: 5 * 1024 * 1024,
+            allowed_extensions: vec!["py".to_string()],
+        };
+
+        assert_eq!(config.max_chunk_size, 4096);
+        assert_eq!(config.embedding_dimension, 768);
+        assert_eq!(config.embedding_type, "bert");
+        assert_eq!(config.max_file_size, 5 * 1024 * 1024);
+    }
 }

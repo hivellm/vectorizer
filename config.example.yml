@@ -34,6 +34,44 @@ logging:
   log_requests: true          # Log all requests
   log_responses: false        # Log responses (can be verbose)
   log_errors: true            # Log errors
+  
+  # Correlation ID tracking
+  correlation_id_enabled: true # Add correlation IDs to all requests
+
+# =============================================================================
+# MONITORING & TELEMETRY CONFIGURATION
+# =============================================================================
+monitoring:
+  # Prometheus metrics
+  prometheus:
+    enabled: true             # Enable Prometheus metrics export
+    endpoint: "/prometheus/metrics"  # Metrics endpoint path
+    
+  # System metrics collector
+  system_metrics:
+    enabled: true             # Enable periodic system metrics collection
+    interval_secs: 15         # Collection interval in seconds
+    
+  # OpenTelemetry distributed tracing
+  telemetry:
+    enabled: false            # Enable OpenTelemetry tracing (requires OTLP collector)
+    otlp_endpoint: "http://localhost:4317"  # OTLP gRPC endpoint
+    service_name: "vectorizer"               # Service name in traces
+    sampler: "always_on"      # Sampling strategy: always_on/always_off/parent_based
+    
+  # Metrics to track
+  metrics:
+    # Search metrics
+    search_enabled: true      # Track search requests, latency, results
+    
+    # Indexing metrics
+    indexing_enabled: true    # Track insert operations, vector/collection counts
+    
+    # Replication metrics
+    replication_enabled: true # Track replication lag, bytes sent/received
+    
+    # System metrics
+    system_enabled: true      # Track memory usage, cache hits, API errors
 
 # =============================================================================
 # DEFAULT COLLECTION CONFIGURATION
@@ -169,6 +207,13 @@ performance:
     default_size: 100             # Default batch size for operations
     max_size: 1000                # Maximum batch size
     parallel_processing: true     # Enable parallel batch processing
+  
+  # Query result caching
+  query_cache:
+    enabled: true                 # Enable LRU query result caching
+    max_size: 1000                # Maximum number of cached queries
+    ttl_seconds: 300              # Cache entry TTL (5 minutes)
+    warmup_enabled: false         # Enable cache warmup on startup
 
 # =============================================================================
 # WORKSPACE CONFIGURATION
@@ -196,6 +241,41 @@ api:
     enabled: true                 # Enable MCP server
     port: 15002                   # MCP server port
     max_connections: 100          # Maximum concurrent connections
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+security:
+  # Rate limiting
+  rate_limiting:
+    enabled: true                 # Enable rate limiting
+    requests_per_second: 100      # Requests per second per API key
+    burst_size: 200               # Allow burst up to this size
+    
+  # TLS/mTLS
+  tls:
+    enabled: false                # Enable TLS (requires certificate files)
+    cert_path: ""                 # Path to TLS certificate
+    key_path: ""                  # Path to TLS private key
+    mtls_enabled: false           # Enable mutual TLS (client certificates)
+    client_ca_path: ""            # Path to client CA certificate
+    
+  # Audit logging
+  audit:
+    enabled: true                 # Enable audit logging
+    max_entries: 10000            # Maximum audit log entries in memory
+    log_auth_attempts: true       # Log all authentication attempts
+    log_failed_requests: true     # Log failed requests
+    log_admin_actions: true       # Log administrative actions
+    
+  # Role-Based Access Control (RBAC)
+  rbac:
+    enabled: false                # Enable RBAC (requires role assignments)
+    default_role: "Viewer"        # Default role for new API keys
+    # Available roles: Viewer, Editor, Admin
+    # Viewer: Read-only access
+    # Editor: Read/write access (no admin)
+    # Admin: Full access including configuration
 
 # =============================================================================
 # REPLICATION CONFIGURATION (Master-Replica Architecture)

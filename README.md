@@ -2,71 +2,99 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 1.1.2 - MCP Search Enhancements**
+## ✨ **Version 1.1.2 - Qdrant Compatibility IMPLEMENTED**
 
-### 🎉 **Latest Updates (v1.1.2)**
-- **🔍 MCP Search Fix**: Fixed `search_intelligent` to properly handle collection filtering
-- **⚡ Improved Performance**: Enhanced intelligent search with better query expansion
-- **🐛 Bug Fixes**: Resolved collection filtering issues in MCP intelligent search
+### 🎉 **Latest Updates**
 
-### 🎉 **Previous Updates (v1.1.0)**
-- **🔄 Master-Replica Replication (BETA)**: Replication system inspired by Redis - currently in beta
-- **⚡ High Availability**: Automatic failover and intelligent sync mechanisms
-- **📦 SDK Standardization**: All client SDKs renamed to follow `vectorizer-sdk` convention
-- **🐍 Python SDK**: Published to PyPI as `vectorizer-sdk` v1.0.1 (PEP 625 compliant)
-- **📝 Updated READMEs**: All SDK documentation updated with badges and installation instructions
+- **v1.1.2**: Qdrant REST API compatibility, MCP search fixes, performance monitoring
+- **v1.1.0**: Master-replica replication (BETA), SDK standardization
+- **v1.0.0**: MCP tools refactoring (19 focused tools)
 
-### 🎉 **Major Release - MCP Tools Refactoring (v1.0.0)**
-- **🎯 MCP Architecture**: 19 focused individual tools (refactored from 7 unified mega-tools)
-- **⚡ Reduced Entropy**: Removed all enum parameters for better model tool calling
-- **🔧 Simplified Interface**: Only relevant parameters per tool
-- **🚀 Better Performance**: Disabled MMR/cross-encoder in MCP (still available in REST)
-- **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
+See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
 ### 🎯 **Key Features**
-- **🔄 Master-Replica Replication (BETA)**: Replication system with automatic failover (currently in beta - see docs)
-  - Full sync via snapshot with CRC32 checksum verification
-  - Partial sync via incremental replication log
-  - Circular replication log (1M operations buffer)
-  - Auto-reconnect with exponential backoff
-  - REST API endpoints for replication management
-  - ⚠️ Known issues with snapshot synchronization - use with caution
-- **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
-- **🎯 MCP Tools**: 19 focused individual tools for better model integration
-- **🔄 UMICP v0.2.1**: Native JSON types + Tool Discovery endpoint
-- **🔍 Tool Discovery**: GET `/umicp/discover` exposes all MCP tools with full schemas
-- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
-- **💾 Compact Storage (.vecdb)**: Unified compressed archives with 20-30% space savings and snapshot support
-- **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images to Markdown
-- **📸 Snapshot System**: Automatic backups with configurable retention policies
-- **Text Normalization System**: Content-aware normalization with 30-50% storage reduction
-- **Real-time File Watcher**: Automatic file monitoring and indexing
-- **Intelligent Search**: Advanced semantic search with multi-query generation
-- **File Operations**: Complete file management with summaries and analysis
-- **Multi-tier Cache**: LFU hot cache, mmap warm store, Zstandard cold storage
-- **Discovery Pipeline**: 10-type semantic discovery with evidence compression
 
-### 🧪 **Quality Metrics**
-- ✅ **All tests passing** (100% pass rate, v1.0.0)
-- ⚡ **Fast execution** with optimized test suite
-- 🎯 **Production-ready** with comprehensive coverage
-- 📄 **19 transmutation tests** (100% pass rate)
-- 💾 **30+ storage system tests** (compaction, snapshots, migration)
-- 🔄 **UMICP discovery tests** (100% pass rate)
-- 🛠️ **19 MCP tools** fully tested and validated
+- **🔍 Semantic Search**: Sub-3ms search with HNSW indexing
+- **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, custom models
+- **📄 Document Conversion**: PDF, DOCX, XLSX, PPTX → Markdown (98x faster than Docling)
+- **🚀 GPU Acceleration**: Metal (macOS), optional CUDA support
+- **🔄 Replication**: Master-replica system (BETA)
+- **🎯 MCP Integration**: 22 tools for AI assistants
+- **🔒 Security**: JWT + API Key auth with RBAC
+- **💾 Compact Storage**: .vecdb format with 20-30% compression
+- **🖥️ Desktop GUI**: Electron-based visual management
 
-## 🌟 **Core Capabilities**
 
-- **🔍 Semantic Search**: Advanced vector similarity with multiple distance metrics (Cosine, Euclidean, Dot Product)
-- **📚 Document Indexing**: Intelligent chunking and processing of 10+ file types
-- **📄 Document Conversion**: Optional transmutation integration for PDF, DOCX, XLSX, PPTX, HTML, XML, and images
-- **🧠 Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
-- **⚡ High Performance**: Sub-3ms search times with HNSW indexing
-- **🚀 GPU Acceleration**: Metal GPU support for macOS with automatic detection and CPU fallback
-- **🏗️ Unified Architecture**: REST API + MCP Server + UMICP Protocol
-- **💾 Automatic Persistence**: Collections auto-save every 30 seconds
-- **👀 File Watcher**: Real-time monitoring with smart debouncing
-- **🔒 Security**: JWT + API Key authentication with RBAC
+## 🛡️ **Guardrails System - BSOD Protection**
+
+### Windows Users: Read This First!
+
+If you're building on **Windows**, the vectorizer can cause **Blue Screen of Death (BSOD)** due to GPU drivers and heavy parallelism. We've implemented a **comprehensive guardrails system** to prevent this:
+
+#### Quick Start (Windows-Safe)
+
+```powershell
+# 1. Run safety checks
+.\scripts\pre-build-check.ps1
+
+# 2. Build safely (NO GPU, prevents BSODs)
+.\scripts\build-windows-safe.ps1
+
+# 3. Test safely
+.\scripts\build-windows-safe.ps1 test
+```
+
+#### Protection Layers
+
+1. **Compile-Time Protection** (`build.rs`)
+   - Detects Windows + GPU features
+   - Warns about BSOD risks
+   - Recommends safe build commands
+
+2. **Runtime Protection** (`guardrails.rs`)
+   - Monitors memory/CPU usage
+   - Limits concurrent operations
+   - Auto-throttles under load
+
+3. **Safe Build Profiles**
+   - `--profile=safe` - Single-threaded, no GPU
+   - `--profile=test-safe` - Safe testing
+   - `--no-default-features` - CPU-only build
+
+4. **Configuration**
+   - `config.windows.yml` - Windows-optimized settings
+   - Limited parallelism (max 2 threads)
+   - Disabled intensive features
+
+#### Why BSODs Happen
+
+- **GPU Drivers**: `hive-gpu` + `fastembed` load kernel-mode drivers
+- **ONNX Runtime**: DirectML can crash on Windows
+- **Heavy Parallelism**: Thread explosion exhausts resources
+- **Memory Pressure**: Large embeddings + parallel builds
+
+#### Safe Build Options
+
+```bash
+# ✅ SAFEST - No GPU, minimal features
+cargo build --profile=safe --no-default-features
+
+# ✅ SAFE - Fastembed only (ONNX on CPU)
+cargo build --profile=safe --no-default-features --features "fastembed"
+
+# ⚠️ RISKY - GPU enabled (requires latest drivers)
+cargo build --profile=safe --no-default-features --features "hive-gpu"
+
+# ❌ DANGER - Will likely cause BSOD on Windows
+cargo build --release --all-features
+```
+
+#### Documentation
+
+- **[BSOD Analysis](docs/BSOD_ANALYSIS.md)** - Root cause analysis
+- **[Windows Build Guide](docs/WINDOWS_BUILD_GUIDE.md)** - Complete guide
+- **[Guardrails](docs/GUARDRAILS.md)** - Protection system details
+- **[Guardrails README](README_GUARDRAILS.md)** - Quick reference
 
 ## 🚀 **Quick Start**
 
@@ -114,32 +142,51 @@ See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker documentation.
 
 ### Building from Source
 
+#### Windows (Safe Build)
+
+```powershell
+# Clone the repository
+git clone https://github.com/hivellm/vectorizer.git
+cd vectorizer
+
+# RECOMMENDED: Use safe build script
+.\scripts\build-windows-safe.ps1
+
+# Or manual safe build
+cargo +nightly build --profile=safe --no-default-features
+
+# Run tests safely
+.\scripts\build-windows-safe.ps1 test
+```
+
+**⚠️ CRITICAL:** On Windows, **NEVER** use `--all-features` or `--release` without `--no-default-features`. This will likely cause BSOD!
+
+#### Linux/macOS (Normal Build)
+
 ```bash
 # Clone the repository
 git clone https://github.com/hivellm/vectorizer.git
 cd vectorizer
 
 # Build and run (basic - CPU only)
-cargo build --release
+cargo build --release --no-default-features
 ./target/release/vectorizer
 
 # Build with GPU acceleration (macOS Metal)
-cargo build --release --features hive-gpu
+cargo build --release --no-default-features --features "hive-gpu"
+./target/release/vectorizer
+
+# Build with fastembed (ONNX on CPU - safe)
+cargo build --release --no-default-features --features "fastembed"
 ./target/release/vectorizer
 
 # Build with transmutation support for document conversion
-cargo build --release --features transmutation
-./target/release/vectorizer
-
-# Build with all features (GPU + Transmutation)
-cargo build --release --features full
+cargo build --release --no-default-features --features "transmutation"
 ./target/release/vectorizer
 ```
 
-**Platform Notes:**
-- **macOS (Apple Silicon)**: Full Metal GPU acceleration available with `hive-gpu` feature
-- **Linux/Windows**: Compiles successfully with graceful CPU fallback messages
-- **Cross-Platform**: All features work on all platforms with appropriate fallbacks
+**⚠️ Windows:** Use `.\scripts\build-windows-safe.ps1` to prevent BSODs  
+**💡 Features:** GPU/ML features require `--features` flag (default = none for safety)
 
 ### **Access Points**
 - **Desktop GUI**: `./gui/` - Electron desktop application (NEW in v0.8.2)
@@ -149,38 +196,8 @@ cargo build --release --features full
 - **UMICP Discovery**: http://localhost:15002/umicp/discover (Tool discovery endpoint)
 - **Health Check**: http://localhost:15002/health
 
-## 🖥️ **Desktop GUI (v0.8.2)**
+## 📖 **Basic Usage**
 
-Modern Electron-based desktop application for managing your Vectorizer database:
-
-**Features:**
-- 🎨 Beautiful Vue 3 + TailwindCSS interface
-- 📊 Real-time collection management and monitoring
-- 🔍 Visual search and vector browsing
-- ⚙️ Configuration editor with live preview
-- 📁 File watcher and workspace management
-- 💾 Backup/restore operations
-- 📈 System metrics and performance monitoring
-
-**Installation:**
-```bash
-cd gui
-pnpm install
-pnpm electron:build:win    # Windows MSI installer
-pnpm electron:build:mac    # macOS DMG installer
-pnpm electron:build:linux  # Linux DEB package
-```
-
-**Development:**
-```bash
-cd gui
-pnpm install
-pnpm dev  # Hot-reload development mode
-```
-
-**Note:** Requires Node.js 64-bit (x64 architecture) for building
-
-### **Basic Usage**
 ```bash
 # Create collection
 curl -X POST http://localhost:15002/collections \
@@ -198,148 +215,11 @@ curl -X POST http://localhost:15002/collections/docs/search \
   -d '{"query": "search term", "limit": 10}'
 ```
 
-## 🧠 **Advanced Search Capabilities**
 
-### **MCP Search Tools (v1.0.0)**
+## ⚙️ **Configuration**
 
-#### **Basic Search** (`search`)
-- Simple vector similarity search
-- Configurable similarity threshold (default: 0.1)
-- Fast and efficient for direct queries
-- Single collection focus
+Main settings in `config.yml` - see [config.example.yml](config.example.yml) for complete options.
 
-#### **Intelligent Search** (`search_intelligent`)
-- AI-powered query expansion
-- Automatic deduplication across results
-- Domain-specific term expansion
-- Cross-collection search support
-- Optimized for MCP (MMR disabled for speed)
-
-#### **Semantic Search** (`search_semantic`)
-- Advanced semantic reranking
-- Precision-focused results
-- Configurable similarity thresholds
-- Optimized for MCP (cross-encoder disabled for speed)
-
-#### **Combined Search** (`search_extra`) - NEW in v1.0.0
-- Concatenates results from multiple strategies
-- Combines: basic + semantic + intelligent
-- Automatic deduplication
-- Best of all search methods in one call
-
-#### **Multi-Collection Search** (`multi_collection_search`)
-- Search across multiple collections simultaneously
-- Results grouped by collection
-- Configurable limits per collection
-- Simplified for MCP (no cross-collection reranking)
-
-### **Discovery Tools (Simplified)**
-- `filter_collections`: Filter collections by name patterns
-- `expand_queries`: Generate query variations (definition, features, architecture)
-
-### **REST API Only (Advanced Features)**
-For complex operations requiring MMR, cross-encoder reranking, batch processing, or full discovery pipeline, use the REST API which provides all advanced features without MCP limitations.
-
-## 📚 **Configuration**
-
-```yaml
-# config.yml - Main configuration
-vectorizer:
-  host: "localhost"
-  port: 15002
-  default_dimension: 512
-  default_metric: "cosine"
-
-# Replication configuration (NEW in v1.1.0)
-replication:
-  enabled: false
-  mode: "master"  # or "replica"
-  master:
-    host: "0.0.0.0"
-    port: 6380
-    repl_backlog_size: 1048576  # 1MB circular buffer
-  replica:
-    master_host: "localhost"
-    master_port: 6380
-    read_only: true
-
-# Text normalization (v0.5.0)
-normalization:
-  enabled: true
-  level: "conservative"  # conservative/moderate/aggressive
-  line_endings:
-    normalize_crlf: true
-    collapse_multiple_newlines: true
-    trim_trailing_whitespace: true
-
-# Transmutation document conversion (optional feature)
-transmutation:
-  enabled: true
-  max_file_size_mb: 50
-  conversion_timeout_secs: 300
-  preserve_images: false
-
-# Multi-tier cache
-cache:
-  enabled: true
-  max_entries: 10000
-  ttl_seconds: 3600
-
-# Compact storage with snapshots (NEW in v0.8.0)
-storage:
-  compression:
-    enabled: true          # Enable .vecdb format
-    format: "zstd"
-    level: 3               # Balanced compression
-  snapshots:
-    enabled: true          # Automatic backups
-    interval_hours: 1      # Hourly snapshots
-    retention_days: 2      # Keep for 2 days
-    max_snapshots: 48
-```
-
-## 💾 **Storage System**
-
-### Compact Format (.vecdb)
-
-New unified storage format with compression and snapshots:
-
-**Benefits:**
-- ✅ 20-30% disk space reduction
-- ✅ Automatic snapshots with retention policies
-- ✅ Single-file backups (easy portability)
-- ✅ Atomic updates (corruption-safe)
-- ✅ Faster backups (copy vs full backup)
-
-**CLI Commands:**
-```bash
-# View storage stats
-vectorizer storage info --detailed
-
-# Manage snapshots
-vectorizer snapshot list
-vectorizer snapshot create
-vectorizer snapshot restore --id 20241014_120000 --force
-
-# Verify integrity
-vectorizer storage verify --fix
-
-# Manual migration (if needed)
-vectorizer storage migrate
-```
-
-**Format Support:**
-- **Legacy:** Individual files (automatic migration offered on startup)
-- **Compact:** Single `.vecdb` archive (recommended for production)
-
-**Migration:**
-- ✅ **Automatic detection and prompt on startup**
-- ✅ **Interactive migration** - asks user confirmation (Y/n)
-- ✅ Safe migration with timestamped backup
-- ✅ Rollback support if needed
-- ✅ Zero data loss guarantee
-
-See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for details.
 
 ## 📊 **Performance**
 
@@ -365,80 +245,10 @@ See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.
 - **Research Papers**: Automatic PDF indexing with page-level metadata
 - **Legal Documents**: DOCX/PDF processing with precise page tracking
 
-## 🔄 **Master-Replica Replication** ⚠️ **BETA**
-
-> **⚠️ BETA WARNING**: The replication system is currently in beta. While core functionality works, there are known issues with snapshot synchronization. Use in production with caution and monitor closely. See [GitHub Issues](https://github.com/hivellm/vectorizer/issues) for current status.
-
-### Overview
-
-Vectorizer v1.1.0 introduces a master-replica replication system inspired by Redis, enabling high availability and horizontal read scaling.
-
-### Features
-
-- **Full Sync**: Complete data synchronization via snapshots with CRC32 verification
-- **Partial Sync**: Incremental updates via circular replication log (1M operations)
-- **Automatic Failover**: Auto-reconnect with exponential backoff (1s → 60s max)
-- **Real-time Replication**: Sub-10ms typical replication lag
-- **REST API Management**: Complete replication control via HTTP endpoints
-
-### Quick Start
-
-**Master Node**:
-```yaml
-# config.production.yml
-replication:
-  enabled: true
-  mode: "master"
-  master:
-    host: "0.0.0.0"
-    port: 6380
-```
-
-**Replica Node**:
-```yaml
-# config.production.yml
-replication:
-  enabled: true
-  mode: "replica"
-  replica:
-    master_host: "master.example.com"
-    master_port: 6380
-    read_only: true
-```
-
-### REST API Endpoints
-
-```bash
-# Get replication status
-GET /api/v1/replication/status
-
-# Trigger manual sync (replica only)
-POST /api/v1/replication/sync
-
-# Promote replica to master
-POST /api/v1/replication/promote
-
-# Get replication metrics
-GET /api/v1/replication/metrics
-```
-
-### Performance Metrics
-
-- **Replication Log Append**: 4-12M operations/second
-- **Snapshot Creation**: ~250ms for 10K vectors (128D)
-- **Snapshot Application**: ~400ms for 10K vectors
-- **Typical Replication Lag**: <10ms
-
-### Documentation
-
-- **[Replication Guide](./docs/REPLICATION.md)** - Complete architecture and deployment guide
-- **[Test Suite](./docs/REPLICATION_TESTS.md)** - 38 comprehensive tests with benchmarks
-- **[Coverage Report](./docs/REPLICATION_COVERAGE.md)** - 95%+ coverage on testable logic
-- **[Production Config](./config.production.yml)** - Production-optimized settings
-- **[Development Config](./config.development.yml)** - Development-optimized settings
 
 ## 📚 **Documentation**
 
+### Core Documentation
 - **[API Reference](./docs/api/)** - REST API documentation
 - **[Replication Guide](./docs/REPLICATION.md)** - Master-replica replication system
   - [Test Suite](./docs/REPLICATION_TESTS.md) - 38 comprehensive tests
@@ -447,6 +257,10 @@ GET /api/v1/replication/metrics
 - **[MCP Integration](./docs/specs/MCP_INTEGRATION.md)** - Model Context Protocol guide
 - **[Technical Specs](./docs/specs/)** - Complete technical documentation
 - **[Roadmap](./docs/specs/ROADMAP.md)** - Development roadmap
+
+### Windows Build Safety
+- **[Windows Build Guide](./docs/WINDOWS_BUILD_GUIDE.md)** - Safe building on Windows
+- **[Guardrails System](./docs/GUARDRAILS.md)** - BSOD protection details
 
 ## 🔧 **MCP Integration**
 
@@ -463,7 +277,7 @@ Cursor IDE configuration:
 }
 ```
 
-**Available MCP Tools** (19 individual tools):
+**Available MCP Tools** (22 individual tools):
 
 ### **Core Collection/Vector Operations (9 tools)**
 1. `list_collections` - List all collections with metadata
@@ -492,12 +306,20 @@ Cursor IDE configuration:
 18. `get_project_outline` - Generate hierarchical project structure
 19. `get_related_files` - Find semantically related files
 
-### **Key Improvements in v1.0.0**
+### **Performance Monitoring (3 tools)**
+20. `get_performance_metrics` - Get detailed performance metrics and cache statistics
+21. `clear_cache` - Clear query and collection caches (all, queries, or collections)
+22. `health_check` - Comprehensive system health check with collection accessibility
+
+### **Key Improvements in v1.1.2**
 - ✅ **No enum parameters** - Direct tool selection by name
 - ✅ **Simplified parameters** - Only relevant parameters per tool
 - ✅ **Better model accuracy** - Reduced entropy improves tool calling
 - ✅ **Faster execution** - Disabled slow features (MMR, cross-encoder) in MCP
 - ✅ **Enhanced security** - Dangerous operations restricted to REST API
+- ✅ **Performance monitoring** - Built-in metrics collection and health checks
+- ✅ **Enhanced error handling** - Specific error types with detailed validation
+- ✅ **Cache management** - Query result caching with TTL support
 
 ## 📦 **Client SDKs**
 

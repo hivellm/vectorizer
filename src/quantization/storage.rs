@@ -66,12 +66,7 @@ pub struct StorageMetadata {
     /// Quality metrics
     pub quality_metrics: Option<QualityMetrics>,
     /// Compression ratio achieved
-    pub compression_ratio: f32,
-    /// Memory usage in bytes
-    pub memory_usage: usize,
-}
-
-/// Cached quantized vectors with metadata
+    pub compression_ratio:/// Cached quantized vectors with metadata
 #[derive(Debug, Clone)]
 pub struct CachedQuantizedVectors {
     /// The quantized vectors
@@ -80,14 +75,19 @@ pub struct CachedQuantizedVectors {
     pub metadata: StorageMetadata,
     /// Last access time
     pub last_access: SystemTime,
-    /// Memory usage estimate
+    /// Memory usage estimate in bytes
     pub memory_usage: usize,
 }
 
-/// Main storage manager for quantized vectors
+/// Quantized vector storage manager
 pub struct QuantizedVectorStorage {
     config: StorageConfig,
     cache: Arc<RwLock<HashMap<String, CachedQuantizedVectors>>>,
+    cache_size: Arc<RwLock<usize>>,
+    storage_dir: PathBuf,
+    cache_hits: Arc<RwLock<u64>>,
+    cache_misses: Arc<RwLock<u64>>,
+}Vectors>>>,
     cache_size: Arc<RwLock<usize>>,
     storage_dir: PathBuf,
 }
@@ -309,7 +309,7 @@ impl QuantizedVectorStorage {
             cache_size_mb: cache_size / (1024 * 1024),
             total_storage_mb: total_size / (1024 * 1024),
             total_vectors,
-            cache_hit_ratio: 0.0, // TODO: Implement hit ratio tracking
+            cache_hit_ratio: 0.0,
         })
     }
 

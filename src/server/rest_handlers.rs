@@ -6,9 +6,11 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde_json::{Value, json};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use super::VectorizerServer;
+use super::error_middleware::{ErrorResponse, create_not_found_error, create_validation_error};
+use crate::error::VectorizerError;
 
 pub async fn health_check() -> Json<Value> {
     Json(json!({
@@ -31,11 +33,21 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
         })
         .sum();
 
+    let cache_stats = state.query_cache.stats();
+
     Json(json!({
         "collections": collections.len(),
         "total_vectors": total_vectors,
         "uptime_seconds": state.start_time.elapsed().as_secs(),
-        "version": env!("CARGO_PKG_VERSION")
+        "version": env!("CARGO_PKG_VERSION"),
+        "cache": {
+            "size": cache_stats.size,
+            "capacity": cache_stats.capacity,
+            "hits": cache_stats.hits,
+            "misses": cache_stats.misses,
+            "evictions": cache_stats.evictions,
+            "hit_rate": cache_stats.hit_rate
+        }
     }))
 }
 
@@ -66,6 +78,14 @@ pub async fn search_vectors_by_text(
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
+    use crate::monitoring::metrics::METRICS;
+
+    // Start latency timer
+    let timer = METRICS
+        .search_latency_seconds
+        .with_label_values(&[&collection_name, "text"])
+        .start_timer();
+
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
@@ -77,10 +97,28 @@ pub async fn search_vectors_by_text(
         query, collection_name
     );
 
+    // Check cache first
+    use crate::cache::QueryKey;
+    let cache_key = QueryKey::new(collection_name.clone(), query.to_string(), limit, None);
+
+    if let Some(cached_results) = state.query_cache.get(&cache_key) {
+        drop(timer);
+        METRICS
+            .search_requests_total
+            .with_label_values(&[&collection_name, "text", "cached"])
+            .inc();
+        return Ok(Json(cached_results));
+    }
+
     // Get the collection
     let collection = match state.store.get_collection(&collection_name) {
         Ok(collection) => collection,
         Err(_) => {
+            METRICS
+                .search_requests_total
+                .with_label_values(&[&collection_name, "text", "error"])
+                .inc();
+            drop(timer);
             return Ok(Json(json!({
                 "results": [],
                 "query": query,
@@ -92,8 +130,8 @@ pub async fn search_vectors_by_text(
     };
 
     // Generate embedding for the query
-    let query_embedding = match state.embedding_manager.embed(query) {
-        Ok(embedding) => embedding,
+    let query_embedding = match state.embedding_manager.embed(query).await {
+        Ok(embedding_result) => embedding_result.embedding,
         Err(e) => {
             error!("Failed to generate embedding: {}", e);
             return Ok(Json(json!({
@@ -134,13 +172,27 @@ pub async fn search_vectors_by_text(
         })
         .collect();
 
-    Ok(Json(json!({
+    // Cache the results
+    let response_json = json!({
         "results": results,
         "query": query,
         "limit": limit,
-        "collection": collection_name,
-        "total_results": results.len()
-    })))
+        "collection": collection_name
+    });
+    state.query_cache.insert(cache_key, response_json.clone());
+
+    // Record metrics
+    METRICS
+        .search_requests_total
+        .with_label_values(&[&collection_name, "text", "success"])
+        .inc();
+    METRICS
+        .search_results_count
+        .with_label_values(&[&collection_name, "text"])
+        .observe(results.len() as f64);
+    drop(timer); // Stop latency timer
+
+    Ok(Json(response_json))
 }
 
 pub async fn search_by_file(
@@ -375,15 +427,24 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
 pub async fn create_collection(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let name = payload
         .get("name")
         .and_then(|n| n.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("Missing required field: name", None))?;
     let dimension = payload
         .get("dimension")
         .and_then(|d| d.as_u64())
         .unwrap_or(512) as usize;
+
+    // Validate dimension
+    if dimension == 0 || dimension > 4096 {
+        return Err(create_validation_error(
+            "Dimension must be between 1 and 4096",
+            Some(json!({"provided_dimension": dimension})),
+        ));
+    }
+
     let metric = payload
         .get("metric")
         .and_then(|m| m.as_str())
@@ -401,7 +462,12 @@ pub async fn create_collection(
             "cosine" => crate::models::DistanceMetric::Cosine,
             "euclidean" => crate::models::DistanceMetric::Euclidean,
             "dot" => crate::models::DistanceMetric::DotProduct,
-            _ => crate::models::DistanceMetric::Cosine,
+            _ => {
+                return Err(create_validation_error(
+                    "Invalid metric. Must be 'cosine', 'euclidean', or 'dot'",
+                    Some(json!({"provided_metric": metric})),
+                ));
+            }
         },
         hnsw_config: crate::models::HnswConfig::default(),
         quantization: crate::models::QuantizationConfig::None,
@@ -415,14 +481,20 @@ pub async fn create_collection(
             info!("Collection '{}' created successfully", name);
             Ok(Json(json!({
                 "message": format!("Collection '{}' created successfully", name),
-                "collection": name,
-                "dimension": dimension,
-                "metric": metric
+                "collection": {
+                    "name": name,
+                    "dimension": dimension,
+                    "metric": metric
+                }
             })))
         }
+        Err(VectorizerError::CollectionAlreadyExists(_)) => Err(create_validation_error(
+            &format!("Collection '{}' already exists", name),
+            Some(json!({"collection_name": name})),
+        )),
         Err(e) => {
             error!("Failed to create collection '{}': {}", name, e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(ErrorResponse::from(e))
         }
     }
 }
@@ -430,7 +502,7 @@ pub async fn create_collection(
 pub async fn get_collection(
     State(state): State<VectorizerServer>,
     Path(name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     match state.store.get_collection(&name) {
         Ok(collection) => {
             let metadata = collection.metadata();
@@ -483,14 +555,18 @@ pub async fn get_collection(
                 "status": "ready"
             })))
         }
-        Err(_) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(ErrorResponse::new(
+            "collection_not_found".to_string(),
+            format!("Collection '{}' not found", name),
+            StatusCode::NOT_FOUND,
+        )),
     }
 }
 
 pub async fn delete_collection(
     State(_state): State<VectorizerServer>,
     Path(name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     info!("Deleting collection: {}", name);
 
     // For now, just return success
@@ -502,19 +578,36 @@ pub async fn delete_collection(
 pub async fn get_vector(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     match state.store.get_collection(&collection_name) {
-        Ok(_collection) => {
-            // For now, return mock data
-            Ok(Json(json!({
-                "id": vector_id,
-                "vector": vec![0.1; 512],
-                "metadata": {
-                    "collection": collection_name
+        Ok(collection) => {
+            // Get actual vector from collection
+            match collection.get_vector(&vector_id) {
+                Ok(vector) => {
+                    let mut response = json!({
+                        "id": vector_id,
+                        "vector": vector.data,
+                    });
+
+                    // Include payload if it exists
+                    if let Some(payload) = vector.payload {
+                        response["metadata"] = json!(payload.data);
+                    }
+
+                    Ok(Json(response))
                 }
-            })))
+                Err(_) => Err(ErrorResponse::new(
+                    "vector_not_found".to_string(),
+                    format!("Vector '{}' not found in collection '{}'", vector_id, collection_name),
+                    StatusCode::NOT_FOUND,
+                )),
+            }
         }
-        Err(_) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(ErrorResponse::new(
+            "collection_not_found".to_string(),
+            format!("Collection '{}' not found", collection_name),
+            StatusCode::NOT_FOUND,
+        )),
     }
 }
 
@@ -554,6 +647,11 @@ pub async fn insert_text(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
+    use crate::monitoring::metrics::METRICS;
+
+    // Start latency timer
+    let timer = METRICS.insert_latency_seconds.start_timer();
+
     let collection_name = payload
         .get("collection")
         .and_then(|c| c.as_str())
@@ -592,10 +690,11 @@ pub async fn insert_text(
         .map_err(|_| StatusCode::NOT_FOUND)?;
 
     // Generate embedding for the text
-    let embedding = state.embedding_manager.embed(text).map_err(|e| {
+    let embedding_result = state.embedding_manager.embed(text).await.map_err(|e| {
         error!("Failed to generate embedding: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+    let embedding = embedding_result.embedding;
 
     // Create payload with metadata
     let payload_data = crate::models::Payload::new(serde_json::Value::Object(
@@ -614,15 +713,31 @@ pub async fn insert_text(
     };
 
     // Insert the vector using the store
-    state
-        .store
-        .insert(collection_name, vec![vector])
-        .map_err(|e| {
-            error!("Failed to insert vector: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let insert_result = state.store.insert(collection_name, vec![vector]);
 
-    info!("Vector inserted successfully with ID: {}", vector_id);
+    // Record metrics and handle result
+    match insert_result {
+        Ok(_) => {
+            info!("Vector inserted successfully with ID: {}", vector_id);
+            METRICS
+                .insert_requests_total
+                .with_label_values(&[collection_name, "success"])
+                .inc();
+            drop(timer);
+
+            // Invalidate cache for this collection
+            state.query_cache.invalidate_collection(collection_name);
+        }
+        Err(e) => {
+            error!("Failed to insert vector: {}", e);
+            METRICS
+                .insert_requests_total
+                .with_label_values(&[collection_name, "error"])
+                .inc();
+            drop(timer);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
 
     Ok(Json(json!({
         "message": "Text inserted successfully",
@@ -673,12 +788,22 @@ pub async fn embed_text(
         .and_then(|t| t.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?;
 
-    // For now, return mock embedding
-    Ok(Json(json!({
-        "embedding": vec![0.1; 512],
-        "text": text,
-        "dimension": 512
-    })))
+    // Generate real embedding using embedding manager
+    match state.embedding_manager.embed(text).await {
+        Ok(result) => {
+            let dimension = result.embedding.len();
+            Ok(Json(json!({
+                "embedding": result.embedding,
+                "text": text,
+                "dimension": dimension,
+                "provider": format!("{:?}", result.provider)
+            })))
+        }
+        Err(e) => {
+            error!("Failed to generate embedding: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 pub async fn batch_insert_texts(
@@ -774,9 +899,13 @@ pub async fn intelligent_search(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     use crate::intelligent_search::rest_api::{IntelligentSearchRequest, RESTAPIHandler};
+    use crate::monitoring::metrics::METRICS;
 
-    // Create handler with the actual server instances
-    let handler = RESTAPIHandler::new_with_store(state.store.clone());
+    // Start latency timer
+    let timer = METRICS
+        .search_latency_seconds
+        .with_label_values(&["*", "intelligent"])
+        .start_timer();
 
     // Extract parameters from JSON payload
     let query = payload
@@ -810,6 +939,39 @@ pub async fn intelligent_search(
         .and_then(|l| l.as_f64())
         .map(|l| l as f32);
 
+    // Create cache key for intelligent search
+    use crate::cache::QueryKey;
+    let cache_key = QueryKey::new(
+        "*".to_string(), // Use "*" for multi-collection searches
+        format!(
+            "intelligent:{}:{}:{}:{}:{}:{}",
+            query,
+            collections
+                .as_ref()
+                .map(|c| c.join(","))
+                .unwrap_or_default(),
+            max_results.unwrap_or(10),
+            domain_expansion.unwrap_or(false),
+            technical_focus.unwrap_or(false),
+            mmr_enabled.unwrap_or(false)
+        ),
+        max_results.unwrap_or(10),
+        None,
+    );
+
+    // Check cache first
+    if let Some(cached_results) = state.query_cache.get(&cache_key) {
+        drop(timer);
+        METRICS
+            .search_requests_total
+            .with_label_values(&["*", "intelligent", "cached"])
+            .inc();
+        return Ok(Json(cached_results));
+    }
+
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
+
     // Create intelligent search request
     let request = IntelligentSearchRequest {
         query: query.to_string(),
@@ -822,8 +984,33 @@ pub async fn intelligent_search(
     };
 
     match handler.handle_intelligent_search(request).await {
-        Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
+        Ok(response) => {
+            // Record success metrics
+            let result_count = response.results.len();
+            METRICS
+                .search_requests_total
+                .with_label_values(&["*", "intelligent", "success"])
+                .inc();
+            METRICS
+                .search_results_count
+                .with_label_values(&["*", "intelligent"])
+                .observe(result_count as f64);
+            drop(timer);
+
+            // Cache the results
+            let response_json = serde_json::to_value(response).unwrap_or(json!({}));
+            state.query_cache.insert(cache_key, response_json.clone());
+
+            Ok(Json(response_json))
+        }
         Err(e) => {
+            // Record error metrics
+            METRICS
+                .search_requests_total
+                .with_label_values(&["*", "intelligent", "error"])
+                .inc();
+            drop(timer);
+
             error!("Intelligent search error: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
@@ -2071,7 +2258,7 @@ pub async fn force_save_collection(
 
 /// Add workspace directory (for GUI)
 pub async fn add_workspace(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     let path = payload
@@ -2086,16 +2273,61 @@ pub async fn add_workspace(
 
     info!("📁 Adding workspace: {} -> {}", path, collection_name);
 
-    // TODO: Implement workspace manager integration
-    Ok(Json(json!({
-        "success": true,
-        "message": "Workspace added successfully"
-    })))
+    // Get workspace manager
+    let mut workspace_manager = state.workspace_manager.lock().await;
+
+    // If no workspace manager exists, create a default one
+    if workspace_manager.is_none() {
+        let workspace_root = std::path::Path::new(".");
+        let config_path = workspace_root.join("vectorize-workspace.yml");
+
+        match crate::workspace::manager::WorkspaceManager::create_default(workspace_root) {
+            Ok(manager) => {
+                *workspace_manager = Some(manager);
+                info!("Created default workspace manager");
+            }
+            Err(e) => {
+                error!("Failed to create workspace manager: {}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+
+    // Add project to workspace
+    if let Some(ref mut manager) = *workspace_manager {
+        let project_config = crate::workspace::config::ProjectConfig {
+            name: collection_name.to_string(),
+            description: format!("Workspace project for {}", path),
+            path: std::path::PathBuf::from(path),
+            enabled: true,
+            embedding: None,
+            collections: vec![],
+        };
+
+        match manager.add_project(project_config) {
+            Ok(_) => {
+                info!(
+                    "Successfully added project '{}' to workspace",
+                    collection_name
+                );
+                Ok(Json(json!({
+                    "success": true,
+                    "message": "Workspace added successfully"
+                })))
+            }
+            Err(e) => {
+                error!("Failed to add project to workspace: {}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 /// Remove workspace directory (for GUI)
 pub async fn remove_workspace(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
     let path = payload
@@ -2105,19 +2337,74 @@ pub async fn remove_workspace(
 
     info!("🗑️ Removing workspace: {}", path);
 
-    // TODO: Implement workspace manager integration
-    Ok(Json(json!({
-        "success": true,
-        "message": "Workspace removed successfully"
-    })))
+    // Get workspace manager
+    let mut workspace_manager = state.workspace_manager.lock().await;
+
+    if let Some(ref mut manager) = *workspace_manager {
+        // Find project by path
+        let project_name = manager
+            .enabled_projects()
+            .iter()
+            .find(|p| p.path.to_string_lossy() == path)
+            .map(|p| p.name.clone());
+
+        if let Some(name) = project_name {
+            match manager.remove_project(&name) {
+                Ok(_) => {
+                    info!("Successfully removed project '{}' from workspace", name);
+                    Ok(Json(json!({
+                        "success": true,
+                        "message": "Workspace removed successfully"
+                    })))
+                }
+                Err(e) => {
+                    error!("Failed to remove project from workspace: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        } else {
+            warn!("Project with path '{}' not found in workspace", path);
+            Ok(Json(json!({
+                "success": false,
+                "message": "Workspace not found"
+            })))
+        }
+    } else {
+        warn!("No workspace manager available");
+        Ok(Json(json!({
+            "success": false,
+            "message": "No workspace manager available"
+        })))
+    }
 }
 
 /// List workspace directories (for GUI)
-pub async fn list_workspaces(State(_state): State<VectorizerServer>) -> Json<Value> {
-    // TODO: Implement workspace manager integration
-    Json(json!({
-        "workspaces": []
-    }))
+pub async fn list_workspaces(State(state): State<VectorizerServer>) -> Json<Value> {
+    let workspace_manager = state.workspace_manager.lock().await;
+
+    if let Some(ref manager) = *workspace_manager {
+        let workspaces: Vec<serde_json::Value> = manager
+            .enabled_projects()
+            .iter()
+            .map(|project| {
+                json!({
+                    "name": project.name,
+                    "path": project.path.to_string_lossy(),
+                    "description": project.description,
+                    "enabled": true,
+                    "collections": project.collections.len()
+                })
+            })
+            .collect();
+
+        Json(json!({
+            "workspaces": workspaces
+        }))
+    } else {
+        Json(json!({
+            "workspaces": []
+        }))
+    }
 }
 
 /// Get configuration (for GUI)
@@ -2186,8 +2473,62 @@ pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, St
 }
 
 /// Restart server (for GUI)
-pub async fn restart_server() -> Json<Value> {
-    // TODO: Implement graceful restart
+pub async fn restart_server(State(state): State<VectorizerServer>) -> Json<Value> {
+    info!("🔄 Graceful restart initiated");
+
+    // Save all collections before restart
+    match state.store.force_save_all() {
+        Ok(_) => {
+            info!("✅ All collections saved before restart");
+        }
+        Err(e) => {
+            error!("❌ Failed to save collections before restart: {}", e);
+            return Json(json!({
+                "success": false,
+                "message": format!("Failed to save collections: {}", e)
+            }));
+        }
+    }
+
+    // Stop background tasks gracefully
+    if let Some((handle, cancel_tx)) = state.background_task.lock().await.take() {
+        info!("🛑 Stopping background tasks...");
+        let _ = cancel_tx.send(true);
+        let _ = handle.await;
+        info!("✅ Background tasks stopped");
+    }
+
+    // Stop system collector task
+    if let Some(handle) = state.system_collector_task.lock().await.take() {
+        info!("🛑 Stopping system collector...");
+        handle.abort();
+        info!("✅ System collector stopped");
+    }
+
+    // Stop auto-save manager
+    if let Some(auto_save_manager) = &state.auto_save_manager {
+        info!("🛑 Stopping auto-save manager...");
+        auto_save_manager.shutdown();
+        info!("✅ Auto-save manager stopped");
+    }
+
+    // Restart the server process
+    info!("🚀 Restarting server process...");
+
+    // Spawn restart task in background
+    tokio::spawn(async {
+        // Give a moment for the response to be sent
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Restart the server
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .spawn()
+            .expect("Failed to restart server");
+
+        // Exit current process
+        std::process::exit(0);
+    });
+
     Json(json!({
         "success": true,
         "message": "Server restart initiated"
@@ -2452,6 +2793,9 @@ pub async fn restore_backup(
             .insert(collection_name, vectors_to_insert)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+        // Invalidate cache for this collection
+        state.query_cache.invalidate_collection(collection_name);
+
         let collection = state
             .store
             .get_collection(collection_name)
@@ -2548,4 +2892,32 @@ pub async fn update_workspace_config(
             Err(StatusCode::BAD_REQUEST)
         }
     }
+}
+
+/// Handler to export Prometheus metrics
+pub async fn get_prometheus_metrics() -> Result<(StatusCode, String), (StatusCode, String)> {
+    match crate::monitoring::export_metrics() {
+        Ok(metrics) => Ok((StatusCode::OK, metrics)),
+        Err(e) => {
+            error!("Failed to export Prometheus metrics: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to export metrics: {}", e),
+            ))
+        }
+    }
+}
+
+/// Get performance metrics
+pub async fn get_performance_metrics(
+    State(server): State<VectorizerServer>,
+) -> Result<Json<Value>, StatusCode> {
+    let report = server.performance_monitor.generate_report().await;
+
+    let metrics_json = serde_json::to_value(report).map_err(|e| {
+        error!("Failed to serialize performance metrics: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(metrics_json))
 }

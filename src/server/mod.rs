@@ -1,7 +1,13 @@
 mod discovery_handlers;
+pub mod error_middleware;
 pub mod file_operations_handlers;
+pub mod mcp_connection_manager;
 pub mod mcp_handlers;
+pub mod mcp_performance;
 pub mod mcp_tools;
+pub mod qdrant_handlers;
+pub mod qdrant_search_handlers;
+pub mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
 
@@ -12,7 +18,7 @@ use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Json;
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
@@ -21,6 +27,7 @@ use tower_http::services::ServeDir;
 use tracing::{error, info, warn};
 
 use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem, MetricsCollector};
+use crate::monitoring::performance::PerformanceMonitor;
 
 /// Global server state to share between endpoints
 #[derive(Clone)]
@@ -44,6 +51,9 @@ pub struct VectorizerServer {
     pub auto_save_manager: Option<Arc<crate::db::AutoSaveManager>>,
     pub master_node: Option<Arc<crate::replication::MasterNode>>,
     pub replica_node: Option<Arc<crate::replication::ReplicaNode>>,
+    pub query_cache: Arc<crate::cache::QueryCache<serde_json::Value>>,
+    pub workspace_manager: Arc<tokio::sync::Mutex<Option<WorkspaceManager>>>,
+    pub performance_monitor: Arc<PerformanceMonitor>,
     background_task: Arc<
         tokio::sync::Mutex<
             Option<(
@@ -52,6 +62,7 @@ pub struct VectorizerServer {
             )>,
         >,
     >,
+    system_collector_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl VectorizerServer {
@@ -59,43 +70,58 @@ impl VectorizerServer {
     pub async fn new() -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
 
+        // Initialize monitoring system
+        if let Err(e) = crate::monitoring::init() {
+            warn!("Failed to initialize monitoring system: {}", e);
+        }
+
+        // Try to initialize OpenTelemetry (optional, graceful degradation)
+        if let Err(e) = crate::monitoring::telemetry::try_init("vectorizer", None) {
+            warn!("OpenTelemetry not available: {}", e);
+        }
+
         // Initialize VectorStore with auto-save enabled
         let vector_store = VectorStore::new_auto();
         let store_arc = Arc::new(vector_store);
 
         info!("🔍 PRE_INIT: Creating embedding manager...");
-        let mut embedding_manager = EmbeddingManager::new();
+        let config = crate::embedding::EmbeddingConfig::default();
+        let mut embedding_manager = crate::embedding::EmbeddingManager::new(config);
         info!("🔍 PRE_INIT: Creating BM25 embedding...");
-        let bm25 = crate::embedding::Bm25Embedding::new(512);
+        let bm25 = Arc::new(crate::embedding::BM25Factory::create_default());
         info!("🔍 PRE_INIT: Registering BM25 provider...");
-        embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
+        embedding_manager.add_provider(crate::embedding::EmbeddingProviderType::BM25, bm25);
         info!("🔍 PRE_INIT: Setting default provider...");
-        embedding_manager.set_default_provider("bm25")?;
+        embedding_manager.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
         info!("✅ PRE_INIT: Embedding manager configured");
 
         info!(
             "✅ Vectorizer Server initialized successfully - starting background collection loading"
         );
-        info!("🔍 STEP 1: Server initialization completed, proceeding to file watcher setup");
-        info!("🔍 STEP 1.1: About to initialize file watcher embedding manager...");
 
-        // Initialize file watcher if enabled
-        info!("🔍 STEP 2: Initializing file watcher embedding manager...");
-        let mut embedding_manager_for_watcher = EmbeddingManager::new();
-        let bm25_for_watcher = crate::embedding::Bm25Embedding::new(512);
-        embedding_manager_for_watcher
-            .register_provider("bm25".to_string(), Box::new(bm25_for_watcher));
-        embedding_manager_for_watcher.set_default_provider("bm25")?;
-        info!("✅ STEP 2: File watcher embedding manager initialized");
+        // Initialize file watcher components efficiently
+        let (embedding_manager_for_watcher_arc, file_watcher_arc, store_for_watcher) = {
+            let config_watcher = crate::embedding::EmbeddingConfig::default();
+            let mut embedding_manager_for_watcher = EmbeddingManager::new(config_watcher);
+            let bm25_for_watcher = Arc::new(crate::embedding::BM25Factory::create_default());
+            embedding_manager_for_watcher.add_provider(
+                crate::embedding::EmbeddingProviderType::BM25,
+                bm25_for_watcher,
+            );
+            embedding_manager_for_watcher
+                .set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
 
-        info!("🔍 STEP 3: Creating Arc wrappers for file watcher components...");
-        let embedding_manager_for_watcher_arc =
-            Arc::new(RwLock::new(embedding_manager_for_watcher));
-        let file_watcher_arc = embedding_manager_for_watcher_arc.clone();
-        let store_for_watcher = store_arc.clone();
-        info!("✅ STEP 3: Arc wrappers created successfully");
+            let embedding_manager_for_watcher_arc =
+                Arc::new(RwLock::new(embedding_manager_for_watcher));
+            let file_watcher_arc = embedding_manager_for_watcher_arc.clone();
+            let store_for_watcher = store_arc.clone();
 
-        info!("🔍 STEP 4: Checking if file watcher is enabled...");
+            (
+                embedding_manager_for_watcher_arc,
+                file_watcher_arc,
+                store_for_watcher,
+            )
+        };
 
         // Check if file watcher is enabled in config before starting
         let file_watcher_enabled = std::fs::read_to_string("config.yml")
@@ -107,7 +133,7 @@ impl VectorizerServer {
                     .and_then(|fw| fw.get("enabled"))
                     .and_then(|enabled| enabled.as_bool())
             })
-            .unwrap_or(false); // Default to disabled if not found
+            .unwrap_or(false);
 
         let watcher_system_arc = Arc::new(tokio::sync::Mutex::new(
             None::<crate::file_watcher::FileWatcherSystem>,
@@ -118,9 +144,6 @@ impl VectorizerServer {
         if file_watcher_enabled {
             info!("✅ File watcher is ENABLED in config - starting...");
             tokio::task::spawn(async move {
-                info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
-                info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
-
                 // Load file watcher configuration from workspace
                 let watcher_config = load_file_watcher_config().await.unwrap_or_else(|e| {
                     warn!("Failed to load file watcher config: {}, using defaults", e);
@@ -132,35 +155,29 @@ impl VectorizerServer {
                     store_for_watcher,
                     file_watcher_arc,
                 );
-                info!("✅ STEP 5: FileWatcherSystem instance created");
 
-                info!("🔍 STEP 5.1: Initializing file discovery system...");
+                // Initialize and start file watcher system
                 if let Err(e) = watcher_system.initialize_discovery() {
                     error!("Failed to initialize file discovery system: {}", e);
-                } else {
-                    info!("✅ STEP 5.1: File discovery system initialized");
+                    return;
                 }
 
-                info!("🔍 STEP 6: Starting FileWatcherSystem...");
                 if let Err(e) = watcher_system.start().await {
-                    error!("❌ STEP 6: Failed to start file watcher: {}", e);
-                } else {
-                    info!("✅ STEP 6: File watcher started successfully");
+                    error!("Failed to start file watcher: {}", e);
+                    return;
                 }
 
-                // Store the watcher system for later use AFTER starting it
+                // Store the watcher system for later use
                 {
                     let mut watcher_guard = watcher_system_for_task.lock().await;
                     *watcher_guard = Some(watcher_system);
                 }
 
-                info!("🔍 STEP 7: File watcher system is now running in background...");
+                info!("✅ File watcher system started successfully");
 
-                // Keep the task alive by waiting indefinitely
-                // This ensures the file watcher continues running
+                // Keep the task alive
                 loop {
                     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-                    info!("🔍 File watcher is still running...");
                 }
             });
         } else {
@@ -175,7 +192,6 @@ impl VectorizerServer {
         let embedding_manager_for_loading = Arc::new(embedding_manager);
         let watcher_system_for_loading = watcher_system_arc.clone();
         let background_handle = tokio::task::spawn(async move {
-            println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
 
             // Check for cancellation before starting
@@ -189,13 +205,9 @@ impl VectorizerServer {
             let vecdb_path = data_dir.join("vectorizer.vecdb");
             let vecdb_exists = vecdb_path.exists();
 
-            // Load all persisted collections if .vecdb exists (ALWAYS, regardless of config)
-            // OR if auto_load is explicitly enabled for raw files
-            let should_auto_load = if vecdb_exists {
-                info!("📦 vectorizer.vecdb exists - will ALWAYS load collections from it");
-                true
-            } else {
-                // No .vecdb - check config for raw file loading
+            // Determine if we should auto-load collections
+            let should_auto_load = vecdb_exists || {
+                // Check config for raw file loading if no .vecdb exists
                 std::fs::read_to_string("config.yml")
                     .ok()
                     .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
@@ -208,27 +220,33 @@ impl VectorizerServer {
                     .unwrap_or(false)
             };
 
+            if vecdb_exists {
+                info!("📦 vectorizer.vecdb exists - will load collections from it");
+            }
+
             // Load all persisted collections in background
             let persisted_count = if should_auto_load {
-                info!(
-                    "🔍 COLLECTION_LOAD_STEP_1: Auto-load ENABLED - loading all persisted collections..."
-                );
+                info!("Auto-load ENABLED - loading all persisted collections...");
                 match store_for_loading.load_all_persisted_collections() {
                     Ok(count) => {
                         if count > 0 {
-                            println!(
+                            info!(
                                 "✅ Background loading completed - {} collections loaded",
                                 count
                             );
-                            info!(
-                                "✅ COLLECTION_LOAD_STEP_2: Background loading completed - {} collections loaded",
-                                count
-                            );
+
+                            // CRITICAL: Restore BM25 vocabularies from .vecdb
+                            info!("🔄 Restoring BM25 vocabularies from .vecdb...");
+                            if let Err(e) = restore_bm25_vocabularies(
+                                &store_for_loading,
+                                &embedding_manager_for_loading,
+                            ).await {
+                                warn!("⚠️  Failed to restore BM25 vocabularies: {}", e);
+                            } else {
+                                info!("✅ BM25 vocabularies restored successfully");
+                            }
 
                             // Update file watcher with loaded collections
-                            info!(
-                                "🔍 COLLECTION_LOAD_STEP_3: Updating file watcher with loaded collections..."
-                            );
                             if let Some(watcher_system) =
                                 watcher_system_for_loading.lock().await.as_ref()
                             {
@@ -239,46 +257,37 @@ impl VectorizerServer {
                                         .await
                                     {
                                         warn!(
-                                            "⚠️ Failed to update file watcher with collection '{}': {}",
+                                            "Failed to update file watcher with collection '{}': {}",
                                             collection_name, e
-                                        );
-                                    } else {
-                                        info!(
-                                            "✅ Updated file watcher with collection: {}",
-                                            collection_name
                                         );
                                     }
                                 }
 
                                 // Discover and index existing files after collections are loaded
-                                info!(
-                                    "🔍 COLLECTION_LOAD_STEP_4: Starting file discovery for existing files..."
-                                );
                                 match watcher_system.discover_existing_files().await {
                                     Ok(result) => {
                                         info!(
-                                            "✅ File discovery completed: {} files indexed, {} skipped, {} errors",
+                                            "File discovery completed: {} files indexed, {} skipped, {} errors",
                                             result.stats.files_indexed,
                                             result.stats.files_skipped,
                                             result.stats.files_errors
                                         );
                                     }
                                     Err(e) => {
-                                        warn!("⚠️ File discovery failed: {}", e);
+                                        warn!("File discovery failed: {}", e);
                                     }
                                 }
 
                                 // Sync with collections to remove orphaned files
-                                info!("🔍 COLLECTION_LOAD_STEP_5: Starting collection sync...");
                                 match watcher_system.sync_with_collections().await {
                                     Ok(result) => {
                                         info!(
-                                            "✅ Collection sync completed: {} orphaned files removed",
+                                            "Collection sync completed: {} orphaned files removed",
                                             result.stats.orphaned_files_removed
                                         );
                                     }
                                     Err(e) => {
-                                        warn!("⚠️ Collection sync failed: {}", e);
+                                        warn!("Collection sync failed: {}", e);
                                     }
                                 }
                             } else {
@@ -287,47 +296,34 @@ impl VectorizerServer {
 
                             count
                         } else {
-                            println!(
-                                "ℹ️  Background loading completed - no persisted collections found"
-                            );
-                            info!(
-                                "✅ COLLECTION_LOAD_STEP_2: Background loading completed - no persisted collections found"
-                            );
+                            info!("Background loading completed - no persisted collections found");
 
                             // Even with no persisted collections, try to discover existing files
-                            info!(
-                                "🔍 COLLECTION_LOAD_STEP_3: No persisted collections, attempting conservative file discovery..."
-                            );
 
                             // Wait for file watcher to be available (with timeout)
                             let mut attempts = 0;
-                            let max_attempts = 10; // Conservative timeout
+                            let max_attempts = 10;
 
                             loop {
                                 if let Some(watcher_system) =
                                     watcher_system_for_loading.lock().await.as_ref()
                                 {
-                                    info!(
-                                        "🔍 COLLECTION_LOAD_STEP_4: Starting conservative file discovery..."
-                                    );
+                                    // Discover existing files
                                     match watcher_system.discover_existing_files().await {
                                         Ok(result) => {
                                             info!(
-                                                "✅ File discovery completed: {} files indexed, {} skipped, {} errors",
+                                                "File discovery completed: {} files indexed, {} skipped, {} errors",
                                                 result.stats.files_indexed,
                                                 result.stats.files_skipped,
                                                 result.stats.files_errors
                                             );
                                         }
                                         Err(e) => {
-                                            warn!("⚠️ File discovery failed: {}", e);
+                                            warn!("File discovery failed: {}", e);
                                         }
                                     }
 
                                     // Perform comprehensive synchronization
-                                    info!(
-                                        "🔍 COLLECTION_LOAD_STEP_5: Starting comprehensive synchronization..."
-                                    );
                                     let sync_start = std::time::Instant::now();
                                     match watcher_system.comprehensive_sync().await {
                                         Ok((sync_result, unindexed_files)) => {
@@ -344,20 +340,13 @@ impl VectorizerServer {
                                                 .await;
 
                                             info!(
-                                                "✅ Comprehensive sync completed: {} orphaned files removed, {} unindexed files detected",
+                                                "Comprehensive sync completed: {} orphaned files removed, {} unindexed files detected",
                                                 sync_result.stats.orphaned_files_removed,
                                                 unindexed_files.len()
                                             );
-
-                                            if !unindexed_files.is_empty() {
-                                                info!(
-                                                    "📄 Unindexed files detected: {:?}",
-                                                    unindexed_files
-                                                );
-                                            }
                                         }
                                         Err(e) => {
-                                            warn!("⚠️ Comprehensive sync failed: {}", e);
+                                            warn!("Comprehensive sync failed: {}", e);
                                             watcher_system
                                                 .record_error("sync_error", &e.to_string())
                                                 .await;
@@ -369,15 +358,11 @@ impl VectorizerServer {
                                     attempts += 1;
                                     if attempts >= max_attempts {
                                         warn!(
-                                            "⚠️ File watcher not available after {} seconds, skipping discovery",
+                                            "File watcher not available after {} seconds, skipping discovery",
                                             max_attempts
                                         );
                                         break;
                                     }
-                                    info!(
-                                        "⏳ Waiting for file watcher to be available... (attempt {}/{})",
-                                        attempts, max_attempts
-                                    );
                                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                                 }
                             }
@@ -386,23 +371,13 @@ impl VectorizerServer {
                         }
                     }
                     Err(e) => {
-                        println!(
-                            "⚠️  Failed to load persisted collections in background: {}",
-                            e
-                        );
-                        warn!(
-                            "⚠️  Failed to load persisted collections in background: {}",
-                            e
-                        );
+                        warn!("Failed to load persisted collections in background: {}", e);
                         0
                     }
                 }
             } else {
-                println!(
-                    "⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)"
-                );
                 info!(
-                    "⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)"
+                    "Auto-load DISABLED - collections will be loaded on first access (lazy loading)"
                 );
                 0
             };
@@ -425,12 +400,8 @@ impl VectorizerServer {
             {
                 Ok(workspace_count) => {
                     if workspace_count > 0 {
-                        println!(
-                            "✅ Workspace loading completed - {} collections indexed/loaded",
-                            workspace_count
-                        );
                         info!(
-                            "✅ Workspace loading completed - {} collections indexed/loaded",
+                            "Workspace loading completed - {} collections indexed/loaded",
                             workspace_count
                         );
 
@@ -452,119 +423,105 @@ impl VectorizerServer {
                             .unwrap_or(0);
 
                         if bin_count > 0 {
-                            println!(
-                                "📦 Found {} .bin files - compacting to vectorizer.vecdb from memory...",
+                            info!(
+                                "Found {} .bin files - compacting to vectorizer.vecdb from memory...",
                                 bin_count
                             );
-                            info!(
-                                "📦 Found {} .bin files - compacting to vectorizer.vecdb from memory...",
-                                bin_count
-                            );
-                            info!(
-                                "🔍 DEBUG: bin_count = {}, workspace_count = {}",
-                                bin_count, workspace_count
-                            );
-                            info!("🔍 DEBUG: data_dir = {}", data_dir.display());
-
-                            info!("🔍 DEBUG: Starting compact_from_memory...");
 
                             // Compact directly FROM MEMORY (no raw files needed)
                             match compactor.compact_from_memory(&store_for_loading) {
                                 Ok(index) => {
-                                    println!("✅ Compaction complete:");
-                                    println!("   Collections: {}", index.collection_count());
-                                    println!("   Total vectors: {}", index.total_vectors());
-                                    println!(
+                                    info!("Compaction complete:");
+                                    info!("   Collections: {}", index.collection_count());
+                                    info!("   Total vectors: {}", index.total_vectors());
+                                    info!(
                                         "   Compressed size: {} MB",
                                         index.compressed_size / 1_048_576
                                     );
-                                    println!(
-                                        "   🗑️  vectorizer.vecdb created from memory - no raw files needed"
-                                    );
-
                                     info!(
-                                        "✅ First compaction complete - created vectorizer.vecdb from memory"
+                                        "   vectorizer.vecdb created from memory - no raw files needed"
                                     );
-                                    info!(
-                                        "   Collections: {}, Vectors: {}",
-                                        index.collection_count(),
-                                        index.total_vectors()
-                                    );
-                                    info!("   Only vectorizer.vecdb and vectorizer.vecidx exist");
 
                                     // Verify the file was created
                                     if vecdb_path.exists() {
                                         let metadata = std::fs::metadata(&vecdb_path).unwrap();
-                                        println!(
-                                            "   📊 vectorizer.vecdb size: {} MB",
+                                        info!(
+                                            "   vectorizer.vecdb size: {} MB",
                                             metadata.len() / 1_048_576
                                         );
-                                        info!(
-                                            "   📊 vectorizer.vecdb size: {} bytes",
-                                            metadata.len()
-                                        );
                                     } else {
-                                        error!("❌ CRITICAL: vectorizer.vecdb was NOT created!");
+                                        error!("CRITICAL: vectorizer.vecdb was NOT created!");
                                     }
 
                                     // Remove any temporary .bin files that might have been created during indexing
                                     match compactor.remove_raw_files() {
                                         Ok(count) if count > 0 => {
-                                            println!(
-                                                "   🗑️  Removed {} temporary raw files",
-                                                count
-                                            );
-                                            info!("🗑️  Removed {} temporary raw files", count);
+                                            info!("Removed {} temporary raw files", count);
                                         }
                                         Ok(_) => {
-                                            info!("   No temporary raw files to remove");
+                                            info!("No temporary raw files to remove");
                                         }
                                         Err(e) => {
-                                            warn!("⚠️  Failed to remove raw files: {}", e);
+                                            warn!("Failed to remove raw files: {}", e);
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    println!("❌ Compaction failed: {}", e);
-                                    error!("❌ Compaction from memory failed: {}", e);
-                                    error!("   Error details: {:?}", e);
-                                    error!("   Will retry on next startup");
+                                    error!("Compaction from memory failed: {}", e);
+                                    error!("Will retry on next startup");
                                 }
                             }
                         } else {
                             // No .bin files - either loaded from .vecdb or nothing to compact
-                            println!("ℹ️  No .bin files found - skipping compaction");
-                            info!("ℹ️  No .bin files found - vectorizer.vecdb is up to date");
+                            info!("No .bin files found - vectorizer.vecdb is up to date");
                         }
                     } else {
-                        println!("ℹ️  All collections already exist - no indexing needed");
-                        info!("ℹ️  All collections already exist - no indexing needed");
+                        info!("All collections already exist - no indexing needed");
                     }
                 }
                 Err(e) => {
-                    println!("⚠️  Failed to process workspace: {}", e);
-                    warn!("⚠️  Failed to process workspace: {}", e);
+                    warn!("Failed to process workspace: {}", e);
                 }
             }
 
             // NOW enable auto-save after all collections are loaded
-            println!("🔄 Enabling auto-save after successful initialization");
-            info!("🔄 Enabling auto-save after successful initialization");
+            info!("Enabling auto-save after successful initialization");
             store_for_loading.enable_auto_save();
-            info!("✅ Auto-save enabled - collections will be saved every 5 minutes when modified");
+            info!("Auto-save enabled - collections will be saved every 5 minutes when modified");
         });
 
         // Create final embedding manager for the server struct
-        let mut final_embedding_manager = EmbeddingManager::new();
-        let final_bm25 = crate::embedding::Bm25Embedding::new(512);
-        final_embedding_manager.register_provider("bm25".to_string(), Box::new(final_bm25));
-        final_embedding_manager.set_default_provider("bm25")?;
+        let config_final = crate::embedding::EmbeddingConfig::default();
+        let mut final_embedding_manager = EmbeddingManager::new(config_final);
+        let final_bm25 = Arc::new(crate::embedding::BM25Factory::create_default());
+        final_embedding_manager
+            .add_provider(crate::embedding::EmbeddingProviderType::BM25, final_bm25);
+        final_embedding_manager.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
 
         // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
         info!("🔄 Initializing AutoSaveManager...");
         let auto_save_manager = Arc::new(crate::db::AutoSaveManager::new(store_arc.clone(), 1));
         let _auto_save_handle = auto_save_manager.start();
         info!("✅ AutoSaveManager started (5min save + 1h snapshot intervals)");
+
+        // Start system metrics collector
+        info!("📊 Starting system metrics collector...");
+        let system_collector = crate::monitoring::SystemCollector::new(store_arc.clone());
+        let system_collector_handle = system_collector.start();
+        info!("✅ System metrics collector started");
+
+        // Initialize query cache
+        let cache_config = crate::cache::QueryCacheConfig::default();
+        let query_cache = Arc::new(crate::cache::QueryCache::new(cache_config));
+        info!("✅ Query cache initialized");
+
+        // Initialize workspace manager
+        let workspace_manager = Arc::new(tokio::sync::Mutex::new(None));
+        info!("✅ Workspace manager initialized");
+
+        // Initialize performance monitor
+        let performance_monitor = Arc::new(PerformanceMonitor::new());
+        info!("✅ Performance monitor initialized");
 
         Ok(Self {
             store: store_arc,
@@ -575,10 +532,14 @@ impl VectorizerServer {
             auto_save_manager: Some(auto_save_manager),
             master_node: None,
             replica_node: None,
+            query_cache,
+            workspace_manager,
+            performance_monitor,
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
                 cancel_tx,
             )))),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(Some(system_collector_handle))),
         })
     }
 
@@ -630,6 +591,14 @@ impl VectorizerServer {
             // Health and stats
             .route("/health", get(rest_handlers::health_check))
             .route("/stats", get(rest_handlers::get_stats))
+            .route(
+                "/prometheus/metrics",
+                get(rest_handlers::get_prometheus_metrics),
+            )
+            .route(
+                "/performance/metrics",
+                get(rest_handlers::get_performance_metrics),
+            )
             .route(
                 "/indexing/progress",
                 get(rest_handlers::get_indexing_progress),
@@ -792,6 +761,9 @@ impl VectorizerServer {
             .fallback_service(ServeDir::new("dashboard"))
             .layer(CorsLayer::permissive())
             .layer(axum::middleware::from_fn(
+                crate::monitoring::correlation_middleware,
+            ))
+            .layer(axum::middleware::from_fn(
                 move |req: axum::extract::Request, next: axum::middleware::Next| {
                     let metrics = metrics_collector_2.clone();
                     async move {
@@ -832,11 +804,70 @@ impl VectorizerServer {
             )
             .with_state(umicp_state);
 
+        // Qdrant compatibility routes
+        let qdrant_routes = Router::new()
+            // Collection management
+            .route("/collections", get(qdrant_handlers::get_collections))
+            .route("/collections/{name}", get(qdrant_handlers::get_collection))
+            .route(
+                "/collections/{name}",
+                post(qdrant_handlers::create_collection),
+            )
+            .route(
+                "/collections/{name}",
+                put(qdrant_handlers::update_collection),
+            )
+            .route(
+                "/collections/{name}",
+                delete(qdrant_handlers::delete_collection),
+            )
+            // Vector operations
+            .route(
+                "/collections/{name}/points",
+                post(qdrant_vector_handlers::upsert_points),
+            )
+            .route(
+                "/collections/{name}/points",
+                get(qdrant_vector_handlers::retrieve_points),
+            )
+            .route(
+                "/collections/{name}/points",
+                delete(qdrant_vector_handlers::delete_points),
+            )
+            .route(
+                "/collections/{name}/points/scroll",
+                post(qdrant_vector_handlers::scroll_points),
+            )
+            .route(
+                "/collections/{name}/points/count",
+                post(qdrant_vector_handlers::count_points),
+            )
+            // Search operations
+            .route(
+                "/collections/{name}/points/search",
+                post(qdrant_search_handlers::search_points),
+            )
+            .route(
+                "/collections/{name}/points/recommend",
+                post(qdrant_search_handlers::recommend_points),
+            )
+            .route(
+                "/collections/{name}/points/search/batch",
+                post(qdrant_search_handlers::batch_search_points),
+            )
+            .route(
+                "/collections/{name}/points/recommend/batch",
+                post(qdrant_search_handlers::batch_recommend_points),
+            )
+            .with_state(self.clone());
+
         // Merge all routes - UMICP first so it doesn't get masked
+        // Nest Qdrant routes under /qdrant prefix to avoid conflicts
         let app = Router::new()
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
+            .nest("/qdrant", qdrant_routes)
             .merge(metrics_router);
 
         info!("🌐 Vectorizer Server available at:");
@@ -847,6 +878,7 @@ impl VectorizerServer {
             "   🔍 UMICP Discovery (v0.2.1): http://{}:{}/umicp/discover",
             host, port
         );
+        info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
         info!("   📊 Dashboard: http://{}:{}/", host, port);
 
         // Bind and start the server
@@ -1122,6 +1154,139 @@ impl rmcp::ServerHandler for VectorizerMcpService {
     }
 }
 
+/// Restore BM25 vocabularies from .vecdb for all collections
+async fn restore_bm25_vocabularies(
+    store: &Arc<VectorStore>,
+    embedding_manager: &Arc<EmbeddingManager>,
+) -> anyhow::Result<()> {
+    use crate::storage::StorageReader;
+    
+    let data_dir = std::path::PathBuf::from("./data");
+    let reader = StorageReader::new(&data_dir)?;
+    
+    // Get all collections
+    let collections = reader.list_collections()?;
+    info!("🔍 Found {} collections in .vecdb to restore vocabularies", collections.len());
+    
+    let mut all_documents = Vec::new();
+    let mut vocab_count = 0;
+    
+    // Load all tokenizers from all collections
+    for collection_name in &collections {
+        let tokenizer_file = format!("{}_tokenizer.json", collection_name);
+        
+        match reader.read_file(&tokenizer_file) {
+            Ok(data) => {
+                match serde_json::from_slice::<serde_json::Value>(&data) {
+                    Ok(tokenizer_data) => {
+                        // Extract vocabulary from tokenizer
+                        if let Some(vocab_obj) = tokenizer_data.get("vocabulary") {
+                            if let Some(vocab_map) = vocab_obj.as_object() {
+                                info!("   📖 Loaded vocabulary for '{}': {} terms", collection_name, vocab_map.len());
+                                vocab_count += vocab_map.len();
+                                
+                                // Create pseudo-documents from vocabulary for BM25 training
+                                // Each term becomes a document
+                                for (term, _) in vocab_map.iter() {
+                                    all_documents.push(term.clone());
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("   ⚠️  Failed to parse tokenizer for '{}': {}", collection_name, e);
+                    }
+                }
+            }
+            Err(_) => {
+                // Tokenizer file doesn't exist - that's okay, collection might not use BM25
+                continue;
+            }
+        }
+    }
+    
+    info!("📊 Total vocabulary terms collected: {}", vocab_count);
+    
+    if all_documents.is_empty() {
+        warn!("⚠️  No vocabulary terms found in any collection");
+        return Ok(());
+    }
+    
+    // Get BM25 provider and restore vocabulary properly
+    if let Some(provider) = embedding_manager.get_provider(&crate::embedding::EmbeddingProviderType::BM25) {
+        if let Some(bm25) = provider.as_any().downcast_ref::<crate::embedding::BM25Provider>() {
+            info!("🔄 Restoring BM25 vocabulary from {} collections...", collections.len());
+            
+            // Collect all vocabularies and statistics from all collections
+            use std::collections::HashMap;
+            let mut merged_vocab: HashMap<String, usize> = HashMap::new();
+            let mut merged_doc_freqs: HashMap<String, usize> = HashMap::new();
+            let mut total_doc_count: usize = 0;
+            let mut total_length: usize = 0;
+            let mut collection_count: usize = 0;
+            
+            for collection_name in &collections {
+                let tokenizer_file = format!("{}_tokenizer.json", collection_name);
+                
+                if let Ok(data) = reader.read_file(&tokenizer_file) {
+                    if let Ok(tokenizer_data) = serde_json::from_slice::<serde_json::Value>(&data) {
+                        // Extract vocabulary
+                        if let Some(vocab_obj) = tokenizer_data.get("vocabulary").and_then(|v| v.as_object()) {
+                            for (term, id_val) in vocab_obj.iter() {
+                                if let Some(id) = id_val.as_u64() {
+                                    // Keep the first occurrence of each term
+                                    merged_vocab.entry(term.clone()).or_insert(id as usize);
+                                }
+                            }
+                        }
+                        
+                        // Extract document frequencies
+                        if let Some(doc_freq_obj) = tokenizer_data.get("document_frequencies").and_then(|v| v.as_object()) {
+                            for (term, freq_val) in doc_freq_obj.iter() {
+                                if let Some(freq) = freq_val.as_u64() {
+                                    *merged_doc_freqs.entry(term.clone()).or_insert(0) += freq as usize;
+                                }
+                            }
+                        }
+                        
+                        // Extract statistics
+                        if let Some(doc_count) = tokenizer_data.get("document_count").and_then(|v| v.as_u64()) {
+                            total_doc_count += doc_count as usize;
+                            collection_count += 1;
+                        }
+                    }
+                }
+            }
+            
+            if !merged_vocab.is_empty() {
+                // Calculate average document length (estimate based on total terms and docs)
+                let avg_length = if total_doc_count > 0 {
+                    total_length = merged_vocab.len() * total_doc_count / collection_count.max(1);
+                    total_length as f32 / total_doc_count as f32
+                } else {
+                    50.0 // Default average
+                };
+                
+                // Restore vocabulary and statistics using proper methods
+                bm25.set_vocabulary(merged_vocab.clone()).await;
+                bm25.set_document_frequencies(merged_doc_freqs).await;
+                bm25.set_statistics(total_doc_count, avg_length, total_length).await;
+                
+                info!("✅ BM25 vocabulary restored: {} terms, {} documents", 
+                     merged_vocab.len(), total_doc_count);
+            } else {
+                warn!("⚠️  No valid vocabulary data found in tokenizer files");
+            }
+        } else {
+            warn!("⚠️  BM25 provider found but downcast failed");
+        }
+    } else {
+        warn!("⚠️  BM25 provider not found in embedding manager");
+    }
+    
+    Ok(())
+}
+
 /// Load file watcher configuration from vectorize-workspace.yml
 async fn load_file_watcher_config() -> anyhow::Result<crate::file_watcher::FileWatcherConfig> {
     match crate::file_watcher::FileWatcherConfig::from_yaml_file("vectorize-workspace.yml") {
@@ -1321,7 +1486,7 @@ pub async fn load_workspace_collections(
                                                             "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
                                                             collection.name, vector_count
                                                         );
-                                                        indexed_count += 1;
+                                                        // Don't increment indexed_count - we're loading, not indexing!
                                                     }
                                                 }
                                                 continue;
@@ -1349,7 +1514,7 @@ pub async fn load_workspace_collections(
                                                         "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
                                                         collection.name, vector_count
                                                     );
-                                                    indexed_count += 1;
+                                                    // Don't increment indexed_count - we're loading, not indexing!
                                                 }
                                             } else {
                                                 warn!(
@@ -1410,24 +1575,46 @@ pub async fn load_workspace_collections(
 
             // Use FileLoader to index files
             let mut loader_config = LoaderConfig {
-                max_chunk_size: 2048,
-                chunk_overlap: 256,
+                max_chunk_size: 500,
+                chunk_overlap: 100,
                 include_patterns: collection.processing.include_patterns.clone(),
                 exclude_patterns: collection.processing.exclude_patterns.clone(),
                 embedding_dimension: collection.embedding.dimension,
                 embedding_type: "bm25".to_string(),
                 collection_name: collection.name.clone(),
                 max_file_size: 1024 * 1024, // 1MB
+                allowed_extensions: vec![
+                    "md".to_string(),
+                    "txt".to_string(),
+                    "json".to_string(),
+                    "rs".to_string(),
+                    "ts".to_string(),
+                    "js".to_string(),
+                ],
             };
 
             // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
             loader_config.ensure_hardcoded_excludes();
 
             // Create embedding manager for this collection
-            let mut coll_embedding_manager = crate::embedding::EmbeddingManager::new();
-            let bm25 = crate::embedding::Bm25Embedding::new(collection.embedding.dimension);
-            coll_embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
-            coll_embedding_manager.set_default_provider("bm25")?;
+            let mut config_coll = crate::embedding::EmbeddingConfig::default();
+            config_coll.dimension = collection.embedding.dimension;
+            let mut coll_embedding_manager = crate::embedding::EmbeddingManager::new(config_coll.clone());
+            
+            // Create BM25 with dimension from workspace config
+            let bm25_config = crate::embedding::bm25::BM25Config {
+                k1: 1.2,
+                b: 0.75,
+                min_term_freq: 1,
+                max_vocab_size: config_coll.dimension,  // Use dimension from workspace!
+                enable_idf: true,
+                idf_smoothing: 1.0,
+            };
+            let bm25 = Arc::new(crate::embedding::BM25Factory::create_with_config(bm25_config));
+            coll_embedding_manager
+                .add_provider(crate::embedding::EmbeddingProviderType::BM25, bm25);
+            coll_embedding_manager
+                .set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
 
             let mut loader =
                 FileLoader::with_embedding_manager(loader_config, coll_embedding_manager);
@@ -1456,6 +1643,174 @@ pub async fn load_workspace_collections(
             }
         }
     }
+    
+    // ALWAYS compact if we indexed new collections OR if there are temp files
+    info!("🔍 Checking if compaction is needed...");
+    info!("   indexed_count = {}", indexed_count);
+    
+    let data_dir = std::path::PathBuf::from("./data");
+    let has_temp_files = std::fs::read_dir(&data_dir)
+        .ok()
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .any(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    name.ends_with("_tokenizer.json") 
+                        || name.ends_with("_checksums.json")
+                        || name.ends_with("_vector_store.bin")
+                        || name.ends_with("_metadata.json")
+                })
+        })
+        .unwrap_or(false);
+    
+    info!("   has_temp_files = {}", has_temp_files);
+    
+    if indexed_count > 0 || has_temp_files {
+        if indexed_count > 0 {
+            info!("🗜️  Compacting {} newly indexed collections to .vecdb...", indexed_count);
+        } else {
+            info!("🗜️  Compacting temporary files to .vecdb...");
+        }
+        
+        let persistence = crate::file_loader::Persistence::new();
+        match persistence.compact_and_cleanup() {
+            Ok(count) => {
+                info!("✅ Successfully compacted {} collections to .vecdb", count);
+            }
+            Err(e) => {
+                warn!("⚠️  Failed to compact collections: {}", e);
+            }
+        }
+    } else {
+        info!("ℹ️  No compaction needed (no new indexing and no temp files)");
+    }
 
     Ok(indexed_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::VectorStore;
+    use crate::embedding::EmbeddingManager;
+
+    #[test]
+    fn test_server_state_creation() {
+        let file_watcher_system = Arc::new(tokio::sync::Mutex::new(None));
+        let state = ServerState {
+            file_watcher_system,
+        };
+
+        assert!(state.file_watcher_system.try_lock().is_ok());
+    }
+
+    #[test]
+    fn test_vectorizer_server_creation() {
+        let store = Arc::new(VectorStore::new());
+        let config = crate::embedding::EmbeddingConfig::default();
+        let embedding_manager = Arc::new(EmbeddingManager::new(config));
+        let start_time = std::time::Instant::now();
+        let file_watcher_system = Arc::new(tokio::sync::Mutex::new(None));
+        let metrics_collector = Arc::new(crate::file_watcher::MetricsCollector::new());
+
+        let server = VectorizerServer {
+            store,
+            embedding_manager,
+            start_time,
+            file_watcher_system,
+            metrics_collector,
+            auto_save_manager: None,
+            master_node: None,
+            replica_node: None,
+            query_cache: Arc::new(crate::cache::QueryCache::new(
+                crate::cache::QueryCacheConfig::default(),
+            )),
+            workspace_manager: Arc::new(tokio::sync::Mutex::new(None)),
+            performance_monitor: Arc::new(crate::monitoring::performance::PerformanceMonitor::new()),
+            background_task: Arc::new(tokio::sync::Mutex::new(None)),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(None)),
+        };
+
+        assert!(server.store.list_collections().is_empty());
+        assert!(server.auto_save_manager.is_none());
+        assert!(server.master_node.is_none());
+        assert!(server.replica_node.is_none());
+    }
+
+    #[test]
+    fn test_vectorizer_server_uptime() {
+        let store = Arc::new(VectorStore::new());
+        let config = crate::embedding::EmbeddingConfig::default();
+        let embedding_manager = Arc::new(EmbeddingManager::new(config));
+        let start_time = std::time::Instant::now();
+        let file_watcher_system = Arc::new(tokio::sync::Mutex::new(None));
+        let metrics_collector = Arc::new(crate::file_watcher::MetricsCollector::new());
+
+        let server = VectorizerServer {
+            store,
+            embedding_manager,
+            start_time,
+            file_watcher_system,
+            metrics_collector,
+            auto_save_manager: None,
+            master_node: None,
+            replica_node: None,
+            query_cache: Arc::new(crate::cache::QueryCache::new(
+                crate::cache::QueryCacheConfig::default(),
+            )),
+            workspace_manager: Arc::new(tokio::sync::Mutex::new(None)),
+            performance_monitor: Arc::new(crate::monitoring::performance::PerformanceMonitor::new()),
+            background_task: Arc::new(tokio::sync::Mutex::new(None)),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(None)),
+        };
+
+        // Test uptime calculation
+        let uptime = server.start_time.elapsed();
+        // Uptime is always non-negative (u64), so no assertion needed
+    }
+
+    #[test]
+    fn test_server_state_clone() {
+        let file_watcher_system = Arc::new(tokio::sync::Mutex::new(None));
+        let state = ServerState {
+            file_watcher_system,
+        };
+
+        let cloned_state = state.clone();
+        assert!(cloned_state.file_watcher_system.try_lock().is_ok());
+    }
+
+    #[test]
+    fn test_vectorizer_server_clone() {
+        let store = Arc::new(VectorStore::new());
+        let config = crate::embedding::EmbeddingConfig::default();
+        let embedding_manager = Arc::new(EmbeddingManager::new(config));
+        let start_time = std::time::Instant::now();
+        let file_watcher_system = Arc::new(tokio::sync::Mutex::new(None));
+        let metrics_collector = Arc::new(crate::file_watcher::MetricsCollector::new());
+
+        let server = VectorizerServer {
+            store,
+            embedding_manager,
+            start_time,
+            file_watcher_system,
+            metrics_collector,
+            auto_save_manager: None,
+            master_node: None,
+            replica_node: None,
+            query_cache: Arc::new(crate::cache::QueryCache::new(
+                crate::cache::QueryCacheConfig::default(),
+            )),
+            workspace_manager: Arc::new(tokio::sync::Mutex::new(None)),
+            performance_monitor: Arc::new(crate::monitoring::performance::PerformanceMonitor::new()),
+            background_task: Arc::new(tokio::sync::Mutex::new(None)),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(None)),
+        };
+
+        let cloned_server = server.clone();
+        assert!(cloned_server.store.list_collections().is_empty());
+    }
 }

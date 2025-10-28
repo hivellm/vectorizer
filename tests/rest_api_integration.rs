@@ -26,7 +26,7 @@ fn test_collection_config_creation() {
 
 #[test]
 fn test_distance_metric_variants() {
-    let metrics = vec![
+    let metrics = [
         DistanceMetric::Cosine,
         DistanceMetric::Euclidean,
         DistanceMetric::DotProduct,
@@ -191,9 +191,23 @@ fn test_stats_response_structure() {
 }
 
 #[test]
-fn test_validation_empty_collection_name() {
-    let name = "";
-    assert!(name.is_empty());
+fn test_validation_collection_name_length() {
+    // Test collection name validation logic
+    fn is_valid_collection_name(name: &str) -> bool {
+        !name.is_empty() && !name.chars().all(|c| c.is_whitespace())
+    }
+
+    // Test empty collection name validation
+    assert!(!is_valid_collection_name(""));
+
+    // Test non-empty collection name validation
+    assert!(is_valid_collection_name("valid_collection"));
+
+    // Test whitespace-only name validation
+    assert!(!is_valid_collection_name("   "));
+
+    // Test mixed whitespace and content
+    assert!(is_valid_collection_name("  valid  "));
 }
 
 #[test]
@@ -239,7 +253,7 @@ fn test_request_timeout_validation() {
 #[test]
 fn test_rate_limit_configuration() {
     let requests_per_minute = 60;
-    let requests_per_second = requests_per_minute as f64 / 60.0;
+    let requests_per_second = f64::from(requests_per_minute) / 60.0;
 
     assert_eq!(requests_per_second, 1.0);
 }

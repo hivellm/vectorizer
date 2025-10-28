@@ -202,11 +202,12 @@ impl FileWatcherConfig {
     /// Check if a file should be processed based on patterns
     pub fn should_process_file(&self, file_path: &std::path::Path) -> bool {
         let file_path_str = file_path.to_string_lossy();
+        let file_path_lower = file_path_str.to_lowercase();
 
-        // Check exclude patterns first
+        // Check exclude patterns first (case-insensitive)
         for pattern in &self.exclude_patterns {
             if glob::Pattern::new(pattern)
-                .map(|p| p.matches(&file_path_str))
+                .map(|p| p.matches(&file_path_lower))
                 .unwrap_or(false)
             {
                 tracing::info!("🚫 File excluded by pattern '{}': {:?}", pattern, file_path);
@@ -214,7 +215,7 @@ impl FileWatcherConfig {
             }
         }
 
-        // Check include patterns
+        // Check include patterns (case-insensitive)
         if self.include_patterns.is_empty() {
             tracing::debug!("No include patterns, allowing file: {:?}", file_path);
             return true; // No include patterns means include all
@@ -222,7 +223,7 @@ impl FileWatcherConfig {
 
         for pattern in &self.include_patterns {
             if glob::Pattern::new(pattern)
-                .map(|p| p.matches(&file_path_str))
+                .map(|p| p.matches(&file_path_lower))
                 .unwrap_or(false)
             {
                 tracing::info!("✅ File included by pattern '{}': {:?}", pattern, file_path);
@@ -240,25 +241,26 @@ impl FileWatcherConfig {
     /// Check if a file should be processed based on patterns (silent version - no logging)
     pub fn should_process_file_silent(&self, file_path: &std::path::Path) -> bool {
         let file_path_str = file_path.to_string_lossy();
+        let file_path_lower = file_path_str.to_lowercase();
 
-        // Check exclude patterns first
+        // Check exclude patterns first (case-insensitive)
         for pattern in &self.exclude_patterns {
             if glob::Pattern::new(pattern)
-                .map(|p| p.matches(&file_path_str))
+                .map(|p| p.matches(&file_path_lower))
                 .unwrap_or(false)
             {
                 return false;
             }
         }
 
-        // Check include patterns
+        // Check include patterns (case-insensitive)
         if self.include_patterns.is_empty() {
             return true; // No include patterns means include all
         }
 
         for pattern in &self.include_patterns {
             if glob::Pattern::new(pattern)
-                .map(|p| p.matches(&file_path_str))
+                .map(|p| p.matches(&file_path_lower))
                 .unwrap_or(false)
             {
                 return true;

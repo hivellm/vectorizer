@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 
 /// Represents a single query result with its relevance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueryResult {
     /// The document/chunk ID
     pub doc_id: String,
@@ -240,5 +240,172 @@ mod tests {
     fn test_mean_reciprocal_rank() {
         let ranks = vec![1.0, 0.5, 0.33]; // reciprocal ranks for positions 1, 2, 3
         assert!((mean_reciprocal_rank(&ranks) - 0.61).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_query_result_creation() {
+        let result = QueryResult {
+            doc_id: "test_doc".to_string(),
+            relevance: 0.95,
+        };
+
+        assert_eq!(result.doc_id, "test_doc");
+        assert_eq!(result.relevance, 0.95);
+    }
+
+    #[test]
+    fn test_evaluate_query_results_empty() {
+        let results = vec![];
+        let ground_truth = HashSet::new();
+
+        let metrics = evaluate_query_results(&results, &ground_truth, 10);
+        assert_eq!(metrics.average_precision, 0.0);
+        assert_eq!(metrics.reciprocal_rank, 0.0);
+    }
+
+    #[test]
+    fn test_evaluate_query_results_all_relevant() {
+        let results = vec![
+            QueryResult {
+                doc_id: "doc1".to_string(),
+                relevance: 1.0,
+            },
+            QueryResult {
+                doc_id: "doc2".to_string(),
+                relevance: 1.0,
+            },
+            QueryResult {
+                doc_id: "doc3".to_string(),
+                relevance: 1.0,
+            },
+        ];
+
+        let ground_truth =
+            HashSet::from(["doc1".to_string(), "doc2".to_string(), "doc3".to_string()]);
+
+        let metrics = evaluate_query_results(&results, &ground_truth, 3);
+        assert_eq!(metrics.reciprocal_rank, 1.0); // First doc is relevant
+        assert!(!metrics.precision_at_k.is_empty());
+    }
+
+    #[test]
+    fn test_evaluate_search_quality_empty() {
+        let query_results: Vec<(Vec<QueryResult>, HashSet<String>)> = vec![];
+
+        let metrics = evaluate_search_quality(query_results, 10);
+
+        // Empty results may produce NaN
+        assert!(metrics.mean_average_precision.is_nan() || metrics.mean_average_precision == 0.0);
+        assert!(metrics.mean_reciprocal_rank.is_nan() || metrics.mean_reciprocal_rank == 0.0);
+        assert_eq!(metrics.num_queries, 0);
+    }
+
+    #[test]
+    fn test_precision_at_k_no_relevant() {
+        let results = vec![
+            QueryResult {
+                doc_id: "doc1".to_string(),
+                relevance: 0.0,
+            },
+            QueryResult {
+                doc_id: "doc2".to_string(),
+                relevance: 0.0,
+            },
+        ];
+
+        let ground_truth = HashSet::from(["doc99".to_string()]);
+
+        let precision = precision_at_k(&results, &ground_truth, 2);
+        assert_eq!(precision, 0.0);
+    }
+
+    #[test]
+    fn test_recall_at_k_all_found() {
+        let results = vec![
+            QueryResult {
+                doc_id: "doc1".to_string(),
+                relevance: 1.0,
+            },
+            QueryResult {
+                doc_id: "doc2".to_string(),
+                relevance: 1.0,
+            },
+        ];
+
+        let ground_truth = HashSet::from(["doc1".to_string(), "doc2".to_string()]);
+
+        let recall = recall_at_k(&results, &ground_truth, 2);
+        assert_eq!(recall, 1.0);
+    }
+
+    #[test]
+    fn test_evaluation_metrics_structure() {
+        let metrics = EvaluationMetrics {
+            mean_average_precision: 0.75,
+            mean_reciprocal_rank: 0.85,
+            precision_at_k: vec![1.0, 0.8, 0.6],
+            recall_at_k: vec![0.5, 0.7, 0.9],
+            num_queries: 10,
+        };
+
+        assert_eq!(metrics.mean_average_precision, 0.75);
+        assert_eq!(metrics.mean_reciprocal_rank, 0.85);
+        assert_eq!(metrics.num_queries, 10);
+    }
+
+    #[test]
+    fn test_query_metrics_structure() {
+        let metrics = QueryMetrics {
+            precision_at_k: vec![1.0, 0.8],
+            recall_at_k: vec![0.5, 0.7],
+            average_precision: 0.9,
+            reciprocal_rank: 1.0,
+        };
+
+        assert_eq!(metrics.average_precision, 0.9);
+        assert_eq!(metrics.reciprocal_rank, 1.0);
+        assert_eq!(metrics.precision_at_k.len(), 2);
+    }
+
+    #[test]
+    fn test_precision_at_k_k_zero() {
+        let results = vec![QueryResult {
+            doc_id: "doc1".to_string(),
+            relevance: 1.0,
+        }];
+
+        let ground_truth = HashSet::from(["doc1".to_string()]);
+
+        // K=0 should return NaN (division by zero)
+        let precision = precision_at_k(&results, &ground_truth, 0);
+        assert!(precision.is_nan());
+    }
+
+    #[test]
+    fn test_recall_at_k_k_zero() {
+        let results = vec![QueryResult {
+            doc_id: "doc1".to_string(),
+            relevance: 1.0,
+        }];
+
+        let ground_truth = HashSet::from(["doc1".to_string()]);
+
+        // K=0 should return 0.0
+        let recall = recall_at_k(&results, &ground_truth, 0);
+        assert_eq!(recall, 0.0);
+    }
+
+    #[test]
+    fn test_mean_reciprocal_rank_empty() {
+        let ranks: Vec<f32> = vec![];
+        let result = mean_reciprocal_rank(&ranks);
+        // Empty ranks should return NaN or 0
+        assert!(result.is_nan() || result == 0.0);
+    }
+
+    #[test]
+    fn test_mean_reciprocal_rank_single() {
+        let ranks = vec![1.0];
+        assert_eq!(mean_reciprocal_rank(&ranks), 1.0);
     }
 }

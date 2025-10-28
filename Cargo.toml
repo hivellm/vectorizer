@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.1.2"
+version = "1.2.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -27,6 +27,8 @@ walkdir = "2.5"
 notify = "8.2"
 fastrand = "2.3"
 sysinfo = "0.37"
+async-trait = "0.1"
+futures-util = "0.3"
 
 # Index and vector operations
 hnsw_rs = "0.3"
@@ -36,6 +38,12 @@ tantivy = "0.25"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
 fastembed = { version = "5.2", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
 rust-tfidf = "1.1" # TF-IDF similarity fallback
+
+# BERT model dependencies
+candle-core = { version = "0.9.1", optional = true }
+candle-nn = { version = "0.9.1", optional = true }
+candle-transformers = { version = "0.9.1", optional = true }
+tokenizers = { version = "0.22.1", optional = true }
 
 # Linear algebra for basic matrix operations
 ndarray = "0.16"
@@ -79,6 +87,9 @@ umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 whoami = "1.5"
 libc = "0.2"
 
+# Benchmark dependencies
+toml = "0.8"
+
 # Compression and caching
 lz4_flex = "0.11"
 memmap2 = "0.9"
@@ -97,6 +108,11 @@ jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
 lazy_static = "1.4"
+tower_governor = "0.5"  # Rate limiting middleware
+governor = "0.6"        # Rate limiting core
+rustls = "0.23"         # TLS support
+tokio-rustls = "0.26"   # Tokio TLS integration
+rcgen = "0.13"          # Certificate generation for testing
 
 # CLI utilities
 sys-info = "0.9"
@@ -105,11 +121,9 @@ sys-info = "0.9"
 tokio-tungstenite = "0.28"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
+# Qdrant protocol support (using local models)
+
 # Optional ML dependencies
-candle-core = { version = "0.9.1", optional = true }
-candle-nn = { version = "0.9.1", optional = true }
-candle-transformers = { version = "0.9.1", optional = true }
-tokenizers = { version = "0.22.1", optional = true }
 hf-hub = { version = "0.4.3", optional = true }
 
 # ONNX Runtime for high-performance inference
@@ -122,31 +136,153 @@ parquet = { version = "56", optional = true }
 # MCP SDK
 rmcp = { version = "0.8.1", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
-async-trait = "0.1"
 lru = "0.16.1"
 hyper = { version = "1.7", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
+# Monitoring and Observability
+prometheus = "0.13"
+opentelemetry = { version = "0.27", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.27", features = ["metrics", "trace", "rt-tokio"] }
+opentelemetry-prometheus = "0.17"
+opentelemetry-otlp = { version = "0.27", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+tracing-opentelemetry = "0.28"
+
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
+
+# Benchmark dependencies (optional, only with --features benchmarks)
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"], optional = true }
+proptest = { version = "1.4", optional = true }
 
 [build-dependencies]
 cc = { version = "1.2", features = ["parallel"] }
 winres = "0.1"
+num_cpus = "1.16"  # For build script parallelism detection
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
-proptest = "1.4"
 tempfile = "3.8"
 reqwest = { version = "0.12", features = ["json"] }
 
+# Core operation benchmarks
 [[bench]]
-name = "replication_bench"
+name = "query_cache_bench"
+path = "benchmark/core/query_cache_bench.rs"
 harness = false
+required-features = ["benchmarks"]
 
 [[bench]]
 name = "update_bench"
+path = "benchmark/core/update_bench.rs"
 harness = false
+required-features = ["benchmarks"]
+
+[[bench]]
+name = "core_operations_bench"
+path = "benchmark/core/core_operations_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+[[bench]]
+name = "cache_bench"
+path = "benchmark/core/cache_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Replication benchmarks
+[[bench]]
+name = "replication_bench"
+path = "benchmark/replication/replication_bench.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# GPU acceleration benchmarks
+[[bench]]
+name = "gpu_bench"
+path = "benchmark/gpu/gpu_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+[[bench]]
+name = "metal_hnsw_search_bench"
+path = "benchmark/gpu/metal_hnsw_search_benchmark.rs"
+harness = false
+required-features = ["benchmarks", "hive-gpu-metal"]
+
+
+[[bench]]
+name = "cuda_bench"
+path = "benchmark/gpu/cuda_benchmark.rs"
+harness = false
+required-features = ["benchmarks", "hive-gpu-cuda"]
+
+# Storage benchmarks
+[[bench]]
+name = "storage_bench"
+path = "benchmark/storage/storage_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Quantization benchmarks
+[[bench]]
+name = "quantization_bench"
+path = "benchmark/quantization/quantization_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Embedding benchmarks
+[[bench]]
+name = "embeddings_bench"
+path = "benchmark/embeddings/benchmark_embeddings.rs"
+harness = false
+required-features = ["benchmarks", "fastembed"]
+
+# Search benchmarks
+[[bench]]
+name = "search_bench"
+path = "benchmark/search/search_bench.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Performance benchmarks
+[[bench]]
+name = "scale_bench"
+path = "benchmark/performance/scale_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+[[bench]]
+name = "large_scale_bench"
+path = "benchmark/performance/large_scale_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+[[bench]]
+name = "combined_optimization_bench"
+path = "benchmark/performance/combined_optimization_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Example benchmark using helper utilities
+[[bench]]
+name = "example_benchmark"
+path = "benchmark/example_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Simple test
+[[bench]]
+name = "simple_test"
+path = "benchmark/simple_test.rs"
+harness = false
+required-features = ["benchmarks"]
+
+# Minimal benchmark
+[[bench]]
+name = "minimal_benchmark"
+path = "benchmark/minimal_benchmark.rs"
+harness = false
+required-features = ["benchmarks"]
 
 # Disabled benchmarks - need refactoring for current API
 # [[bin]]
@@ -212,6 +348,11 @@ path = "src/bin/vectorizer-cli.rs"
 name = "vectorizer"
 path = "src/bin/vectorizer.rs"
 
+[[bin]]
+name = "dimension_comparison_benchmark"
+path = "benchmark/performance/dimension_comparison_benchmark.rs"
+required-features = ["benchmarks"]
+
 # [[bin]]
 # name = "test_basic_metal"
 # path = "benchmark/scripts/test_basic_metal.rs"
@@ -238,10 +379,16 @@ path = "src/bin/vectorizer.rs"
 # required-features = ["hive-gpu-wgpu"]
 
 [features]
-default = ["hive-gpu", "fastembed"]
+# SAFE DEFAULTS - No GPU, minimal features to prevent BSODs on Windows
+# Use --features "gpu,fastembed" to enable advanced features
+default = []
+
+# Optional features (require explicit opt-in)
 fastembed = ["dep:fastembed"]
 
 # GPU acceleration via external hive-gpu crate only
+# WARNING: Can cause BSODs on Windows with outdated drivers
+# Only enable if you have latest GPU drivers installed
 hive-gpu = ["dep:hive-gpu"]
 hive-gpu-metal = ["hive-gpu", "hive-gpu/metal-native"]
 hive-gpu-cuda = ["hive-gpu", "hive-gpu/cuda"]
@@ -251,7 +398,13 @@ hive-gpu-wgpu = ["hive-gpu", "hive-gpu/wgpu"]
 metal-native = ["hive-gpu-metal"]
 cuda = ["hive-gpu-cuda"]
 gpu-accel = ["hive-gpu-metal"]
-benchmarks = []
+
+# Convenience feature sets
+gpu-safe = ["fastembed"]  # Fastembed only, no GPU drivers
+gpu-full = ["hive-gpu", "fastembed"]  # All GPU features (risky on Windows)
+
+# Benchmark feature - isolates benchmark dependencies from core builds
+benchmarks = ["dep:criterion", "dep:proptest"]
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
 candle-transformers = ["dep:candle-transformers"]
@@ -352,6 +505,21 @@ opt-level = 3
 codegen-units = 256
 
 [profile.dev]
+debug = "line-tables-only"
+
+# Safe profile for Windows builds (prevents BSODs)
+[profile.safe]
+inherits = "dev"
+codegen-units = 1  # Single-threaded codegen
+incremental = false
+opt-level = 0
+debug = "line-tables-only"
+
+# Safe test profile (single-threaded, minimal parallelism)
+[profile.test-safe]
+inherits = "test"
+codegen-units = 1
+opt-level = 0
 debug = "line-tables-only"
 
 # =============================================================================

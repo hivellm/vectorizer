@@ -214,12 +214,25 @@ impl ReplicaNode {
         &self,
         stream: &mut TcpStream,
     ) -> ReplicationResult<ReplicationCommand> {
+        use crate::monitoring::metrics::METRICS;
+
         let mut len_buf = [0u8; 4];
         stream.read_exact(&mut len_buf).await?;
         let len = u32::from_be_bytes(len_buf) as usize;
 
         let mut data_buf = vec![0u8; len];
         stream.read_exact(&mut data_buf).await?;
+
+        // Track bytes received (4 bytes for length + data)
+        let total_bytes = 4 + len;
+        METRICS
+            .replication_bytes_received_total
+            .inc_by(total_bytes as f64);
+
+        // Update state
+        let mut state = self.state.write();
+        state.total_bytes += total_bytes as u64;
+        drop(state);
 
         let cmd: ReplicationCommand = bincode::deserialize(&data_buf)?;
 

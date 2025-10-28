@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
+use futures_util::future::TryFutureExt;
 use serde_json::json;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
@@ -505,11 +506,23 @@ impl FileOperations {
 
     /// Detect file type from extension
     fn detect_file_type(file_path: &str) -> String {
-        Path::new(file_path)
+        let ext = Path::new(file_path)
             .extension()
             .and_then(|e| e.to_str())
-            .unwrap_or("unknown")
-            .to_string()
+            .unwrap_or("unknown");
+
+        match ext {
+            "rs" => "rs".to_string(),
+            "py" => "python".to_string(),
+            "js" => "javascript".to_string(),
+            "ts" => "ts".to_string(),
+            "md" => "md".to_string(),
+            "yml" | "yaml" => "yaml".to_string(),
+            "json" => "json".to_string(),
+            "toml" => "toml".to_string(),
+            "txt" => "text".to_string(),
+            _ => "unknown".to_string(), // Default to unknown for unknown extensions
+        }
     }
 
     /// Detect programming language from file extension
@@ -898,9 +911,10 @@ impl FileOperations {
         })?;
 
         // Generate embedding for query
-        let query_embedding = embedding_manager.embed(query).map_err(|e| {
+        let embedding_result = embedding_manager.embed(query).await.map_err(|e| {
             FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
         })?;
+        let query_embedding = &embedding_result.embedding;
 
         // Search in collection
         let search_results = coll
@@ -1008,9 +1022,10 @@ impl FileOperations {
         })?;
 
         // Generate embedding
-        let query_embedding = embedding_manager.embed(&query_text).map_err(|e| {
+        let embedding_result = embedding_manager.embed(&query_text).await.map_err(|e| {
             FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
         })?;
+        let query_embedding = &embedding_result.embedding;
 
         // Search for similar chunks
         let search_results = coll
@@ -1194,5 +1209,168 @@ Note: Another important detail.
         assert!(summary.outline.contains("# Main Title"));
         assert!(summary.key_sections.contains(&"Main Title".to_string()));
         assert!(summary.key_points.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_file_operations_new() {
+        let ops = FileOperations::new();
+        assert!(ops.store.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_file_operations_with_store() {
+        let store = Arc::new(VectorStore::new());
+        let ops = FileOperations::with_store(store);
+        assert!(ops.store.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_validate_file_path_valid() {
+        let result = FileOperations::validate_file_path("/valid/path/file.txt");
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_validate_file_path_invalid() {
+        let result = FileOperations::validate_file_path("");
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_size_limit_within_limit() {
+        let result = FileOperations::validate_size_limit(500); // 500KB
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_validate_size_limit_exceeds_limit() {
+        let result = FileOperations::validate_size_limit(2000 * 1024); // 2MB
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_validate_size_limit_exceeds_absolute_limit() {
+        let result = FileOperations::validate_size_limit(6000 * 1024); // 6MB
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_rust() {
+        assert_eq!(FileOperations::detect_file_type("main.rs"), "rs");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_python() {
+        assert_eq!(FileOperations::detect_file_type("script.py"), "python");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_javascript() {
+        assert_eq!(FileOperations::detect_file_type("app.js"), "javascript");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_typescript() {
+        assert_eq!(FileOperations::detect_file_type("app.ts"), "ts");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_markdown() {
+        assert_eq!(FileOperations::detect_file_type("README.md"), "md");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_toml() {
+        assert_eq!(FileOperations::detect_file_type("Cargo.toml"), "toml");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_yaml() {
+        assert_eq!(FileOperations::detect_file_type("config.yml"), "yaml");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_json() {
+        assert_eq!(FileOperations::detect_file_type("package.json"), "json");
+    }
+
+    #[tokio::test]
+    async fn test_detect_file_type_unknown() {
+        assert_eq!(FileOperations::detect_file_type("unknown.xyz"), "unknown");
+    }
+
+    #[tokio::test]
+    async fn test_extractive_summary_empty_content() {
+        let summary = FileOperations::generate_extractive_summary("", 3);
+        assert_eq!(summary, "");
+    }
+
+    #[tokio::test]
+    async fn test_extractive_summary_short_content() {
+        let content = "Short.";
+        let summary = FileOperations::generate_extractive_summary(content, 3);
+        assert_eq!(summary, "");
+    }
+
+    #[tokio::test]
+    async fn test_extractive_summary_single_sentence() {
+        let content = "This is a single meaningful sentence with enough content.";
+        let summary = FileOperations::generate_extractive_summary(content, 3);
+        assert!(summary.contains("meaningful sentence"));
+    }
+
+    #[tokio::test]
+    async fn test_structural_summary_empty_content() {
+        let summary = FileOperations::generate_structural_summary("");
+        assert!(summary.outline.is_empty());
+        assert!(summary.key_sections.is_empty());
+        assert!(summary.key_points.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_structural_summary_no_headers() {
+        let content = "Just plain text without any headers or special formatting.";
+        let summary = FileOperations::generate_structural_summary(content);
+        assert!(summary.outline.is_empty());
+        assert!(summary.key_sections.is_empty());
+        assert!(summary.key_points.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_structural_summary_with_code_blocks() {
+        let content = r#"
+# Code Example
+Here's some code:
+
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+## Notes
+Important: This is a note.
+        "#;
+
+        let summary = FileOperations::generate_structural_summary(content);
+        assert!(summary.outline.contains("# Code Example"));
+        assert!(summary.key_sections.contains(&"Code Example".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_structural_summary_with_lists() {
+        let content = r#"
+# Features
+- Feature 1: Important functionality
+- Feature 2: Another important feature
+- Feature 3: Critical feature
+
+## Notes
+Note: This is important information.
+        "#;
+
+        let summary = FileOperations::generate_structural_summary(content);
+        assert!(summary.outline.contains("# Features"));
+        assert!(summary.key_sections.contains(&"Features".to_string()));
     }
 }
