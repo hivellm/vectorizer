@@ -2,12 +2,18 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
-## ✨ **Version 1.1.2 - MCP Search Enhancements**
+## ✨ **Version 1.2.2 - Critical BM25 & Persistence Fixes**
 
-### 🎉 **Latest Updates (v1.1.2)**
+### 🎉 **Latest Updates (v1.2.2)** 🔥
+- **🔴 CRITICAL FIX**: BM25 vocabulary now preserved on CTRL+C shutdown
+- **✅ Tokenizers Saved**: All tokenizer files included in `.vecdb` archive
+- **✅ Checksums Saved**: File integrity data preserved across restarts
+- **🚀 No More Errors**: "BM25 vocabulary is empty" error completely resolved
+- **🎯 All Protocols Working**: MCP, REST, and UMICP search fully operational
+
+### 🎉 **Previous Updates (v1.1.2)**
 - **🔍 MCP Search Fix**: Fixed `search_intelligent` to properly handle collection filtering
 - **⚡ Improved Performance**: Enhanced intelligent search with better query expansion
-- **🐛 Bug Fixes**: Resolved collection filtering issues in MCP intelligent search
 
 ### 🎉 **Previous Updates (v1.1.0)**
 - **🔄 Master-Replica Replication (BETA)**: Replication system inspired by Redis - currently in beta

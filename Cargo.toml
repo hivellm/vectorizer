@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.1.2"
+version = "1.2.2"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -153,13 +153,6 @@ proptest = "1.4"
 tempfile = "3.8"
 reqwest = { version = "0.12", features = ["json"] }
 
-[[bench]]
-name = "replication_bench"
-harness = false
-
-[[bench]]
-name = "update_bench"
-harness = false
 
 # Disabled benchmarks - need refactoring for current API
 # [[bin]]

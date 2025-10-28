@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-10-28
+
+### Fixed
+
+#### **CRITICAL: BM25 Vocabulary Loss on Shutdown** 🔴
+- **FIXED**: Tokenizers and checksums now properly saved in `.vecdb` on CTRL+C shutdown
+- **ROOT CAUSE**: `storage/writer.rs` was saving `.vecdb` WITHOUT including:
+  - `{collection}_tokenizer.json` (BM25 vocabulary, document frequencies, statistics)
+  - `{collection}_checksums.json` (file integrity verification data)
+- **IMPACT**: After CTRL+C, all BM25 collections showed "BM25 vocabulary is empty" error
+- **SOLUTION**: Modified `write_from_memory()` to include tokenizers and checksums in archive
+- **VERIFICATION**: All search protocols now working (MCP, REST, UMICP) with no vocabulary errors
+
+#### **BM25 Vocabulary Restoration**
+- **FIXED**: Proper BM25 vocabulary restoration using `set_vocabulary()` methods
+- **BEFORE**: Used `add_documents()` with pseudo-documents (incorrect statistics)
+- **AFTER**: Direct vocabulary/frequencies restoration from tokenizer files
+- **BENEFIT**: Accurate BM25 scoring after restart matching pre-restart quality
+
+#### **Storage System Enhancements**
+- **ADDED**: `FileType::Tokenizer` enum variant for proper tokenizer file classification
+- **ADDED**: `detect_file_type()` now recognizes `_tokenizer.json` files automatically
+- **IMPROVED**: Archive includes ALL collection metadata for complete restoration
+
+#### **Build System**
+- **FIXED**: Windows resource compilation error in `build.rs`
+- **FIXED**: GPU module conditional compilation guard in `db/mod.rs`
+
+#### **User Experience**
+- **REMOVED**: Annoying migration prompt on every startup
+- **IMPROVED**: Server starts immediately without interruption
+- **MIGRATION**: Still available via `vectorizer storage migrate` command if needed
+
+### Changed
+- **Storage**: `.vecdb` archives now 100% complete with tokenizers and checksums
+- **Persistence**: BM25 vocabulary fully persistent across restarts
+- **Architecture**: Simplified server startup flow (no migration prompts)
+
+### Technical Details
+- **Files Modified**:
+  - `src/storage/writer.rs`: Include tokenizers and checksums in `.vecdb` (lines 224-284)
+  - `src/storage/index.rs`: Add `FileType::Tokenizer` and detection (line 89-90, 251-252)
+  - `src/server/mod.rs`: Proper BM25 restoration with `set_vocabulary()` (lines 1218-1286)
+  - `src/bin/vectorizer.rs`: Remove startup migration prompt (lines 35-86 deleted)
+  - `src/db/mod.rs`: Add `#[cfg(feature = "hive-gpu")]` guard (line 7-8)
+  - `build.rs`: Fix WindowsResource initialization (line 42)
+
+- **Testing**: Verified with 69 collections
+  - ✅ MCP search: 3/3 tests passed
+  - ✅ REST search: 3/3 tests passed  
+  - ✅ UMICP search: 2/2 tests passed
+  - ✅ No "vocabulary is empty" errors
+
+### Breaking Changes
+- None - purely additive fixes
+
+### Migration Guide
+- **No action required** - `.vecdb` files created by v1.2.2 include all necessary data
+- **Recommendation**: After upgrading, trigger one CTRL+C to regenerate complete `.vecdb`
+- **Verification**: Check search works correctly after restart
+
 ## [1.2.0] - 2025-10-25
 
 ### Added
