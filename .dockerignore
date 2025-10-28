@@ -93,7 +93,8 @@ config.*.yml
 config.development.yml
 config.production.yml
 config.windows.yml
-vectorize-workspace.yml
+# Keep vectorize-workspace.yml - needed for Docker
+!vectorize-workspace.yml
 vectorize-workspace.docker.example.yml
 
 # OS files
@@ -140,11 +141,10 @@ temp
 
 # Binary and library files (exclude pre-built)
 *.a
-lib
-lib64
-**/lib
-**/lib64
-**/bin
+# DO NOT exclude lib/ and bin/ as they might contain source code
+# Only exclude at root level
+/lib
+/lib64
 
 # Model files (keep only if needed for build, otherwise exclude)
 models
