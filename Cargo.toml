@@ -137,7 +137,7 @@ prometheus = "0.13"
 opentelemetry = { version = "0.27", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.27", features = ["metrics", "trace", "rt-tokio"] }
 opentelemetry-prometheus = "0.17"
-opentelemetry-otlp = { version = "0.27", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
 tracing-opentelemetry = "0.28"
 
 # Transmutation - Document conversion engine (optional)
