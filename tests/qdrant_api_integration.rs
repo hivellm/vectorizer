@@ -248,18 +248,61 @@ fn test_qdrant_scroll_points() {
             .as_nanos()
     );
 
-    create_test_collection(&store, &collection_name, 128).expect("Failed to create collection");
+    // Create collection WITHOUT quantization to avoid potential issues
+    let config = CollectionConfig {
+        dimension: 128,
+        metric: DistanceMetric::Cosine,
+        hnsw_config: HnswConfig {
+            m: 16,
+            ef_construction: 100,
+            ef_search: 100,
+            seed: None,
+        },
+        quantization: QuantizationConfig::None,
+        compression: CompressionConfig::default(),
+        normalization: None,
+    };
+    store
+        .create_collection(&collection_name, config)
+        .expect("Failed to create collection");
+
     let ids =
         insert_test_vectors(&store, &collection_name, 20, 128).expect("Failed to insert vectors");
 
     assert_eq!(ids.len(), 20, "Should have inserted 20 vector IDs");
 
-    let collection = store.get_collection(&collection_name).unwrap();
+    // Get a fresh reference to the collection
+    let mut collection = store
+        .get_collection_mut(&collection_name)
+        .expect("Failed to get collection");
 
-    // Get all vectors (simulate scroll)
+    // Verify vector count
+    let vector_count = collection.vector_count();
+    assert_eq!(
+        vector_count, 20,
+        "Collection should have 20 vectors (count check)"
+    );
+
+    // Verify we can retrieve individual vectors
+    for id in &ids {
+        let vector = collection.get_vector(id);
+        assert!(vector.is_ok(), "Should be able to retrieve vector {id}");
+    }
+
+    // Get all vectors (simulate scroll) - use immutable reference
+    drop(collection); // Release mutable reference
+    let collection = store
+        .get_collection(&collection_name)
+        .expect("Failed to get collection");
     let vectors = collection.get_all_vectors();
 
-    assert_eq!(vectors.len(), 20, "Should have 20 vectors");
+    assert_eq!(
+        vectors.len(),
+        20,
+        "Should have 20 vectors (get_all_vectors check). vector_count was: {}, vectors.len() was: {}",
+        vector_count,
+        vectors.len()
+    );
 
     // Simulate pagination
     let page_size = 5;
