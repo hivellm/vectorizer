@@ -799,7 +799,7 @@ async fn test_empty_snapshot_replication() {
     let (_master, _master_store, master_addr) = create_running_master().await;
 
     // Connect replica with no data on master
-    let (_replica, replica_store) = create_running_replica(master_addr).await;
+    let (_replica, _replica_store) = create_running_replica(master_addr).await;
     sleep(Duration::from_secs(1)).await;
 
     // Should have empty state (or auto-loaded collections if any)

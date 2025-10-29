@@ -23,10 +23,10 @@
 //! let metrics = Metrics::new();
 //!
 //! // Record a search operation
-//! metrics.search_requests_total.inc();
-//! let timer = metrics.search_latency_seconds.start_timer();
+//! metrics.search_requests_total.with_label_values(&["test"]).inc();
+//! let timer = metrics.search_latency_seconds.with_label_values(&["test"]).start_timer();
 //! // ... perform search ...
-//! timer.observe_duration();
+//! drop(timer);
 //! ```
 
 pub mod correlation;
