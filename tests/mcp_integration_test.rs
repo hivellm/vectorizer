@@ -92,39 +92,4 @@ async fn test_mcp_tool_error_handling() {
     assert!(result.is_err());
 }
 
-/// Test MCP performance monitoring tools
-#[tokio::test]
-async fn test_mcp_performance_tools() {
-    let store = Arc::new(VectorStore::new());
-    let embedding_manager = Arc::new(EmbeddingManager::new());
-
-    // Test get performance metrics
-    let request = CallToolRequestParam {
-        name: "get_performance_metrics".to_string().into(),
-        arguments: Some(serde_json::Map::new()),
-    };
-
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
-    assert!(result.is_ok());
-
-    let call_result = result.unwrap();
-    assert!(!call_result.content.is_empty());
-
-    // Test health check
-    let request = CallToolRequestParam {
-        name: "health_check".to_string().into(),
-        arguments: Some(serde_json::Map::new()),
-    };
-
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
-    assert!(result.is_ok());
-
-    // Test clear cache
-    let request = CallToolRequestParam {
-        name: "clear_cache".to_string().into(),
-        arguments: Some(serde_json::Map::new()),
-    };
-
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
-    assert!(result.is_ok());
-}
+// Removed obsolete test_mcp_performance_tools - those MCP tools no longer exist
