@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.2.2"
+version = "1.2.3"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -10,7 +10,7 @@ keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similar
 categories = ["database", "science"]
 
 [dependencies]
-ctrlc = { version = "3.4", optional = true }
+ctrlc = { version = "3.5", optional = true }
 # Core dependencies
 tokio = { version = "1.47", features = ["full"] }
 axum = { version = "0.8", features = ["ws", "json"] }
@@ -97,11 +97,11 @@ jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
 lazy_static = "1.4"
-tower_governor = "0.4"  # Rate limiting middleware
-governor = "0.6"        # Rate limiting core
+tower_governor = "0.8"  # Rate limiting middleware
+governor = "0.10"       # Rate limiting core
 rustls = "0.23"         # TLS support
 tokio-rustls = "0.26"   # Tokio TLS integration
-rcgen = "0.13"          # Certificate generation for testing
+rcgen = "0.14"          # Certificate generation for testing
 
 # CLI utilities
 sys-info = "0.9"
@@ -134,11 +134,11 @@ hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
 # Monitoring and Observability
 prometheus = "0.13"
-opentelemetry = { version = "0.27", features = ["metrics", "trace"] }
-opentelemetry_sdk = { version = "0.27", features = ["metrics", "trace", "rt-tokio"] }
-opentelemetry-prometheus = "0.17"
-opentelemetry-otlp = { version = "0.27", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
-tracing-opentelemetry = "0.28"
+opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }
+opentelemetry-prometheus = "0.29"
+opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+tracing-opentelemetry = "0.32"
 
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }

@@ -64,9 +64,11 @@ pub fn try_init(service_name: &str, otlp_endpoint: Option<String>) -> Result<()>
 }
 
 /// Shutdown OpenTelemetry (flush all pending spans)
+/// 
+/// Note: In OpenTelemetry 0.31+, shutdown is handled automatically when the provider is dropped.
+/// This function is kept for API compatibility but does nothing since we don't create a provider.
 pub fn shutdown() {
-    global::shutdown_tracer_provider();
-    tracing::debug!("OpenTelemetry tracing shutdown called");
+    tracing::debug!("OpenTelemetry tracing shutdown called (no-op: no provider initialized)");
 }
 
 #[cfg(test)]

@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2025-10-28
+
+### Fixed
+
+#### **AutoSave Debug Logging Enhancement**
+- **ADDED**: Detailed logging in `create_archive_from_memory` to debug tokenizer and checksums inclusion
+- **ENHANCED**: All AUTO-SAVE logs now show exactly what files are being processed
+- **ADDED**: Logs show file paths and sizes when tokenizer/checksums are included
+- **ADDED**: Informative logs when files don't exist (no longer silent)
+- **BENEFIT**: Makes it easier to diagnose why tokenizer/checksums might not be included in autosave
+
+#### **OpenTelemetry Compilation Fix**
+- **FIXED**: Removed `global::shutdown_tracer_provider()` call that doesn't exist in opentelemetry 0.31+
+- **REASON**: API changed in v0.31 - shutdown is now automatic when provider is dropped
+- **SOLUTION**: Made shutdown function a no-op with documentation explaining the change
+- **COMPATIBILITY**: No functional changes - OpenTelemetry tracing was already not initialized
+
+### Changed
+- **Dependencies**: Updated OpenTelemetry versions to latest:
+  - `opentelemetry`: 0.27 → 0.31
+  - `opentelemetry_sdk`: 0.27 → 0.31
+  - `opentelemetry-prometheus`: 0.17 → 0.29
+  - `opentelemetry-otlp`: 0.27 → 0.31
+  - `tracing-opentelemetry`: 0.28 → 0.32
+
+### Technical Details
+- **Files Modified**:
+  - `src/storage/writer.rs`: Added detailed AUTO-SAVE logging (lines 224-311)
+  - `src/monitoring/telemetry.rs`: Fixed shutdown function for OpenTelemetry 0.31+ (line 66-72)
+
 ## [1.2.2] - 2025-10-28
 
 ### Fixed
