@@ -119,7 +119,9 @@ impl RESTAPIHandler {
     pub fn new() -> Self {
         // Note: In real usage, you would pass actual VectorStore and EmbeddingManager instances
         let store = std::sync::Arc::new(crate::VectorStore::new());
-        let embedding_manager = std::sync::Arc::new(crate::embedding::EmbeddingManager::new());
+        let config = crate::embedding::EmbeddingConfig::default();
+        let embedding_manager =
+            std::sync::Arc::new(crate::embedding::EmbeddingManager::new(config));
         Self {
             mcp_handler: MCPToolHandler::new(store, embedding_manager),
         }

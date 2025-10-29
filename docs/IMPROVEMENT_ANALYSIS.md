@@ -200,13 +200,13 @@ cargo update --dry-run
 - No baseline for improvements
 
 **Recommendation**:
-1. **Create `benches/` directory** - Move benchmarks to proper location
+1. **Use `benchmark/` directory** - Benchmarks in proper location
 2. **Use Criterion** - Already a dev-dependency
 3. **Enable in CI** - Run on main branch pushes
 4. **Track metrics over time** - Store results for comparison
 
 ```rust
-// benches/core_operations.rs
+// benchmark/core/core_operations.rs
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use vectorizer::*;
 

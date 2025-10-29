@@ -3,7 +3,7 @@
 #
 # Local build examples:
 #   docker build -t vectorizer:local .
-#   docker build -t vectorizer:v1.0.1 .
+#   docker build -t vectorizer:1.2.1 .
 #   docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest .
 #
 # Multi-platform build:
@@ -97,7 +97,7 @@ FROM debian:13-slim AS vectorizer
 ARG PACKAGES
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates tzdata $PACKAGES \
+    && apt-get install -y --no-install-recommends bash ca-certificates tzdata $PACKAGES \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/debconf/* /var/lib/dpkg/status-old
 
@@ -116,6 +116,9 @@ COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer "$APP"/vect
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer.spdx.json "$APP"/vectorizer.spdx.json
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/tools/entrypoint.sh "$APP"/entrypoint.sh
 
+# Ensure entrypoint.sh is executable (run as root before changing user)
+RUN chmod +x "$APP"/entrypoint.sh "$APP"/vectorizer
+
 WORKDIR "$APP"
 
 # Create data directories with proper permissions
@@ -123,7 +126,7 @@ RUN mkdir -p data storage snapshots dashboard .logs && \
     chown -R $USER_ID:$USER_ID data storage snapshots dashboard .logs
 
 # Volumes for persistent data
-VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots", "$APP/dashboard"]
+VOLUME ["$APP/data", "$APP/dashboard"]
 
 USER "$USER_ID:$USER_ID"
 
@@ -133,7 +136,6 @@ ENV TZ=Etc/UTC \
     VECTORIZER_PORT=15002
 
 EXPOSE 15002
-EXPOSE 15003
 
 LABEL org.opencontainers.image.title="Vectorizer"
 LABEL org.opencontainers.image.description="Official Vectorizer image - High-Performance Vector Database"
@@ -143,4 +145,3 @@ LABEL org.opencontainers.image.source="https://github.com/hivellm/vectorizer"
 LABEL org.opencontainers.image.vendor="HiveLLM"
 
 CMD ["./entrypoint.sh"]
-

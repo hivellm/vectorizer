@@ -84,11 +84,3 @@ When migrating data between machines:
 - **Data Portability**: Users have full access to their encrypted data files
 - **Right to Erasure**: Users can delete all data by removing the config directory
 
-
-
-
-
-
-
-
-

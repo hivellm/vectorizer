@@ -300,3 +300,114 @@ impl EmbeddingProvider for RealModelEmbedder {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_real_model_type_model_ids() {
+        assert_eq!(
+            RealModelType::MiniLMMultilingual.model_id(),
+            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        );
+        assert_eq!(
+            RealModelType::DistilUseMultilingual.model_id(),
+            "sentence-transformers/distiluse-base-multilingual-cased-v2"
+        );
+        assert_eq!(
+            RealModelType::MPNetMultilingualBase.model_id(),
+            "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+        );
+        assert_eq!(
+            RealModelType::E5SmallMultilingual.model_id(),
+            "intfloat/multilingual-e5-small"
+        );
+        assert_eq!(
+            RealModelType::E5BaseMultilingual.model_id(),
+            "intfloat/multilingual-e5-base"
+        );
+        assert_eq!(
+            RealModelType::GTEMultilingualBase.model_id(),
+            "Alibaba-NLP/gte-multilingual-base"
+        );
+        assert_eq!(
+            RealModelType::LaBSE.model_id(),
+            "sentence-transformers/LaBSE"
+        );
+    }
+
+    #[test]
+    fn test_real_model_type_dimensions() {
+        assert_eq!(RealModelType::MiniLMMultilingual.dimension(), 384);
+        assert_eq!(RealModelType::DistilUseMultilingual.dimension(), 512);
+        assert_eq!(RealModelType::MPNetMultilingualBase.dimension(), 768);
+        assert_eq!(RealModelType::E5SmallMultilingual.dimension(), 384);
+        assert_eq!(RealModelType::E5BaseMultilingual.dimension(), 768);
+        assert_eq!(RealModelType::GTEMultilingualBase.dimension(), 768);
+        assert_eq!(RealModelType::LaBSE.dimension(), 768);
+    }
+
+    #[test]
+    fn test_real_model_type_needs_prefix() {
+        assert!(!RealModelType::MiniLMMultilingual.needs_prefix());
+        assert!(!RealModelType::DistilUseMultilingual.needs_prefix());
+        assert!(!RealModelType::MPNetMultilingualBase.needs_prefix());
+        assert!(RealModelType::E5SmallMultilingual.needs_prefix());
+        assert!(RealModelType::E5BaseMultilingual.needs_prefix());
+        assert!(!RealModelType::GTEMultilingualBase.needs_prefix());
+        assert!(!RealModelType::LaBSE.needs_prefix());
+    }
+
+    #[test]
+    fn test_real_model_embedder_creation_without_candle() {
+        // Without candle-models feature, should still create placeholder
+        let embedder = RealModelEmbedder::new(RealModelType::MiniLMMultilingual);
+        assert!(embedder.is_ok());
+    }
+
+    #[test]
+    fn test_real_model_embedder_dimension() {
+        let embedder = RealModelEmbedder::new(RealModelType::MPNetMultilingualBase).unwrap();
+        assert_eq!(embedder.dimension(), 768);
+    }
+
+    #[test]
+    #[cfg(not(feature = "candle-models"))]
+    fn test_real_model_embedder_embed_fails_without_candle() {
+        let embedder = RealModelEmbedder::new(RealModelType::E5SmallMultilingual).unwrap();
+        let result = embedder.embed("test text");
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not enabled"));
+    }
+
+    #[test]
+    #[cfg(not(feature = "candle-models"))]
+    fn test_real_model_embedder_embed_batch_fails_without_candle() {
+        let embedder = RealModelType::LaBSE;
+        let real_embedder = RealModelEmbedder::new(embedder).unwrap();
+        let result = real_embedder.embed_batch(&["text1", "text2"]);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not enabled"));
+    }
+
+    #[test]
+    fn test_real_model_type_clone() {
+        let model1 = RealModelType::MiniLMMultilingual;
+        let model2 = model1;
+
+        assert_eq!(model1.model_id(), model2.model_id());
+        assert_eq!(model1.dimension(), model2.dimension());
+    }
+
+    #[test]
+    fn test_real_model_type_debug() {
+        let model = RealModelType::E5SmallMultilingual;
+        let debug_str = format!("{:?}", model);
+
+        assert!(!debug_str.is_empty());
+        assert!(debug_str.contains("E5SmallMultilingual"));
+    }
+}

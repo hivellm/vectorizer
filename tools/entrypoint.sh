@@ -13,8 +13,18 @@ HOST="${VECTORIZER_HOST:-0.0.0.0}"
 PORT="${VECTORIZER_PORT:-15002}"
 
 # Create necessary directories
-mkdir -p data storage snapshots .logs
+mkdir -p data .logs
+
+# Debug: check if binary exists and is executable
+echo "Binary info:"
+ls -lh ./vectorizer || echo "Binary not found!"
+which ./vectorizer || echo "Binary not in PATH"
 
 # Start Vectorizer with host and port
-exec ./vectorizer --host "$HOST" --port "$PORT" "$@"
+# Capture stderr to see any errors
+./vectorizer --host "$HOST" --port "$PORT" "$@" 2>&1 || {
+    EXIT_CODE=$?
+    echo "Vectorizer exited with code: $EXIT_CODE"
+    exit $EXIT_CODE
+}
 

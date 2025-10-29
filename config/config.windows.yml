@@ -1,0 +1,239 @@
+# Windows-Safe Configuration File
+# Optimized to prevent BSODs during build/test operations
+#
+# This configuration:
+# - Limits parallelism to prevent resource exhaustion
+# - Disables GPU features that can crash drivers
+# - Reduces I/O intensity to prevent disk subsystem crashes
+# - Minimizes background threads
+
+# =============================================================================
+# FILE WATCHER CONFIGURATION (DISABLED ON WINDOWS FOR STABILITY)
+# =============================================================================
+file_watcher:
+  enabled: false  # Disable to prevent I/O storms
+  debounce_delay_ms: 2000  # Longer delay if enabled
+  min_file_size_bytes: 1
+  max_file_size_bytes: 5242880  # 5MB (reduced from 10MB)
+  hash_validation_enabled: false  # Disable expensive hashing
+  collection_name: "workspace-files"
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+server:
+  host: "127.0.0.1"
+  port: 15002
+  mcp_port: 15002
+
+# =============================================================================
+# LOGGING CONFIGURATION (REDUCED FOR PERFORMANCE)
+# =============================================================================
+logging:
+  level: "warn"  # Less logging to reduce I/O
+  format: "text"  # Text is faster than JSON
+  log_requests: false  # Disable request logging
+  log_responses: false
+  log_errors: true
+  correlation_id_enabled: false
+
+# =============================================================================
+# MONITORING & TELEMETRY (MINIMAL FOR WINDOWS)
+# =============================================================================
+monitoring:
+  prometheus:
+    enabled: false  # Disable metrics collection
+    endpoint: "/prometheus/metrics"
+    
+  system_metrics:
+    enabled: false  # Disable background metrics thread
+    interval_secs: 60
+    
+  telemetry:
+    enabled: false  # Disable OpenTelemetry
+    
+  metrics:
+    search_enabled: false
+    indexing_enabled: false
+    replication_enabled: false
+    system_enabled: false
+
+# =============================================================================
+# DEFAULT COLLECTION CONFIGURATION
+# =============================================================================
+collections:
+  defaults:
+    dimension: 384  # Smaller dimension for less memory
+    metric: "cosine"
+
+    quantization:
+      type: "sq"
+      sq:
+        bits: 8
+
+    embedding:
+      model: "bm25"  # Safe, no GPU required
+      bm25:
+        k1: 1.5
+        b: 0.75
+
+    index:
+      type: "hnsw"
+      hnsw:
+        m: 8  # Reduced from 16 for less memory
+        ef_construction: 100  # Reduced from 200
+        ef_search: 32  # Reduced from 64
+
+# =============================================================================
+# TRANSMUTATION (DISABLED ON WINDOWS)
+# =============================================================================
+transmutation:
+  enabled: false  # Disable to prevent LibreOffice/Poppler issues
+
+# =============================================================================
+# TEXT NORMALIZATION (MINIMAL)
+# =============================================================================
+normalization:
+  enabled: true
+  level: "conservative"
+  line_endings:
+    normalize_crlf: true
+    normalize_cr: true
+    collapse_multiple_newlines: true
+    trim_trailing_whitespace: true
+  content_detection:
+    enabled: false  # Disable expensive content detection
+  cache:
+    enabled: true
+    max_entries: 1000  # Reduced from 10000
+    ttl_seconds: 3600
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATION (WINDOWS-SAFE)
+# =============================================================================
+performance:
+  cpu:
+    max_threads: 2  # CRITICAL: Limit to 2 threads on Windows
+    enable_simd: false  # Disable SIMD (can cause issues)
+    memory_pool_size_mb: 512  # Reduced from 1024
+  
+  batch:
+    default_size: 50  # Reduced from 100
+    max_size: 100  # Reduced from 1000
+    parallel_processing: false  # CRITICAL: Disable parallel batching
+  
+  query_cache:
+    enabled: true
+    max_size: 500  # Reduced from 1000
+    ttl_seconds: 300
+    warmup_enabled: false
+
+# =============================================================================
+# WORKSPACE CONFIGURATION
+# =============================================================================
+workspace:
+  enabled: true
+  default_workspace_file: "./vectorize-workspace.yml"
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+api:
+  rest:
+    enabled: true
+    cors_enabled: true
+    max_request_size_mb: 5  # Reduced from 10
+    timeout_seconds: 60  # Increased for slow operations
+  
+  mcp:
+    enabled: true
+    port: 15002
+    max_connections: 50  # Reduced from 100
+
+# =============================================================================
+# SECURITY CONFIGURATION (RELAXED FOR LOCAL DEV)
+# =============================================================================
+security:
+  rate_limiting:
+    enabled: false  # Disable for local development
+    requests_per_second: 100
+    burst_size: 200
+    
+  tls:
+    enabled: false
+    
+  audit:
+    enabled: false  # Disable to reduce overhead
+    
+  rbac:
+    enabled: false
+
+# =============================================================================
+# REPLICATION (DISABLED ON WINDOWS)
+# =============================================================================
+replication:
+  enabled: false
+  role: "standalone"
+
+# =============================================================================
+# WINDOWS-SPECIFIC NOTES
+# =============================================================================
+# 
+# This configuration is optimized for Windows stability:
+#
+# 1. GPU Features: NEVER enable hive-gpu on Windows unless you have:
+#    - Latest NVIDIA/AMD/Intel drivers
+#    - Tested on a disposable system first
+#    - Recent system restore point created
+#
+# 2. Parallelism: max_threads=2 prevents:
+#    - Thread explosion
+#    - Memory exhaustion
+#    - CPU oversubscription
+#    - Kernel-mode driver crashes
+#
+# 3. File Watcher: Disabled to prevent:
+#    - I/O storms on antivirus scans
+#    - Disk subsystem crashes
+#    - Windows Search indexing conflicts
+#
+# 4. Transmutation: Disabled to avoid:
+#    - LibreOffice process spawning issues
+#    - Poppler DLL loading problems
+#    - Tesseract OCR crashes
+#
+# 5. Monitoring: Disabled to reduce:
+#    - Background thread count
+#    - Memory overhead
+#    - I/O operations
+#
+# For production use on Windows Server:
+# - Use Windows Server 2019+ with latest updates
+# - Disable Windows Search service
+# - Add cargo/rust to antivirus exclusions
+# - Increase virtual memory (pagefile) to 16GB+
+# - Use SSD for target/ directory
+# - Monitor Event Viewer for driver warnings
+#
+# For development on Windows 10/11:
+# - Use this config file
+# - Build with: .\scripts\build-windows-safe.ps1
+# - Test with: .\scripts\build-windows-safe.ps1 test
+# - Never use --all-features on Windows
+# - Always use --no-default-features or --features "fastembed" only
+#
+# If you still experience BSODs:
+# 1. Update GPU drivers to latest version
+# 2. Update Windows to latest version
+# 3. Check Windows Memory Diagnostic
+# 4. Run CHKDSK /F /R on system drive
+# 5. Check Event Viewer → Windows Logs → System for:
+#    - BugCheck events
+#    - Driver errors
+#    - Disk errors
+# 6. Use Process Monitor to identify problematic I/O
+# 7. Consider WSL2 as alternative (Linux kernel is more stable)
+#
+# See docs/BSOD_ANALYSIS.md for detailed troubleshooting.
+
+
