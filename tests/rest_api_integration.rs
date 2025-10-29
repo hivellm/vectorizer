@@ -26,7 +26,7 @@ fn test_collection_config_creation() {
 
 #[test]
 fn test_distance_metric_variants() {
-    let metrics = vec![
+    let metrics = [
         DistanceMetric::Cosine,
         DistanceMetric::Euclidean,
         DistanceMetric::DotProduct,
@@ -192,7 +192,7 @@ fn test_stats_response_structure() {
 
 #[test]
 fn test_validation_empty_collection_name() {
-    let name = "";
+    let name = String::new();
     assert!(name.is_empty());
 }
 
@@ -239,7 +239,7 @@ fn test_request_timeout_validation() {
 #[test]
 fn test_rate_limit_configuration() {
     let requests_per_minute = 60;
-    let requests_per_second = requests_per_minute as f64 / 60.0;
+    let requests_per_second = f64::from(requests_per_minute) / 60.0;
 
     assert_eq!(requests_per_second, 1.0);
 }

@@ -14,7 +14,7 @@ use vectorizer::server::mcp_handlers::handle_mcp_tool;
 async fn test_mcp_tool_handling() {
     // Create test vector store and embedding manager
     let store = Arc::new(VectorStore::new());
-    let embedding_manager = Arc::new(EmbeddingManager::new(Default::default()));
+    let embedding_manager = Arc::new(EmbeddingManager::new());
 
     // Test list collections tool
     let request = CallToolRequestParam {
@@ -71,7 +71,7 @@ async fn test_mcp_tool_handling() {
 #[tokio::test]
 async fn test_mcp_tool_error_handling() {
     let store = Arc::new(VectorStore::new());
-    let embedding_manager = Arc::new(EmbeddingManager::new(Default::default()));
+    let embedding_manager = Arc::new(EmbeddingManager::new());
 
     // Test unknown tool
     let request = CallToolRequestParam {
@@ -96,7 +96,7 @@ async fn test_mcp_tool_error_handling() {
 #[tokio::test]
 async fn test_mcp_performance_tools() {
     let store = Arc::new(VectorStore::new());
-    let embedding_manager = Arc::new(EmbeddingManager::new(Default::default()));
+    let embedding_manager = Arc::new(EmbeddingManager::new());
 
     // Test get performance metrics
     let request = CallToolRequestParam {

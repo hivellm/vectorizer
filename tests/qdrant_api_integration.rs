@@ -50,7 +50,7 @@ fn insert_test_vectors(
     let mut ids = Vec::new();
 
     for i in 0..count {
-        let id = format!("test_vector_{}", i);
+        let id = format!("test_vector_{i}");
         let data: Vec<f32> = (0..dimension).map(|j| (i + j) as f32 / 10.0).collect();
 
         let vector = vectorizer::models::Vector {
@@ -207,7 +207,7 @@ fn test_qdrant_retrieve_points() {
     // Retrieve specific points
     for id in &ids[0..3] {
         let result = collection.get_vector(id);
-        assert!(result.is_ok(), "Should retrieve vector {}", id);
+        assert!(result.is_ok(), "Should retrieve vector {id}");
         assert_eq!(&result.unwrap().id, id, "ID should match");
     }
 }
@@ -224,7 +224,7 @@ fn test_qdrant_delete_points() {
     // Delete points
     for id in &ids[0..2] {
         let result = collection.delete_vector(id);
-        assert!(result.is_ok(), "Should delete vector {}", id);
+        assert!(result.is_ok(), "Should delete vector {id}");
     }
 
     // Verify deletion
@@ -348,11 +348,10 @@ fn test_qdrant_batch_search_points() {
         "Should have results for all 3 queries"
     );
     for (i, results) in all_results.iter().enumerate() {
-        assert!(!results.is_empty(), "Query {} should have results", i);
+        assert!(!results.is_empty(), "Query {i} should have results");
         assert!(
             results.len() <= 3,
-            "Query {} should have at most 3 results",
-            i
+            "Query {i} should have at most 3 results"
         );
     }
 }
@@ -385,8 +384,7 @@ fn test_qdrant_batch_recommend_points() {
     for (i, results) in all_results.iter().enumerate() {
         assert!(
             !results.is_empty(),
-            "Recommendation {} should have results",
-            i
+            "Recommendation {i} should have results"
         );
     }
 }
