@@ -144,6 +144,7 @@ mod hive_gpu_integration_tests {
     }
 
     #[tokio::test]
+    #[ignore] // GPU test - requires Metal GPU, may cause system instability
     async fn test_vectorizer_with_hive_gpu_metal() {
         #[cfg(all(target_os = "macos", feature = "hive-gpu-metal"))]
         {
@@ -203,6 +204,7 @@ mod hive_gpu_integration_tests {
     }
 
     #[tokio::test]
+    #[ignore] // GPU test - requires CUDA GPU, may cause system instability or BSOD
     async fn test_vectorizer_with_hive_gpu_cuda() {
         #[cfg(feature = "hive-gpu-cuda")]
         {
@@ -252,6 +254,7 @@ mod hive_gpu_integration_tests {
     }
 
     #[tokio::test]
+    #[ignore] // GPU test - requires wgpu GPU access, may cause system instability
     async fn test_vectorizer_with_hive_gpu_wgpu() {
         #[cfg(feature = "hive-gpu-wgpu")]
         {
