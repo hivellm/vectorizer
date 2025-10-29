@@ -98,7 +98,7 @@ uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
 lazy_static = "1.4"
 tower_governor = "0.4"  # Rate limiting middleware
-governor = "0.6"        # Rate limiting core
+governor = "0.10"        # Rate limiting core
 rustls = "0.23"         # TLS support
 tokio-rustls = "0.26"   # Tokio TLS integration
 rcgen = "0.13"          # Certificate generation for testing
