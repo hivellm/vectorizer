@@ -11,24 +11,6 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🚀 No More Errors**: "BM25 vocabulary is empty" error completely resolved
 - **🎯 All Protocols Working**: MCP, REST, and UMICP search fully operational
 
-### 🎉 **Previous Updates (v1.1.2)**
-- **🔍 MCP Search Fix**: Fixed `search_intelligent` to properly handle collection filtering
-- **⚡ Improved Performance**: Enhanced intelligent search with better query expansion
-
-### 🎉 **Previous Updates (v1.1.0)**
-- **🔄 Master-Replica Replication (BETA)**: Replication system inspired by Redis - currently in beta
-- **⚡ High Availability**: Automatic failover and intelligent sync mechanisms
-- **📦 SDK Standardization**: All client SDKs renamed to follow `vectorizer-sdk` convention
-- **🐍 Python SDK**: Published to PyPI as `vectorizer-sdk` v1.0.1 (PEP 625 compliant)
-- **📝 Updated READMEs**: All SDK documentation updated with badges and installation instructions
-
-### 🎉 **Major Release - MCP Tools Refactoring (v1.0.0)**
-- **🎯 MCP Architecture**: 19 focused individual tools (refactored from 7 unified mega-tools)
-- **⚡ Reduced Entropy**: Removed all enum parameters for better model tool calling
-- **🔧 Simplified Interface**: Only relevant parameters per tool
-- **🚀 Better Performance**: Disabled MMR/cross-encoder in MCP (still available in REST)
-- **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
-
 ### 🎯 **Key Features**
 - **🔄 Master-Replica Replication (BETA)**: Replication system with automatic failover (currently in beta - see docs)
   - Full sync via snapshot with CRC32 checksum verification
@@ -92,8 +74,6 @@ docker run -d \
   --name vectorizer \
   -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
-  -v $(pwd)/vectorizer-storage:/vectorizer/storage \
-  -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
   -v $(pwd)/vectorizer-dashboard:/vectorizer/dashboard \
   -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
   -v $(pwd)/../../:/workspace:ro \
