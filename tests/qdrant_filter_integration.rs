@@ -31,30 +31,30 @@ async fn test_range_filter_integration() {
         on_disk_payload: false,
     };
 
-    store
-        .create_collection("test_range", config)
-        .await
-        .unwrap();
+    store.create_collection("test_range", config).await.unwrap();
 
     let collection = store.get_collection("test_range").unwrap();
 
     // Add test vectors with price metadata
     let vectors = vec![
-        Vector::new("1".to_string(), vec![1.0, 0.0, 0.0, 0.0])
-            .with_payload(create_payload(json!({
+        Vector::new("1".to_string(), vec![1.0, 0.0, 0.0, 0.0]).with_payload(create_payload(
+            json!({
                 "product": "Item A",
                 "price": 10.0
-            }))),
-        Vector::new("2".to_string(), vec![0.0, 1.0, 0.0, 0.0])
-            .with_payload(create_payload(json!({
+            }),
+        )),
+        Vector::new("2".to_string(), vec![0.0, 1.0, 0.0, 0.0]).with_payload(create_payload(
+            json!({
                 "product": "Item B",
                 "price": 50.0
-            }))),
-        Vector::new("3".to_string(), vec![0.0, 0.0, 1.0, 0.0])
-            .with_payload(create_payload(json!({
+            }),
+        )),
+        Vector::new("3".to_string(), vec![0.0, 0.0, 1.0, 0.0]).with_payload(create_payload(
+            json!({
                 "product": "Item C",
                 "price": 100.0
-            }))),
+            }),
+        )),
     ];
 
     for vector in vectors {
@@ -103,39 +103,39 @@ async fn test_geo_filters_integration() {
         on_disk_payload: false,
     };
 
-    store
-        .create_collection("test_geo", config)
-        .await
-        .unwrap();
+    store.create_collection("test_geo", config).await.unwrap();
 
     let collection = store.get_collection("test_geo").unwrap();
 
     // Add test vectors with location metadata
     let vectors = vec![
-        Vector::new("1".to_string(), vec![1.0, 0.0, 0.0, 0.0])
-            .with_payload(create_payload(json!({
+        Vector::new("1".to_string(), vec![1.0, 0.0, 0.0, 0.0]).with_payload(create_payload(
+            json!({
                 "name": "New York",
                 "location": {
                     "lat": 40.7128,
                     "lon": -74.0060
                 }
-            }))),
-        Vector::new("2".to_string(), vec![0.0, 1.0, 0.0, 0.0])
-            .with_payload(create_payload(json!({
+            }),
+        )),
+        Vector::new("2".to_string(), vec![0.0, 1.0, 0.0, 0.0]).with_payload(create_payload(
+            json!({
                 "name": "Los Angeles",
                 "location": {
                     "lat": 34.0522,
                     "lon": -118.2437
                 }
-            }))),
-        Vector::new("3".to_string(), vec![0.0, 0.0, 1.0, 0.0])
-            .with_payload(create_payload(json!({
+            }),
+        )),
+        Vector::new("3".to_string(), vec![0.0, 0.0, 1.0, 0.0]).with_payload(create_payload(
+            json!({
                 "name": "London",
                 "location": {
                     "lat": 51.5074,
                     "lon": -0.1278
                 }
-            }))),
+            }),
+        )),
     ];
 
     for vector in vectors {
@@ -207,21 +207,24 @@ async fn test_values_count_filter() {
 
     // Add test vectors with tags metadata
     let vectors = vec![
-        Vector::new("1".to_string(), vec![1.0, 0.0, 0.0, 0.0])
-            .with_payload(create_payload(json!({
+        Vector::new("1".to_string(), vec![1.0, 0.0, 0.0, 0.0]).with_payload(create_payload(
+            json!({
                 "name": "Product A",
                 "tags": ["rust", "fast"]
-            }))),
-        Vector::new("2".to_string(), vec![0.0, 1.0, 0.0, 0.0])
-            .with_payload(create_payload(json!({
+            }),
+        )),
+        Vector::new("2".to_string(), vec![0.0, 1.0, 0.0, 0.0]).with_payload(create_payload(
+            json!({
                 "name": "Product B",
                 "tags": ["rust", "fast", "safe", "modern"]
-            }))),
-        Vector::new("3".to_string(), vec![0.0, 0.0, 1.0, 0.0])
-            .with_payload(create_payload(json!({
+            }),
+        )),
+        Vector::new("3".to_string(), vec![0.0, 0.0, 1.0, 0.0]).with_payload(create_payload(
+            json!({
                 "name": "Product C",
                 "tags": ["rust"]
-            }))),
+            }),
+        )),
     ];
 
     for vector in vectors {
@@ -335,7 +338,10 @@ async fn test_must_not_filters() {
         .must_not(QdrantCondition::match_string("category", "electronics"))
         .build();
 
-    assert!(!FilterProcessor::apply_filter(&filter, &payload_electronics));
+    assert!(!FilterProcessor::apply_filter(
+        &filter,
+        &payload_electronics
+    ));
     assert!(FilterProcessor::apply_filter(&filter, &payload_books));
 }
 
@@ -451,4 +457,3 @@ async fn test_nested_keys() {
 
     assert!(!FilterProcessor::apply_filter(&filter, &payload));
 }
-

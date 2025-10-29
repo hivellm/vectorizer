@@ -7,7 +7,9 @@
 
 use serde_json::json;
 use vectorizer::db::VectorStore;
-use vectorizer::models::{CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
+use vectorizer::models::{
+    CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
+};
 
 /// Helper to create a test store
 fn create_test_store() -> VectorStore {
@@ -106,11 +108,7 @@ fn test_qdrant_get_collection() {
     );
 
     let collection = result.unwrap();
-    assert_eq!(
-        collection.config().dimension,
-        128,
-        "Dimension should match"
-    );
+    assert_eq!(collection.config().dimension, 128, "Dimension should match");
 }
 
 #[test]
@@ -257,7 +255,10 @@ fn test_qdrant_scroll_points() {
 
     assert_eq!(page_1.len(), 5, "First page should have 5 vectors");
     assert_eq!(page_2.len(), 5, "Second page should have 5 vectors");
-    assert_ne!(page_1[0].id, page_2[0].id, "Pages should have different vectors");
+    assert_ne!(
+        page_1[0].id, page_2[0].id,
+        "Pages should have different vectors"
+    );
 }
 
 #[test]
@@ -289,10 +290,7 @@ fn test_qdrant_search_points() {
     assert!(results.is_ok(), "Search should succeed");
     let results = results.unwrap();
     assert!(!results.is_empty(), "Should have search results");
-    assert!(
-        results.len() <= 5,
-        "Should have at most 5 results (limit)"
-    );
+    assert!(results.len() <= 5, "Should have at most 5 results (limit)");
 
     // Results should be ordered by score
     for i in 1..results.len() {
@@ -344,13 +342,13 @@ fn test_qdrant_batch_search_points() {
         all_results.push(results.unwrap());
     }
 
-    assert_eq!(all_results.len(), 3, "Should have results for all 3 queries");
+    assert_eq!(
+        all_results.len(),
+        3,
+        "Should have results for all 3 queries"
+    );
     for (i, results) in all_results.iter().enumerate() {
-        assert!(
-            !results.is_empty(),
-            "Query {} should have results",
-            i
-        );
+        assert!(!results.is_empty(), "Query {} should have results", i);
         assert!(
             results.len() <= 3,
             "Query {} should have at most 3 results",
@@ -403,7 +401,10 @@ fn test_qdrant_collection_not_found() {
 
     // Try to delete non-existent collection
     let result = store.delete_collection("nonexistent");
-    assert!(result.is_err(), "Should fail to delete non-existent collection");
+    assert!(
+        result.is_err(),
+        "Should fail to delete non-existent collection"
+    );
 }
 
 #[test]

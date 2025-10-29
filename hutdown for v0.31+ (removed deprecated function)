@@ -1,0 +1,45 @@
+[1mdiff --git a/Cargo.toml b/Cargo.toml[m
+[1mindex dd095a5c..5416d072 100755[m
+[1m--- a/Cargo.toml[m
+[1m+++ b/Cargo.toml[m
+[36m@@ -10,7 +10,7 @@[m [mkeywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similar[m
+ categories = ["database", "science"][m
+ [m
+ [dependencies][m
+[31m-ctrlc = { version = "3.4", optional = true }[m
+[32m+[m[32mctrlc = { version = "3.5", optional = true }[m
+ # Core dependencies[m
+ tokio = { version = "1.47", features = ["full"] }[m
+ axum = { version = "0.8", features = ["ws", "json"] }[m
+[36m@@ -97,11 +97,11 @@[m [mjsonwebtoken = { version = "10.1", features = ["rust_crypto"] }[m
+ uuid = { version = "1.18", features = ["v4", "serde"] }[m
+ rand = "0.9"[m
+ lazy_static = "1.4"[m
+[31m-tower_governor = "0.4"  # Rate limiting middleware[m
+[31m-governor = "0.6"        # Rate limiting core[m
+[32m+[m[32mtower_governor = "0.8"  # Rate limiting middleware[m
+[32m+[m[32mgovernor = "0.10"       # Rate limiting core[m
+ rustls = "0.23"         # TLS support[m
+ tokio-rustls = "0.26"   # Tokio TLS integration[m
+[31m-rcgen = "0.13"          # Certificate generation for testing[m
+[32m+[m[32mrcgen = "0.14"          # Certificate generation for testing[m
+ [m
+ # CLI utilities[m
+ sys-info = "0.9"[m
+[36m@@ -134,11 +134,11 @@[m [mhyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }[m
+ [m
+ # Monitoring and Observability[m
+ prometheus = "0.13"[m
+[31m-opentelemetry = { version = "0.27", features = ["metrics", "trace"] }[m
+[31m-opentelemetry_sdk = { version = "0.27", features = ["metrics", "trace", "rt-tokio"] }[m
+[31m-opentelemetry-prometheus = "0.17"[m
+[31m-opentelemetry-otlp = { version = "0.27", features = ["metrics", "trace", "tokio", "grpc-tonic"] }[m
+[31m-tracing-opentelemetry = "0.28"[m
+[32m+[m[32mopentelemetry = { version = "0.31", features = ["metrics", "trace"] }[m
+[32m+[m[32mopentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }[m
+[32m+[m[32mopentelemetry-prometheus = "0.29"[m
+[32m+[m[32mopentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }[m
+[32m+[m[32mtracing-opentelemetry = "0.32"[m
+ [m
+ # Transmutation - Document conversion engine (optional)[m
+ transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }[m

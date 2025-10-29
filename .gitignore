@@ -80,8 +80,6 @@ data
 vectorize-workspace.yml
 vectorize-workspace.docker.yml
 /cache/
-cache
-cache/
 qdrant/
 
 # Release artifacts

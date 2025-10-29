@@ -228,8 +228,7 @@ impl StorageWriter {
             if tokenizer_path.exists() {
                 info!(
                     "   📖 AUTO-SAVE: Including tokenizer for BM25 collection '{}' at {:?}",
-                    collection_name,
-                    tokenizer_path
+                    collection_name, tokenizer_path
                 );
 
                 match fs::read(&tokenizer_path) {
@@ -255,14 +254,20 @@ impl StorageWriter {
                                 checksum: String::new(),
                             });
 
-                        info!("   ✅ AUTO-SAVE: Tokenizer included in archive ({} bytes)", tokenizer_data.len());
+                        info!(
+                            "   ✅ AUTO-SAVE: Tokenizer included in archive ({} bytes)",
+                            tokenizer_data.len()
+                        );
                     }
                     Err(e) => {
                         warn!("   ⚠️  AUTO-SAVE: Failed to read tokenizer file: {}", e);
                     }
                 }
             } else {
-                info!("   ℹ️  AUTO-SAVE: No tokenizer file found at {:?}", tokenizer_path);
+                info!(
+                    "   ℹ️  AUTO-SAVE: No tokenizer file found at {:?}",
+                    tokenizer_path
+                );
             }
 
             // CRITICAL: Include checksums file if it exists
@@ -272,8 +277,7 @@ impl StorageWriter {
             if checksums_path.exists() {
                 info!(
                     "   🔐 AUTO-SAVE: Including checksums for collection '{}' at {:?}",
-                    collection_name,
-                    checksums_path
+                    collection_name, checksums_path
                 );
 
                 match fs::read(&checksums_path) {
@@ -300,14 +304,20 @@ impl StorageWriter {
                                 checksum: String::new(),
                             });
 
-                        info!("   ✅ AUTO-SAVE: Checksums included in archive ({} bytes)", checksums_data.len());
+                        info!(
+                            "   ✅ AUTO-SAVE: Checksums included in archive ({} bytes)",
+                            checksums_data.len()
+                        );
                     }
                     Err(e) => {
                         warn!("   ⚠️  AUTO-SAVE: Failed to read checksums file: {}", e);
                     }
                 }
             } else {
-                info!("   ℹ️  AUTO-SAVE: No checksums file found at {:?}", checksums_path);
+                info!(
+                    "   ℹ️  AUTO-SAVE: No checksums file found at {:?}",
+                    checksums_path
+                );
             }
 
             info!(
