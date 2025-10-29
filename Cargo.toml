@@ -101,7 +101,7 @@ tower_governor = "0.4"  # Rate limiting middleware
 governor = "0.6"        # Rate limiting core
 rustls = "0.23"         # TLS support
 tokio-rustls = "0.26"   # Tokio TLS integration
-rcgen = "0.13"          # Certificate generation for testing
+rcgen = "0.14"          # Certificate generation for testing
 
 # CLI utilities
 sys-info = "0.9"
