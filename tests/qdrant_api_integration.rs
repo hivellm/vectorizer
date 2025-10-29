@@ -237,11 +237,24 @@ fn test_qdrant_delete_points() {
 
 #[test]
 fn test_qdrant_scroll_points() {
-    let store = create_test_store();
-    let _ = create_test_collection(&store, "scroll_test", 128);
-    let _ = insert_test_vectors(&store, "scroll_test", 20, 128);
+    use std::time::{SystemTime, UNIX_EPOCH};
 
-    let collection = store.get_collection("scroll_test").unwrap();
+    let store = create_test_store();
+    let collection_name = format!(
+        "scroll_test_{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+
+    create_test_collection(&store, &collection_name, 128).expect("Failed to create collection");
+    let ids =
+        insert_test_vectors(&store, &collection_name, 20, 128).expect("Failed to insert vectors");
+
+    assert_eq!(ids.len(), 20, "Should have inserted 20 vector IDs");
+
+    let collection = store.get_collection(&collection_name).unwrap();
 
     // Get all vectors (simulate scroll)
     let vectors = collection.get_all_vectors();
