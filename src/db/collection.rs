@@ -14,7 +14,7 @@ use crate::models::{
 };
 
 /// A collection of vectors with an associated HNSW index
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Collection {
     /// Collection name
     name: String,
@@ -35,6 +35,8 @@ pub struct Collection {
     document_ids: Arc<DashMap<String, ()>>,
     /// Persistent vector count (maintains count even when vectors are unloaded)
     vector_count: Arc<RwLock<usize>>,
+    /// Embedding manager specific to this collection (for BM25 vocabulary, etc.)
+    embedding_manager: Arc<RwLock<Option<Arc<crate::embedding::EmbeddingManager>>>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -89,6 +91,7 @@ impl Collection {
             embedding_type: Arc::new(RwLock::new(embedding_type)),
             document_ids: Arc::new(DashMap::new()),
             vector_count: Arc::new(RwLock::new(0)),
+            embedding_manager: Arc::new(RwLock::new(None)),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
         }
@@ -109,6 +112,16 @@ impl Collection {
     /// Get the embedding type used for this collection
     pub fn get_embedding_type(&self) -> String {
         self.embedding_type.read().clone()
+    }
+
+    /// Set the embedding manager for this collection
+    pub fn set_embedding_manager(&self, manager: Arc<crate::embedding::EmbeddingManager>) {
+        *self.embedding_manager.write() = Some(manager);
+    }
+
+    /// Get the embedding manager for this collection
+    pub fn get_embedding_manager(&self) -> Option<Arc<crate::embedding::EmbeddingManager>> {
+        self.embedding_manager.read().clone()
     }
 
     /// Set the embedding type for this collection

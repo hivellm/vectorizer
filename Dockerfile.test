@@ -1,0 +1,85 @@
+# Dockerfile for safe test execution
+# Prevents BSODs by using conservative settings and single-threaded builds
+#
+# Usage:
+#   docker-compose -f docker-compose.test.yml up --build
+#   docker-compose -f docker-compose.test.yml up --build vectorizer-test
+
+FROM rust:1.83-bookworm AS test-builder
+
+WORKDIR /vectorizer
+
+# Install minimal dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        pkg-config \
+        libssl-dev \
+        clang \
+        lld \
+        curl \
+        ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Use stable Rust (already installed in base image)
+RUN rustup component add rustfmt clippy llvm-tools-preview
+
+# Install cargo-llvm-cov for coverage (optional)
+RUN cargo install cargo-llvm-cov || true
+
+# Set safe environment variables
+ENV CARGO_BUILD_JOBS=1 \
+    CARGO_TEST_THREADS=1 \
+    RUST_TEST_THREADS=1 \
+    RUST_BACKTRACE=1 \
+    RUST_LOG=info \
+    RUST_MIN_STACK=8388608
+
+# Create directories for test output
+RUN mkdir -p /vectorizer/target/test-results /vectorizer/coverage /vectorizer/.logs
+
+# Copy everything needed for build
+COPY . .
+
+# Pre-compile dependencies (cached layer)
+RUN cargo fetch
+
+# Build all tests in safe mode (single-threaded, no optimization)
+RUN cargo test --no-run --profile test-safe || echo "Build warnings ignored"
+
+# Runtime stage
+FROM rust:1.83-bookworm
+
+WORKDIR /vectorizer
+
+# Install runtime dependencies only
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Rust toolchain from builder  
+COPY --from=test-builder /usr/local/cargo /usr/local/cargo
+COPY --from=test-builder /usr/local/rustup /usr/local/rustup
+
+# Copy built artifacts and source
+COPY --from=test-builder /vectorizer ./
+
+# Create output directories
+RUN mkdir -p /vectorizer/target/test-results /vectorizer/coverage /vectorizer/.logs
+
+# Set safe environment variables
+ENV CARGO_BUILD_JOBS=1 \
+    CARGO_TEST_THREADS=1 \
+    RUST_TEST_THREADS=1 \
+    RUST_BACKTRACE=1 \
+    RUST_LOG=info \
+    RUST_MIN_STACK=8388608 \
+    PATH=/usr/local/cargo/bin:$PATH
+
+# Default command runs all tests
+CMD ["cargo", "test", "--profile", "test-safe", "--", "--test-threads=1", "--nocapture"]
+

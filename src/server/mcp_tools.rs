@@ -685,5 +685,97 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
+
+        // =============================================
+        // Performance and Monitoring Tools (4 tools)
+        // =============================================
+        // NOTE: Qdrant compatibility tools have been removed from MCP.
+        // Use the native Vectorizer REST API for best performance and features.
+        // Qdrant compatibility is available only via REST API at /qdrant/*
+
+        // 20. Get Performance Metrics
+        Tool {
+            name: Cow::Borrowed("get_performance_metrics"),
+            title: Some("Get Performance Metrics".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get detailed performance metrics for MCP operations including cache statistics and operation counts."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 21. Get Detailed Performance Report
+        Tool {
+            name: Cow::Borrowed("get_detailed_performance_report"),
+            title: Some("Get Detailed Performance Report".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get comprehensive performance report including system metrics, operation statistics, and collection performance data."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // 22. Clear Cache
+        Tool {
+            name: Cow::Borrowed("clear_cache"),
+            title: Some("Clear Cache".to_string()),
+            description: Some(Cow::Borrowed(
+                "Clear all cached data including query results and collection information."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "cache_type": {
+                        "type": "string",
+                        "description": "Type of cache to clear: 'all', 'queries', 'collections'",
+                        "default": "all"
+                    }
+                },
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // 22. Health Check
+        Tool {
+            name: Cow::Borrowed("health_check"),
+            title: Some("Health Check".to_string()),
+            description: Some(Cow::Borrowed(
+                "Perform a comprehensive health check of the MCP server and vectorizer system."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "include_metrics": {
+                        "type": "boolean",
+                        "description": "Include performance metrics in health check",
+                        "default": true
+                    },
+                    "check_collections": {
+                        "type": "boolean",
+                        "description": "Check collection accessibility",
+                        "default": true
+                    }
+                },
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
     ]
 }

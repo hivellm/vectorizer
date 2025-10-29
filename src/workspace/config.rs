@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 /// Workspace configuration root structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceConfig {
     /// Workspace metadata
     pub workspace: WorkspaceMetadata,
@@ -33,7 +33,7 @@ pub struct WorkspaceConfig {
 }
 
 /// Workspace metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceMetadata {
     /// Workspace name
     pub name: String,
@@ -52,7 +52,7 @@ pub struct WorkspaceMetadata {
 }
 
 /// Global settings for all projects
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlobalSettings {
     /// Default embedding configuration
     pub default_embedding: EmbeddingConfig,
@@ -68,7 +68,7 @@ pub struct GlobalSettings {
 }
 
 /// Project configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProjectConfig {
     /// Project name (unique identifier)
     pub name: String,
@@ -90,7 +90,7 @@ pub struct ProjectConfig {
 }
 
 /// Collection configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CollectionConfig {
     /// Collection name
     pub name: String,
@@ -114,8 +114,22 @@ pub struct CollectionConfig {
     pub processing: CollectionProcessing,
 }
 
+impl Default for CollectionConfig {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            dimension: 512,
+            metric: DistanceMetric::Cosine,
+            embedding: EmbeddingConfig::default(),
+            indexing: IndexingConfig::default(),
+            processing: CollectionProcessing::default(),
+        }
+    }
+}
+
 /// Embedding configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmbeddingConfig {
     /// Embedding model type
     pub model: EmbeddingModel,
@@ -125,6 +139,16 @@ pub struct EmbeddingConfig {
 
     /// Model-specific parameters
     pub parameters: HashMap<String, serde_json::Value>,
+}
+
+impl Default for EmbeddingConfig {
+    fn default() -> Self {
+        Self {
+            model: EmbeddingModel::Bm25,
+            dimension: 384,
+            parameters: HashMap::new(),
+        }
+    }
 }
 
 /// Embedding model types
@@ -167,6 +191,12 @@ pub enum EmbeddingModel {
     OnnxModel,
 }
 
+impl Default for EmbeddingModel {
+    fn default() -> Self {
+        Self::Bm25
+    }
+}
+
 /// Distance metrics
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum DistanceMetric {
@@ -183,8 +213,14 @@ pub enum DistanceMetric {
     DotProduct,
 }
 
+impl Default for DistanceMetric {
+    fn default() -> Self {
+        Self::Cosine
+    }
+}
+
 /// Collection defaults
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CollectionDefaults {
     /// Default distance metric
     pub metric: DistanceMetric,
@@ -197,7 +233,7 @@ pub struct CollectionDefaults {
 }
 
 /// Quantization defaults
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QuantizationDefaults {
     /// Quantization type
     #[serde(rename = "type")]
@@ -208,7 +244,7 @@ pub struct QuantizationDefaults {
 }
 
 /// Compression configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CompressionConfig {
     /// Whether compression is enabled
     pub enabled: bool,
@@ -221,7 +257,7 @@ pub struct CompressionConfig {
 }
 
 /// Indexing defaults
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndexingDefaults {
     /// Index type
     pub index_type: String,
@@ -231,7 +267,7 @@ pub struct IndexingDefaults {
 }
 
 /// Indexing configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IndexingConfig {
     /// Index type
     pub index_type: String,
@@ -240,8 +276,17 @@ pub struct IndexingConfig {
     pub parameters: HashMap<String, serde_json::Value>,
 }
 
+impl Default for IndexingConfig {
+    fn default() -> Self {
+        Self {
+            index_type: "hnsw".to_string(),
+            parameters: HashMap::new(),
+        }
+    }
+}
+
 /// Processing defaults
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessingDefaults {
     /// Default chunk size
     pub chunk_size: usize,
@@ -257,7 +302,7 @@ pub struct ProcessingDefaults {
 }
 
 /// Collection processing configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CollectionProcessing {
     /// Chunk size for this collection
     pub chunk_size: usize,
@@ -272,8 +317,34 @@ pub struct CollectionProcessing {
     pub exclude_patterns: Vec<String>,
 }
 
+impl Default for CollectionProcessing {
+    fn default() -> Self {
+        Self {
+            chunk_size: 2048,
+            chunk_overlap: 256,
+            include_patterns: vec![
+                "*.md".to_string(),
+                "*.txt".to_string(),
+                "*.rs".to_string(),
+                "*.py".to_string(),
+                "*.js".to_string(),
+                "*.ts".to_string(),
+                "*.json".to_string(),
+            ],
+            exclude_patterns: vec![
+                "**/target/**".to_string(),
+                "**/node_modules/**".to_string(),
+                "**/.git/**".to_string(),
+                "**/.*".to_string(),
+                "**/*.tmp".to_string(),
+                "**/*.log".to_string(),
+            ],
+        }
+    }
+}
+
 /// Processing settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessingSettings {
     /// Whether to use parallel processing
     pub parallel_processing: bool,
@@ -295,7 +366,7 @@ pub struct ProcessingSettings {
 }
 
 /// File processing settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileProcessingSettings {
     /// Batch size for processing
     pub batch_size: usize,
@@ -311,7 +382,7 @@ pub struct FileProcessingSettings {
 }
 
 /// Memory settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemorySettings {
     /// Maximum memory usage in GB
     pub max_memory_usage_gb: f64,
@@ -321,7 +392,7 @@ pub struct MemorySettings {
 }
 
 /// Error handling settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorHandlingSettings {
     /// Maximum retries
     pub max_retries: usize,
@@ -337,7 +408,7 @@ pub struct ErrorHandlingSettings {
 }
 
 /// Monitoring settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitoringSettings {
     /// Health check settings
     pub health_check: HealthCheckSettings,
@@ -350,7 +421,7 @@ pub struct MonitoringSettings {
 }
 
 /// Health check settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HealthCheckSettings {
     /// Whether health checks are enabled
     pub enabled: bool,
@@ -366,7 +437,7 @@ pub struct HealthCheckSettings {
 }
 
 /// Metrics settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MetricsSettings {
     /// Whether metrics collection is enabled
     pub enabled: bool,
@@ -382,7 +453,7 @@ pub struct MetricsSettings {
 }
 
 /// Logging settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoggingSettings {
     /// Log level
     pub level: String,
@@ -398,7 +469,7 @@ pub struct LoggingSettings {
 }
 
 /// Validation settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidationSettings {
     /// Path validation settings
     pub paths: PathValidationSettings,
@@ -411,7 +482,7 @@ pub struct ValidationSettings {
 }
 
 /// Path validation settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PathValidationSettings {
     /// Validate path existence
     pub validate_existence: bool,
@@ -424,7 +495,7 @@ pub struct PathValidationSettings {
 }
 
 /// Configuration validation settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConfigValidationSettings {
     /// Validate embedding models
     pub validate_embedding_models: bool,
@@ -437,7 +508,7 @@ pub struct ConfigValidationSettings {
 }
 
 /// Data validation settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DataValidationSettings {
     /// Validate file types
     pub validate_file_types: bool,

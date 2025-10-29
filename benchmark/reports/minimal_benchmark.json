@@ -1,0 +1,46 @@
+{
+  "config": "minimal_benchmark",
+  "dataset_size": 1000,
+  "dimension": 128,
+  "timestamp": "2025-10-26 17:38:33 UTC",
+  "total_duration_ms": 0.0,
+  "system_info": {
+    "cpu_model": "Unknown",
+    "cpu_cores": 32,
+    "total_memory_mb": 0.0,
+    "available_memory_mb": 0.0,
+    "os": "linux",
+    "rust_version": "1.1.2",
+    "vectorizer_version": "1.1.2"
+  },
+  "operations": {
+    "vector_sum": {
+      "operation": "vector_sum",
+      "config": "Sum all vector elements",
+      "total_operations": 0,
+      "total_time_ms": 0.0,
+      "throughput_ops_per_sec": 0.0,
+      "avg_latency_us": 0.0,
+      "p50_latency_us": 0.0,
+      "p95_latency_us": 0.0,
+      "p99_latency_us": 0.0,
+      "min_latency_us": 0.0,
+      "max_latency_us": 0.0,
+      "memory_before_mb": 0.0,
+      "memory_after_mb": 0.0,
+      "memory_delta_mb": 0.0,
+      "cpu_usage_percent": 0.0,
+      "custom_metrics": {}
+    }
+  },
+  "summary": {
+    "total_operations": 0,
+    "overall_throughput": null,
+    "avg_latency_us": 0.0,
+    "p95_latency_us": 0.0,
+    "p99_latency_us": 0.0,
+    "peak_memory_mb": 0.0,
+    "avg_cpu_usage": 0.0,
+    "success_rate": 1.0
+  }
+}

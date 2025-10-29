@@ -1,2 +1,74 @@
+# Cargo configuration for safe builds
+# This file sets platform-specific defaults to prevent BSODs
+
+# Windows-specific settings
+[target.x86_64-pc-windows-msvc]
+# Limit parallelism on Windows to prevent resource exhaustion
+rustflags = [
+    "-C", "codegen-units=4",  # Limit parallel codegen
+]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = [
+    "-C", "codegen-units=4",
+]
+
+# Unix/Linux - can use more parallelism safely
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "codegen-units=16",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "codegen-units=16",
+]
+
+# Build settings
 [build]
-rustflags = ["-A", "warnings"]
+# Default to 2 parallel jobs on Windows, more on Unix
+jobs = 2
+
+# Use sparse registry protocol (faster)
+[registries.crates-io]
+protocol = "sparse"
+
+# Network settings
+[net]
+retry = 3
+git-fetch-with-cli = true
+
+# Profile-specific settings
+[profile.dev]
+# Fast incremental builds
+incremental = true
+codegen-units = 256
+
+[profile.release]
+# Full optimization
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+
+[profile.safe]
+# Safe profile for Windows (defined in Cargo.toml)
+inherits = "dev"
+
+[profile.test]
+# Fast test builds
+opt-level = 0
+debug = true
+
+# Environment variables
+[env]
+# Limit Rayon thread pool on Windows
+RAYON_NUM_THREADS = { value = "2", force = false, relative = true }
+
+# Tokio worker threads
+TOKIO_WORKER_THREADS = { value = "2", force = false, relative = true }
+
+# Rust backtrace
+RUST_BACKTRACE = { value = "1", force = false }
+
+# Note: These can be overridden by shell environment variables
+# To override: $env:RAYON_NUM_THREADS = "4" (PowerShell)

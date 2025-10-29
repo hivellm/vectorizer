@@ -9,9 +9,8 @@ pub mod traits;
 pub mod storage;
 pub mod hnsw_integration;
 pub mod simple_tests;
-
+pub mod product;
 // TODO: Implement these modules in future phases
-// pub mod product;
 // pub mod binary;
 // pub mod metrics;
 
@@ -233,6 +232,7 @@ mod tests {
 
 // Re-export main types
 pub use scalar::ScalarQuantization;
+pub use product::ProductQuantization;
 pub use storage::{QuantizedVectorStorage, StorageConfig, StorageStats};
 pub use hnsw_integration::{QuantizedHnswIndex, HnswQuantizationConfig};
 pub use traits::{

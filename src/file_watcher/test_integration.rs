@@ -14,12 +14,12 @@ use crate::embedding::EmbeddingManager;
 async fn test_file_watcher_system_creation() {
     // Create vector store and embedding manager
     let vector_store = Arc::new(VectorStore::new());
-    let mut embedding_manager = EmbeddingManager::new();
+    let mut embedding_manager = EmbeddingManager::new(crate::embedding::EmbeddingConfig::default());
 
     // Set up a basic embedding provider
-    let bm25 = crate::embedding::Bm25Embedding::new(512);
-    embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
-    embedding_manager.set_default_provider("bm25").unwrap();
+    let bm25 = std::sync::Arc::new(crate::embedding::BM25Factory::create_default());
+    embedding_manager.add_provider(crate::embedding::EmbeddingProviderType::BM25, bm25);
+    embedding_manager.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
 
     let embedding_manager = Arc::new(RwLock::new(embedding_manager));
 
@@ -77,12 +77,12 @@ async fn test_file_watcher_with_temp_directory() {
 
     // Create vector store and embedding manager
     let vector_store = Arc::new(VectorStore::new());
-    let mut embedding_manager = EmbeddingManager::new();
+    let mut embedding_manager = EmbeddingManager::new(crate::embedding::EmbeddingConfig::default());
 
     // Set up a basic embedding provider
-    let bm25 = crate::embedding::Bm25Embedding::new(512);
-    embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
-    embedding_manager.set_default_provider("bm25").unwrap();
+    let bm25 = std::sync::Arc::new(crate::embedding::BM25Factory::create_default());
+    embedding_manager.add_provider(crate::embedding::EmbeddingProviderType::BM25, bm25);
+    embedding_manager.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
 
     let embedding_manager = Arc::new(RwLock::new(embedding_manager));
 

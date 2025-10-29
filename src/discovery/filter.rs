@@ -4,15 +4,8 @@ use glob::Pattern;
 
 use super::types::{CollectionRef, DiscoveryError, DiscoveryResult};
 
-// TODO: Integrate tantivy for BM25-based filtering
+// Future enhancement: tantivy integration for BM25-based filtering
 // See: docs/future/RUST_LIBRARIES_INTEGRATION.md
-//
-// Example integration:
-// ```rust
-// use tantivy::{schema::*, Index, query::QueryParser};
-//
-// pub struct CollectionIndexer {
-//     index: Index,
 //     schema: Schema,
 // }
 //
@@ -70,11 +63,7 @@ pub fn filter_collections(
 
 /// Extract terms from query (remove stopwords)
 ///
-/// TODO: Replace with tantivy tokenizer for better results:
-/// - Stemming (running -> run)
-/// - Lemmatization
-/// - Language-specific stopwords
-/// - Better Unicode handling
+/// Future enhancement: tantivy tokenizer for stemming, lemmatization, and better Unicode handling
 fn extract_terms(query: &str) -> Vec<String> {
     let stopwords = [
         "o", "que", "é", "the", "is", "a", "an", "what", "how", "when", "where", "why", "which",

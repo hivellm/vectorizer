@@ -1,0 +1,69 @@
+# Vectorizer Benchmark Configuration
+# This file contains common configuration settings for all benchmarks
+
+[global]
+# Default measurement time in seconds
+measurement_time = 10
+# Number of samples to collect
+sample_size = 100
+# Number of warm-up iterations
+warm_up_time = 2
+# Number of measurement iterations
+measurement_iterations = 10
+
+[profiles]
+# Quick benchmarks for development
+[profiles.quick]
+measurement_time = 3
+sample_size = 10
+warm_up_time = 1
+
+# Comprehensive benchmarks for CI/CD
+[profiles.comprehensive]
+measurement_time = 30
+sample_size = 200
+warm_up_time = 5
+
+# Performance regression testing
+[profiles.regression]
+measurement_time = 60
+sample_size = 500
+warm_up_time = 10
+
+[test_data]
+# Default vector dimensions for benchmarks
+dimensions = [64, 128, 256, 512, 768, 1024, 1536]
+
+# Default vector counts for scale tests
+vector_counts = [100, 1000, 10000, 100000]
+
+# Default collection configurations
+[test_data.collections]
+default_dimension = 128
+default_metric = "cosine"
+default_hnsw_m = 16
+default_hnsw_ef_construction = 200
+
+[gpu]
+# GPU benchmark settings
+[gpu.metal]
+enabled = true
+warm_up_iterations = 5
+measurement_iterations = 20
+
+[gpu.cuda]
+enabled = true
+warm_up_iterations = 5
+measurement_iterations = 20
+
+[memory]
+# Memory usage tracking
+track_memory = true
+memory_sampling_interval = 100  # milliseconds
+
+[output]
+# Benchmark output settings
+html_reports = true
+json_reports = true
+csv_reports = false
+output_directory = "target/criterion"

@@ -463,6 +463,40 @@ impl VectorStore {
         self.create_collection_internal(name, config, true)
     }
 
+    /// Set the embedding manager for a specific collection
+    pub fn set_collection_embedding_manager(
+        &self,
+        collection_name: &str,
+        embedding_manager: Arc<crate::embedding::EmbeddingManager>,
+    ) -> Result<()> {
+        let collection = self.get_collection_mut(collection_name)?;
+        match collection.deref() {
+            CollectionType::Cpu(c) => {
+                c.set_embedding_manager(embedding_manager);
+                Ok(())
+            }
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                // GPU collections don't support custom embedding managers yet
+                warn!("Setting embedding manager not supported for GPU collections");
+                Ok(())
+            }
+        }
+    }
+
+    /// Get the embedding manager for a specific collection
+    pub fn get_collection_embedding_manager(
+        &self,
+        collection_name: &str,
+    ) -> Result<Option<Arc<crate::embedding::EmbeddingManager>>> {
+        let collection = self.get_collection(collection_name)?;
+        match collection.deref() {
+            CollectionType::Cpu(c) => Ok(c.get_embedding_manager()),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => Ok(None),
+        }
+    }
+
     /// Create a collection with option to disable GPU (for testing)
     #[cfg(test)]
     pub fn create_collection_cpu_only(&self, name: &str, config: CollectionConfig) -> Result<()> {
@@ -1806,6 +1840,8 @@ impl VectorStore {
             config: Some(metadata.config.clone()),
             vectors,
             hnsw_dump_basename: None,
+            tokenizer: None,
+            checksums: None,
         };
 
         // Save vectors to binary file (following workspace pattern)
@@ -1887,6 +1923,8 @@ impl VectorStore {
             config: Some(metadata.config.clone()),
             vectors: vectors.clone(),
             hnsw_dump_basename: None,
+            tokenizer: None,
+            checksums: None,
         };
 
         // Create persisted vector store with version
@@ -1907,6 +1945,8 @@ impl VectorStore {
             config: Some(metadata.config.clone()),
             vectors,
             hnsw_dump_basename: None,
+            tokenizer: None,
+            checksums: None,
         };
 
         // Save metadata to JSON file
@@ -2388,5 +2428,382 @@ mod tests {
         assert_eq!(metadata.vector_count, 2);
         assert_eq!(metadata.config.dimension, 768);
         assert_eq!(metadata.config.metric, DistanceMetric::Cosine);
+    }
+
+    #[test]
+    fn test_vector_store_new() {
+        let store = VectorStore::new();
+        assert_eq!(store.list_collections().len(), 0);
+    }
+
+    #[test]
+    fn test_has_collection() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        // Collection doesn't exist initially
+        assert!(store.get_collection("test_exists").is_err());
+
+        // Create it
+        store.create_collection("test_exists", config).unwrap();
+
+        // Now it should exist
+        assert!(store.get_collection("test_exists").is_ok());
+    }
+
+    #[test]
+    fn test_get_collection() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("test_get", config).unwrap();
+
+        let collection = store.get_collection("test_get");
+        assert!(collection.is_ok());
+    }
+
+    #[test]
+    fn test_get_collection_nonexistent() {
+        let store = VectorStore::new();
+        let result = store.get_collection("nonexistent");
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_insert_vectors() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("test_insert", config).unwrap();
+
+        let vectors = vec![
+            Vector::new("v1".to_string(), vec![0.1; 512]),
+            Vector::new("v2".to_string(), vec![0.2; 512]),
+        ];
+
+        let result = store.insert("test_insert", vectors);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_insert_to_nonexistent_collection() {
+        let store = VectorStore::new();
+        let vectors = vec![Vector::new("v1".to_string(), vec![0.1; 512])];
+
+        let result = store.insert("nonexistent", vectors);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_vectors() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("test_search", config).unwrap();
+
+        // Insert vectors
+        let vectors = vec![
+            Vector::new("v1".to_string(), vec![1.0; 512]),
+            Vector::new("v2".to_string(), vec![0.5; 512]),
+            Vector::new("v3".to_string(), vec![0.1; 512]),
+        ];
+        store.insert("test_search", vectors).unwrap();
+
+        // Search
+        let query = vec![1.0; 512];
+        let results = store.search("test_search", &query, 2);
+
+        assert!(results.is_ok());
+        let results = results.unwrap();
+        assert!(results.len() <= 2);
+    }
+
+    #[test]
+    fn test_delete_vector() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("test_delete_vec", config).unwrap();
+
+        // Insert a vector
+        let vectors = vec![Vector::new("v1".to_string(), vec![0.1; 512])];
+        store.insert("test_delete_vec", vectors).unwrap();
+
+        // Delete it
+        let result = store.delete("test_delete_vec", "v1");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_collection_metadata_with_vectors() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("test_stats", config).unwrap();
+
+        // Insert vectors
+        for i in 0..25 {
+            let vectors = vec![Vector::new(format!("v{}", i), vec![0.1; 512])];
+            store.insert("test_stats", vectors).unwrap();
+        }
+
+        let metadata = store.get_collection_metadata("test_stats");
+        assert!(metadata.is_ok());
+
+        let metadata = metadata.unwrap();
+        assert_eq!(metadata.vector_count, 25);
+        assert_eq!(metadata.config.dimension, 512);
+    }
+
+    #[test]
+    fn test_collection_type_cpu() {
+        let config = CollectionConfig::default();
+        let collection = Collection::new("test".to_string(), config);
+        let coll_type = CollectionType::Cpu(collection);
+
+        assert_eq!(coll_type.name(), "test");
+    }
+
+    #[test]
+    fn test_collection_type_debug() {
+        let config = CollectionConfig::default();
+        let collection = Collection::new("test".to_string(), config);
+        let coll_type = CollectionType::Cpu(collection);
+
+        let debug_str = format!("{:?}", coll_type);
+        assert!(debug_str.contains("CollectionType::Cpu"));
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_collection_config_default() {
+        let config = CollectionConfig::default();
+
+        assert_eq!(config.dimension, 512);
+        assert_eq!(config.metric, DistanceMetric::Cosine);
+    }
+
+    #[test]
+    fn test_create_multiple_collections_different_dims() {
+        let store = VectorStore::new();
+
+        let config128 = CollectionConfig {
+            dimension: 128,
+            ..Default::default()
+        };
+
+        let config256 = CollectionConfig {
+            dimension: 256,
+            ..Default::default()
+        };
+
+        let config512 = CollectionConfig {
+            dimension: 512,
+            ..Default::default()
+        };
+
+        store.create_collection("coll_128", config128).unwrap();
+        store.create_collection("coll_256", config256).unwrap();
+        store.create_collection("coll_512", config512).unwrap();
+
+        assert_eq!(store.list_collections().len(), 3);
+    }
+
+    #[test]
+    fn test_search_empty_collection() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("empty_search", config).unwrap();
+
+        let query = vec![0.1; 512];
+        let results = store.search("empty_search", &query, 10);
+
+        assert!(results.is_ok());
+        assert_eq!(results.unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_search_with_threshold() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("threshold_search", config).unwrap();
+
+        // Insert vectors
+        for i in 0..10 {
+            let mut vec_data = vec![0.5; 512];
+            vec_data[0] = i as f32 * 0.1;
+            let vectors = vec![Vector::new(format!("v{}", i), vec_data)];
+            store.insert("threshold_search", vectors).unwrap();
+        }
+
+        // Search
+        let query = vec![0.5; 512];
+        let results = store.search("threshold_search", &query, 10);
+
+        assert!(results.is_ok());
+        assert!(!results.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_batch_insert() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("batch_test", config).unwrap();
+
+        let mut vectors = vec![];
+        for i in 0..100 {
+            vectors.push(Vector::new(format!("v{}", i), vec![0.1 * (i as f32); 512]));
+        }
+
+        let result = store.insert("batch_test", vectors);
+        assert!(result.is_ok());
+
+        let metadata = store.get_collection_metadata("batch_test").unwrap();
+        assert_eq!(metadata.vector_count, 100);
+    }
+
+    #[test]
+    fn test_update_vector_method_exists() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("update_test", config).unwrap();
+
+        // Insert
+        let vectors = vec![Vector::new("v1".to_string(), vec![0.1; 512])];
+        store.insert("update_test", vectors).unwrap();
+
+        // Update - may or may not work depending on implementation
+        let updated_vector = Vector::new("v1".to_string(), vec![0.5; 512]);
+        let _result = store.update("update_test", updated_vector);
+        // Just verify method exists, don't assert on result
+    }
+
+    #[test]
+    fn test_get_collection_metadata() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("metadata_get", config).unwrap();
+
+        let metadata = store.get_collection_metadata("metadata_get");
+        assert!(metadata.is_ok());
+
+        let meta = metadata.unwrap();
+        assert_eq!(meta.name, "metadata_get");
+    }
+
+    #[test]
+    fn test_collection_count() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        assert_eq!(store.list_collections().len(), 0);
+
+        store.create_collection("c1", config.clone()).unwrap();
+        assert_eq!(store.list_collections().len(), 1);
+
+        store.create_collection("c2", config.clone()).unwrap();
+        assert_eq!(store.list_collections().len(), 2);
+
+        store.create_collection("c3", config).unwrap();
+        assert_eq!(store.list_collections().len(), 3);
+    }
+
+    #[test]
+    fn test_insert_and_search_workflow() {
+        let store = VectorStore::new();
+        let config = CollectionConfig::default();
+
+        store.create_collection("workflow", config).unwrap();
+
+        // Insert documents
+        for i in 0..20 {
+            let mut vec_data = vec![0.0; 512];
+            vec_data[i % 512] = 1.0;
+            let vectors = vec![Vector::new(format!("doc{}", i), vec_data)];
+            store.insert("workflow", vectors).unwrap();
+        }
+
+        // Search
+        let mut query = vec![0.0; 512];
+        query[5] = 1.0;
+
+        let results = store.search("workflow", &query, 5);
+        assert!(results.is_ok());
+
+        let results = results.unwrap();
+        assert!(results.len() <= 5);
+    }
+
+    #[test]
+    fn test_collection_different_metrics() {
+        let store = VectorStore::new();
+
+        // Cosine
+        let config_cosine = CollectionConfig {
+            metric: DistanceMetric::Cosine,
+            ..Default::default()
+        };
+        store
+            .create_collection("cosine_coll", config_cosine)
+            .unwrap();
+
+        // Euclidean
+        let config_euclidean = CollectionConfig {
+            metric: DistanceMetric::Euclidean,
+            ..Default::default()
+        };
+        store
+            .create_collection("euclidean_coll", config_euclidean)
+            .unwrap();
+
+        // DotProduct
+        let config_dot = CollectionConfig {
+            metric: DistanceMetric::DotProduct,
+            ..Default::default()
+        };
+        store.create_collection("dot_coll", config_dot).unwrap();
+
+        assert_eq!(store.list_collections().len(), 3);
+    }
+
+    #[test]
+    fn test_concurrent_inserts() {
+        use std::thread;
+
+        let store = Arc::new(VectorStore::new());
+        let config = CollectionConfig::default();
+
+        store
+            .create_collection("concurrent_inserts", config)
+            .unwrap();
+
+        let mut handles = vec![];
+
+        for i in 0..5 {
+            let store_clone = Arc::clone(&store);
+            let handle = thread::spawn(move || {
+                for j in 0..5 {
+                    let vectors = vec![Vector::new(
+                        format!("v_{}_{}", i, j),
+                        vec![0.1 * ((i * 5 + j) as f32); 512],
+                    )];
+                    let _ = store_clone.insert("concurrent_inserts", vectors);
+                }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let metadata = store.get_collection_metadata("concurrent_inserts").unwrap();
+        assert_eq!(metadata.vector_count, 25);
     }
 }
