@@ -272,7 +272,7 @@ fn test_qdrant_scroll_points() {
     assert_eq!(ids.len(), 20, "Should have inserted 20 vector IDs");
 
     // Get a fresh reference to the collection
-    let mut collection = store
+    let collection = store
         .get_collection_mut(&collection_name)
         .expect("Failed to get collection");
 
