@@ -4,8 +4,6 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-pub mod qdrant;
-
 /// A vector with its associated data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vector {

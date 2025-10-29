@@ -226,7 +226,82 @@ impl VectorStore {
 }
 ```
 
-### Step 2: Add MCP Endpoints
+### Step 2: Replace Mock Implementation
+
+In `operations.rs`, replace the mock methods with actual vector store queries:
+
+```rust
+// TODO: Replace this
+async fn get_file_content_mock(...) -> FileOperationResult<FileContent> {
+    // Mock implementation
+}
+
+// With this:
+async fn get_file_content_impl(
+    &self,
+    collection: &str,
+    file_path: &str,
+    max_size_kb: usize,
+) -> FileOperationResult<FileContent> {
+    // 1. Query all chunks for this file
+    let chunks = self.store
+        .search_with_filter(collection, "", |meta| {
+            meta.get("file_path") == Some(&json!(file_path))
+        })
+        .await
+        .map_err(|e| FileOperationError::VectorStoreError(e.to_string()))?;
+    
+    if chunks.is_empty() {
+        return Err(FileOperationError::NoChunksFound {
+            file_path: file_path.to_string(),
+        });
+    }
+    
+    // 2. Sort by chunk_index
+    let mut sorted_chunks: Vec<_> = chunks
+        .into_iter()
+        .filter_map(|chunk| {
+            let index = chunk.metadata.get("chunk_index")?.as_u64()?;
+            Some((index, chunk))
+        })
+        .collect();
+    sorted_chunks.sort_by_key(|(index, _)| *index);
+    
+    // 3. Reconstruct file content
+    let content = sorted_chunks
+        .iter()
+        .map(|(_, chunk)| chunk.content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    
+    // 4. Check size limit
+    let size_kb = content.len() as f64 / 1024.0;
+    if size_kb > max_size_kb as f64 {
+        return Err(FileOperationError::FileTooLarge {
+            size_kb: size_kb as usize,
+            max_size_kb,
+        });
+    }
+    
+    // 5. Build response
+    Ok(FileContent {
+        file_path: file_path.to_string(),
+        content,
+        metadata: FileMetadata {
+            file_type: Self::detect_file_type(file_path),
+            size_kb,
+            chunk_count: sorted_chunks.len(),
+            last_indexed: Utc::now(), // TODO: get from metadata
+            language: Self::detect_language(file_path),
+        },
+        chunks_available: sorted_chunks.len(),
+        collection: collection.to_string(),
+        from_cache: false,
+    })
+}
+```
+
+### Step 3: Add MCP Endpoints
 
 Create MCP tool definitions (to be added to MCP server):
 
@@ -314,3 +389,4 @@ Same as parent project.
 ## Contributors
 
 See main project CONTRIBUTORS.md
+

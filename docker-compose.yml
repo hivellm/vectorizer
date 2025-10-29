@@ -6,10 +6,13 @@ services:
     container_name: vectorizer
     ports:
       - "15002:15002"  # MCP + REST API
+      - "15003:15003"  # Additional port
     
     volumes:
       # Persistent data
       - ./vectorizer-data:/vectorizer/data
+      - ./vectorizer-storage:/vectorizer/storage
+      - ./vectorizer-snapshots:/vectorizer/snapshots
       - ./vectorizer-dashboard:/vectorizer/dashboard
       
       # Workspace configuration for Docker (paths are /workspace/*)

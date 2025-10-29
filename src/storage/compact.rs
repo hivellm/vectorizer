@@ -49,7 +49,7 @@ impl StorageCompactor {
 
     /// Compact all collections from memory (no raw files created/used)
     pub fn compact_from_memory(&self, store: &crate::db::VectorStore) -> Result<StorageIndex> {
-        info!("🗜️  Starting compaction from memory + disk auxiliary files");
+        info!("🗜️  Starting compaction from memory (no raw files)");
 
         // SAFETY: Create backup of existing .vecdb before overwriting
         let vecdb_path = self.data_dir.join(crate::storage::VECDB_FILE);
@@ -69,31 +69,6 @@ impl StorageCompactor {
                 }
             }
         }
-
-        // CRITICAL: Check for tokenizer and checksum files on disk BEFORE processing
-        info!("🔍 Scanning disk for auxiliary files (_tokenizer.json, _checksums.json)...");
-        let mut disk_tokenizers = std::collections::HashMap::new();
-        let mut disk_checksums = std::collections::HashMap::new();
-        
-        if let Ok(entries) = std::fs::read_dir(&self.data_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if let Some(coll_name) = name.strip_suffix("_tokenizer.json") {
-                            info!("   📄 Found tokenizer for collection: {}", coll_name);
-                            disk_tokenizers.insert(coll_name.to_string(), path.clone());
-                        } else if let Some(coll_name) = name.strip_suffix("_checksums.json") {
-                            info!("   📄 Found checksums for collection: {}", coll_name);
-                            disk_checksums.insert(coll_name.to_string(), path.clone());
-                        }
-                    }
-                }
-            }
-        }
-        
-        info!("📊 Found {} tokenizer files on disk", disk_tokenizers.len());
-        info!("📊 Found {} checksum files on disk", disk_checksums.len());
 
         // Get all collections from store
         let collection_names = store.list_collections();
@@ -159,8 +134,6 @@ impl StorageCompactor {
                         config: Some(config),
                         vectors: persisted_vectors,
                         hnsw_dump_basename: None,
-                        tokenizer: None, // Will be loaded from disk if exists
-                        checksums: None, // Will be loaded from disk if exists
                     };
 
                     persisted_collections.push(persisted);
@@ -169,56 +142,6 @@ impl StorageCompactor {
                     warn!("⚠️  Failed to get collection '{}': {}", name, e);
                     continue;
                 }
-            }
-        }
-        
-        // CRITICAL: Load tokenizer and checksums from disk for each collection
-        info!("🔍 Loading auxiliary files from disk for {} collections...", persisted_collections.len());
-        for persisted in &mut persisted_collections {
-            let coll_name = &persisted.name;
-            
-            // Load tokenizer if exists
-            if let Some(tokenizer_path) = disk_tokenizers.get(coll_name) {
-                match std::fs::read_to_string(tokenizer_path) {
-                    Ok(content) => {
-                        match serde_json::from_str::<serde_json::Value>(&content) {
-                            Ok(tokenizer_data) => {
-                                info!("   ✅ Loaded tokenizer for '{}'", coll_name);
-                                persisted.tokenizer = Some(tokenizer_data);
-                            }
-                            Err(e) => {
-                                warn!("   ⚠️  Failed to parse tokenizer for '{}': {}", coll_name, e);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!("   ⚠️  Failed to read tokenizer for '{}': {}", coll_name, e);
-                    }
-                }
-            } else {
-                warn!("   ⚠️  No tokenizer file found for collection '{}'", coll_name);
-            }
-            
-            // Load checksums if exists
-            if let Some(checksums_path) = disk_checksums.get(coll_name) {
-                match std::fs::read_to_string(checksums_path) {
-                    Ok(content) => {
-                        match serde_json::from_str::<serde_json::Value>(&content) {
-                            Ok(checksums_data) => {
-                                info!("   ✅ Loaded checksums for '{}'", coll_name);
-                                persisted.checksums = Some(checksums_data);
-                            }
-                            Err(e) => {
-                                warn!("   ⚠️  Failed to parse checksums for '{}': {}", coll_name, e);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!("   ⚠️  Failed to read checksums for '{}': {}", coll_name, e);
-                    }
-                }
-            } else {
-                warn!("   ⚠️  No checksums file found for collection '{}'", coll_name);
             }
         }
 
@@ -324,23 +247,6 @@ impl StorageCompactor {
             "🗜️  Starting compaction of directory: {}",
             source_dir.display()
         );
-        
-        // List all files before compaction
-        info!("📋 Listing files in directory before compaction:");
-        if let Ok(entries) = std::fs::read_dir(source_dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                            if let Ok(metadata) = std::fs::metadata(&path) {
-                                info!("   📄 {}: {} bytes", name, metadata.len());
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         let writer = StorageWriter::new(&self.data_dir, self.compression_level);
         let index = writer.write_archive(source_dir)?;

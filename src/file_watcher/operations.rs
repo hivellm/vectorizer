@@ -111,14 +111,6 @@ impl VectorOperations {
             embedding_type: "bm25".to_string(),
             collection_name: collection_name.to_string(),
             max_file_size: 10 * 1024 * 1024, // 10MB
-            allowed_extensions: vec![
-                "md".to_string(),
-                "txt".to_string(),
-                "json".to_string(),
-                "rs".to_string(),
-                "ts".to_string(),
-                "js".to_string(),
-            ],
         };
 
         // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
@@ -128,14 +120,10 @@ impl VectorOperations {
         let embedding_manager = {
             let guard = self.embedding_manager.read().await;
             // Create new embedding manager for this operation
-            let config = crate::embedding::EmbeddingConfig::default();
-            let mut em = EmbeddingManager::new(config);
-            let bm25 = crate::embedding::Bm25Embedding::default();
-            em.add_provider(
-                crate::embedding::EmbeddingProviderType::BM25,
-                Arc::new(bm25),
-            );
-            em.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
+            let mut em = EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            em.register_provider("bm25".to_string(), Box::new(bm25));
+            em.set_default_provider("bm25").unwrap();
             em
         };
         let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
@@ -244,28 +232,16 @@ impl VectorOperations {
             embedding_type: "bm25".to_string(),
             collection_name: collection_name.clone(),
             max_file_size: self.config.max_file_size as usize,
-            allowed_extensions: vec![
-                "md".to_string(),
-                "txt".to_string(),
-                "json".to_string(),
-                "rs".to_string(),
-                "ts".to_string(),
-                "js".to_string(),
-            ],
         };
 
         // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
         loader_config.ensure_hardcoded_excludes();
 
         let embedding_manager = {
-            let config = crate::embedding::EmbeddingConfig::default();
-            let mut em = EmbeddingManager::new(config);
-            let bm25 = crate::embedding::Bm25Embedding::default();
-            em.add_provider(
-                crate::embedding::EmbeddingProviderType::BM25,
-                Arc::new(bm25),
-            );
-            em.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
+            let mut em = EmbeddingManager::new();
+            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            em.register_provider("bm25".to_string(), Box::new(bm25));
+            em.set_default_provider("bm25").unwrap();
             em
         };
         let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);

@@ -79,7 +79,7 @@ pub fn validate_workspace_config(
     if result.is_valid {
         debug!("Workspace configuration validation passed");
     } else {
-        debug!(
+        error!(
             "Workspace configuration validation failed with {} errors",
             result.errors.len()
         );

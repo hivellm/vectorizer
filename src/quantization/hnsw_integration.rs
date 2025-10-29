@@ -254,7 +254,7 @@ impl QuantizedHnswIndex {
             memory_usage_bytes: quantized_memory,
             quality_loss: self.quantization.quality_loss(),
             quantization_type: self.config.quantization_type.clone(),
-            cache_hit_ratio: 1.0,
+            cache_hit_ratio: 1.0, // TODO: Implement actual cache hit tracking
         })
     }
 

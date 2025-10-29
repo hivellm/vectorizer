@@ -26,7 +26,7 @@ pub async fn setup_integrated_file_watcher() -> Result<IntegratedSyncManager> {
     let hash_validator = Arc::new(HashValidator::new());
     let embedding_cache = Arc::new(EmbeddingCache::new(CacheConfig::default())?);
     let vector_store = Arc::new(VectorStore::new());
-    let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new(crate::embedding::EmbeddingConfig::default())));
+    let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
     let parallel_processor = Arc::new(ParallelProcessor::new(Arc::new(BatchConfig::default())));
 
     // 2. Configure the integrated sync manager

@@ -1,6 +1,6 @@
 //! Thin wrapper for .vecdb persistence using existing storage module
 
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::VectorStore;
 use crate::error::Result;
@@ -88,8 +88,6 @@ impl Persistence {
             config: Some(meta.config.clone()),
             vectors: persisted_vectors,
             hnsw_dump_basename: None,
-            tokenizer: None,
-            checksums: None,
         };
 
         let file = File::create(&temp_path).map_err(|e| crate::error::VectorizerError::Io(e))?;
@@ -210,13 +208,9 @@ impl Persistence {
         use serde_json;
         use sha2::{Digest, Sha256};
 
-        info!("🔍 save_checksums called for collection '{}'", collection_name);
-
         let checksums_path = self
             .data_dir
             .join(format!("{}_checksums.json", collection_name));
-
-        info!("📁 Checksums path: {}", checksums_path.display());
 
         // Extract file paths from vector payloads and compute checksums
         let mut file_checksums: HashMap<String, String> = HashMap::new();
@@ -244,36 +238,19 @@ impl Persistence {
             }
         }
 
-        info!("📊 Computed checksums for {} files", file_checksums.len());
-
         let file =
-            File::create(&checksums_path).map_err(|e| {
-                error!("❌ Failed to create checksums file: {}", e);
-                crate::error::VectorizerError::Io(e)
-            })?;
+            File::create(&checksums_path).map_err(|e| crate::error::VectorizerError::Io(e))?;
         let writer = BufWriter::new(file);
 
         serde_json::to_writer_pretty(writer, &file_checksums)
-            .map_err(|e| {
-                error!("❌ Failed to write checksums: {}", e);
-                crate::error::VectorizerError::Serialization(e.to_string())
-            })?;
+            .map_err(|e| crate::error::VectorizerError::Serialization(e.to_string()))?;
 
         info!(
-            "✅ Saved checksums for {} files in collection '{}' to {}",
+            "Saved checksums for {} files in collection '{}' to {}",
             file_checksums.len(),
             collection_name,
             checksums_path.display()
         );
-        
-        // Verify file was created
-        if checksums_path.exists() {
-            let metadata = std::fs::metadata(&checksums_path)?;
-            info!("✅ Checksums file verified: {} bytes", metadata.len());
-        } else {
-            error!("❌ CRITICAL: Checksums file was NOT created!");
-        }
-        
         Ok(())
     }
 
@@ -288,51 +265,6 @@ impl Persistence {
             std::fs::create_dir_all(&self.data_dir)
                 .map_err(|e| crate::error::VectorizerError::Io(e))?;
             info!("Created data directory");
-        }
-
-        // CRITICAL: List ALL files BEFORE compaction to verify tokenizer/checksums exist
-        info!("📋 BEFORE COMPACTION - Files in data directory:");
-        if let Ok(entries) = std::fs::read_dir(&self.data_dir) {
-            let mut tokenizer_count = 0;
-            let mut checksum_count = 0;
-            let mut vector_count = 0;
-            let mut metadata_count = 0;
-            
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                            if name.ends_with("_tokenizer.json") {
-                                tokenizer_count += 1;
-                                info!("   ✅ TOKENIZER: {}", name);
-                            } else if name.ends_with("_checksums.json") {
-                                checksum_count += 1;
-                                info!("   ✅ CHECKSUM: {}", name);
-                            } else if name.ends_with("_vector_store.bin") {
-                                vector_count += 1;
-                                info!("   ✅ VECTOR: {}", name);
-                            } else if name.ends_with("_metadata.json") {
-                                metadata_count += 1;
-                                info!("   ✅ METADATA: {}", name);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            info!("📊 File counts:");
-            info!("   Tokenizers: {}", tokenizer_count);
-            info!("   Checksums: {}", checksum_count);
-            info!("   Vector stores: {}", vector_count);
-            info!("   Metadata: {}", metadata_count);
-            
-            if tokenizer_count == 0 {
-                error!("❌ CRITICAL: NO TOKENIZER FILES FOUND BEFORE COMPACTION!");
-            }
-            if checksum_count == 0 {
-                error!("❌ CRITICAL: NO CHECKSUM FILES FOUND BEFORE COMPACTION!");
-            }
         }
 
         // CRITICAL: Check if .vecdb already exists before compaction

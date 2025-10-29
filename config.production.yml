@@ -1,0 +1,171 @@
+# Vectorizer Production Configuration
+# Optimized settings for production deployment with replication
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+server:
+  host: "0.0.0.0"
+  port: 15002
+  mcp_port: 15002
+  data_dir: "./data"
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+logging:
+  level: "warn"                   # Production: warn level
+  format: "json"
+  log_requests: true
+  log_responses: false
+  log_errors: true
+
+# =============================================================================
+# REPLICATION CONFIGURATION
+# =============================================================================
+# IMPORTANT: Configure based on node role
+
+# Master Node Example:
+# replication:
+#   enabled: true
+#   role: "master"
+#   bind_address: "0.0.0.0:7001"
+#   heartbeat_interval_secs: 5
+#   replica_timeout_secs: 30
+#   log_size: 1000000
+
+# Replica Node Example:
+# replication:
+#   enabled: true
+#   role: "replica"
+#   master_address: "master.example.com:7001"
+#   reconnect_interval_secs: 5
+
+# Default: Standalone (no replication)
+replication:
+  enabled: false
+  role: "standalone"
+  heartbeat_interval_secs: 5
+  replica_timeout_secs: 30
+  log_size: 1000000
+  reconnect_interval_secs: 5
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATION
+# =============================================================================
+performance:
+  cpu:
+    max_threads: 16               # Production: more threads
+    enable_simd: true
+    memory_pool_size_mb: 4096     # Production: 4GB pool
+  batch:
+    default_size: 500
+    max_size: 2000
+    parallel_processing: true
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+storage:
+  compression:
+    enabled: true
+    format: "zstd"
+    level: 6                      # Production: higher compression
+  compaction:
+    auto_compact: true
+    batch_size: 2000
+  snapshots:
+    enabled: true
+    interval_hours: 2             # Production: less frequent
+    max_snapshots: 24
+    retention_days: 7
+    path: "./data/snapshots"
+
+# =============================================================================
+# COLLECTION DEFAULTS
+# =============================================================================
+collections:
+  defaults:
+    dimension: 512
+    metric: "cosine"
+    quantization:
+      type: "sq"
+      sq:
+        bits: 8
+    embedding:
+      model: "bm25"
+    index:
+      type: "hnsw"
+      hnsw:
+        m: 16
+        ef_construction: 200
+        ef_search: 64
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+api:
+  rest:
+    enabled: true
+    cors_enabled: true
+    max_request_size_mb: 50       # Production: larger requests
+    timeout_seconds: 60
+  mcp:
+    enabled: true
+    port: 15002
+    max_connections: 500          # Production: more connections
+
+# =============================================================================
+# WORKSPACE CONFIGURATION
+# =============================================================================
+workspace:
+  enabled: true
+  auto_load_collections: true
+  default_workspace_file: "./vectorize-workspace.yml"
+
+# =============================================================================
+# FILE WATCHER
+# =============================================================================
+file_watcher:
+  enabled: false                  # Production: typically disabled
+  debounce_delay_ms: 1000
+  min_file_size_bytes: 1
+  max_file_size_bytes: 10485760
+  hash_validation_enabled: true
+  collection_name: "workspace-files"
+
+# =============================================================================
+# NORMALIZATION
+# =============================================================================
+normalization:
+  enabled: true
+  level: "conservative"
+  line_endings:
+    normalize_crlf: true
+    normalize_cr: true
+    collapse_multiple_newlines: true
+    trim_trailing_whitespace: true
+  content_detection:
+    enabled: true
+    preserve_code_structure: true
+    preserve_markdown_format: true
+  cache:
+    enabled: true
+    max_entries: 50000            # Production: larger cache
+    ttl_seconds: 7200
+  stages:
+    on_file_read: true
+    on_chunk_creation: true
+    on_payload_return: true
+    on_cache_load: true
+
+# =============================================================================
+# TRANSMUTATION
+# =============================================================================
+transmutation:
+  enabled: true
+  max_file_size_mb: 100           # Production: larger files
+  conversion_timeout_secs: 600    # Production: longer timeout
+  preserve_images: false
+
+

@@ -1,329 +1,384 @@
-//! Error handling for batch processing
+//! Batch Operations Error Handling
 //!
-//! This module provides comprehensive error handling for batch operations,
-//! including error classification, retry logic, and error reporting.
+//! Comprehensive error handling for batch operations including error types,
+//! error codes, and result structures.
 
 use std::fmt;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::batch::{BatchError, BatchErrorType};
+/// Batch operation status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BatchStatus {
+    Success,
+    Partial,
+    Failed,
+}
 
-/// Comprehensive error for batch processing
+impl fmt::Display for BatchStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BatchStatus::Success => write!(f, "success"),
+            BatchStatus::Partial => write!(f, "partial"),
+            BatchStatus::Failed => write!(f, "failed"),
+        }
+    }
+}
+
+/// Batch operation error types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BatchErrorType {
+    // Validation errors
+    InvalidBatchSize,
+    InvalidVectorData,
+    InvalidVectorId,
+    InvalidCollection,
+    InvalidQuery,
+
+    // Resource errors
+    MemoryLimitExceeded,
+    TimeoutExceeded,
+    ResourceUnavailable,
+    ConcurrentBatchLimitExceeded,
+
+    // Processing errors
+    EmbeddingGenerationFailed,
+    VectorStoreError,
+    IndexingError,
+    SerializationError,
+
+    // System errors
+    InternalError,
+    DatabaseError,
+    NetworkError,
+    AuthenticationError,
+
+    // Custom error
+    Custom(String),
+}
+
+impl fmt::Display for BatchErrorType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BatchErrorType::InvalidBatchSize => write!(f, "invalid_batch_size"),
+            BatchErrorType::InvalidVectorData => write!(f, "invalid_vector_data"),
+            BatchErrorType::InvalidVectorId => write!(f, "invalid_vector_id"),
+            BatchErrorType::InvalidCollection => write!(f, "invalid_collection"),
+            BatchErrorType::InvalidQuery => write!(f, "invalid_query"),
+            BatchErrorType::MemoryLimitExceeded => write!(f, "memory_limit_exceeded"),
+            BatchErrorType::TimeoutExceeded => write!(f, "timeout_exceeded"),
+            BatchErrorType::ResourceUnavailable => write!(f, "resource_unavailable"),
+            BatchErrorType::ConcurrentBatchLimitExceeded => {
+                write!(f, "concurrent_batch_limit_exceeded")
+            }
+            BatchErrorType::EmbeddingGenerationFailed => write!(f, "embedding_generation_failed"),
+            BatchErrorType::VectorStoreError => write!(f, "vector_store_error"),
+            BatchErrorType::IndexingError => write!(f, "indexing_error"),
+            BatchErrorType::SerializationError => write!(f, "serialization_error"),
+            BatchErrorType::InternalError => write!(f, "internal_error"),
+            BatchErrorType::DatabaseError => write!(f, "database_error"),
+            BatchErrorType::NetworkError => write!(f, "network_error"),
+            BatchErrorType::AuthenticationError => write!(f, "authentication_error"),
+            BatchErrorType::Custom(msg) => write!(f, "custom:{}", msg),
+        }
+    }
+}
+
+/// Batch operation error
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BatchProcessingError {
-    /// Error type
+pub struct BatchError {
+    pub operation_id: String,
     pub error_type: BatchErrorType,
-    /// Error message
-    pub message: String,
-    /// Item index that caused the error
-    pub item_index: Option<usize>,
-    /// Batch index that caused the error
-    pub batch_index: Option<usize>,
-    /// Retry count
+    pub error_message: String,
+    pub vector_id: Option<String>,
     pub retry_count: u32,
-    /// Timestamp when error occurred
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-    /// Additional context
-    pub context: Option<ErrorContext>,
+    pub timestamp: u64,
 }
 
-/// Additional context for errors
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ErrorContext {
-    /// Memory usage when error occurred
-    pub memory_usage_mb: Option<f64>,
-    /// Processing time when error occurred
-    pub processing_time_ms: Option<u64>,
-    /// System load when error occurred
-    pub system_load: Option<f64>,
-    /// Custom context data
-    pub custom_data: Option<serde_json::Value>,
+impl BatchError {
+    pub fn new(
+        operation_id: String,
+        error_type: BatchErrorType,
+        error_message: String,
+        vector_id: Option<String>,
+    ) -> Self {
+        Self {
+            operation_id,
+            error_type,
+            error_message,
+            vector_id,
+            retry_count: 0,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        }
+    }
+
+    pub fn with_retry_count(mut self, retry_count: u32) -> Self {
+        self.retry_count = retry_count;
+        self
+    }
+
+    pub fn is_retryable(&self) -> bool {
+        match self.error_type {
+            BatchErrorType::TimeoutExceeded
+            | BatchErrorType::ResourceUnavailable
+            | BatchErrorType::NetworkError
+            | BatchErrorType::VectorStoreError => true,
+            _ => false,
+        }
+    }
+
+    pub fn should_retry(&self, max_retries: u32) -> bool {
+        self.is_retryable() && self.retry_count < max_retries
+    }
+
+    pub fn error_code(&self) -> String {
+        format!("BATCH_{}", self.error_type)
+    }
 }
 
-impl fmt::Display for BatchProcessingError {
+impl fmt::Display for BatchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "BatchProcessingError({:?}): {}",
-            self.error_type, self.message
-        )?;
-
-        if let Some(item_index) = self.item_index {
-            write!(f, " [item: {}]", item_index)?;
-        }
-
-        if let Some(batch_index) = self.batch_index {
-            write!(f, " [batch: {}]", batch_index)?;
-        }
-
-        if self.retry_count > 0 {
-            write!(f, " [retries: {}]", self.retry_count)?;
-        }
-
-        Ok(())
+            "BatchError {{ operation_id: {}, error_type: {}, message: {}, vector_id: {:?}, retry_count: {} }}",
+            self.operation_id,
+            self.error_type,
+            self.error_message,
+            self.vector_id,
+            self.retry_count
+        )
     }
 }
 
-impl std::error::Error for BatchProcessingError {}
+impl std::error::Error for BatchError {}
 
-impl BatchProcessingError {
-    /// Create a new batch processing error
-    pub fn new(
-        error_type: BatchErrorType,
-        message: String,
-        item_index: Option<usize>,
-        batch_index: Option<usize>,
-    ) -> Self {
-        Self {
-            error_type,
-            message,
-            item_index,
-            batch_index,
-            retry_count: 0,
-            timestamp: chrono::Utc::now(),
-            context: None,
-        }
-    }
-
-    /// Create with context
-    pub fn with_context(
-        error_type: BatchErrorType,
-        message: String,
-        item_index: Option<usize>,
-        batch_index: Option<usize>,
-        context: ErrorContext,
-    ) -> Self {
-        Self {
-            error_type,
-            message,
-            item_index,
-            batch_index,
-            retry_count: 0,
-            timestamp: chrono::Utc::now(),
-            context: Some(context),
-        }
-    }
-
-    /// Increment retry count
-    pub fn increment_retry(&mut self) {
-        self.retry_count += 1;
-    }
-
-    /// Check if error is retryable
-    pub fn is_retryable(&self) -> bool {
-        match self.error_type {
-            BatchErrorType::Timeout => true,
-            BatchErrorType::NetworkError => true,
-            BatchErrorType::MemoryError => false,
-            BatchErrorType::ValidationError => false,
-            BatchErrorType::CollectionNotFound => false,
-            BatchErrorType::InsertionFailed => true,
-            BatchErrorType::UpdateFailed => true,
-            BatchErrorType::DeletionFailed => true,
-            BatchErrorType::SearchFailed => true,
-            BatchErrorType::Unknown => true,
-        }
-    }
-
-    /// Get retry delay based on error type and retry count
-    pub fn get_retry_delay(&self) -> Duration {
-        let base_delay = match self.error_type {
-            BatchErrorType::Timeout => Duration::from_secs(1),
-            BatchErrorType::NetworkError => Duration::from_secs(2),
-            BatchErrorType::MemoryError => Duration::from_secs(30),
-            BatchErrorType::ValidationError => Duration::from_secs(0),
-            BatchErrorType::CollectionNotFound => Duration::from_secs(0),
-            BatchErrorType::InsertionFailed => Duration::from_secs(2),
-            BatchErrorType::UpdateFailed => Duration::from_secs(2),
-            BatchErrorType::DeletionFailed => Duration::from_secs(2),
-            BatchErrorType::SearchFailed => Duration::from_secs(1),
-            BatchErrorType::Unknown => Duration::from_secs(5),
-        };
-
-        // Exponential backoff
-        let multiplier = 2_u32.pow(self.retry_count.min(5));
-        Duration::from_millis(base_delay.as_millis() as u64 * multiplier as u64)
-    }
-}
-
-/// Error aggregator for batch processing
-pub struct ErrorAggregator {
-    errors: Vec<BatchProcessingError>,
-    max_errors: usize,
-    error_counts: std::collections::HashMap<BatchErrorType, usize>,
-}
-
-impl ErrorAggregator {
-    /// Create a new error aggregator
-    pub fn new(max_errors: usize) -> Self {
-        Self {
-            errors: Vec::new(),
-            max_errors,
-            error_counts: std::collections::HashMap::new(),
-        }
-    }
-
-    /// Add an error
-    pub fn add_error(&mut self, error: BatchProcessingError) {
-        if self.errors.len() < self.max_errors {
-            self.errors.push(error.clone());
-        }
-
-        *self.error_counts.entry(error.error_type).or_insert(0) += 1;
-    }
-
-    /// Get all errors
-    pub fn get_errors(&self) -> &[BatchProcessingError] {
-        &self.errors
-    }
-
-    /// Get error counts by type
-    pub fn get_error_counts(&self) -> &std::collections::HashMap<BatchErrorType, usize> {
-        &self.error_counts
-    }
-
-    /// Get total error count
-    pub fn total_errors(&self) -> usize {
-        self.error_counts.values().sum()
-    }
-
-    /// Get most common error type
-    pub fn most_common_error_type(&self) -> Option<BatchErrorType> {
-        self.error_counts
-            .iter()
-            .max_by_key(|(_, count)| *count)
-            .map(|(error_type, _)| error_type.clone())
-    }
-
-    /// Check if error limit exceeded
-    pub fn is_error_limit_exceeded(&self) -> bool {
-        self.errors.len() >= self.max_errors
-    }
-
-    /// Clear all errors
-    pub fn clear(&mut self) {
-        self.errors.clear();
-        self.error_counts.clear();
-    }
-}
-
-/// Error recovery strategies
-pub enum ErrorRecoveryStrategy {
-    /// Retry with exponential backoff
-    ExponentialBackoff {
-        max_retries: u32,
-        base_delay: Duration,
-    },
-    /// Retry with fixed delay
-    FixedDelay { max_retries: u32, delay: Duration },
-    /// Skip failed items
-    SkipFailed,
-    /// Stop processing on first error
-    StopOnError,
-    /// Custom recovery strategy
-    Custom(Box<dyn Fn(&BatchProcessingError) -> RecoveryAction + Send + Sync>),
-}
-
-/// Recovery action to take
-pub enum RecoveryAction {
-    /// Retry the operation
-    Retry,
-    /// Skip the item
-    Skip,
-    /// Stop processing
-    Stop,
-    /// Wait before retrying
-    Wait(Duration),
-}
-
-impl Default for ErrorRecoveryStrategy {
-    fn default() -> Self {
-        Self::ExponentialBackoff {
-            max_retries: 3,
-            base_delay: Duration::from_secs(1),
-        }
-    }
-}
-
-/// Error recovery manager
-pub struct ErrorRecoveryManager {
-    strategy: ErrorRecoveryStrategy,
-    error_aggregator: ErrorAggregator,
-}
-
-impl ErrorRecoveryManager {
-    /// Create a new error recovery manager
-    pub fn new(strategy: ErrorRecoveryStrategy, max_errors: usize) -> Self {
-        Self {
-            strategy,
-            error_aggregator: ErrorAggregator::new(max_errors),
-        }
-    }
-
-    /// Handle an error and determine recovery action
-    pub fn handle_error(&mut self, error: BatchProcessingError) -> RecoveryAction {
-        self.error_aggregator.add_error(error.clone());
-
-        match &self.strategy {
-            ErrorRecoveryStrategy::ExponentialBackoff {
-                max_retries,
-                base_delay,
-            } => {
-                if error.retry_count >= *max_retries {
-                    RecoveryAction::Skip
-                } else if error.is_retryable() {
-                    let delay = Duration::from_millis(
-                        base_delay.as_millis() as u64 * 2_u64.pow(error.retry_count.min(5)),
-                    );
-                    RecoveryAction::Wait(delay)
-                } else {
-                    RecoveryAction::Skip
-                }
-            }
-            ErrorRecoveryStrategy::FixedDelay { max_retries, delay } => {
-                if error.retry_count >= *max_retries {
-                    RecoveryAction::Skip
-                } else if error.is_retryable() {
-                    RecoveryAction::Wait(*delay)
-                } else {
-                    RecoveryAction::Skip
-                }
-            }
-            ErrorRecoveryStrategy::SkipFailed => RecoveryAction::Skip,
-            ErrorRecoveryStrategy::StopOnError => RecoveryAction::Stop,
-            ErrorRecoveryStrategy::Custom(func) => func(&error),
-        }
-    }
-
-    /// Get error statistics
-    pub fn get_error_stats(&self) -> ErrorStats {
-        ErrorStats {
-            total_errors: self.error_aggregator.total_errors(),
-            error_counts: self.error_aggregator.get_error_counts().clone(),
-            most_common_error: self.error_aggregator.most_common_error_type(),
-            is_limit_exceeded: self.error_aggregator.is_error_limit_exceeded(),
-        }
-    }
-
-    /// Clear error history
-    pub fn clear_errors(&mut self) {
-        self.error_aggregator.clear();
-    }
-}
-
-/// Error statistics
+/// Batch operation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ErrorStats {
-    /// Total number of errors
-    pub total_errors: usize,
-    /// Error counts by type
-    pub error_counts: std::collections::HashMap<BatchErrorType, usize>,
-    /// Most common error type
-    pub most_common_error: Option<BatchErrorType>,
-    /// Whether error limit was exceeded
-    pub is_limit_exceeded: bool,
+pub struct BatchResult<T> {
+    pub successful_operations: Vec<T>,
+    pub failed_operations: Vec<BatchError>,
+    pub processing_time_ms: f64,
+    pub status: BatchStatus,
+    pub total_operations: usize,
+    pub successful_count: usize,
+    pub failed_count: usize,
+}
+
+impl<T> BatchResult<T> {
+    pub fn new() -> Self {
+        Self {
+            successful_operations: Vec::new(),
+            failed_operations: Vec::new(),
+            processing_time_ms: 0.0,
+            status: BatchStatus::Success,
+            total_operations: 0,
+            successful_count: 0,
+            failed_count: 0,
+        }
+    }
+
+    pub fn with_processing_time(mut self, time_ms: f64) -> Self {
+        self.processing_time_ms = time_ms;
+        self
+    }
+
+    pub fn add_success(&mut self, result: T) {
+        self.successful_operations.push(result);
+        self.successful_count += 1;
+        self.total_operations += 1;
+        self.update_status();
+    }
+
+    pub fn add_error(&mut self, error: BatchError) {
+        self.failed_operations.push(error);
+        self.failed_count += 1;
+        self.total_operations += 1;
+        self.update_status();
+    }
+
+    fn update_status(&mut self) {
+        self.status = if self.failed_count == 0 {
+            BatchStatus::Success
+        } else if self.successful_count > 0 {
+            BatchStatus::Partial
+        } else {
+            BatchStatus::Failed
+        };
+    }
+
+    pub fn success_rate(&self) -> f64 {
+        if self.total_operations == 0 {
+            0.0
+        } else {
+            (self.successful_count as f64 / self.total_operations as f64) * 100.0
+        }
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.failed_operations.is_empty()
+    }
+
+    pub fn is_complete_success(&self) -> bool {
+        self.status == BatchStatus::Success
+    }
+
+    pub fn is_complete_failure(&self) -> bool {
+        self.status == BatchStatus::Failed
+    }
+
+    pub fn is_partial_success(&self) -> bool {
+        self.status == BatchStatus::Partial
+    }
+
+    pub fn get_errors_by_type(&self, error_type: &BatchErrorType) -> Vec<&BatchError> {
+        self.failed_operations
+            .iter()
+            .filter(|error| {
+                std::mem::discriminant(&error.error_type) == std::mem::discriminant(error_type)
+            })
+            .collect()
+    }
+
+    pub fn get_retryable_errors(&self) -> Vec<&BatchError> {
+        self.failed_operations
+            .iter()
+            .filter(|error| error.is_retryable())
+            .collect()
+    }
+}
+
+impl<T> Default for BatchResult<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Batch operation statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchStatistics {
+    pub total_operations: usize,
+    pub successful_operations: usize,
+    pub failed_operations: usize,
+    pub retryable_errors: usize,
+    pub processing_time_ms: f64,
+    pub throughput_ops_per_second: f64,
+    pub average_latency_ms: f64,
+    pub error_distribution: std::collections::HashMap<String, usize>,
+}
+
+impl BatchStatistics {
+    pub fn new() -> Self {
+        Self {
+            total_operations: 0,
+            successful_operations: 0,
+            failed_operations: 0,
+            retryable_errors: 0,
+            processing_time_ms: 0.0,
+            throughput_ops_per_second: 0.0,
+            average_latency_ms: 0.0,
+            error_distribution: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn from_result<T>(result: &BatchResult<T>) -> Self {
+        let mut stats = Self::new();
+
+        stats.total_operations = result.total_operations;
+        stats.successful_operations = result.successful_count;
+        stats.failed_operations = result.failed_count;
+        stats.processing_time_ms = result.processing_time_ms;
+
+        // Calculate throughput
+        if result.processing_time_ms > 0.0 {
+            stats.throughput_ops_per_second =
+                (result.total_operations as f64 * 1000.0) / result.processing_time_ms;
+            stats.average_latency_ms = result.processing_time_ms / result.total_operations as f64;
+        }
+
+        // Count retryable errors
+        stats.retryable_errors = result.get_retryable_errors().len();
+
+        // Build error distribution
+        for error in &result.failed_operations {
+            let error_code = error.error_code();
+            *stats.error_distribution.entry(error_code).or_insert(0) += 1;
+        }
+
+        stats
+    }
+}
+
+impl Default for BatchStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Helper functions for creating common batch errors
+pub fn invalid_batch_size_error(
+    operation_id: String,
+    actual_size: usize,
+    max_size: usize,
+) -> BatchError {
+    BatchError::new(
+        operation_id,
+        BatchErrorType::InvalidBatchSize,
+        format!(
+            "Batch size {} exceeds maximum allowed size {}",
+            actual_size, max_size
+        ),
+        None,
+    )
+}
+
+pub fn memory_limit_exceeded_error(
+    operation_id: String,
+    estimated_mb: usize,
+    limit_mb: usize,
+) -> BatchError {
+    BatchError::new(
+        operation_id,
+        BatchErrorType::MemoryLimitExceeded,
+        format!(
+            "Estimated memory usage {}MB exceeds limit {}MB",
+            estimated_mb, limit_mb
+        ),
+        None,
+    )
+}
+
+pub fn vector_store_error(operation_id: String, vector_id: String, message: String) -> BatchError {
+    BatchError::new(
+        operation_id,
+        BatchErrorType::VectorStoreError,
+        message,
+        Some(vector_id),
+    )
+}
+
+pub fn embedding_generation_error(
+    operation_id: String,
+    vector_id: Option<String>,
+    message: String,
+) -> BatchError {
+    BatchError::new(
+        operation_id,
+        BatchErrorType::EmbeddingGenerationFailed,
+        message,
+        vector_id,
+    )
+}
+
+pub fn timeout_error(operation_id: String, timeout_seconds: u64) -> BatchError {
+    BatchError::new(
+        operation_id,
+        BatchErrorType::TimeoutExceeded,
+        format!("Operation timed out after {} seconds", timeout_seconds),
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -331,91 +386,137 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_batch_processing_error() {
-        let error = BatchProcessingError::new(
-            BatchErrorType::Timeout,
-            "Operation timed out".to_string(),
-            Some(42),
-            Some(1),
+    fn test_batch_status_display() {
+        assert_eq!(format!("{}", BatchStatus::Success), "success");
+        assert_eq!(format!("{}", BatchStatus::Partial), "partial");
+        assert_eq!(format!("{}", BatchStatus::Failed), "failed");
+    }
+
+    #[test]
+    fn test_batch_error_type_display() {
+        assert_eq!(
+            format!("{}", BatchErrorType::InvalidBatchSize),
+            "invalid_batch_size"
+        );
+        assert_eq!(
+            format!("{}", BatchErrorType::MemoryLimitExceeded),
+            "memory_limit_exceeded"
+        );
+        assert_eq!(
+            format!("{}", BatchErrorType::Custom("test".to_string())),
+            "custom:test"
+        );
+    }
+
+    #[test]
+    fn test_batch_error_creation() {
+        let error = BatchError::new(
+            "op1".to_string(),
+            BatchErrorType::InvalidVectorData,
+            "Invalid vector".to_string(),
+            Some("vec1".to_string()),
         );
 
-        assert_eq!(error.error_type, BatchErrorType::Timeout);
-        assert_eq!(error.item_index, Some(42));
-        assert_eq!(error.batch_index, Some(1));
-        assert!(error.is_retryable());
+        assert_eq!(error.operation_id, "op1");
+        assert_eq!(error.vector_id, Some("vec1".to_string()));
         assert_eq!(error.retry_count, 0);
     }
 
     #[test]
-    fn test_error_aggregator() {
-        let mut aggregator = ErrorAggregator::new(10);
-
-        let error1 = BatchProcessingError::new(
-            BatchErrorType::Timeout,
-            "Timeout 1".to_string(),
-            Some(1),
-            Some(0),
+    fn test_batch_error_retryable() {
+        let timeout_error = BatchError::new(
+            "op1".to_string(),
+            BatchErrorType::TimeoutExceeded,
+            "Timeout".to_string(),
+            None,
         );
+        assert!(timeout_error.is_retryable());
 
-        let error2 = BatchProcessingError::new(
-            BatchErrorType::Timeout,
-            "Timeout 2".to_string(),
-            Some(2),
-            Some(0),
+        let invalid_error = BatchError::new(
+            "op2".to_string(),
+            BatchErrorType::InvalidVectorData,
+            "Invalid".to_string(),
+            None,
         );
-
-        aggregator.add_error(error1);
-        aggregator.add_error(error2);
-
-        assert_eq!(aggregator.total_errors(), 2);
-        assert_eq!(
-            aggregator.get_error_counts().get(&BatchErrorType::Timeout),
-            Some(&2)
-        );
-        assert_eq!(
-            aggregator.most_common_error_type(),
-            Some(BatchErrorType::Timeout)
-        );
+        assert!(!invalid_error.is_retryable());
     }
 
     #[test]
-    fn test_error_recovery_manager() {
-        let strategy = ErrorRecoveryStrategy::ExponentialBackoff {
-            max_retries: 3,
-            base_delay: Duration::from_secs(1),
-        };
+    fn test_batch_result_operations() {
+        let mut result: BatchResult<String> = BatchResult::new();
 
-        let mut manager = ErrorRecoveryManager::new(strategy, 100);
+        result.add_success("success1".to_string());
+        result.add_success("success2".to_string());
 
-        let error = BatchProcessingError::new(
-            BatchErrorType::Timeout,
-            "Timeout".to_string(),
-            Some(1),
-            Some(0),
+        let error = BatchError::new(
+            "op1".to_string(),
+            BatchErrorType::InvalidVectorData,
+            "Invalid".to_string(),
+            None,
         );
+        result.add_error(error);
 
-        let action = manager.handle_error(error);
-        match action {
-            RecoveryAction::Wait(delay) => {
-                assert!(delay >= Duration::from_secs(1));
-            }
-            _ => panic!("Expected Wait action"),
-        }
+        assert_eq!(result.successful_count, 2);
+        assert_eq!(result.failed_count, 1);
+        assert_eq!(result.total_operations, 3);
+        assert_eq!(result.status, BatchStatus::Partial);
+        assert!((result.success_rate() - 66.66666666666667).abs() < 1e-10);
     }
 
     #[test]
-    fn test_retry_delay_calculation() {
-        let mut error = BatchProcessingError::new(
-            BatchErrorType::Timeout,
-            "Timeout".to_string(),
-            Some(1),
-            Some(0),
+    fn test_batch_result_status() {
+        let mut result: BatchResult<String> = BatchResult::new();
+
+        // Empty result should be success
+        assert_eq!(result.status, BatchStatus::Success);
+
+        // Add success - should remain success
+        result.add_success("test".to_string());
+        assert_eq!(result.status, BatchStatus::Success);
+
+        // Add error - should become partial
+        let error = BatchError::new(
+            "op1".to_string(),
+            BatchErrorType::InvalidVectorData,
+            "Invalid".to_string(),
+            None,
         );
+        result.add_error(error);
+        assert_eq!(result.status, BatchStatus::Partial);
+        assert!(result.is_partial_success());
+    }
 
-        let delay1 = error.get_retry_delay();
-        error.increment_retry();
-        let delay2 = error.get_retry_delay();
+    #[test]
+    fn test_batch_statistics() {
+        let mut result: BatchResult<String> = BatchResult::new();
+        result.add_success("success".to_string());
+        result.add_success("success2".to_string());
 
-        assert!(delay2 > delay1);
+        let error = BatchError::new(
+            "op1".to_string(),
+            BatchErrorType::TimeoutExceeded,
+            "Timeout".to_string(),
+            None,
+        );
+        result.add_error(error);
+
+        let stats = BatchStatistics::from_result(&result);
+        assert_eq!(stats.total_operations, 3);
+        assert_eq!(stats.successful_operations, 2);
+        assert_eq!(stats.failed_operations, 1);
+        assert_eq!(stats.retryable_errors, 1);
+    }
+
+    #[test]
+    fn test_helper_functions() {
+        let error = invalid_batch_size_error("op1".to_string(), 1500, 1000);
+        assert_eq!(error.error_type, BatchErrorType::InvalidBatchSize);
+        assert!(error.error_message.contains("1500"));
+        assert!(error.error_message.contains("1000"));
+
+        let error = memory_limit_exceeded_error("op1".to_string(), 1024, 512);
+        assert_eq!(error.error_type, BatchErrorType::MemoryLimitExceeded);
+        assert!(error.error_message.contains("1024"));
+        assert!(error.error_message.contains("512"));
     }
 }

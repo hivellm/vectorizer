@@ -48,14 +48,7 @@ pub struct PersistedCollection {
     #[serde(default)]
     pub vectors: Vec<PersistedVector>,
     /// HNSW index dump basename (if available)
-    #[serde(default)]
     pub hnsw_dump_basename: Option<String>,
-    /// Tokenizer/vocabulary data (for BM25 and other sparse embeddings)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tokenizer: Option<serde_json::Value>,
-    /// File checksums for incremental updates
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub checksums: Option<serde_json::Value>,
 }
 
 /// Persisted representation of a vector with payload serialized as JSON string
@@ -192,8 +185,6 @@ impl VectorStore {
                 config: Some(metadata.config),
                 vectors,
                 hnsw_dump_basename,
-                tokenizer: None,
-                checksums: None,
             });
         }
 

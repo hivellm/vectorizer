@@ -38,6 +38,8 @@ docker run -d \
   -p 15002:15002 \
   -p 15003:15003 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -v $(pwd)/vectorizer-storage:/vectorizer/storage \
+  -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
   -v $(pwd)/vectorizer-dashboard:/vectorizer/dashboard \
   -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
   -v $(pwd)/../../:/workspace:ro \

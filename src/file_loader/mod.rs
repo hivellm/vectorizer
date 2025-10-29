@@ -16,7 +16,7 @@ pub use config::{DocumentChunk, LoaderConfig};
 use glob::Pattern;
 pub use indexer::Indexer;
 pub use persistence::Persistence;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;
@@ -103,26 +103,8 @@ impl FileLoader {
         // Step 6: Save to temporary format (will be compacted in batch later)
         self.save_collection_temp(store)?;
 
-        // Step 6.5: Save embedding manager in the collection for searches
-        info!("💾 Saving embedding manager in collection '{}'...", collection_name);
-        if let Err(e) = store.set_collection_embedding_manager(
-            collection_name,
-            self.indexer.embedding_manager_arc(),
-        ) {
-            warn!("⚠️  Failed to save embedding manager: {}", e);
-        } else {
-            info!("✅ Embedding manager saved in collection '{}'", collection_name);
-        }
-
         // Step 7: Save tokenizer/vocabulary for file watcher
-        info!("💾 Saving tokenizer for collection '{}'...", collection_name);
-        match self.save_tokenizer() {
-            Ok(_) => info!("✅ Tokenizer saved successfully for '{}'", collection_name),
-            Err(e) => {
-                error!("❌ CRITICAL: Failed to save tokenizer for '{}': {}", collection_name, e);
-                return Err(e);
-            }
-        }
+        self.save_tokenizer()?;
 
         info!(
             "Indexed {} vectors for collection '{}'",

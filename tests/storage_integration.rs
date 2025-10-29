@@ -64,7 +64,7 @@ async fn test_storage_path_validation() {
     ];
 
     for path in valid_paths {
-        assert!(path.extension().is_some_and(|ext| ext == "vecdb"));
+        assert!(path.extension().map_or(false, |ext| ext == "vecdb"));
     }
 }
 
@@ -174,7 +174,7 @@ async fn test_concurrent_storage_access() {
 #[tokio::test]
 async fn test_backup_file_naming() {
     let timestamp = chrono::Utc::now().timestamp();
-    let backup_name = format!("backup_{timestamp}.vecdb");
+    let backup_name = format!("backup_{}.vecdb", timestamp);
 
     assert!(backup_name.starts_with("backup_"));
     assert!(backup_name.ends_with(".vecdb"));
@@ -187,7 +187,7 @@ async fn test_storage_error_recovery() {
     let invalid_paths = vec!["", "/", "///"];
 
     for path in invalid_paths {
-        let _path_buf = PathBuf::from(path);
+        let path_buf = PathBuf::from(path);
         // Should handle invalid paths gracefully
         assert!(path.is_empty() || path == "/" || path == "///");
     }
@@ -227,7 +227,7 @@ async fn test_compression_ratio_calculation() {
     let original_size = 1_000_000;
     let compressed_size = 300_000;
 
-    let ratio = (f64::from(compressed_size) / f64::from(original_size)) * 100.0;
+    let ratio = (compressed_size as f64 / original_size as f64) * 100.0;
 
     assert_eq!(ratio, 30.0);
     assert!(ratio < 100.0);

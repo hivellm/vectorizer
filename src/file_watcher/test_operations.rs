@@ -15,9 +15,7 @@ use crate::embedding::EmbeddingManager;
 async fn test_should_process_file() {
     // Create vector store and embedding manager
     let vector_store = Arc::new(VectorStore::new());
-    let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new(
-        crate::embedding::EmbeddingConfig::default(),
-    )));
+    let embedding_manager = Arc::new(RwLock::new(EmbeddingManager::new()));
 
     // Create vector operations with test config
     let mut config = crate::file_watcher::FileWatcherConfig::default();

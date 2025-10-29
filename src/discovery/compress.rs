@@ -5,8 +5,13 @@ use std::collections::HashMap;
 use super::config::CompressionConfig;
 use super::types::{Bullet, BulletCategory, DiscoveryResult, ScoredChunk};
 
-// Future enhancement: keyword_extraction integration for better extraction
+// TODO: Integrate keyword_extraction for better extraction
 // See: docs/future/RUST_LIBRARIES_INTEGRATION.md
+//
+// Example integration:
+// ```rust
+// use keyword_extraction::*;
+// use unicode_segmentation::UnicodeSegmentation;
 //
 // pub struct ExtractiveCompressor {
 //     rake: Rake,  // TextRank algorithm

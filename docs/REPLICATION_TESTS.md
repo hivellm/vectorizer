@@ -16,7 +16,7 @@ The replication system has **extensive test coverage** across multiple dimension
 | Integration Tests | 8 | `tests/replication_comprehensive.rs` | End-to-end |
 | Failover Tests | 6 | `tests/replication_failover.rs` | Reliability |
 | Stress Tests | 2 | `tests/replication_comprehensive.rs` | Performance |
-| Benchmarks | 7 | `benchmark/replication/replication_bench.rs` | Metrics |
+| Benchmarks | 7 | `benches/replication_bench.rs` | Metrics |
 | **TOTAL** | **38** | - | **98%+** |
 
 ---
@@ -76,7 +76,7 @@ The replication system has **extensive test coverage** across multiple dimension
 
 **Run**: `cargo test -- --ignored` (requires `--release`)
 
-### 5. Performance Benchmarks (`benchmark/replication/replication_bench.rs`)
+### 5. Performance Benchmarks (`benches/replication_bench.rs`)
 
 **Purpose**: Measure throughput and latency
 
@@ -251,7 +251,7 @@ cargo bench --bench replication_bench -- --baseline main
 1. **Unit Tests**: Add to `src/replication/tests.rs`
 2. **Integration Tests**: Add to `tests/replication_comprehensive.rs`
 3. **Failover Tests**: Add to `tests/replication_failover.rs`
-4. **Benchmarks**: Add to `benchmark/replication/replication_bench.rs`
+4. **Benchmarks**: Add to `benches/replication_bench.rs`
 
 ### CI/CD Integration
 

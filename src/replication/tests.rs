@@ -4,7 +4,7 @@
 //! For comprehensive integration tests, see:
 //! - tests/replication_comprehensive.rs - Full integration tests
 //! - tests/replication_failover.rs - Failover and reconnection tests
-//! - benchmark/replication/replication_bench.rs - Performance benchmarks
+//! - benches/replication_bench.rs - Performance benchmarks
 
 #[cfg(test)]
 mod tests {

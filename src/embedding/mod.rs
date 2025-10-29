@@ -1,410 +1,1436 @@
-//! Embedding providers module
-//!
-//! This module provides various embedding providers for generating vector
-//! representations of text, including BM25, BERT, OpenAI, and other models.
-
-pub mod bert;
-pub mod bm25;
-pub mod config;
-pub mod openai;
-pub mod provider;
-
-// Re-export the actual types
-pub use bert::{BERTFactory, BERTProvider as BertEmbedding, BERTProvider};
-pub use bm25::{BM25Factory, BM25Provider as Bm25Embedding, BM25Provider};
-pub use openai::{OpenAIFactory, OpenAIProvider as OpenAIEmbedding, OpenAIProvider};
-
-// Create type aliases for missing embedding types
-pub type TfIdfEmbedding = BM25Provider; // Use BM25 as TF-IDF alternative
-pub type SvdEmbedding = BM25Provider; // Use BM25 as SVD alternative
-pub type MiniLmEmbedding = BERTProvider; // Use BERT as MiniLM alternative
-pub type BagOfWordsEmbedding = BM25Provider; // Use BM25 as BoW alternative
-pub type CharNGramEmbedding = BM25Provider; // Use BM25 as CharNGram alternative
+//! Embedding generation module for converting text to vectors
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::fs;
+use std::path::Path;
 
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use crate::error::{Result, VectorizerError};
 
-/// Embedding provider trait
-#[async_trait::async_trait]
+/// Trait for embedding providers
 pub trait EmbeddingProvider: Send + Sync {
-    /// Generate embeddings for a single text
-    async fn embed(&self, text: &str) -> Result<Vec<f32>, EmbeddingError>;
+    /// Generate embeddings for a batch of texts
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>>;
 
-    /// Generate embeddings for multiple texts
-    async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>, EmbeddingError>;
+    /// Generate embedding for a single text
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let results = self.embed_batch(&[text])?;
+        results
+            .into_iter()
+            .next()
+            .ok_or_else(|| VectorizerError::Other("Failed to generate embedding".to_string()))
+    }
 
     /// Get the dimension of embeddings produced by this provider
     fn dimension(&self) -> usize;
 
-    /// Get the provider name
-    fn name(&self) -> &str;
+    /// Cast to Any for downcasting (mutable)
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
-    /// Check if the provider is available
-    async fn is_available(&self) -> bool;
-    
-    /// Downcast to Any for type-specific operations
+    /// Cast to Any for downcasting (immutable)
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
-/// Embedding configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddingConfig {
-    /// Provider type
-    pub provider: EmbeddingProviderType,
-    /// Model name or identifier
-    pub model: String,
-    /// Dimension of embeddings
-    pub dimension: usize,
-    /// Maximum text length
-    pub max_length: usize,
-    /// Enable caching
-    pub enable_caching: bool,
-    /// Cache size (number of embeddings)
-    pub cache_size: usize,
-    /// Batch size for processing
-    pub batch_size: usize,
-    /// Timeout for requests (seconds)
-    pub timeout_seconds: u64,
+/// Simple TF-IDF based embedding provider for demonstration
+#[derive(Debug)]
+pub struct TfIdfEmbedding {
+    dimension: usize,
+    vocabulary: HashMap<String, usize>,
+    idf_weights: Vec<f32>,
 }
 
-impl Default for EmbeddingConfig {
-    fn default() -> Self {
+#[derive(Debug)]
+pub struct Bm25Embedding {
+    dimension: usize,
+    vocabulary: HashMap<String, usize>,
+    doc_freq: HashMap<String, usize>, // Document frequency for each term
+    doc_lengths: Vec<usize>,          // Length of each document
+    avg_doc_length: f32,              // Average document length
+    total_docs: usize,                // Total number of documents
+    k1: f32,                          // BM25 parameter (typically 1.5)
+    b: f32,                           // BM25 parameter (typically 0.75)
+}
+
+#[derive(Debug)]
+pub struct SvdEmbedding {
+    /// The target reduced dimension
+    reduced_dimension: usize,
+    /// TF-IDF embedding for base transformation
+    tfidf: TfIdfEmbedding,
+    /// SVD transformation matrix (V^T truncated to reduced_dimension)
+    transformation_matrix: Option<ndarray::Array2<f32>>,
+    /// Whether SVD has been fitted
+    fitted: bool,
+}
+
+#[derive(Debug)]
+pub struct BertEmbedding {
+    /// BERT model dimension (768 for BERT-base, 384 for BERT-small, etc.)
+    dimension: usize,
+    /// Maximum sequence length
+    #[allow(dead_code)]
+    max_seq_len: usize,
+    /// Whether the model is loaded (placeholder for actual BERT integration)
+    loaded: bool,
+}
+
+#[derive(Debug)]
+pub struct MiniLmEmbedding {
+    /// MiniLM model dimension (384 typically)
+    dimension: usize,
+    /// Maximum sequence length
+    #[allow(dead_code)]
+    max_seq_len: usize,
+    /// Whether the model is loaded
+    loaded: bool,
+}
+
+impl Bm25Embedding {
+    /// Create a new BM25 embedding provider
+    pub fn new(dimension: usize) -> Self {
         Self {
-            provider: EmbeddingProviderType::BM25,
-            model: "default".to_string(),
-            dimension: 512,
-            max_length: 512,
-            enable_caching: true,
-            cache_size: 10000,
-            batch_size: 32,
-            timeout_seconds: 30,
-        }
-    }
-}
-
-/// Types of embedding providers
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum EmbeddingProviderType {
-    /// BM25 (sparse embeddings)
-    BM25,
-    /// BERT-based models
-    BERT,
-    /// OpenAI embeddings
-    OpenAI,
-    /// Sentence Transformers
-    SentenceTransformers,
-    /// Custom provider
-    Custom(String),
-}
-
-impl std::fmt::Display for EmbeddingProviderType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EmbeddingProviderType::BM25 => write!(f, "BM25"),
-            EmbeddingProviderType::BERT => write!(f, "BERT"),
-            EmbeddingProviderType::OpenAI => write!(f, "OpenAI"),
-            EmbeddingProviderType::SentenceTransformers => write!(f, "SentenceTransformers"),
-            EmbeddingProviderType::Custom(name) => write!(f, "Custom({})", name),
-        }
-    }
-}
-
-/// Embedding error types
-#[derive(Debug, thiserror::Error)]
-pub enum EmbeddingError {
-    #[error("Text too long: {length} > {max_length}")]
-    TextTooLong { length: usize, max_length: usize },
-
-    #[error("Provider not available: {0}")]
-    ProviderNotAvailable(String),
-
-    #[error("Model not found: {0}")]
-    ModelNotFound(String),
-
-    #[error("API error: {0}")]
-    ApiError(String),
-
-    #[error("Network error: {0}")]
-    NetworkError(String),
-
-    #[error("Timeout error: {0}")]
-    TimeoutError(String),
-
-    #[error("Invalid configuration: {0}")]
-    InvalidConfiguration(String),
-
-    #[error("Cache error: {0}")]
-    CacheError(String),
-
-    #[error("Internal error: {0}")]
-    Internal(String),
-}
-
-/// Embedding result with metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddingResult {
-    /// The embedding vector
-    pub embedding: Vec<f32>,
-    /// Provider used
-    pub provider: EmbeddingProviderType,
-    /// Model used
-    pub model: String,
-    /// Processing time in milliseconds
-    pub processing_time_ms: u64,
-    /// Text length
-    pub text_length: usize,
-    /// Cache hit
-    pub cache_hit: bool,
-}
-
-/// Embedding cache
-pub struct EmbeddingCache {
-    cache: Arc<RwLock<HashMap<String, Vec<f32>>>>,
-    max_size: usize,
-    hits: Arc<RwLock<usize>>,
-    misses: Arc<RwLock<usize>>,
-}
-
-impl EmbeddingCache {
-    /// Create a new embedding cache
-    pub fn new(max_size: usize) -> Self {
-        Self {
-            cache: Arc::new(RwLock::new(HashMap::new())),
-            max_size,
-            hits: Arc::new(RwLock::new(0)),
-            misses: Arc::new(RwLock::new(0)),
+            dimension,
+            vocabulary: HashMap::new(),
+            doc_freq: HashMap::new(),
+            doc_lengths: Vec::new(),
+            avg_doc_length: 0.0,
+            total_docs: 0,
+            k1: 1.5, // Standard BM25 k1 parameter
+            b: 0.75, // Standard BM25 b parameter
         }
     }
 
-    /// Get embedding from cache
-    pub async fn get(&self, key: &str) -> Option<Vec<f32>> {
-        let mut cache = self.cache.write().await;
-        if let Some(embedding) = cache.get(key) {
-            *self.hits.write().await += 1;
-            Some(embedding.clone())
-        } else {
-            *self.misses.write().await += 1;
-            None
-        }
+    /// Get the vocabulary size
+    pub fn vocabulary_size(&self) -> usize {
+        self.vocabulary.len()
     }
 
-    /// Store embedding in cache
-    pub async fn put(&self, key: String, embedding: Vec<f32>) {
-        let mut cache = self.cache.write().await;
+    /// Extract vocabulary data for restoration
+    pub fn extract_vocabulary_data(
+        &self,
+    ) -> (
+        HashMap<String, usize>,
+        HashMap<String, usize>,
+        Vec<usize>,
+        f32,
+        usize,
+    ) {
+        (
+            self.vocabulary.clone(),
+            self.doc_freq.clone(),
+            self.doc_lengths.clone(),
+            self.avg_doc_length,
+            self.total_docs,
+        )
+    }
 
-        // Remove oldest entries if cache is full
-        if cache.len() >= self.max_size {
-            let keys_to_remove: Vec<String> = cache
-                .keys()
-                .take(cache.len() - self.max_size + 1)
-                .cloned()
-                .collect();
-            for key in keys_to_remove {
-                cache.remove(&key);
+    /// Restore vocabulary data
+    pub fn restore_vocabulary_data(
+        &mut self,
+        vocabulary: HashMap<String, usize>,
+        doc_freq: HashMap<String, usize>,
+        doc_lengths: Vec<usize>,
+        avg_doc_length: f32,
+        total_docs: usize,
+    ) {
+        self.vocabulary = vocabulary;
+        self.doc_freq = doc_freq;
+        self.doc_lengths = doc_lengths;
+        self.avg_doc_length = avg_doc_length;
+        self.total_docs = total_docs;
+    }
+
+    /// Save vocabulary to a JSON file (tokenizer)
+    pub fn save_vocabulary_json<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let path_ref = path.as_ref();
+        let data = serde_json::json!({
+            "type": "bm25",
+            "dimension": self.dimension,
+            "vocabulary": self.vocabulary,
+            "doc_freq": self.doc_freq,
+            "doc_lengths": self.doc_lengths,
+            "avg_doc_length": self.avg_doc_length,
+            "total_docs": self.total_docs,
+        });
+        let json = serde_json::to_string_pretty(&data).map_err(|e| {
+            VectorizerError::Other(format!("Failed to serialize vocabulary: {}", e))
+        })?;
+        fs::write(path_ref, json).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to write vocabulary file {}: {}",
+                path_ref.display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Load vocabulary from a JSON file (tokenizer)
+    pub fn load_vocabulary_json<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_ref = path.as_ref();
+        let content = fs::read_to_string(path_ref).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to read vocabulary file {}: {}",
+                path_ref.display(),
+                e
+            ))
+        })?;
+        let v: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to parse vocabulary JSON {}: {}",
+                path_ref.display(),
+                e
+            ))
+        })?;
+
+        // Validate type
+        if let Some(t) = v.get("type").and_then(|x| x.as_str()) {
+            if t != "bm25" {
+                return Err(VectorizerError::Other(format!(
+                    "Tokenizer type mismatch: expected bm25, found {}",
+                    t
+                )));
             }
         }
 
-        cache.insert(key, embedding);
+        // Extract fields
+        let dimension = v
+            .get("dimension")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(self.dimension as u64) as usize;
+        let vocabulary: HashMap<String, usize> = v
+            .get("vocabulary")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .ok_or_else(|| {
+                VectorizerError::Other("Missing or invalid 'vocabulary' field".to_string())
+            })?;
+        let doc_freq: HashMap<String, usize> = v
+            .get("doc_freq")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .ok_or_else(|| {
+                VectorizerError::Other("Missing or invalid 'doc_freq' field".to_string())
+            })?;
+        let doc_lengths: Vec<usize> = v
+            .get("doc_lengths")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .unwrap_or_default();
+        let avg_doc_length: f32 = v
+            .get("avg_doc_length")
+            .and_then(|x| x.as_f64())
+            .unwrap_or(0.0) as f32;
+        let total_docs: usize = v.get("total_docs").and_then(|x| x.as_u64()).unwrap_or(0) as usize;
+
+        self.dimension = dimension;
+        self.vocabulary = vocabulary;
+        self.doc_freq = doc_freq;
+        self.doc_lengths = doc_lengths;
+        self.avg_doc_length = avg_doc_length;
+        self.total_docs = total_docs;
+        Ok(())
     }
 
-    /// Get cache statistics
-    pub async fn stats(&self) -> CacheStats {
-        let hits = *self.hits.read().await;
-        let misses = *self.misses.read().await;
-        let total = hits + misses;
-        let hit_rate = if total > 0 {
-            hits as f64 / total as f64
-        } else {
-            0.0
-        };
+    /// Build vocabulary and document statistics from a corpus of texts
+    pub fn build_vocabulary(&mut self, texts: &[String]) {
+        let mut word_counts: HashMap<String, usize> = HashMap::new();
+        let mut doc_frequencies: HashMap<String, usize> = HashMap::new();
 
-        CacheStats {
-            hits,
-            misses,
-            total,
-            hit_rate,
-            size: self.cache.read().await.len(),
-            max_size: self.max_size,
+        // Process each document
+        for text in texts {
+            let tokens = self.tokenize(text);
+            let doc_length = tokens.len();
+            self.doc_lengths.push(doc_length);
+
+            let mut unique_terms = std::collections::HashSet::new();
+            for token in &tokens {
+                *word_counts.entry(token.clone()).or_insert(0) += 1;
+                unique_terms.insert(token.clone());
+            }
+
+            // Update document frequencies
+            for term in unique_terms {
+                *doc_frequencies.entry(term).or_insert(0) += 1;
+            }
+        }
+
+        self.total_docs = texts.len();
+        self.avg_doc_length =
+            self.doc_lengths.iter().sum::<usize>() as f32 / self.total_docs as f32;
+
+        // Build vocabulary and sort by frequency for deterministic results
+        let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
+        word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+        // Take top N terms based on dimension
+        for (i, (word, _)) in word_freq.into_iter().enumerate().take(self.dimension) {
+            let df = *doc_frequencies.get(&word).unwrap_or(&0);
+            self.vocabulary.insert(word.clone(), i);
+            self.doc_freq.insert(word, df);
+        }
+
+        // Vocabulary construction completed silently
+    }
+
+    /// Tokenize text into words (simple whitespace splitting)
+    fn tokenize(&self, text: &str) -> Vec<String> {
+        text.to_lowercase()
+            .split_whitespace()
+            .map(|s| s.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    }
+
+    /// Calculate BM25 score for a term in a document
+    fn bm25_score(&self, term_freq: usize, doc_length: usize, doc_freq: usize) -> f32 {
+        if doc_freq == 0 {
+            return 0.0;
+        }
+
+        let idf =
+            ((self.total_docs as f32 - doc_freq as f32 + 0.5) / (doc_freq as f32 + 0.5) + 1.0).ln();
+
+        let tf = term_freq as f32 * (self.k1 + 1.0)
+            / (term_freq as f32
+                + self.k1 * (1.0 - self.b + self.b * doc_length as f32 / self.avg_doc_length));
+
+        idf * tf
+    }
+
+    /// Fallback hash-based embedding when vocabulary is empty or no matches found
+    fn fallback_hash_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        // Generate pseudo-random but deterministic embedding
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            // Simple LCG-like generator seeded by text hash
+            let value =
+                ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+}
+
+impl SvdEmbedding {
+    /// Create a new SVD embedding provider
+    pub fn new(reduced_dimension: usize, vocabulary_size: usize) -> Self {
+        Self {
+            reduced_dimension,
+            tfidf: TfIdfEmbedding::new(vocabulary_size),
+            transformation_matrix: None,
+            fitted: false,
         }
     }
 
-    /// Clear cache
-    pub async fn clear(&self) {
-        self.cache.write().await.clear();
-        *self.hits.write().await = 0;
-        *self.misses.write().await = 0;
+    /// Fit a simple linear transformation (simplified SVD approximation)
+    pub fn fit_svd(&mut self, texts: &[&str]) -> Result<()> {
+        // First, build TF-IDF vocabulary
+        self.tfidf.build_vocabulary(texts);
+
+        // Create a simple transformation matrix using hash-based pseudo-random orthogonal vectors
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let vocab_size = self.tfidf.dimension;
+        let mut transformation_matrix =
+            ndarray::Array2::<f32>::zeros((self.reduced_dimension, vocab_size));
+
+        // Generate transformation matrix using seeded random values
+        let mut hasher = DefaultHasher::new();
+        texts.hash(&mut hasher);
+        let base_seed = hasher.finish();
+
+        for i in 0..self.reduced_dimension {
+            // Create a vector for this dimension
+            let mut vector = Vec::with_capacity(vocab_size);
+
+            for j in 0..vocab_size {
+                // Generate pseudo-random value seeded by dimension and position
+                let seed = base_seed.wrapping_add((i as u64 * 1000) + j as u64);
+                let value = ((seed.wrapping_mul(1103515245) % 65536) as f32 / 32768.0) - 1.0;
+                vector.push(value);
+            }
+
+            // Orthogonalize with previous vectors (simplified Gram-Schmidt)
+            for k in 0..i {
+                let prev_row = transformation_matrix.row(k);
+                let dot_product: f32 = vector.iter().zip(prev_row.iter()).map(|(a, b)| a * b).sum();
+                let norm_sq: f32 = prev_row.iter().map(|x| x * x).sum();
+
+                if norm_sq > 0.0 {
+                    let projection = dot_product / norm_sq;
+                    for j in 0..vocab_size {
+                        vector[j] -= projection * prev_row[j];
+                    }
+                }
+            }
+
+            // Normalize the vector
+            let norm: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 0.0 {
+                for j in 0..vocab_size {
+                    vector[j] /= norm;
+                }
+            }
+
+            // Store in matrix
+            for j in 0..vocab_size {
+                transformation_matrix[[i, j]] = vector[j];
+            }
+        }
+
+        self.transformation_matrix = Some(transformation_matrix);
+        self.fitted = true;
+
+        Ok(())
     }
 }
 
-/// Cache statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CacheStats {
-    /// Number of cache hits
-    pub hits: usize,
-    /// Number of cache misses
-    pub misses: usize,
-    /// Total requests
-    pub total: usize,
-    /// Cache hit rate (0.0 to 1.0)
-    pub hit_rate: f64,
-    /// Current cache size
-    pub size: usize,
-    /// Maximum cache size
-    pub max_size: usize,
+impl EmbeddingProvider for SvdEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        if !self.fitted {
+            return Err(VectorizerError::Other(
+                "SVD embedding not fitted. Call fit_svd first.".to_string(),
+            ));
+        }
+
+        // Get TF-IDF embedding
+        let tfidf_embedding = self.tfidf.embed(text)?;
+
+        // Apply transformation: result = tfidf_vector * V^T_reduced
+        let vt = self.transformation_matrix.as_ref().unwrap();
+        let mut result = vec![0.0f32; self.reduced_dimension];
+
+        // Manual matrix multiplication for simplicity
+        for i in 0..self.reduced_dimension {
+            for j in 0..tfidf_embedding.len() {
+                result[i] += tfidf_embedding[j] * vt[[i, j]];
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn dimension(&self) -> usize {
+        self.reduced_dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
-/// Embedding manager for handling multiple providers
+impl BertEmbedding {
+    /// Create a new BERT embedding provider
+    /// dimension: 768 for BERT-base, 384 for BERT-small, etc.
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            max_seq_len: 512,
+            loaded: false,
+        }
+    }
+
+    /// Load BERT model (placeholder for actual implementation)
+    pub fn load_model(&mut self) -> Result<()> {
+        // TODO: Implement actual BERT model loading
+        // For now, just mark as loaded
+        self.loaded = true;
+        Ok(())
+    }
+
+    /// Simple hash-based embedding simulation (placeholder)
+    fn simple_hash_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        // Generate pseudo-random but deterministic embedding
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            // Simple LCG-like generator seeded by text hash
+            let value =
+                ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+}
+
+impl EmbeddingProvider for BertEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other(
+                "BERT model not loaded. Call load_model first.".to_string(),
+            ));
+        }
+
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other(
+                "BERT model not loaded. Call load_model first.".to_string(),
+            ));
+        }
+
+        // TODO: Replace with actual BERT inference
+        Ok(self.simple_hash_embedding(text))
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl MiniLmEmbedding {
+    /// Create a new MiniLM embedding provider
+    /// dimension: typically 384 for MiniLM models
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            max_seq_len: 256,
+            loaded: false,
+        }
+    }
+
+    /// Load MiniLM model (placeholder for actual implementation)
+    pub fn load_model(&mut self) -> Result<()> {
+        // TODO: Implement actual MiniLM model loading
+        self.loaded = true;
+        Ok(())
+    }
+
+    /// Simple hash-based embedding simulation (placeholder)
+    fn simple_hash_embedding(&self, text: &str) -> Vec<f32> {
+        // Similar to BERT but with different seed for variety
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        format!("minilm_{}", text).hash(&mut hasher);
+        let seed = hasher.finish();
+
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            let value =
+                ((seed.wrapping_mul(1103515245).wrapping_add(54321 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0);
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+}
+
+impl EmbeddingProvider for MiniLmEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other(
+                "MiniLM model not loaded. Call load_model first.".to_string(),
+            ));
+        }
+
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        if !self.loaded {
+            return Err(VectorizerError::Other(
+                "MiniLM model not loaded. Call load_model first.".to_string(),
+            ));
+        }
+
+        // TODO: Replace with actual MiniLM inference
+        Ok(self.simple_hash_embedding(text))
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl TfIdfEmbedding {
+    /// Create a new TF-IDF embedding provider
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            vocabulary: HashMap::new(),
+            idf_weights: vec![1.0; dimension],
+        }
+    }
+
+    /// Build vocabulary from a corpus of texts
+    pub fn build_vocabulary(&mut self, texts: &[&str]) {
+        let mut word_counts: HashMap<String, usize> = HashMap::new();
+        let mut doc_frequencies: HashMap<String, usize> = HashMap::new();
+
+        for text in texts {
+            let words = self.tokenize(text);
+            let mut seen_words = std::collections::HashSet::new();
+
+            for word in words {
+                *word_counts.entry(word.clone()).or_insert(0) += 1;
+
+                if seen_words.insert(word.clone()) {
+                    *doc_frequencies.entry(word).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Compute a combined TF-IDF based score for vocabulary selection
+        // score(word) = term_frequency(word) * idf(word)
+        // This promotes salient (rare but informative) terms into the vocabulary
+        let total_docs = texts.len() as f32;
+
+        let mut scored_terms: Vec<(String, f32)> = doc_frequencies
+            .iter()
+            .map(|(word, &df)| {
+                let tf_count = *word_counts.get(word).unwrap_or(&0) as f32;
+                // Use natural log idf; guard df>=1
+                let idf = if df > 0 {
+                    (total_docs / (df as f32)).ln().max(0.0)
+                } else {
+                    0.0
+                };
+                (word.clone(), tf_count * idf)
+            })
+            .collect();
+
+        // Sort by score descending, tie-break alphabetically for determinism
+        scored_terms.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.cmp(&b.0))
+        });
+
+        self.vocabulary.clear();
+        self.idf_weights.clear();
+
+        for (i, (word, _score)) in scored_terms.iter().take(self.dimension).enumerate() {
+            self.vocabulary.insert(word.clone(), i);
+
+            let df = *doc_frequencies.get(word).unwrap_or(&1) as f32;
+            let idf = (total_docs / df).ln().max(0.0);
+            self.idf_weights.push(idf);
+        }
+    }
+
+    fn tokenize(&self, text: &str) -> Vec<String> {
+        text.to_lowercase()
+            .split_whitespace()
+            .filter(|w| w.len() > 2)
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|w| !w.is_empty())
+            .collect()
+    }
+
+    fn compute_tf(&self, text: &str) -> HashMap<String, f32> {
+        let words = self.tokenize(text);
+        let total_words = words.len() as f32;
+
+        let mut word_counts: HashMap<String, usize> = HashMap::new();
+        for word in words {
+            *word_counts.entry(word).or_insert(0) += 1;
+        }
+
+        word_counts
+            .into_iter()
+            .map(|(word, count)| (word, count as f32 / total_words))
+            .collect()
+    }
+}
+
+impl EmbeddingProvider for TfIdfEmbedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let tf = self.compute_tf(text);
+        let mut embedding = vec![0.0; self.dimension];
+
+        let mut _matched_terms = 0;
+        for (word, tf_value) in tf {
+            if let Some(&idx) = self.vocabulary.get(&word) {
+                if idx < self.dimension {
+                    let idf = self.idf_weights.get(idx).unwrap_or(&1.0);
+                    embedding[idx] = tf_value * idf;
+                    _matched_terms += 1;
+                }
+            }
+        }
+
+        // Check if embedding is all zeros (fallback to hash-based embedding)
+        let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
+        if non_zero_count == 0 {
+            return Ok(self.fallback_hash_embedding(text));
+        }
+
+        // Normalize the embedding
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for value in &mut embedding {
+                *value /= norm;
+            }
+        }
+
+        Ok(embedding)
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl TfIdfEmbedding {
+    /// Fallback hash-based embedding when vocabulary is empty or no matches found
+    fn fallback_hash_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        // Generate pseudo-random but deterministic embedding
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            // Simple LCG-like generator seeded by text hash
+            let value =
+                ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+
+    /// Save TF-IDF vocabulary/tokenizer JSON
+    pub fn save_vocabulary_json<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        let data = serde_json::json!({
+            "type": "tfidf",
+            "dimension": self.dimension,
+            "vocabulary": self.vocabulary,
+            "idf_weights": self.idf_weights,
+        });
+        let json = serde_json::to_string_pretty(&data).map_err(|e| {
+            VectorizerError::Other(format!("Failed to serialize TF-IDF vocab: {}", e))
+        })?;
+        std::fs::write(path.as_ref(), json).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to write TF-IDF vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Load TF-IDF vocabulary/tokenizer JSON
+    pub fn load_vocabulary_json<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to read TF-IDF vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        let v: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to parse TF-IDF vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        let t = v.get("type").and_then(|x| x.as_str()).unwrap_or("");
+        if t != "tfidf" {
+            return Err(VectorizerError::Other(format!(
+                "Tokenizer type mismatch: expected tfidf, found {}",
+                t
+            )));
+        }
+        self.dimension = v
+            .get("dimension")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(self.dimension as u64) as usize;
+        self.vocabulary = v
+            .get("vocabulary")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .unwrap_or_default();
+        self.idf_weights = v
+            .get("idf_weights")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .unwrap_or_default();
+        Ok(())
+    }
+}
+
+impl EmbeddingProvider for Bm25Embedding {
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let tokens = self.tokenize(text);
+        let doc_length = tokens.len();
+
+        // Debug: Log tokenization for queries (only in trace level)
+        if text.len() < 100 { // Only log short queries to avoid spam
+            //trace!("Query '{}' -> tokens: {:?}", text, tokens);
+        }
+
+        // Count term frequencies in this document
+        let mut term_freq: HashMap<String, usize> = HashMap::new();
+        for token in tokens {
+            *term_freq.entry(token).or_insert(0) += 1;
+        }
+
+        // Calculate BM25 scores for each term in vocabulary
+        let mut embedding = vec![0.0; self.dimension];
+        let mut _matched_terms = 0;
+        for (term, &vocab_index) in &self.vocabulary {
+            if vocab_index >= self.dimension {
+                continue;
+            }
+
+            let tf = *term_freq.get(term).unwrap_or(&0);
+            let df = *self.doc_freq.get(term).unwrap_or(&0);
+
+            if tf > 0 {
+                embedding[vocab_index] = self.bm25_score(tf, doc_length, df);
+                _matched_terms += 1;
+            }
+        }
+
+        // If embedding is all zeros (no vocab matches), build deterministic feature-hashed embedding from tokens
+        let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
+        if non_zero_count == 0 {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+
+            // Feature-hashing for OOV tokens to guarantee non-zero vector while preserving input dependence
+            let mut hashed_embedding = vec![0.0f32; self.dimension];
+            for (token, tf) in term_freq {
+                let mut hasher = DefaultHasher::new();
+                token.hash(&mut hasher);
+                let idx = (hasher.finish() as usize) % self.dimension;
+                // Use TF with a mild scaling to avoid domination
+                hashed_embedding[idx] += tf as f32;
+            }
+
+            // If still zero (e.g., empty text), fall back to text-hash embedding
+            let nz = hashed_embedding.iter().any(|&v| v != 0.0);
+            let mut final_embedding = if nz {
+                hashed_embedding
+            } else {
+                self.fallback_hash_embedding(text)
+            };
+
+            // Normalize
+            let norm: f32 = final_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 0.0 {
+                for v in &mut final_embedding {
+                    *v /= norm;
+                }
+            }
+
+            // Downgrade severity: this is expected for OOV queries
+            return Ok(final_embedding);
+        }
+
+        // Normalize the embedding
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for value in &mut embedding {
+                *value /= norm;
+            }
+        }
+
+        Ok(embedding)
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// Simple Bag-of-Words embedding provider
+pub struct BagOfWordsEmbedding {
+    dimension: usize,
+    vocabulary: HashMap<String, usize>,
+}
+
+impl BagOfWordsEmbedding {
+    /// Create a new Bag-of-Words embedding provider
+    pub fn new(dimension: usize) -> Self {
+        Self {
+            dimension,
+            vocabulary: HashMap::new(),
+        }
+    }
+
+    /// Build vocabulary from texts
+    pub fn build_vocabulary(&mut self, texts: &[&str]) {
+        let mut word_counts: HashMap<String, usize> = HashMap::new();
+
+        for text in texts {
+            let words = self.tokenize(text);
+            for word in words {
+                *word_counts.entry(word).or_insert(0) += 1;
+            }
+        }
+
+        // Select top words by frequency, with alphabetical tie-breaking for determinism
+        let mut word_freq: Vec<(String, usize)> = word_counts.into_iter().collect();
+        word_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+        self.vocabulary.clear();
+        for (i, (word, _)) in word_freq.iter().take(self.dimension).enumerate() {
+            self.vocabulary.insert(word.clone(), i);
+        }
+    }
+
+    fn tokenize(&self, text: &str) -> Vec<String> {
+        text.to_lowercase()
+            .split_whitespace()
+            .filter(|w| w.len() > 2)
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|w| !w.is_empty())
+            .collect()
+    }
+}
+
+impl EmbeddingProvider for BagOfWordsEmbedding {
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let words = self.tokenize(text);
+        let mut embedding = vec![0.0; self.dimension];
+
+        for word in words {
+            if let Some(&idx) = self.vocabulary.get(&word) {
+                embedding[idx] += 1.0;
+            }
+        }
+
+        // Check if embedding is all zeros
+        let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
+        if non_zero_count == 0 {
+            eprintln!(
+                "WARNING: BagOfWordsEmbedding produced all-zero embedding for '{}'",
+                text
+            );
+            eprintln!("Vocabulary size: {}", self.vocabulary.len());
+
+            // Fallback: Generate a simple hash-based embedding to ensure non-zero vector
+            eprintln!("Using fallback hash-based embedding");
+            return Ok(self.fallback_hash_embedding(text));
+        }
+
+        // Normalize
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for value in &mut embedding {
+                *value /= norm;
+            }
+        }
+
+        Ok(embedding)
+    }
+
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl BagOfWordsEmbedding {
+    /// Fallback hash-based embedding when vocabulary is empty or no matches found
+    fn fallback_hash_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        // Generate pseudo-random but deterministic embedding
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            // Simple LCG-like generator seeded by text hash
+            let value =
+                ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+
+    /// Save BagOfWords vocabulary/tokenizer JSON
+    pub fn save_vocabulary_json<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        let data = serde_json::json!({
+            "type": "bagofwords",
+            "dimension": self.dimension,
+            "vocabulary": self.vocabulary,
+        });
+        let json = serde_json::to_string_pretty(&data)
+            .map_err(|e| VectorizerError::Other(format!("Failed to serialize BoW vocab: {}", e)))?;
+        std::fs::write(path.as_ref(), json).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to write BoW vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Load BagOfWords vocabulary/tokenizer JSON
+    pub fn load_vocabulary_json<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to read BoW vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        let v: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to parse BoW vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        let t = v.get("type").and_then(|x| x.as_str()).unwrap_or("");
+        if t != "bagofwords" {
+            return Err(VectorizerError::Other(format!(
+                "Tokenizer type mismatch: expected bagofwords, found {}",
+                t
+            )));
+        }
+        self.dimension = v
+            .get("dimension")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(self.dimension as u64) as usize;
+        self.vocabulary = v
+            .get("vocabulary")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .unwrap_or_default();
+        Ok(())
+    }
+}
+
+/// Character n-gram based embedding provider
+pub struct CharNGramEmbedding {
+    dimension: usize,
+    n: usize,
+    ngram_map: HashMap<String, usize>,
+}
+
+impl CharNGramEmbedding {
+    /// Create a new character n-gram embedding provider
+    pub fn new(dimension: usize, n: usize) -> Self {
+        Self {
+            dimension,
+            n,
+            ngram_map: HashMap::new(),
+        }
+    }
+
+    /// Build n-gram vocabulary from texts
+    pub fn build_vocabulary(&mut self, texts: &[&str]) {
+        let mut ngram_counts: HashMap<String, usize> = HashMap::new();
+
+        for text in texts {
+            let ngrams = self.extract_ngrams(text);
+            for ngram in ngrams {
+                *ngram_counts.entry(ngram).or_insert(0) += 1;
+            }
+        }
+
+        // Select top n-grams by frequency, with alphabetical tie-breaking for determinism
+        let mut ngram_freq: Vec<(String, usize)> = ngram_counts.into_iter().collect();
+        ngram_freq.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+        self.ngram_map.clear();
+        for (i, (ngram, _)) in ngram_freq.iter().take(self.dimension).enumerate() {
+            self.ngram_map.insert(ngram.clone(), i);
+        }
+    }
+
+    fn extract_ngrams(&self, text: &str) -> Vec<String> {
+        let text = text.to_lowercase();
+        let chars: Vec<char> = text.chars().collect();
+
+        if chars.len() < self.n {
+            return vec![text];
+        }
+
+        let mut ngrams = Vec::new();
+        for i in 0..=(chars.len() - self.n) {
+            let ngram: String = chars[i..i + self.n].iter().collect();
+            ngrams.push(ngram);
+        }
+
+        ngrams
+    }
+}
+
+impl EmbeddingProvider for CharNGramEmbedding {
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        let ngrams = self.extract_ngrams(text);
+        let mut embedding = vec![0.0; self.dimension];
+
+        for ngram in ngrams {
+            if let Some(&idx) = self.ngram_map.get(&ngram) {
+                embedding[idx] += 1.0;
+            }
+        }
+
+        // Check if embedding is all zeros
+        let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
+        if non_zero_count == 0 {
+            eprintln!(
+                "WARNING: CharNGramEmbedding produced all-zero embedding for '{}'",
+                text
+            );
+            eprintln!("N-gram map size: {}", self.ngram_map.len());
+
+            // Fallback: Generate a simple hash-based embedding to ensure non-zero vector
+            eprintln!("Using fallback hash-based embedding");
+            return Ok(self.fallback_hash_embedding(text));
+        }
+
+        // Normalize
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for value in &mut embedding {
+                *value /= norm;
+            }
+        }
+
+        Ok(embedding)
+    }
+
+    fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        texts.iter().map(|text| self.embed(text)).collect()
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl CharNGramEmbedding {
+    /// Fallback hash-based embedding when vocabulary is empty or no matches found
+    fn fallback_hash_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        // Generate pseudo-random but deterministic embedding
+        let mut embedding = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            // Simple LCG-like generator seeded by text hash
+            let value =
+                ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+            embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
+        }
+
+        // L2 normalize
+        let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        for value in &mut embedding {
+            *value /= norm;
+        }
+
+        embedding
+    }
+
+    /// Save CharNGram tokenizer JSON
+    pub fn save_vocabulary_json<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        let data = serde_json::json!({
+            "type": "charngram",
+            "dimension": self.dimension,
+            "n": self.n,
+            "ngram_map": self.ngram_map,
+        });
+        let json = serde_json::to_string_pretty(&data).map_err(|e| {
+            VectorizerError::Other(format!("Failed to serialize CharNGram vocab: {}", e))
+        })?;
+        std::fs::write(path.as_ref(), json).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to write CharNGram vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Load CharNGram tokenizer JSON
+    pub fn load_vocabulary_json<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to read CharNGram vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        let v: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            VectorizerError::Other(format!(
+                "Failed to parse CharNGram vocab {}: {}",
+                path.as_ref().display(),
+                e
+            ))
+        })?;
+        let t = v.get("type").and_then(|x| x.as_str()).unwrap_or("");
+        if t != "charngram" {
+            return Err(VectorizerError::Other(format!(
+                "Tokenizer type mismatch: expected charngram, found {}",
+                t
+            )));
+        }
+        self.dimension = v
+            .get("dimension")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(self.dimension as u64) as usize;
+        self.n = v.get("n").and_then(|x| x.as_u64()).unwrap_or(self.n as u64) as usize;
+        self.ngram_map = v
+            .get("ngram_map")
+            .and_then(|x| serde_json::from_value(x.clone()).ok())
+            .unwrap_or_default();
+        Ok(())
+    }
+}
+
+/// Manager for embedding providers
 pub struct EmbeddingManager {
-    providers: HashMap<EmbeddingProviderType, Arc<dyn EmbeddingProvider>>,
-    default_provider: EmbeddingProviderType,
-    cache: Option<EmbeddingCache>,
-    config: EmbeddingConfig,
+    providers: HashMap<String, Box<dyn EmbeddingProvider>>,
+    default_provider: Option<String>,
 }
 
 impl EmbeddingManager {
     /// Create a new embedding manager
-    pub fn new(config: EmbeddingConfig) -> Self {
-        let cache = if config.enable_caching {
-            Some(EmbeddingCache::new(config.cache_size))
-        } else {
-            None
-        };
-
+    pub fn new() -> Self {
         Self {
             providers: HashMap::new(),
-            default_provider: config.provider.clone(),
-            cache,
-            config,
+            default_provider: None,
         }
     }
 
-    /// Add a provider
-    pub fn add_provider(
-        &mut self,
-        provider_type: EmbeddingProviderType,
-        provider: Arc<dyn EmbeddingProvider>,
-    ) {
-        self.providers.insert(provider_type, provider);
-    }
-
-    /// Set default provider
-    pub fn set_default_provider(&mut self, provider_type: EmbeddingProviderType) {
-        self.default_provider = provider_type;
-    }
-    
-    /// Get a specific provider
-    pub fn get_provider(
-        &self,
-        provider_type: &EmbeddingProviderType,
-    ) -> Option<&Arc<dyn EmbeddingProvider>> {
-        self.providers.get(provider_type)
-    }
-
-    /// Generate embedding using default provider
-    pub async fn embed(&self, text: &str) -> Result<EmbeddingResult, EmbeddingError> {
-        self.embed_with_provider(text, &self.default_provider).await
-    }
-
-    /// Generate embedding using specific provider
-    pub async fn embed_with_provider(
-        &self,
-        text: &str,
-        provider_type: &EmbeddingProviderType,
-    ) -> Result<EmbeddingResult, EmbeddingError> {
-        let start_time = std::time::Instant::now();
-
-        // Check text length
-        if text.len() > self.config.max_length {
-            return Err(EmbeddingError::TextTooLong {
-                length: text.len(),
-                max_length: self.config.max_length,
-            });
+    /// Register an embedding provider
+    pub fn register_provider(&mut self, name: String, provider: Box<dyn EmbeddingProvider>) {
+        if self.default_provider.is_none() {
+            self.default_provider = Some(name.clone());
         }
-
-        // Check cache first
-        let cache_key = format!("{}:{}:{}", provider_type, self.config.model, text);
-        if let Some(ref cache) = self.cache {
-            if let Some(cached_embedding) = cache.get(&cache_key).await {
-                return Ok(EmbeddingResult {
-                    embedding: cached_embedding,
-                    provider: provider_type.clone(),
-                    model: self.config.model.clone(),
-                    processing_time_ms: start_time.elapsed().as_millis() as u64,
-                    text_length: text.len(),
-                    cache_hit: true,
-                });
-            }
-        }
-
-        // Get provider
-        let provider = self
-            .providers
-            .get(provider_type)
-            .ok_or_else(|| EmbeddingError::ProviderNotAvailable(provider_type.to_string()))?;
-
-        // Check if provider is available
-        if !provider.is_available().await {
-            return Err(EmbeddingError::ProviderNotAvailable(
-                provider_type.to_string(),
-            ));
-        }
-
-        // Generate embedding
-        let embedding = provider.embed(text).await?;
-
-        // Store in cache
-        if let Some(ref cache) = self.cache {
-            cache.put(cache_key, embedding.clone()).await;
-        }
-
-        Ok(EmbeddingResult {
-            embedding,
-            provider: provider_type.clone(),
-            model: self.config.model.clone(),
-            processing_time_ms: start_time.elapsed().as_millis() as u64,
-            text_length: text.len(),
-            cache_hit: false,
-        })
+        self.providers.insert(name, provider);
     }
 
-    /// Generate embeddings for multiple texts
-    pub async fn embed_batch(
-        &self,
-        texts: &[String],
-    ) -> Result<Vec<EmbeddingResult>, EmbeddingError> {
-        let mut results = Vec::with_capacity(texts.len());
-
-        for text in texts {
-            let result = self.embed(text).await?;
-            results.push(result);
-        }
-
-        Ok(results)
-    }
-
-    /// Get cache statistics
-    pub async fn cache_stats(&self) -> Option<CacheStats> {
-        if let Some(cache) = &self.cache {
-            Some(cache.stats().await)
+    /// Set the default provider
+    pub fn set_default_provider(&mut self, name: &str) -> Result<()> {
+        if self.providers.contains_key(name) {
+            self.default_provider = Some(name.to_string());
+            Ok(())
         } else {
-            None
+            Err(VectorizerError::Other(format!(
+                "Provider '{}' not found",
+                name
+            )))
         }
     }
 
-    /// Clear cache
-    pub async fn clear_cache(&self) {
-        if let Some(ref cache) = self.cache {
-            cache.clear().await;
-        }
+    /// Get a provider by name
+    pub fn get_provider(&self, name: &str) -> Result<&dyn EmbeddingProvider> {
+        self.providers
+            .get(name)
+            .map(|p| p.as_ref())
+            .ok_or_else(|| VectorizerError::Other(format!("Provider '{}' not found", name)))
     }
 
-    /// Get available providers
-    pub fn available_providers(&self) -> Vec<EmbeddingProviderType> {
+    /// Get a mutable provider by name
+    pub fn get_provider_mut(&mut self, name: &str) -> Option<&mut Box<dyn EmbeddingProvider>> {
+        self.providers.get_mut(name)
+    }
+
+    /// Get the default provider
+    pub fn get_default_provider(&self) -> Result<&dyn EmbeddingProvider> {
+        let provider_name = self
+            .default_provider
+            .as_ref()
+            .ok_or_else(|| VectorizerError::Other("No default provider set".to_string()))?;
+
+        self.get_provider(provider_name)
+    }
+
+    /// Get the default provider name
+    pub fn get_default_provider_name(&self) -> Option<&str> {
+        self.default_provider.as_deref()
+    }
+
+    /// Embed text using the default provider
+    pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        self.get_default_provider()?.embed(text)
+    }
+
+    /// Embed batch of texts using the default provider
+    pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        self.get_default_provider()?.embed_batch(texts)
+    }
+
+    /// Embed text using a specific provider by name
+    pub fn embed_with_provider(&self, provider_name: &str, text: &str) -> Result<Vec<f32>> {
+        let provider = self.get_provider(provider_name)?;
+        provider.embed(text)
+    }
+
+    /// Embed batch of texts using a specific provider by name
+    pub fn embed_batch_with_provider(
+        &self,
+        texts: &[&str],
+        provider_name: &str,
+    ) -> Result<Vec<Vec<f32>>> {
+        self.get_provider(provider_name)?.embed_batch(texts)
+    }
+
+    /// Get the dimension of a specific provider
+    pub fn get_provider_dimension(&self, provider_name: &str) -> Result<usize> {
+        Ok(self.get_provider(provider_name)?.dimension())
+    }
+
+    /// List all available provider names
+    pub fn list_providers(&self) -> Vec<String> {
         self.providers.keys().cloned().collect()
+    }
+
+    /// Check if a provider exists
+    pub fn has_provider(&self, provider_name: &str) -> bool {
+        self.providers.contains_key(provider_name)
+    }
+
+    /// Save vocabulary for a specific provider
+    pub fn save_vocabulary_json<P: AsRef<Path>>(&self, provider_name: &str, path: P) -> Result<()> {
+        let provider = self.get_provider(provider_name)?;
+
+        // Try to downcast to specific embedding types that have save_vocabulary_json
+        if let Some(bm25) = provider.as_any().downcast_ref::<Bm25Embedding>() {
+            bm25.save_vocabulary_json(path)
+        } else if let Some(tfidf) = provider.as_any().downcast_ref::<TfIdfEmbedding>() {
+            tfidf.save_vocabulary_json(path)
+        } else if let Some(char_ngram) = provider.as_any().downcast_ref::<CharNGramEmbedding>() {
+            char_ngram.save_vocabulary_json(path)
+        } else if let Some(bow) = provider.as_any().downcast_ref::<BagOfWordsEmbedding>() {
+            bow.save_vocabulary_json(path)
+        } else {
+            Err(VectorizerError::Other(format!(
+                "Provider '{}' does not support vocabulary saving",
+                provider_name
+            )))
+        }
+    }
+}
+
+impl Default for EmbeddingManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -412,79 +1438,97 @@ impl EmbeddingManager {
 mod tests {
     use super::*;
 
-    struct MockProvider {
-        name: String,
-        dimension: usize,
-    }
+    #[test]
+    fn test_tfidf_embedding() {
+        let mut tfidf = TfIdfEmbedding::new(10);
 
-    #[async_trait::async_trait]
-    impl EmbeddingProvider for MockProvider {
-        async fn embed(&self, _text: &str) -> Result<Vec<f32>, EmbeddingError> {
-            Ok(vec![1.0; self.dimension])
-        }
+        let corpus = vec![
+            "machine learning is great",
+            "deep learning is better",
+            "vector databases store embeddings",
+            "embeddings represent text as vectors",
+        ];
 
-        async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
-            Ok(vec![vec![1.0; self.dimension]; texts.len()])
-        }
+        tfidf.build_vocabulary(&corpus);
 
-        fn dimension(&self) -> usize {
-            self.dimension
-        }
+        let embedding = tfidf.embed("machine learning vectors").unwrap();
+        assert_eq!(embedding.len(), 10);
 
-        fn name(&self) -> &str {
-            &self.name
-        }
-
-        async fn is_available(&self) -> bool {
-            true
-        }
-    }
-
-    #[tokio::test]
-    async fn test_embedding_cache() {
-        let cache = EmbeddingCache::new(10);
-
-        // Test cache miss
-        assert!(cache.get("test").await.is_none());
-
-        // Test cache put and get
-        cache.put("test".to_string(), vec![1.0, 2.0, 3.0]).await;
-        assert_eq!(cache.get("test").await, Some(vec![1.0, 2.0, 3.0]));
-
-        // Test cache stats
-        let stats = cache.stats().await;
-        assert_eq!(stats.hits, 1);
-        assert_eq!(stats.misses, 1);
-        assert_eq!(stats.hit_rate, 0.5);
-    }
-
-    #[tokio::test]
-    async fn test_embedding_manager() {
-        let config = EmbeddingConfig::default();
-        let mut manager = EmbeddingManager::new(config);
-
-        let provider = Arc::new(MockProvider {
-            name: "test".to_string(),
-            dimension: 512,
-        });
-
-        manager.add_provider(EmbeddingProviderType::BM25, provider);
-
-        let result = manager.embed("test text").await.unwrap();
-        assert_eq!(result.embedding.len(), 512);
-        assert_eq!(result.provider, EmbeddingProviderType::BM25);
-        assert!(!result.cache_hit);
-
-        // Test cache hit
-        let result2 = manager.embed("test text").await.unwrap();
-        assert!(result2.cache_hit);
+        // Check normalization
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-6);
     }
 
     #[test]
-    fn test_embedding_config_default() {
-        let config = EmbeddingConfig::default();
-        assert_eq!(config.provider, EmbeddingProviderType::BM25);
-        assert_eq!(config.dimension, 512);
-        assert!(config.enable_caching);
+    fn test_bag_of_words() {
+        let mut bow = BagOfWordsEmbedding::new(5);
+
+        let corpus = vec!["hello world", "hello machine learning", "world of vectors"];
+
+        bow.build_vocabulary(&corpus);
+
+        let embedding = bow.embed("hello world").unwrap();
+        assert_eq!(embedding.len(), 5);
+
+        // Should have non-zero values for "hello" and "world"
+        assert!(embedding.iter().any(|&x| x > 0.0));
+    }
+
+    #[test]
+    fn test_char_ngram() {
+        let mut ngram = CharNGramEmbedding::new(10, 3);
+
+        let corpus = vec!["hello", "world", "hello world"];
+
+        ngram.build_vocabulary(&corpus);
+
+        let embedding = ngram.embed("hello").unwrap();
+        assert_eq!(embedding.len(), 10);
+
+        // Check normalization
+        let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-6 || norm == 0.0);
+    }
+
+    #[test]
+    fn test_embedding_manager() {
+        let mut manager = EmbeddingManager::new();
+
+        let tfidf = Box::new(TfIdfEmbedding::new(10));
+        let bow = Box::new(BagOfWordsEmbedding::new(5));
+
+        manager.register_provider("tfidf".to_string(), tfidf);
+        manager.register_provider("bow".to_string(), bow);
+
+        manager.set_default_provider("tfidf").unwrap();
+
+        let provider = manager.get_provider("tfidf").unwrap();
+        assert_eq!(provider.dimension(), 10);
+
+        let default_provider = manager.get_default_provider().unwrap();
+        assert_eq!(default_provider.dimension(), 10);
     }
 }
+
+// Real models module
+pub mod real_models;
+
+// Performance modules
+#[cfg(feature = "tokenizers")]
+pub mod fast_tokenizer;
+
+#[cfg(feature = "onnx-models")]
+pub mod onnx_models;
+
+pub mod cache;
+
+// Re-export real models
+pub use cache::{CacheConfig, EmbeddingCache};
+// Re-export performance modules
+#[cfg(feature = "tokenizers")]
+pub use fast_tokenizer::{FastTokenizer, FastTokenizerConfig};
+#[cfg(feature = "onnx-models")]
+pub use onnx_models::{OnnxConfig, OnnxEmbedder, OnnxModelType, PoolingStrategy};
+pub use real_models::{RealModelEmbedder, RealModelType};
+
+// TfIdfEmbedding is already public in this module

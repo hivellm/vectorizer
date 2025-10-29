@@ -1,76 +1,60 @@
 # Docker build context optimization
-# CRITICAL: Ensure target directory is completely excluded to avoid permission errors
 
 # Git files
-.git
+.git/
 .gitignore
 .gitattributes
-.gitkeep
 
 # Build artifacts - MUST be excluded to avoid permission errors
-target
-**/target
-
-# Large subdirectories that shouldn't be in build context
-client-sdks
-benchmark
-devops
-debian
-gui
-qdrant
-dashboard
-scripts
-sample
-integrations
-pkg
-wix
-
-# Logs and data
+target/
+**/target/
+client-sdks/
+benchmark/
+devops/
+debian/
+gui/
+qdrant/
+dashboard/
+scripts/
+docs/
+sample/
 *.log
-logs
-data
+*.tmp
 
 # Test files and benchmarks
-tests
-**/tests
-benchmarks
+tests/
+**/tests/
+benchmark/
+benchmarks/
 
-# Documentation and examples (keep only essential)
-docs
-**/docs
-examples
+# Documentation and examples
+docs/
+**/docs/
+examples/
 *.md
 !README.md
 RELEASING.md
 CONTRIBUTING.md
 CHANGELOG.md
-AGENTS.md
-SECURITY.md
 
 # IDE files
-.vscode
-.idea
+.vscode/
+.idea/
 *.swp
 *.swo
-*.code-workspace
 
 # CI/CD
-.github
+.github/
 .gitlab-ci.yml
-.github
 
 # Development files
 .env
 .env.*
 *.local
-config.*.yml
-!config.example.yml
-!config.yml
 
 # OS files
 .DS_Store
 Thumbs.db
-desktop.ini
 
 # Package files and artifacts
 *.tar.gz
@@ -79,46 +63,30 @@ desktop.ini
 *.msi
 *.AppImage
 *.rpm
-artifacts
-release
-AppDir
+artifacts/
+release/
+AppDir/
+wix/
+pkg/
 
-# Node.js
-node_modules
-**/node_modules
-pnpm-lock.yaml
-package-lock.json
+# Large directories that are not needed (but NOT src/models which is source code!)
+node_modules/
+**/node_modules/
+data/
+**/data/
+logs/
+**/logs/
+# Exclude ML model directories but NOT src/models (source code)
+sample/models/
+client-sdks/*/models/
+!src/models/
+.cache/
+**/.cache/
+venv/
+**/venv/
+coverage/
+**/coverage/
 
-# Python
-venv
-**/venv
-__pycache__
-**/__pycache__
-*.pyc
-.env
-
-# Cache and temporary files
-.cache
-**/.cache
-coverage
-**/coverage
-tmp
-temp
-*.tmp
-
-# Binary and library files
-*.so
-*.dll
-*.dylib
-bin
-lib
-lib64
-**/lib
-**/lib64
-**/bin
-
-# Model files (keep only if needed for build, otherwise exclude)
-models
-**/models/*.bin
-**/models/*.safetensors
-**/models/*.onnx
+# Temporary files
+tmp/
+temp/

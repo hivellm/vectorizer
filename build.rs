@@ -1,21 +1,18 @@
-// Build script with safety checks
-//
-// This build script enforces safety guardrails at compile time
-// to prevent dangerous configurations that can cause BSODs.
-
-use std::env;
-
 fn main() {
-    // Generate Windows resource file
+    // Embed Windows icon resource
     #[cfg(target_os = "windows")]
     {
         let mut res = winres::WindowsResource::new();
-        res.set_icon("assets/icon.ico")
-            .set("ProductName", "Vectorizer")
-            .set("FileDescription", "High-Performance Vector Database")
-            .set("CompanyName", "HiveLLM");
+        res.set_icon("assets/icon.ico");
+        res.set("ProductName", "Vectorizer");
+        res.set("FileDescription", "High-performance vector database");
+        res.set("CompanyName", "HiveLLM Contributors");
+        res.set("LegalCopyright", "Copyright © 2025 HiveLLM Contributors");
+        res.set("ProductVersion", env!("CARGO_PKG_VERSION"));
+        res.set("FileVersion", env!("CARGO_PKG_VERSION"));
 
-        // Best effort - don't fail build if icon missing
-        let _ = res.compile();
+        if let Err(e) = res.compile() {
+            eprintln!("Warning: Failed to compile Windows resource: {}", e);
+        }
     }
 }

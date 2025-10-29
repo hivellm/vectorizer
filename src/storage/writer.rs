@@ -138,8 +138,6 @@ impl StorageWriter {
                 .map(|c| c.dimension)
                 .unwrap_or(512);
             let config_clone = persisted_collection.config.clone();
-            let tokenizer_data = persisted_collection.tokenizer.clone();
-            let checksums_data = persisted_collection.checksums.clone();
 
             // Create collection index entry
             let mut collection_index = CollectionIndex {
@@ -180,62 +178,6 @@ impl StorageWriter {
                     compressed_size,
                     checksum: String::new(), // Will be calculated by StorageIndex
                 });
-
-            // Write tokenizer if exists
-            if let Some(tokenizer) = tokenizer_data {
-                let tokenizer_name = format!("{}_tokenizer.json", collection_name);
-                let tokenizer_json = serde_json::to_vec_pretty(&tokenizer).map_err(|e| {
-                    VectorizerError::Serialization(format!("Failed to serialize tokenizer: {}", e))
-                })?;
-
-                zip.start_file(&tokenizer_name, options).map_err(|e| {
-                    VectorizerError::Storage(format!("Failed to start tokenizer file: {}", e))
-                })?;
-                zip.write_all(&tokenizer_json)
-                    .map_err(|e| VectorizerError::Io(e))?;
-
-                info!("   ✅ Added tokenizer to ZIP: {}", tokenizer_name);
-
-                collection_index
-                    .files
-                    .push(crate::storage::index::FileEntry {
-                        path: tokenizer_name,
-                        file_type: crate::storage::index::FileType::Other,
-                        size: tokenizer_json.len() as u64,
-                        compressed_size: tokenizer_json.len() as u64,
-                        checksum: String::new(),
-                    });
-            } else {
-                warn!("   ⚠️  No tokenizer data for collection '{}'", collection_name);
-            }
-
-            // Write checksums if exists
-            if let Some(checksums) = checksums_data {
-                let checksums_name = format!("{}_checksums.json", collection_name);
-                let checksums_json = serde_json::to_vec_pretty(&checksums).map_err(|e| {
-                    VectorizerError::Serialization(format!("Failed to serialize checksums: {}", e))
-                })?;
-
-                zip.start_file(&checksums_name, options).map_err(|e| {
-                    VectorizerError::Storage(format!("Failed to start checksums file: {}", e))
-                })?;
-                zip.write_all(&checksums_json)
-                    .map_err(|e| VectorizerError::Io(e))?;
-
-                info!("   ✅ Added checksums to ZIP: {}", checksums_name);
-
-                collection_index
-                    .files
-                    .push(crate::storage::index::FileEntry {
-                        path: checksums_name,
-                        file_type: crate::storage::index::FileType::Other,
-                        size: checksums_json.len() as u64,
-                        compressed_size: checksums_json.len() as u64,
-                        checksum: String::new(),
-                    });
-            } else {
-                warn!("   ⚠️  No checksums data for collection '{}'", collection_name);
-            }
 
             // Write metadata if config exists
             if let Some(config) = config_clone {
@@ -397,40 +339,30 @@ impl StorageWriter {
             if path.is_file() {
                 total_files += 1;
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    info!("   📄 Found file: {}", name);
-                    
                     if name.ends_with("_vector_store.bin") {
                         bin_files += 1;
-                        info!("   ✅ Found .bin file: {}", name);
+                        info!("   Found .bin file: {}", name);
                     }
 
                     // Extract collection name - remove known suffixes
                     let collection_name =
                         if let Some(stripped) = name.strip_suffix("_vector_store.bin") {
-                            info!("      → Collection from _vector_store.bin: {}", stripped);
                             stripped.to_string()
                         } else if let Some(stripped) = name.strip_suffix("_metadata.json") {
-                            info!("      → Collection from _metadata.json: {}", stripped);
                             stripped.to_string()
                         } else if let Some(stripped) = name.strip_suffix("_tokenizer.json") {
-                            info!("      → Collection from _tokenizer.json: {}", stripped);
                             stripped.to_string()
                         } else if let Some(stripped) = name.strip_suffix("_checksums.json") {
-                            info!("      → Collection from _checksums.json: {}", stripped);
                             stripped.to_string()
                         } else {
                             // Fallback: use everything before last underscore
                             if let Some(pos) = name.rfind('_') {
-                                let coll = name[..pos].to_string();
-                                info!("      → Collection from fallback: {}", coll);
-                                coll
+                                name[..pos].to_string()
                             } else {
-                                info!("      ⚠️  Skipping file (no pattern match): {}", name);
                                 continue; // Skip files that don't match pattern
                             }
                         };
 
-                    info!("      ➕ Adding to collection '{}'", collection_name);
                     collections
                         .entry(collection_name)
                         .or_insert_with(Vec::new)
@@ -445,16 +377,6 @@ impl StorageWriter {
             bin_files,
             collections.len()
         );
-        
-        // Log collections and their files
-        for (coll_name, files) in &collections {
-            info!("   📦 Collection '{}': {} files", coll_name, files.len());
-            for file in files {
-                if let Some(name) = file.file_name().and_then(|n| n.to_str()) {
-                    info!("      - {}", name);
-                }
-            }
-        }
 
         Ok(collections)
     }

@@ -1,81 +1,33 @@
 //! Hybrid search implementation combining HNSW + BM25
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
-use super::types::{ChunkMetadata, DiscoveryError, DiscoveryResult, ScoredChunk};
-use crate::db::VectorStore;
+use super::types::{DiscoveryError, DiscoveryResult, ScoredChunk};
 
 /// Hybrid searcher combining dense (HNSW) and sparse (BM25) search
 pub struct HybridSearcher {
-    vector_store: Arc<VectorStore>,
+    // Will integrate with existing VectorStore HNSW index
+    // and tantivy BM25 index
 }
 
 impl HybridSearcher {
     /// Create new hybrid searcher
-    pub fn new(vector_store: Arc<VectorStore>) -> Self {
-        Self { vector_store }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// Perform hybrid search combining dense + sparse
     pub async fn search(
         &self,
-        query: &str,
-        query_vector: Vec<f32>,
-        limit: usize,
-        alpha: f32,
+        _query: &str,
+        _query_vector: Vec<f32>,
+        _limit: usize,
+        _alpha: f32,
     ) -> DiscoveryResult<Vec<ScoredChunk>> {
-        // 1. Dense search with HNSW
-        let dense_results = self
-            .vector_store
-            .search("default", &query_vector, limit * 2)
-            .map_err(|e| DiscoveryError::SearchError(e.to_string()))?;
-
-        // 2. Sparse search with tantivy BM25 (simplified for now)
-        let sparse_results = self.perform_sparse_search(query, limit * 2).await?;
-
+        // TODO: Implement actual hybrid search
+        // 1. Dense search with HNSW: vector_store.search(&query_vector, limit*2)
+        // 2. Sparse search with tantivy BM25: tantivy.search(query, limit*2)
         // 3. Reciprocal Rank Fusion to merge results
-        let dense_scores: Vec<(String, f32)> = dense_results
-            .iter()
-            .map(|result| (result.id.clone(), result.score))
-            .collect();
-
-        let sparse_scores: Vec<(String, f32)> = sparse_results
-            .iter()
-            .map(|result| (result.doc_id.clone(), result.score))
-            .collect();
-
-        let fused_scores = reciprocal_rank_fusion(&dense_scores, &sparse_scores, alpha);
-
-        // Convert back to ScoredChunk format
-        let mut results = Vec::new();
-        for (doc_id, score) in fused_scores.into_iter().take(limit) {
-            results.push(ScoredChunk {
-                collection: "default".to_string(),
-                doc_id,
-                content: String::new(), // Would need to fetch actual content
-                score,
-                metadata: ChunkMetadata {
-                    file_path: String::new(),
-                    chunk_index: 0,
-                    file_extension: String::new(),
-                    line_range: None,
-                },
-            });
-        }
-
-        Ok(results)
-    }
-
-    /// Perform sparse search using BM25 (simplified implementation)
-    async fn perform_sparse_search(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> DiscoveryResult<Vec<ScoredChunk>> {
-        // For now, return empty results as tantivy integration is complex
-        // In a real implementation, this would use tantivy for BM25 search
-        tracing::debug!("Sparse search for query: '{}' (limit: {})", query, limit);
         Ok(Vec::new())
     }
 }

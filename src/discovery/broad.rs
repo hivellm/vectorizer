@@ -3,8 +3,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use futures_util::future::TryFutureExt;
-
 use super::config::BroadDiscoveryConfig;
 use super::types::{ChunkMetadata, CollectionRef, DiscoveryError, DiscoveryResult, ScoredChunk};
 use crate::VectorStore;
@@ -29,11 +27,9 @@ pub async fn broad_discovery(
     // Execute all queries across all collections
     for query in queries {
         // Embed the query
-        let embedding_result = embedding_manager
+        let query_embedding = embedding_manager
             .embed(query)
-            .await
             .map_err(|e| DiscoveryError::SearchError(format!("Embedding error: {}", e)))?;
-        let query_embedding = &embedding_result.embedding;
 
         for collection in collections {
             // Search in this collection

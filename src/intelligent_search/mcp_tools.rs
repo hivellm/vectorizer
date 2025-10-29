@@ -89,11 +89,12 @@ impl MCPToolHandler {
     /// Create a new MCP tool handler with only VectorStore (will create collection-specific embedding managers)
     pub fn new_with_store(store: std::sync::Arc<crate::VectorStore>) -> Self {
         // Create a placeholder embedding manager - we'll create collection-specific ones as needed
-        let config = crate::embedding::EmbeddingConfig::default();
-        let mut placeholder_manager = crate::embedding::EmbeddingManager::new(config);
-        let bm25 = std::sync::Arc::new(crate::embedding::BM25Factory::create_default());
-        placeholder_manager.add_provider(crate::embedding::EmbeddingProviderType::BM25, bm25);
-        placeholder_manager.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
+        let mut placeholder_manager = crate::embedding::EmbeddingManager::new();
+        let bm25 = crate::embedding::Bm25Embedding::new(512);
+        placeholder_manager.register_provider("bm25".to_string(), Box::new(bm25));
+        placeholder_manager
+            .set_default_provider("bm25")
+            .unwrap_or_default();
 
         Self {
             store,
@@ -114,22 +115,65 @@ impl MCPToolHandler {
         let embedding_type = collection.get_embedding_type();
         let dimension = collection.config().dimension;
 
-        let mut config = crate::embedding::EmbeddingConfig::default();
-        config.dimension = dimension;
-        let mut manager = crate::embedding::EmbeddingManager::new(config);
+        let mut manager = crate::embedding::EmbeddingManager::new();
 
-        // Simplify - all embedding types use BM25 or BERT factory
         match embedding_type.as_str() {
-            "bert" | "minilm" => {
-                let provider = std::sync::Arc::new(crate::embedding::BERTFactory::create_default());
-                manager.add_provider(crate::embedding::EmbeddingProviderType::BERT, provider);
-                manager.set_default_provider(crate::embedding::EmbeddingProviderType::BERT);
+            "bm25" => {
+                let bm25 = crate::embedding::Bm25Embedding::new(dimension);
+                manager.register_provider("bm25".to_string(), Box::new(bm25));
+                manager
+                    .set_default_provider("bm25")
+                    .map_err(|e| format!("Failed to set BM25 provider: {}", e))?;
+            }
+            "tfidf" => {
+                let tfidf = crate::embedding::TfIdfEmbedding::new(dimension);
+                manager.register_provider("tfidf".to_string(), Box::new(tfidf));
+                manager
+                    .set_default_provider("tfidf")
+                    .map_err(|e| format!("Failed to set TF-IDF provider: {}", e))?;
+            }
+            "svd" => {
+                let svd = crate::embedding::SvdEmbedding::new(dimension, dimension);
+                manager.register_provider("svd".to_string(), Box::new(svd));
+                manager
+                    .set_default_provider("svd")
+                    .map_err(|e| format!("Failed to set SVD provider: {}", e))?;
+            }
+            "bert" => {
+                let bert = crate::embedding::BertEmbedding::new(dimension);
+                manager.register_provider("bert".to_string(), Box::new(bert));
+                manager
+                    .set_default_provider("bert")
+                    .map_err(|e| format!("Failed to set BERT provider: {}", e))?;
+            }
+            "minilm" => {
+                let minilm = crate::embedding::MiniLmEmbedding::new(dimension);
+                manager.register_provider("minilm".to_string(), Box::new(minilm));
+                manager
+                    .set_default_provider("minilm")
+                    .map_err(|e| format!("Failed to set MiniLM provider: {}", e))?;
+            }
+            "bagofwords" => {
+                let bow = crate::embedding::BagOfWordsEmbedding::new(dimension);
+                manager.register_provider("bagofwords".to_string(), Box::new(bow));
+                manager
+                    .set_default_provider("bagofwords")
+                    .map_err(|e| format!("Failed to set BagOfWords provider: {}", e))?;
+            }
+            "charngram" => {
+                let char_ngram = crate::embedding::CharNGramEmbedding::new(dimension, 3);
+                manager.register_provider("charngram".to_string(), Box::new(char_ngram));
+                manager
+                    .set_default_provider("charngram")
+                    .map_err(|e| format!("Failed to set CharNGram provider: {}", e))?;
             }
             _ => {
-                // bm25, tfidf, svd, bagofwords, charngram all use BM25
-                let provider = std::sync::Arc::new(crate::embedding::BM25Factory::create_default());
-                manager.add_provider(crate::embedding::EmbeddingProviderType::BM25, provider);
-                manager.set_default_provider(crate::embedding::EmbeddingProviderType::BM25);
+                // Default to BM25 if unknown type
+                let bm25 = crate::embedding::Bm25Embedding::new(dimension);
+                manager.register_provider("bm25".to_string(), Box::new(bm25));
+                manager
+                    .set_default_provider("bm25")
+                    .map_err(|e| format!("Failed to set default BM25 provider: {}", e))?;
             }
         }
 
@@ -194,12 +238,8 @@ impl MCPToolHandler {
                 };
 
             for query in &queries {
-                match collection_embedding_manager.embed(query).await {
-                    Ok(embedding_result) => match self.store.search(
-                        collection,
-                        &embedding_result.embedding,
-                        max_results,
-                    ) {
+                match collection_embedding_manager.embed(query) {
+                    Ok(embedding) => match self.store.search(collection, &embedding, max_results) {
                         Ok(search_results) => {
                             for result in search_results {
                                 let intelligent_result = IntelligentSearchResult {
@@ -333,13 +373,12 @@ impl MCPToolHandler {
 
         // Search each collection
         for collection in &tool.collections {
-            match self.embedding_manager.embed(&tool.query).await {
-                Ok(embedding_result) => {
-                    match self.store.search(
-                        collection,
-                        &embedding_result.embedding,
-                        max_per_collection,
-                    ) {
+            match self.embedding_manager.embed(&tool.query) {
+                Ok(embedding) => {
+                    match self
+                        .store
+                        .search(collection, &embedding, max_per_collection)
+                    {
                         Ok(search_results) => {
                             let mut collection_count = 0;
                             for result in search_results {
@@ -455,13 +494,9 @@ impl MCPToolHandler {
 
         // Search with multiple queries
         for query in &queries {
-            match self.embedding_manager.embed(query).await {
-                Ok(embedding_result) => {
-                    match self.store.search(
-                        &tool.collection,
-                        &embedding_result.embedding,
-                        max_results,
-                    ) {
+            match self.embedding_manager.embed(query) {
+                Ok(embedding) => {
+                    match self.store.search(&tool.collection, &embedding, max_results) {
                         Ok(search_results) => {
                             for result in search_results {
                                 let intelligent_result = IntelligentSearchResult {
@@ -578,13 +613,9 @@ impl MCPToolHandler {
 
         // Search with multiple queries
         for query in &queries {
-            match self.embedding_manager.embed(query).await {
-                Ok(embedding_result) => {
-                    match self.store.search(
-                        &tool.collection,
-                        &embedding_result.embedding,
-                        max_results,
-                    ) {
+            match self.embedding_manager.embed(query) {
+                Ok(embedding) => {
+                    match self.store.search(&tool.collection, &embedding, max_results) {
                         Ok(search_results) => {
                             for result in search_results {
                                 let intelligent_result = IntelligentSearchResult {
@@ -715,8 +746,8 @@ impl MCPToolHandler {
             };
 
             // Convert query text to vector
-            let query_vector = match embedding_manager.embed(query).await {
-                Ok(embedding_result) => embedding_result.embedding,
+            let query_vector = match embedding_manager.embed(query) {
+                Ok(vec) => vec,
                 Err(_) => continue,
             };
 
