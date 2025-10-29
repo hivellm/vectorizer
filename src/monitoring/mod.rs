@@ -16,34 +16,21 @@
 //!
 //! # Usage
 //!
-<<<<<<< HEAD
 //! ```rust,no_run
-=======
-//! ```rust,ignore
->>>>>>> 09c343e7a158de5fc41739e0d5798846bca10a44
 //! use vectorizer::monitoring::Metrics;
 //!
 //! // Initialize monitoring
 //! let metrics = Metrics::new();
 //!
-<<<<<<< HEAD
 //! // Record a search operation
 //! metrics.search_requests_total.inc();
 //! let timer = metrics.search_latency_seconds.start_timer();
 //! // ... perform search ...
 //! timer.observe_duration();
-=======
-//! // Record metrics (example - actual API may differ)
-//! // See metrics module for correct usage
->>>>>>> 09c343e7a158de5fc41739e0d5798846bca10a44
 //! ```
 
 pub mod correlation;
 pub mod metrics;
-<<<<<<< HEAD
-=======
-pub mod performance;
->>>>>>> 09c343e7a158de5fc41739e0d5798846bca10a44
 pub mod registry;
 pub mod system_collector;
 pub mod telemetry;
@@ -99,35 +86,4 @@ mod tests {
         let metrics_text = result.unwrap();
         assert!(!metrics_text.is_empty());
     }
-<<<<<<< HEAD
-=======
-
-    #[test]
-    fn test_init_monitoring() {
-        let result = init();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_export_metrics_format() {
-        init().unwrap();
-        let result = export_metrics();
-        assert!(result.is_ok());
-
-        let metrics_text = result.unwrap();
-        // Check that it contains some expected Prometheus format elements
-        assert!(metrics_text.contains("# HELP"));
-        assert!(metrics_text.contains("# TYPE"));
-    }
-
-    #[test]
-    fn test_metrics_initialization() {
-        // Test that we can initialize metrics multiple times
-        let result1 = init();
-        assert!(result1.is_ok());
-
-        let result2 = init();
-        assert!(result2.is_ok());
-    }
->>>>>>> 09c343e7a158de5fc41739e0d5798846bca10a44
 }
