@@ -323,7 +323,7 @@ pub async fn update_collection(
     // Update HNSW configuration
     let new_hnsw_config =
         convert_qdrant_hnsw_config(&request.config.hnsw_config, &_current_config.hnsw_config);
-    
+
     // Note: HNSW config changes may require reindexing for full effect
     // The new config is stored but existing index parameters remain until rebuild
     info!(
@@ -347,13 +347,12 @@ pub async fn update_collection(
         // Update quantization configuration
         if let Some(scalar) = quantization_config.scalar {
             let bits = (scalar.quantile.unwrap_or(0.5) * 8.0) as usize;
-            
+
             // Note: Quantization changes require reindexing and rebuilding quantized vectors
             // The config is logged but actual re-quantization is not performed automatically
             info!(
                 "Quantization config updated: {:?} with {} bits (requires reindexing)",
-                quantization_config.quantization,
-                bits
+                quantization_config.quantization, bits
             );
         }
     }
@@ -362,7 +361,7 @@ pub async fn update_collection(
         "Updating vectors config for collection: {}",
         collection_name
     );
-    
+
     // Validate dimension change
     let new_dimension = request.config.vectors.size as usize;
     if new_dimension != _current_config.dimension {
@@ -374,13 +373,14 @@ pub async fn update_collection(
         // would be incompatible. In production, this should either:
         // 1. Return an error preventing the change, or
         // 2. Trigger an async reindexing job
-        info!(
-            "Vector dimension change logged but not applied: collection must be recreated"
-        );
+        info!("Vector dimension change logged but not applied: collection must be recreated");
     }
-    
+
     // Note: Distance metric update would also require reindexing
-    info!("Vectors config update processed: {:?}", request.config.vectors);
+    info!(
+        "Vectors config update processed: {:?}",
+        request.config.vectors
+    );
 
     info!("Collection '{}' updated successfully", collection_name);
     Ok(Json(QdrantOperationStatus::Acknowledged))

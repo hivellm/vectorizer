@@ -155,9 +155,7 @@ mod hive_gpu_integration_tests {
             let config = CollectionConfig {
                 dimension: 512,
                 metric: DistanceMetric::Cosine,
-                hnsw_config: vectorizer::models::HnswConfig {
-                    seed: Some(42),
-                },
+                hnsw_config: vectorizer::models::HnswConfig { seed: Some(42) },
                 quantization: vectorizer::models::QuantizationConfig::default(),
                 compression: vectorizer::models::CompressionConfig::default(),
                 normalization: None,

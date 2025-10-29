@@ -1,8 +1,8 @@
 //! Error middleware for Qdrant-compatible API responses
 
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::error;

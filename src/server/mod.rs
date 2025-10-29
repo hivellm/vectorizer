@@ -1,7 +1,11 @@
 mod discovery_handlers;
+mod error_middleware;
 pub mod file_operations_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
+mod qdrant_handlers;
+mod qdrant_search_handlers;
+mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
 
@@ -12,7 +16,7 @@ use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Json;
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
@@ -809,6 +813,60 @@ impl VectorizerServer {
                 "/replication/replicas",
                 get(replication_handlers::list_replicas),
             )
+            // Qdrant-compatible routes (under /qdrant prefix)
+            .route("/qdrant/collections", get(qdrant_handlers::get_collections))
+            .route(
+                "/qdrant/collections/:name",
+                get(qdrant_handlers::get_collection),
+            )
+            .route(
+                "/qdrant/collections/:name",
+                put(qdrant_handlers::create_collection),
+            )
+            .route(
+                "/qdrant/collections/:name",
+                delete(qdrant_handlers::delete_collection),
+            )
+            .route(
+                "/qdrant/collections/:name",
+                axum::routing::patch(qdrant_handlers::update_collection),
+            )
+            .route(
+                "/qdrant/collections/:name/points",
+                get(qdrant_vector_handlers::retrieve_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points",
+                put(qdrant_vector_handlers::upsert_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/delete",
+                post(qdrant_vector_handlers::delete_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/scroll",
+                post(qdrant_vector_handlers::scroll_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/count",
+                post(qdrant_vector_handlers::count_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/search",
+                post(qdrant_search_handlers::search_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/search/batch",
+                post(qdrant_search_handlers::batch_search_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/recommend",
+                post(qdrant_search_handlers::recommend_points),
+            )
+            .route(
+                "/qdrant/collections/:name/points/recommend/batch",
+                post(qdrant_search_handlers::batch_recommend_points),
+            )
             // Dashboard - serve static files
             .nest_service("/dashboard", ServeDir::new("dashboard"))
             .fallback_service(ServeDir::new("dashboard"))
@@ -872,6 +930,7 @@ impl VectorizerServer {
             "   🔍 UMICP Discovery (v0.2.1): http://{}:{}/umicp/discover",
             host, port
         );
+        info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
         info!("   📊 Dashboard: http://{}:{}/", host, port);
 
         // Bind and start the server
