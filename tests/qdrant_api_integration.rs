@@ -248,7 +248,7 @@ fn test_qdrant_scroll_points() {
             .as_nanos()
     );
 
-    // Create collection WITHOUT quantization to avoid potential issues
+    // Create collection WITH quantization to match helper function
     let config = CollectionConfig {
         dimension: 128,
         metric: DistanceMetric::Cosine,
@@ -258,7 +258,7 @@ fn test_qdrant_scroll_points() {
             ef_search: 100,
             seed: None,
         },
-        quantization: QuantizationConfig::None,
+        quantization: QuantizationConfig::SQ { bits: 8 },
         compression: CompressionConfig::default(),
         normalization: None,
     };
@@ -272,7 +272,7 @@ fn test_qdrant_scroll_points() {
     assert_eq!(ids.len(), 20, "Should have inserted 20 vector IDs");
 
     // Get a fresh reference to the collection
-    let mut collection = store
+    let collection = store
         .get_collection_mut(&collection_name)
         .expect("Failed to get collection");
 
