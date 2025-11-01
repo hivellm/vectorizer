@@ -72,6 +72,11 @@ config.yml
 # Logs directory
 .logs/
 
+# Backups directory
+/backups/
+*.backup
+backups/** */
+
 #cuhnsw
 cuhnsw
 data

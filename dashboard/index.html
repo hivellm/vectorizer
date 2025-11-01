@@ -12,6 +12,9 @@
     <link href="styles.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="api-client.js?v=20251002-2"></script>
+    <script src="utils/formatters.js"></script>
+    <script src="components/Toast.js"></script>
+    <script src="components/Modal.js"></script>
 </head>
 <body>
     <div id="app" class="dashboard">
@@ -40,6 +43,27 @@
                 <li :class="['nav-item', { active: currentPage === 'file-watcher' }]" @click="setPage('file-watcher')">
                     <i class="fas fa-eye"></i>
                     <span>File Watcher</span>
+                </li>
+                <li class="nav-divider"></li>
+                <li :class="['nav-item', { active: currentPage === 'connections' }]" @click="setPage('connections')">
+                    <i class="fas fa-network-wired"></i>
+                    <span>Connections</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'workspace' }]" @click="setPage('workspace')">
+                    <i class="fas fa-folder"></i>
+                    <span>Workspace</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'config' }]" @click="setPage('config')">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuration</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'logs' }]" @click="setPage('logs')">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Logs</span>
+                </li>
+                <li :class="['nav-item', { active: currentPage === 'backups' }]" @click="setPage('backups')">
+                    <i class="fas fa-save"></i>
+                    <span>Backups</span>
                 </li>
             </ul>
         </nav>
@@ -653,6 +677,551 @@
                 </div>
 
                 <!-- File Watcher Page -->
+                <!-- Connections Page -->
+                <div v-else-if="currentPage === 'connections'">
+                    <div class="connections-page">
+                        <div class="page-header">
+                            <div class="header-content">
+                                <h1><i class="fas fa-network-wired"></i> Connection Manager</h1>
+                                <p>Manage your Vectorizer connections</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" @click="showAddConnectionForm = !showAddConnectionForm">
+                                    <i class="fas fa-plus"></i> New Connection
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Add Connection Form -->
+                        <div v-if="showAddConnectionForm" class="section mb-6">
+                            <div class="section-header">
+                                <h2>{{ editingConnection ? 'Edit Connection' : 'Add New Connection' }}</h2>
+                                <button class="btn btn-icon" @click="cancelConnectionForm">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <form @submit.prevent="saveConnection" class="form-container">
+                                <div class="form-group">
+                                    <label>Connection Name</label>
+                                    <input v-model="connectionForm.name" type="text" class="form-control" placeholder="My Vectorizer" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Connection Type</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input v-model="connectionForm.type" type="radio" value="local" />
+                                            <span>Local</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input v-model="connectionForm.type" type="radio" value="remote" />
+                                            <span>Remote</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Host</label>
+                                        <input v-model="connectionForm.host" type="text" class="form-control" placeholder="localhost" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Port</label>
+                                        <input v-model.number="connectionForm.port" type="number" class="form-control" placeholder="15002" required />
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>API Token (Optional)</label>
+                                    <input v-model="connectionForm.token" type="password" class="form-control" placeholder="Enter API token if required" />
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" @click="testConnection" :disabled="testing" class="btn btn-secondary">
+                                        <i :class="['fas', testing ? 'fa-spinner fa-spin' : 'fa-plug']"></i>
+                                        {{ testing ? 'Testing...' : 'Test Connection' }}
+                                    </button>
+                                    <div class="form-actions-right">
+                                        <button type="button" @click="cancelConnectionForm" class="btn btn-secondary">Cancel</button>
+                                        <button type="submit" :disabled="saving" class="btn btn-primary">
+                                            <i :class="['fas', saving ? 'fa-spinner fa-spin' : 'fa-save']"></i>
+                                            {{ saving ? 'Saving...' : 'Save' }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Connections List -->
+                        <div v-if="connections.length === 0 && !showAddConnectionForm" class="empty-state">
+                            <i class="fas fa-network-wired"></i>
+                            <h3>No Connections</h3>
+                            <p>Click "New Connection" to add your first connection</p>
+                        </div>
+
+                        <div v-else class="connections-grid">
+                            <div v-for="connection in connections" :key="connection.id" class="connection-card">
+                                <div class="card-header">
+                                    <div class="connection-title">
+                                        <h3>{{ connection.name }}</h3>
+                                        <span :class="['badge', connection.type === 'local' ? 'badge-primary' : 'badge-secondary']">
+                                            {{ connection.type }}
+                                        </span>
+                                    </div>
+                                    <div class="connection-status">
+                                        <span :class="['status-dot', connection.status === 'online' ? 'online' : '']"></span>
+                                        <span>{{ connection.status }}</span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="info-grid">
+                                        <div class="info-item">
+                                            <span class="info-label">Endpoint:</span>
+                                            <span class="info-value">{{ connection.host }}:{{ connection.port }}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Auth:</span>
+                                            <span class="info-value">{{ connection.auth?.token ? 'Token configured' : 'None' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <button
+                                        @click="setActiveConnection(connection.id)"
+                                        :disabled="connection.active"
+                                        :class="['btn', 'btn-sm', connection.active ? 'btn-success' : 'btn-secondary']"
+                                    >
+                                        <i class="fas fa-check"></i>
+                                        {{ connection.active ? 'Active' : 'Set Active' }}
+                                    </button>
+                                    <button @click="editConnection(connection)" class="btn btn-sm btn-secondary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button @click="removeConnection(connection.id)" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workspace Page -->
+                <div v-else-if="currentPage === 'workspace'">
+                    <div class="workspace-page">
+                        <div class="page-header">
+                            <div class="header-content">
+                                <h1><i class="fas fa-folder"></i> Workspace Manager</h1>
+                                <p>Configure projects and collections for indexing</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-secondary" @click="saveWorkspaceConfig" :disabled="savingWorkspace">
+                                    <i :class="['fas', savingWorkspace ? 'fa-spinner fa-spin' : 'fa-save']"></i>
+                                    {{ savingWorkspace ? 'Saving...' : hasUnsavedWorkspaceChanges ? 'Save Changes *' : 'Save Configuration' }}
+                                </button>
+                                <button class="btn btn-primary" @click="addProject">
+                                    <i class="fas fa-plus"></i> Add Project
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Projects Configuration -->
+                        <div class="section">
+                            <div class="section-header">
+                                <h2>Projects</h2>
+                                <div class="search-box">
+                                    <input v-model="workspaceSearchFilter" type="text" placeholder="Search projects..." class="form-control" />
+                                    <i class="fas fa-search"></i>
+                                </div>
+                            </div>
+
+                            <div v-if="filteredWorkspaceProjects.length === 0 && workspaceConfig.projects.length === 0" class="empty-state">
+                                <i class="fas fa-folder-open"></i>
+                                <h3>No Projects</h3>
+                                <p>Add your first project to get started</p>
+                            </div>
+
+                            <div v-else-if="filteredWorkspaceProjects.length === 0" class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <h3>No Results</h3>
+                                <p>No projects match your search</p>
+                            </div>
+
+                            <div v-else class="projects-list">
+                                <div v-for="(project, projectIndex) in filteredWorkspaceProjects" :key="project.name" class="project-card">
+                                    <div class="project-header">
+                                        <div class="project-info">
+                                            <input v-model="project.name" type="text" class="form-control project-name" placeholder="project-name" />
+                                            <input v-model="project.path" type="text" class="form-control project-path" placeholder="../project-path" />
+                                            <input v-model="project.description" type="text" class="form-control project-description" placeholder="Project description" />
+                                        </div>
+                                        <button @click="removeProject(projectIndex)" class="btn btn-icon btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="project-collections">
+                                        <div class="collections-header">
+                                            <h4>Collections</h4>
+                                            <button @click="addCollection(projectIndex)" class="btn btn-sm btn-secondary">
+                                                <i class="fas fa-plus"></i> Add Collection
+                                            </button>
+                                        </div>
+                                        <div v-if="!project.collections || project.collections.length === 0" class="empty-collections">
+                                            No collections configured
+                                        </div>
+                                        <div v-else class="collections-list">
+                                            <div v-for="(collection, collectionIndex) in project.collections" :key="collectionIndex" class="collection-item">
+                                                <div class="collection-header-item" @click="toggleCollection(projectIndex, collectionIndex)">
+                                                    <i :class="['fas', 'fa-chevron-right', 'chevron', isCollectionExpanded(projectIndex, collectionIndex) ? 'expanded' : '']"></i>
+                                                    <span class="collection-name-display">{{ collection.name || 'Unnamed Collection' }}</span>
+                                                    <button @click.stop="removeCollection(projectIndex, collectionIndex)" class="btn btn-icon btn-sm btn-danger">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                                <div v-if="isCollectionExpanded(projectIndex, collectionIndex)" class="collection-details">
+                                                    <div class="form-row">
+                                                        <div class="form-group">
+                                                            <label>Collection Name</label>
+                                                            <input v-model="collection.name" type="text" class="form-control" placeholder="collection-name" />
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Description</label>
+                                                            <input v-model="collection.description" type="text" class="form-control" placeholder="Collection description" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-row">
+                                                        <div class="form-group">
+                                                            <label>Include Patterns</label>
+                                                            <textarea v-model="collection.include_patterns_str" @input="updateIncludePatterns(projectIndex, collectionIndex)" rows="3" class="form-control code-textarea" placeholder="**/*.md&#10;**/*.ts"></textarea>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Exclude Patterns</label>
+                                                            <textarea v-model="collection.exclude_patterns_str" @input="updateExcludePatterns(projectIndex, collectionIndex)" rows="3" class="form-control code-textarea" placeholder="node_modules/**&#10;dist/**"></textarea>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Page -->
+                <div v-else-if="currentPage === 'config'">
+                    <div class="config-page">
+                        <div class="page-header">
+                            <div class="header-content">
+                                <h1><i class="fas fa-cog"></i> Configuration Editor</h1>
+                                <p>Edit Vectorizer configuration settings</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-secondary" @click="reloadConfig">
+                                    <i class="fas fa-sync"></i> Reload
+                                </button>
+                                <button class="btn btn-primary" @click="saveConfig" :disabled="savingConfig">
+                                    <i :class="['fas', savingConfig ? 'fa-spinner fa-spin' : 'fa-save']"></i>
+                                    {{ savingConfig ? 'Saving...' : hasUnsavedConfigChanges ? 'Save Changes *' : 'Save' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="config-layout">
+                            <div class="config-sidebar">
+                                <nav class="config-nav">
+                                    <button
+                                        v-for="tab in configTabs"
+                                        :key="tab.id"
+                                        @click="switchConfigTab(tab.id)"
+                                        :class="['nav-item', { active: activeConfigTab === tab.id }]"
+                                    >
+                                        <i :class="tab.icon"></i>
+                                        <span>{{ tab.label }}</span>
+                                    </button>
+                                </nav>
+                            </div>
+
+                            <div class="config-content">
+                                <div class="section">
+                                    <h2>{{ activeConfigTabLabel }}</h2>
+                                    <p class="config-description">{{ activeConfigTabDescription }}</p>
+                                    
+                                    <!-- Config tabs content will be rendered here -->
+                                    <div class="config-tab-content">
+                                        <div v-if="!configData" class="empty-state">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                            <h3>Loading Configuration</h3>
+                                            <p>Click "Reload" to load configuration from server</p>
+                                        </div>
+                                        <div v-else class="config-editor">
+                                            <!-- Configuration File Info -->
+                                            <div class="config-info-box">
+                                                <div class="info-header">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    <h4>Configuration File</h4>
+                                                </div>
+                                                <div class="info-content">
+                                                    <p><strong>File Location:</strong> <code>config.yml</code> (server-side)</p>
+                                                    <p><strong>Format:</strong> The configuration file is <code>config.yml</code> (YAML format). You can edit it in YAML or JSON format below.</p>
+                                                    <p><strong>Note:</strong> Changes are saved to <code>config.yml</code> when you click "Save". The server must be restarted for changes to take effect.</p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Format Toggle -->
+                                            <div class="form-group">
+                                                <div class="format-toggle">
+                                                    <label class="toggle-label">
+                                                        <input v-model="configFormat" type="radio" value="json" />
+                                                        <span>JSON</span>
+                                                    </label>
+                                                    <label class="toggle-label">
+                                                        <input v-model="configFormat" type="radio" value="yaml" />
+                                                        <span>YAML</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <!-- JSON Editor -->
+                                            <div v-if="configFormat === 'json'" class="form-group">
+                                                <label>Configuration (JSON Format)</label>
+                                                <textarea 
+                                                    v-model="configJsonString" 
+                                                    class="form-control code-textarea" 
+                                                    rows="20"
+                                                    placeholder='{"server": {"host": "0.0.0.0", "port": 15002}, ...}'
+                                                    spellcheck="false"
+                                                ></textarea>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    Edit the configuration in JSON format. The server will convert it to YAML when saving.
+                                                </small>
+                                            </div>
+
+                                            <!-- YAML Editor -->
+                                            <div v-else class="form-group">
+                                                <label>Configuration (YAML Format)</label>
+                                                <div class="editor-wrapper">
+                                                    <textarea 
+                                                        ref="configEditorRef"
+                                                        v-model="configYamlString" 
+                                                        class="form-control code-textarea yaml-editor" 
+                                                        rows="25"
+                                                        placeholder='# Vectorizer Server Configuration File&#10;&#10;server:&#10;  host: "127.0.0.1"&#10;  port: 15002&#10;&#10;collections:&#10;  defaults:&#10;    dimension: 512&#10;...'
+                                                        spellcheck="false"
+                                                    ></textarea>
+                                                </div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    Edit the configuration directly in YAML format. The file is stored as <code>config.yml</code> on the server. Click the section buttons on the left to navigate to specific configuration sections.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Page -->
+                <div v-else-if="currentPage === 'logs'">
+                    <div class="logs-page">
+                        <div class="page-header">
+                            <div class="header-content">
+                                <h1><i class="fas fa-file-alt"></i> Logs Viewer</h1>
+                                <p>View and monitor Vectorizer logs</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-secondary" @click="refreshLogs" :disabled="loadingLogs">
+                                    <i :class="['fas', loadingLogs ? 'fa-spinner fa-spin' : 'fa-sync']"></i>
+                                    Refresh
+                                </button>
+                                <button class="btn btn-secondary" @click="exportLogs">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                                <button class="btn btn-danger" @click="clearLogs">
+                                    <i class="fas fa-trash"></i>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filters -->
+                        <div class="section mb-6">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Level</label>
+                           <select v-model="logFilterLevel" @change="applyLogFilters" class="form-control">
+                               <option value="">All Levels</option>
+                               <option value="DEBUG">Debug</option>
+                               <option value="INFO">Info</option>
+                               <option value="WARN">Warning</option>
+                               <option value="ERROR">Error</option>
+                           </select>
+                       </div>
+                       <div class="form-group">
+                           <label>Search</label>
+                           <input v-model="logFilterSearch" type="text" class="form-control" placeholder="Filter logs..." />
+                       </div>
+                       <div class="form-group">
+                           <label>Max Lines</label>
+                           <input v-model.number="logMaxLines" type="number" min="100" max="10000" step="100" class="form-control" @change="applyLogFilters" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <label class="checkbox-label">
+                                    <input v-model="logAutoScroll" type="checkbox" />
+                                    <span>Auto-scroll</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input v-model="logShowTimestamps" type="checkbox" />
+                                    <span>Timestamps</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Logs Container -->
+                        <div class="section">
+                            <div class="logs-header">
+                                <span>Showing {{ filteredLogs.length }} logs</span>
+                                <span v-if="loadingLogs" class="loading-indicator">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                                </span>
+                            </div>
+                            <div ref="logsContainer" class="logs-container">
+                                <div v-if="filteredLogs.length === 0" class="empty-state">
+                                    <i class="fas fa-file-alt"></i>
+                                    <h3>No logs found</h3>
+                                    <p>Try adjusting your filters or refresh the logs</p>
+                                </div>
+                                <div v-else class="logs-list">
+                                    <div
+                                        v-for="(log, index) in filteredLogs"
+                                        :key="index"
+                                        :class="['log-entry', `log-${log.level.toLowerCase()}`]"
+                                    >
+                                        <div class="log-timestamp" v-if="logShowTimestamps">
+                                            {{ formatLogTimestamp(log.timestamp) }}
+                                        </div>
+                                        <span :class="['log-level-badge', `level-${log.level.toLowerCase()}`]">
+                                            {{ log.level }}
+                                        </span>
+                                        <div class="log-message">{{ log.message }}</div>
+                                        <div v-if="log.source" class="log-source">{{ log.source }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backups Page -->
+                <div v-else-if="currentPage === 'backups'">
+                    <div class="backups-page">
+                        <div class="page-header">
+                            <div class="header-content">
+                                <h1><i class="fas fa-save"></i> Backup Manager</h1>
+                                <p>Create and manage backups of your collections</p>
+                            </div>
+                            <div class="header-actions">
+                                <button class="btn btn-primary" @click="createBackup">
+                                    <i class="fas fa-plus"></i> Create Backup
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Backup Directory Info -->
+                        <div class="section mb-6">
+                            <div class="section-header">
+                                <h2>Backup Directory</h2>
+                                <button class="btn btn-secondary btn-sm" @click="openBackupDirectory">
+                                    <i class="fas fa-folder-open"></i> Open Directory
+                                </button>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Location:</span>
+                                <span class="info-value">{{ backupDirectory || 'Loading...' }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Backups List -->
+                        <div v-if="loadingBackups && backups.length === 0" class="empty-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <h3>Loading backups...</h3>
+                        </div>
+
+                        <div v-else-if="backups.length === 0" class="empty-state">
+                            <i class="fas fa-save"></i>
+                            <h3>No Backups</h3>
+                            <p>Click "Create Backup" to protect your data</p>
+                        </div>
+
+                        <div v-else class="backups-table-wrapper">
+                            <div class="backups-table-container">
+                                <table class="backups-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Date</th>
+                                        <th>Size</th>
+                                        <th>Collections</th>
+                                        <th>Type</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="backup in backups" :key="backup.id" class="backup-row">
+                                        <td class="backup-name">
+                                            <div class="cell-content">
+                                                <i class="fas fa-database"></i>
+                                                <span>{{ backup.name }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="backup-date">
+                                            <div class="cell-content">
+                                                <i class="fas fa-calendar"></i>
+                                                <span>{{ formatDateTime(backup.date) }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="backup-size">
+                                            <div class="cell-content">
+                                                <i class="fas fa-hdd"></i>
+                                                <span>{{ formatSize(backup.size) }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="backup-collections">
+                                            <div class="cell-content collections-cell">
+                                                <i class="fas fa-layer-group"></i>
+                                                <span class="collections-text">{{ backup.collections.length }}</span>
+                                                <span v-if="backup.collections.length > 0" class="collections-tooltip" :title="backup.collections.join(', ')">
+                                                    {{ backup.collections.slice(0, 2).join(', ') }}{{ backup.collections.length > 2 ? '...' : '' }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="backup-type">
+                                            <span :class="['type-badge', backup.type === 'full' ? 'type-full' : 'type-incremental']">
+                                                {{ backup.type === 'full' ? 'Full' : 'Incremental' }}
+                                            </span>
+                                        </td>
+                                        <td class="backup-actions">
+                                            <div class="cell-content actions-cell">
+                                                <button @click="restoreBackup(backup.id)" class="btn btn-sm btn-secondary" title="Restore backup">
+                                                    <i class="fas fa-undo"></i>
+                                                    <span>Restore</span>
+                                                </button>
+                                                <button @click="deleteBackup(backup.id)" class="btn btn-sm btn-danger" title="Delete backup">
+                                                    <i class="fas fa-trash"></i>
+                                                    <span>Delete</span>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div v-else-if="currentPage === 'file-watcher'">
                     <div class="file-watcher-page">
                         <div class="page-header">
@@ -906,7 +1475,7 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script>
-        const { createApp, ref, computed, onMounted, onBeforeUnmount, watch } = Vue;
+        const { createApp, ref, computed, reactive, onMounted, onBeforeUnmount, watch } = Vue;
 
         createApp({
             setup() {
@@ -939,6 +1508,200 @@
                 const fileWatcherMetrics = ref(null);
                 const fileWatcherInterval = ref(null);
 
+                // Connections Page
+                const connections = ref([]);
+                const showAddConnectionForm = ref(false);
+                const editingConnection = ref(null);
+                const connectionForm = reactive({
+                    name: '',
+                    type: 'local',
+                    host: 'localhost',
+                    port: 15002,
+                    token: ''
+                });
+                const testing = ref(false);
+                const saving = ref(false);
+
+                // Workspace Page
+                const workspaceConfig = ref({ projects: [] });
+                const workspaceSearchFilter = ref('');
+                const savingWorkspace = ref(false);
+                const hasUnsavedWorkspaceChanges = ref(false);
+                const expandedCollections = ref(new Set());
+
+                // Config Page
+                const activeConfigTab = ref('general');
+                const configTabs = ref([
+                    { id: 'general', label: 'General', icon: 'fas fa-server' },
+                    { id: 'embedding', label: 'Embedding', icon: 'fas fa-brain' },
+                    { id: 'collections', label: 'Collections', icon: 'fas fa-layer-group' },
+                    { id: 'performance', label: 'Performance', icon: 'fas fa-tachometer-alt' },
+                    { id: 'file_watcher', label: 'File Watcher', icon: 'fas fa-eye' },
+                    { id: 'logging', label: 'Logging', icon: 'fas fa-file-alt' },
+                    { id: 'workspace', label: 'Workspace', icon: 'fas fa-folder' },
+                    { id: 'api', label: 'API', icon: 'fas fa-plug' }
+                ]);
+                const configData = ref(null);
+                const configJsonString = ref('');
+                const configYamlString = ref('');
+                const configFormat = ref('yaml'); // 'json' or 'yaml'
+                const savingConfig = ref(false);
+                const hasUnsavedConfigChanges = ref(false);
+                const configEditorRef = ref(null);
+                
+                // Map tabs to YAML sections
+                const tabToSectionMap = {
+                    'general': ['server', 'storage'],
+                    'embedding': ['collections.defaults.embedding', 'embedding'],
+                    'collections': ['collections'],
+                    'performance': ['performance', 'cache'],
+                    'file_watcher': ['file_watcher'],
+                    'logging': ['logging'],
+                    'workspace': ['workspace'],
+                    'api': ['api', 'rest']
+                };
+                
+                // Get YAML section by tab
+                const getYamlSection = (tabId) => {
+                    if (!configYamlString.value) return '';
+                    
+                    const sections = tabToSectionMap[tabId] || [];
+                    if (sections.length === 0) return configYamlString.value;
+                    
+                    const lines = configYamlString.value.split('\n');
+                    const sectionLines = [];
+                    let inSection = false;
+                    let sectionIndent = 0;
+                    
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        const trimmed = line.trim();
+                        
+                        // Check if this line starts a section we want
+                        for (const section of sections) {
+                            const sectionParts = section.split('.');
+                            const sectionName = sectionParts[sectionParts.length - 1];
+                            
+                            if (trimmed.startsWith(sectionName + ':') && !inSection) {
+                                inSection = true;
+                                sectionIndent = line.length - line.trimStart().length;
+                                sectionLines.push(line);
+                                continue;
+                            }
+                        }
+                        
+                        if (inSection) {
+                            const currentIndent = line.length - line.trimStart().length;
+                            // If we hit a line at same or less indent that's not empty and starts with a key, might be next section
+                            if (trimmed && currentIndent <= sectionIndent && trimmed.match(/^[a-z_]+:/) && !sections.some(s => trimmed.startsWith(s.split('.').pop() + ':'))) {
+                                break;
+                            }
+                            sectionLines.push(line);
+                        }
+                    }
+                    
+                    return sectionLines.length > 0 ? sectionLines.join('\n') : configYamlString.value;
+                };
+                
+                // Scroll to section in editor
+                const scrollToSection = (sectionName) => {
+                    if (!configEditorRef.value || configFormat.value !== 'yaml') return;
+                    
+                    setTimeout(() => {
+                        const textarea = configEditorRef.value;
+                        const content = textarea.value;
+                        const lines = content.split('\n');
+                        let targetLine = -1;
+                        
+                        // Search for section (can be at root level or nested)
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            // Match section name at start of line (with or without indentation)
+                            if (line.match(new RegExp(`^${sectionName.replace(/\./g, '\\.')}:`)) || 
+                                line.match(new RegExp(`^${sectionName.split('.').pop()}:`))) {
+                                targetLine = i;
+                                break;
+                            }
+                        }
+                        
+                        if (targetLine >= 0) {
+                            // Calculate scroll position
+                            const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight) || 20;
+                            const textareaHeight = textarea.clientHeight;
+                            const scrollPosition = (targetLine * lineHeight) - (textareaHeight / 3); // Center it slightly
+                            
+                            textarea.scrollTo({
+                                top: Math.max(0, scrollPosition),
+                                behavior: 'smooth'
+                            });
+                            
+                            // Highlight the line briefly
+                            textarea.setSelectionRange(
+                                content.indexOf(lines[targetLine]),
+                                content.indexOf(lines[targetLine]) + lines[targetLine].length
+                            );
+                            
+                            setTimeout(() => {
+                                textarea.setSelectionRange(textarea.selectionStart, textarea.selectionStart);
+                            }, 1000);
+                        }
+                    }, 150);
+                };
+                
+                // Simple JSON to YAML converter
+                function convertJsonToYaml(obj, indent = 0) {
+                    const spaces = '  '.repeat(indent);
+                    let yaml = '';
+                    
+                    for (const [key, value] of Object.entries(obj)) {
+                        if (value === null) {
+                            yaml += `${spaces}${key}: null\n`;
+                        } else if (typeof value === 'object' && !Array.isArray(value)) {
+                            yaml += `${spaces}${key}:\n${convertJsonToYaml(value, indent + 1)}`;
+                        } else if (Array.isArray(value)) {
+                            yaml += `${spaces}${key}:\n`;
+                            value.forEach(item => {
+                                if (typeof item === 'object') {
+                                    yaml += `${spaces}  -\n${convertJsonToYaml(item, indent + 2)}`;
+                                } else {
+                                    yaml += `${spaces}  - ${formatYamlValue(item)}\n`;
+                                }
+                            });
+                        } else {
+                            yaml += `${spaces}${key}: ${formatYamlValue(value)}\n`;
+                        }
+                    }
+                    
+                    return yaml;
+                }
+                
+                function formatYamlValue(value) {
+                    if (typeof value === 'string') {
+                        // Escape strings that need quotes
+                        if (value.includes(':') || value.includes('#') || value.includes('|') || value.includes('&') || value.trim() !== value) {
+                            return JSON.stringify(value);
+                        }
+                        return value;
+                    }
+                    return String(value);
+                }
+
+                // Logs Page
+                const logs = ref([]);
+                const loadingLogs = ref(false);
+                const logFilterLevel = ref('');
+                const logFilterSearch = ref('');
+                const logMaxLines = ref(1000);
+                const logAutoScroll = ref(true);
+                const logShowTimestamps = ref(true);
+                const logsContainer = ref(null);
+
+                // Backups Page
+                const backups = ref([]);
+                const loadingBackups = ref(false);
+                const backupDirectory = ref(null);
+                const showCreateBackupModal = ref(false);
+
                 // Authentication
                 const isAuthenticated = ref(false);
                 const currentUser = ref(null);
@@ -956,7 +1719,13 @@
                         overview: 'Overview',
                         collections: 'Collections',
                         search: 'Search',
-                        vectors: 'Vectors'
+                        vectors: 'Vectors',
+                        'file-watcher': 'File Watcher',
+                        connections: 'Connection Manager',
+                        workspace: 'Workspace Manager',
+                        config: 'Configuration',
+                        logs: 'Logs Viewer',
+                        backups: 'Backup Manager'
                     };
                     return titles[currentPage.value] || currentPage.value;
                 });
@@ -1007,6 +1776,30 @@
                 const setPage = (page) => {
                     console.log('📄 Changing page to:', page);
                     currentPage.value = page;
+                    
+                    // Load page-specific data
+                    if (page === 'connections') {
+                        loadConnections();
+                    } else if (page === 'workspace') {
+                        loadWorkspaceConfig();
+                    } else if (page === 'config') {
+                        reloadConfig();
+                    } else if (page === 'logs') {
+                        refreshLogs();
+                        // Auto-refresh logs if auto-scroll is enabled
+                        if (logAutoScroll.value) {
+                            const logInterval = setInterval(() => {
+                                if (currentPage.value === 'logs') {
+                                    refreshLogs();
+                                } else {
+                                    clearInterval(logInterval);
+                                }
+                            }, 5000);
+                        }
+                    } else if (page === 'backups') {
+                        loadBackups();
+                        loadBackupDirectory();
+                    }
                     // Always keep refresh running - it handles different pages internally
                     if (!refreshInterval.value) {
                         startIndexingRefresh();
@@ -2092,6 +2885,11 @@
                     return new Intl.NumberFormat().format(num);
                 };
 
+                const formatDateTime = (dateString) => {
+                    if (!dateString) return 'N/A';
+                    return window.formatters.formatDateTime(dateString);
+                };
+                
                 const formatSize = (sizeInBytes) => {
                     if (sizeInBytes >= 1024 * 1024 * 1024) {
                         return (sizeInBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
@@ -2160,6 +2958,59 @@
                     return 100; // Default to 100% if no progress info
                 };
 
+                // Computed properties for new pages
+                const filteredWorkspaceProjects = computed(() => {
+                    if (!workspaceConfig.value || !workspaceConfig.value.projects) {
+                        return [];
+                    }
+                    if (!workspaceSearchFilter.value.trim()) {
+                        return workspaceConfig.value.projects;
+                    }
+                    const search = workspaceSearchFilter.value.toLowerCase();
+                    return workspaceConfig.value.projects.filter(p => 
+                        (p.name || '').toLowerCase().includes(search) ||
+                        (p.description || '').toLowerCase().includes(search) ||
+                        (p.path || '').toLowerCase().includes(search)
+                    );
+                });
+
+                const filteredLogs = computed(() => {
+                    let filtered = logs.value;
+                    
+                    if (logFilterLevel.value) {
+                        filtered = filtered.filter(log => log.level === logFilterLevel.value);
+                    }
+                    
+                    if (logFilterSearch.value) {
+                        const search = logFilterSearch.value.toLowerCase();
+                        filtered = filtered.filter(log => 
+                            log.message.toLowerCase().includes(search) ||
+                            (log.source || '').toLowerCase().includes(search)
+                        );
+                    }
+                    
+                    return filtered.slice(0, logMaxLines.value);
+                });
+
+                const activeConfigTabLabel = computed(() => {
+                    const tab = configTabs.value.find(t => t.id === activeConfigTab.value);
+                    return tab ? tab.label : 'General';
+                });
+
+                const activeConfigTabDescription = computed(() => {
+                    const descriptions = {
+                        general: 'Configure general server settings',
+                        embedding: 'Configure embedding models and parameters',
+                        collections: 'Set default collection settings',
+                        performance: 'Tune performance parameters',
+                        file_watcher: 'Configure file watching behavior',
+                        logging: 'Configure logging levels and outputs',
+                        workspace: 'Manage workspace settings',
+                        api: 'API configuration and security'
+                    };
+                    return descriptions[activeConfigTab.value] || '';
+                });
+
                 const formatLastUpdated = (collection) => {
                     // Return formatted last updated time
                     if (collection.last_updated) {
@@ -2168,6 +3019,954 @@
                         return new Date(collection.indexing_status.last_updated).toLocaleDateString();
                     }
                     return 'Never';
+                };
+
+                // Connections Page Functions
+                const cancelConnectionForm = () => {
+                    showAddConnectionForm.value = false;
+                    editingConnection.value = null;
+                    connectionForm.name = '';
+                    connectionForm.type = 'local';
+                    connectionForm.host = 'localhost';
+                    connectionForm.port = 15002;
+                    connectionForm.token = '';
+                };
+
+                const testConnection = async () => {
+                    testing.value = true;
+                    try {
+                        showToast('Testing connection...', 'info');
+                        
+                        // Build test URL
+                        const testUrl = connectionForm.type === 'local' 
+                            ? `http://${connectionForm.host}:${connectionForm.port}`
+                            : `https://${connectionForm.host}:${connectionForm.port}`;
+                        
+                        // Test the connection
+                        const response = await fetch(`${testUrl}/health`, {
+                            method: 'GET',
+                            headers: connectionForm.token ? {
+                                'Authorization': `Bearer ${connectionForm.token}`
+                            } : {}
+                        });
+                        
+                        if (response.ok) {
+                            showToast('Connection test successful', 'success');
+                        } else {
+                            throw new Error(`Server returned ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('Connection test error:', error);
+                        showToast(`Connection test failed: ${error.message}`, 'error');
+                    } finally {
+                        testing.value = false;
+                    }
+                };
+
+                const saveConnection = async () => {
+                    saving.value = true;
+                    try {
+                        showToast('Saving connection...', 'info');
+                        
+                        const connectionData = {
+                            id: editingConnection.value?.id || 'conn-' + Date.now(),
+                            name: connectionForm.name,
+                            type: connectionForm.type,
+                            host: connectionForm.host,
+                            port: connectionForm.port,
+                            auth: connectionForm.token ? { token: connectionForm.token } : null,
+                            status: 'offline',
+                            active: false
+                        };
+
+                        if (editingConnection.value) {
+                            // Update existing connection
+                            const index = connections.value.findIndex(c => c.id === editingConnection.value.id);
+                            if (index > -1) {
+                                connections.value[index] = { ...connections.value[index], ...connectionData };
+                            }
+                        } else {
+                            // Add new connection
+                            connections.value.push(connectionData);
+                        }
+
+                        localStorage.setItem('vectorizer-connections', JSON.stringify(connections.value));
+                        showToast('Connection saved successfully', 'success');
+                        cancelConnectionForm();
+                    } catch (error) {
+                        showToast(`Error saving connection: ${error.message}`, 'error');
+                    } finally {
+                        saving.value = false;
+                    }
+                };
+
+                const loadConnections = async () => {
+                    try {
+                        // Get current connection from window location
+                        const currentHost = window.location.hostname;
+                        let currentPort = window.location.port;
+                        
+                        // Extract port from URL if not directly available
+                        if (!currentPort || currentPort === '') {
+                            // Try to extract port from full URL
+                            const portMatch = window.location.href.match(/:(\d+)/);
+                            if (portMatch && portMatch[1]) {
+                                currentPort = portMatch[1];
+                            } else {
+                                // Fallback based on protocol
+                                currentPort = window.location.protocol === 'https:' ? '443' : '80';
+                                // But if we're accessing vectorizer, it's likely 15002
+                                if (window.location.pathname.includes('vectorizer') || window.location.pathname === '/') {
+                                    currentPort = '15002';
+                                }
+                            }
+                        }
+                        
+                        // Load connections from localStorage
+                        const stored = localStorage.getItem('vectorizer-connections');
+                        let savedConnections = [];
+                        if (stored) {
+                            try {
+                                savedConnections = JSON.parse(stored);
+                            } catch (e) {
+                                console.error('Error parsing stored connections:', e);
+                            }
+                        }
+                        
+                        // Check if current connection exists in saved connections
+                        const currentHostPort = `${currentHost}:${currentPort}`;
+                        const currentConnectionIndex = savedConnections.findIndex(conn => {
+                            const connHostPort = `${conn.host}:${conn.port}`;
+                            return connHostPort === currentHostPort;
+                        });
+                        
+                        // Determine connection status
+                        let connectionStatus = 'offline';
+                        try {
+                            const healthCheck = await window.apiClient.healthCheck();
+                            if (healthCheck && healthCheck.status !== 'error') {
+                                connectionStatus = 'online';
+                                connected.value = true;
+                            }
+                        } catch (e) {
+                            console.log('Health check failed, connection is offline');
+                        }
+                        
+                        if (currentConnectionIndex >= 0) {
+                            // Update existing connection
+                            savedConnections[currentConnectionIndex].status = connectionStatus;
+                            savedConnections[currentConnectionIndex].active = true;
+                            savedConnections.forEach((conn, index) => {
+                                if (index !== currentConnectionIndex) {
+                                    conn.active = false;
+                                }
+                            });
+                            connections.value = savedConnections;
+                        } else {
+                            // Create new connection for current URL
+                            const currentConnection = {
+                                id: 'current-' + Date.now(),
+                                name: `Vectorizer (${currentHost}:${currentPort})`,
+                                type: (currentHost === 'localhost' || currentHost === '127.0.0.1') ? 'local' : 'remote',
+                                host: currentHost,
+                                port: parseInt(currentPort),
+                                auth: null,
+                                status: connectionStatus,
+                                active: true
+                            };
+                            
+                            // Mark all other connections as inactive
+                            savedConnections.forEach(conn => {
+                                conn.active = false;
+                            });
+                            
+                            connections.value = [currentConnection, ...savedConnections];
+                        }
+                        
+                        // Save updated connections
+                        localStorage.setItem('vectorizer-connections', JSON.stringify(connections.value));
+                        localStorage.setItem('vectorizer-active-connection', connections.value.find(c => c.active)?.id || null);
+                        
+                        console.log('Loaded connections:', connections.value.length, 'Active:', connections.value.find(c => c.active)?.name);
+                    } catch (error) {
+                        console.error('Error loading connections:', error);
+                        connections.value = [];
+                    }
+                };
+
+                const setActiveConnection = async (id) => {
+                    const selectedConnection = connections.value.find(c => c.id === id);
+                    if (!selectedConnection) {
+                        showToast('Connection not found', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        // Update apiClient baseUrl
+                        const protocol = selectedConnection.type === 'local' ? 'http' : 'https';
+                        const newBaseUrl = `${protocol}://${selectedConnection.host}:${selectedConnection.port}`;
+                        window.apiClient.baseUrl = newBaseUrl;
+                        
+                        // Update current page URL if possible (or store for next page load)
+                        // For now, just update the active status
+                        connections.value.forEach(conn => {
+                            conn.active = conn.id === id;
+                            // Update status by testing connection
+                            if (conn.id === id) {
+                                testConnectionStatus(conn).then(status => {
+                                    conn.status = status;
+                                });
+                            }
+                        });
+                        
+                        localStorage.setItem('vectorizer-connections', JSON.stringify(connections.value));
+                        localStorage.setItem('vectorizer-active-connection', id);
+                        
+                        // Test new connection
+                        const testResult = await window.apiClient.testConnection();
+                        if (testResult.connected) {
+                            connected.value = true;
+                            showToast('Connection activated successfully', 'success');
+                            // Reload data with new connection
+                            await refreshData();
+                        } else {
+                            connected.value = false;
+                            showToast('Connection activated but test failed', 'warning');
+                        }
+                    } catch (error) {
+                        showToast(`Error activating connection: ${error.message}`, 'error');
+                    }
+                };
+
+                const testConnectionStatus = async (connection) => {
+                    try {
+                        const protocol = connection.type === 'local' ? 'http' : 'https';
+                        const testUrl = `${protocol}://${connection.host}:${connection.port}`;
+                        const response = await fetch(`${testUrl}/health`, {
+                            method: 'GET',
+                            headers: connection.auth?.token ? {
+                                'Authorization': `Bearer ${connection.auth.token}`
+                            } : {},
+                            signal: AbortSignal.timeout(3000) // 3 second timeout
+                        });
+                        return response.ok ? 'online' : 'offline';
+                    } catch (error) {
+                        return 'offline';
+                    }
+                };
+
+                const editConnection = (connection) => {
+                    editingConnection.value = connection;
+                    connectionForm.name = connection.name;
+                    connectionForm.type = connection.type;
+                    connectionForm.host = connection.host;
+                    connectionForm.port = connection.port;
+                    connectionForm.token = connection.auth?.token || '';
+                    showAddConnectionForm.value = true;
+                };
+
+                const removeConnection = async (id) => {
+                    if (!confirm('Are you sure you want to delete this connection?')) {
+                        return;
+                    }
+                    connections.value = connections.value.filter(c => c.id !== id);
+                    localStorage.setItem('vectorizer-connections', JSON.stringify(connections.value));
+                    showToast('Connection deleted', 'success');
+                };
+
+                // Workspace Page Functions
+                const loadWorkspaceConfig = async () => {
+                    try {
+                        console.log('Loading workspace config from API...');
+                        const response = await window.apiClient.request('/api/workspace/config');
+                        console.log('Workspace config loaded:', response);
+                        
+                        if (response && response.projects) {
+                            // Convert arrays to strings for textarea editing (like GUI does)
+                            response.projects.forEach((project) => {
+                                if (project.collections) {
+                                    project.collections.forEach((collection) => {
+                                        collection.include_patterns_str = collection.include_patterns?.join('\n') || '';
+                                        collection.exclude_patterns_str = collection.exclude_patterns?.join('\n') || '';
+                                    });
+                                }
+                            });
+                            workspaceConfig.value = response;
+                            console.log('Workspace config set with', workspaceConfig.value.projects?.length || 0, 'projects');
+                        } else {
+                            console.log('No projects in response, using empty config');
+                            workspaceConfig.value = { 
+                                global_settings: {
+                                    file_watcher: {
+                                        watch_paths: [],
+                                        auto_discovery: true,
+                                        enable_auto_update: true,
+                                        hot_reload: true,
+                                        exclude_patterns: []
+                                    }
+                                },
+                                projects: [] 
+                            };
+                        }
+                    } catch (error) {
+                        console.error('Error loading workspace config from API:', error);
+                        // Try to load from localStorage as fallback
+                        const stored = localStorage.getItem('vectorizer-workspace-config');
+                        if (stored) {
+                            try {
+                                const parsed = JSON.parse(stored);
+                                console.log('Loaded workspace config from localStorage');
+                                workspaceConfig.value = parsed;
+                            } catch (e) {
+                                console.error('Error parsing stored workspace config:', e);
+                                workspaceConfig.value = { projects: [] };
+                            }
+                        } else {
+                            console.log('No stored workspace config, using empty config');
+                            workspaceConfig.value = { 
+                                global_settings: {
+                                    file_watcher: {
+                                        watch_paths: [],
+                                        auto_discovery: true,
+                                        enable_auto_update: true,
+                                        hot_reload: true,
+                                        exclude_patterns: []
+                                    }
+                                },
+                                projects: [] 
+                            };
+                        }
+                    }
+                };
+
+                const saveWorkspaceConfig = async () => {
+                    savingWorkspace.value = true;
+                    try {
+                        showToast('Saving workspace configuration...', 'info');
+                        
+                        // Prepare config for saving - convert strings back to arrays
+                        const configToSave = JSON.parse(JSON.stringify(workspaceConfig.value));
+                        if (configToSave.projects) {
+                            configToSave.projects.forEach((project) => {
+                                if (project.collections) {
+                                    project.collections.forEach((collection) => {
+                                        // Convert string patterns back to arrays
+                                        if (collection.include_patterns_str) {
+                                            collection.include_patterns = collection.include_patterns_str
+                                                .split('\n')
+                                                .map(p => p.trim())
+                                                .filter(p => p.length > 0);
+                                            delete collection.include_patterns_str;
+                                        }
+                                        if (collection.exclude_patterns_str) {
+                                            collection.exclude_patterns = collection.exclude_patterns_str
+                                                .split('\n')
+                                                .map(p => p.trim())
+                                                .filter(p => p.length > 0);
+                                            delete collection.exclude_patterns_str;
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        
+                        await window.apiClient.request('/api/workspace/config', {
+                            method: 'POST',
+                            body: JSON.stringify(configToSave)
+                        });
+                        
+                        // Also save to localStorage as backup
+                        localStorage.setItem('vectorizer-workspace-config', JSON.stringify(workspaceConfig.value));
+                        
+                        hasUnsavedWorkspaceChanges.value = false;
+                        showToast('Workspace configuration saved', 'success');
+                    } catch (error) {
+                        console.error('Error saving workspace:', error);
+                        showToast(`Error saving workspace: ${error.message}`, 'error');
+                    } finally {
+                        savingWorkspace.value = false;
+                    }
+                };
+
+                const addProject = () => {
+                    try {
+                        console.log('Adding new project...');
+                        
+                        // Ensure workspaceConfig has projects array
+                        if (!workspaceConfig.value) {
+                            workspaceConfig.value = { projects: [] };
+                        }
+                        if (!workspaceConfig.value.projects) {
+                            workspaceConfig.value.projects = [];
+                        }
+                        
+                        const timestamp = Date.now();
+                        const newProject = {
+                            name: `new-project-${timestamp}`,
+                            path: `../new-project-${timestamp}`,
+                            description: 'New Project Description',
+                            collections: []
+                        };
+                        
+                        // Use reactive array push
+                        workspaceConfig.value.projects.push(newProject);
+                        hasUnsavedWorkspaceChanges.value = true;
+                        workspaceSearchFilter.value = newProject.name;
+                        
+                        console.log('Project added:', newProject);
+                        console.log('Total projects:', workspaceConfig.value.projects.length);
+                        showToast('Project added. Click "Save Changes" to save.', 'success');
+                    } catch (error) {
+                        console.error('Error adding project:', error);
+                        showToast(`Error adding project: ${error.message}`, 'error');
+                    }
+                };
+
+                const removeProject = (index) => {
+                    if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+                        return;
+                    }
+                    try {
+                        if (!workspaceConfig.value || !workspaceConfig.value.projects || index >= workspaceConfig.value.projects.length) {
+                            console.error('Invalid project index:', index);
+                            showToast('Invalid project index', 'error');
+                            return;
+                        }
+                        
+                        const removedProject = workspaceConfig.value.projects[index];
+                        workspaceConfig.value.projects.splice(index, 1);
+                        hasUnsavedWorkspaceChanges.value = true;
+                        
+                        // Clear search filter if removed project was shown
+                        if (workspaceSearchFilter.value === removedProject.name) {
+                            workspaceSearchFilter.value = '';
+                        }
+                        
+                        console.log('Project removed:', removedProject.name);
+                        showToast('Project removed. Click "Save Changes" to save.', 'success');
+                    } catch (error) {
+                        console.error('Error removing project:', error);
+                        showToast(`Error removing project: ${error.message}`, 'error');
+                    }
+                };
+
+                const addCollection = (projectIndex) => {
+                    try {
+                        console.log('Adding collection to project index:', projectIndex);
+                        
+                        if (!workspaceConfig.value || !workspaceConfig.value.projects || !workspaceConfig.value.projects[projectIndex]) {
+                            console.error('Invalid project index:', projectIndex);
+                            showToast('Invalid project. Please refresh the page.', 'error');
+                            return;
+                        }
+                        
+                        const project = workspaceConfig.value.projects[projectIndex];
+                        if (!project.collections) {
+                            project.collections = [];
+                        }
+                        
+                        const timestamp = Date.now();
+                        const newCollection = {
+                            name: `new-collection-${timestamp}`,
+                            description: 'New Collection Description',
+                            include_patterns: [],
+                            exclude_patterns: [],
+                            include_patterns_str: '',
+                            exclude_patterns_str: ''
+                        };
+                        
+                        project.collections.push(newCollection);
+                        hasUnsavedWorkspaceChanges.value = true;
+                        
+                        // Auto-expand the collection
+                        const key = `${projectIndex}-${project.collections.length - 1}`;
+                        expandedCollections.value.add(key);
+                        
+                        console.log('Collection added:', newCollection);
+                        showToast('Collection added. Click "Save Changes" to save.', 'success');
+                    } catch (error) {
+                        console.error('Error adding collection:', error);
+                        showToast(`Error adding collection: ${error.message}`, 'error');
+                    }
+                };
+
+                const removeCollection = (projectIndex, collectionIndex) => {
+                    if (!confirm('Are you sure you want to delete this collection?')) {
+                        return;
+                    }
+                    try {
+                        if (!workspaceConfig.value || !workspaceConfig.value.projects || 
+                            !workspaceConfig.value.projects[projectIndex] ||
+                            !workspaceConfig.value.projects[projectIndex].collections ||
+                            collectionIndex >= workspaceConfig.value.projects[projectIndex].collections.length) {
+                            console.error('Invalid collection index:', projectIndex, collectionIndex);
+                            showToast('Invalid collection index', 'error');
+                            return;
+                        }
+                        
+                        const collection = workspaceConfig.value.projects[projectIndex].collections[collectionIndex];
+                        workspaceConfig.value.projects[projectIndex].collections.splice(collectionIndex, 1);
+                        hasUnsavedWorkspaceChanges.value = true;
+                        
+                        // Remove from expanded collections
+                        const key = `${projectIndex}-${collectionIndex}`;
+                        expandedCollections.value.delete(key);
+                        
+                        console.log('Collection removed:', collection.name);
+                        showToast('Collection removed. Click "Save Changes" to save.', 'success');
+                    } catch (error) {
+                        console.error('Error removing collection:', error);
+                        showToast(`Error removing collection: ${error.message}`, 'error');
+                    }
+                };
+
+                const toggleCollection = (projectIndex, collectionIndex) => {
+                    const key = `${projectIndex}-${collectionIndex}`;
+                    if (expandedCollections.value.has(key)) {
+                        expandedCollections.value.delete(key);
+                    } else {
+                        expandedCollections.value.add(key);
+                    }
+                };
+
+                const isCollectionExpanded = (projectIndex, collectionIndex) => {
+                    return expandedCollections.value.has(`${projectIndex}-${collectionIndex}`);
+                };
+
+                const updateIncludePatterns = (projectIndex, collectionIndex) => {
+                    const collection = workspaceConfig.value.projects[projectIndex].collections[collectionIndex];
+                    collection.include_patterns = collection.include_patterns_str
+                        .split('\n')
+                        .map(p => p.trim())
+                        .filter(p => p.length > 0);
+                    hasUnsavedWorkspaceChanges.value = true;
+                };
+
+                const updateExcludePatterns = (projectIndex, collectionIndex) => {
+                    const collection = workspaceConfig.value.projects[projectIndex].collections[collectionIndex];
+                    collection.exclude_patterns = collection.exclude_patterns_str
+                        .split('\n')
+                        .map(p => p.trim())
+                        .filter(p => p.length > 0);
+                    hasUnsavedWorkspaceChanges.value = true;
+                };
+
+                // Config Page Functions
+                const reloadConfig = async () => {
+                    try {
+                        showToast('Reloading configuration...', 'info');
+                        console.log('Loading config from API...');
+                        const config = await window.apiClient.request('/api/config');
+                        console.log('Config loaded:', config);
+                        configData.value = config;
+                        configJsonString.value = JSON.stringify(config, null, 2);
+                        
+                        // Convert to YAML
+                        configYamlString.value = convertJsonToYaml(config);
+                        
+                        hasUnsavedConfigChanges.value = false;
+                        showToast('Configuration reloaded', 'success');
+                    } catch (error) {
+                        console.error('Error loading config:', error);
+                        showToast(`Error reloading config: ${error.message}`, 'error');
+                    }
+                };
+
+                const saveConfig = async () => {
+                    savingConfig.value = true;
+                    try {
+                        showToast('Saving configuration...', 'info');
+                        
+                        // Parse based on current format
+                        let configToSave;
+                        
+                        if (configFormat.value === 'yaml') {
+                            // Convert YAML to JSON
+                            try {
+                                configToSave = convertYamlToJson(configYamlString.value);
+                            } catch (e) {
+                                throw new Error('Invalid YAML format: ' + e.message);
+                            }
+                        } else {
+                            // Parse JSON
+                            try {
+                                configToSave = JSON.parse(configJsonString.value);
+                            } catch (e) {
+                                throw new Error('Invalid JSON format: ' + e.message);
+                            }
+                        }
+                        
+                        console.log('Saving config:', configToSave);
+                        const response = await window.apiClient.request('/api/config', {
+                            method: 'POST',
+                            body: JSON.stringify(configToSave)
+                        });
+                        
+                        console.log('Config save response:', response);
+                        configData.value = configToSave;
+                        
+                        // Sync both formats
+                        configJsonString.value = JSON.stringify(configToSave, null, 2);
+                        configYamlString.value = convertJsonToYaml(configToSave);
+                        
+                        hasUnsavedConfigChanges.value = false;
+                        showToast('Configuration saved successfully. Restart server for changes to take effect.', 'success');
+                    } catch (error) {
+                        console.error('Error saving config:', error);
+                        showToast(`Error saving config: ${error.message}`, 'error');
+                    } finally {
+                        savingConfig.value = false;
+                    }
+                };
+                
+                // Simple YAML to JSON converter (basic implementation)
+                function convertYamlToJson(yamlStr) {
+                    // For now, use a simple approach - parse basic YAML structure
+                    // This is a simplified parser - for production, use a proper YAML library
+                    const lines = yamlStr.split('\n');
+                    const result = {};
+                    const stack = [{ obj: result, indent: -1 }];
+                    
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (!line.trim() || line.trim().startsWith('#')) continue;
+                        
+                        const indent = line.length - line.trimStart().length;
+                        const trimmed = line.trim();
+                        const colonIndex = trimmed.indexOf(':');
+                        
+                        if (colonIndex > 0) {
+                            const key = trimmed.substring(0, colonIndex).trim();
+                            const value = trimmed.substring(colonIndex + 1).trim();
+                            
+                            // Remove from stack items with greater indent
+                            while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+                                stack.pop();
+                            }
+                            
+                            const current = stack[stack.length - 1].obj;
+                            
+                            if (value === '' || value === null) {
+                                // This is a new object/array
+                                current[key] = {};
+                                stack.push({ obj: current[key], indent: indent });
+                            } else {
+                                // This is a value
+                                let parsedValue = value;
+                                if (value === 'true' || value === 'false') {
+                                    parsedValue = value === 'true';
+                                } else if (!isNaN(value) && value !== '') {
+                                    parsedValue = parseFloat(value);
+                                } else if (value.startsWith('"') && value.endsWith('"')) {
+                                    parsedValue = value.slice(1, -1);
+                                }
+                                current[key] = parsedValue;
+                            }
+                        }
+                    }
+                    
+                    return result;
+                }
+
+                // Watch for changes in config strings
+                watch([configJsonString, configYamlString], () => {
+                    if (configData.value) {
+                        try {
+                            if (configFormat.value === 'json') {
+                                const parsed = JSON.parse(configJsonString.value);
+                                const original = JSON.stringify(configData.value, null, 2);
+                                hasUnsavedConfigChanges.value = (configJsonString.value !== original);
+                            } else {
+                                const original = convertJsonToYaml(configData.value);
+                                hasUnsavedConfigChanges.value = (configYamlString.value !== original);
+                            }
+                        } catch (e) {
+                            // Invalid format, ignore
+                        }
+                    }
+                });
+                
+                // Switch config tab and scroll to section
+                const switchConfigTab = (tabId) => {
+                    activeConfigTab.value = tabId;
+                    
+                    // Scroll to section if in YAML mode
+                    if (configFormat.value === 'yaml' && configYamlString.value) {
+                        setTimeout(() => {
+                            const sections = tabToSectionMap[tabId] || [];
+                            const sectionName = sections.length > 0 ? sections[0].split('.').pop() : tabId;
+                            scrollToSection(sectionName);
+                        }, 100);
+                    }
+                };
+                
+                // Watch for tab changes to scroll to section (backup)
+                watch(activeConfigTab, (newTab) => {
+                    if (configFormat.value === 'yaml' && configYamlString.value && configEditorRef.value) {
+                        // Get the section name from the map
+                        const sections = tabToSectionMap[newTab] || [];
+                        const sectionName = sections.length > 0 ? sections[0].split('.').pop() : newTab;
+                        scrollToSection(sectionName);
+                    }
+                });
+
+                // Logs Page Functions
+                const refreshLogs = async () => {
+                    loadingLogs.value = true;
+                    try {
+                        console.log('Loading logs from API...');
+                        // Build query parameters
+                        const params = new URLSearchParams();
+                        if (logMaxLines.value) {
+                            params.append('lines', logMaxLines.value.toString());
+                        }
+                        if (logFilterLevel.value) {
+                            params.append('level', logFilterLevel.value);
+                        }
+                        
+                        const queryString = params.toString();
+                        const endpoint = `/api/logs${queryString ? '?' + queryString : ''}`;
+                        
+                        console.log('Fetching logs from:', endpoint);
+                        const response = await window.apiClient.request(endpoint);
+                        console.log('Logs response:', response);
+                        
+                        if (response && response.logs) {
+                            logs.value = response.logs.map(log => ({
+                                timestamp: log.timestamp || new Date().toISOString(),
+                                level: log.level || 'INFO',
+                                message: log.message || log.msg || String(log),
+                                source: log.source || 'vectorizer'
+                            }));
+                            console.log('Loaded', logs.value.length, 'logs');
+                            
+                            // Auto-scroll to bottom if enabled
+                            if (logAutoScroll.value && logsContainer.value) {
+                                setTimeout(() => {
+                                    logsContainer.value.scrollTop = logsContainer.value.scrollHeight;
+                                }, 100);
+                            }
+                        } else {
+                            console.log('No logs in response');
+                            logs.value = [];
+                        }
+                    } catch (error) {
+                        console.error('Error loading logs:', error);
+                        logs.value = [];
+                        showToast(`Error loading logs: ${error.message}`, 'error');
+                    } finally {
+                        loadingLogs.value = false;
+                    }
+                };
+
+                const applyLogFilters = () => {
+                    // Reload logs with current filters
+                    refreshLogs();
+                };
+
+                const formatLogTimestamp = (timestamp) => {
+                    return new Date(timestamp).toLocaleString('pt-BR');
+                };
+
+                const exportLogs = () => {
+                    const logText = filteredLogs.value.map(log => 
+                        `[${formatLogTimestamp(log.timestamp)}] ${log.level}: ${log.message}`
+                    ).join('\n');
+                    const blob = new Blob([logText], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `vectorizer-logs-${new Date().toISOString()}.log`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('Logs exported', 'success');
+                };
+
+                const clearLogs = async () => {
+                    if (!confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
+                        return;
+                    }
+                    try {
+                        // Clear logs locally (API doesn't have a DELETE endpoint)
+                        logs.value = [];
+                        showToast('Logs cleared', 'success');
+                    } catch (error) {
+                        console.error('Error clearing logs:', error);
+                        showToast(`Error clearing logs: ${error.message}`, 'error');
+                    }
+                };
+
+                // Backups Page Functions
+                const loadBackups = async () => {
+                    loadingBackups.value = true;
+                    try {
+                        console.log('Loading backups from API...');
+                        const response = await window.apiClient.request('/api/backups');
+                        console.log('Backups response:', response);
+                        
+                        if (response && response.backups) {
+                            // Process backups - extract ONLY metadata, discard full data immediately to save memory
+                            backups.value = response.backups.map((backup) => {
+                                // Immediately discard backup.data to free memory (it's huge!)
+                                const hasData = !!backup.data;
+                                delete backup.data; // Free memory immediately
+                                
+                                // Calculate size - if backend didn't provide, estimate based on file size
+                                // For large files, estimate based on collections count (very rough)
+                                let fileSize = backup.size || 0;
+                                
+                                // If size is still 0 or very small, estimate (rough approximation)
+                                if (fileSize === 0 && hasData) {
+                                    // Rough estimate: assume ~5MB per collection (conservative)
+                                    fileSize = (backup.collections?.length || 0) * 5 * 1024 * 1024;
+                                }
+                                
+                                // Return ONLY metadata - no data field
+                                return {
+                                    id: backup.id || backup.name || 'unknown',
+                                    name: backup.name || 'Untitled Backup',
+                                    date: backup.date || backup.timestamp || new Date().toISOString(),
+                                    size: fileSize,
+                                    collections: Array.isArray(backup.collections) ? backup.collections : [],
+                                    type: backup.type || 'full',
+                                };
+                            }).filter(backup => backup.id !== 'unknown'); // Filter invalid backups
+                            
+                            console.log('Loaded', backups.value.length, 'backups (metadata only)');
+                        } else {
+                            backups.value = [];
+                        }
+                    } catch (error) {
+                        console.error('Error loading backups:', error);
+                        backups.value = [];
+                        showToast(`Error loading backups: ${error.message}`, 'error');
+                    } finally {
+                        loadingBackups.value = false;
+                    }
+                };
+
+                const loadBackupDirectory = async () => {
+                    try {
+                        console.log('Loading backup directory...');
+                        const response = await window.apiClient.request('/api/backups/directory');
+                        console.log('Backup directory response:', response);
+                        
+                        if (response && response.path) {
+                            backupDirectory.value = response.path;
+                        } else if (response && response.directory) {
+                            backupDirectory.value = response.directory;
+                        } else {
+                            backupDirectory.value = './backups'; // Default
+                        }
+                    } catch (error) {
+                        console.error('Error loading backup directory:', error);
+                        backupDirectory.value = './backups'; // Default fallback
+                    }
+                };
+
+                const createBackup = async () => {
+                    // Get backup name from user
+                    const defaultName = `backup-${new Date().toISOString().split('T')[0]}-${Date.now()}`;
+                    const backupName = prompt('Enter backup name:', defaultName);
+                    if (!backupName || !backupName.trim()) {
+                        return; // User cancelled or empty name
+                    }
+                    
+                    try {
+                        showToast('Creating backup...', 'info');
+                        
+                        // Get all collection names
+                        const collectionNames = collections.value.map(c => c.name);
+                        
+                        if (collectionNames.length === 0) {
+                            showToast('No collections available to backup', 'warning');
+                            return;
+                        }
+                        
+                        console.log('Creating backup:', backupName.trim(), 'collections:', collectionNames);
+                        const response = await window.apiClient.request('/api/backups/create', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                name: backupName.trim(),
+                                collections: collectionNames
+                            })
+                        });
+                        
+                        console.log('Backup create response:', response);
+                        showToast(`Backup "${backupName.trim()}" created successfully`, 'success');
+                        showCreateBackupModal.value = false;
+                        
+                        // Reload backups list
+                        await loadBackups();
+                    } catch (error) {
+                        console.error('Error creating backup:', error);
+                        showToast(`Error creating backup: ${error.message}`, 'error');
+                    }
+                };
+
+                const restoreBackup = async (backupId) => {
+                    if (!confirm('Are you sure you want to restore this backup? This will overwrite current data.')) {
+                        return;
+                    }
+                    try {
+                        showToast('Restoring backup...', 'info');
+                        
+                        // Get backup to find which collection to restore
+                        const backup = backups.value.find(b => b.id === backupId);
+                        if (!backup || !backup.collections || backup.collections.length === 0) {
+                            throw new Error('Backup has no collections to restore');
+                        }
+                        
+                        console.log('Restoring backup:', backupId);
+                        const response = await window.apiClient.request('/api/backups/restore', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                backup_id: backupId,
+                                collection: backup.collections[0] // Restore first collection
+                            })
+                        });
+                        
+                        console.log('Backup restore response:', response);
+                        showToast('Backup restored successfully', 'success');
+                        
+                        // Reload data after restore
+                        await refreshData();
+                        await loadBackups();
+                    } catch (error) {
+                        console.error('Error restoring backup:', error);
+                        showToast(`Error restoring backup: ${error.message}`, 'error');
+                    }
+                };
+
+                const deleteBackup = async (backupId) => {
+                    if (!confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
+                        return;
+                    }
+                    try {
+                        showToast('Deleting backup...', 'info');
+                        
+                        // The backend doesn't have a DELETE endpoint, so we'll need to delete the file manually
+                        // For now, just remove from UI and reload
+                        console.log('Deleting backup:', backupId);
+                        
+                        // Remove from local list
+                        backups.value = backups.value.filter(b => b.id !== backupId);
+                        showToast('Backup deleted (file deletion not implemented)', 'success');
+                        
+                        // Reload to sync with server
+                        await loadBackups();
+                    } catch (error) {
+                        console.error('Error deleting backup:', error);
+                        showToast(`Error deleting backup: ${error.message}`, 'error');
+                    }
+                };
+
+                const openBackupDirectory = () => {
+                    if (backupDirectory.value) {
+                        showToast(`Backup directory: ${backupDirectory.value}`, 'info');
+                    } else {
+                        showToast('Backup directory not loaded', 'warning');
+                    }
                 };
 
 
@@ -2199,10 +3998,34 @@
                     
                     // Start File Watcher monitoring
                     startFileWatcherMonitoring();
+
+                    // Load initial data for new pages
+                    await loadConnections();
+                    await loadWorkspaceConfig();
+                    await loadBackups();
+                    await loadBackupDirectory();
+
+                    // Update connection statuses periodically
+                    const connectionStatusInterval = setInterval(async () => {
+                        if (connections.value.length > 0) {
+                            for (const conn of connections.value) {
+                                const status = await testConnectionStatus(conn);
+                                if (conn.status !== status) {
+                                    conn.status = status;
+                                }
+                            }
+                        }
+                    }, 30000); // Check every 30 seconds
+                    
+                    // Store interval ID for cleanup
+                    window.connectionStatusInterval = connectionStatusInterval;
                 });
 
                 onBeforeUnmount(() => {
                     stopIndexingRefresh();
+                    if (window.connectionStatusInterval) {
+                        clearInterval(window.connectionStatusInterval);
+                    }
                 });
 
                 // Initialize the application
@@ -2228,6 +4051,7 @@
                     refreshData,
                     formatNumber,
                     formatSize,
+                    formatDateTime,
                     formatStatus,
                     getStatusClass,
                     getStatusIcon,
@@ -2277,7 +4101,77 @@
                     refreshFileWatcherMetrics,
                     formatDuration,
                     getHealthScoreClass,
-                    formatBytes
+                    formatBytes,
+                    // Connections Page
+                    connections,
+                    showAddConnectionForm,
+                    editingConnection,
+                    connectionForm,
+                    testing,
+                    saving,
+                    cancelConnectionForm,
+                    testConnection,
+                    saveConnection,
+                    setActiveConnection,
+                    editConnection,
+                    removeConnection,
+                    // Workspace Page
+                    workspaceConfig,
+                    workspaceSearchFilter,
+                    filteredWorkspaceProjects,
+                    savingWorkspace,
+                    hasUnsavedWorkspaceChanges,
+                    expandedCollections,
+                    saveWorkspaceConfig,
+                    addProject,
+                    removeProject,
+                    addCollection,
+                    removeCollection,
+                    toggleCollection,
+                    isCollectionExpanded,
+                    updateIncludePatterns,
+                    updateExcludePatterns,
+                    // Config Page
+                    activeConfigTab,
+                    configTabs,
+                    configData,
+                    configJsonString,
+                    configFormat,
+                    configYamlString,
+                    configEditorRef,
+                    scrollToSection,
+                    switchConfigTab,
+                    tabToSectionMap,
+                    activeConfigTabLabel,
+                    activeConfigTabDescription,
+                    savingConfig,
+                    hasUnsavedConfigChanges,
+                    reloadConfig,
+                    saveConfig,
+                    // Logs Page
+                    logs,
+                    filteredLogs,
+                    loadingLogs,
+                    logFilterLevel,
+                    logFilterSearch,
+                    logMaxLines,
+                    logAutoScroll,
+                    logShowTimestamps,
+                    logsContainer,
+                    refreshLogs,
+                    applyLogFilters,
+                    formatLogTimestamp,
+                    exportLogs,
+                    clearLogs,
+                    // Backups Page
+                    backups,
+                    loadingBackups,
+                    backupDirectory,
+                    showCreateBackupModal,
+                    createBackup,
+                    restoreBackup,
+                    deleteBackup,
+                    openBackupDirectory
                 };
             }
         }).mount('#app');

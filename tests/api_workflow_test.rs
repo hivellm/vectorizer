@@ -118,7 +118,7 @@ async fn test_multi_collection_workflow() {
     // Verify all collections exist
     let all_collections = store.list_collections();
     for name in &collections {
-        assert!(all_collections.contains(&name.to_string()));
+        assert!(all_collections.contains(&(*name).to_string()));
     }
 
     // Insert different data in each collection
