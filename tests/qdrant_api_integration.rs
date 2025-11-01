@@ -345,9 +345,9 @@ fn test_qdrant_scroll_points() {
 
     assert_eq!(ids.len(), 20, "Should have inserted 20 vector IDs");
 
-    // Get a fresh reference to the collection
+    // Verify vector count using immutable reference
     let collection = store
-        .get_collection_mut(&collection_name)
+        .get_collection(&collection_name)
         .expect("Failed to get collection");
 
     // Verify vector count
@@ -363,11 +363,7 @@ fn test_qdrant_scroll_points() {
         assert!(vector.is_ok(), "Should be able to retrieve vector {id}");
     }
 
-    // Get all vectors (simulate scroll) - use immutable reference
-    drop(collection); // Release mutable reference
-    let collection = store
-        .get_collection(&collection_name)
-        .expect("Failed to get collection");
+    // Get all vectors (simulate scroll) - use same immutable reference
     let vectors = collection.get_all_vectors();
 
     assert_eq!(
