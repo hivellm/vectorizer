@@ -166,6 +166,80 @@ fn test_qdrant_delete_collection() {
 }
 
 #[test]
+fn test_qdrant_alias_create_and_resolve() {
+    let store = create_test_store();
+    create_test_collection(&store, "alias_target", 64).unwrap();
+
+    // Create alias
+    store
+        .create_alias("alias_name", "alias_target")
+        .expect("Alias creation should succeed");
+
+    // Alias should resolve to target collection
+    let collection = store
+        .get_collection("alias_name")
+        .expect("Alias should resolve to collection");
+    assert_eq!(collection.name(), "alias_target");
+
+    // Alias listing should include new alias
+    let aliases = store.list_aliases();
+    assert!(
+        aliases
+            .iter()
+            .any(|(alias, target)| alias == "alias_name" && target == "alias_target")
+    );
+
+    // Listing aliases for target should return alias_name
+    let aliases_for_collection = store
+        .list_aliases_for_collection("alias_target")
+        .expect("Should list aliases for collection");
+    assert!(aliases_for_collection.contains(&"alias_name".to_string()));
+}
+
+#[test]
+fn test_qdrant_alias_delete() {
+    let store = create_test_store();
+    create_test_collection(&store, "alias_delete_target", 64).unwrap();
+    store
+        .create_alias("alias_delete", "alias_delete_target")
+        .unwrap();
+
+    // Delete alias
+    store
+        .delete_alias("alias_delete")
+        .expect("Alias deletion should succeed");
+
+    // Alias should no longer resolve
+    assert!(store.get_collection("alias_delete").is_err());
+
+    // Listing aliases should not include deleted alias
+    let aliases = store.list_aliases();
+    assert!(aliases.iter().all(|(alias, _)| alias != "alias_delete"));
+}
+
+#[test]
+fn test_qdrant_alias_rename() {
+    let store = create_test_store();
+    create_test_collection(&store, "alias_rename_target", 64).unwrap();
+    store
+        .create_alias("alias_old", "alias_rename_target")
+        .unwrap();
+
+    store
+        .rename_alias("alias_old", "alias_new")
+        .expect("Alias rename should succeed");
+
+    // Old alias should be removed
+    assert!(store.get_collection("alias_old").is_err());
+
+    // New alias should resolve to the target
+    let collection = store
+        .get_collection("alias_new")
+        .expect("New alias should resolve");
+    assert_eq!(collection.name(), "alias_rename_target");
+}
+
+#[test]
 fn test_qdrant_upsert_points() {
     let store = create_test_store();
     let _ = create_test_collection(&store, "upsert_test", 3);

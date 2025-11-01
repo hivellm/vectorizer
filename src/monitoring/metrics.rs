@@ -35,6 +35,9 @@ pub struct Metrics {
     /// Total number of collections
     pub collections_total: Gauge,
 
+    /// Alias operations counter (create/delete/rename)
+    pub alias_operations_total: CounterVec,
+
     /// Total number of insert requests
     pub insert_requests_total: CounterVec,
 
@@ -117,6 +120,15 @@ impl Metrics {
             )
             .unwrap(),
 
+            alias_operations_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_alias_operations_total",
+                    "Total number of alias operations grouped by status",
+                ),
+                &["operation", "status"],
+            )
+            .unwrap(),
+
             insert_requests_total: CounterVec::new(
                 Opts::new(
                     "vectorizer_insert_requests_total",
@@ -193,6 +205,7 @@ impl Metrics {
         // Indexing metrics
         registry.register(Box::new(self.vectors_total.clone()))?;
         registry.register(Box::new(self.collections_total.clone()))?;
+        registry.register(Box::new(self.alias_operations_total.clone()))?;
         registry.register(Box::new(self.insert_requests_total.clone()))?;
         registry.register(Box::new(self.insert_latency_seconds.clone()))?;
 

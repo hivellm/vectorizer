@@ -254,6 +254,8 @@ impl CollectionType {
 pub struct VectorStore {
     /// Collections stored in a concurrent hash map
     collections: Arc<DashMap<String, CollectionType>>,
+    /// Collection aliases (alias -> target collection)
+    aliases: Arc<DashMap<String, String>>,
     /// Auto-save enabled flag (prevents auto-save during initialization)
     auto_save_enabled: Arc<std::sync::atomic::AtomicBool>,
     /// Collections pending save (for batch persistence)
@@ -279,6 +281,7 @@ impl VectorStore {
 
         let store = Self {
             collections: Arc::new(DashMap::new()),
+            aliases: Arc::new(DashMap::new()),
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
@@ -299,11 +302,43 @@ impl VectorStore {
 
         Self {
             collections: Arc::new(DashMap::new()),
+            aliases: Arc::new(DashMap::new()),
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
         }
+    }
+
+    /// Resolve alias chain to a canonical collection name
+    fn resolve_alias_target(&self, name: &str) -> Result<String> {
+        let mut current = name.to_string();
+        let mut visited = HashSet::new();
+
+        loop {
+            if !visited.insert(current.clone()) {
+                return Err(VectorizerError::ConfigurationError(format!(
+                    "Alias resolution loop detected for '{}'; visited: {:?}",
+                    name, visited
+                )));
+            }
+
+            match self.aliases.get(&current) {
+                Some(target) => {
+                    current = target.clone();
+                }
+                None => break,
+            }
+        }
+
+        Ok(current)
+    }
+
+    /// Remove all aliases pointing to the specified collection
+    fn remove_aliases_for_collection(&self, collection_name: &str) {
+        let canonical = collection_name.to_string();
+        self.aliases
+            .retain(|_, target| target.as_str() != canonical.as_str());
     }
 
     /// Check storage format and perform automatic migration if needed
@@ -396,6 +431,7 @@ impl VectorStore {
         info!("Creating new VectorStore with Hive-GPU configuration");
         Self {
             collections: Arc::new(DashMap::new()),
+            aliases: Arc::new(DashMap::new()),
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
@@ -479,6 +515,10 @@ impl VectorStore {
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
         if self.collections.contains_key(name) {
+            return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
+        }
+
+        if self.aliases.contains_key(name) {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
@@ -622,11 +662,19 @@ impl VectorStore {
     pub fn delete_collection(&self, name: &str) -> Result<()> {
         debug!("Deleting collection '{}'", name);
 
+        let canonical = self.resolve_alias_target(name)?;
+
         self.collections
-            .remove(name)
+            .remove(canonical.as_str())
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))?;
 
-        info!("Collection '{}' deleted successfully", name);
+        // Remove any aliases pointing to this collection
+        self.remove_aliases_for_collection(canonical.as_str());
+
+        info!(
+            "Collection '{}' (canonical '{}') deleted successfully",
+            name, canonical
+        );
         Ok(())
     }
 
@@ -636,8 +684,11 @@ impl VectorStore {
         &self,
         name: &str,
     ) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
+        let canonical = self.resolve_alias_target(name)?;
+        let canonical_ref = canonical.as_str();
+
         // Fast path: collection already loaded
-        if let Some(collection) = self.collections.get(name) {
+        if let Some(collection) = self.collections.get(canonical_ref) {
             return Ok(collection);
         }
 
@@ -647,12 +698,15 @@ impl VectorStore {
         // First, try to load from .vecdb archive (compact format)
         use crate::storage::{StorageFormat, StorageReader, detect_format};
         if detect_format(&data_dir) == StorageFormat::Compact {
-            debug!("📥 Lazy loading collection '{}' from .vecdb archive", name);
+            debug!(
+                "📥 Lazy loading collection '{}' from .vecdb archive",
+                canonical_ref
+            );
 
             match StorageReader::new(&data_dir) {
                 Ok(reader) => {
                     // Read the _vector_store.bin file from the archive
-                    let vector_store_path = format!("{}_vector_store.bin", name);
+                    let vector_store_path = format!("{}_vector_store.bin", canonical_ref);
                     match reader.read_file(&vector_store_path) {
                         Ok(data) => {
                             // Deserialize PersistedCollection from JSON (compressed in ZIP)
@@ -661,29 +715,33 @@ impl VectorStore {
                             ) {
                                 Ok(persisted) => {
                                     // Load collection into memory
-                                    if let Err(e) =
-                                        self.load_persisted_collection_from_data(name, persisted)
-                                    {
+                                    if let Err(e) = self.load_persisted_collection_from_data(
+                                        canonical_ref,
+                                        persisted,
+                                    ) {
                                         warn!(
                                             "Failed to load collection '{}' from .vecdb: {}",
-                                            name, e
+                                            canonical_ref, e
                                         );
                                         return Err(VectorizerError::CollectionNotFound(
                                             name.to_string(),
                                         ));
                                     }
 
-                                    info!("✅ Lazy loaded collection '{}' from .vecdb", name);
+                                    info!(
+                                        "✅ Lazy loaded collection '{}' from .vecdb",
+                                        canonical_ref
+                                    );
 
                                     // Try again now that it's loaded
-                                    return self.collections.get(name).ok_or_else(|| {
+                                    return self.collections.get(canonical_ref).ok_or_else(|| {
                                         VectorizerError::CollectionNotFound(name.to_string())
                                     });
                                 }
                                 Err(e) => {
                                     warn!(
                                         "Failed to deserialize collection '{}' from .vecdb: {}",
-                                        name, e
+                                        canonical_ref, e
                                     );
                                 }
                             }
@@ -797,7 +855,10 @@ impl VectorStore {
     /// List all collections (both loaded in memory and available on disk)
     /// Check if collection exists in memory only (without lazy loading)
     pub fn has_collection_in_memory(&self, name: &str) -> bool {
-        self.collections.contains_key(name)
+        match self.resolve_alias_target(name) {
+            Ok(canonical) => self.collections.contains_key(canonical.as_str()),
+            Err(_) => false,
+        }
     }
 
     /// Get a mutable reference to a collection by name
@@ -805,12 +866,15 @@ impl VectorStore {
         &self,
         name: &str,
     ) -> Result<impl std::ops::DerefMut<Target = CollectionType> + '_> {
+        let canonical = self.resolve_alias_target(name)?;
+        let canonical_ref = canonical.as_str();
+
         // Ensure collection is loaded first
-        let _ = self.get_collection(name)?;
+        let _ = self.get_collection(canonical_ref)?;
 
         // Now get mutable reference
         self.collections
-            .get_mut(name)
+            .get_mut(canonical_ref)
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
     }
 
@@ -841,6 +905,129 @@ impl VectorStore {
         }
 
         collection_names.into_iter().collect()
+    }
+
+    /// List all aliases and their target collections
+    pub fn list_aliases(&self) -> Vec<(String, String)> {
+        self.aliases
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect()
+    }
+
+    /// List aliases pointing to the given collection (accepts canonical name or alias)
+    pub fn list_aliases_for_collection(&self, name: &str) -> Result<Vec<String>> {
+        let canonical = self.resolve_alias_target(name)?;
+        let aliases: Vec<String> = self
+            .aliases
+            .iter()
+            .filter_map(|entry| {
+                if entry.value().as_str() == canonical {
+                    Some(entry.key().clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        Ok(aliases)
+    }
+
+    /// Create a new alias pointing to an existing collection
+    pub fn create_alias(&self, alias: &str, target: &str) -> Result<()> {
+        let alias = alias.trim();
+        let target = target.trim();
+
+        if alias.is_empty() {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "Alias name cannot be empty".to_string(),
+            });
+        }
+
+        if target.is_empty() {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "Collection name cannot be empty".to_string(),
+            });
+        }
+
+        if alias == target {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "Alias name must differ from collection name".to_string(),
+            });
+        }
+
+        if self.collections.contains_key(alias) {
+            return Err(VectorizerError::CollectionAlreadyExists(alias.to_string()));
+        }
+
+        if self.aliases.contains_key(alias) {
+            return Err(VectorizerError::CollectionAlreadyExists(alias.to_string()));
+        }
+
+        let canonical_target = self.resolve_alias_target(target)?;
+
+        // Ensure target exists (will lazy-load if needed)
+        self.get_collection(canonical_target.as_str())?;
+
+        self.aliases
+            .insert(alias.to_string(), canonical_target.clone());
+
+        info!(
+            "Alias '{}' created for collection '{}' (requested target '{}')",
+            alias, canonical_target, target
+        );
+
+        Ok(())
+    }
+
+    /// Delete an alias by name
+    pub fn delete_alias(&self, alias: &str) -> Result<()> {
+        if self.aliases.remove(alias).is_some() {
+            info!("Alias '{}' deleted", alias);
+            Ok(())
+        } else {
+            Err(VectorizerError::NotFound(format!(
+                "Alias '{}' not found",
+                alias
+            )))
+        }
+    }
+
+    /// Rename an existing alias
+    pub fn rename_alias(&self, old_alias: &str, new_alias: &str) -> Result<()> {
+        let new_alias = new_alias.trim();
+
+        if new_alias.is_empty() {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "Alias name cannot be empty".to_string(),
+            });
+        }
+
+        if old_alias == new_alias {
+            return Ok(());
+        }
+
+        let alias_entry = self
+            .aliases
+            .remove(old_alias)
+            .ok_or_else(|| VectorizerError::NotFound(format!("Alias '{}' not found", old_alias)))?;
+
+        let target_name = alias_entry.1;
+
+        if self.collections.contains_key(new_alias) || self.aliases.contains_key(new_alias) {
+            // Re-insert the old alias before returning error
+            self.aliases.insert(old_alias.to_string(), target_name);
+            return Err(VectorizerError::CollectionAlreadyExists(
+                new_alias.to_string(),
+            ));
+        }
+
+        self.aliases
+            .insert(new_alias.to_string(), target_name.clone());
+        info!(
+            "Alias '{}' renamed to '{}' for collection '{}'",
+            old_alias, new_alias, target_name
+        );
+        Ok(())
     }
 
     /// Get collection metadata

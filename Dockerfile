@@ -3,7 +3,7 @@
 #
 # Local build examples:
 #   docker build -t vectorizer:local .
-#   docker build -t vectorizer:v1.0.1 .
+#   docker build -t vectorizer:1.2.3 .
 #   docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest .
 #
 # Multi-platform build:
@@ -133,7 +133,6 @@ ENV TZ=Etc/UTC \
     VECTORIZER_PORT=15002
 
 EXPOSE 15002
-EXPOSE 15003
 
 LABEL org.opencontainers.image.title="Vectorizer"
 LABEL org.opencontainers.image.description="Official Vectorizer image - High-Performance Vector Database"

@@ -1,8 +1,9 @@
 {
-  "version": "0.13.0",
-  "installedAt": "2025-10-29T04:00:53.755Z",
-  "updatedAt": "2025-10-29T05:27:33.755Z",
+  "version": "0.15.0",
+  "installedAt": "2025-10-29T05:27:33.749Z",
+  "updatedAt": "2025-11-01T02:07:36.705Z",
   "projectId": "vectorizer",
+  "mode": "full",
   "features": {
     "openspec": true,
     "watcher": false,
@@ -11,7 +12,7 @@
     "telemetry": false,
     "notifications": false,
     "dryRun": false,
-    "gitHooks": false,
+    "gitHooks": true,
     "repl": false,
     "templates": true,
     "context": true,

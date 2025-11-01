@@ -3,6 +3,7 @@
 //! This module provides data structures and types that are compatible with Qdrant's API,
 //! enabling seamless integration and migration from Qdrant to Vectorizer.
 
+pub mod alias;
 pub mod batch;
 pub mod collection;
 pub mod error;
@@ -11,6 +12,7 @@ pub mod filter_processor;
 pub mod point;
 pub mod search;
 
+pub use alias::*;
 pub use batch::*;
 pub use collection::*;
 pub use error::*;

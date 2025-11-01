@@ -191,3 +191,25 @@ pub fn create_conflict_error(resource_type: &str, resource_id: &str) -> ErrorRes
         StatusCode::CONFLICT,
     )
 }
+
+/// Helper function to create a bad request error response
+pub fn create_bad_request_error(message: &str) -> ErrorResponse {
+    ErrorResponse::new(
+        "bad_request".to_string(),
+        message.to_string(),
+        StatusCode::BAD_REQUEST,
+    )
+}
+
+/// Helper function to create a validation error response
+pub fn create_validation_error(field: &str, message: &str) -> ErrorResponse {
+    ErrorResponse::new(
+        "validation_error".to_string(),
+        format!("Invalid {}: {}", field, message),
+        StatusCode::BAD_REQUEST,
+    )
+    .with_details(json!({
+        "field": field,
+        "reason": message
+    }))
+}

@@ -1,13 +1,13 @@
 //! Replication REST API handlers
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
 use axum::response::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{error, info};
 
 use super::VectorizerServer;
+use super::error_middleware::{ErrorResponse, create_bad_request_error};
 
 /// Request to configure replication
 #[derive(Debug, Deserialize)]
@@ -31,7 +31,7 @@ pub struct ReplicationStatusResponse {
 /// Get replication status
 pub async fn get_replication_status(
     State(state): State<VectorizerServer>,
-) -> Result<Json<ReplicationStatusResponse>, (StatusCode, String)> {
+) -> Result<Json<ReplicationStatusResponse>, ErrorResponse> {
     // Check if replication nodes are configured
     let (role, enabled, stats, replicas) = if let Some(master) = &state.master_node {
         // Master node is configured
@@ -73,7 +73,7 @@ pub async fn get_replication_status(
 pub async fn configure_replication(
     State(state): State<VectorizerServer>,
     Json(request): Json<ConfigureReplicationRequest>,
-) -> Result<Json<Value>, (StatusCode, String)> {
+) -> Result<Json<Value>, ErrorResponse> {
     info!("Configuring replication: {:?}", request);
 
     // Parse role
@@ -82,10 +82,10 @@ pub async fn configure_replication(
         "replica" => crate::replication::NodeRole::Replica,
         "standalone" => crate::replication::NodeRole::Standalone,
         _ => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                format!("Invalid role: {}", request.role),
-            ));
+            return Err(create_bad_request_error(&format!(
+                "Invalid role: {}. Must be 'master', 'replica', or 'standalone'",
+                request.role
+            )));
         }
     };
 
@@ -131,17 +131,14 @@ pub async fn configure_replication(
 /// Get replication statistics
 pub async fn get_replication_stats(
     State(state): State<VectorizerServer>,
-) -> Result<Json<Value>, (StatusCode, String)> {
+) -> Result<Json<Value>, ErrorResponse> {
     // Get stats from actual replication nodes
     let stats = if let Some(master) = &state.master_node {
         master.get_stats()
     } else if let Some(replica) = &state.replica_node {
         replica.get_stats()
     } else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Replication not enabled".to_string(),
-        ));
+        return Err(create_bad_request_error("Replication not enabled"));
     };
 
     Ok(Json(json!(stats)))
@@ -150,14 +147,13 @@ pub async fn get_replication_stats(
 /// List connected replicas (master only)
 pub async fn list_replicas(
     State(state): State<VectorizerServer>,
-) -> Result<Json<Value>, (StatusCode, String)> {
+) -> Result<Json<Value>, ErrorResponse> {
     // Get replica list from actual master node
     let replicas = if let Some(master) = &state.master_node {
         master.get_replicas()
     } else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "This endpoint is only available on master nodes".to_string(),
+        return Err(create_bad_request_error(
+            "This endpoint is only available on master nodes",
         ));
     };
 

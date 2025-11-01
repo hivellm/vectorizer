@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### **Standardized Error Handling**
+- **ADDED**: Comprehensive error handling middleware with `ErrorResponse` struct
+- **ADDED**: Standardized error response format with `error_type`, `message`, `details`, `status_code`, and `request_id` fields
+- **ADDED**: Helper functions for common error types: `create_bad_request_error`, `create_validation_error`, `create_not_found_error`, `create_conflict_error`
+- **ADDED**: Automatic conversion from `VectorizerError` to `ErrorResponse` with proper HTTP status codes
+- **BENEFIT**: Consistent error responses across all REST API endpoints for better client integration and debugging
+
+### Changed
+
+#### **REST API Error Handling**
+- **MIGRATED**: 50+ REST API endpoints from `StatusCode` to `ErrorResponse`
+- **MIGRATED**: 4 replication handlers from `(StatusCode, String)` to `ErrorResponse`
+- **IMPROVED**: All validation errors now include field-specific error details
+- **IMPROVED**: Collection and vector operations return structured error responses
+- **COMPATIBILITY**: Error responses maintain HTTP status codes while providing additional context
+
+#### **Error Response Format**
+- **NEW FORMAT**: All API errors now return structured JSON:
+  ```json
+  {
+    "error_type": "collection_not_found",
+    "message": "Collection 'test' not found",
+    "details": {"collection_name": "test"},
+    "status_code": 404,
+    "request_id": null
+  }
+  ```
+- **BENEFIT**: Clients can programmatically handle errors based on `error_type` and access detailed context in `details`
+
+### Technical Details
+
+- **Files Modified**:
+  - `src/server/error_middleware.rs`: New error handling middleware with `ErrorResponse` implementation
+  - `src/server/rest_handlers.rs`: All endpoints migrated to use `ErrorResponse`
+  - `src/server/replication_handlers.rs`: All replication handlers migrated
+  - `src/server/mod.rs`: File watcher metrics endpoint migrated
+
+- **Endpoints Migrated**:
+  - All search endpoints (text, vector, intelligent, semantic, contextual, multi-collection)
+  - All CRUD operations (collections, vectors)
+  - All discovery endpoints (discover, expand, broad, semantic focus)
+  - All file operations endpoints
+  - All workspace and backup endpoints
+  - All replication endpoints
+
+- **Error Types Supported**:
+  - `collection_not_found`, `collection_already_exists`
+  - `vector_not_found`
+  - `validation_error`, `bad_request`
+  - `invalid_dimension`, `dimension_mismatch`
+  - `configuration_error`
+  - `persistence_error`, `index_error`
+  - `serialization_error`, `deserialization_error`
+  - `io_error`, `internal_error`
+  - And more...
+
+### Breaking Changes
+- **None** - Error responses are backward compatible (HTTP status codes preserved)
+- **Enhancement** - Clients can now access structured error information while maintaining compatibility with status codes
+
 ## [1.2.3] - 2025-10-28
 
 ### Fixed

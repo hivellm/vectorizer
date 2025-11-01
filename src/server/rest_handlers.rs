@@ -9,6 +9,10 @@ use serde_json::{Value, json};
 use tracing::{debug, error, info};
 
 use super::VectorizerServer;
+use super::error_middleware::{
+    ErrorResponse, create_bad_request_error, create_not_found_error, create_validation_error,
+};
+use crate::error::VectorizerError;
 
 pub async fn health_check() -> Json<Value> {
     Json(json!({
@@ -65,7 +69,7 @@ pub async fn search_vectors_by_text(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::monitoring::metrics::METRICS;
 
     // Start latency timer
@@ -77,7 +81,7 @@ pub async fn search_vectors_by_text(
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
     let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
     info!(
@@ -86,53 +90,21 @@ pub async fn search_vectors_by_text(
     );
 
     // Get the collection
-    let collection = match state.store.get_collection(&collection_name) {
-        Ok(collection) => collection,
-        Err(_) => {
-            METRICS
-                .search_requests_total
-                .with_label_values(&[&collection_name, "text", "error"])
-                .inc();
-            drop(timer);
-            return Ok(Json(json!({
-                "results": [],
-                "query": query,
-                "limit": limit,
-                "collection": collection_name,
-                "error": "Collection not found"
-            })));
-        }
-    };
+    let collection = state
+        .store
+        .get_collection(&collection_name)
+        .map_err(|e| ErrorResponse::from(e))?;
 
     // Generate embedding for the query
-    let query_embedding = match state.embedding_manager.embed(query) {
-        Ok(embedding) => embedding,
-        Err(e) => {
-            error!("Failed to generate embedding: {}", e);
-            return Ok(Json(json!({
-                "results": [],
-                "query": query,
-                "limit": limit,
-                "collection": collection_name,
-                "error": "Failed to generate embedding"
-            })));
-        }
-    };
+    let query_embedding = state
+        .embedding_manager
+        .embed(query)
+        .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
 
     // Search vectors in the collection
-    let search_results = match collection.search(&query_embedding, limit) {
-        Ok(results) => results,
-        Err(e) => {
-            error!("Search failed: {}", e);
-            return Ok(Json(json!({
-                "results": [],
-                "query": query,
-                "limit": limit,
-                "collection": collection_name,
-                "error": "Search failed"
-            })));
-        }
-    };
+    let search_results = collection
+        .search(&query_embedding, limit)
+        .map_err(|e| create_bad_request_error(&format!("Search failed: {}", e)))?;
 
     // Convert results to JSON format
     let results: Vec<Value> = search_results
@@ -171,11 +143,13 @@ pub async fn search_by_file(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let file_path = payload
         .get("file_path")
         .and_then(|f| f.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("file_path", "missing or invalid file_path parameter")
+        })?;
     let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
     // For now, return empty results
@@ -191,7 +165,7 @@ pub async fn list_vectors(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
     Query(params): Query<HashMap<String, String>>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let start_time = std::time::Instant::now();
     debug!("Listing vectors from collection: {}", collection_name);
 
@@ -213,19 +187,10 @@ pub async fn list_vectors(
         .min(1.0);
 
     // Get the collection
-    let collection = match state.store.get_collection(&collection_name) {
-        Ok(collection) => collection,
-        Err(_) => {
-            return Ok(Json(json!({
-                "vectors": [],
-                "total": 0,
-                "limit": limit,
-                "offset": offset,
-                "collection": collection_name,
-                "error": "Collection not found"
-            })));
-        }
-    };
+    let collection = state
+        .store
+        .get_collection(&collection_name)
+        .map_err(|e| ErrorResponse::from(e))?;
 
     // Get actual vectors from the local collection
     let all_vectors = collection.get_all_vectors();
@@ -399,11 +364,11 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
 pub async fn create_collection(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let name = payload
         .get("name")
         .and_then(|n| n.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("name", "missing or invalid name parameter"))?;
     let dimension = payload
         .get("dimension")
         .and_then(|d| d.as_u64())
@@ -434,90 +399,91 @@ pub async fn create_collection(
     };
 
     // Actually create the collection in the store
-    match state.store.create_collection(name, config) {
-        Ok(_) => {
-            info!("Collection '{}' created successfully", name);
-            Ok(Json(json!({
-                "message": format!("Collection '{}' created successfully", name),
-                "collection": name,
-                "dimension": dimension,
-                "metric": metric
-            })))
-        }
-        Err(e) => {
-            error!("Failed to create collection '{}': {}", name, e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+    state
+        .store
+        .create_collection(name, config)
+        .map_err(|e| ErrorResponse::from(e))?;
+
+    info!("Collection '{}' created successfully", name);
+    Ok(Json(json!({
+        "message": format!("Collection '{}' created successfully", name),
+        "collection": name,
+        "dimension": dimension,
+        "metric": metric
+    })))
 }
 
 pub async fn get_collection(
     State(state): State<VectorizerServer>,
     Path(name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
-    match state.store.get_collection(&name) {
-        Ok(collection) => {
-            let metadata = collection.metadata();
-            let config = collection.config();
-            let (index_size, payload_size, total_size) = collection.get_size_info();
-            let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
+) -> Result<Json<Value>, ErrorResponse> {
+    let collection = state
+        .store
+        .get_collection(&name)
+        .map_err(|e| ErrorResponse::from(e))?;
 
-            // Build normalization info
-            let normalization_info = if let Some(norm_config) = &config.normalization {
-                json!({
-                    "enabled": norm_config.enabled,
-                    "level": format!("{:?}", norm_config.policy.level),
-                    "preserve_case": norm_config.policy.preserve_case,
-                    "collapse_whitespace": norm_config.policy.collapse_whitespace,
-                    "remove_html": norm_config.policy.remove_html,
-                    "cache_enabled": norm_config.cache_enabled,
-                    "cache_size_mb": norm_config.hot_cache_size / (1024 * 1024),
-                    "normalize_queries": norm_config.normalize_queries,
-                    "store_raw_text": norm_config.store_raw_text,
-                })
-            } else {
-                json!({
-                    "enabled": false,
-                    "message": "Text normalization is disabled for this collection"
-                })
-            };
+    let metadata = collection.metadata();
+    let config = collection.config();
+    let (index_size, payload_size, total_size) = collection.get_size_info();
+    let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
 
-            Ok(Json(json!({
-                "name": name,
-                "vector_count": collection.vector_count(),
-                "document_count": metadata.document_count,
-                "dimension": config.dimension,
-                "metric": format!("{:?}", config.metric),
-                "created_at": metadata.created_at.to_rfc3339(),
-                "updated_at": metadata.updated_at.to_rfc3339(),
-                "size": {
-                    "total": total_size,
-                    "total_bytes": total_bytes,
-                    "index": index_size,
-                    "index_bytes": index_bytes,
-                    "payload": payload_size,
-                    "payload_bytes": payload_bytes
-                },
-                "quantization": {
-                    "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
-                    "type": format!("{:?}", config.quantization),
-                    "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
-                },
-                "normalization": normalization_info,
-                "status": "ready"
-            })))
-        }
-        Err(_) => Err(StatusCode::NOT_FOUND),
-    }
+    // Build normalization info
+    let normalization_info = if let Some(norm_config) = &config.normalization {
+        json!({
+            "enabled": norm_config.enabled,
+            "level": format!("{:?}", norm_config.policy.level),
+            "preserve_case": norm_config.policy.preserve_case,
+            "collapse_whitespace": norm_config.policy.collapse_whitespace,
+            "remove_html": norm_config.policy.remove_html,
+            "cache_enabled": norm_config.cache_enabled,
+            "cache_size_mb": norm_config.hot_cache_size / (1024 * 1024),
+            "normalize_queries": norm_config.normalize_queries,
+            "store_raw_text": norm_config.store_raw_text,
+        })
+    } else {
+        json!({
+            "enabled": false,
+            "message": "Text normalization is disabled for this collection"
+        })
+    };
+
+    Ok(Json(json!({
+        "name": name,
+        "vector_count": collection.vector_count(),
+        "document_count": metadata.document_count,
+        "dimension": config.dimension,
+        "metric": format!("{:?}", config.metric),
+        "created_at": metadata.created_at.to_rfc3339(),
+        "updated_at": metadata.updated_at.to_rfc3339(),
+        "size": {
+            "total": total_size,
+            "total_bytes": total_bytes,
+            "index": index_size,
+            "index_bytes": index_bytes,
+            "payload": payload_size,
+            "payload_bytes": payload_bytes
+        },
+        "quantization": {
+            "enabled": matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }),
+            "type": format!("{:?}", config.quantization),
+            "bits": if matches!(config.quantization, crate::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
+        },
+        "normalization": normalization_info,
+        "status": "ready"
+    })))
 }
 
 pub async fn delete_collection(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Path(name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     info!("Deleting collection: {}", name);
 
-    // For now, just return success
+    state
+        .store
+        .delete_collection(&name)
+        .map_err(|e| ErrorResponse::from(e))?;
+
     Ok(Json(json!({
         "message": format!("Collection '{}' deleted successfully", name)
     })))
@@ -526,26 +492,26 @@ pub async fn delete_collection(
 pub async fn get_vector(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
-) -> Result<Json<Value>, StatusCode> {
-    match state.store.get_collection(&collection_name) {
-        Ok(_collection) => {
-            // For now, return mock data
-            Ok(Json(json!({
-                "id": vector_id,
-                "vector": vec![0.1; 512],
-                "metadata": {
-                    "collection": collection_name
-                }
-            })))
+) -> Result<Json<Value>, ErrorResponse> {
+    let _collection = state
+        .store
+        .get_collection(&collection_name)
+        .map_err(|e| ErrorResponse::from(e))?;
+
+    // For now, return mock data
+    Ok(Json(json!({
+        "id": vector_id,
+        "vector": vec![0.1; 512],
+        "metadata": {
+            "collection": collection_name
         }
-        Err(_) => Err(StatusCode::NOT_FOUND),
-    }
+    })))
 }
 
 pub async fn delete_vector(
     State(_state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     info!(
         "Deleting vector {} from collection {}",
         vector_id, collection_name
@@ -557,13 +523,13 @@ pub async fn delete_vector(
 }
 
 pub async fn search_vectors(
-    State(state): State<VectorizerServer>,
+    State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let query_vector = payload
         .get("vector")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("vector", "missing or invalid vector parameter"))?;
     let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
     // For now, return empty results
@@ -577,7 +543,7 @@ pub async fn search_vectors(
 pub async fn insert_text(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::monitoring::metrics::METRICS;
 
     // Start latency timer
@@ -586,11 +552,13 @@ pub async fn insert_text(
     let collection_name = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
     let text = payload
         .get("text")
         .and_then(|t| t.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("text", "missing or invalid text parameter"))?;
     let metadata = payload
         .get("metadata")
         .and_then(|m| m.as_object())
@@ -615,16 +583,16 @@ pub async fn insert_text(
     );
 
     // Get the collection
-    let collection = state
+    let _collection = state
         .store
         .get_collection(collection_name)
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+        .map_err(|e| ErrorResponse::from(e))?;
 
     // Generate embedding for the text
-    let embedding = state.embedding_manager.embed(text).map_err(|e| {
-        error!("Failed to generate embedding: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let embedding = state
+        .embedding_manager
+        .embed(text)
+        .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
 
     // Create payload with metadata
     let payload_data = crate::models::Payload::new(serde_json::Value::Object(
@@ -643,28 +611,17 @@ pub async fn insert_text(
     };
 
     // Insert the vector using the store
-    let insert_result = state.store.insert(collection_name, vec![vector]);
+    state
+        .store
+        .insert(collection_name, vec![vector])
+        .map_err(|e| ErrorResponse::from(e))?;
 
-    // Record metrics and handle result
-    match insert_result {
-        Ok(_) => {
-            info!("Vector inserted successfully with ID: {}", vector_id);
-            METRICS
-                .insert_requests_total
-                .with_label_values(&[collection_name, "success"])
-                .inc();
-            drop(timer);
-        }
-        Err(e) => {
-            error!("Failed to insert vector: {}", e);
-            METRICS
-                .insert_requests_total
-                .with_label_values(&[collection_name, "error"])
-                .inc();
-            drop(timer);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
+    info!("Vector inserted successfully with ID: {}", vector_id);
+    METRICS
+        .insert_requests_total
+        .with_label_values(&[collection_name, "success"])
+        .inc();
+    drop(timer);
 
     Ok(Json(json!({
         "message": "Text inserted successfully",
@@ -677,11 +634,11 @@ pub async fn insert_text(
 pub async fn update_vector(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let id = payload
         .get("id")
         .and_then(|i| i.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("id", "missing or invalid id parameter"))?;
 
     info!("Updating vector: {}", id);
 
@@ -693,11 +650,11 @@ pub async fn update_vector(
 pub async fn delete_vector_generic(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let id = payload
         .get("id")
         .and_then(|i| i.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("id", "missing or invalid id parameter"))?;
 
     info!("Deleting vector: {}", id);
 
@@ -707,13 +664,13 @@ pub async fn delete_vector_generic(
 }
 
 pub async fn embed_text(
-    State(state): State<VectorizerServer>,
+    State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let text = payload
         .get("text")
         .and_then(|t| t.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("text", "missing or invalid text parameter"))?;
 
     // For now, return mock embedding
     Ok(Json(json!({
@@ -726,11 +683,11 @@ pub async fn embed_text(
 pub async fn batch_insert_texts(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let texts = payload
         .get("texts")
         .and_then(|t| t.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("texts", "missing or invalid texts parameter"))?;
 
     info!("Batch inserting {} texts", texts.len());
 
@@ -743,11 +700,11 @@ pub async fn batch_insert_texts(
 pub async fn insert_texts(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let texts = payload
         .get("texts")
         .and_then(|t| t.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("texts", "missing or invalid texts parameter"))?;
 
     info!("Inserting {} texts", texts.len());
 
@@ -760,11 +717,13 @@ pub async fn insert_texts(
 pub async fn batch_search_vectors(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let queries = payload
         .get("queries")
         .and_then(|q| q.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("queries", "missing or invalid queries parameter")
+        })?;
 
     info!("Batch searching {} queries", queries.len());
 
@@ -778,11 +737,13 @@ pub async fn batch_search_vectors(
 pub async fn batch_update_vectors(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let updates = payload
         .get("updates")
         .and_then(|u| u.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("updates", "missing or invalid updates parameter")
+        })?;
 
     info!("Batch updating {} vectors", updates.len());
 
@@ -795,11 +756,11 @@ pub async fn batch_update_vectors(
 pub async fn batch_delete_vectors(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let ids = payload
         .get("ids")
         .and_then(|i| i.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("ids", "missing or invalid ids parameter"))?;
 
     info!("Batch deleting {} vectors", ids.len());
 
@@ -814,7 +775,7 @@ pub async fn batch_delete_vectors(
 pub async fn intelligent_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::intelligent_search::rest_api::{IntelligentSearchRequest, RESTAPIHandler};
     use crate::monitoring::metrics::METRICS;
 
@@ -831,7 +792,7 @@ pub async fn intelligent_search(
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let collections = payload
         .get("collections")
@@ -895,7 +856,10 @@ pub async fn intelligent_search(
             drop(timer);
 
             error!("Intelligent search error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Intelligent search failed: {:?}",
+                e
+            )))
         }
     }
 }
@@ -903,7 +867,7 @@ pub async fn intelligent_search(
 pub async fn multi_collection_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::intelligent_search::rest_api::{MultiCollectionSearchRequest, RESTAPIHandler};
 
     // Create handler with the actual server instances
@@ -912,12 +876,14 @@ pub async fn multi_collection_search(
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let collections = payload
         .get("collections")
         .and_then(|c| c.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?
+        .ok_or_else(|| {
+            create_validation_error("collections", "missing or invalid collections parameter")
+        })?
         .iter()
         .filter_map(|v| v.as_str())
         .map(|s| s.to_string())
@@ -949,7 +915,10 @@ pub async fn multi_collection_search(
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
             error!("Multi collection search error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Multi collection search failed: {:?}",
+                e
+            )))
         }
     }
 }
@@ -957,7 +926,7 @@ pub async fn multi_collection_search(
 pub async fn semantic_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::intelligent_search::rest_api::{RESTAPIHandler, SemanticSearchRequest};
 
     // Create handler with the actual server instances
@@ -966,12 +935,14 @@ pub async fn semantic_search(
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let max_results = payload
         .get("max_results")
@@ -1002,7 +973,10 @@ pub async fn semantic_search(
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
             error!("Semantic search error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Semantic search failed: {:?}",
+                e
+            )))
         }
     }
 }
@@ -1010,7 +984,7 @@ pub async fn semantic_search(
 pub async fn contextual_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::intelligent_search::rest_api::{ContextualSearchRequest, RESTAPIHandler};
 
     // Create handler with the actual server instances
@@ -1019,12 +993,14 @@ pub async fn contextual_search(
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let context_filters = payload
         .get("context_filters")
@@ -1062,7 +1038,10 @@ pub async fn contextual_search(
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap_or(json!({})))),
         Err(e) => {
             error!("Contextual search error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Contextual search failed: {:?}",
+                e
+            )))
         }
     }
 }
@@ -1074,13 +1053,13 @@ pub async fn contextual_search(
 pub async fn discover(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{Discovery, DiscoveryConfig};
 
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let mut config = DiscoveryConfig::default();
 
@@ -1136,7 +1115,10 @@ pub async fn discover(
         }))),
         Err(e) => {
             error!("Discovery error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Discovery failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1144,13 +1126,13 @@ pub async fn discover(
 pub async fn filter_collections(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::filter_collections as filter_fn;
 
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let include: Vec<&str> = payload
         .get("include")
@@ -1193,7 +1175,10 @@ pub async fn filter_collections(
         }))),
         Err(e) => {
             error!("Filter collections error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Filter collections failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1201,13 +1186,13 @@ pub async fn filter_collections(
 pub async fn score_collections(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{ScoringConfig, score_collections as score_fn};
 
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let mut config = ScoringConfig::default();
 
@@ -1253,18 +1238,21 @@ pub async fn score_collections(
         }))),
         Err(e) => {
             error!("Score collections error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Score collections failed: {}",
+                e
+            )))
         }
     }
 }
 
-pub async fn expand_queries(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn expand_queries(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{ExpansionConfig, expand_queries_baseline};
 
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let mut config = ExpansionConfig::default();
 
@@ -1292,7 +1280,10 @@ pub async fn expand_queries(Json(payload): Json<Value>) -> Result<Json<Value>, S
         }))),
         Err(e) => {
             error!("Expand queries error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Expand queries failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1300,13 +1291,13 @@ pub async fn expand_queries(Json(payload): Json<Value>) -> Result<Json<Value>, S
 pub async fn broad_discovery(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{BroadDiscoveryConfig, broad_discovery as broad_fn};
 
     let queries = payload
         .get("queries")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?
+        .ok_or_else(|| create_validation_error("queries", "missing or invalid queries parameter"))?
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.to_string()))
         .collect::<Vec<_>>();
@@ -1354,7 +1345,10 @@ pub async fn broad_discovery(
         }))),
         Err(e) => {
             error!("Broad discovery error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1362,18 +1356,20 @@ pub async fn broad_discovery(
 pub async fn semantic_focus(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{SemanticFocusConfig, semantic_focus as focus_fn};
 
     let collection_name = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let queries = payload
         .get("queries")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?
+        .ok_or_else(|| create_validation_error("queries", "missing or invalid queries parameter"))?
         .iter()
         .filter_map(|v| v.as_str().map(|s| s.to_string()))
         .collect::<Vec<_>>();
@@ -1385,7 +1381,7 @@ pub async fn semantic_focus(
     let coll = state
         .store
         .get_collection(collection_name)
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+        .map_err(|e| ErrorResponse::from(e))?;
 
     let metadata = coll.metadata();
     let collection = crate::discovery::CollectionRef {
@@ -1417,12 +1413,15 @@ pub async fn semantic_focus(
         }))),
         Err(e) => {
             error!("Semantic focus error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
 
-pub async fn promote_readme(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn promote_readme(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{
         ChunkMetadata, ReadmePromotionConfig, ScoredChunk, promote_readme as promote_fn,
     };
@@ -1430,7 +1429,7 @@ pub async fn promote_readme(Json(payload): Json<Value>) -> Result<Json<Value>, S
     let chunks_json = payload
         .get("chunks")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("chunks", "missing or invalid chunks parameter"))?;
 
     let chunks: Vec<ScoredChunk> = chunks_json
         .iter()
@@ -1464,12 +1463,15 @@ pub async fn promote_readme(Json(payload): Json<Value>) -> Result<Json<Value>, S
         }))),
         Err(e) => {
             error!("Promote README error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
 
-pub async fn compress_evidence(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn compress_evidence(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{
         ChunkMetadata, CompressionConfig, ScoredChunk, compress_evidence as compress_fn,
     };
@@ -1477,7 +1479,7 @@ pub async fn compress_evidence(Json(payload): Json<Value>) -> Result<Json<Value>
     let chunks_json = payload
         .get("chunks")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("chunks", "missing or invalid chunks parameter"))?;
 
     let max_bullets = payload
         .get("max_bullets")
@@ -1522,12 +1524,15 @@ pub async fn compress_evidence(Json(payload): Json<Value>) -> Result<Json<Value>
         }))),
         Err(e) => {
             error!("Compress evidence error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
 
-pub async fn build_answer_plan(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn build_answer_plan(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{
         AnswerPlanConfig, Bullet, BulletCategory, build_answer_plan as build_fn,
     };
@@ -1535,7 +1540,9 @@ pub async fn build_answer_plan(Json(payload): Json<Value>) -> Result<Json<Value>
     let bullets_json = payload
         .get("bullets")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("bullets", "missing or invalid bullets parameter")
+        })?;
 
     let bullets: Vec<Bullet> = bullets_json
         .iter()
@@ -1579,12 +1586,15 @@ pub async fn build_answer_plan(Json(payload): Json<Value>) -> Result<Json<Value>
         }))),
         Err(e) => {
             error!("Build answer plan error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
 
-pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
     use crate::discovery::{
         AnswerPlan, Bullet, BulletCategory, PromptRenderConfig, Section, SectionType,
         render_llm_prompt as render_fn,
@@ -1593,12 +1603,14 @@ pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>
     let plan_json = payload
         .get("plan")
         .and_then(|v| v.as_object())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("plan", "missing or invalid plan parameter"))?;
 
     let sections_json = plan_json
         .get("sections")
         .and_then(|v| v.as_array())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("sections", "missing or invalid sections parameter")
+        })?;
 
     let sections: Vec<Section> = sections_json
         .iter()
@@ -1667,7 +1679,10 @@ pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>
         }))),
         Err(e) => {
             error!("Render LLM prompt error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1679,18 +1694,22 @@ pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>
 pub async fn get_file_content(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::FileOperations;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let file_path = payload
         .get("file_path")
         .and_then(|f| f.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("file_path", "missing or invalid file_path parameter")
+        })?;
 
     let max_size_kb = payload
         .get("max_size_kb")
@@ -1706,7 +1725,10 @@ pub async fn get_file_content(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get file content error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1714,13 +1736,15 @@ pub async fn get_file_content(
 pub async fn list_files_in_collection(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::{FileListFilter, FileOperations, SortBy};
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let filter_by_type = payload
         .get("filter_by_type")
@@ -1766,7 +1790,10 @@ pub async fn list_files_in_collection(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("List files error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1774,18 +1801,22 @@ pub async fn list_files_in_collection(
 pub async fn get_file_summary(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::{FileOperations, SummaryType};
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let file_path = payload
         .get("file_path")
         .and_then(|f| f.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("file_path", "missing or invalid file_path parameter")
+        })?;
 
     let summary_type = payload
         .get("summary_type")
@@ -1812,7 +1843,10 @@ pub async fn get_file_summary(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get file summary error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1820,18 +1854,22 @@ pub async fn get_file_summary(
 pub async fn get_file_chunks_ordered(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::FileOperations;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let file_path = payload
         .get("file_path")
         .and_then(|f| f.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("file_path", "missing or invalid file_path parameter")
+        })?;
 
     let start_chunk = payload
         .get("start_chunk")
@@ -1854,7 +1892,10 @@ pub async fn get_file_chunks_ordered(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get file chunks error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1862,13 +1903,15 @@ pub async fn get_file_chunks_ordered(
 pub async fn get_project_outline(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::FileOperations;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let max_depth = payload
         .get("max_depth")
@@ -1899,7 +1942,10 @@ pub async fn get_project_outline(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get project outline error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1907,18 +1953,22 @@ pub async fn get_project_outline(
 pub async fn get_related_files(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::FileOperations;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let file_path = payload
         .get("file_path")
         .and_then(|f| f.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("file_path", "missing or invalid file_path parameter")
+        })?;
 
     let limit = payload.get("limit").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
 
@@ -1948,7 +1998,10 @@ pub async fn get_related_files(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Get related files error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -1956,18 +2009,20 @@ pub async fn get_related_files(
 pub async fn search_by_file_type(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     use crate::file_operations::FileOperations;
 
     let collection = payload
         .get("collection")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
 
     let query = payload
         .get("query")
         .and_then(|q| q.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
 
     let file_types = payload
         .get("file_types")
@@ -1977,7 +2032,9 @@ pub async fn search_by_file_type(
                 .filter_map(|v| v.as_str().map(String::from))
                 .collect::<Vec<_>>()
         })
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("file_types", "missing or invalid file_types parameter")
+        })?;
 
     let limit = payload.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
@@ -2002,7 +2059,10 @@ pub async fn search_by_file_type(
         Ok(result) => Ok(Json(serde_json::to_value(result).unwrap_or(json!({})))),
         Err(e) => {
             error!("Search by file type error: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(create_bad_request_error(&format!(
+                "Operation failed: {}",
+                e
+            )))
         }
     }
 }
@@ -2111,7 +2171,7 @@ pub async fn get_logs(Query(params): Query<HashMap<String, String>>) -> Json<Val
 pub async fn force_save_collection(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     info!("💾 Force saving collection: {}", collection_name);
 
     // Verify collection exists
@@ -2134,7 +2194,7 @@ pub async fn force_save_collection(
         }
         Err(e) => {
             error!("Collection not found: {}", e);
-            Err(StatusCode::NOT_FOUND)
+            Err(ErrorResponse::from(e))
         }
     }
 }
@@ -2143,16 +2203,21 @@ pub async fn force_save_collection(
 pub async fn add_workspace(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let path = payload
         .get("path")
         .and_then(|p| p.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("path", "missing or invalid path parameter"))?;
 
     let collection_name = payload
         .get("collection_name")
         .and_then(|c| c.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error(
+                "collection_name",
+                "missing or invalid collection_name parameter",
+            )
+        })?;
 
     info!("📁 Adding workspace: {} -> {}", path, collection_name);
 
@@ -2167,11 +2232,11 @@ pub async fn add_workspace(
 pub async fn remove_workspace(
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let path = payload
         .get("path")
         .and_then(|p| p.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("path", "missing or invalid path parameter"))?;
 
     info!("🗑️ Removing workspace: {}", path);
 
@@ -2232,7 +2297,7 @@ pub async fn get_config() -> Json<Value> {
 }
 
 /// Update configuration (for GUI)
-pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
     // Write to config.yml
     match serde_yaml::to_string(&payload) {
         Ok(yaml_content) => match std::fs::write("./config.yml", yaml_content) {
@@ -2245,12 +2310,18 @@ pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, St
             }
             Err(e) => {
                 error!("Failed to write config.yml: {}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
+                Err(create_bad_request_error(&format!(
+                    "Operation failed: {}",
+                    e
+                )))
             }
         },
         Err(e) => {
             error!("Failed to serialize config to YAML: {}", e);
-            Err(StatusCode::BAD_REQUEST)
+            Err(create_bad_request_error(&format!(
+                "Failed to serialize config: {}",
+                e
+            )))
         }
     }
 }
@@ -2301,11 +2372,11 @@ pub async fn list_backups() -> Json<Value> {
 pub async fn create_backup(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let name = payload
         .get("name")
         .and_then(|n| n.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| create_validation_error("name", "missing or invalid name parameter"))?;
 
     let collections = payload
         .get("collections")
@@ -2325,7 +2396,9 @@ pub async fn create_backup(
     // Create backups directory if it doesn't exist
     let backup_dir = std::path::Path::new("./backups");
     if !backup_dir.exists() {
-        std::fs::create_dir_all(backup_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        std::fs::create_dir_all(backup_dir).map_err(|e| {
+            create_bad_request_error(&format!("Failed to create backup directory: {}", e))
+        })?;
     }
 
     // Generate backup ID and metadata
@@ -2394,10 +2467,12 @@ pub async fn create_backup(
 
     // Save backup to file
     let backup_file = backup_dir.join(format!("{}.backup", backup_id));
-    let backup_json = serde_json::to_string_pretty(&backup_data)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let backup_json = serde_json::to_string_pretty(&backup_data).map_err(|e| {
+        create_bad_request_error(&format!("Failed to serialize backup data: {}", e))
+    })?;
 
-    std::fs::write(&backup_file, backup_json).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    std::fs::write(&backup_file, backup_json)
+        .map_err(|e| create_bad_request_error(&format!("Failed to write backup file: {}", e)))?;
 
     info!("💾 Backup created successfully: {}", backup_file.display());
 
@@ -2415,11 +2490,13 @@ pub async fn create_backup(
 pub async fn restore_backup(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     let backup_id = payload
         .get("backup_id")
         .and_then(|b| b.as_str())
-        .ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or_else(|| {
+            create_validation_error("backup_id", "missing or invalid backup_id parameter")
+        })?;
 
     info!("♻️ Restoring backup: {}", backup_id);
 
@@ -2427,31 +2504,41 @@ pub async fn restore_backup(
     let backup_file = std::path::Path::new("./backups").join(format!("{}.backup", backup_id));
     if !backup_file.exists() {
         error!("Backup file not found: {}", backup_file.display());
-        return Err(StatusCode::NOT_FOUND);
+        return Err(create_not_found_error("backup", backup_id));
     }
 
-    let backup_content =
-        std::fs::read_to_string(&backup_file).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let backup_content = std::fs::read_to_string(&backup_file)
+        .map_err(|e| create_bad_request_error(&format!("Failed to read backup file: {}", e)))?;
 
-    let backup_data: Value =
-        serde_json::from_str(&backup_content).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let backup_data: Value = serde_json::from_str(&backup_content)
+        .map_err(|e| create_bad_request_error(&format!("Failed to parse backup content: {}", e)))?;
 
     let collections_data = backup_data
         .get("data")
         .and_then(|d| d.as_object())
-        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+        .ok_or_else(|| create_bad_request_error("Missing 'data' field in backup content"))?;
 
     // Restore each collection
     for (collection_name, collection_data) in collections_data {
         let vectors = collection_data
             .get("vectors")
             .and_then(|v| v.as_array())
-            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+            .ok_or_else(|| {
+                create_bad_request_error(&format!(
+                    "Missing 'vectors' field for collection '{}'",
+                    collection_name
+                ))
+            })?;
 
         let dimension = collection_data
             .get("dimension")
             .and_then(|d| d.as_u64())
-            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)? as usize;
+            .ok_or_else(|| {
+                create_bad_request_error(&format!(
+                    "Missing 'dimension' field for collection '{}'",
+                    collection_name
+                ))
+            })? as usize;
 
         info!(
             "🔄 Restoring collection '{}': {} vectors",
@@ -2480,7 +2567,7 @@ pub async fn restore_backup(
             state
                 .store
                 .create_collection(collection_name, config)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|e| ErrorResponse::from(e))?;
         }
 
         // Restore vectors
@@ -2490,12 +2577,16 @@ pub async fn restore_backup(
             let id = vector_data
                 .get("id")
                 .and_then(|i| i.as_str())
-                .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                .ok_or_else(|| {
+                    create_bad_request_error(&format!("Missing 'id' field in vector data"))
+                })?;
 
             let vector_array = vector_data
                 .get("vector")
                 .and_then(|v| v.as_array())
-                .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                .ok_or_else(|| {
+                    create_bad_request_error(&format!("Missing 'vector' field for vector '{}'", id))
+                })?;
 
             let vector: Vec<f32> = vector_array
                 .iter()
@@ -2520,12 +2611,12 @@ pub async fn restore_backup(
         state
             .store
             .insert(collection_name, vectors_to_insert)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|e| ErrorResponse::from(e))?;
 
         let collection = state
             .store
             .get_collection(collection_name)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|e| ErrorResponse::from(e))?;
 
         info!(
             "✅ Restored collection '{}': {} vectors",
@@ -2538,7 +2629,7 @@ pub async fn restore_backup(
     state
         .store
         .force_save_all()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| ErrorResponse::from(e))?;
 
     info!("♻️ Backup restored successfully");
 
@@ -2556,7 +2647,7 @@ pub async fn get_backup_directory() -> Json<Value> {
 }
 
 /// Get workspace configuration (for GUI)
-pub async fn get_workspace_config() -> Result<Json<Value>, StatusCode> {
+pub async fn get_workspace_config() -> Result<Json<Value>, ErrorResponse> {
     let possible_paths = vec![
         "./vectorize-workspace.yml",
         "../vectorize-workspace.yml",
@@ -2597,7 +2688,7 @@ pub async fn get_workspace_config() -> Result<Json<Value>, StatusCode> {
 /// Update workspace configuration (for GUI)
 pub async fn update_workspace_config(
     Json(payload): Json<Value>,
-) -> Result<Json<Value>, StatusCode> {
+) -> Result<Json<Value>, ErrorResponse> {
     // Write to vectorize-workspace.yml
     match serde_yaml::to_string(&payload) {
         Ok(yaml_content) => match std::fs::write("./vectorize-workspace.yml", yaml_content) {
@@ -2610,12 +2701,18 @@ pub async fn update_workspace_config(
             }
             Err(e) => {
                 error!("Failed to write vectorize-workspace.yml: {}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
+                Err(create_bad_request_error(&format!(
+                    "Operation failed: {}",
+                    e
+                )))
             }
         },
         Err(e) => {
             error!("Failed to serialize workspace config to YAML: {}", e);
-            Err(StatusCode::BAD_REQUEST)
+            Err(create_bad_request_error(&format!(
+                "Failed to serialize workspace config: {}",
+                e
+            )))
         }
     }
 }

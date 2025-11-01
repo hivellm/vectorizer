@@ -3,6 +3,7 @@ mod error_middleware;
 pub mod file_operations_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
+mod qdrant_alias_handlers;
 mod qdrant_handlers;
 mod qdrant_search_handlers;
 mod qdrant_vector_handlers;
@@ -844,6 +845,15 @@ impl VectorizerServer {
                 post(qdrant_vector_handlers::delete_points),
             )
             .route(
+                "/qdrant/collections/aliases",
+                post(qdrant_alias_handlers::update_aliases),
+            )
+            .route(
+                "/qdrant/collections/{name}/aliases",
+                get(qdrant_alias_handlers::list_collection_aliases),
+            )
+            .route("/qdrant/aliases", get(qdrant_alias_handlers::list_aliases))
+            .route(
                 "/qdrant/collections/{name}/points/scroll",
                 post(qdrant_vector_handlers::scroll_points),
             )
@@ -1057,10 +1067,11 @@ impl VectorizerServer {
 }
 
 /// Get File Watcher metrics endpoint
-/// Get File Watcher metrics endpoint
 pub async fn get_file_watcher_metrics(
     State(state): State<Arc<ServerState>>,
-) -> Result<Json<FileWatcherMetrics>, (StatusCode, String)> {
+) -> Result<Json<FileWatcherMetrics>, crate::server::error_middleware::ErrorResponse> {
+    use crate::server::error_middleware::ErrorResponse;
+
     // Get the file watcher system from the state
     let watcher_lock = state.file_watcher_system.lock().await;
 
