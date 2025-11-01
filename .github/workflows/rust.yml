@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
     - name: Install minimal stable
@@ -37,7 +37,21 @@ jobs:
     - name: Build
       run: cargo build --tests --workspace
     - name: Run unit and integration tests
-      run: cargo nextest run --workspace --all-features --all-targets
+      timeout-minutes: 30
+      run: cargo nextest run --workspace --all-features --all-targets --test-threads 4
+      env:
+        # Set test timeouts for integration tests
+        NEXTEST_TIMEOUT: 300s
+    - name: Run integration tests specifically
+      timeout-minutes: 20
+      run: |
+        # Run new integration tests with extended timeout
+        cargo nextest run \
+          --test api_workflow_test \
+          --test concurrent_test \
+          --test multi_collection_test \
+          --workspace --all-features \
+          --timeout 600s
     - name: Run doc tests
       run: cargo test --workspace --doc --all-features
     - name: Upload test report

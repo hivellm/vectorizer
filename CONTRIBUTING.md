@@ -125,7 +125,36 @@ cargo test test_name
 
 # Run integration tests only
 cargo test --test '*'
+
+# Run specific integration tests
+cargo test --test api_workflow_test
+cargo test --test concurrent_test
+cargo test --test multi_collection_test
+
+# Run integration tests with timeout
+cargo nextest run --test api_workflow_test --test concurrent_test --test multi_collection_test --timeout 600s
 ```
+
+### Integration Tests
+
+The project includes comprehensive integration tests covering:
+
+- **API Workflow Tests** (`api_workflow_test.rs`): Full CRUD operations, batch operations, multi-collection workflows, and error handling
+- **Concurrent Tests** (`concurrent_test.rs`): Concurrent searches, inserts, read-while-write scenarios, and race condition verification
+- **Multi-Collection Tests** (`multi_collection_test.rs`): Tests with 100+ collections, cross-collection searches, and memory scaling
+
+Integration tests use helper functions from `tests/helpers/mod.rs` for:
+- Creating test stores and collections
+- Generating test vectors
+- Server startup utilities
+- Assertion macros
+
+To run all integration tests:
+```bash
+cargo nextest run --test '*' --timeout 600s
+```
+
+Note: Integration tests may take longer to run and require proper timeout configuration.
 
 ### Coverage
 
