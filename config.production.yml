@@ -21,6 +21,15 @@ logging:
   log_errors: true
 
 # =============================================================================
+# GPU CONFIGURATION (Metal GPU - macOS only)
+# =============================================================================
+gpu:
+  enabled: true                    # Enable GPU on macOS production
+  batch_size: 2000                 # Larger batches for production workloads
+  fallback_to_cpu: true            # Always fallback in production
+  preferred_backend: "auto"        # Auto-detect best available
+
+# =============================================================================
 # REPLICATION CONFIGURATION
 # =============================================================================
 # IMPORTANT: Configure based on node role

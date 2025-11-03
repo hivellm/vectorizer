@@ -70,6 +70,27 @@ pub struct Metrics {
 
     /// Total API errors
     pub api_errors_total: CounterVec,
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // GPU Metrics (Metal GPU - macOS only)
+    // ═══════════════════════════════════════════════════════════════════════
+    /// GPU backend type (metal/cpu)
+    pub gpu_backend_type: Gauge,
+
+    /// GPU memory usage in bytes
+    pub gpu_memory_usage_bytes: Gauge,
+
+    /// GPU search requests total
+    pub gpu_search_requests_total: Counter,
+
+    /// GPU search latency in seconds
+    pub gpu_search_latency_seconds: Histogram,
+
+    /// GPU batch operations total
+    pub gpu_batch_operations_total: CounterVec,
+
+    /// GPU batch operation latency in seconds
+    pub gpu_batch_latency_seconds: HistogramVec,
 }
 
 impl Metrics {
@@ -192,6 +213,53 @@ impl Metrics {
                 &["endpoint", "error_type", "status_code"],
             )
             .unwrap(),
+
+            // GPU metrics
+            gpu_backend_type: Gauge::new(
+                "vectorizer_gpu_backend_type",
+                "GPU backend type (0=None, 1=Metal)",
+            )
+            .unwrap(),
+
+            gpu_memory_usage_bytes: Gauge::new(
+                "vectorizer_gpu_memory_usage_bytes",
+                "GPU memory usage in bytes",
+            )
+            .unwrap(),
+
+            gpu_search_requests_total: Counter::new(
+                "vectorizer_gpu_search_requests_total",
+                "Total GPU search requests",
+            )
+            .unwrap(),
+
+            gpu_search_latency_seconds: Histogram::with_opts(
+                HistogramOpts::new(
+                    "vectorizer_gpu_search_latency_seconds",
+                    "GPU search latency in seconds",
+                )
+                .buckets(vec![0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0]),
+            )
+            .unwrap(),
+
+            gpu_batch_operations_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_gpu_batch_operations_total",
+                    "Total GPU batch operations",
+                ),
+                &["operation_type"],
+            )
+            .unwrap(),
+
+            gpu_batch_latency_seconds: HistogramVec::new(
+                HistogramOpts::new(
+                    "vectorizer_gpu_batch_latency_seconds",
+                    "GPU batch operation latency in seconds",
+                )
+                .buckets(vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]),
+                &["operation_type"],
+            )
+            .unwrap(),
         }
     }
 
@@ -219,6 +287,14 @@ impl Metrics {
         registry.register(Box::new(self.memory_usage_bytes.clone()))?;
         registry.register(Box::new(self.cache_requests_total.clone()))?;
         registry.register(Box::new(self.api_errors_total.clone()))?;
+
+        // GPU metrics
+        registry.register(Box::new(self.gpu_backend_type.clone()))?;
+        registry.register(Box::new(self.gpu_memory_usage_bytes.clone()))?;
+        registry.register(Box::new(self.gpu_search_requests_total.clone()))?;
+        registry.register(Box::new(self.gpu_search_latency_seconds.clone()))?;
+        registry.register(Box::new(self.gpu_batch_operations_total.clone()))?;
+        registry.register(Box::new(self.gpu_batch_latency_seconds.clone()))?;
 
         Ok(())
     }

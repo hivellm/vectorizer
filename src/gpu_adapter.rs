@@ -15,6 +15,9 @@ pub use hive_gpu::{
 use crate::error::{Result, VectorizerError};
 use crate::models::{Payload, Vector};
 
+#[cfg(feature = "hive-gpu")]
+use crate::db::gpu_detection::GpuBackendType;
+
 /// Adapter for converting between vectorizer and hive-gpu types
 pub struct GpuAdapter;
 
@@ -174,6 +177,59 @@ impl GpuAdapter {
             }
             VectorizerError::Other(msg) => HiveGpuError::Other(msg),
             _ => HiveGpuError::Other(format!("Unknown error: {:?}", error)),
+        }
+    }
+
+    /// Create GPU context for the specified backend
+    ///
+    /// This method creates the appropriate GPU context based on the detected backend type.
+    /// Currently only Metal is supported (macOS only).
+    ///
+    /// # Arguments
+    /// * `backend` - The GPU backend type to create context for
+    ///
+    /// # Returns
+    /// A boxed GPU context implementing the `GpuContext` trait
+    ///
+    /// # Errors
+    /// Returns error if the backend is not available or context creation fails
+    ///
+    /// # Example
+    /// ```no_run
+    /// use vectorizer::gpu_adapter::GpuAdapter;
+    /// use vectorizer::db::gpu_detection::{GpuDetector, GpuBackendType};
+    ///
+    /// let backend = GpuDetector::detect_best_backend();
+    /// if backend != GpuBackendType::None {
+    ///     let context = GpuAdapter::create_context(backend).unwrap();
+    ///     // Use context...
+    /// }
+    /// ```
+    #[cfg(feature = "hive-gpu")]
+    pub fn create_context(backend: GpuBackendType) -> Result<Box<dyn GpuContext + Send>> {
+        use tracing::{debug, info};
+
+        match backend {
+            GpuBackendType::None => Err(VectorizerError::Other(
+                "Cannot create GPU context for CPU-only backend".to_string(),
+            )),
+            GpuBackendType::Metal => {
+                #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
+                {
+                    info!("Creating Metal GPU context...");
+                    use hive_gpu::metal::MetalNativeContext;
+                    let ctx =
+                        MetalNativeContext::new().map_err(Self::gpu_error_to_vectorizer_error)?;
+                    debug!("Metal context created successfully");
+                    Ok(Box::new(ctx) as Box<dyn GpuContext + Send>)
+                }
+                #[cfg(not(all(feature = "hive-gpu", target_os = "macos")))]
+                {
+                    Err(VectorizerError::Other(
+                        "Metal support requires macOS and 'hive-gpu' feature".to_string(),
+                    ))
+                }
+            }
         }
     }
 }

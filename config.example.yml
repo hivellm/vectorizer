@@ -39,6 +39,24 @@ logging:
   correlation_id_enabled: true # Add correlation IDs to all requests
 
 # =============================================================================
+# GPU CONFIGURATION (Metal GPU - macOS only)
+# =============================================================================
+gpu:
+  # Enable GPU acceleration (default: true on macOS, false on other platforms)
+  enabled: true
+  
+  # Batch size for GPU batch operations (default: 1000)
+  # Higher values = better GPU utilization, more memory usage
+  batch_size: 1000
+  
+  # Fallback to CPU if GPU initialization fails (default: true)
+  fallback_to_cpu: true
+  
+  # Preferred backend: auto (detect best), metal (force Metal on macOS), cpu (disable GPU)
+  # Options: auto | metal | cpu
+  preferred_backend: "auto"
+
+# =============================================================================
 # MONITORING & TELEMETRY CONFIGURATION
 # =============================================================================
 monitoring:
