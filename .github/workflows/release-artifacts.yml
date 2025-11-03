@@ -135,6 +135,42 @@ jobs:
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  build-mac-metal-binaries:
+    name: Build macOS ARM with Metal GPU support
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install dependencies
+        run: |
+          brew update-reset
+          brew install gcc cmake
+          rustup default stable
+          rustup update
+          rustup target add ${{ matrix.target }}
+          rustup show
+          cargo -Vv
+      - uses: actions/checkout@v5
+      - name: Build vectorizer with Metal support
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer
+          target: ${{ matrix.target }}
+          features: hive-gpu-metal
+          archive: vectorizer-$target-metal
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build vectorizer-cli with Metal support
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: vectorizer-cli
+          target: ${{ matrix.target }}
+          features: hive-gpu-metal
+          archive: vectorizer-cli-$target-metal
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build-windows-binaries:
     strategy:
       matrix:
