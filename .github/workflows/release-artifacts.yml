@@ -9,7 +9,7 @@ on:
 jobs:
   # Separated Linux builds - each runs independently
   # If one fails, others continue
-  
+
   build-linux-x86_64-gnu:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +32,7 @@ jobs:
           bin: vectorizer-cli
           target: x86_64-unknown-linux-gnu
           token: ${{ secrets.GITHUB_TOKEN }}
-  
+
   build-linux-x86_64-musl:
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +73,7 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true
-  
+
   build-linux-aarch64-musl:
     runs-on: ubuntu-latest
     steps:

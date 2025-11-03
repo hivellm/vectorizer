@@ -10,7 +10,6 @@
 //! - CUDA: NVIDIA GPUs (Linux/Windows)
 //! - ROCm: AMD GPUs (Linux)
 
-
 use tracing::{debug, info};
 
 /// Available GPU backend types

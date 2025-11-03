@@ -169,7 +169,7 @@ impl HiveGpuCollection {
             })?;
 
         self.vector_count += vectors.len();
-        
+
         // Track vector IDs
         let ids: Vec<String> = vectors.iter().map(|v| v.id.clone()).collect();
         self.vector_ids.lock().unwrap().extend(ids);
@@ -387,11 +387,13 @@ impl HiveGpuCollection {
         let max_vectors = 10000; // Limit to prevent memory issues
 
         let ids = self.vector_ids.lock().unwrap();
-        
+
         if ids.len() > max_vectors {
             warn!(
                 "Collection '{}' has {} vectors, limiting get_all_vectors to {}",
-                self.name, ids.len(), max_vectors
+                self.name,
+                ids.len(),
+                max_vectors
             );
         }
 
