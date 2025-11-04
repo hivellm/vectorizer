@@ -190,7 +190,12 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     println!("✅ Servers stopped.");
 }
 
-async fn run_as_daemon(project: PathBuf, _host: String, _port: u16, _mcp_port: u16) {
+async fn run_as_daemon(
+    #[cfg_attr(not(target_os = "linux"), allow(unused_variables))] project: PathBuf,
+    _host: String,
+    _port: u16,
+    _mcp_port: u16,
+) {
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::process::CommandExt;

@@ -152,7 +152,7 @@ mod fallback_tests {
         println!("\n🔍 Testing non-macOS GPU detection...");
 
         let backend = GpuDetector::detect_best_backend();
-        println!("✓ Detected backend: {:?}", backend);
+        println!("✓ Detected backend: {backend:?}");
 
         // On non-macOS or without hive-gpu feature, should return None
         assert_eq!(
@@ -169,7 +169,7 @@ mod fallback_tests {
         println!("\n🔍 Testing Metal availability on non-macOS...");
 
         let is_available = GpuDetector::is_metal_available();
-        println!("✓ Metal available: {}", is_available);
+        println!("✓ Metal available: {is_available}");
 
         assert!(!is_available, "Metal should not be available on non-macOS");
 
