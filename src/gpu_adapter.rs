@@ -12,11 +12,10 @@ pub use hive_gpu::{
     HiveGpuError, HnswConfig as HiveGpuHnswConfig,
 };
 
-use crate::error::{Result, VectorizerError};
-use crate::models::{Payload, Vector};
-
 #[cfg(feature = "hive-gpu")]
 use crate::db::gpu_detection::GpuBackendType;
+use crate::error::{Result, VectorizerError};
+use crate::models::{Payload, Vector};
 
 /// Adapter for converting between vectorizer and hive-gpu types
 pub struct GpuAdapter;
