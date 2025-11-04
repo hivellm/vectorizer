@@ -44,13 +44,7 @@ jobs:
         NEXTEST_TIMEOUT: 300s
     - name: Run integration tests specifically
       timeout-minutes: 20
-      run: |
-        # Run new integration tests with extended timeout
-        cargo nextest run \
-          --test api_workflow_test \
-          --test concurrent_test \
-          --test multi_collection_test \
-          --workspace --all-features
+      run: cargo nextest run --test api_workflow_test --test concurrent_test --test multi_collection_test --workspace --all-features
       env:
         # Extended timeout for integration tests (600 seconds = 10 minutes)
         NEXTEST_TIMEOUT: 600s
