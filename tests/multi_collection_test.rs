@@ -145,6 +145,9 @@ async fn test_memory_scaling() {
 async fn test_collection_lifecycle_many() {
     let store = create_test_store();
 
+    // Get initial count (may have collections from other parallel tests)
+    let initial_existing = store.list_collections().len();
+
     // Create many collections
     let initial_count = 50;
     for i in 0..initial_count {
@@ -155,8 +158,11 @@ async fn test_collection_lifecycle_many() {
 
     assert_eq!(
         store.list_collections().len(),
-        initial_count,
-        "Should have {initial_count} collections"
+        initial_existing + initial_count,
+        "Should have {} collections (initial {} + created {})",
+        initial_existing + initial_count,
+        initial_existing,
+        initial_count
     );
 
     // Delete some collections
@@ -170,9 +176,12 @@ async fn test_collection_lifecycle_many() {
 
     assert_eq!(
         store.list_collections().len(),
-        initial_count - delete_count,
-        "Should have {} collections after deletion",
-        initial_count - delete_count
+        initial_existing + initial_count - delete_count,
+        "Should have {} collections after deletion (initial {} + created {} - deleted {})",
+        initial_existing + initial_count - delete_count,
+        initial_existing,
+        initial_count,
+        delete_count
     );
 
     // Create new collections
@@ -185,9 +194,13 @@ async fn test_collection_lifecycle_many() {
 
     assert_eq!(
         store.list_collections().len(),
-        initial_count - delete_count + new_count,
-        "Should have {} collections after recreation",
-        initial_count - delete_count + new_count
+        initial_existing + initial_count - delete_count + new_count,
+        "Should have {} collections after recreation (initial {} + created {} - deleted {} + new {})",
+        initial_existing + initial_count - delete_count + new_count,
+        initial_existing,
+        initial_count,
+        delete_count,
+        new_count
     );
 }
 

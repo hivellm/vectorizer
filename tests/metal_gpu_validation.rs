@@ -12,7 +12,7 @@ mod metal_tests {
         println!("\n🔍 Testing Metal GPU detection...");
 
         let backend = GpuDetector::detect_best_backend();
-        println!("✓ Detected backend: {:?}", backend);
+        println!("✓ Detected backend: {backend:?}");
 
         // On macOS with Metal support, should detect Metal
         assert_eq!(
@@ -29,7 +29,7 @@ mod metal_tests {
         println!("\n🔍 Testing Metal availability...");
 
         let is_available = GpuDetector::is_metal_available();
-        println!("✓ Metal available: {}", is_available);
+        println!("✓ Metal available: {is_available}");
 
         assert!(is_available, "Metal should be available on macOS");
 
@@ -43,7 +43,7 @@ mod metal_tests {
         let gpu_info = GpuDetector::get_gpu_info(GpuBackendType::Metal);
 
         if let Some(info) = gpu_info {
-            println!("✓ GPU Info: {}", info);
+            println!("✓ GPU Info: {info}");
             println!("  - Backend: {}", info.backend.name());
             println!("  - Device: {}", info.device_name);
 
@@ -53,7 +53,7 @@ mod metal_tests {
             }
 
             if let Some(driver) = &info.driver_version {
-                println!("  - Driver Version: {}", driver);
+                println!("  - Driver Version: {driver}");
             }
 
             assert_eq!(info.backend, GpuBackendType::Metal);
@@ -75,20 +75,17 @@ mod metal_tests {
         use vectorizer::gpu_adapter::GpuAdapter;
 
         let backend = GpuDetector::detect_best_backend();
-        println!("✓ Detected backend: {:?}", backend);
+        println!("✓ Detected backend: {backend:?}");
 
         let context_result = GpuAdapter::create_context(backend);
 
         match context_result {
-            Ok(context) => {
+            Ok(_context) => {
                 println!("✅ GPU context created successfully!");
                 println!("  - Context type: Metal Native Context");
-
-                // Context should be valid and usable
-                assert!(true, "Context created successfully");
             }
             Err(e) => {
-                panic!("Failed to create GPU context: {:?}", e);
+                panic!("Failed to create GPU context: {e:?}");
             }
         }
     }
@@ -139,7 +136,7 @@ mod metal_tests {
             Err(e) => {
                 // Even if collection creation fails, the test validates that
                 // the system attempted to use Metal GPU
-                println!("⚠️  Collection creation result: {:?}", e);
+                println!("⚠️  Collection creation result: {e:?}");
                 println!("✅ Metal GPU integration validated (creation attempted)");
             }
         }
