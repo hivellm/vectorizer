@@ -23,7 +23,7 @@
     "type-check": "vue-tsc --noEmit && tsc -p tsconfig.main.json --noEmit"
   },
   "dependencies": {
-    "@hivellm/vectorizer-client": "^0.4.1",
+    "@hivellm/vectorizer-sdk": "^1.1.2",
     "@monaco-editor/loader": "^1.6.1",
     "@vueuse/core": "^10.7.0",
     "conf": "^10.2.0",

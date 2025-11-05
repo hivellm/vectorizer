@@ -456,30 +456,35 @@ impl VectorStore {
 
         eprintln!("✅ VectorStore created (collections will be loaded in background)");
 
-        // Try Hive-GPU first (Metal backend only on macOS)
-        #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
+        // Detect best available GPU backend
+        #[cfg(feature = "hive-gpu")]
         {
-            eprintln!("🚀 Detecting Hive-GPU capabilities...");
-            info!("🚀 Detecting Hive-GPU capabilities...");
+            use crate::db::gpu_detection::{GpuBackendType, GpuDetector};
 
-            // Try to create a GPU context
-            use hive_gpu::metal::MetalNativeContext;
-            if let Ok(_) = MetalNativeContext::new() {
-                eprintln!("✅ Hive-GPU detected and enabled!");
-                info!("✅ Hive-GPU detected and enabled!");
-                let store = Self::new_with_hive_gpu_config();
-                info!("⏸️  Auto-save will be enabled after collections load");
-                return store;
-            } else {
-                eprintln!("⚠️ Hive-GPU detection failed, falling back to CPU...");
-                warn!("⚠️ Hive-GPU detection failed, falling back to CPU...");
+            eprintln!("🚀 Detecting GPU capabilities...");
+            info!("🚀 Detecting GPU capabilities...");
+
+            let backend = GpuDetector::detect_best_backend();
+
+            match backend {
+                GpuBackendType::None => {
+                    eprintln!("💻 No GPU detected, using CPU mode");
+                    info!("💻 No GPU detected, using CPU mode");
+                }
+                _ => {
+                    eprintln!("✅ {} GPU detected and enabled!", backend.name());
+                    info!("✅ {} GPU detected and enabled!", backend.name());
+
+                    if let Some(gpu_info) = GpuDetector::get_gpu_info(backend) {
+                        eprintln!("📊 GPU Info: {}", gpu_info);
+                        info!("📊 GPU Info: {}", gpu_info);
+                    }
+
+                    let store = Self::new_with_hive_gpu_config();
+                    info!("⏸️  Auto-save will be enabled after collections load");
+                    return store;
+                }
             }
-        }
-
-        #[cfg(all(feature = "hive-gpu", not(target_os = "macos")))]
-        {
-            eprintln!("⚠️ Hive-GPU Metal backend only available on macOS, using CPU mode");
-            info!("⚠️ Hive-GPU Metal backend only available on macOS, using CPU mode");
         }
 
         #[cfg(not(feature = "hive-gpu"))]
@@ -522,41 +527,50 @@ impl VectorStore {
             return Err(VectorizerError::CollectionAlreadyExists(name.to_string()));
         }
 
-        // Try Hive-GPU first (Metal backend only on macOS) if allowed
-        #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
+        // Try Hive-GPU if allowed (multi-backend support)
+        #[cfg(feature = "hive-gpu")]
         if allow_gpu {
-            info!("Creating Hive-GPU collection '{}'", name);
-            use hive_gpu::GpuContext;
-            use hive_gpu::metal::MetalNativeContext;
+            use crate::db::gpu_detection::{GpuBackendType, GpuDetector};
 
-            // Create GPU context (try to create from available backends)
-            match MetalNativeContext::new() {
-                Ok(ctx) => {
-                    let context = Arc::new(std::sync::Mutex::new(
-                        Box::new(ctx) as Box<dyn GpuContext + Send>
-                    ));
+            info!("Detecting GPU backend for collection '{}'", name);
+            let backend = GpuDetector::detect_best_backend();
 
-                    // Create Hive-GPU collection
-                    let hive_gpu_collection =
-                        HiveGpuCollection::new(name.to_string(), config.clone(), context)?;
+            if backend != GpuBackendType::None {
+                info!("Creating {} GPU collection '{}'", backend.name(), name);
 
-                    let collection = CollectionType::HiveGpu(hive_gpu_collection);
-                    self.collections.insert(name.to_string(), collection);
-                    info!("Collection '{}' created successfully with Hive-GPU", name);
-                    return Ok(());
+                // Create GPU context for detected backend
+                match GpuAdapter::create_context(backend) {
+                    Ok(context) => {
+                        let context = Arc::new(std::sync::Mutex::new(context));
+
+                        // Create Hive-GPU collection
+                        let hive_gpu_collection = HiveGpuCollection::new(
+                            name.to_string(),
+                            config.clone(),
+                            context,
+                            backend,
+                        )?;
+
+                        let collection = CollectionType::HiveGpu(hive_gpu_collection);
+                        self.collections.insert(name.to_string(), collection);
+                        info!(
+                            "Collection '{}' created successfully with {} GPU",
+                            name,
+                            backend.name()
+                        );
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to create {} GPU context: {:?}, falling back to CPU",
+                            backend.name(),
+                            e
+                        );
+                    }
                 }
-                Err(e) => {
-                    warn!("Failed to create GPU context: {:?}, falling back to CPU", e);
-                }
+            } else {
+                info!("No GPU available, creating CPU collection for '{}'", name);
             }
-        }
-
-        #[cfg(all(feature = "hive-gpu", not(target_os = "macos")))]
-        {
-            info!(
-                "Hive-GPU Metal backend only available on macOS, creating CPU collection for '{}'",
-                name
-            );
         }
 
         // Fallback to CPU

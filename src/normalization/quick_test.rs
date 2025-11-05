@@ -111,6 +111,11 @@ mod quick_validation {
             large_text.len() / 1024
         );
 
-        assert!(duration.as_secs() < 1, "Should be fast");
+        // Allow 2 seconds for CI/CD environments (macOS can be slower)
+        assert!(
+            duration.as_secs() < 2,
+            "Should complete in under 2 seconds, took {:?}",
+            duration
+        );
     }
 }

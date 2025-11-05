@@ -17,6 +17,9 @@ pub struct VectorizerConfig {
     pub file_watcher: FileWatcherYamlConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
+    /// GPU configuration
+    #[serde(default)]
+    pub gpu: GpuConfig,
     /// Summarization configuration
     pub summarization: SummarizationConfig,
     /// Transmutation configuration
@@ -70,6 +73,56 @@ impl Default for LoggingConfig {
             log_requests: true,
             log_responses: false,
             log_errors: true,
+        }
+    }
+}
+
+/// GPU configuration for Metal acceleration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuConfig {
+    /// Enable GPU acceleration (default: true on macOS, false on other platforms)
+    #[serde(default = "GpuConfig::default_enabled")]
+    pub enabled: bool,
+
+    /// Batch size for GPU batch operations (default: 1000)
+    #[serde(default = "GpuConfig::default_batch_size")]
+    pub batch_size: usize,
+
+    /// Fallback to CPU if GPU initialization fails (default: true)
+    #[serde(default = "GpuConfig::default_fallback_to_cpu")]
+    pub fallback_to_cpu: bool,
+
+    /// Preferred backend (auto/metal/cpu)
+    #[serde(default = "GpuConfig::default_preferred_backend")]
+    pub preferred_backend: String,
+}
+
+impl GpuConfig {
+    fn default_enabled() -> bool {
+        // Enable by default only on macOS (Metal support)
+        cfg!(target_os = "macos")
+    }
+
+    fn default_batch_size() -> usize {
+        1000
+    }
+
+    fn default_fallback_to_cpu() -> bool {
+        true
+    }
+
+    fn default_preferred_backend() -> String {
+        "auto".to_string()
+    }
+}
+
+impl Default for GpuConfig {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            batch_size: Self::default_batch_size(),
+            fallback_to_cpu: Self::default_fallback_to_cpu(),
+            preferred_backend: Self::default_preferred_backend(),
         }
     }
 }
@@ -150,6 +203,7 @@ impl Default for VectorizerConfig {
             server: ServerConfig::default(),
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
+            gpu: GpuConfig::default(),
             summarization: SummarizationConfig::default(),
             transmutation: TransmutationConfig::default(),
             storage: StorageConfig::default(),
