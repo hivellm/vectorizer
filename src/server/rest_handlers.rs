@@ -73,9 +73,11 @@ pub async fn search_vectors_by_text(
     use crate::monitoring::metrics::METRICS;
 
     // Start latency timer
+    let label_collection: &str = &collection_name;
+    let label_text = "text".to_string();
     let timer = METRICS
         .search_latency_seconds
-        .with_label_values(&[&collection_name, "text"])
+        .with_label_values(&[&label_collection.to_string(), &label_text])
         .start_timer();
 
     let query = payload
@@ -120,13 +122,17 @@ pub async fn search_vectors_by_text(
         .collect();
 
     // Record metrics
+    let label_collection: &str = &collection_name;
+    let label_text = "text";
+    let label_success = "success";
     METRICS
         .search_requests_total
-        .with_label_values(&[&collection_name, "text", "success"])
+        .with_label_values(&[label_collection, label_text, label_success])
         .inc();
+    let label_text_str = "text".to_string();
     METRICS
         .search_results_count
-        .with_label_values(&[&collection_name, "text"])
+        .with_label_values(&[&collection_name, &label_text_str])
         .observe(results.len() as f64);
     drop(timer); // Stop latency timer
 
@@ -617,9 +623,11 @@ pub async fn insert_text(
         .map_err(|e| ErrorResponse::from(e))?;
 
     info!("Vector inserted successfully with ID: {}", vector_id);
+    let label_collection: &str = &collection_name;
+    let label_success = "success";
     METRICS
         .insert_requests_total
-        .with_label_values(&[collection_name, "success"])
+        .with_label_values(&[label_collection, label_success])
         .inc();
     drop(timer);
 
@@ -780,9 +788,11 @@ pub async fn intelligent_search(
     use crate::monitoring::metrics::METRICS;
 
     // Start latency timer
+    let label_wildcard = "*".to_string();
+    let label_intelligent = "intelligent".to_string();
     let timer = METRICS
         .search_latency_seconds
-        .with_label_values(&["*", "intelligent"])
+        .with_label_values(&[&label_wildcard, &label_intelligent])
         .start_timer();
 
     // Create handler with the actual server instances
@@ -835,13 +845,18 @@ pub async fn intelligent_search(
         Ok(response) => {
             // Record success metrics
             let result_count = response.results.len();
+            let label_wildcard = "*";
+            let label_intelligent = "intelligent";
+            let label_success = "success";
             METRICS
                 .search_requests_total
-                .with_label_values(&["*", "intelligent", "success"])
+                .with_label_values(&[label_wildcard, label_intelligent, label_success])
                 .inc();
+            let label_wildcard_str = "*".to_string();
+            let label_intelligent_str = "intelligent".to_string();
             METRICS
                 .search_results_count
-                .with_label_values(&["*", "intelligent"])
+                .with_label_values(&[&label_wildcard_str, &label_intelligent_str])
                 .observe(result_count as f64);
             drop(timer);
 
@@ -849,9 +864,12 @@ pub async fn intelligent_search(
         }
         Err(e) => {
             // Record error metrics
+            let label_wildcard = "*";
+            let label_intelligent = "intelligent";
+            let label_error = "error";
             METRICS
                 .search_requests_total
-                .with_label_values(&["*", "intelligent", "error"])
+                .with_label_values(&[label_wildcard, label_intelligent, label_error])
                 .inc();
             drop(timer);
 
