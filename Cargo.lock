@@ -7551,9 +7551,9 @@ dependencies = [
 
 [[package]]
 name = "transmutation"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a05965d78ed1b4bb8d677ef25e49993916f519cd28fdb545e858cc99508befa"
+checksum = "bae67f6084e9e4a8b1835874619d538fab9aded68c706ea82a276111da4bb8c3"
 dependencies = [
  "anyhow",
  "async-trait",

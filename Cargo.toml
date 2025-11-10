@@ -141,7 +141,7 @@ opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio"
 tracing-opentelemetry = "0.32"
 
 # Transmutation - Document conversion engine (optional)
-transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
+transmutation = { version = "0.2.0", optional = true, features = ["office", "pdf-to-image"] }
 
 [build-dependencies]
 cc = { version = "1.2", features = ["parallel"] }
