@@ -2878,9 +2878,9 @@ dependencies = [
 
 [[package]]
 name = "hive-gpu"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d136aeb6e198a47681d4d415c76d842ab26cd1be491b8b63dfd822f17d5f1181"
+checksum = "08575b83e79d3d09faa8291121069505d6a5531c041a14664716194cd4bb2e90"
 dependencies = [
  "bytemuck",
  "half 1.8.3",

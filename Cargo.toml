@@ -41,7 +41,7 @@ rust-tfidf = "1.1" # TF-IDF similarity fallback
 ndarray = "0.16"
 
 # GPU acceleration via external hive-gpu crate only
-hive-gpu = { version = "0.1.6", optional = true }
+hive-gpu = { version = "0.1.7", optional = true }
 
 # Parallel processing
 rayon = "1.10"
