@@ -133,7 +133,7 @@ hyper = { version = "1.7", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
 # Monitoring and Observability
-prometheus = "0.13"
+prometheus = "0.14"
 opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }
 opentelemetry-prometheus = "0.29"
