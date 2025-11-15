@@ -23,6 +23,8 @@ High-performance JavaScript SDK for Vectorizer vector database.
 - ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
 - ✅ **Contextual Search**: Context-aware search with metadata filtering
 - ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
+- ✅ **Hybrid Search**: Combine dense and sparse vectors for improved search quality
+- ✅ **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
 - ✅ **Embedding Generation**: Text embedding support
 - ✅ **Multiple Build Formats**: CommonJS, ES Modules, UMD
 - ✅ **100% Test Coverage**: Comprehensive test suite with all tests passing
@@ -121,6 +123,29 @@ const multiResults = await client.multiCollectionSearch({
 const embedding = await client.embedText({
   text: 'machine learning algorithms'
 });
+
+// Hybrid search (dense + sparse vectors)
+const hybridResults = await client.hybridSearch({
+  collection: 'documents',
+  query: 'machine learning',
+  query_sparse: {
+    indices: [0, 5, 10, 15],
+    values: [0.8, 0.6, 0.9, 0.7]
+  },
+  alpha: 0.7,
+  algorithm: 'rrf',
+  dense_k: 20,
+  sparse_k: 20,
+  final_k: 10
+});
+
+// Qdrant-compatible API usage
+const qdrantCollections = await client.qdrantListCollections();
+const qdrantResults = await client.qdrantSearchPoints(
+  'documents',
+  embedding.embedding,
+  10
+);
 ```
 
 ## Configuration

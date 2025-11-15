@@ -38,6 +38,10 @@ import {
 } from './models/search-request.js';
 
 import {
+  validateHybridSearchRequest,
+} from './models/hybrid-search.js';
+
+import {
   BatchResponse,
   BatchSearchResponse,
 } from './models/batch.js';
@@ -454,6 +458,204 @@ export class VectorizerClient {
       return response;
     } catch (error) {
       this.logger.error('Failed to perform multi-collection search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Hybrid search combining dense and sparse vectors.
+   * @param {Object} request - Hybrid search request
+   * @param {string} request.collection - Collection name
+   * @param {string} request.query - Text query for dense vector search
+   * @param {Object} [request.query_sparse] - Optional sparse vector query
+   * @param {number} [request.alpha=0.7] - Alpha parameter for blending (0.0-1.0)
+   * @param {string} [request.algorithm='rrf'] - Scoring algorithm: 'rrf', 'weighted', or 'alpha'
+   * @param {number} [request.dense_k=20] - Number of dense results to retrieve
+   * @param {number} [request.sparse_k=20] - Number of sparse results to retrieve
+   * @param {number} [request.final_k=10] - Final number of results to return
+   * @returns {Promise<Object>} Hybrid search response
+   */
+  async hybridSearch(request) {
+    try {
+      validateHybridSearchRequest(request);
+      const payload = {
+        query: request.query,
+        alpha: request.alpha ?? 0.7,
+        algorithm: request.algorithm ?? 'rrf',
+        dense_k: request.dense_k ?? 20,
+        sparse_k: request.sparse_k ?? 20,
+        final_k: request.final_k ?? 10,
+      };
+      if (request.query_sparse) {
+        payload.query_sparse = {
+          indices: request.query_sparse.indices,
+          values: request.query_sparse.values,
+        };
+      }
+      const response = await this.transport.post(
+        `/collections/${request.collection}/hybrid_search`,
+        payload
+      );
+      this.logger.debug('Hybrid search completed', { 
+        query: request.query, 
+        collection: request.collection,
+        algorithm: request.algorithm,
+        resultCount: response.results?.length || 0 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform hybrid search', { request, error });
+      throw error;
+    }
+  }
+
+  // ===== QDRANT COMPATIBILITY METHODS =====
+
+  /**
+   * List all collections (Qdrant-compatible API).
+   * @returns {Promise<Object>} Qdrant collection list response
+   */
+  async qdrantListCollections() {
+    try {
+      return await this.transport.get('/qdrant/collections');
+    } catch (error) {
+      this.logger.error('Failed to list Qdrant collections', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get collection information (Qdrant-compatible API).
+   * @param {string} name - Collection name
+   * @returns {Promise<Object>} Qdrant collection info response
+   */
+  async qdrantGetCollection(name) {
+    try {
+      return await this.transport.get(`/qdrant/collections/${name}`);
+    } catch (error) {
+      this.logger.error('Failed to get Qdrant collection', { name, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Create collection (Qdrant-compatible API).
+   * @param {string} name - Collection name
+   * @param {Object} config - Qdrant collection configuration
+   * @returns {Promise<Object>} Qdrant operation result
+   */
+  async qdrantCreateCollection(name, config) {
+    try {
+      return await this.transport.put(`/qdrant/collections/${name}`, { config });
+    } catch (error) {
+      this.logger.error('Failed to create Qdrant collection', { name, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Upsert points to collection (Qdrant-compatible API).
+   * @param {string} collection - Collection name
+   * @param {Array} points - List of Qdrant point structures
+   * @param {boolean} [wait=false] - Wait for operation completion
+   * @returns {Promise<Object>} Qdrant operation result
+   */
+  async qdrantUpsertPoints(collection, points, wait = false) {
+    try {
+      return await this.transport.put(`/qdrant/collections/${collection}/points`, {
+        points,
+        wait,
+      });
+    } catch (error) {
+      this.logger.error('Failed to upsert Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Search points in collection (Qdrant-compatible API).
+   * @param {string} collection - Collection name
+   * @param {number[]} vector - Query vector
+   * @param {number} [limit=10] - Maximum number of results
+   * @param {Object} [filter] - Optional Qdrant filter
+   * @param {boolean} [withPayload=true] - Include payload in results
+   * @param {boolean} [withVector=false] - Include vector in results
+   * @returns {Promise<Object>} Qdrant search response
+   */
+  async qdrantSearchPoints(collection, vector, limit = 10, filter, withPayload = true, withVector = false) {
+    try {
+      const payload = {
+        vector,
+        limit,
+        with_payload: withPayload,
+        with_vector: withVector,
+      };
+      if (filter) {
+        payload.filter = filter;
+      }
+      return await this.transport.post(`/qdrant/collections/${collection}/points/search`, payload);
+    } catch (error) {
+      this.logger.error('Failed to search Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete points from collection (Qdrant-compatible API).
+   * @param {string} collection - Collection name
+   * @param {Array<string|number>} pointIds - List of point IDs to delete
+   * @param {boolean} [wait=false] - Wait for operation completion
+   * @returns {Promise<Object>} Qdrant operation result
+   */
+  async qdrantDeletePoints(collection, pointIds, wait = false) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/delete`, {
+        points: pointIds,
+        wait,
+      });
+    } catch (error) {
+      this.logger.error('Failed to delete Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve points by IDs (Qdrant-compatible API).
+   * @param {string} collection - Collection name
+   * @param {Array<string|number>} pointIds - List of point IDs to retrieve
+   * @param {boolean} [withPayload=true] - Include payload in results
+   * @param {boolean} [withVector=false] - Include vector in results
+   * @returns {Promise<Object>} Qdrant retrieve response
+   */
+  async qdrantRetrievePoints(collection, pointIds, withPayload = true, withVector = false) {
+    try {
+      const params = new URLSearchParams({
+        ids: pointIds.join(','),
+        with_payload: String(withPayload),
+        with_vector: String(withVector),
+      });
+      return await this.transport.get(`/qdrant/collections/${collection}/points?${params.toString()}`);
+    } catch (error) {
+      this.logger.error('Failed to retrieve Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Count points in collection (Qdrant-compatible API).
+   * @param {string} collection - Collection name
+   * @param {Object} [filter] - Optional Qdrant filter
+   * @returns {Promise<Object>} Qdrant count response
+   */
+  async qdrantCountPoints(collection, filter) {
+    try {
+      const payload = {};
+      if (filter) {
+        payload.filter = filter;
+      }
+      return await this.transport.post(`/qdrant/collections/${collection}/points/count`, payload);
+    } catch (error) {
+      this.logger.error('Failed to count Qdrant points', { collection, error });
       throw error;
     }
   }

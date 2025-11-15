@@ -4,6 +4,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// Re-export hybrid search models
+pub mod hybrid_search;
+pub use hybrid_search::*;
+
 /// Vector similarity metrics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

@@ -16,6 +16,8 @@ High-performance Rust SDK for Vectorizer vector database.
 - ✅ Comprehensive error handling
 - ✅ Type-safe API design
 - ✅ Production-ready code
+- ✅ Hybrid search support (dense + sparse vectors)
+- ✅ Qdrant REST API compatibility
 
 ## Quick Start
 
@@ -47,6 +49,28 @@ async fn main() -> Result<()> {
     // Search existing collections
     let results = client.search_vectors("gov-bips", "bitcoin", Some(5), None).await?;
     println!("Found {} search results", results.results.len());
+
+    // Hybrid search (dense + sparse vectors)
+    use vectorizer_sdk::{HybridSearchRequest, SparseVector, HybridScoringAlgorithm};
+    let sparse = SparseVector::new(
+        vec![0, 5, 10, 15],
+        vec![0.8, 0.6, 0.9, 0.7]
+    )?;
+    let hybrid_results = client.hybrid_search(HybridSearchRequest {
+        collection: "my_docs".to_string(),
+        query: "search query".to_string(),
+        query_sparse: Some(sparse),
+        alpha: 0.7,
+        algorithm: HybridScoringAlgorithm::ReciprocalRankFusion,
+        dense_k: 20,
+        sparse_k: 20,
+        final_k: 10,
+    }).await?;
+    println!("Found {} hybrid search results", hybrid_results.results.len());
+
+    // Qdrant-compatible API usage
+    let qdrant_collections = client.qdrant_list_collections().await?;
+    println!("Qdrant collections: {:?}", qdrant_collections);
 
     // Intelligent search with multi-query expansion
     let intelligent_request = IntelligentSearchRequest {

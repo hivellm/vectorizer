@@ -14,3 +14,4 @@ export * from './collection-info.js';
 export * from './batch.js';
 export * from './summarization.js';
 export * from './replication.js';
+export * from './hybrid-search.js';
