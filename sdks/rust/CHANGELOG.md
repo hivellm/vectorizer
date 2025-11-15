@@ -69,13 +69,13 @@ This release adds hybrid search and Qdrant compatibility features. All existing 
 ### Changed
 
 - **Version Sync**: Updated to v1.2.0 to match Vectorizer server release
-- **Server Compatibility**: Compatible with Vectorizer v1.2.3 (20 individual MCP tools including search_hybrid)
+- **Server Compatibility**: Compatible with Vectorizer v1.3.0 (hybrid search and Qdrant compatibility)
 - **No Breaking Changes**: REST API remains unchanged, full backward compatibility
-- **Production Ready**: Stable release aligned with server v1.2.3
+- **Production Ready**: Stable release aligned with server v1.3.0
 
 ### Note
 
-This release maintains full compatibility with Vectorizer REST API. The MCP refactoring in server v1.2.3 adds hybrid search support (search_hybrid tool) but does not affect SDK functionality as SDKs use REST/UMICP protocols.
+This release maintains full compatibility with Vectorizer REST API. Version 1.3.0 adds hybrid search support (search_hybrid tool) and Qdrant compatibility, but does not affect SDK functionality as SDKs use REST/UMICP protocols.
 
 ## [0.4.0] - 2025-10-12
 

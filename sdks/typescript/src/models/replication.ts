@@ -2,7 +2,7 @@
  * Replication Models
  *
  * Data models for replication monitoring and status tracking.
- * Compatible with Vectorizer v1.2.0+
+ * Compatible with Vectorizer v1.3.0+
  */
 
 /**

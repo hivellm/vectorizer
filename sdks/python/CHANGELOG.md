@@ -67,7 +67,7 @@ This release adds hybrid search and Qdrant compatibility features. All existing 
 ### Changed
 
 - **Version Sync**: Updated to v1.0.0 to match Vectorizer server release
-- **Server Compatibility**: Compatible with Vectorizer v1.2.3 (20 individual MCP tools including search_hybrid)
+- **Server Compatibility**: Compatible with Vectorizer v1.3.0 (hybrid search and Qdrant compatibility)
 - **No Breaking Changes**: REST API remains unchanged, full backward compatibility
 - **Production Ready**: Stable release aligned with server v1.0.0
 
