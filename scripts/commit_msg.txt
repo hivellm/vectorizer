@@ -1,9 +1,4 @@
-Make sparse field optional in Vector struct
+Fix test_list_operations to expect 20 operations instead of 19
 
-- Add #[serde(default)] to sparse and payload fields for JSON deserialization
-- Implement Default trait for Vector to enable ..Default::default() syntax
-- Update all tests to use ..Default::default() instead of explicit sparse: None
-- Simplify Vector creation by making sparse field truly optional
-
-This change makes it easier to create Vector instances without explicitly
-specifying optional fields, improving code readability and maintainability.
+- Updated assertion to reflect addition of search_hybrid operation
+- Hybrid Search feature added new MCP tool, increasing total operations

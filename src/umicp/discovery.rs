@@ -96,11 +96,11 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // Should have 19 individual focused operations
+        // Should have 20 individual focused operations (including search_hybrid)
         assert_eq!(
             operations.len(),
-            19,
-            "Expected 19 individual operations, got {}",
+            20,
+            "Expected 20 individual operations, got {}",
             operations.len()
         );
 
