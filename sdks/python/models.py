@@ -626,6 +626,89 @@ class MultiCollectionSearchResponse:
             self.collections_searched = []
 
 
+# ==================== HYBRID SEARCH MODELS ====================
+
+@dataclass
+class SparseVector:
+    """Represents a sparse vector with indices and values."""
+    
+    indices: List[int]
+    values: List[float]
+    
+    def __post_init__(self):
+        """Validate sparse vector after initialization."""
+        if len(self.indices) != len(self.values):
+            raise ValueError("Indices and values must have the same length")
+        if len(self.indices) == 0:
+            raise ValueError("Sparse vector cannot be empty")
+        for idx in self.indices:
+            if idx < 0:
+                raise ValueError("Indices must be non-negative")
+        for val in self.values:
+            if not isinstance(val, (int, float)):
+                raise ValueError("Values must be numbers")
+            if math.isnan(val) or math.isinf(val):
+                raise ValueError("Values must not contain NaN or Infinity")
+
+
+@dataclass
+class HybridSearchRequest:
+    """Request for hybrid search (dense + sparse vectors)."""
+    
+    collection: str
+    query: str
+    query_sparse: Optional[SparseVector] = None
+    alpha: float = 0.7
+    algorithm: str = "rrf"  # "rrf", "weighted", "alpha"
+    dense_k: int = 20
+    sparse_k: int = 20
+    final_k: int = 10
+    
+    def __post_init__(self):
+        """Validate hybrid search request after initialization."""
+        if not self.collection:
+            raise ValueError("Collection name cannot be empty")
+        if not self.query:
+            raise ValueError("Query cannot be empty")
+        if not 0.0 <= self.alpha <= 1.0:
+            raise ValueError("Alpha must be between 0.0 and 1.0")
+        if self.algorithm not in ["rrf", "weighted", "alpha"]:
+            raise ValueError("Algorithm must be 'rrf', 'weighted', or 'alpha'")
+        if self.dense_k <= 0 or self.sparse_k <= 0 or self.final_k <= 0:
+            raise ValueError("K values must be positive")
+        if self.final_k > self.dense_k + self.sparse_k:
+            raise ValueError("final_k cannot be greater than dense_k + sparse_k")
+
+
+@dataclass
+class HybridSearchResult:
+    """Result from hybrid search."""
+    
+    id: str
+    score: float
+    vector: Optional[List[float]] = None
+    payload: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Validate hybrid search result after initialization."""
+        if not self.id:
+            raise ValueError("Result ID cannot be empty")
+        if not isinstance(self.score, (int, float)):
+            raise ValueError("Score must be a number")
+
+
+@dataclass
+class HybridSearchResponse:
+    """Response for hybrid search operations."""
+    
+    results: List[HybridSearchResult]
+    query: str
+    query_sparse: Optional[Dict[str, List]] = None
+    alpha: float
+    algorithm: str
+    duration_ms: Optional[int] = None
+
+
 # ===== REPLICATION MODELS =====
 
 @dataclass

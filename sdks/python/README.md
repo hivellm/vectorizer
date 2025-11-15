@@ -15,11 +15,12 @@ A comprehensive Python SDK for the Vectorizer semantic search service.
 - **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
 - **UMICP Protocol**: High-performance protocol using umicp-sdk package (v0.3.2+)
 - **Vector Operations**: Insert, search, and manage vectors
-- **Collection Management**: Create, delete, and monitor collections  
+- **Collection Management**: Create, delete, and monitor collections
 - **Semantic Search**: Find similar content using embeddings
 - **Intelligent Search**: Advanced multi-query search with domain expansion
 - **Contextual Search**: Context-aware search with metadata filtering
 - **Multi-Collection Search**: Cross-collection search with intelligent aggregation
+- **Hybrid Search**: Combine dense and sparse vectors for improved search quality
 - **Batch Operations**: Efficient bulk operations
 - **Error Handling**: Comprehensive exception handling
 - **Async Support**: Full async/await support for high performance
@@ -45,31 +46,31 @@ async def main():
     async with VectorizerClient() as client:
         # Create a collection
         await client.create_collection("my_collection", dimension=512)
-        
+
         # Generate embedding
         embedding = await client.embed_text("Hello, world!")
-        
+
         # Create vector
         vector = Vector(
             id="doc1",
             data=embedding,
             metadata={"text": "Hello, world!"}
         )
-        
+
         # Insert text
         await client.insert_texts("my_collection", [{
             "id": "doc1",
             "text": "Hello, world!",
             "metadata": {"source": "example"}
         }])
-        
+
         # Search for similar vectors
         results = await client.search_vectors(
             collection="my_collection",
             query="greeting",
             limit=5
         )
-        
+
         # Intelligent search with multi-query expansion
         from models import IntelligentSearchRequest
         intelligent_results = await client.intelligent_search(
@@ -83,7 +84,7 @@ async def main():
                 mmr_lambda=0.7
             )
         )
-        
+
         # Semantic search with reranking
         from models import SemanticSearchRequest
         semantic_results = await client.semantic_search(
@@ -95,7 +96,7 @@ async def main():
                 similarity_threshold=0.6
             )
         )
-        
+
         # Contextual search with metadata filtering
         from models import ContextualSearchRequest
         contextual_results = await client.contextual_search(
@@ -107,7 +108,7 @@ async def main():
                 context_weight=0.4
             )
         )
-        
+
         # Multi-collection search
         from models import MultiCollectionSearchRequest
         multi_results = await client.multi_collection_search(
@@ -119,7 +120,7 @@ async def main():
                 cross_collection_reranking=True
             )
         )
-        
+
         print(f"Found {len(results)} similar vectors")
 
 asyncio.run(main())
@@ -176,24 +177,26 @@ client = VectorizerClient(
 #### When to Use UMICP
 
 Use UMICP when:
+
 - **Large Payloads**: Inserting or searching large batches of vectors
 - **High Throughput**: Need maximum performance for production workloads
 - **Low Latency**: Need minimal protocol overhead
 
 Use HTTP when:
+
 - **Development**: Quick testing and debugging
 - **Firewall Restrictions**: Only HTTP/HTTPS allowed
 - **Simple Deployments**: No need for custom protocol setup
 
 #### Protocol Comparison
 
-| Feature | HTTP/HTTPS | UMICP |
-|---------|-----------|-------|
-| Transport | aiohttp (standard HTTP) | umicp-python package |
-| Performance | Standard | Optimized for large payloads |
-| Latency | Standard | Lower overhead |
-| Firewall | Widely supported | May require configuration |
-| Installation | Default | Requires umicp-python |
+| Feature      | HTTP/HTTPS              | UMICP                        |
+| ------------ | ----------------------- | ---------------------------- |
+| Transport    | aiohttp (standard HTTP) | umicp-python package         |
+| Performance  | Standard                | Optimized for large payloads |
+| Latency      | Standard                | Lower overhead               |
+| Firewall     | Widely supported        | May require configuration    |
+| Installation | Default                 | Requires umicp-python        |
 
 #### Installing with UMICP Support
 

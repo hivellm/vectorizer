@@ -25,7 +25,12 @@ from models import (
     SearchResult,
     EmbeddingRequest,
     SearchRequest,
-    CollectionInfo
+    CollectionInfo,
+    # Hybrid search models
+    HybridSearchRequest,
+    HybridSearchResponse,
+    HybridSearchResult,
+    SparseVector,
 )
 
 __version__ = "1.1.2"
@@ -45,5 +50,10 @@ __all__ = [
     "SearchResult",
     "EmbeddingRequest",
     "SearchRequest",
-    "CollectionInfo"
+    "CollectionInfo",
+    # Hybrid search
+    "HybridSearchRequest",
+    "HybridSearchResponse",
+    "HybridSearchResult",
+    "SparseVector",
 ]

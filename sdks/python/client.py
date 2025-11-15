@@ -57,6 +57,11 @@ from models import (
     MultiCollectionSearchRequest,
     MultiCollectionSearchResponse,
     IntelligentSearchResult,
+    # Hybrid search models
+    HybridSearchRequest,
+    HybridSearchResponse,
+    HybridSearchResult,
+    SparseVector,
 )
 from utils.transport import TransportFactory, TransportProtocol, parse_connection_string
 from utils.http_client import HTTPClient
@@ -652,6 +657,74 @@ class VectorizerClient:
                     raise ServerError(f"Failed to perform multi-collection search: {response.status}")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to perform multi-collection search: {e}")
+    
+    async def hybrid_search(self, request: HybridSearchRequest) -> HybridSearchResponse:
+        """
+        Perform hybrid search combining dense and sparse vectors.
+        
+        Args:
+            request: Hybrid search request with query, optional sparse vector, and configuration
+            
+        Returns:
+            Hybrid search response with combined results
+            
+        Raises:
+            ValidationError: If parameters are invalid
+            CollectionNotFoundError: If collection doesn't exist
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            # Prepare request payload
+            payload = {
+                "query": request.query,
+                "alpha": request.alpha,
+                "algorithm": request.algorithm,
+                "dense_k": request.dense_k,
+                "sparse_k": request.sparse_k,
+                "final_k": request.final_k,
+            }
+            
+            # Add sparse vector if provided
+            if request.query_sparse:
+                payload["query_sparse"] = {
+                    "indices": request.query_sparse.indices,
+                    "values": request.query_sparse.values,
+                }
+            
+            async with self._transport.post(
+                f"{self.base_url}/collections/{request.collection}/hybrid_search",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Convert results
+                    results = [
+                        HybridSearchResult(
+                            id=r["id"],
+                            score=r["score"],
+                            vector=r.get("vector"),
+                            payload=r.get("payload"),
+                        )
+                        for r in data.get("results", [])
+                    ]
+                    return HybridSearchResponse(
+                        results=results,
+                        query=data.get("query", request.query),
+                        query_sparse=data.get("query_sparse"),
+                        alpha=data.get("alpha", request.alpha),
+                        algorithm=data.get("algorithm", request.algorithm),
+                        duration_ms=data.get("duration_ms"),
+                    )
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{request.collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to perform hybrid search: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to perform hybrid search: {e}")
             
     async def get_vector(self, collection: str, vector_id: str) -> Vector:
         """
