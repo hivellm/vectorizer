@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/vectorizer-sdk.svg)](https://pypi.org/project/vectorizer-sdk/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/vectorizer-sdk.svg)](https://pypi.org/project/vectorizer-sdk/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A comprehensive Python SDK for the Vectorizer semantic search service.
 

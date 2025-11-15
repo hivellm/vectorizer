@@ -1,7 +1,7 @@
 # Vectorizer TypeScript SDK
 
 [![npm version](https://badge.fury.io/js/%40hivellm%2Fvectorizer-sdk.svg)](https://www.npmjs.com/package/@hivellm/vectorizer-sdk)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 High-performance TypeScript SDK for Vectorizer vector database.
 

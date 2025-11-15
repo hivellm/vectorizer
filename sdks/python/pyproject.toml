@@ -8,7 +8,7 @@ version = "1.2.0"
 description = "Python SDK for Vectorizer - Semantic search and vector operations with UMICP protocol support"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
+license = "Apache-2.0"
 authors = [
     {name = "HiveLLM Team", email = "team@hivellm.org"}
 ]
