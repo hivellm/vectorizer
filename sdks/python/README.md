@@ -121,7 +121,28 @@ async def main():
             )
         )
 
-        print(f"Found {len(results)} similar vectors")
+        # Hybrid search (dense + sparse vectors)
+        from models import HybridSearchRequest, SparseVector
+
+        sparse_query = SparseVector(
+            indices=[0, 5, 10, 15],
+            values=[0.8, 0.6, 0.9, 0.7]
+        )
+
+        hybrid_results = await client.hybrid_search(
+            HybridSearchRequest(
+                collection="my_collection",
+                query="search query",
+                query_sparse=sparse_query,
+                alpha=0.7,
+                algorithm="rrf",  # "rrf", "weighted", or "alpha"
+                dense_k=20,
+                sparse_k=20,
+                final_k=10
+            )
+        )
+
+        print(f"Found {len(hybrid_results.results)} similar vectors")
 
 asyncio.run(main())
 ```
