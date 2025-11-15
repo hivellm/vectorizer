@@ -10,8 +10,13 @@ pub struct Vector {
     /// Unique identifier for the vector
     pub id: String,
     /// The vector data (always f32 for compatibility)
+    /// For sparse vectors, use SparseVector and convert to dense when needed
     pub data: Vec<f32>,
+    /// Optional sparse vector representation (for efficient storage)
+    #[serde(default)]
+    pub sparse: Option<SparseVector>,
     /// Optional payload associated with the vector
+    #[serde(default)]
     pub payload: Option<Payload>,
 }
 
@@ -20,41 +25,100 @@ pub struct Vector {
 pub struct QuantizedVector {
     /// Unique identifier for the vector
     pub id: String,
-    /// Quantized vector data (1 byte per dimension instead of 4)
+    /// Quantized vector data (format depends on quantization type)
     pub quantized_data: Vec<u8>,
+    /// Original vector dimension (needed for binary quantization)
+    pub dimension: usize,
     /// Quantization parameters for reconstruction
     pub min_val: f32,
     pub max_val: f32,
+    /// Quantization type (SQ-8bit, Binary, etc.)
+    pub quantization_type: QuantizationConfig,
+    /// Optional sparse representation (preserved if original vector was sparse)
+    pub sparse: Option<SparseVector>,
     /// Optional payload associated with the vector
     pub payload: Option<Payload>,
 }
 
 impl QuantizedVector {
-    /// Create from full precision vector
-    pub fn from_vector(vector: Vector) -> Self {
-        let (quantized_data, min_val, max_val) = quantize_to_u8(&vector.data);
-        Self {
-            id: vector.id,
-            quantized_data,
-            min_val,
-            max_val,
-            payload: vector.payload,
+    /// Create from full precision vector using collection quantization config
+    pub fn from_vector(vector: Vector, quantization: &QuantizationConfig) -> Self {
+        match quantization {
+            QuantizationConfig::SQ { bits: 8 } => {
+                let (quantized_data, min_val, max_val) = quantize_to_u8(&vector.data);
+                Self {
+                    id: vector.id,
+                    quantized_data,
+                    dimension: vector.data.len(),
+                    min_val,
+                    max_val,
+                    quantization_type: quantization.clone(),
+                    sparse: vector.sparse.clone(),
+                    payload: vector.payload,
+                }
+            }
+            QuantizationConfig::Binary => {
+                // Use binary quantization (1 bit per dimension)
+                let (quantized_data, min_val, max_val) = quantize_to_binary(&vector.data);
+                Self {
+                    id: vector.id,
+                    quantized_data,
+                    dimension: vector.data.len(),
+                    min_val,
+                    max_val,
+                    quantization_type: quantization.clone(),
+                    sparse: vector.sparse.clone(),
+                    payload: vector.payload,
+                }
+            }
+            _ => {
+                // Fallback to SQ-8bit for other quantization types
+                let (quantized_data, min_val, max_val) = quantize_to_u8(&vector.data);
+                Self {
+                    id: vector.id,
+                    quantized_data,
+                    dimension: vector.data.len(),
+                    min_val,
+                    max_val,
+                    quantization_type: QuantizationConfig::SQ { bits: 8 },
+                    sparse: vector.sparse.clone(),
+                    payload: vector.payload,
+                }
+            }
         }
     }
 
     /// Convert back to full precision vector (for search/API responses)
     pub fn to_vector(&self) -> Vector {
-        let data = dequantize_from_u8(&self.quantized_data, self.min_val, self.max_val);
+        let data = match self.quantization_type {
+            QuantizationConfig::Binary => dequantize_from_binary(
+                &self.quantized_data,
+                self.dimension,
+                self.min_val,
+                self.max_val,
+            ),
+            _ => dequantize_from_u8(&self.quantized_data, self.min_val, self.max_val),
+        };
         Vector {
             id: self.id.clone(),
             data,
+            sparse: self.sparse.clone(),
             payload: self.payload.clone(),
         }
     }
 
-    /// Get memory usage in bytes (1 byte per dimension + overhead)
+    /// Get memory usage in bytes
     pub fn memory_size(&self) -> usize {
-        self.quantized_data.len() + std::mem::size_of::<f32>() * 2 + self.id.len()
+        match self.quantization_type {
+            QuantizationConfig::Binary => {
+                // Binary: 1 bit per dimension = dimension/8 bytes
+                self.quantized_data.len() + std::mem::size_of::<f32>() * 2 + self.id.len()
+            }
+            _ => {
+                // SQ-8bit: 1 byte per dimension
+                self.quantized_data.len() + std::mem::size_of::<f32>() * 2 + self.id.len()
+            }
+        }
     }
 }
 
@@ -82,6 +146,51 @@ fn dequantize_from_u8(quantized: &[u8], min_val: f32, max_val: f32) -> Vec<f32> 
         .iter()
         .map(|&v| (v as f32 / 255.0) * range + min_val)
         .collect()
+}
+
+/// Quantize f32 vector to binary (1 bit per dimension)
+fn quantize_to_binary(data: &[f32]) -> (Vec<u8>, f32, f32) {
+    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let threshold = (min_val + max_val) / 2.0;
+
+    // Pack bits into bytes (8 bits per byte)
+    let mut bytes = vec![0u8; (data.len() + 7) / 8];
+
+    for (i, &val) in data.iter().enumerate() {
+        if val > threshold {
+            let byte_idx = i / 8;
+            let bit_idx = i % 8;
+            bytes[byte_idx] |= 1 << bit_idx;
+        }
+    }
+
+    (bytes, min_val, max_val)
+}
+
+/// Dequantize binary vector back to f32
+fn dequantize_from_binary(
+    quantized: &[u8],
+    dimension: usize,
+    _min_val: f32,
+    _max_val: f32,
+) -> Vec<f32> {
+    let mut vector = Vec::with_capacity(dimension);
+
+    // Dequantize bits up to the original dimension
+    for i in 0..dimension {
+        let byte_idx = i / 8;
+        let bit_idx = i % 8;
+
+        if byte_idx < quantized.len() {
+            let bit_set = (quantized[byte_idx] & (1 << bit_idx)) != 0;
+            vector.push(if bit_set { 1.0 } else { -1.0 });
+        } else {
+            vector.push(-1.0); // Default for missing bits
+        }
+    }
+
+    vector
 }
 
 /// Arbitrary JSON payload associated with a vector
@@ -385,12 +494,35 @@ pub mod vector_utils {
     }
 }
 
+impl Default for Vector {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            data: Vec::new(),
+            sparse: None,
+            payload: None,
+        }
+    }
+}
+
 impl Vector {
     /// Create a new vector
     pub fn new(id: String, data: Vec<f32>) -> Self {
         Self {
             id,
             data,
+            sparse: None,
+            payload: None,
+        }
+    }
+
+    /// Create a new vector with sparse representation
+    pub fn with_sparse(id: String, sparse: SparseVector, dimension: usize) -> Self {
+        let data = sparse.to_dense(dimension);
+        Self {
+            id,
+            data,
+            sparse: Some(sparse),
             payload: None,
         }
     }
@@ -400,6 +532,23 @@ impl Vector {
         Self {
             id,
             data,
+            sparse: None,
+            payload: Some(payload),
+        }
+    }
+
+    /// Create a new vector with sparse and payload
+    pub fn with_sparse_and_payload(
+        id: String,
+        sparse: SparseVector,
+        dimension: usize,
+        payload: Payload,
+    ) -> Self {
+        let data = sparse.to_dense(dimension);
+        Self {
+            id,
+            data,
+            sparse: Some(sparse),
             payload: Some(payload),
         }
     }
@@ -407,6 +556,16 @@ impl Vector {
     /// Get the dimension of the vector
     pub fn dimension(&self) -> usize {
         self.data.len()
+    }
+
+    /// Get sparse representation if available
+    pub fn get_sparse(&self) -> Option<&SparseVector> {
+        self.sparse.as_ref()
+    }
+
+    /// Check if vector is sparse
+    pub fn is_sparse(&self) -> bool {
+        self.sparse.is_some()
     }
 }
 
@@ -433,3 +592,8 @@ pub mod collection_metadata;
 
 /// Qdrant API compatibility module
 pub mod qdrant;
+
+/// Sparse vector support module
+pub mod sparse_vector;
+
+pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};

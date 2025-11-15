@@ -121,6 +121,7 @@ impl CollectionNormalizationHelper {
         Vector {
             id,
             data: embedding,
+            sparse: None,
             payload: Some(payload),
         }
     }

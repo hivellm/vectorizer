@@ -1,6 +1,7 @@
 # Implementation Tasks - Qdrant Clustering & Distribution
 
 ## 1. Sharding Implementation
+
 - [ ] 1.1 Implement `PUT /collections/{name}/shards` endpoint
 - [ ] 1.2 Implement `POST /collections/{name}/shards/delete` endpoint
 - [ ] 1.3 Implement shard key creation
@@ -10,6 +11,7 @@
 - [ ] 1.7 Add sharding metrics
 
 ## 2. Replication Support ✅ (Partial - Basic replication exists)
+
 - [x] 2.1 Implement replica creation (✅ basic replication in src/replication/)
 - [x] 2.2 Implement replica deletion (✅ implemented)
 - [x] 2.3 Implement replica synchronization (✅ sync module exists)
@@ -20,6 +22,7 @@
 **Note**: Basic master-replica replication exists (see src/replication/), but Qdrant-compatible clustering endpoints not implemented
 
 ## 3. Cluster Management
+
 - [ ] 3.1 Implement cluster discovery
 - [ ] 3.2 Implement cluster health monitoring
 - [ ] 3.3 Implement cluster configuration
@@ -28,6 +31,7 @@
 - [ ] 3.6 Add cluster metrics
 
 ## 4. Distributed Search
+
 - [ ] 4.1 Implement distributed search coordination
 - [ ] 4.2 Implement search result aggregation
 - [ ] 4.3 Implement distributed filtering
@@ -36,6 +40,7 @@
 - [ ] 4.6 Add distributed search metrics
 
 ## 5. Load Balancing
+
 - [ ] 5.1 Implement request load balancing
 - [ ] 5.2 Implement shard load balancing
 - [ ] 5.3 Implement replica load balancing
@@ -44,6 +49,7 @@
 - [ ] 5.6 Add load balancing metrics
 
 ## 6. Testing & Validation
+
 - [ ] 6.1 Create clustering test suite
 - [ ] 6.2 Create sharding test cases
 - [ ] 6.3 Create replication test cases

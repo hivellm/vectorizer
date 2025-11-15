@@ -404,6 +404,76 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
 
+        // 13. Hybrid Search (Dense + Sparse)
+        Tool {
+            name: Cow::Borrowed("search_hybrid"),
+            title: Some("Hybrid Search".to_string()),
+            description: Some(Cow::Borrowed(
+                "Hybrid search combining dense (HNSW) and sparse vector search for optimal results."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (will be converted to dense embedding)"
+                    },
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "query_sparse": {
+                        "type": "object",
+                        "description": "Optional sparse vector query (indices and values arrays)",
+                        "properties": {
+                            "indices": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                                "description": "Non-zero indices"
+                            },
+                            "values": {
+                                "type": "array",
+                                "items": {"type": "number"},
+                                "description": "Values at corresponding indices"
+                            }
+                        }
+                    },
+                    "alpha": {
+                        "type": "number",
+                        "description": "Weight for dense search (0.0 = pure sparse, 1.0 = pure dense)",
+                        "default": 0.7,
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    },
+                    "algorithm": {
+                        "type": "string",
+                        "description": "Scoring algorithm: 'rrf' (Reciprocal Rank Fusion), 'weighted' (Weighted Combination), 'alpha' (Alpha Blending)",
+                        "enum": ["rrf", "weighted", "alpha"],
+                        "default": "rrf"
+                    },
+                    "dense_k": {
+                        "type": "integer",
+                        "description": "Number of results from dense search",
+                        "default": 20
+                    },
+                    "sparse_k": {
+                        "type": "integer",
+                        "description": "Number of results from sparse search",
+                        "default": 20
+                    },
+                    "final_k": {
+                        "type": "integer",
+                        "description": "Final number of results to return",
+                        "default": 10
+                    }
+                },
+                "required": ["query", "collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
         // =============================================
         // Discovery Operations (2 tools)
         // =============================================

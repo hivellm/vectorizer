@@ -5,14 +5,14 @@
 //! 4x memory compression with improved quality using Scalar Quantization (SQ-8bit).
 
 pub mod scalar;
+pub mod product;
+pub mod binary;
 pub mod traits;
 pub mod storage;
 pub mod hnsw_integration;
 pub mod simple_tests;
 
 // TODO: Implement these modules in future phases
-// pub mod product;
-// pub mod binary;
 // pub mod metrics;
 
 use serde::{Deserialize, Serialize};
@@ -233,6 +233,8 @@ mod tests {
 
 // Re-export main types
 pub use scalar::ScalarQuantization;
+pub use product::ProductQuantization;
+pub use binary::BinaryQuantization;
 pub use storage::{QuantizedVectorStorage, StorageConfig, StorageStats};
 pub use hnsw_integration::{QuantizedHnswIndex, HnswQuantizationConfig};
 pub use traits::{

@@ -147,6 +147,15 @@ impl AutoSaveManager {
                         time_since_snapshot.as_secs() / 3600
                     );
 
+                    // Ensure data directory exists before creating snapshot manager
+                    if let Err(e) = std::fs::create_dir_all(&data_dir) {
+                        error!(
+                            "❌ Snapshot: Failed to create data directory {:?}: {}",
+                            data_dir, e
+                        );
+                        continue;
+                    }
+
                     let snapshot_mgr =
                         SnapshotManager::new(&data_dir, snapshots_dir.clone(), 168, 7);
                     match snapshot_mgr.create_snapshot() {

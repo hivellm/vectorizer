@@ -101,7 +101,7 @@ async fn test_replica_reconnect_after_disconnect() {
     let vec1 = Vector {
         id: "vec1".to_string(),
         data: vec![1.0, 0.0, 0.0],
-        payload: None,
+        ..Default::default()
     };
     master_store.insert("test", vec![vec1]).unwrap();
     sleep(Duration::from_millis(500)).await;
@@ -121,7 +121,7 @@ async fn test_replica_reconnect_after_disconnect() {
     let vec2 = Vector {
         id: "vec2".to_string(),
         data: vec![0.0, 1.0, 0.0],
-        payload: None,
+        ..Default::default()
     };
     master_store.insert("test", vec![vec2]).unwrap();
 
@@ -160,7 +160,7 @@ async fn test_partial_sync_after_brief_disconnect() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -180,7 +180,7 @@ async fn test_partial_sync_after_brief_disconnect() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -241,7 +241,7 @@ async fn test_full_sync_when_offset_too_old() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -256,7 +256,7 @@ async fn test_full_sync_when_offset_too_old() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -307,7 +307,7 @@ async fn test_multiple_replicas_recovery() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -334,7 +334,7 @@ async fn test_multiple_replicas_recovery() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -389,7 +389,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -404,7 +404,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }
@@ -422,7 +422,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
     }

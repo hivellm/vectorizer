@@ -278,6 +278,7 @@ impl ReplicaNode {
                 let vec = crate::models::Vector {
                     id: id.clone(),
                     data: vector.clone(),
+                    sparse: None,
                     payload: payload_obj,
                 };
 
@@ -302,6 +303,7 @@ impl ReplicaNode {
                     let vec = crate::models::Vector {
                         id: id.clone(),
                         data: data.clone(),
+                        sparse: None,
                         payload: payload_obj,
                     };
 

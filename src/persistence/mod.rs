@@ -94,6 +94,7 @@ impl From<PersistedVector> for Vector {
                 Vector {
                     id: String::new(), // Can't access pv.id since it's moved
                     data: Vec::new(),  // Can't access pv.data since it's moved
+                    sparse: None,
                     payload: None,
                 }
             }
@@ -117,6 +118,7 @@ impl PersistedVector {
         Ok(Vector {
             id: self.id,
             data: self.data,
+            sparse: None,
             payload,
         })
     }
@@ -151,6 +153,7 @@ impl PersistedVector {
         Ok(Vector {
             id: self.id,
             data,
+            sparse: None,
             payload,
         })
     }

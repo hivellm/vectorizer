@@ -3,6 +3,8 @@
 pub mod auto_save;
 mod collection;
 pub mod collection_normalization;
+pub mod hybrid_search;
+pub mod payload_index;
 
 #[cfg(feature = "hive-gpu")]
 pub mod hive_gpu_collection;
@@ -18,5 +20,6 @@ pub use collection::Collection;
 pub use collection_normalization::CollectionNormalizationHelper;
 #[cfg(feature = "hive-gpu")]
 pub use gpu_detection::{GpuBackendType, GpuDetector, GpuInfo};
+pub use hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig, HybridSearchResult};
 pub use optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
 pub use vector_store::{CollectionType, VectorStore};

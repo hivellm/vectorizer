@@ -78,6 +78,7 @@ mod tests {
         let vector = Vector {
             id: "test_vector".to_string(),
             data: vec![0.1, 0.2, 0.3],
+            sparse: None,
             payload: Some(Payload::new(serde_json::json!({"test": "data"}))),
         };
 

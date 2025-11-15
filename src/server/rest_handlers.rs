@@ -12,13 +12,24 @@ use super::VectorizerServer;
 use super::error_middleware::{
     ErrorResponse, create_bad_request_error, create_not_found_error, create_validation_error,
 };
+use crate::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::error::VectorizerError;
+use crate::models::SparseVector;
 
-pub async fn health_check() -> Json<Value> {
+pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> {
+    let cache_stats = state.query_cache.stats();
     Json(json!({
         "status": "healthy",
         "timestamp": chrono::Utc::now(),
-        "version": env!("CARGO_PKG_VERSION")
+        "version": env!("CARGO_PKG_VERSION"),
+        "cache": {
+            "size": cache_stats.size,
+            "capacity": cache_stats.capacity,
+            "hits": cache_stats.hits,
+            "misses": cache_stats.misses,
+            "evictions": cache_stats.evictions,
+            "hit_rate": cache_stats.hit_rate
+        }
     }))
 }
 
@@ -70,6 +81,7 @@ pub async fn search_vectors_by_text(
     Path(collection_name): Path<String>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
+    use crate::cache::query_cache::QueryKey;
     use crate::monitoring::metrics::METRICS;
 
     // Start latency timer
@@ -85,6 +97,18 @@ pub async fn search_vectors_by_text(
         .and_then(|q| q.as_str())
         .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
     let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+    let threshold = payload.get("threshold").and_then(|t| t.as_f64());
+
+    // Check cache first
+    let cache_key = QueryKey::new(collection_name.clone(), query.to_string(), limit, threshold);
+    if let Some(cached_result) = state.query_cache.get(&cache_key) {
+        debug!(
+            "💾 Cache hit for query '{}' in collection '{}'",
+            query, collection_name
+        );
+        drop(timer);
+        return Ok(Json(cached_result));
+    }
 
     info!(
         "🔍 Searching for '{}' in collection '{}'",
@@ -121,6 +145,18 @@ pub async fn search_vectors_by_text(
         })
         .collect();
 
+    // Build response
+    let response = json!({
+        "results": results,
+        "query": query,
+        "limit": limit,
+        "collection": collection_name,
+        "total_results": results.len()
+    });
+
+    // Cache the result
+    state.query_cache.insert(cache_key, response.clone());
+
     // Record metrics
     let label_collection: &str = &collection_name;
     let label_text = "text";
@@ -136,13 +172,182 @@ pub async fn search_vectors_by_text(
         .observe(results.len() as f64);
     drop(timer); // Stop latency timer
 
-    Ok(Json(json!({
+    Ok(Json(response))
+}
+
+pub async fn hybrid_search_vectors(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    use crate::cache::query_cache::QueryKey;
+    use crate::monitoring::metrics::METRICS;
+
+    // Start latency timer
+    let label_collection: &str = &collection_name;
+    let label_hybrid = "hybrid".to_string();
+    let timer = METRICS
+        .search_latency_seconds
+        .with_label_values(&[label_collection, &label_hybrid])
+        .start_timer();
+
+    // Parse query (required)
+    let query = payload
+        .get("query")
+        .and_then(|q| q.as_str())
+        .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
+
+    // Parse optional sparse query
+    let query_sparse = if let Some(sparse_obj) = payload.get("query_sparse") {
+        if let Some(indices_arr) = sparse_obj.get("indices").and_then(|v| v.as_array()) {
+            if let Some(values_arr) = sparse_obj.get("values").and_then(|v| v.as_array()) {
+                let indices: Option<Vec<usize>> = indices_arr
+                    .iter()
+                    .map(|v| v.as_u64().map(|n| n as usize))
+                    .collect();
+                let values: Option<Vec<f32>> = values_arr
+                    .iter()
+                    .map(|v| v.as_f64().map(|n| n as f32))
+                    .collect();
+
+                match (indices, values) {
+                    (Some(indices), Some(values)) => SparseVector::new(indices, values)
+                        .map_err(|e| {
+                            create_validation_error(
+                                "query_sparse",
+                                &format!("Invalid sparse vector: {}", e),
+                            )
+                        })
+                        .ok(),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Parse hybrid search configuration
+    let alpha = payload.get("alpha").and_then(|v| v.as_f64()).unwrap_or(0.7) as f32;
+    let algorithm_str = payload
+        .get("algorithm")
+        .and_then(|v| v.as_str())
+        .unwrap_or("rrf");
+    let algorithm = match algorithm_str {
+        "rrf" => HybridScoringAlgorithm::ReciprocalRankFusion,
+        "weighted" => HybridScoringAlgorithm::WeightedCombination,
+        "alpha" => HybridScoringAlgorithm::AlphaBlending,
+        _ => HybridScoringAlgorithm::ReciprocalRankFusion,
+    };
+    let dense_k = payload
+        .get("dense_k")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(20) as usize;
+    let sparse_k = payload
+        .get("sparse_k")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(20) as usize;
+    let final_k = payload
+        .get("final_k")
+        .and_then(|v| v.as_u64())
+        .or_else(|| payload.get("limit").and_then(|v| v.as_u64()))
+        .unwrap_or(10) as usize;
+
+    // Check cache first
+    let cache_key = QueryKey::new(
+        collection_name.clone(),
+        format!("hybrid:{}:{}", query, alpha),
+        final_k,
+        None,
+    );
+    if let Some(cached_result) = state.query_cache.get(&cache_key) {
+        debug!(
+            "💾 Cache hit for hybrid query '{}' in collection '{}'",
+            query, collection_name
+        );
+        drop(timer);
+        return Ok(Json(cached_result));
+    }
+
+    info!(
+        "🔍 Hybrid search for '{}' in collection '{}' (alpha={}, algorithm={:?})",
+        query, collection_name, alpha, algorithm
+    );
+
+    // Get the collection
+    let collection = state
+        .store
+        .get_collection(&collection_name)
+        .map_err(|e| ErrorResponse::from(e))?;
+
+    // Generate dense embedding for the query
+    let query_dense = state
+        .embedding_manager
+        .embed(query)
+        .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
+
+    // Create hybrid search config
+    let config = HybridSearchConfig {
+        alpha,
+        dense_k,
+        sparse_k,
+        final_k,
+        algorithm,
+    };
+
+    // Perform hybrid search
+    let search_results = collection
+        .hybrid_search(&query_dense, query_sparse.as_ref(), config)
+        .map_err(|e| create_bad_request_error(&format!("Hybrid search failed: {}", e)))?;
+
+    // Convert results to JSON format
+    let results: Vec<Value> = search_results
+        .into_iter()
+        .map(|result| {
+            json!({
+                "id": result.id,
+                "score": result.score,
+                "vector": result.vector,
+                "payload": result.payload.map(|p| p.data)
+            })
+        })
+        .collect();
+
+    // Build response
+    let response = json!({
         "results": results,
         "query": query,
-        "limit": limit,
+        "query_sparse": query_sparse.as_ref().map(|sv| json!({
+            "indices": sv.indices,
+            "values": sv.values
+        })),
+        "limit": final_k,
         "collection": collection_name,
+        "alpha": alpha,
+        "algorithm": algorithm_str,
         "total_results": results.len()
-    })))
+    });
+
+    // Cache the result
+    state.query_cache.insert(cache_key, response.clone());
+
+    // Record metrics
+    let label_success = "success";
+    METRICS
+        .search_requests_total
+        .with_label_values(&[label_collection, &label_hybrid, label_success])
+        .inc();
+    METRICS
+        .search_results_count
+        .with_label_values(&[label_collection, &label_hybrid])
+        .observe(results.len() as f64);
+    drop(timer); // Stop latency timer
+
+    Ok(Json(response))
 }
 
 pub async fn search_by_file(
@@ -490,6 +695,13 @@ pub async fn delete_collection(
         .delete_collection(&name)
         .map_err(|e| ErrorResponse::from(e))?;
 
+    // Invalidate cache for this collection
+    state.query_cache.invalidate_collection(&name);
+    debug!(
+        "💾 Cache invalidated for collection '{}' after deletion",
+        name
+    );
+
     Ok(Json(json!({
         "message": format!("Collection '{}' deleted successfully", name)
     })))
@@ -515,12 +727,19 @@ pub async fn get_vector(
 }
 
 pub async fn delete_vector(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, ErrorResponse> {
     info!(
         "Deleting vector {} from collection {}",
         vector_id, collection_name
+    );
+
+    // Invalidate cache for this collection
+    state.query_cache.invalidate_collection(&collection_name);
+    debug!(
+        "💾 Cache invalidated for collection '{}' after vector deletion",
+        collection_name
     );
 
     Ok(Json(json!({
@@ -613,6 +832,7 @@ pub async fn insert_text(
     let vector = crate::models::Vector {
         id: vector_id.clone(),
         data: embedding,
+        sparse: None,
         payload: Some(payload_data),
     };
 
@@ -621,6 +841,13 @@ pub async fn insert_text(
         .store
         .insert(collection_name, vec![vector])
         .map_err(|e| ErrorResponse::from(e))?;
+
+    // Invalidate cache for this collection
+    state.query_cache.invalidate_collection(collection_name);
+    debug!(
+        "💾 Cache invalidated for collection '{}' after insert",
+        collection_name
+    );
 
     info!("Vector inserted successfully with ID: {}", vector_id);
     let label_collection: &str = &collection_name;
@@ -640,7 +867,7 @@ pub async fn insert_text(
 }
 
 pub async fn update_vector(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     let id = payload
@@ -648,7 +875,21 @@ pub async fn update_vector(
         .and_then(|i| i.as_str())
         .ok_or_else(|| create_validation_error("id", "missing or invalid id parameter"))?;
 
-    info!("Updating vector: {}", id);
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?;
+
+    info!("Updating vector: {} in collection: {}", id, collection_name);
+
+    // Invalidate cache for this collection
+    state.query_cache.invalidate_collection(collection_name);
+    debug!(
+        "💾 Cache invalidated for collection '{}' after vector update",
+        collection_name
+    );
 
     Ok(Json(json!({
         "message": format!("Vector '{}' updated successfully", id)
@@ -784,6 +1025,7 @@ pub async fn intelligent_search(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
+    use crate::cache::query_cache::QueryKey;
     use crate::intelligent_search::rest_api::{IntelligentSearchRequest, RESTAPIHandler};
     use crate::monitoring::metrics::METRICS;
 
@@ -794,9 +1036,6 @@ pub async fn intelligent_search(
         .search_latency_seconds
         .with_label_values(&[&label_wildcard, &label_intelligent])
         .start_timer();
-
-    // Create handler with the actual server instances
-    let handler = RESTAPIHandler::new_with_store(state.store.clone());
 
     // Extract parameters from JSON payload
     let query = payload
@@ -817,24 +1056,51 @@ pub async fn intelligent_search(
     let max_results = payload
         .get("max_results")
         .and_then(|m| m.as_u64())
-        .map(|m| m as usize);
+        .map(|m| m as usize)
+        .unwrap_or(10);
 
     let domain_expansion = payload.get("domain_expansion").and_then(|d| d.as_bool());
-
     let technical_focus = payload.get("technical_focus").and_then(|t| t.as_bool());
-
     let mmr_enabled = payload.get("mmr_enabled").and_then(|m| m.as_bool());
-
     let mmr_lambda = payload
         .get("mmr_lambda")
         .and_then(|l| l.as_f64())
         .map(|l| l as f32);
 
+    // Create cache key (use "*" as collection name for multi-collection searches)
+    let collection_key = collections
+        .as_ref()
+        .map(|c| c.join(","))
+        .unwrap_or_else(|| "*".to_string());
+    let cache_key = QueryKey::new(
+        collection_key,
+        format!(
+            "intelligent:{}:{}:{}:{}:{}",
+            query,
+            max_results,
+            domain_expansion.unwrap_or(true),
+            technical_focus.unwrap_or(true),
+            mmr_enabled.unwrap_or(false)
+        ),
+        max_results,
+        None,
+    );
+
+    // Check cache first
+    if let Some(cached_result) = state.query_cache.get(&cache_key) {
+        debug!("💾 Cache hit for intelligent search query '{}'", query);
+        drop(timer);
+        return Ok(Json(cached_result));
+    }
+
+    // Create handler with the actual server instances
+    let handler = RESTAPIHandler::new_with_store(state.store.clone());
+
     // Create intelligent search request
     let request = IntelligentSearchRequest {
         query: query.to_string(),
         collections,
-        max_results,
+        max_results: Some(max_results),
         domain_expansion,
         technical_focus,
         mmr_enabled,
@@ -843,6 +1109,12 @@ pub async fn intelligent_search(
 
     match handler.handle_intelligent_search(request).await {
         Ok(response) => {
+            // Convert response to JSON
+            let response_json = serde_json::to_value(&response).unwrap_or(json!({}));
+
+            // Cache the result
+            state.query_cache.insert(cache_key, response_json.clone());
+
             // Record success metrics
             let result_count = response.results.len();
             let label_wildcard = "*";
@@ -860,7 +1132,7 @@ pub async fn intelligent_search(
                 .observe(result_count as f64);
             drop(timer);
 
-            Ok(Json(serde_json::to_value(response).unwrap_or(json!({}))))
+            Ok(Json(response_json))
         }
         Err(e) => {
             // Record error metrics
@@ -2619,6 +2891,7 @@ pub async fn restore_backup(
             let vec = Vector {
                 id: id.to_string(),
                 data: vector,
+                sparse: None,
                 payload,
             };
 

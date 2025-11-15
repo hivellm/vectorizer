@@ -46,8 +46,26 @@ impl SnapshotManager {
 
     /// Create a new snapshot
     pub fn create_snapshot(&self) -> Result<SnapshotInfo> {
+        // Ensure data directory exists first (parent of snapshots)
+        if let Some(parent) = self.snapshots_dir.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                VectorizerError::Io(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("Failed to create parent directory {:?}: {}", parent, e),
+                ))
+            })?;
+        }
+
         // Ensure snapshots directory exists
-        fs::create_dir_all(&self.snapshots_dir).map_err(|e| VectorizerError::Io(e))?;
+        fs::create_dir_all(&self.snapshots_dir).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!(
+                    "Failed to create snapshots directory {:?}: {}",
+                    self.snapshots_dir, e
+                ),
+            ))
+        })?;
 
         let timestamp = Utc::now();
         let snapshot_id = timestamp.format("%Y%m%d_%H%M%S").to_string();
@@ -55,7 +73,15 @@ impl SnapshotManager {
 
         info!("📸 Creating snapshot: {}", snapshot_id);
 
-        fs::create_dir_all(&snapshot_dir).map_err(|e| VectorizerError::Io(e))?;
+        fs::create_dir_all(&snapshot_dir).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!(
+                    "Failed to create snapshot directory {:?}: {}",
+                    snapshot_dir, e
+                ),
+            ))
+        })?;
 
         // Copy .vecdb file
         let vecdb_src = self.data_dir.join(crate::storage::VECDB_FILE);

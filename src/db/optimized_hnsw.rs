@@ -238,9 +238,15 @@ impl OptimizedHnswIndex {
 
     /// Remove a vector by ID
     pub fn remove(&self, id: &str) -> Result<bool> {
+        // Flush any pending batch operations first
+        self.flush()?;
+
         let mut vectors = self.vectors.write();
+        let mut id_map = self.id_map.write();
 
         if vectors.remove(id).is_some() {
+            // Also remove from id_map
+            id_map.remove(id);
             Ok(true)
         } else {
             Ok(false)

@@ -8,6 +8,7 @@ use serde_json::json;
 use super::discovery_handlers::*;
 use super::file_operations_handlers::*;
 use crate::VectorStore;
+use crate::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::discovery::{
     CollectionRef, Discovery, DiscoveryConfig, ExpansionConfig, expand_queries_baseline,
     filter_collections,
@@ -15,6 +16,7 @@ use crate::discovery::{
 use crate::embedding::EmbeddingManager;
 use crate::file_operations::{FileListFilter, FileOperations, SortBy, SummaryType};
 use crate::intelligent_search::mcp_tools::*;
+use crate::models::SparseVector;
 
 /// Helper function to create an embedding manager for a specific collection
 fn create_embedding_manager_for_collection(
@@ -109,6 +111,7 @@ pub async fn handle_mcp_tool(
         "search_intelligent" => handle_intelligent_search(request, store, embedding_manager).await,
         "search_semantic" => handle_semantic_search(request, store, embedding_manager).await,
         "search_extra" => handle_search_extra(request, store, embedding_manager).await,
+        "search_hybrid" => handle_hybrid_search(request, store, embedding_manager).await,
 
         // Discovery Operations
         "filter_collections" => handle_filter_collections(request, store).await,
@@ -977,6 +980,126 @@ async fn handle_list_files_in_collection(
             "last_indexed": f.last_indexed,
             "has_summary": f.has_summary,
         })).collect::<Vec<_>>(),
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
+async fn handle_hybrid_search(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let collection_name = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+
+    let query = args
+        .get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+
+    // Get collection to determine embedding type and dimension
+    let collection = store
+        .get_collection(collection_name)
+        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+
+    let embedding_type = collection.get_embedding_type();
+    let dimension = collection.config().dimension;
+
+    // Create embedding manager for this collection
+    let collection_embedding_manager =
+        create_embedding_manager_for_collection(&embedding_type, dimension).map_err(|e| {
+            ErrorData::internal_error(format!("Failed to create embedding manager: {}", e), None)
+        })?;
+
+    // Generate dense embedding from query text
+    let query_dense = collection_embedding_manager
+        .embed(query)
+        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+
+    // Parse optional sparse query
+    let query_sparse = if let Some(sparse_obj) = args.get("query_sparse") {
+        if let Some(indices_arr) = sparse_obj.get("indices").and_then(|v| v.as_array()) {
+            if let Some(values_arr) = sparse_obj.get("values").and_then(|v| v.as_array()) {
+                let indices: Option<Vec<usize>> = indices_arr
+                    .iter()
+                    .map(|v| v.as_u64().map(|n| n as usize))
+                    .collect();
+                let values: Option<Vec<f32>> = values_arr
+                    .iter()
+                    .map(|v| v.as_f64().map(|n| n as f32))
+                    .collect();
+
+                match (indices, values) {
+                    (Some(indices), Some(values)) => SparseVector::new(indices, values)
+                        .map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid sparse vector: {}", e), None)
+                        })
+                        .ok(),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Parse hybrid search configuration
+    let alpha = args.get("alpha").and_then(|v| v.as_f64()).unwrap_or(0.7) as f32;
+    let algorithm_str = args
+        .get("algorithm")
+        .and_then(|v| v.as_str())
+        .unwrap_or("rrf");
+    let algorithm = match algorithm_str {
+        "rrf" => HybridScoringAlgorithm::ReciprocalRankFusion,
+        "weighted" => HybridScoringAlgorithm::WeightedCombination,
+        "alpha" => HybridScoringAlgorithm::AlphaBlending,
+        _ => HybridScoringAlgorithm::ReciprocalRankFusion,
+    };
+    let dense_k = args.get("dense_k").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
+    let sparse_k = args.get("sparse_k").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
+    let final_k = args.get("final_k").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+
+    let config = HybridSearchConfig {
+        alpha,
+        dense_k,
+        sparse_k,
+        final_k,
+        algorithm,
+    };
+
+    // Perform hybrid search
+    let results = store
+        .hybrid_search(collection_name, &query_dense, query_sparse.as_ref(), config)
+        .map_err(|e| ErrorData::internal_error(format!("Hybrid search failed: {}", e), None))?;
+
+    let response = json!({
+        "results": results.iter().map(|r| json!({
+            "id": r.id,
+            "score": r.score,
+            "payload": r.payload
+        })).collect::<Vec<_>>(),
+        "total": results.len(),
+        "config": {
+            "alpha": alpha,
+            "algorithm": algorithm_str,
+            "dense_k": dense_k,
+            "sparse_k": sparse_k,
+            "final_k": final_k
+        }
     });
 
     Ok(CallToolResult::success(vec![Content::text(

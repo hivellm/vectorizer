@@ -168,6 +168,7 @@ impl Indexer {
                             Some(Vector {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 data: embedding,
+                                sparse: None,
                                 payload: Some(payload),
                             })
                         }

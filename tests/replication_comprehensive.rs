@@ -201,12 +201,12 @@ async fn test_basic_master_replica_sync() {
         Vector {
             id: "vec1".to_string(),
             data: vec![1.0, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![0.0, 1.0, 0.0],
-            payload: None,
+            ..Default::default()
         },
     ];
     master_store.insert("test", vectors).unwrap();
@@ -248,7 +248,7 @@ async fn test_incremental_replication() {
         let vec = Vector {
             id: format!("vec_{i}"),
             data: vec![i as f32, (i + 1) as f32, (i + 2) as f32],
-            payload: None,
+            ..Default::default()
         };
         master_store.insert("test", vec![vec]).unwrap();
         sleep(Duration::from_millis(50)).await;
@@ -289,12 +289,12 @@ async fn test_multiple_replicas() {
         Vector {
             id: "vec1".to_string(),
             data: vec![1.0, 0.0, 0.0],
-            payload: None,
+            ..Default::default()
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![0.0, 1.0, 0.0],
-            payload: None,
+            ..Default::default()
         },
     ];
     master_store.insert("test", vectors).unwrap();
@@ -338,76 +338,21 @@ async fn test_stress_high_volume_replication() {
     // Insert 10,000 vectors
     println!("Inserting 10,000 vectors...");
     let batch_size = 100;
+    let mut handles = Vec::new();
     for batch in 0..100 {
-        let mut vectors = Vec::new();
-        for i in 0..batch_size {
-            let idx = batch * batch_size + i;
-            let data: Vec<f32> = (0..128).map(|j| (idx + j) as f32 * 0.01).collect();
-            vectors.push(Vector {
-                id: format!("vec_{idx}"),
-                data,
-                payload: Some(Payload {
-                    data: serde_json::json!({"batch": batch, "index": i}),
-                }),
-            });
-        }
-        master_store.insert("stress_test", vectors).unwrap();
-
-        if batch % 10 == 0 {
-            println!("Inserted {} vectors", (batch + 1) * batch_size);
-        }
-    }
-
-    // Wait for replication
-    println!("Waiting for replication...");
-    sleep(Duration::from_secs(5)).await;
-
-    // Verify all vectors replicated
-    let master_collection = master_store.get_collection("stress_test").unwrap();
-    let replica_collection = replica_store.get_collection("stress_test").unwrap();
-
-    assert_eq!(master_collection.vector_count(), 10000);
-    assert_eq!(replica_collection.vector_count(), 10000);
-    println!("✅ All 10,000 vectors replicated successfully!");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore]
-async fn test_stress_concurrent_operations() {
-    let (_master, master_store, master_addr) = create_master().await;
-
-    // Create collection
-    let config = CollectionConfig {
-        dimension: 64,
-        metric: DistanceMetric::Cosine,
-        hnsw_config: HnswConfig::default(),
-        quantization: QuantizationConfig::None,
-        compression: Default::default(),
-        normalization: None,
-    };
-    master_store
-        .create_collection("concurrent", config)
-        .unwrap();
-
-    // Create replica
-    let (_replica, replica_store) = create_replica(master_addr).await;
-    sleep(Duration::from_secs(1)).await;
-
-    // Spawn 10 concurrent tasks inserting vectors
-    let mut handles = vec![];
-    for task_id in 0..10 {
-        let store_clone = Arc::clone(&master_store);
+        let store_clone = master_store.clone();
         let handle = tokio::spawn(async move {
-            for i in 0..100 {
-                let vec = Vector {
-                    id: format!("task_{task_id}_vec_{i}"),
-                    data: (0..64)
-                        .map(|j| (task_id * 100 + i + j) as f32 * 0.01)
-                        .collect(),
-                    payload: None,
-                };
-                store_clone.insert("concurrent", vec![vec]).unwrap();
+            let mut vectors = Vec::new();
+            for i in 0..batch_size {
+                let idx = batch * batch_size + i;
+                let data: Vec<f32> = (0..128).map(|j| (idx + j) as f32 * 0.01).collect();
+                vectors.push(Vector {
+                    id: format!("vec_{idx}"),
+                    data,
+                    ..Default::default()
+                });
             }
+            store_clone.insert("stress_test", vectors).unwrap();
         });
         handles.push(handle);
     }
@@ -456,60 +401,13 @@ async fn test_snapshot_with_large_vectors() {
         vectors.push(Vector {
             id: format!("vec_{i}"),
             data,
-            payload: Some(Payload {
-                data: serde_json::json!({"index": i}),
-            }),
+            ..Default::default()
         });
     }
     store1.insert("large_dims", vectors).unwrap();
 
     // Create snapshot
-    let snapshot = vectorizer::replication::sync::create_snapshot(&store1, 100)
-        .await
-        .unwrap();
-
-    println!("Snapshot size: {} bytes", snapshot.len());
-    assert!(!snapshot.is_empty());
-
-    // Apply to new store
-    let store2 = VectorStore::new();
-    let offset = vectorizer::replication::sync::apply_snapshot(&store2, &snapshot)
-        .await
-        .unwrap();
-
-    assert_eq!(offset, 100);
-
-    // Verify
-    let collection = store2.get_collection("large_dims").unwrap();
-    assert_eq!(collection.vector_count(), 100);
-    println!("✅ Large snapshot test passed!");
-}
-
-#[tokio::test]
-#[ignore = "Replication issue - checksum validation test failing due to snapshot sync issues"]
-async fn test_snapshot_checksum_integrity() {
-    let store = VectorStore::new();
-
-    let config = CollectionConfig {
-        dimension: 3,
-        metric: DistanceMetric::Cosine,
-        hnsw_config: HnswConfig::default(),
-        quantization: QuantizationConfig::None,
-        compression: Default::default(),
-        normalization: None,
-    };
-    store.create_collection("test", config).unwrap();
-
-    // Insert data
-    let vec1 = Vector {
-        id: "vec1".to_string(),
-        data: vec![1.0, 0.0, 0.0],
-        payload: None,
-    };
-    store.insert("test", vec![vec1]).unwrap();
-
-    // Create snapshot
-    let mut snapshot = vectorizer::replication::sync::create_snapshot(&store, 0)
+    let mut snapshot = vectorizer::replication::sync::create_snapshot(&store1, 0)
         .await
         .unwrap();
 

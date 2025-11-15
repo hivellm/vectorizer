@@ -534,6 +534,7 @@ mod tests {
         Vector {
             id: id.to_string(),
             data: vec![0.0; dimension],
+            sparse: None,
             payload: Some(Payload {
                 data: serde_json::Value::Object(payload_data),
             }),
@@ -605,6 +606,7 @@ mod tests {
         let empty_vector = Vector {
             id: "test_id".to_string(),
             data: vec![],
+            sparse: None,
             payload: Some(Payload {
                 data: serde_json::json!({"content": "empty test", "operation_type": "test"}),
             }),

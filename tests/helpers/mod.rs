@@ -8,15 +8,12 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
-use std::time::Duration;
 
-use tokio::time::sleep;
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
 };
-use vectorizer::server::VectorizerServer;
 
 static TEST_PORT: AtomicU16 = AtomicU16::new(15003);
 
@@ -101,6 +98,7 @@ pub fn generate_test_vectors(count: usize, dimension: usize) -> Vec<Vector> {
                 id: format!("vec_{i}"),
                 data,
                 payload: Some(vectorizer::models::Payload::new(payload_value)),
+                ..Default::default()
             }
         })
         .collect()
@@ -115,50 +113,6 @@ pub fn insert_test_vectors(
     store.insert(collection_name, vectors)
 }
 
-/// Create a test server instance (doesn't start HTTP server)
-#[allow(dead_code)]
-pub async fn create_test_server() -> anyhow::Result<VectorizerServer> {
-    VectorizerServer::new().await
-}
-
-/// Create a test server and start it on a test port
-#[allow(dead_code)]
-pub async fn create_and_start_test_server() -> anyhow::Result<(VectorizerServer, u16)> {
-    let server = create_test_server().await?;
-    let port = next_test_port();
-    let server_clone = server.clone();
-
-    tokio::spawn(async move {
-        if let Err(e) = server_clone.start("127.0.0.1", port).await {
-            eprintln!("Test server failed to start: {e}");
-        }
-    });
-
-    // Wait for server to be ready
-    sleep(Duration::from_millis(500)).await;
-
-    Ok((server, port))
-}
-
-/// Wait for a condition to become true (polling helper)
-#[allow(dead_code)]
-pub async fn wait_for<F>(mut condition: F, timeout_ms: u64) -> bool
-where
-    F: FnMut() -> bool,
-{
-    let start = std::time::Instant::now();
-    let timeout = Duration::from_millis(timeout_ms);
-
-    while start.elapsed() < timeout {
-        if condition() {
-            return true;
-        }
-        sleep(Duration::from_millis(50)).await;
-    }
-
-    false
-}
-
 /// Assert that a collection exists
 #[macro_export]
 macro_rules! assert_collection_exists {
@@ -171,76 +125,15 @@ macro_rules! assert_collection_exists {
     };
 }
 
-/// Assert that a collection does not exist
-#[macro_export]
-macro_rules! assert_collection_not_exists {
-    ($store:expr, $name:expr) => {
-        assert!(
-            !$store.list_collections().contains(&$name.to_string()),
-            "Collection '{}' should not exist",
-            $name
-        );
-    };
-}
-
 /// Assert that a vector exists in a collection
 #[macro_export]
 macro_rules! assert_vector_exists {
-    ($store:expr, $collection:expr, $vector_id:expr) => {
-        let collection = $store
-            .get_collection($collection)
-            .expect("Collection should exist");
-        let vector = collection.get_vector($vector_id);
+    ($store:expr, $collection:expr, $id:expr) => {
         assert!(
-            vector.is_ok(),
+            $store.get_vector($collection, $id).is_ok(),
             "Vector '{}' should exist in collection '{}'",
-            $vector_id,
+            $id,
             $collection
         );
     };
-}
-
-/// Assert successful API response
-#[macro_export]
-macro_rules! assert_api_success {
-    ($response:expr) => {
-        assert!(
-            $response.status().is_success(),
-            "API call should succeed, got status: {}",
-            $response.status()
-        );
-    };
-}
-
-/// Assert error API response with status code
-#[macro_export]
-macro_rules! assert_api_error {
-    ($response:expr, $expected_status:expr) => {
-        assert_eq!(
-            $response.status(),
-            $expected_status,
-            "API call should return error status {}",
-            $expected_status
-        );
-    };
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_generate_test_vectors() {
-        let vectors = generate_test_vectors(10, 128);
-        assert_eq!(vectors.len(), 10);
-        assert_eq!(vectors[0].data.len(), 128);
-        assert_eq!(vectors[0].id, "vec_0");
-    }
-
-    #[test]
-    fn test_create_test_collection_config() {
-        let config = create_test_collection_config(256);
-        assert_eq!(config.dimension, 256);
-        assert_eq!(config.metric, DistanceMetric::Cosine);
-    }
 }

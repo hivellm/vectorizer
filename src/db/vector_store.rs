@@ -11,6 +11,7 @@ use dashmap::DashMap;
 use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
+use super::hybrid_search::HybridSearchConfig;
 #[cfg(feature = "hive-gpu")]
 use crate::db::hive_gpu_collection::HiveGpuCollection;
 use crate::error::{Result, VectorizerError};
@@ -71,6 +72,24 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.search(query, limit),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.search(query, limit),
+        }
+    }
+
+    /// Perform hybrid search combining dense and sparse vectors
+    pub fn hybrid_search(
+        &self,
+        query_dense: &[f32],
+        query_sparse: Option<&crate::models::SparseVector>,
+        config: crate::db::HybridSearchConfig,
+    ) -> Result<Vec<SearchResult>> {
+        match self {
+            CollectionType::Cpu(c) => c.hybrid_search(query_dense, query_sparse, config),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                // GPU collections don't support hybrid search yet
+                // Fallback to dense search
+                self.search(query_dense, config.final_k)
+            }
         }
     }
 
@@ -1136,6 +1155,23 @@ impl VectorStore {
 
         let collection_ref = self.get_collection(collection_name)?;
         collection_ref.search(query_vector, k)
+    }
+
+    /// Perform hybrid search combining dense and sparse vectors
+    pub fn hybrid_search(
+        &self,
+        collection_name: &str,
+        query_dense: &[f32],
+        query_sparse: Option<&crate::models::SparseVector>,
+        config: HybridSearchConfig,
+    ) -> Result<Vec<SearchResult>> {
+        debug!(
+            "Hybrid search in collection '{}' (alpha={}, algorithm={:?})",
+            collection_name, config.alpha, config.algorithm
+        );
+
+        let collection_ref = self.get_collection(collection_name)?;
+        collection_ref.hybrid_search(query_dense, query_sparse, config)
     }
 
     /// Load a collection from cache without reconstructing the HNSW index

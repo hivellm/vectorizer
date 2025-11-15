@@ -7,10 +7,16 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
+use super::hybrid_search::{
+    DenseSearchResult, HybridScoringAlgorithm, HybridSearchConfig, SparseSearchResult,
+    hybrid_search,
+};
 use super::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
+use super::payload_index::PayloadIndex;
 use crate::error::{Result, VectorizerError};
 use crate::models::{
-    CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, Vector, vector_utils,
+    CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, SparseVector,
+    SparseVectorIndex, Vector, vector_utils,
 };
 
 /// A collection of vectors with an associated HNSW index
@@ -35,6 +41,10 @@ pub struct Collection {
     document_ids: Arc<DashMap<String, ()>>,
     /// Persistent vector count (maintains count even when vectors are unloaded)
     vector_count: Arc<RwLock<usize>>,
+    /// Payload index for efficient filtering
+    payload_index: Arc<PayloadIndex>,
+    /// Sparse vector index for sparse vector search
+    sparse_index: Arc<RwLock<SparseVectorIndex>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -79,6 +89,22 @@ impl Collection {
             .expect("Failed to create optimized HNSW index");
         let now = chrono::Utc::now();
 
+        // Initialize payload index with common fields
+        let payload_index = Arc::new(PayloadIndex::new());
+
+        // Auto-index common payload fields
+        payload_index.add_index_config(super::payload_index::PayloadIndexConfig::new(
+            "file_path".to_string(),
+            super::payload_index::PayloadIndexType::Keyword,
+        ));
+        payload_index.add_index_config(super::payload_index::PayloadIndexConfig::new(
+            "chunk_index".to_string(),
+            super::payload_index::PayloadIndexType::Integer,
+        ));
+
+        // Initialize sparse vector index
+        let sparse_index = Arc::new(RwLock::new(SparseVectorIndex::new()));
+
         Self {
             name,
             config,
@@ -89,6 +115,8 @@ impl Collection {
             embedding_type: Arc::new(RwLock::new(embedding_type)),
             document_ids: Arc::new(DashMap::new()),
             vector_count: Arc::new(RwLock::new(0)),
+            payload_index,
+            sparse_index,
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
         }
@@ -140,6 +168,12 @@ impl Collection {
             if matches!(self.config.metric, DistanceMetric::Cosine) {
                 data = vector_utils::normalize_vector(&data);
                 vector.data = data.clone(); // Update stored vector to normalized version
+                // If sparse representation exists, update it to reflect normalized values
+                if let Some(ref sparse) = vector.sparse {
+                    // Recreate sparse from normalized dense vector
+                    let normalized_sparse = SparseVector::from_dense(&data);
+                    vector.sparse = Some(normalized_sparse);
+                }
             }
 
             // Extract document ID from payload for tracking unique documents
@@ -149,15 +183,30 @@ impl Collection {
                         self.document_ids.insert(file_path_str.to_string(), ());
                     }
                 }
+
+                // Index payload for efficient filtering
+                self.payload_index.index_vector(id.clone(), payload);
+            }
+
+            // Index sparse vector if available
+            if let Some(ref sparse) = vector.sparse {
+                let mut sparse_idx = self.sparse_index.write();
+                if let Err(e) = sparse_idx.add(id.clone(), sparse.clone()) {
+                    warn!("Failed to index sparse vector '{}': {}", id, e);
+                }
             }
 
             // Apply quantization if enabled - store in quantized format to save memory
             if matches!(
                 self.config.quantization,
                 crate::models::QuantizationConfig::SQ { bits: 8 }
+                    | crate::models::QuantizationConfig::Binary
             ) {
-                // Store as quantized vector (75% memory reduction)
-                let quantized_vector = crate::models::QuantizedVector::from_vector(vector.clone());
+                // Store as quantized vector (75% memory reduction for SQ-8bit, 96% for Binary)
+                let quantized_vector = crate::models::QuantizedVector::from_vector(
+                    vector.clone(),
+                    &self.config.quantization,
+                );
                 debug!(
                     "Storing quantized vector '{}' ({} bytes instead of {})",
                     id,
@@ -210,8 +259,18 @@ impl Collection {
         let id = vector.id.clone();
         let mut data = vector.data.clone();
 
-        // Check if vector exists
-        if !self.vectors.lock().unwrap().contains_key(&id) {
+        // Check if vector exists (check both quantized and full precision storage)
+        let vector_exists = if matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
+        ) {
+            self.quantized_vectors.lock().unwrap().contains_key(&id)
+        } else {
+            self.vectors.lock().unwrap().contains_key(&id)
+        };
+
+        if !vector_exists {
             return Err(VectorizerError::VectorNotFound(id));
         }
 
@@ -221,8 +280,49 @@ impl Collection {
             vector.data = data.clone(); // Update stored vector to normalized version
         }
 
-        // Update vector
-        self.vectors.lock().unwrap().insert(id.clone(), vector);
+        // Extract document ID from payload for tracking unique documents
+        if let Some(payload) = &vector.payload {
+            if let Some(file_path) = payload.data.get("file_path") {
+                if let Some(file_path_str) = file_path.as_str() {
+                    self.document_ids.insert(file_path_str.to_string(), ());
+                }
+            }
+
+            // Update payload index
+            self.payload_index.remove_vector(&id);
+            self.payload_index.index_vector(id.clone(), payload);
+        }
+
+        // Update sparse index
+        {
+            let mut sparse_idx = self.sparse_index.write();
+            sparse_idx.remove(&id); // Remove old sparse vector if exists
+            if let Some(ref sparse) = vector.sparse {
+                if let Err(e) = sparse_idx.add(id.clone(), sparse.clone()) {
+                    warn!("Failed to update sparse vector '{}': {}", id, e);
+                }
+            }
+        }
+
+        // Update vector storage (quantized or full precision)
+        if matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
+        ) {
+            // Update quantized storage
+            let quantized_vector = crate::models::QuantizedVector::from_vector(
+                vector.clone(),
+                &self.config.quantization,
+            );
+            self.quantized_vectors
+                .lock()
+                .unwrap()
+                .insert(id.clone(), quantized_vector);
+        } else {
+            // Update full precision storage
+            self.vectors.lock().unwrap().insert(id.clone(), vector);
+        }
 
         // Update index
         let index = self.index.write();
@@ -236,10 +336,20 @@ impl Collection {
 
     /// Delete a vector
     pub fn delete(&self, vector_id: &str) -> Result<()> {
+        // Remove from payload index
+        self.payload_index.remove_vector(vector_id);
+
+        // Remove from sparse index
+        {
+            let mut sparse_idx = self.sparse_index.write();
+            sparse_idx.remove(vector_id);
+        }
+
         // Remove from storage (both quantized and full precision)
         let found = if matches!(
             self.config.quantization,
             crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
         ) {
             self.quantized_vectors
                 .lock()
@@ -277,6 +387,7 @@ impl Collection {
         if matches!(
             self.config.quantization,
             crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
         ) {
             let quantized_vector = self
                 .quantized_vectors
@@ -341,6 +452,7 @@ impl Collection {
         let use_quantization = matches!(
             self.config.quantization,
             crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
         );
 
         for (id, score) in neighbors {
@@ -374,6 +486,126 @@ impl Collection {
         Ok(results)
     }
 
+    /// Perform hybrid search combining dense (HNSW) and sparse vector search
+    pub fn hybrid_search(
+        &self,
+        query_dense: &[f32],
+        query_sparse: Option<&SparseVector>,
+        config: HybridSearchConfig,
+    ) -> Result<Vec<SearchResult>> {
+        // Validate dense query dimension
+        if query_dense.len() != self.config.dimension {
+            return Err(VectorizerError::InvalidDimension {
+                expected: self.config.dimension,
+                got: query_dense.len(),
+            });
+        }
+
+        info!(
+            "Hybrid search in collection '{}': dense_k={}, sparse_k={}, final_k={}, alpha={}, algorithm={:?}",
+            self.name,
+            config.dense_k,
+            config.sparse_k,
+            config.final_k,
+            config.alpha,
+            config.algorithm
+        );
+
+        debug!(
+            "Hybrid search query: dense_dim={}, sparse_query={:?}",
+            query_dense.len(),
+            query_sparse
+                .as_ref()
+                .map(|sv| format!("{} non-zero elements", sv.indices.len()))
+        );
+
+        // Perform dense search
+        let dense_results: Vec<DenseSearchResult> = self
+            .search(query_dense, config.dense_k)?
+            .into_iter()
+            .map(|r| DenseSearchResult {
+                id: r.id,
+                score: r.score,
+            })
+            .collect();
+
+        let dense_count = dense_results.len();
+
+        // Perform sparse search if query_sparse is provided
+        let sparse_results: Vec<SparseSearchResult> = if let Some(query_sparse) = query_sparse {
+            let sparse_idx = self.sparse_index.read();
+            sparse_idx
+                .search(query_sparse, config.sparse_k)
+                .into_iter()
+                .map(|(id, score)| SparseSearchResult { id, score })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        let sparse_count = sparse_results.len();
+
+        debug!(
+            "Hybrid search retrieved {} dense results and {} sparse results",
+            dense_count, sparse_count
+        );
+
+        // Combine results using hybrid search algorithm
+        let hybrid_results = hybrid_search(dense_results, sparse_results, &config)?;
+
+        info!(
+            "Hybrid search completed: {} combined results returned",
+            hybrid_results.len()
+        );
+
+        // Convert to SearchResult format
+        let mut results = Vec::with_capacity(hybrid_results.len());
+        let use_quantization = matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
+        );
+
+        for hybrid_result in hybrid_results {
+            let vector = if use_quantization {
+                if let Some(quantized) = self
+                    .quantized_vectors
+                    .lock()
+                    .unwrap()
+                    .get(&hybrid_result.id)
+                {
+                    quantized.to_vector()
+                } else {
+                    continue;
+                }
+            } else {
+                if let Some(v) = self.vectors.lock().unwrap().get(&hybrid_result.id) {
+                    v.clone()
+                } else {
+                    continue;
+                }
+            };
+
+            let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
+
+            results.push(SearchResult {
+                id: hybrid_result.id.clone(),
+                score: hybrid_result.hybrid_score,
+                vector: Some(vector.data.clone()),
+                payload: normalized_payload,
+            });
+        }
+
+        info!(
+            "Hybrid search completed: {} results (dense: {}, sparse: {})",
+            results.len(),
+            dense_count,
+            sparse_count
+        );
+
+        Ok(results)
+    }
+
     /// Get the number of vectors in the collection
     pub fn vector_count(&self) -> usize {
         // Use persistent vector count (maintains count even when vectors are unloaded)
@@ -402,10 +634,14 @@ impl Collection {
             }
 
             // Convert all vectors to quantized format in parallel
+            let quantization_config = self.config.quantization.clone();
             let quantized: Vec<(String, crate::models::QuantizedVector)> = vectors
                 .par_iter()
                 .map(|(id, vector)| {
-                    let qv = crate::models::QuantizedVector::from_vector(vector.clone());
+                    let qv = crate::models::QuantizedVector::from_vector(
+                        vector.clone(),
+                        &quantization_config,
+                    );
                     (id.clone(), qv)
                 })
                 .collect();
@@ -713,9 +949,13 @@ impl Collection {
             if matches!(
                 self.config.quantization,
                 crate::models::QuantizationConfig::SQ { bits: 8 }
+                    | crate::models::QuantizationConfig::Binary
             ) {
-                // Store as quantized vector (75% memory reduction)
-                let quantized_vector = crate::models::QuantizedVector::from_vector(vector.clone());
+                // Store as quantized vector (75% memory reduction for SQ-8bit, 96% for Binary)
+                let quantized_vector = crate::models::QuantizedVector::from_vector(
+                    vector.clone(),
+                    &self.config.quantization,
+                );
                 debug!("Storing quantized vector '{}' during fast load", id);
                 self.quantized_vectors
                     .lock()
@@ -764,6 +1004,7 @@ impl Collection {
         if matches!(
             self.config.quantization,
             crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
         ) {
             let quantized = self.quantized_vectors.lock().unwrap();
             vector_order

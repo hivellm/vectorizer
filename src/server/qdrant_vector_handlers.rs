@@ -381,6 +381,7 @@ fn convert_qdrant_point_to_vector(
     Ok(Vector {
         id,
         data: vector_data,
+        sparse: None,
         payload,
     })
 }

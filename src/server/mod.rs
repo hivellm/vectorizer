@@ -49,6 +49,7 @@ pub struct VectorizerServer {
     pub auto_save_manager: Option<Arc<crate::db::AutoSaveManager>>,
     pub master_node: Option<Arc<crate::replication::MasterNode>>,
     pub replica_node: Option<Arc<crate::replication::ReplicaNode>>,
+    pub query_cache: Arc<crate::cache::query_cache::QueryCache<serde_json::Value>>,
     background_task: Arc<
         tokio::sync::Mutex<
             Option<(
@@ -588,6 +589,17 @@ impl VectorizerServer {
         let system_collector_handle = system_collector.start();
         info!("✅ System metrics collector started");
 
+        // Initialize query cache
+        info!("💾 Initializing query cache...");
+        let cache_config = crate::cache::query_cache::QueryCacheConfig::default();
+        let max_size = cache_config.max_size;
+        let ttl_seconds = cache_config.ttl_seconds;
+        let query_cache = Arc::new(crate::cache::query_cache::QueryCache::new(cache_config));
+        info!(
+            "✅ Query cache initialized (max_size: {}, ttl: {}s)",
+            max_size, ttl_seconds
+        );
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -597,6 +609,7 @@ impl VectorizerServer {
             auto_save_manager: Some(auto_save_manager),
             master_node: None,
             replica_node: None,
+            query_cache,
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
                 cancel_tx,
@@ -713,6 +726,10 @@ impl VectorizerServer {
             .route(
                 "/collections/{name}/search/file",
                 post(rest_handlers::search_by_file),
+            )
+            .route(
+                "/collections/{name}/hybrid_search",
+                post(rest_handlers::hybrid_search_vectors),
             )
             .route("/insert", post(rest_handlers::insert_text))
             .route("/update", post(rest_handlers::update_vector))

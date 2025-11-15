@@ -527,6 +527,7 @@ impl BatchProcessor {
         let updated_vector = Vector {
             id: update.id.clone(),
             data: update.data.clone().unwrap_or(existing_vector.data),
+            sparse: None,
             payload: update
                 .metadata
                 .clone()
@@ -687,6 +688,7 @@ mod tests {
             Vector {
                 id: "v1".to_string(),
                 data: vec![0.1; 128],
+                sparse: None,
                 payload: None,
             };
             10
@@ -803,6 +805,7 @@ mod tests {
             Vector {
                 id: "v1".to_string(),
                 data: vec![0.1; 10000], // Large dimension
+                sparse: None,
                 payload: None,
             };
             100

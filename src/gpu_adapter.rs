@@ -54,6 +54,7 @@ impl GpuAdapter {
         Vector {
             id: gpu_vector.id.clone(),
             data: gpu_vector.data.clone(),
+            sparse: None,
             payload: if gpu_vector.metadata.is_empty() {
                 None
             } else {
