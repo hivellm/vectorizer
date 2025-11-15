@@ -602,12 +602,13 @@ export class VectorizerClient {
     withVector: boolean = false
   ): Promise<any> {
     try {
-      const params = new URLSearchParams({
-        ids: pointIds.join(','),
-        with_payload: String(withPayload),
-        with_vector: String(withVector),
-      });
-      return await this.transport.get(`/qdrant/collections/${collection}/points?${params.toString()}`);
+      // Build query string manually for better compatibility
+      const params = [
+        `ids=${encodeURIComponent(pointIds.join(','))}`,
+        `with_payload=${String(withPayload)}`,
+        `with_vector=${String(withVector)}`,
+      ].join('&');
+      return await this.transport.get(`/qdrant/collections/${collection}/points?${params}`);
     } catch (error) {
       this.logger.error('Failed to retrieve Qdrant points', { collection, error });
       throw error;
