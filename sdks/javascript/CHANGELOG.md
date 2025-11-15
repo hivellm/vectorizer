@@ -2,6 +2,37 @@
 
 All notable changes to the Hive Vectorizer JavaScript Client SDK will be documented in this file.
 
+## [1.3.0] - 2025-11-15
+
+### Added
+
+- **Hybrid Search Support**: Complete JavaScript implementation of hybrid search
+  - `SparseVector`: Model for sparse vector representation
+  - `HybridSearchRequest`: Request structure with validation
+  - `HybridSearchResponse` and `HybridSearchResult`: Response structures
+  - `hybridSearch()`: Method in VectorizerClient for hybrid searches
+  - `validateHybridSearchRequest()`: Validation function
+  - `validateSparseVector()`: Validation function for sparse vectors
+
+- **Qdrant Compatibility**: Full Qdrant REST API compatibility methods
+  - `qdrantListCollections()`: List all collections
+  - `qdrantGetCollection()`: Get collection information
+  - `qdrantCreateCollection()`: Create collection with Qdrant config
+  - `qdrantUpsertPoints()`: Upsert points to collection
+  - `qdrantSearchPoints()`: Search points in collection
+  - `qdrantDeletePoints()`: Delete points from collection
+  - `qdrantRetrievePoints()`: Retrieve points by IDs
+  - `qdrantCountPoints()`: Count points in collection
+
+### Changed
+
+- **Version Sync**: Updated to v1.3.0 to match Vectorizer server release
+- **Server Compatibility**: Compatible with Vectorizer v1.3.0 (hybrid search and Qdrant compatibility)
+
+### Note
+
+This release adds hybrid search and Qdrant compatibility features. All existing functionality remains unchanged and backward compatible.
+
 ## [1.2.0] - 2025-10-25
 
 ### Added

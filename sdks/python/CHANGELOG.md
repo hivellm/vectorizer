@@ -2,6 +2,37 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [1.3.0] - 2025-11-15
+
+### Added
+
+- **Hybrid Search Support**: Complete implementation of hybrid search combining dense and sparse vectors
+
+  - `SparseVector`: Model for sparse vector representation with indices and values
+  - `HybridSearchRequest`: Request model with alpha, algorithm (rrf/weighted/alpha), and k parameters
+  - `HybridSearchResponse` and `HybridSearchResult`: Response models for hybrid search results
+  - `hybrid_search()`: Method in VectorizerClient for performing hybrid searches
+  - Full validation and error handling
+
+- **Qdrant Compatibility**: Full Qdrant REST API compatibility methods
+  - `qdrant_list_collections()`: List all collections (Qdrant format)
+  - `qdrant_get_collection()`: Get collection information
+  - `qdrant_create_collection()`: Create collection with Qdrant config
+  - `qdrant_upsert_points()`: Upsert points to collection
+  - `qdrant_search_points()`: Search points in collection
+  - `qdrant_delete_points()`: Delete points from collection
+  - `qdrant_retrieve_points()`: Retrieve points by IDs
+  - `qdrant_count_points()`: Count points in collection
+
+### Changed
+
+- **Version Sync**: Updated to v1.3.0 to match Vectorizer server release
+- **Server Compatibility**: Compatible with Vectorizer v1.3.0 (hybrid search and Qdrant compatibility)
+
+### Note
+
+This release adds hybrid search and Qdrant compatibility features. All existing functionality remains unchanged and backward compatible.
+
 ## [1.2.0] - 2025-10-25
 
 ### Added
