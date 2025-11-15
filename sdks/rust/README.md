@@ -7,7 +7,7 @@
 High-performance Rust SDK for Vectorizer vector database.
 
 **Package**: `vectorizer-sdk`  
-**Version**: 1.2.0
+**Version**: 1.3.0
 
 ## ✅ Status: Ready for Crate Publication
 
