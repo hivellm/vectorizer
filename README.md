@@ -1,5 +1,18 @@
 # Vectorizer
 
+[![Rust](https://img.shields.io/badge/rust-1.92%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust Edition](https://img.shields.io/badge/edition-2024-blue.svg)](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/vectorizer.svg)](https://crates.io/crates/vectorizer)
+[![GitHub release](https://img.shields.io/github/release/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/releases)
+[![GitHub stars](https://img.shields.io/github/stars/hivellm/vectorizer.svg?style=social)](https://github.com/hivellm/vectorizer/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/hivellm/vectorizer.svg?style=social)](https://github.com/hivellm/vectorizer/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/pulls)
+[![Tests](https://img.shields.io/badge/tests-656%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
+[![Coverage](https://img.shields.io/badge/coverage-95%25%2B-success.svg)](https://github.com/hivellm/vectorizer)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/hivellm/vectorizer)
+
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
 ## ✨ **Version 1.2.2 - Critical BM25 & Persistence Fixes**
