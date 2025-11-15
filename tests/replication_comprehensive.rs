@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
 };
 use vectorizer::replication::{
     MasterNode, NodeRole, ReplicaNode, ReplicationConfig, ReplicationLog, VectorOperation,

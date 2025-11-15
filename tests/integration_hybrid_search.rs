@@ -2,7 +2,7 @@
 
 mod helpers;
 
-use helpers::{create_test_collection, insert_test_vectors};
+// Helpers not used in this test file
 use serde_json::json;
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig, VectorStore};
 use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, SparseVector, Vector};
@@ -13,10 +13,12 @@ async fn test_hybrid_search_basic() {
     let collection_name = "hybrid_basic_test";
 
     // Create collection with Euclidean to avoid normalization
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 128,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -69,10 +71,12 @@ async fn test_hybrid_search_weighted_combination() {
     let store = VectorStore::new();
     let collection_name = "hybrid_weighted_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -119,10 +123,12 @@ async fn test_hybrid_search_alpha_blending() {
     let store = VectorStore::new();
     let collection_name = "hybrid_alpha_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -163,10 +169,12 @@ async fn test_hybrid_search_pure_dense() {
     let store = VectorStore::new();
     let collection_name = "hybrid_dense_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -222,10 +230,12 @@ async fn test_hybrid_search_pure_sparse() {
     let store = VectorStore::new();
     let collection_name = "hybrid_sparse_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -270,10 +280,12 @@ async fn test_hybrid_search_with_payloads() {
     let store = VectorStore::new();
     let collection_name = "hybrid_payload_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -316,10 +328,12 @@ async fn test_hybrid_search_empty_results() {
     let store = VectorStore::new();
     let collection_name = "hybrid_empty_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -343,10 +357,12 @@ async fn test_hybrid_search_different_alphas() {
     let store = VectorStore::new();
     let collection_name = "hybrid_alpha_variations";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -390,10 +406,12 @@ async fn test_hybrid_search_large_collection() {
     let store = VectorStore::new();
     let collection_name = "hybrid_large_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 128,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)
@@ -405,11 +423,11 @@ async fn test_hybrid_search_large_collection() {
         if i % 2 == 0 {
             // Even: sparse vectors
             let sparse = SparseVector::new(vec![i % 10, (i + 1) % 10], vec![1.0, 1.0]).unwrap();
-            vectors.push(Vector::with_sparse(format!("vec_{}", i), sparse, 128));
+            vectors.push(Vector::with_sparse(format!("vec_{i}"), sparse, 128));
         } else {
             // Odd: dense vectors
             vectors.push(Vector::new(
-                format!("vec_{}", i),
+                format!("vec_{i}"),
                 vec![(i as f32) / 100.0; 128],
             ));
         }
@@ -443,10 +461,12 @@ async fn test_hybrid_search_scoring_algorithms() {
     let store = VectorStore::new();
     let collection_name = "hybrid_algorithms_test";
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 64;
-    config.metric = DistanceMetric::Euclidean;
-    config.quantization = vectorizer::models::QuantizationConfig::None;
+    let config = CollectionConfig {
+        dimension: 64,
+        metric: DistanceMetric::Euclidean,
+        quantization: vectorizer::models::QuantizationConfig::None,
+        ..Default::default()
+    };
 
     store
         .create_collection(collection_name, config)

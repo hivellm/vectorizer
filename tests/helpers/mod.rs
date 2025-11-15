@@ -15,14 +15,17 @@ use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
 };
 
+#[allow(dead_code)]
 static TEST_PORT: AtomicU16 = AtomicU16::new(15003);
 
 /// Get next available test port
+#[allow(dead_code)]
 pub fn next_test_port() -> u16 {
     TEST_PORT.fetch_add(1, Ordering::SeqCst)
 }
 
 /// Helper to create a test VectorStore
+#[allow(dead_code)]
 pub fn create_test_store() -> Arc<VectorStore> {
     Arc::new(VectorStore::new())
 }
@@ -38,6 +41,7 @@ pub fn create_test_embedding_manager() -> anyhow::Result<EmbeddingManager> {
 }
 
 /// Helper to create a test collection with default config
+#[allow(dead_code)]
 pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
     CollectionConfig {
         dimension,
@@ -55,6 +59,7 @@ pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
 }
 
 /// Create a test collection in the store
+#[allow(dead_code)]
 pub fn create_test_collection(
     store: &VectorStore,
     name: &str,
@@ -75,6 +80,7 @@ pub fn create_test_collection_with_config(
 }
 
 /// Generate test vectors with specified count and dimension
+#[allow(dead_code)]
 pub fn generate_test_vectors(count: usize, dimension: usize) -> Vec<Vector> {
     (0..count)
         .map(|i| {
@@ -105,6 +111,7 @@ pub fn generate_test_vectors(count: usize, dimension: usize) -> Vec<Vector> {
 }
 
 /// Insert test vectors into a collection
+#[allow(dead_code)]
 pub fn insert_test_vectors(
     store: &VectorStore,
     collection_name: &str,

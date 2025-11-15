@@ -1,19 +1,21 @@
 //! Integration tests for binary quantization
 
 use serde_json::json;
-use vectorizer::db::{Collection, VectorStore};
-use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, QuantizationConfig, Vector};
+use vectorizer::db::VectorStore;
+use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, QuantizationConfig};
 
 mod helpers;
-use helpers::{create_test_collection, generate_test_vectors, insert_test_vectors};
+use helpers::{generate_test_vectors, insert_test_vectors};
 
 #[test]
 fn test_binary_quantization_collection_creation() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary", config.clone())
@@ -30,9 +32,11 @@ fn test_binary_quantization_collection_creation() {
 fn test_binary_quantization_vector_insertion() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_insert", config)
@@ -49,9 +53,11 @@ fn test_binary_quantization_vector_insertion() {
 fn test_binary_quantization_vector_retrieval() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_retrieve", config)
@@ -79,10 +85,12 @@ fn test_binary_quantization_vector_retrieval() {
 fn test_binary_quantization_search() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
-    config.metric = DistanceMetric::Cosine;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        metric: DistanceMetric::Cosine,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_search", config)
@@ -108,17 +116,21 @@ fn test_binary_quantization_memory_efficiency() {
     let store = VectorStore::new();
 
     // Create collection with binary quantization
-    let mut config_binary = CollectionConfig::default();
-    config_binary.dimension = 512;
-    config_binary.quantization = QuantizationConfig::Binary;
+    let config_binary = CollectionConfig {
+        dimension: 512,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
     store
         .create_collection("test_binary_mem", config_binary)
         .unwrap();
 
     // Create collection without quantization for comparison
-    let mut config_none = CollectionConfig::default();
-    config_none.dimension = 512;
-    config_none.quantization = QuantizationConfig::None;
+    let config_none = CollectionConfig {
+        dimension: 512,
+        quantization: QuantizationConfig::None,
+        ..Default::default()
+    };
     store
         .create_collection("test_none_mem", config_none)
         .unwrap();
@@ -148,9 +160,11 @@ fn test_binary_quantization_memory_efficiency() {
 fn test_binary_quantization_with_payloads() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_payload", config)
@@ -175,7 +189,7 @@ fn test_binary_quantization_with_payloads() {
     // Verify payloads are preserved
     for i in 0..5 {
         let vector = store
-            .get_vector("test_binary_payload", &format!("vec_{}", i))
+            .get_vector("test_binary_payload", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.as_ref().unwrap();
@@ -187,9 +201,11 @@ fn test_binary_quantization_with_payloads() {
 fn test_binary_quantization_vector_update() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_update", config)
@@ -215,9 +231,11 @@ fn test_binary_quantization_vector_update() {
 fn test_binary_quantization_vector_deletion() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 128;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 128,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_delete", config)
@@ -245,9 +263,11 @@ fn test_binary_quantization_vector_deletion() {
 fn test_binary_quantization_batch_operations() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 256;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 256,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_batch", config)
@@ -272,9 +292,11 @@ fn test_binary_quantization_batch_operations() {
 fn test_binary_quantization_compression_ratio() {
     let store = VectorStore::new();
 
-    let mut config = CollectionConfig::default();
-    config.dimension = 512;
-    config.quantization = QuantizationConfig::Binary;
+    let config = CollectionConfig {
+        dimension: 512,
+        quantization: QuantizationConfig::Binary,
+        ..Default::default()
+    };
 
     store
         .create_collection("test_binary_compression", config)

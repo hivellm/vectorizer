@@ -3,7 +3,6 @@
 //! Tests full CRUD workflows, batch operations, multi-collection operations,
 //! and error handling across the REST API.
 
-use serde_json::json;
 use vectorizer::models::Vector;
 
 // In integration tests, each file is a separate crate

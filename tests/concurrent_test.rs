@@ -3,9 +3,7 @@
 //! Tests concurrent searches, inserts, and read-while-write scenarios
 //! to verify thread-safety and absence of race conditions.
 
-use std::time::Duration;
 
-use tokio::time::sleep;
 
 #[path = "helpers/mod.rs"]
 mod helpers;

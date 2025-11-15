@@ -33,7 +33,7 @@ fn test_payload_index_auto_indexing_on_insert() {
     // Verify payloads are stored and accessible
     for i in 0..10 {
         let vector = store
-            .get_vector("test_payload_auto", &format!("vec_{}", i))
+            .get_vector("test_payload_auto", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.as_ref().unwrap();
@@ -42,7 +42,7 @@ fn test_payload_index_auto_indexing_on_insert() {
             payload.data["file_path"]
                 .as_str()
                 .unwrap()
-                .contains(&format!("file_{}", i))
+                .contains(&format!("file_{i}"))
         );
     }
 }
@@ -75,7 +75,7 @@ fn test_payload_index_keyword_query() {
     // Verify payloads are accessible
     for i in 0..10 {
         let vector = store
-            .get_vector("test_payload_keyword", &format!("vec_{}", i))
+            .get_vector("test_payload_keyword", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.as_ref().unwrap();
@@ -109,7 +109,7 @@ fn test_payload_index_integer_range_query() {
     // Verify age values are accessible
     for i in 0..10 {
         let vector = store
-            .get_vector("test_payload_range", &format!("vec_{}", i))
+            .get_vector("test_payload_range", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.as_ref().unwrap();
@@ -121,7 +121,7 @@ fn test_payload_index_integer_range_query() {
 #[ignore = "Payload index removal on delete has performance issues - skipping until optimized"]
 fn test_payload_index_removal_on_delete() {
     let store = VectorStore::new();
-    let collection = create_test_collection(&store, "test_payload_delete", 128).unwrap();
+    create_test_collection(&store, "test_payload_delete", 128).unwrap();
 
     let mut vectors = generate_test_vectors(5, 128);
     for (i, vector) in vectors.iter_mut().enumerate() {
@@ -155,7 +155,7 @@ fn test_payload_index_removal_on_delete() {
 #[test]
 fn test_payload_index_update_on_vector_update() {
     let store = VectorStore::new();
-    let collection = create_test_collection(&store, "test_payload_update", 128).unwrap();
+    create_test_collection(&store, "test_payload_update", 128).unwrap();
 
     let mut vectors = generate_test_vectors(3, 128);
     for (i, vector) in vectors.iter_mut().enumerate() {
@@ -216,7 +216,7 @@ fn test_payload_index_multiple_fields() {
     // Verify category and priority fields
     for i in 0..10 {
         let vector = store
-            .get_vector("test_payload_multi", &format!("vec_{}", i))
+            .get_vector("test_payload_multi", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.as_ref().unwrap();
@@ -229,7 +229,7 @@ fn test_payload_index_multiple_fields() {
 #[test]
 fn test_payload_index_stats() {
     let store = VectorStore::new();
-    let collection = create_test_collection(&store, "test_payload_stats", 128).unwrap();
+    create_test_collection(&store, "test_payload_stats", 128).unwrap();
 
     let mut vectors = generate_test_vectors(100, 128);
     for (i, vector) in vectors.iter_mut().enumerate() {
@@ -250,7 +250,7 @@ fn test_payload_index_stats() {
     // Verify payloads are stored
     for i in 0..100 {
         let vector = store
-            .get_vector("test_payload_stats", &format!("vec_{}", i))
+            .get_vector("test_payload_stats", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.as_ref().unwrap();
@@ -305,7 +305,7 @@ fn test_payload_index_empty_payload() {
 #[test]
 fn test_payload_index_partial_payload() {
     let store = VectorStore::new();
-    let collection = create_test_collection(&store, "test_payload_partial", 128).unwrap();
+    create_test_collection(&store, "test_payload_partial", 128).unwrap();
 
     let mut vectors = generate_test_vectors(5, 128);
     for (i, vector) in vectors.iter_mut().enumerate() {
@@ -334,7 +334,7 @@ fn test_payload_index_partial_payload() {
     // Verify file_path is present in first 3 vectors
     for i in 0..3 {
         let vector = store
-            .get_vector("test_payload_partial", &format!("vec_{}", i))
+            .get_vector("test_payload_partial", &format!("vec_{i}"))
             .unwrap();
         assert!(vector.payload.is_some());
         assert!(

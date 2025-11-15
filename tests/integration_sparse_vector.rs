@@ -2,7 +2,7 @@
 
 mod helpers;
 
-use helpers::{create_test_collection, insert_test_vectors};
+use helpers::create_test_collection;
 use serde_json::json;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{Payload, SparseVector, Vector};

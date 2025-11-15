@@ -5,18 +5,19 @@
 //! - Vector operations: upsert, retrieve, delete, scroll, count
 //! - Search operations: search, recommend, batch search, batch recommend
 
-use serde_json::json;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
 };
 
 /// Helper to create a test store
+#[allow(dead_code)]
 fn create_test_store() -> VectorStore {
     VectorStore::new()
 }
 
 /// Helper to create a test collection
+#[allow(dead_code)]
 fn create_test_collection(
     store: &VectorStore,
     name: &str,
@@ -40,6 +41,7 @@ fn create_test_collection(
 }
 
 /// Helper to insert test vectors
+#[allow(dead_code)]
 fn insert_test_vectors(
     store: &VectorStore,
     collection_name: &str,

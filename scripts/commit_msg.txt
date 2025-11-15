@@ -1,19 +1,9 @@
-Add hybrid search and Qdrant compatibility to JavaScript and Rust SDKs
+Fix all clippy warnings and errors
 
-JavaScript SDK:
-- Added hybrid search models and validation
-- Added hybridSearch method to client
-- Added Qdrant compatibility methods (list, get, create collections, upsert/search/delete/retrieve/count points)
-- Updated README with hybrid search and Qdrant examples
+- Remove unused imports (serde_json::json, Collection, Vector, create_test_collection, insert_test_vectors, Payload, Duration, sleep)
+- Fix field assignment outside initializer: convert all `let mut config = CollectionConfig::default(); config.field = value` to struct literal syntax
+- Fix format string warnings: use inline format strings (format!("vec_{i}") instead of format!("vec_{}", i))
+- Fix unused variable warnings: prefix unused variables with underscore or remove let-binding
+- Add #[allow(dead_code)] to helper functions that are used in tests but not directly referenced
 
-Rust SDK:
-- Added hybrid_search module with SparseVector, HybridSearchRequest, HybridSearchResponse
-- Added hybrid_search method to client
-- Added Qdrant compatibility methods (same as other SDKs)
-- Updated README with hybrid search and Qdrant examples
-- Full type safety with serde serialization
-
-All SDKs now support:
-- Hybrid search with dense + sparse vectors (RRF, Weighted, Alpha algorithms)
-- Full Qdrant REST API compatibility for easy migration
-- Consistent API across Python, TypeScript, JavaScript, and Rust
+All clippy checks now pass with -D warnings flag
