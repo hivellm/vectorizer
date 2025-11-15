@@ -39,6 +39,10 @@ import {
   ContextualSearchResponse,
   MultiCollectionSearchRequest,
   MultiCollectionSearchResponse,
+  // Hybrid search models
+  HybridSearchRequest,
+  HybridSearchResponse,
+  validateHybridSearchRequest,
 } from './models';
 
 
@@ -98,7 +102,7 @@ export class VectorizerClient {
       const transportConfig = parseConnectionString(this.config.connectionString, this.config.apiKey);
       this.transport = TransportFactory.create(transportConfig);
       this.protocol = transportConfig.protocol!;
-      
+
       this.logger.info('VectorizerClient initialized from connection string', {
         protocol: this.protocol,
         connectionString: this.config.connectionString,
@@ -107,7 +111,7 @@ export class VectorizerClient {
     } else {
       // Use explicit configuration
       this.protocol = this.config.protocol || 'http';
-      
+
       if (this.protocol === 'http') {
         const httpConfig: HttpClientConfig = {
           baseURL: this.config.baseURL!,
@@ -116,7 +120,7 @@ export class VectorizerClient {
           ...(this.config.apiKey && { apiKey: this.config.apiKey }),
         };
         this.transport = TransportFactory.create({ protocol: 'http', http: httpConfig });
-        
+
         this.logger.info('VectorizerClient initialized with HTTP', {
           baseURL: this.config.baseURL,
           hasApiKey: !!this.config.apiKey,
@@ -125,7 +129,7 @@ export class VectorizerClient {
         if (!this.config.umicp) {
           throw new Error('UMICP configuration is required when using UMICP protocol');
         }
-        
+
         const umicpConfig: UMICPClientConfig = {
           host: this.config.umicp.host || 'localhost',
           port: this.config.umicp.port || 15003,
@@ -134,7 +138,7 @@ export class VectorizerClient {
           ...this.config.umicp,
         };
         this.transport = TransportFactory.create({ protocol: 'umicp', umicp: umicpConfig });
-        
+
         this.logger.info('VectorizerClient initialized with UMICP', {
           host: umicpConfig.host,
           port: umicpConfig.port,
@@ -388,10 +392,10 @@ export class VectorizerClient {
   public async intelligentSearch(request: IntelligentSearchRequest): Promise<IntelligentSearchResponse> {
     try {
       const response = await this.transport.post<IntelligentSearchResponse>('/intelligent_search', request);
-      this.logger.debug('Intelligent search completed', { 
-        query: request.query, 
+      this.logger.debug('Intelligent search completed', {
+        query: request.query,
         resultCount: response.results?.length || 0,
-        collections: request.collections 
+        collections: request.collections
       });
       return response;
     } catch (error) {
@@ -406,10 +410,10 @@ export class VectorizerClient {
   public async semanticSearch(request: SemanticSearchRequest): Promise<SemanticSearchResponse> {
     try {
       const response = await this.transport.post<SemanticSearchResponse>('/semantic_search', request);
-      this.logger.debug('Semantic search completed', { 
-        query: request.query, 
+      this.logger.debug('Semantic search completed', {
+        query: request.query,
         collection: request.collection,
-        resultCount: response.results?.length || 0 
+        resultCount: response.results?.length || 0
       });
       return response;
     } catch (error) {
@@ -424,11 +428,11 @@ export class VectorizerClient {
   public async contextualSearch(request: ContextualSearchRequest): Promise<ContextualSearchResponse> {
     try {
       const response = await this.transport.post<ContextualSearchResponse>('/contextual_search', request);
-      this.logger.debug('Contextual search completed', { 
-        query: request.query, 
+      this.logger.debug('Contextual search completed', {
+        query: request.query,
         collection: request.collection,
         resultCount: response.results?.length || 0,
-        contextFilters: request.context_filters 
+        contextFilters: request.context_filters
       });
       return response;
     } catch (error) {
@@ -443,14 +447,185 @@ export class VectorizerClient {
   public async multiCollectionSearch(request: MultiCollectionSearchRequest): Promise<MultiCollectionSearchResponse> {
     try {
       const response = await this.transport.post<MultiCollectionSearchResponse>('/multi_collection_search', request);
-      this.logger.debug('Multi-collection search completed', { 
-        query: request.query, 
+      this.logger.debug('Multi-collection search completed', {
+        query: request.query,
         collections: request.collections,
-        resultCount: response.results?.length || 0 
+        resultCount: response.results?.length || 0
       });
       return response;
     } catch (error) {
       this.logger.error('Failed to perform multi-collection search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Hybrid search combining dense and sparse vectors.
+   */
+  public async hybridSearch(request: HybridSearchRequest): Promise<HybridSearchResponse> {
+    try {
+      validateHybridSearchRequest(request);
+      const payload: any = {
+        query: request.query,
+        alpha: request.alpha ?? 0.7,
+        algorithm: request.algorithm ?? 'rrf',
+        dense_k: request.dense_k ?? 20,
+        sparse_k: request.sparse_k ?? 20,
+        final_k: request.final_k ?? 10,
+      };
+      if (request.query_sparse) {
+        payload.query_sparse = {
+          indices: request.query_sparse.indices,
+          values: request.query_sparse.values,
+        };
+      }
+      const response = await this.transport.post<HybridSearchResponse>(
+        `/collections/${request.collection}/hybrid_search`,
+        payload
+      );
+      this.logger.debug('Hybrid search completed', {
+        query: request.query,
+        collection: request.collection,
+        algorithm: request.algorithm,
+        resultCount: response.results?.length || 0
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to perform hybrid search', { request, error });
+      throw error;
+    }
+  }
+
+  // ===== QDRANT COMPATIBILITY METHODS =====
+
+  /**
+   * List all collections (Qdrant-compatible API).
+   */
+  public async qdrantListCollections(): Promise<any> {
+    try {
+      return await this.transport.get('/qdrant/collections');
+    } catch (error) {
+      this.logger.error('Failed to list Qdrant collections', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get collection information (Qdrant-compatible API).
+   */
+  public async qdrantGetCollection(name: string): Promise<any> {
+    try {
+      return await this.transport.get(`/qdrant/collections/${name}`);
+    } catch (error) {
+      this.logger.error('Failed to get Qdrant collection', { name, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Create collection (Qdrant-compatible API).
+   */
+  public async qdrantCreateCollection(name: string, config: any): Promise<any> {
+    try {
+      return await this.transport.put(`/qdrant/collections/${name}`, { config });
+    } catch (error) {
+      this.logger.error('Failed to create Qdrant collection', { name, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Upsert points to collection (Qdrant-compatible API).
+   */
+  public async qdrantUpsertPoints(collection: string, points: any[], wait: boolean = false): Promise<any> {
+    try {
+      return await this.transport.put(`/qdrant/collections/${collection}/points`, {
+        points,
+        wait,
+      });
+    } catch (error) {
+      this.logger.error('Failed to upsert Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Search points in collection (Qdrant-compatible API).
+   */
+  public async qdrantSearchPoints(
+    collection: string,
+    vector: number[],
+    limit: number = 10,
+    filter?: any,
+    withPayload: boolean = true,
+    withVector: boolean = false
+  ): Promise<any> {
+    try {
+      const payload: any = {
+        vector,
+        limit,
+        with_payload: withPayload,
+        with_vector: withVector,
+      };
+      if (filter) {
+        payload.filter = filter;
+      }
+      return await this.transport.post(`/qdrant/collections/${collection}/points/search`, payload);
+    } catch (error) {
+      this.logger.error('Failed to search Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete points from collection (Qdrant-compatible API).
+   */
+  public async qdrantDeletePoints(collection: string, pointIds: (string | number)[], wait: boolean = false): Promise<any> {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/delete`, {
+        points: pointIds,
+        wait,
+      });
+    } catch (error) {
+      this.logger.error('Failed to delete Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve points by IDs (Qdrant-compatible API).
+   */
+  public async qdrantRetrievePoints(
+    collection: string,
+    pointIds: (string | number)[],
+    withPayload: boolean = true,
+    withVector: boolean = false
+  ): Promise<any> {
+    try {
+      const params = new URLSearchParams({
+        ids: pointIds.join(','),
+        with_payload: String(withPayload),
+        with_vector: String(withVector),
+      });
+      return await this.transport.get(`/qdrant/collections/${collection}/points?${params.toString()}`);
+    } catch (error) {
+      this.logger.error('Failed to retrieve Qdrant points', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Count points in collection (Qdrant-compatible API).
+   */
+  public async qdrantCountPoints(collection: string, filter?: any): Promise<any> {
+    try {
+      const payload: any = {};
+      if (filter) {
+        payload.filter = filter;
+      }
+      return await this.transport.post(`/qdrant/collections/${collection}/points/count`, payload);
+    } catch (error) {
+      this.logger.error('Failed to count Qdrant points', { collection, error });
       throw error;
     }
   }
@@ -487,7 +662,7 @@ export class VectorizerClient {
    */
   public setApiKey(apiKey: string): void {
     this.config.apiKey = apiKey;
-    
+
     // Reinitialize transport with new API key
     if (this.protocol === 'http' && this.config.baseURL) {
       const httpConfig: HttpClientConfig = {
@@ -635,7 +810,7 @@ export class VectorizerClient {
 
   // NOTE: Summarization endpoints are not available in the current server version
   // The following methods are commented out until summarization is re-implemented
-  
+
   /*
   /**
    * Summarize text using various methods

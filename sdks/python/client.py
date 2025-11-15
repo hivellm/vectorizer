@@ -1569,6 +1569,284 @@ class VectorizerClient:
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to get related files: {e}")
     
+    # =============================================================================
+    # QDRANT COMPATIBILITY METHODS
+    # =============================================================================
+    
+    async def qdrant_list_collections(self) -> Dict[str, Any]:
+        """
+        List all collections (Qdrant-compatible API).
+        
+        Returns:
+            Qdrant collection list response
+            
+        Raises:
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/collections"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to list collections: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list collections: {e}")
+    
+    async def qdrant_get_collection(self, name: str) -> Dict[str, Any]:
+        """
+        Get collection information (Qdrant-compatible API).
+        
+        Args:
+            name: Collection name
+            
+        Returns:
+            Qdrant collection info response
+            
+        Raises:
+            CollectionNotFoundError: If collection doesn't exist
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/collections/{name}"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{name}' not found")
+                else:
+                    raise ServerError(f"Failed to get collection: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get collection: {e}")
+    
+    async def qdrant_create_collection(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create collection (Qdrant-compatible API).
+        
+        Args:
+            name: Collection name
+            config: Qdrant collection configuration
+            
+        Returns:
+            Qdrant operation result
+            
+        Raises:
+            ValidationError: If configuration is invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._transport.put(
+                f"{self.base_url}/qdrant/collections/{name}",
+                json={"config": config}
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid configuration: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to create collection: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to create collection: {e}")
+    
+    async def qdrant_upsert_points(self, collection: str, points: List[Dict[str, Any]], wait: bool = False) -> Dict[str, Any]:
+        """
+        Upsert points to collection (Qdrant-compatible API).
+        
+        Args:
+            collection: Collection name
+            points: List of Qdrant point structures
+            wait: Wait for operation completion
+            
+        Returns:
+            Qdrant operation result
+            
+        Raises:
+            CollectionNotFoundError: If collection doesn't exist
+            ValidationError: If points are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._transport.put(
+                f"{self.base_url}/qdrant/collections/{collection}/points",
+                json={"points": points, "wait": wait}
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid points: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to upsert points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to upsert points: {e}")
+    
+    async def qdrant_search_points(self, collection: str, vector: List[float], limit: int = 10, 
+                                   filter: Optional[Dict[str, Any]] = None, 
+                                   with_payload: bool = True, 
+                                   with_vector: bool = False) -> Dict[str, Any]:
+        """
+        Search points in collection (Qdrant-compatible API).
+        
+        Args:
+            collection: Collection name
+            vector: Query vector
+            limit: Maximum number of results
+            filter: Optional Qdrant filter
+            with_payload: Include payload in results
+            with_vector: Include vector in results
+            
+        Returns:
+            Qdrant search response
+            
+        Raises:
+            CollectionNotFoundError: If collection doesn't exist
+            ValidationError: If search parameters are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            payload = {
+                "vector": vector,
+                "limit": limit,
+                "with_payload": with_payload,
+                "with_vector": with_vector
+            }
+            if filter:
+                payload["filter"] = filter
+            
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/search",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid search request: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to search points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to search points: {e}")
+    
+    async def qdrant_delete_points(self, collection: str, point_ids: List[Union[str, int]], wait: bool = False) -> Dict[str, Any]:
+        """
+        Delete points from collection (Qdrant-compatible API).
+        
+        Args:
+            collection: Collection name
+            point_ids: List of point IDs to delete
+            wait: Wait for operation completion
+            
+        Returns:
+            Qdrant operation result
+            
+        Raises:
+            CollectionNotFoundError: If collection doesn't exist
+            ValidationError: If point IDs are invalid
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/delete",
+                json={"points": point_ids, "wait": wait}
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(f"Invalid point IDs: {error_data.get('message', 'Unknown error')}")
+                else:
+                    raise ServerError(f"Failed to delete points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to delete points: {e}")
+    
+    async def qdrant_retrieve_points(self, collection: str, point_ids: List[Union[str, int]], 
+                                     with_payload: bool = True, 
+                                     with_vector: bool = False) -> Dict[str, Any]:
+        """
+        Retrieve points by IDs (Qdrant-compatible API).
+        
+        Args:
+            collection: Collection name
+            point_ids: List of point IDs to retrieve
+            with_payload: Include payload in results
+            with_vector: Include vector in results
+            
+        Returns:
+            Qdrant retrieve response
+            
+        Raises:
+            CollectionNotFoundError: If collection doesn't exist
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            params = {
+                "ids": ",".join(str(pid) for pid in point_ids),
+                "with_payload": str(with_payload).lower(),
+                "with_vector": str(with_vector).lower()
+            }
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/collections/{collection}/points",
+                params=params
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to retrieve points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to retrieve points: {e}")
+    
+    async def qdrant_count_points(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Count points in collection (Qdrant-compatible API).
+        
+        Args:
+            collection: Collection name
+            filter: Optional Qdrant filter
+            
+        Returns:
+            Qdrant count response
+            
+        Raises:
+            CollectionNotFoundError: If collection doesn't exist
+            NetworkError: If unable to connect to service
+            ServerError: If service returns error
+        """
+        try:
+            payload = {}
+            if filter:
+                payload["filter"] = filter
+            
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/count",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to count points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to count points: {e}")
+    
     async def search_by_file_type(
         self,
         collection: str,

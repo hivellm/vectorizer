@@ -21,6 +21,7 @@ A comprehensive Python SDK for the Vectorizer semantic search service.
 - **Contextual Search**: Context-aware search with metadata filtering
 - **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - **Hybrid Search**: Combine dense and sparse vectors for improved search quality
+- **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
 - **Batch Operations**: Efficient bulk operations
 - **Error Handling**: Comprehensive exception handling
 - **Async Support**: Full async/await support for high performance
@@ -143,6 +144,20 @@ async def main():
         )
 
         print(f"Found {len(hybrid_results.results)} similar vectors")
+
+        # Qdrant-compatible API usage
+        # List collections
+        qdrant_collections = await client.qdrant_list_collections()
+        print(f"Qdrant collections: {qdrant_collections}")
+
+        # Search points (Qdrant format)
+        qdrant_results = await client.qdrant_search_points(
+            collection="my_collection",
+            vector=embedding,
+            limit=10,
+            with_payload=True
+        )
+        print(f"Qdrant search results: {qdrant_results}")
 
 asyncio.run(main())
 ```

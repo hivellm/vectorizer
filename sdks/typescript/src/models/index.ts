@@ -15,3 +15,4 @@ export * from './batch';
 export * from './summarization';
 export * from './intelligent-search';
 export * from './replication';
+export * from './hybrid-search';
