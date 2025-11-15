@@ -18,6 +18,7 @@ A high-performance vector database and search engine built in Rust, designed for
 ## ✨ **Version 1.2.2 - Critical BM25 & Persistence Fixes**
 
 ### 🎉 **Latest Updates (v1.2.2)** 🔥
+
 - **🔴 CRITICAL FIX**: BM25 vocabulary now preserved on CTRL+C shutdown
 - **✅ Tokenizers Saved**: All tokenizer files included in `.vecdb` archive
 - **✅ Checksums Saved**: File integrity data preserved across restarts
@@ -25,10 +26,12 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🎯 All Protocols Working**: MCP, REST, and UMICP search fully operational
 
 ### 🎉 **Previous Updates (v1.1.2)**
+
 - **🔍 MCP Search Fix**: Fixed `search_intelligent` to properly handle collection filtering
 - **⚡ Improved Performance**: Enhanced intelligent search with better query expansion
 
 ### 🎉 **Previous Updates (v1.1.0)**
+
 - **🔄 Master-Replica Replication (BETA)**: Replication system inspired by Redis - currently in beta
 - **⚡ High Availability**: Automatic failover and intelligent sync mechanisms
 - **📦 SDK Standardization**: All client SDKs renamed to follow `vectorizer-sdk` convention
@@ -36,6 +39,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **📝 Updated READMEs**: All SDK documentation updated with badges and installation instructions
 
 ### 🎉 **Major Release - MCP Tools Refactoring (v1.0.0)**
+
 - **🎯 MCP Architecture**: 19 focused individual tools (refactored from 7 unified mega-tools)
 - **⚡ Reduced Entropy**: Removed all enum parameters for better model tool calling
 - **🔧 Simplified Interface**: Only relevant parameters per tool
@@ -43,6 +47,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🛡️ Enhanced Security**: Dangerous operations (delete_collection) restricted to REST API
 
 ### 🎯 **Key Features**
+
 - **🔄 Master-Replica Replication (BETA)**: Replication system with automatic failover (currently in beta - see docs)
   - Full sync via snapshot with CRC32 checksum verification
   - Partial sync via incremental replication log
@@ -66,6 +71,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **Discovery Pipeline**: 10-type semantic discovery with evidence compression
 
 ### 🧪 **Quality Metrics**
+
 - ✅ **All tests passing** (100% pass rate, v1.0.0)
 - ⚡ **Fast execution** with optimized test suite
 - 🎯 **Production-ready** with comprehensive coverage
@@ -124,6 +130,7 @@ docker logs -f vectorizer
 ```
 
 **Alternative: Docker Compose**
+
 ```bash
 docker-compose up -d
 docker-compose logs -f
@@ -156,11 +163,13 @@ cargo build --release --features full
 ```
 
 **Platform Notes:**
+
 - **macOS (Apple Silicon)**: Full Metal GPU acceleration available with `hive-gpu` feature
 - **Linux/Windows**: Compiles successfully with graceful CPU fallback messages
 - **Cross-Platform**: All features work on all platforms with appropriate fallbacks
 
 ### **Access Points**
+
 - **Desktop GUI**: `./gui/` - Electron desktop application (NEW in v0.8.2)
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp (StreamableHTTP)
@@ -173,6 +182,7 @@ cargo build --release --features full
 Modern Electron-based desktop application for managing your Vectorizer database:
 
 **Features:**
+
 - 🎨 Beautiful Vue 3 + TailwindCSS interface
 - 📊 Real-time collection management and monitoring
 - 🔍 Visual search and vector browsing
@@ -182,6 +192,7 @@ Modern Electron-based desktop application for managing your Vectorizer database:
 - 📈 System metrics and performance monitoring
 
 **Installation:**
+
 ```bash
 cd gui
 pnpm install
@@ -191,6 +202,7 @@ pnpm electron:build:linux  # Linux DEB package
 ```
 
 **Development:**
+
 ```bash
 cd gui
 pnpm install
@@ -200,6 +212,7 @@ pnpm dev  # Hot-reload development mode
 **Note:** Requires Node.js 64-bit (x64 architecture) for building
 
 ### **Basic Usage**
+
 ```bash
 # Create collection
 curl -X POST http://localhost:15002/collections \
@@ -222,12 +235,14 @@ curl -X POST http://localhost:15002/collections/docs/search \
 ### **MCP Search Tools (v1.0.0)**
 
 #### **Basic Search** (`search`)
+
 - Simple vector similarity search
 - Configurable similarity threshold (default: 0.1)
 - Fast and efficient for direct queries
 - Single collection focus
 
 #### **Intelligent Search** (`search_intelligent`)
+
 - AI-powered query expansion
 - Automatic deduplication across results
 - Domain-specific term expansion
@@ -235,28 +250,33 @@ curl -X POST http://localhost:15002/collections/docs/search \
 - Optimized for MCP (MMR disabled for speed)
 
 #### **Semantic Search** (`search_semantic`)
+
 - Advanced semantic reranking
 - Precision-focused results
 - Configurable similarity thresholds
 - Optimized for MCP (cross-encoder disabled for speed)
 
 #### **Combined Search** (`search_extra`) - NEW in v1.0.0
+
 - Concatenates results from multiple strategies
 - Combines: basic + semantic + intelligent
 - Automatic deduplication
 - Best of all search methods in one call
 
 #### **Multi-Collection Search** (`multi_collection_search`)
+
 - Search across multiple collections simultaneously
 - Results grouped by collection
 - Configurable limits per collection
 - Simplified for MCP (no cross-collection reranking)
 
 ### **Discovery Tools (Simplified)**
+
 - `filter_collections`: Filter collections by name patterns
 - `expand_queries`: Generate query variations (definition, features, architecture)
 
 ### **REST API Only (Advanced Features)**
+
 For complex operations requiring MMR, cross-encoder reranking, batch processing, or full discovery pipeline, use the REST API which provides all advanced features without MCP limitations.
 
 ## 📚 **Configuration**
@@ -272,11 +292,11 @@ vectorizer:
 # Replication configuration (NEW in v1.1.0)
 replication:
   enabled: false
-  mode: "master"  # or "replica"
+  mode: "master" # or "replica"
   master:
     host: "0.0.0.0"
     port: 6380
-    repl_backlog_size: 1048576  # 1MB circular buffer
+    repl_backlog_size: 1048576 # 1MB circular buffer
   replica:
     master_host: "localhost"
     master_port: 6380
@@ -285,7 +305,7 @@ replication:
 # Text normalization (v0.5.0)
 normalization:
   enabled: true
-  level: "conservative"  # conservative/moderate/aggressive
+  level: "conservative" # conservative/moderate/aggressive
   line_endings:
     normalize_crlf: true
     collapse_multiple_newlines: true
@@ -307,13 +327,13 @@ cache:
 # Compact storage with snapshots (NEW in v0.8.0)
 storage:
   compression:
-    enabled: true          # Enable .vecdb format
+    enabled: true # Enable .vecdb format
     format: "zstd"
-    level: 3               # Balanced compression
+    level: 3 # Balanced compression
   snapshots:
-    enabled: true          # Automatic backups
-    interval_hours: 1      # Hourly snapshots
-    retention_days: 2      # Keep for 2 days
+    enabled: true # Automatic backups
+    interval_hours: 1 # Hourly snapshots
+    retention_days: 2 # Keep for 2 days
     max_snapshots: 48
 ```
 
@@ -324,6 +344,7 @@ storage:
 New unified storage format with compression and snapshots:
 
 **Benefits:**
+
 - ✅ 20-30% disk space reduction
 - ✅ Automatic snapshots with retention policies
 - ✅ Single-file backups (easy portability)
@@ -331,6 +352,7 @@ New unified storage format with compression and snapshots:
 - ✅ Faster backups (copy vs full backup)
 
 **CLI Commands:**
+
 ```bash
 # View storage stats
 vectorizer storage info --detailed
@@ -348,10 +370,12 @@ vectorizer storage migrate
 ```
 
 **Format Support:**
+
 - **Legacy:** Individual files (automatic migration offered on startup)
 - **Compact:** Single `.vecdb` archive (recommended for production)
 
 **Migration:**
+
 - ✅ **Automatic detection and prompt on startup**
 - ✅ **Interactive migration** - asks user confirmation (Y/n)
 - ✅ Safe migration with timestamped backup
@@ -362,18 +386,18 @@ See [STORAGE.md](docs/STORAGE.md) and [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.
 
 ## 📊 **Performance**
 
-| Metric | Value |
-|--------|-------|
-| **Search Speed** | < 3ms (CPU), < 1ms (Metal GPU) |
-| **Startup Time** | Non-blocking |
-| **Storage Reduction** | 30-50% with normalization |
-| **Test Coverage** | All tests passing, 100% pass rate |
-| **MCP Tools** | 19 focused individual tools |
-| **Collections** | 107+ tested |
-| **PDF Conversion** | 98x faster than Docling |
-| **Document Formats** | 14 formats supported |
-| **GPU Acceleration** | Metal (macOS), graceful CPU fallback |
-| **Cross-Platform** | Linux, macOS, Windows |
+| Metric                | Value                                |
+| --------------------- | ------------------------------------ |
+| **Search Speed**      | < 3ms (CPU), < 1ms (Metal GPU)       |
+| **Startup Time**      | Non-blocking                         |
+| **Storage Reduction** | 30-50% with normalization            |
+| **Test Coverage**     | All tests passing, 100% pass rate    |
+| **MCP Tools**         | 19 focused individual tools          |
+| **Collections**       | 107+ tested                          |
+| **PDF Conversion**    | 98x faster than Docling              |
+| **Document Formats**  | 14 formats supported                 |
+| **GPU Acceleration**  | Metal (macOS), graceful CPU fallback |
+| **Cross-Platform**    | Linux, macOS, Windows                |
 
 ## 🎯 **Use Cases**
 
@@ -403,6 +427,7 @@ Vectorizer v1.1.0 introduces a master-replica replication system inspired by Red
 ### Quick Start
 
 **Master Node**:
+
 ```yaml
 # config.production.yml
 replication:
@@ -414,6 +439,7 @@ replication:
 ```
 
 **Replica Node**:
+
 ```yaml
 # config.production.yml
 replication:
@@ -485,6 +511,7 @@ Cursor IDE configuration:
 **Available MCP Tools** (19 individual tools):
 
 ### **Core Collection/Vector Operations (9 tools)**
+
 1. `list_collections` - List all collections with metadata
 2. `create_collection` - Create new collection (name, dimension, metric)
 3. `get_collection_info` - Get detailed collection information
@@ -496,15 +523,18 @@ Cursor IDE configuration:
 9. `search` - Basic vector similarity search
 
 ### **Search Operations (3 tools)**
+
 10. `search_intelligent` - AI-powered search with query expansion and deduplication
 11. `search_semantic` - Semantic search with basic reranking
 12. `search_extra` - Combined search using multiple strategies (basic, semantic, intelligent)
 
 ### **Discovery Operations (2 tools)**
+
 13. `filter_collections` - Filter collections by name patterns
 14. `expand_queries` - Generate query variations for broader coverage
 
 ### **File Operations (5 tools)**
+
 15. `get_file_content` - Retrieve complete file content
 16. `list_files` - List indexed files with filtering and sorting
 17. `get_file_chunks` - Retrieve file chunks in original order
@@ -512,6 +542,7 @@ Cursor IDE configuration:
 19. `get_related_files` - Find semantically related files
 
 ### **Key Improvements in v1.0.0**
+
 - ✅ **No enum parameters** - Direct tool selection by name
 - ✅ **Simplified parameters** - Only relevant parameters per tool
 - ✅ **Better model accuracy** - Reduced entropy improves tool calling

@@ -113,3 +113,16 @@ debian/vectorizer/
 debian/files
 debian/*.log
 debian/*.substvarsvenv/
+
+# Patterns added by @hivellm/rulebook
+# Added at: 2025-11-15T10:31:56.086Z
+
+**/*.rs.bk
+*.pdb
+.cache/
+.env.*.local
+Cargo.lock
+logs/
+target/
+temp/
+tmp/

@@ -1,11 +1,10 @@
 {
-  "version": "0.15.0",
-  "installedAt": "2025-10-29T05:27:33.749Z",
-  "updatedAt": "2025-11-01T02:07:36.705Z",
+  "version": "1.0.0",
+  "installedAt": "2025-11-01T02:07:36.655Z",
+  "updatedAt": "2025-11-15T10:31:54.627Z",
   "projectId": "vectorizer",
   "mode": "full",
   "features": {
-    "openspec": true,
     "watcher": false,
     "agent": false,
     "logging": true,
@@ -30,5 +29,14 @@
     "taskExecution": 3600000,
     "cliResponse": 180000,
     "testRun": 600000
-  }
+  },
+  "languages": [
+    "rust"
+  ],
+  "frameworks": [],
+  "modules": [
+    "context7"
+  ],
+  "modular": true,
+  "rulebookDir": "rulebook"
 }
