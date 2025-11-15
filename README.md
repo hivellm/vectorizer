@@ -96,17 +96,20 @@ Cursor IDE configuration:
 **Available MCP Tools** (20 tools):
 
 ### Core Operations
+
 - `list_collections`, `create_collection`, `get_collection_info`
 - `insert_text`, `get_vector`, `update_vector`, `delete_vector`
 - `search`, `multi_collection_search`
 
 ### Advanced Search
+
 - `search_intelligent` - AI-powered search with query expansion
 - `search_semantic` - Semantic search with reranking
 - `search_extra` - Combined search using multiple strategies
 - `search_hybrid` - Hybrid dense + sparse vector search
 
 ### Discovery & Files
+
 - `filter_collections`, `expand_queries`
 - `get_file_content`, `list_files`, `get_file_chunks`
 - `get_project_outline`, `get_related_files`

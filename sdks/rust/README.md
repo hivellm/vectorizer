@@ -12,6 +12,7 @@ High-performance Rust SDK for Vectorizer vector database.
 ## ✅ Status: Ready for Crate Publication
 
 **Test Results: 100% Success Rate**
+
 - ✅ All endpoints tested and functional
 - ✅ Comprehensive error handling
 - ✅ Type-safe API design
@@ -101,7 +102,7 @@ async fn main() -> Result<()> {
     let mut context_filters = std::collections::HashMap::new();
     context_filters.insert("category".to_string(), serde_json::Value::String("AI".to_string()));
     context_filters.insert("year".to_string(), serde_json::Value::Number(2023.into()));
-    
+
     let contextual_request = ContextualSearchRequest {
         query: "deep learning".to_string(),
         collection: "gov-bips".to_string(),
@@ -228,42 +229,48 @@ let client = VectorizerClient::new(ClientConfig {
 #### When to Use UMICP
 
 Use UMICP when:
+
 - **Large Payloads**: Inserting or searching large batches of vectors
 - **High Throughput**: Need maximum performance for production workloads
 - **Low Latency**: Need minimal protocol overhead
 
 Use HTTP when:
+
 - **Development**: Quick testing and debugging
 - **Firewall Restrictions**: Only HTTP/HTTPS allowed
 - **Simple Deployments**: No need for custom protocol setup
 
 #### Protocol Comparison
 
-| Feature | HTTP/HTTPS | UMICP |
-|---------|-----------|-------|
-| Transport | reqwest (standard HTTP) | umicp-core crate |
-| Performance | Standard | Optimized for large payloads |
-| Latency | Standard | Lower overhead |
-| Firewall | Widely supported | May require configuration |
-| Build Time | Fast | Requires UMICP feature |
+| Feature     | HTTP/HTTPS              | UMICP                        |
+| ----------- | ----------------------- | ---------------------------- |
+| Transport   | reqwest (standard HTTP) | umicp-core crate             |
+| Performance | Standard                | Optimized for large payloads |
+| Latency     | Standard                | Lower overhead               |
+| Firewall    | Widely supported        | May require configuration    |
+| Build Time  | Fast                    | Requires UMICP feature       |
 
 ## API Endpoints
 
 ### ✅ Health & Monitoring
+
 - `health_check()` - Server health and statistics
 - `list_collections()` - List all available collections
 
 ### ✅ Collection Management
+
 - `create_collection()` - Create new vector collection
 - `get_collection_info()` - Get collection details (limited support)
 - `delete_collection()` - Delete collection (limited support)
 
 ### ✅ Vector Operations
+
 - `search_vectors()` - Semantic search with text queries
 - `insert_texts()` - Batch text insertion (limited support)
 - `get_vector()` - Retrieve individual vectors (limited support)
 
 ### ✅ Embedding (Future)
+
 - `embed_text()` - Generate embeddings (endpoint not available)
 
 ## Examples
@@ -295,7 +302,7 @@ The SDK includes comprehensive tests that verify:
 
 - **Rust**: 1.90.0+ (Rust 2024 edition)
 - **Vectorizer Server**: v0.20.0+
-- **HTTP**: REST API with JSON payloads  
+- **HTTP**: REST API with JSON payloads
 - **UMICP**: Optional feature (enable with `--features umicp`)
 - **Async Runtime**: Tokio 1.35+
 
