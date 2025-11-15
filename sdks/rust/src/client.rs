@@ -2,6 +2,7 @@
 
 use crate::error::{VectorizerError, Result};
 use crate::models::*;
+use crate::models::hybrid_search::{HybridSearchRequest, HybridSearchResponse, HybridScoringAlgorithm};
 use crate::transport::{Transport, Protocol};
 use crate::http_transport::HttpTransport;
 
@@ -230,6 +231,152 @@ impl VectorizerClient {
         let search_response: MultiCollectionSearchResponse = serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse multi-collection search response: {}", e)))?;
         Ok(search_response)
+    }
+
+    /// Perform hybrid search combining dense and sparse vectors
+    pub async fn hybrid_search(&self, request: HybridSearchRequest) -> Result<HybridSearchResponse> {
+        let url = format!("/collections/{}/hybrid_search", request.collection);
+        let payload = serde_json::json!({
+            "query": request.query,
+            "alpha": request.alpha,
+            "algorithm": match request.algorithm {
+                HybridScoringAlgorithm::ReciprocalRankFusion => "rrf",
+                HybridScoringAlgorithm::WeightedCombination => "weighted",
+                HybridScoringAlgorithm::AlphaBlending => "alpha",
+            },
+            "dense_k": request.dense_k,
+            "sparse_k": request.sparse_k,
+            "final_k": request.final_k,
+            "query_sparse": request.query_sparse.as_ref().map(|sv| serde_json::json!({
+                "indices": sv.indices,
+                "values": sv.values,
+            })),
+        });
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        let search_response: HybridSearchResponse = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse hybrid search response: {}", e)))?;
+        Ok(search_response)
+    }
+
+    // ===== QDRANT COMPATIBILITY METHODS =====
+
+    /// List all collections (Qdrant-compatible API)
+    pub async fn qdrant_list_collections(&self) -> Result<serde_json::Value> {
+        let response = self.make_request("GET", "/qdrant/collections", None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant collections response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Get collection information (Qdrant-compatible API)
+    pub async fn qdrant_get_collection(&self, name: &str) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{}", name);
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant collection response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Create collection (Qdrant-compatible API)
+    pub async fn qdrant_create_collection(&self, name: &str, config: &serde_json::Value) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{}", name);
+        let payload = serde_json::json!({ "config": config });
+        let response = self.make_request("PUT", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant create collection response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Upsert points to collection (Qdrant-compatible API)
+    pub async fn qdrant_upsert_points(&self, collection: &str, points: &serde_json::Value, wait: bool) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{}/points", collection);
+        let payload = serde_json::json!({
+            "points": points,
+            "wait": wait,
+        });
+        let response = self.make_request("PUT", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant upsert points response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Search points in collection (Qdrant-compatible API)
+    pub async fn qdrant_search_points(
+        &self,
+        collection: &str,
+        vector: &[f32],
+        limit: Option<usize>,
+        filter: Option<&serde_json::Value>,
+        with_payload: bool,
+        with_vector: bool,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{}/points/search", collection);
+        let mut payload = serde_json::json!({
+            "vector": vector,
+            "limit": limit.unwrap_or(10),
+            "with_payload": with_payload,
+            "with_vector": with_vector,
+        });
+        if let Some(filter) = filter {
+            payload["filter"] = filter.clone();
+        }
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant search response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Delete points from collection (Qdrant-compatible API)
+    pub async fn qdrant_delete_points(&self, collection: &str, point_ids: &[serde_json::Value], wait: bool) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{}/points/delete", collection);
+        let payload = serde_json::json!({
+            "points": point_ids,
+            "wait": wait,
+        });
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant delete points response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Retrieve points by IDs (Qdrant-compatible API)
+    pub async fn qdrant_retrieve_points(
+        &self,
+        collection: &str,
+        point_ids: &[serde_json::Value],
+        with_payload: bool,
+        with_vector: bool,
+    ) -> Result<serde_json::Value> {
+        let ids_str = point_ids.iter()
+            .map(|id| match id {
+                serde_json::Value::String(s) => s.clone(),
+                serde_json::Value::Number(n) => n.to_string(),
+                _ => serde_json::to_string(id).unwrap_or_default(),
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let url = format!(
+            "/qdrant/collections/{}/points?ids={}&with_payload={}&with_vector={}",
+            collection, ids_str, with_payload, with_vector
+        );
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant retrieve points response: {}", e)))?;
+        Ok(result)
+    }
+
+    /// Count points in collection (Qdrant-compatible API)
+    pub async fn qdrant_count_points(&self, collection: &str, filter: Option<&serde_json::Value>) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{}/points/count", collection);
+        let payload = if let Some(filter) = filter {
+            serde_json::json!({ "filter": filter })
+        } else {
+            serde_json::json!({})
+        };
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant count points response: {}", e)))?;
+        Ok(result)
     }
 
     /// Create collection
