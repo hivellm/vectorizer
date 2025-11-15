@@ -32,13 +32,13 @@ All notable changes to the Hive Vectorizer JavaScript Client SDK will be documen
 ## [1.0.0] - 2025-10-21
 
 ### Changed
-- **Version Sync**: Updated to v1.0.0 to match Vectorizer server release
-- **Server Compatibility**: Compatible with Vectorizer v1.0.0 (19 individual MCP tools)
+- **Version Sync**: Updated to v1.2.0 to match Vectorizer server release
+- **Server Compatibility**: Compatible with Vectorizer v1.2.3 (20 individual MCP tools including search_hybrid)
 - **No Breaking Changes**: REST API remains unchanged, full backward compatibility
-- **Production Ready**: Stable release aligned with server v1.0.0
+- **Production Ready**: Stable release aligned with server v1.2.3
 
 ### Note
-This release maintains full compatibility with Vectorizer REST API. The MCP refactoring in server v1.0.0 does not affect SDK functionality as SDKs use REST/UMICP protocols.
+This release maintains full compatibility with Vectorizer REST API. The MCP refactoring in server v1.2.3 adds hybrid search support (search_hybrid tool) but does not affect SDK functionality as SDKs use REST/UMICP protocols.
 
 ## [0.4.2] - 2025-10-15
 

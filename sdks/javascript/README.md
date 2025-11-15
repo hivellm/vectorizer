@@ -6,7 +6,7 @@
 High-performance JavaScript SDK for Vectorizer vector database.
 
 **Package**: `@hivellm/vectorizer-sdk-js`  
-**Version**: 1.0.1
+**Version**: 1.2.0
 
 ## Features
 

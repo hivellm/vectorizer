@@ -5,6 +5,7 @@ All notable changes to the Hive Vectorizer Rust SDK will be documented in this f
 ## [1.2.0] - 2025-10-25
 
 ### Added
+
 - **Replication Models**: New data structures for replication monitoring
   - `ReplicaStatus`: Enum for replica node status (Connected, Syncing, Lagging, Disconnected)
   - `ReplicaInfo`: Struct for replica node details with all fields
@@ -20,10 +21,12 @@ All notable changes to the Hive Vectorizer Rust SDK will be documented in this f
   - `ReplicaListResponse`: Response struct for `/replication/replicas` endpoint
 
 ### Changed
+
 - **Backwards Compatible**: All new replication fields are `Option<T>` to maintain compatibility with older servers
 - **Legacy Fields Maintained**: Existing replication fields continue to work and are non-optional for stability
 
 ### Technical
+
 - Used `#[serde(skip_serializing_if = "Option::is_none")]` for new optional fields
 - Added comprehensive documentation for all new types
 - Used `DateTime<Utc>` from chrono for timestamp fields
@@ -32,17 +35,20 @@ All notable changes to the Hive Vectorizer Rust SDK will be documented in this f
 ## [1.0.0] - 2025-10-21
 
 ### Changed
-- **Version Sync**: Updated to v1.0.0 to match Vectorizer server release
-- **Server Compatibility**: Compatible with Vectorizer v1.0.0 (19 individual MCP tools)
+
+- **Version Sync**: Updated to v1.2.0 to match Vectorizer server release
+- **Server Compatibility**: Compatible with Vectorizer v1.2.3 (20 individual MCP tools including search_hybrid)
 - **No Breaking Changes**: REST API remains unchanged, full backward compatibility
-- **Production Ready**: Stable release aligned with server v1.0.0
+- **Production Ready**: Stable release aligned with server v1.2.3
 
 ### Note
-This release maintains full compatibility with Vectorizer REST API. The MCP refactoring in server v1.0.0 does not affect SDK functionality as SDKs use REST/UMICP protocols.
+
+This release maintains full compatibility with Vectorizer REST API. The MCP refactoring in server v1.2.3 adds hybrid search support (search_hybrid tool) but does not affect SDK functionality as SDKs use REST/UMICP protocols.
 
 ## [0.4.0] - 2025-10-12
 
 ### Added
+
 - **UMICP Protocol Support**: Added support for the UMICP (Universal Messaging and Inter-process Communication Protocol)
   - New `UmicpTransport` using `umicp-core` crate (optional feature)
   - Transport abstraction layer supporting multiple protocols (HTTP/HTTPS and UMICP)
@@ -51,6 +57,7 @@ This release maintains full compatibility with Vectorizer REST API. The MCP refa
   - `Protocol` enum for protocol selection
 
 ### Changed
+
 - Refactored `VectorizerClient` to use transport abstraction instead of direct reqwest
 - Updated `VectorizerClient` with new configuration options:
   - Added `ClientConfig` struct for flexible initialization
@@ -60,6 +67,7 @@ This release maintains full compatibility with Vectorizer REST API. The MCP refa
 - All HTTP requests now go through transport layer for protocol flexibility
 
 ### New API
+
 - `VectorizerClient::new(config: ClientConfig)`: Create client with full configuration
 - `VectorizerClient::from_connection_string(conn_str, api_key)`: Create from connection string
 - `client.protocol()`: Get the current transport protocol being used
@@ -68,18 +76,22 @@ This release maintains full compatibility with Vectorizer REST API. The MCP refa
   - UMICP (optional feature, requires `--features umicp`)
 
 ### Dependencies
+
 - Added `async-trait@0.1` for transport trait
 - Added `umicp-core@0.1` as optional dependency (feature-gated)
 - Updated `reqwest` to `0.11.24` for compatibility
 
 ### Features
+
 - `umicp`: Enable UMICP protocol support (opt-in via cargo feature)
 
 ### Documentation
+
 - Created `examples/umicp_usage.rs` demonstrating UMICP usage
 - Created comprehensive UMICP tests
 
 ### Technical
+
 - Implemented `Transport` trait for protocol abstraction
 - Created separate transport implementations:
   - `HttpTransport` for HTTP/HTTPS
@@ -88,9 +100,10 @@ This release maintains full compatibility with Vectorizer REST API. The MCP refa
 - Maintained backward compatibility with existing HTTP-only configurations
 
 ### Requirements
+
 - **Minimum Rust Version**: 1.75.0 for HTTP transport only
 - **For UMICP Feature**: Rust 1.82+ (due to transitive dependencies from reqwest 0.12)
 
 ## [0.3.4] - Previous Version
-- (Previous changes...)
 
+- (Previous changes...)

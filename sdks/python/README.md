@@ -7,7 +7,7 @@
 A comprehensive Python SDK for the Vectorizer semantic search service.
 
 **Package**: `vectorizer_sdk` (PEP 625 compliant)  
-**Version**: 1.0.1  
+**Version**: 1.2.0  
 **PyPI**: https://pypi.org/project/vectorizer-sdk/
 
 ## Features
@@ -32,7 +32,7 @@ A comprehensive Python SDK for the Vectorizer semantic search service.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==1.0.1
+pip install vectorizer-sdk==1.2.0
 ```
 
 ## Quick Start
