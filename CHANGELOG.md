@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-11-15
+
+### Added
+
+#### **Hybrid Search Support**
+- **ADDED**: Hybrid search combining dense and sparse vectors
+- **ADDED**: Three scoring algorithms: RRF (Reciprocal Rank Fusion), Weighted Combination, Alpha Blending
+- **ADDED**: Configurable parameters: alpha, dense_k, sparse_k, final_k
+- **ADDED**: REST API endpoint `/collections/{name}/hybrid_search`
+- **ADDED**: MCP tool `search_hybrid` for AI model integration
+- **ADDED**: Prometheus metrics integration for hybrid search
+- **ADDED**: Query caching support for hybrid search results
+- **BENEFIT**: Improved search quality by combining semantic (dense) and keyword (sparse) signals
+
+#### **Qdrant REST API Compatibility**
+- **ADDED**: Full Qdrant REST API compatibility layer at `/qdrant/*` endpoints
+- **ADDED**: Collection management endpoints (list, get, create, update, delete)
+- **ADDED**: Point operations (upsert, retrieve, delete, scroll, count)
+- **ADDED**: Search endpoints (search, batch search, recommend, batch recommend)
+- **ADDED**: Alias management endpoints
+- **BENEFIT**: Easy migration from Qdrant to Vectorizer without code changes
+
+#### **SDK Updates**
+- **ADDED**: Hybrid search support in all SDKs (Python, TypeScript, JavaScript, Rust)
+- **ADDED**: Qdrant compatibility methods in all SDKs
+- **ADDED**: Consistent API across all SDKs for hybrid search and Qdrant operations
+- **BENEFIT**: Unified developer experience across all supported languages
+
+### Changed
+
+- **VERSION**: Bumped to 1.3.0 across all SDKs and main project
+- **SDK COMPATIBILITY**: All SDKs now at version 1.3.0
+
 ### Added
 
 #### **Query Result Caching**
