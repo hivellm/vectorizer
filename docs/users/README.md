@@ -68,7 +68,8 @@ Client libraries and SDKs:
 Managing the Vectorizer service:
 
 - [Service Management Guide](./service-management/SERVICE_MANAGEMENT.md) - Linux systemd and Windows Service management
-- Logs, status, and configuration
+- [Log Management](./service-management/LOGS.md) - Viewing, filtering, and analyzing logs
+- Service status, configuration, and troubleshooting
 
 ### 🔧 [Configuration](./configuration/)
 
@@ -111,6 +112,13 @@ Common issues and solutions:
 
 - [Troubleshooting Guide](./troubleshooting/TROUBLESHOOTING.md) - Common problems and fixes
 - Debugging tips and solutions
+
+### 💾 [Backup and Restore](./backup-restore/)
+
+Data protection and recovery:
+
+- [Backup Guide](./backup-restore/BACKUP.md) - Backup procedures and restore operations
+- Automated backups and scheduled tasks
 
 ## 🚀 Quick Start
 

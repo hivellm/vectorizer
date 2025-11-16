@@ -9,7 +9,7 @@ tags: [service, systemd, windows-service, management]
 
 # Service Management
 
-Vectorizer runs as a system service that starts automatically on boot.
+Vectorizer runs as a system service that starts automatically on boot and restarts on failure.
 
 ## Linux (systemd)
 
