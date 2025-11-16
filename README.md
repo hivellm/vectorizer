@@ -161,10 +161,10 @@ Cursor IDE configuration:
 
 ## 📚 Documentation
 
-- **[API Reference](./docs/api/)** - REST API documentation
-- **[Replication Guide](./docs/REPLICATION.md)** - Master-replica replication system
-- **[MCP Integration](./docs/specs/MCP_INTEGRATION.md)** - Model Context Protocol guide
-- **[Technical Specs](./docs/specs/)** - Complete technical documentation
+- **[User Documentation](./docs/users/)** - Installation guides and user tutorials
+- **[API Reference](./docs/specs/API_REFERENCE.md)** - Complete REST API documentation
+- **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
+- **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide
 
 ## 📄 License
 
