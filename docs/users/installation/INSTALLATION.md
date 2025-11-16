@@ -39,19 +39,12 @@ This will:
 - ✅ Start service automatically
 - ✅ Enable auto-start on boot
 
-## Manual Installation
+## Installation Methods
 
-### Building from Source
+- **[Docker Installation](./DOCKER.md)** - Complete Docker deployment guide
+- **[Building from Source](./BUILD_FROM_SOURCE.md)** - Build Vectorizer from source code
 
-```bash
-git clone https://github.com/hivellm/vectorizer.git
-cd vectorizer
-cargo build --release
-```
-
-The binary will be at `target/release/vectorizer` (or `target/release/vectorizer.exe` on Windows).
-
-### Docker Installation
+### Quick Docker Installation
 
 ```bash
 docker run -d \
@@ -61,6 +54,16 @@ docker run -d \
   --restart unless-stopped \
   ghcr.io/hivellm/vectorizer:latest
 ```
+
+### Quick Build from Source
+
+```bash
+git clone https://github.com/hivellm/vectorizer.git
+cd vectorizer
+cargo build --release
+```
+
+The binary will be at `target/release/vectorizer` (or `target/release/vectorizer.exe` on Windows).
 
 ## Verification
 
