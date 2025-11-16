@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### **Qdrant Migration Tools**
+
+- **ADDED**: Configuration parser for Qdrant YAML/JSON config files (`QdrantConfigParser`)
+- **ADDED**: Configuration validation with error and warning reporting
+- **ADDED**: Automatic conversion from Qdrant config format to Vectorizer format
+- **ADDED**: Data export tool to fetch collections from Qdrant instances (`QdrantDataExporter`)
+- **ADDED**: Data import tool to migrate collections into Vectorizer (`QdrantDataImporter`)
+- **ADDED**: Migration validator with compatibility checks and integrity validation (`MigrationValidator`)
+- **ADDED**: Comprehensive migration test suite (12 tests covering all scenarios)
+- **ADDED**: Migration documentation with examples and troubleshooting guide
+- **ADDED**: Support for all distance metrics (Cosine, Euclidean, Dot Product)
+- **ADDED**: HNSW configuration migration (m, ef_construct, ef)
+- **ADDED**: Quantization configuration migration (int8, int4)
+- **BENEFIT**: Seamless migration from Qdrant to Vectorizer with validation and integrity checks
+
 #### **Production Documentation**
+
 - **ADDED**: Complete production deployment guide (`docs/PRODUCTION_GUIDE.md`)
 - **ADDED**: Pre-production checklist with infrastructure and application requirements
 - **ADDED**: Performance and reliability configuration guides
@@ -29,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### **Hybrid Search Support**
+
 - **ADDED**: Hybrid search combining dense and sparse vectors
 - **ADDED**: Three scoring algorithms: RRF (Reciprocal Rank Fusion), Weighted Combination, Alpha Blending
 - **ADDED**: Configurable parameters: alpha, dense_k, sparse_k, final_k
@@ -39,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BENEFIT**: Improved search quality by combining semantic (dense) and keyword (sparse) signals
 
 #### **Qdrant REST API Compatibility**
+
 - **ADDED**: Full Qdrant REST API compatibility layer at `/qdrant/*` endpoints
 - **ADDED**: Collection management endpoints (list, get, create, update, delete)
 - **ADDED**: Point operations (upsert, retrieve, delete, scroll, count)
@@ -47,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BENEFIT**: Easy migration from Qdrant to Vectorizer without code changes
 
 #### **SDK Updates**
+
 - **ADDED**: Hybrid search support in all SDKs (Python, TypeScript, JavaScript, Rust)
 - **ADDED**: Qdrant compatibility methods in all SDKs
 - **ADDED**: Consistent API across all SDKs for hybrid search and Qdrant operations

@@ -17,6 +17,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **💾 Compact Storage**: Unified `.vecdb` format with 20-30% space savings and automatic snapshots
 - **🔄 Master-Replica Replication**: High availability with automatic failover (BETA)
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
+- **🔄 Qdrant Migration**: Complete migration tools for seamless transition from Qdrant
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
 - **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
@@ -159,10 +160,37 @@ Cursor IDE configuration:
 - **Rust**: `cargo add vectorizer-sdk`
 - **JavaScript**: `npm install @hivellm/vectorizer-sdk-js`
 
+## 🔄 Qdrant Migration
+
+Vectorizer provides comprehensive migration tools to help you migrate from Qdrant:
+
+- **Configuration Migration**: Parse and convert Qdrant config files (YAML/JSON) to Vectorizer format
+- **Data Migration**: Export collections from Qdrant and import into Vectorizer
+- **Validation**: Validate exported data, check compatibility, and verify integrity after migration
+- **REST API Compatibility**: Full Qdrant REST API compatibility at `/qdrant/*` endpoints
+
+**Quick Migration Example:**
+
+```rust
+use vectorizer::migration::qdrant::{QdrantDataExporter, QdrantDataImporter};
+
+// Export from Qdrant
+let exported = QdrantDataExporter::export_collection(
+    "http://localhost:6333",
+    "my_collection"
+).await?;
+
+// Import into Vectorizer
+let result = QdrantDataImporter::import_collection(&store, &exported).await?;
+```
+
+See [Qdrant Migration Guide](./docs/specs/QDRANT_MIGRATION.md) for detailed instructions.
+
 ## 📚 Documentation
 
 - **[User Documentation](./docs/users/)** - Installation guides and user tutorials
 - **[API Reference](./docs/specs/API_REFERENCE.md)** - Complete REST API documentation
+- **[Qdrant Compatibility](./docs/users/qdrant/)** - Qdrant API compatibility and migration guide
 - **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
 - **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide
 
