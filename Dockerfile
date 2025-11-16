@@ -1,13 +1,84 @@
 # Multi-stage Dockerfile for Vectorizer
 # Based on Qdrant's production-grade Docker build strategy
 #
+# ============================================================================
+# BUILD EXAMPLES
+# ============================================================================
 # Local build examples:
 #   docker build -t vectorizer:local .
-#   docker build -t vectorizer:1.2.3 .
+#   docker build -t vectorizer:1.3.0 .
 #   docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest .
 #
 # Multi-platform build:
 #   docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/hivellm/vectorizer:latest --push .
+#
+# ============================================================================
+# RUN EXAMPLES
+# ============================================================================
+# Basic run (default port 15002):
+#   docker run -d -p 15002:15002 --name vectorizer vectorizer:latest
+#
+# Run with persistent storage:
+#   docker run -d -p 15002:15002 \
+#     -v vectorizer-data:/vectorizer/data \
+#     -v vectorizer-storage:/vectorizer/storage \
+#     -v vectorizer-snapshots:/vectorizer/snapshots \
+#     --name vectorizer vectorizer:latest
+#
+# Run with custom host/port:
+#   docker run -d -p 8080:15002 \
+#     -e VECTORIZER_HOST=0.0.0.0 \
+#     -e VECTORIZER_PORT=15002 \
+#     --name vectorizer vectorizer:latest
+#
+# Run with custom user (non-root):
+#   docker run -d -p 15002:15002 \
+#     --user 1000:1000 \
+#     -v vectorizer-data:/vectorizer/data \
+#     --name vectorizer vectorizer:latest
+#
+# Run with environment variables:
+#   docker run -d -p 15002:15002 \
+#     -e VECTORIZER_HOST=0.0.0.0 \
+#     -e VECTORIZER_PORT=15002 \
+#     -e RUN_MODE=production \
+#     -e TZ=America/Sao_Paulo \
+#     --name vectorizer vectorizer:latest
+#
+# Run with Docker Compose:
+#   docker-compose up -d
+#
+# Access logs:
+#   docker logs vectorizer
+#   docker logs -f vectorizer  # follow logs
+#
+# Stop container:
+#   docker stop vectorizer
+#   docker rm vectorizer
+#
+# ============================================================================
+# DOCKER COMPOSE EXAMPLE
+# ============================================================================
+# Create docker-compose.yml:
+#   version: '3.8'
+#   services:
+#     vectorizer:
+#       image: vectorizer:latest
+#       ports:
+#         - "15002:15002"
+#       volumes:
+#         - vectorizer-data:/vectorizer/data
+#         - vectorizer-storage:/vectorizer/storage
+#         - vectorizer-snapshots:/vectorizer/snapshots
+#       environment:
+#         - VECTORIZER_HOST=0.0.0.0
+#         - VECTORIZER_PORT=15002
+#         - RUN_MODE=production
+#       restart: unless-stopped
+#   volumes:
+#     vectorizer-data:
+#     vectorizer-storage:
+#     vectorizer-snapshots:
 
 # Cross-compiling using Docker multi-platform builds
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
