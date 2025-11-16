@@ -25,6 +25,15 @@
 #     -v vectorizer-snapshots:/vectorizer/snapshots \
 #     --name vectorizer vectorizer:latest
 #
+# Run with workspace configuration (monorepo):
+#   docker run -d -p 15002:15002 \
+#     -v $(pwd)/vectorizer-data:/vectorizer/data \
+#     -v $(pwd)/vectorizer-storage:/vectorizer/storage \
+#     -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
+#     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+#     -v $(pwd)/../../:/workspace:ro \
+#     --name vectorizer vectorizer:latest
+#
 # Run with custom host/port:
 #   docker run -d -p 8080:15002 \
 #     -e VECTORIZER_HOST=0.0.0.0 \
@@ -43,6 +52,15 @@
 #     -e VECTORIZER_PORT=15002 \
 #     -e RUN_MODE=production \
 #     -e TZ=America/Sao_Paulo \
+#     --name vectorizer vectorizer:latest
+#
+# Run with workspace (recommended for monorepo):
+#   docker run -d -p 15002:15002 \
+#     -v $(pwd)/vectorizer-data:/vectorizer/data \
+#     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+#     -v $(pwd)/../../:/workspace:ro \
+#     -e VECTORIZER_HOST=0.0.0.0 \
+#     -e VECTORIZER_PORT=15002 \
 #     --name vectorizer vectorizer:latest
 #
 # Run with Docker Compose:
@@ -70,6 +88,8 @@
 #         - vectorizer-data:/vectorizer/data
 #         - vectorizer-storage:/vectorizer/storage
 #         - vectorizer-snapshots:/vectorizer/snapshots
+#         - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
+#         - ../../:/workspace:ro
 #       environment:
 #         - VECTORIZER_HOST=0.0.0.0
 #         - VECTORIZER_PORT=15002

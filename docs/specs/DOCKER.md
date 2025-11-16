@@ -27,12 +27,19 @@ docker run -p 15002:15002 \
 
 ### With Monorepo Access (Recommended)
 
-```bash
-# Create Docker-specific workspace config first
-cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
-# Edit vectorize-workspace.docker.yml with /workspace/* paths
+This setup allows Vectorizer to index multiple projects in a monorepo structure.
 
-# Run with monorepo access
+**Step 1**: Create Docker-specific workspace config:
+```bash
+# Copy example workspace config
+cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
+
+# Edit vectorize-workspace.docker.yml with /workspace/* paths
+# All paths in the config should use container paths starting with /workspace/
+```
+
+**Step 2**: Run with monorepo access:
+```bash
 docker run -d \
   --name vectorizer \
   -p 15002:15002 \
@@ -48,12 +55,18 @@ docker run -d \
   -e TZ=America/Sao_Paulo \
   --restart unless-stopped \
   ghcr.io/hivellm/vectorizer:latest
+```
 
-# View logs
-docker logs -f vectorizer
+**Step 3**: Verify workspace is loaded:
+```bash
+# View logs to confirm workspace loading
+docker logs vectorizer | grep -i workspace
 
-# Stop
-docker stop vectorizer && docker rm vectorizer
+# Check if workspace file is accessible
+docker exec vectorizer cat /vectorizer/vectorize-workspace.yml
+
+# Verify mounted directories
+docker exec vectorizer ls -la /workspace/
 ```
 
 **Path mapping**:
@@ -61,11 +74,18 @@ docker stop vectorizer && docker rm vectorizer
 - Host: `../../cmmv/cmmv` → Container: `/workspace/cmmv/cmmv`
 - Host: `../../hivellm/governance` → Container: `/workspace/hivellm/governance`
 
+**Important**: 
+- The workspace file **must** be mounted to `/vectorizer/vectorize-workspace.yml`
+- All paths in `vectorize-workspace.docker.yml` should use container paths (e.g., `/workspace/project-name`)
+- Use `:ro` (read-only) flag for security when mounting source directories
+
 ### With Workspace Configuration
 
 **Important**: Workspace paths are different for Docker vs. local execution:
 - **Local execution**: Use relative paths like `../../cmmv/cmmv`
 - **Docker execution**: Use container paths like `/workspace/cmmv/cmmv`
+
+**Default workspace file location**: The container looks for `vectorize-workspace.yml` at `/vectorizer/vectorize-workspace.yml` (inside the container).
 
 1. Create workspace configs:
 ```bash
@@ -78,18 +98,35 @@ cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
 # Edit both files according to your needs
 ```
 
-2. Run with Docker (uses .docker.yml automatically):
+2. Run with Docker (mount workspace file):
 ```bash
-docker run -p 15002:15002 \
+docker run -d -p 15002:15002 \
+  --name vectorizer \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
-  -v $(pwd)/vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
+  -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
   -v $(pwd)/src:/workspace/src:ro \
   -v $(pwd)/docs:/workspace/docs:ro \
   ghcr.io/hivellm/vectorizer:latest
 ```
 
-**Note**: Adjust the mounted volumes (`src`, `docs`) to match your `watch_directories` in the workspace config.
+**Note**: 
+- The workspace file must be mounted to `/vectorizer/vectorize-workspace.yml` inside the container
+- Adjust the mounted volumes (`src`, `docs`) to match your `watch_paths` in the workspace config
+- Use `:ro` (read-only) flag for workspace file and source directories for security
+
+3. Verify workspace is loaded:
+```bash
+# Check if workspace file is accessible
+docker exec vectorizer cat /vectorizer/vectorize-workspace.yml
+
+# Check if workspace directories are mounted
+docker exec vectorizer ls -la /workspace/
+
+# View logs to confirm workspace loading
+docker logs vectorizer | grep -i workspace
+```
 
 ### With Monorepo / Multiple Projects
 
@@ -245,8 +282,29 @@ volumes:
 ├── vectorizer-storage/       # Additional storage
 ├── vectorizer-snapshots/     # Automatic snapshots
 ├── vectorizer-dashboard/     # Dashboard data and assets
-└── vectorize-workspace.yml   # Workspace configuration
+└── vectorize-workspace.yml   # Workspace configuration (must be mounted to /vectorizer/vectorize-workspace.yml)
 ```
+
+### Container Directory Structure
+
+Inside the container:
+```
+/vectorizer/
+├── vectorizer              # Executable
+├── vectorize-workspace.yml # Workspace config (default location)
+├── data/                  # Collection data
+├── storage/               # Additional storage
+├── snapshots/             # Automatic snapshots
+├── dashboard/             # Dashboard data
+└── .logs/                 # Log files
+
+/workspace/                # Mount point for source code (optional)
+├── src/                   # Your source code
+├── docs/                  # Documentation
+└── ...                    # Other projects/directories
+```
+
+**Important**: The workspace configuration file must be mounted to `/vectorizer/vectorize-workspace.yml` for the container to find it automatically.
 
 ## Unprivileged Image
 
@@ -331,17 +389,37 @@ docker run --user $(id -u):$(id -g) ...
 ```
 
 ### Workspace not loading
-1. Verify the workspace file is mounted correctly:
+
+1. **Verify the workspace file is mounted correctly**:
 ```bash
 docker exec <container-id> cat /vectorizer/vectorize-workspace.yml
 ```
 
-2. Check that watched directories are mounted:
+If the file doesn't exist, mount it:
+```bash
+docker run ... -v $(pwd)/vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro ...
+```
+
+2. **Check that watched directories are mounted**:
 ```bash
 docker exec <container-id> ls -la /workspace/
 ```
 
-3. Ensure paths in `vectorize-workspace.yml` match mounted volumes.
+3. **Ensure paths in `vectorize-workspace.yml` match mounted volumes**:
+   - Container paths should start with `/workspace/` (e.g., `/workspace/src`)
+   - Host paths should match your `-v` mount points
+   - Example: If you mount `-v $(pwd)/src:/workspace/src:ro`, use `/workspace/src` in workspace config
+
+4. **Check workspace loading logs**:
+```bash
+docker logs <container-id> | grep -i workspace
+```
+
+5. **Common issues**:
+   - **File not found**: Workspace file must be at `/vectorizer/vectorize-workspace.yml` inside container
+   - **Path mismatch**: Container paths in config don't match mounted volumes
+   - **Permission denied**: Use `:ro` flag for read-only mounts, ensure directories are readable
+   - **YAML syntax error**: Validate YAML syntax before mounting
 
 ### Data not persisting
 Ensure volumes are mounted correctly:
