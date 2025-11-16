@@ -27,7 +27,15 @@ Complete installation guides for all platforms:
 Quick start guides and tutorials:
 
 - [Quick Start Guide](./getting-started/QUICK_START.md) - Get up and running in minutes
+- [First Steps](./getting-started/FIRST_STEPS.md) - Complete guide after installation
 - [Quick Start (Windows)](./getting-started/QUICK_START_WINDOWS.md) - Windows-specific guide
+
+### 🔌 [API Reference](./api/)
+
+REST API documentation:
+
+- [REST API Reference](./api/API_REFERENCE.md) - Complete API endpoint reference
+- All endpoints, request/response formats, examples
 
 ### 📦 [Collections](./collections/)
 

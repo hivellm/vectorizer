@@ -88,6 +88,14 @@ let results = client.search("my_docs", "vector database", 5).await?;
 
 ## Next Steps
 
-- [Collections Guide](../collections/COLLECTIONS.md) - Learn about collections
+1. **[First Steps](./FIRST_STEPS.md)** - Complete guide after installation
+2. **[Collections Guide](../collections/CREATING.md)** - Learn how to create collections
+3. **[Basic Search](../search/BASIC.md)** - Start searching your data
+4. **[Use Cases](../use-cases/)** - See real-world examples
+
+## Additional Resources
+
+- [Collections Guide](../collections/COLLECTIONS.md) - Complete collections reference
 - [Search Guide](../search/SEARCH.md) - Advanced search features
-- [SDKs Guide](../sdks/SDKS.md) - Complete SDK documentation
+- [SDKs Guide](../sdks/README.md) - Complete SDK documentation
+- [API Reference](../api/API_REFERENCE.md) - REST API documentation
