@@ -40,23 +40,34 @@ public partial class VectorizerClient
     /// <summary>
     /// Performs a semantic search
     /// </summary>
-    public async Task<List<SearchResult>> SemanticSearchAsync(
-        string collectionName,
-        string query,
-        int maxResults = 10,
-        bool semanticReranking = true,
+    public async Task<SemanticSearchResponse> SemanticSearchAsync(
+        SemanticSearchRequest request,
         CancellationToken cancellationToken = default)
     {
-        var request = new Dictionary<string, object>
-        {
-            ["collection"] = collectionName,
-            ["query"] = query,
-            ["max_results"] = maxResults,
-            ["semantic_reranking"] = semanticReranking
-        };
-
-        return await RequestAsync<List<SearchResult>>(
+        return await RequestAsync<SemanticSearchResponse>(
             "POST", "/semantic_search", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Performs a contextual search
+    /// </summary>
+    public async Task<ContextualSearchResponse> ContextualSearchAsync(
+        ContextualSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<ContextualSearchResponse>(
+            "POST", "/contextual_search", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Performs a multi-collection search
+    /// </summary>
+    public async Task<MultiCollectionSearchResponse> MultiCollectionSearchAsync(
+        MultiCollectionSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<MultiCollectionSearchResponse>(
+            "POST", "/multi_collection_search", request, cancellationToken);
     }
 }
 
