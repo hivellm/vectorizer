@@ -6,12 +6,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Official C# client library for the Hive Vectorizer vector database</Description>
+    <PackageId>Vectorizer.Sdk</PackageId>
     <Authors>HiveLLM Contributors</Authors>
     <Company>HiveLLM</Company>
     <Product>Vectorizer.Sdk</Product>
-    <Description>Official C# client library for the Hive Vectorizer vector database</Description>
-    <PackageId>Vectorizer.Sdk</PackageId>
     <Copyright>Copyright © HiveLLM 2025</Copyright>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+    <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/hivellm/vectorizer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/hivellm/vectorizer</RepositoryUrl>
@@ -29,8 +37,6 @@
     <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <!-- Disable auto-generated AssemblyInfo to avoid conflicts -->
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
@@ -41,7 +47,6 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\..\..\Logo-HiveLLM-512x512.png" Pack="true" PackagePath="\icon.png" />
   </ItemGroup>
 
 </Project>
