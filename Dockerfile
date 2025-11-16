@@ -19,35 +19,32 @@
 #   docker run -d -p 15002:15002 --name vectorizer vectorizer:latest
 #
 # Run with persistent storage:
-#   # Bash/Linux/Mac:
+#   # Bash/Linux/Mac (bind mount to ./data):
 #   docker run -d -p 15002:15002 \
-#     -v vectorizer-data:/vectorizer/data \
-#     -v vectorizer-storage:/vectorizer/storage \
-#     -v vectorizer-snapshots:/vectorizer/snapshots \
+#     -v $(pwd)/data:/vectorizer/data \
 #     --name vectorizer vectorizer:latest
 #
-#   # PowerShell (Windows) - named volumes work the same:
+#   # PowerShell (Windows) - bind mount to ./data:
 #   docker run -d -p 15002:15002 `
-#     -v vectorizer-data:/vectorizer/data `
-#     -v vectorizer-storage:/vectorizer/storage `
-#     -v vectorizer-snapshots:/vectorizer/snapshots `
+#     -v ${PWD}/data:/vectorizer/data `
+#     --name vectorizer vectorizer:latest
+#
+#   # Using named volume (Docker manages the location):
+#   docker run -d -p 15002:15002 \
+#     -v vectorizer-data:/vectorizer/data \
 #     --name vectorizer vectorizer:latest
 #
 # Run with workspace configuration (monorepo):
 #   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
-#     -v $(pwd)/vectorizer-data:/vectorizer/data \
-#     -v $(pwd)/vectorizer-storage:/vectorizer/storage \
-#     -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
+#     -v $(pwd)/data:/vectorizer/data \
 #     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
 #     -v $(pwd)/../../:/workspace:ro \
 #     --name vectorizer vectorizer:latest
 #
 #   # PowerShell (Windows):
 #   docker run -d -p 15002:15002 `
-#     -v ${PWD}/vectorizer-data:/vectorizer/data `
-#     -v ${PWD}/vectorizer-storage:/vectorizer/storage `
-#     -v ${PWD}/vectorizer-snapshots:/vectorizer/snapshots `
+#     -v ${PWD}/data:/vectorizer/data `
 #     -v ${PWD}/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro `
 #     -v ${PWD}/../../:/workspace:ro `
 #     --name vectorizer vectorizer:latest
@@ -61,7 +58,7 @@
 # Run with custom user (non-root):
 #   docker run -d -p 15002:15002 \
 #     --user 1000:1000 \
-#     -v vectorizer-data:/vectorizer/data \
+#     -v $(pwd)/data:/vectorizer/data \
 #     --name vectorizer vectorizer:latest
 #
 # Run with environment variables:
@@ -75,7 +72,7 @@
 # Run with workspace (recommended for monorepo):
 #   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
-#     -v $(pwd)/vectorizer-data:/vectorizer/data \
+#     -v $(pwd)/data:/vectorizer/data \
 #     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
 #     -v $(pwd)/../../:/workspace:ro \
 #     -e VECTORIZER_HOST=0.0.0.0 \
@@ -84,7 +81,7 @@
 #
 #   # PowerShell (Windows):
 #   docker run -d -p 15002:15002 `
-#     -v ${PWD}/vectorizer-data:/vectorizer/data `
+#     -v ${PWD}/data:/vectorizer/data `
 #     -v ${PWD}/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro `
 #     -v ${PWD}/../../:/workspace:ro `
 #     -e VECTORIZER_HOST=0.0.0.0 `
@@ -113,9 +110,7 @@
 #       ports:
 #         - "15002:15002"
 #       volumes:
-#         - vectorizer-data:/vectorizer/data
-#         - vectorizer-storage:/vectorizer/storage
-#         - vectorizer-snapshots:/vectorizer/snapshots
+#         - ./data:/vectorizer/data
 #         - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
 #         - ../../:/workspace:ro
 #       environment:
@@ -123,10 +118,6 @@
 #         - VECTORIZER_PORT=15002
 #         - RUN_MODE=production
 #       restart: unless-stopped
-#   volumes:
-#     vectorizer-data:
-#     vectorizer-storage:
-#     vectorizer-snapshots:
 
 # Cross-compiling using Docker multi-platform builds
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
