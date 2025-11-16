@@ -19,19 +19,37 @@
 #   docker run -d -p 15002:15002 --name vectorizer vectorizer:latest
 #
 # Run with persistent storage:
+#   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
 #     -v vectorizer-data:/vectorizer/data \
 #     -v vectorizer-storage:/vectorizer/storage \
 #     -v vectorizer-snapshots:/vectorizer/snapshots \
 #     --name vectorizer vectorizer:latest
 #
+#   # PowerShell (Windows) - named volumes work the same:
+#   docker run -d -p 15002:15002 `
+#     -v vectorizer-data:/vectorizer/data `
+#     -v vectorizer-storage:/vectorizer/storage `
+#     -v vectorizer-snapshots:/vectorizer/snapshots `
+#     --name vectorizer vectorizer:latest
+#
 # Run with workspace configuration (monorepo):
+#   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
 #     -v $(pwd)/vectorizer-data:/vectorizer/data \
 #     -v $(pwd)/vectorizer-storage:/vectorizer/storage \
 #     -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
 #     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
 #     -v $(pwd)/../../:/workspace:ro \
+#     --name vectorizer vectorizer:latest
+#
+#   # PowerShell (Windows):
+#   docker run -d -p 15002:15002 `
+#     -v ${PWD}/vectorizer-data:/vectorizer/data `
+#     -v ${PWD}/vectorizer-storage:/vectorizer/storage `
+#     -v ${PWD}/vectorizer-snapshots:/vectorizer/snapshots `
+#     -v ${PWD}/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro `
+#     -v ${PWD}/../../:/workspace:ro `
 #     --name vectorizer vectorizer:latest
 #
 # Run with custom host/port:
@@ -55,12 +73,22 @@
 #     --name vectorizer vectorizer:latest
 #
 # Run with workspace (recommended for monorepo):
+#   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
 #     -v $(pwd)/vectorizer-data:/vectorizer/data \
 #     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
 #     -v $(pwd)/../../:/workspace:ro \
 #     -e VECTORIZER_HOST=0.0.0.0 \
 #     -e VECTORIZER_PORT=15002 \
+#     --name vectorizer vectorizer:latest
+#
+#   # PowerShell (Windows):
+#   docker run -d -p 15002:15002 `
+#     -v ${PWD}/vectorizer-data:/vectorizer/data `
+#     -v ${PWD}/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro `
+#     -v ${PWD}/../../:/workspace:ro `
+#     -e VECTORIZER_HOST=0.0.0.0 `
+#     -e VECTORIZER_PORT=15002 `
 #     --name vectorizer vectorizer:latest
 #
 # Run with Docker Compose:
