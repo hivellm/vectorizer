@@ -15,16 +15,36 @@ Complete REST API documentation and integration guides.
 
 ### [REST API Reference](./API_REFERENCE.md)
 
-Complete reference for all REST API endpoints:
+Complete reference for all API endpoints:
 
+**REST API:**
 - System endpoints (health, stats)
 - Collection management
 - Vector operations
-- Search endpoints
+- Search endpoints (basic, intelligent, semantic, hybrid)
 - Batch operations
-- Qdrant-compatible endpoints
 - File operations
 - Discovery endpoints
+
+**MCP (Model Context Protocol):**
+- StreamableHTTP connection (v0.9.0)
+- JSON-RPC 2.0 protocol
+- 38+ MCP tools (collections, vectors, search, batch, discovery, files)
+- Complete tool reference with examples
+
+**UMICP (Universal Multi-Agent Communication Protocol):**
+- UMICP v0.2.1 support
+- Envelope-based communication
+- Tool discovery endpoint (`/umicp/discover`)
+- All 38+ MCP tools available via UMICP
+
+**Qdrant Compatibility:**
+- Full REST API compatibility
+- Collection management (create, get, update, delete, list)
+- Point operations (upsert, retrieve, delete, count, scroll)
+- Search operations (search, batch search, recommend)
+- Collection aliases
+- Migration guide
 
 ## Integration
 
