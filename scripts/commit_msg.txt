@@ -1,14 +1,22 @@
-Improve installation scripts based on Bun's installation pattern
+Add automatic system service installation to install scripts
 
-- Add parameter support (Version, NoPathUpdate, Force)
-- Add architecture compatibility checks
-- Improve error handling and user feedback
-- Add version normalization (v1.3.0 or 1.3.0)
-- Add binary backup before installation
-- Check for running processes before installation
-- Better PATH handling with option to skip
-- Improved success messages and tips
-- Add quiet git operations for cleaner output
-- Better Rust installation error handling
+- Linux/macOS: Installs systemd service that auto-starts on boot
+  - Creates /var/lib/vectorizer data directory
+  - Creates vectorizer system user
+  - Configures service with security hardening
+  - Enables and starts service automatically
+  
+- Windows: Installs Windows Service that auto-starts on boot
+  - Creates ProgramData\Vectorizer data directory
+  - Configures service with auto-restart on failure
+  - Handles Administrator privilege requirements
+  
+- CLI remains available in PATH for terminal usage
+- Updated README with service management commands
+- Updated config/vectorizer.service with correct paths
 
-Scripts now follow industry best practices similar to Bun's installer
+The Vectorizer server now runs as a system service that:
+- Starts automatically on system boot
+- Restarts automatically on failure
+- Runs in background
+- CLI tool remains available for manual operations

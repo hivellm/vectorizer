@@ -194,7 +194,7 @@ if (Test-Path $BinaryPath) {
     if (-not $InstalledVersion) { $InstalledVersion = "unknown" }
     
     Write-Host ""
-    Write-Host "✅ Vectorizer installed successfully!" -ForegroundColor Green
+    Write-Host "✅ Vectorizer CLI installed successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Version: $InstalledVersion" -ForegroundColor Green
     Write-Host "Binary location: $BinDir\vectorizer.exe"
@@ -208,11 +208,72 @@ if (Test-Path $BinaryPath) {
         Write-Host ""
     }
     
-    Write-Host "Run 'vectorizer --help' to get started."
+    # Install Windows Service
+    Write-Host "🔧 Installing Vectorizer as Windows Service..." -ForegroundColor Green
+    
+    # Check if running as Administrator
+    $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    if (-not $IsAdmin) {
+        Write-Host "⚠️  Service installation requires Administrator privileges." -ForegroundColor Yellow
+        Write-Host "Please run PowerShell as Administrator and execute:" -ForegroundColor Yellow
+        Write-Host "  sc.exe create Vectorizer binPath= `"$ExistingBinary --host 0.0.0.0 --port 15002`" start= auto" -ForegroundColor Cyan
+        Write-Host "  sc.exe start Vectorizer" -ForegroundColor Cyan
+        Write-Host ""
+    } else {
+        # Create data directory
+        $DataDir = "$env:ProgramData\Vectorizer"
+        if (-not (Test-Path $DataDir)) {
+            New-Item -ItemType Directory -Path $DataDir -Force | Out-Null
+        }
+        
+        # Check if service already exists
+        $ServiceExists = Get-Service -Name "Vectorizer" -ErrorAction SilentlyContinue
+        
+        if ($ServiceExists) {
+            Write-Host "⚠️  Vectorizer service already exists. Updating..." -ForegroundColor Yellow
+            Stop-Service -Name "Vectorizer" -ErrorAction SilentlyContinue
+            sc.exe config Vectorizer binPath= "`"$ExistingBinary --host 0.0.0.0 --port 15002`""
+        } else {
+            Write-Host "Creating Vectorizer Windows Service..." -ForegroundColor Cyan
+            sc.exe create Vectorizer binPath= "`"$ExistingBinary --host 0.0.0.0 --port 15002`"" start= auto DisplayName= "Vectorizer Vector Database"
+        }
+        
+        # Configure service to start automatically
+        sc.exe config Vectorizer start= auto
+        sc.exe failure Vectorizer reset= 86400 actions= restart/5000/restart/10000/restart/20000
+        
+        # Start service
+        Write-Host "Starting Vectorizer service..." -ForegroundColor Cyan
+        Start-Service -Name "Vectorizer" -ErrorAction SilentlyContinue
+        
+        # Wait and check status
+        Start-Sleep -Seconds 2
+        $ServiceStatus = Get-Service -Name "Vectorizer" -ErrorAction SilentlyContinue
+        
+        if ($ServiceStatus -and $ServiceStatus.Status -eq "Running") {
+            Write-Host "✅ Vectorizer service is running!" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "Service commands:"
+            Write-Host "  Get-Service Vectorizer           # Check status"
+            Write-Host "  Restart-Service Vectorizer        # Restart service"
+            Write-Host "  Stop-Service Vectorizer           # Stop service"
+            Write-Host "  Start-Service Vectorizer           # Start service"
+            Write-Host ""
+        } else {
+            Write-Host "⚠️  Service installed but not running. Check status with:" -ForegroundColor Yellow
+            Write-Host "  Get-Service Vectorizer" -ForegroundColor Cyan
+            Write-Host ""
+        }
+    }
+    
+    Write-Host "CLI commands:"
+    Write-Host "  vectorizer --help              # Show CLI help"
+    Write-Host "  vectorizer --version           # Show version"
     Write-Host ""
     
     if (-not $NoPathUpdate) {
-        Write-Host "💡 Tip: Restart your terminal or run 'refreshenv' to use vectorizer immediately." -ForegroundColor Cyan
+        Write-Host "💡 Tip: Restart your terminal or run 'refreshenv' to use vectorizer CLI immediately." -ForegroundColor Cyan
     } else {
         Write-Host "⚠️  Skipped adding to PATH (NoPathUpdate flag)" -ForegroundColor Yellow
         Write-Host "Please add $BinDir to your PATH environment variable manually."

@@ -163,7 +163,7 @@ if [ -f "$BINARY_PATH" ]; then
     if command -v vectorizer &> /dev/null; then
         INSTALLED_VERSION=$(vectorizer --version 2>/dev/null || echo "unknown")
         echo ""
-        echo -e "${GREEN}✅ Vectorizer installed successfully!${NC}"
+        echo -e "${GREEN}✅ Vectorizer CLI installed successfully!${NC}"
         echo ""
         echo -e "${GREEN}Version: $INSTALLED_VERSION${NC}"
         echo "Binary location: $BIN_DIR/vectorizer"
@@ -177,10 +177,98 @@ if [ -f "$BINARY_PATH" ]; then
             echo ""
         fi
         
-        echo "Run 'vectorizer --help' to get started."
+        # Install systemd service (Linux only)
+        if [[ "$OS" == "Linux" ]]; then
+            echo -e "${GREEN}🔧 Installing Vectorizer as system service...${NC}"
+            
+            # Create data directory
+            DATA_DIR="/var/lib/vectorizer"
+            if [ ! -d "$DATA_DIR" ]; then
+                sudo mkdir -p "$DATA_DIR"
+            fi
+            
+            # Create vectorizer user if it doesn't exist
+            if ! id "vectorizer" &>/dev/null; then
+                echo -e "${BLUE}Creating vectorizer user...${NC}"
+                sudo useradd -r -s /bin/false -d "$DATA_DIR" vectorizer 2>/dev/null || true
+            fi
+            
+            # Create systemd service file
+            SERVICE_FILE="/etc/systemd/system/vectorizer.service"
+            SERVICE_CONTENT="[Unit]
+Description=Vectorizer - High-Performance Vector Database
+Documentation=https://github.com/hivellm/vectorizer
+After=network.target
+
+[Service]
+Type=simple
+User=vectorizer
+Group=vectorizer
+WorkingDirectory=$DATA_DIR
+ExecStart=$BIN_DIR/vectorizer --host 0.0.0.0 --port 15002
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$DATA_DIR
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target"
+            
+            echo "$SERVICE_CONTENT" | sudo tee "$SERVICE_FILE" > /dev/null
+            
+            # Set permissions
+            sudo chown -R vectorizer:vectorizer "$DATA_DIR" 2>/dev/null || true
+            
+            # Reload systemd
+            sudo systemctl daemon-reload
+            
+            # Enable and start service
+            echo -e "${BLUE}Enabling Vectorizer service to start on boot...${NC}"
+            sudo systemctl enable vectorizer.service
+            
+            # Check if service is already running
+            if sudo systemctl is-active --quiet vectorizer.service; then
+                echo -e "${YELLOW}⚠️  Vectorizer service is already running. Restarting...${NC}"
+                sudo systemctl restart vectorizer.service
+            else
+                echo -e "${BLUE}Starting Vectorizer service...${NC}"
+                sudo systemctl start vectorizer.service
+            fi
+            
+            # Wait a moment and check status
+            sleep 2
+            if sudo systemctl is-active --quiet vectorizer.service; then
+                echo -e "${GREEN}✅ Vectorizer service is running!${NC}"
+                echo ""
+                echo "Service commands:"
+                echo "  sudo systemctl status vectorizer  # Check status"
+                echo "  sudo systemctl restart vectorizer  # Restart service"
+                echo "  sudo systemctl stop vectorizer     # Stop service"
+                echo "  sudo journalctl -u vectorizer -f   # View logs"
+                echo ""
+            else
+                echo -e "${YELLOW}⚠️  Service installed but not running. Check status with:${NC}"
+                echo "  sudo systemctl status vectorizer"
+                echo ""
+            fi
+        fi
+        
+        echo "CLI commands:"
+        echo "  vectorizer --help              # Show CLI help"
+        echo "  vectorizer --version           # Show version"
         echo ""
         if [[ "$NO_PATH_UPDATE" == "false" ]]; then
-            echo -e "${BLUE}💡 Tip: Restart your terminal or run 'source ~/.bashrc' to use vectorizer immediately.${NC}"
+            echo -e "${BLUE}💡 Tip: Restart your terminal or run 'source ~/.bashrc' to use vectorizer CLI immediately.${NC}"
         fi
     else
         if [[ "$NO_PATH_UPDATE" == "false" ]]; then

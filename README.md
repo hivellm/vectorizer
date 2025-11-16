@@ -28,15 +28,41 @@ A high-performance vector database and search engine built in Rust, designed for
 
 ### Install Script (Linux/macOS)
 
+Installs Vectorizer CLI and configures it as a system service that starts automatically on boot:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hivellm/vectorizer/main/scripts/install.sh | bash
 ```
 
+**After installation:**
+
+- ✅ CLI available: `vectorizer --help`
+- ✅ Service running: `sudo systemctl status vectorizer`
+- ✅ Auto-starts on boot
+- ✅ Service commands:
+  - `sudo systemctl restart vectorizer` - Restart service
+  - `sudo systemctl stop vectorizer` - Stop service
+  - `sudo journalctl -u vectorizer -f` - View logs
+
 ### Install Script (Windows PowerShell)
+
+Installs Vectorizer CLI and configures it as a Windows Service that starts automatically on boot:
 
 ```powershell
 powershell -c "irm https://raw.githubusercontent.com/hivellm/vectorizer/main/scripts/install.ps1 | iex"
 ```
+
+**Note:** Service installation requires Administrator privileges. If not running as admin, the script will provide instructions.
+
+**After installation:**
+
+- ✅ CLI available: `vectorizer --help`
+- ✅ Service running: `Get-Service Vectorizer`
+- ✅ Auto-starts on boot
+- ✅ Service commands:
+  - `Restart-Service Vectorizer` - Restart service
+  - `Stop-Service Vectorizer` - Stop service
+  - `Start-Service Vectorizer` - Start service
 
 ### Using Docker (Recommended)
 
