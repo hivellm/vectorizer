@@ -16,6 +16,7 @@ Optimize Vectorizer for your specific use case and workload.
 ### Search Latency
 
 Typical search latencies:
+
 - **Basic search**: < 3ms (CPU), < 1ms (Metal GPU)
 - **Intelligent search**: 10-50ms (depending on query expansion)
 - **Semantic search**: 5-20ms (with reranking)
@@ -24,6 +25,7 @@ Typical search latencies:
 ### Throughput
 
 Typical throughput:
+
 - **Insertions**: 1,000-10,000 vectors/second
 - **Searches**: 1,000-5,000 queries/second
 - **Batch operations**: 10,000-50,000 vectors/second
@@ -31,6 +33,7 @@ Typical throughput:
 ### Memory Usage
 
 Memory per vector (approximate):
+
 - **Without quantization**: 4 bytes × dimension
 - **With 8-bit quantization**: 1 byte × dimension
 - **With 4-bit quantization**: 0.5 bytes × dimension
@@ -59,6 +62,7 @@ Optimize for fastest search:
 ```
 
 **Trade-offs:**
+
 - ✅ Fastest search (< 1ms)
 - ✅ Lower memory usage
 - ⚠️ Slightly lower recall
@@ -83,6 +87,7 @@ Optimize for best search quality:
 ```
 
 **Trade-offs:**
+
 - ✅ Highest recall and precision
 - ✅ Best search quality
 - ⚠️ Slower search (5-10ms)
@@ -110,6 +115,7 @@ Good balance of speed and quality:
 ```
 
 **Trade-offs:**
+
 - ✅ Good balance
 - ✅ Reasonable speed (2-3ms)
 - ✅ Good recall
@@ -125,6 +131,7 @@ Controls the number of connections in the graph:
 - **High (32)**: Slower, more memory, higher recall
 
 **Recommendations:**
+
 - Small collections (<10K): m=8-16
 - Medium collections (10K-1M): m=16-24
 - Large collections (>1M): m=24-32
@@ -138,6 +145,7 @@ Controls search width during index building:
 - **High (400)**: Slower build, higher quality
 
 **Recommendations:**
+
 - Fast indexing: ef_construction=100-150
 - Balanced: ef_construction=200
 - High quality: ef_construction=300-400
@@ -151,6 +159,7 @@ Controls search width during queries:
 - **High (128+)**: Slower, higher recall
 
 **Recommendations:**
+
 - Fast search: ef_search=32-48
 - Balanced: ef_search=64-96
 - High recall: ef_search=128-256
@@ -160,7 +169,7 @@ Controls search width during queries:
 ### Memory Savings
 
 | Bits | Memory Reduction | Accuracy Loss |
-|------|------------------|---------------|
+| ---- | ---------------- | ------------- |
 | 16   | 25%              | <1%           |
 | 8    | 50%              | 1-2%          |
 | 4    | 75%              | 3-5%          |
@@ -197,12 +206,12 @@ results = await client.search(
 
 ### Choose the Right Search Method
 
-| Method | Speed | Quality | Use Case |
-|--------|-------|---------|----------|
-| Basic search | Fastest | Good | Simple queries |
-| Intelligent search | Slower | Best | Research, discovery |
-| Semantic search | Medium | Excellent | Precise matching |
-| Hybrid search | Slowest | Best | When sparse available |
+| Method             | Speed   | Quality   | Use Case              |
+| ------------------ | ------- | --------- | --------------------- |
+| Basic search       | Fastest | Good      | Simple queries        |
+| Intelligent search | Slower  | Best      | Research, discovery   |
+| Semantic search    | Medium  | Excellent | Precise matching      |
+| Hybrid search      | Slowest | Best      | When sparse available |
 
 ## Insertion Optimization
 
@@ -234,16 +243,16 @@ import asyncio
 async def parallel_insert(collection, texts, batch_size=1000, workers=4):
     """Insert texts in parallel batches."""
     tasks = []
-    
+
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
         task = client.batch_insert_text(collection, batch)
         tasks.append(task)
-        
+
         if len(tasks) >= workers:
             await asyncio.gather(*tasks)
             tasks = []
-    
+
     if tasks:
         await asyncio.gather(*tasks)
 ```
@@ -294,6 +303,7 @@ cargo build --release --features hive-gpu
 ```
 
 **Benefits:**
+
 - 3-5x faster search
 - < 1ms search latency
 - Better throughput
@@ -346,17 +356,17 @@ import time
 async def benchmark_search(client, collection, query, iterations=1000):
     """Benchmark search performance."""
     latencies = []
-    
+
     for _ in range(iterations):
         start = time.time()
         await client.search(collection, query, limit=10)
         latency = (time.time() - start) * 1000
         latencies.append(latency)
-    
+
     avg_latency = sum(latencies) / len(latencies)
     p95_latency = sorted(latencies)[int(len(latencies) * 0.95)]
     p99_latency = sorted(latencies)[int(len(latencies) * 0.99)]
-    
+
     print(f"Average: {avg_latency:.2f}ms")
     print(f"P95: {p95_latency:.2f}ms")
     print(f"P99: {p99_latency:.2f}ms")
@@ -378,4 +388,3 @@ async def benchmark_search(client, collection, query, iterations=1000):
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection configuration
 - [Configuration Guide](../configuration/CONFIGURATION.md) - Server configuration
 - [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING.md) - Performance issues
-

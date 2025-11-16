@@ -1,11 +1,48 @@
-Add README files to documentation topic directories and format fixes
+Expand user documentation with comprehensive guides and examples
 
-- Added README.md to getting-started/ and installation/ directories
-- Fixed quote formatting in SDK examples (single to double quotes)
-- Improved navigation within topic directories
-- Each topic directory now has its own index README
+- Expanded Collections Guide (463 lines):
+  - Complete configuration options (HNSW, quantization, metrics)
+  - Detailed parameter explanations
+  - Performance tuning guidelines
+  - Common patterns and best practices
+  - Troubleshooting section
 
-This improves:
-- Navigation within each topic
-- Discovery of related guides
-- Consistency across documentation structure
+- Expanded Search Guide (400+ lines):
+  - All search methods with detailed parameters
+  - Use case recommendations
+  - Performance optimization tips
+  - Examples for each search type
+  - Best practices and troubleshooting
+
+- Added Vectors Guide (new):
+  - Complete CRUD operations
+  - Batch operations
+  - Metadata management
+  - Sparse vectors
+  - Common patterns and examples
+
+- Added Examples Guide (new):
+  - 8 real-world examples
+  - Document search system
+  - Code search engine
+  - Recommendation system
+  - Q&A system with RAG
+  - Multi-collection search
+  - Hybrid search
+  - Batch processing
+  - Real-time search
+
+- Added Performance Guide (new):
+  - Performance metrics and benchmarks
+  - Configuration optimization
+  - HNSW parameter tuning
+  - Memory optimization
+  - CPU/GPU optimization
+  - Monitoring and benchmarking
+
+All guides include:
+- Detailed explanations
+- Code examples (REST API, Python, TypeScript)
+- Best practices
+- Troubleshooting sections
+- Related topics links
