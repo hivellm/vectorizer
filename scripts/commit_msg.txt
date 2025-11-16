@@ -1,48 +1,34 @@
-Expand user documentation with comprehensive guides and examples
+Subdivide user documentation into focused files by topic
 
-- Expanded Collections Guide (463 lines):
-  - Complete configuration options (HNSW, quantization, metrics)
-  - Detailed parameter explanations
-  - Performance tuning guidelines
-  - Common patterns and best practices
-  - Troubleshooting section
+SDKs split by language:
+- PYTHON.md - Complete Python SDK guide
+- TYPESCRIPT.md - Complete TypeScript/JavaScript SDK guide
+- JAVASCRIPT.md - JavaScript SDK guide
+- RUST.md - Complete Rust SDK guide
+- README.md - SDKs index
 
-- Expanded Search Guide (400+ lines):
-  - All search methods with detailed parameters
-  - Use case recommendations
-  - Performance optimization tips
-  - Examples for each search type
-  - Best practices and troubleshooting
+Collections split by operation:
+- CREATING.md - How to create collections
+- CONFIGURATION.md - Advanced configuration options
+- OPERATIONS.md - Managing collections (list, get, update, delete)
+- COLLECTIONS.md - Complete comprehensive guide
+- README.md - Collections index
 
-- Added Vectors Guide (new):
-  - Complete CRUD operations
-  - Batch operations
-  - Metadata management
-  - Sparse vectors
-  - Common patterns and examples
+Search split by type:
+- BASIC.md - Basic search operations
+- ADVANCED.md - Advanced search methods (intelligent, semantic, hybrid)
+- SEARCH.md - Complete search guide
+- README.md - Search index
 
-- Added Examples Guide (new):
-  - 8 real-world examples
-  - Document search system
-  - Code search engine
-  - Recommendation system
-  - Q&A system with RAG
-  - Multi-collection search
-  - Hybrid search
-  - Batch processing
-  - Real-time search
+Vectors split by operation:
+- INSERT.md - Inserting vectors
+- UPDATE.md - Updating vectors
+- DELETE.md - Deleting vectors
+- VECTORS.md - Complete vectors guide
+- README.md - Vectors index
 
-- Added Performance Guide (new):
-  - Performance metrics and benchmarks
-  - Configuration optimization
-  - HNSW parameter tuning
-  - Memory optimization
-  - CPU/GPU optimization
-  - Monitoring and benchmarking
-
-All guides include:
+All files include:
 - Detailed explanations
 - Code examples (REST API, Python, TypeScript)
 - Best practices
-- Troubleshooting sections
 - Related topics links
