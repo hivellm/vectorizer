@@ -1,0 +1,342 @@
+# Vectorizer C# SDK
+
+[![NuGet version](https://img.shields.io/nuget/v/Vectorizer.Sdk.svg)](https://www.nuget.org/packages/Vectorizer.Sdk)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+High-performance C# SDK for Vectorizer vector database.
+
+**Package**: `Vectorizer.Sdk`  
+**Version**: 1.3.0  
+**NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
+
+## Features
+
+- ✅ **Async/Await Support**: Full async/await support for high performance
+- ✅ **.NET 8.0+**: Modern C# with latest language features
+- ✅ **Type Safety**: Strong typing with comprehensive models
+- ✅ **Collection Management**: CRUD operations for collections
+- ✅ **Vector Operations**: Insert, search, update, delete vectors
+- ✅ **Semantic Search**: Text and vector similarity search
+- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
+- ✅ **Semantic Search**: High-precision semantic search with reranking
+- ✅ **Hybrid Search**: Combine dense and sparse vectors for improved search quality
+- ✅ **Batch Operations**: Efficient bulk operations
+- ✅ **Error Handling**: Comprehensive exception handling
+- ✅ **IDisposable**: Proper resource management
+
+## Installation
+
+```bash
+dotnet add package Vectorizer.Sdk
+
+# Or via NuGet Package Manager
+Install-Package Vectorizer.Sdk
+
+# Or specific version
+dotnet add package Vectorizer.Sdk --version 1.3.0
+```
+
+## Quick Start
+
+```csharp
+using Vectorizer;
+using Vectorizer.Models;
+
+// Create client
+var client = new VectorizerClient(new ClientConfig
+{
+    BaseUrl = "http://localhost:15002",
+    ApiKey = "your-api-key"
+});
+
+try
+{
+    // Health check
+    await client.HealthAsync();
+    Console.WriteLine("✓ Server is healthy");
+
+    // Create collection
+    var collection = await client.CreateCollectionAsync(new CreateCollectionRequest
+    {
+        Name = "documents",
+        Config = new CollectionConfig
+        {
+            Dimension = 384,
+            Metric = DistanceMetric.Cosine
+        }
+    });
+    Console.WriteLine($"✓ Created collection: {collection.Name}");
+
+    // Insert text
+    var result = await client.InsertTextAsync("documents", "Hello, world!", null);
+    Console.WriteLine($"✓ Inserted vector ID: {result.Id}");
+
+    // Search
+    var results = await client.SearchTextAsync("documents", "hello", new SearchOptions
+    {
+        Limit = 10
+    });
+    Console.WriteLine($"✓ Found {results.Count} results");
+
+    // Intelligent search
+    var intelligentResults = await client.IntelligentSearchAsync(new IntelligentSearchRequest
+    {
+        Query = "machine learning algorithms",
+        Collections = new List<string> { "documents" },
+        MaxResults = 15,
+        DomainExpansion = true,
+        TechnicalFocus = true,
+        MMREnabled = true,
+        MMRLambda = 0.7
+    });
+    Console.WriteLine($"✓ Intelligent search found {intelligentResults.Count} results");
+
+    // Semantic search
+    var semanticResults = await client.SemanticSearchAsync(
+        "documents",
+        "neural networks",
+        maxResults: 10,
+        semanticReranking: true
+    );
+    Console.WriteLine($"✓ Semantic search found {semanticResults.Count} results");
+}
+catch (VectorizerException ex)
+{
+    Console.WriteLine($"Error: {ex.ErrorType} - {ex.Message}");
+}
+finally
+{
+    client.Dispose();
+}
+```
+
+## Configuration
+
+### Basic Configuration
+
+```csharp
+var client = new VectorizerClient(new ClientConfig
+{
+    BaseUrl = "http://localhost:15002",
+    ApiKey = "your-api-key",
+    TimeoutSeconds = 30
+});
+```
+
+### Custom HTTP Client
+
+```csharp
+var httpClient = new HttpClient
+{
+    Timeout = TimeSpan.FromSeconds(60)
+};
+
+var client = new VectorizerClient(new ClientConfig
+{
+    BaseUrl = "http://localhost:15002",
+    ApiKey = "your-api-key",
+    HttpClient = httpClient
+});
+```
+
+## API Reference
+
+### Collection Management
+
+```csharp
+// List collections
+var collections = await client.ListCollectionsAsync();
+
+// Get collection info
+var info = await client.GetCollectionInfoAsync("documents");
+
+// Create collection
+var collection = await client.CreateCollectionAsync(new CreateCollectionRequest
+{
+    Name = "documents",
+    Config = new CollectionConfig
+    {
+        Dimension = 384,
+        Metric = DistanceMetric.Cosine
+    }
+});
+
+// Delete collection
+await client.DeleteCollectionAsync("documents");
+```
+
+### Vector Operations
+
+```csharp
+// Insert text (with automatic embedding)
+var result = await client.InsertTextAsync("documents", "Hello, world!", new Dictionary<string, object>
+{
+    ["source"] = "example.txt"
+});
+
+// Get vector
+var vector = await client.GetVectorAsync("documents", "vector-id");
+
+// Update vector
+await client.UpdateVectorAsync("documents", "vector-id", new Vector
+{
+    Id = "vector-id",
+    Data = new float[] { 0.1f, 0.2f, 0.3f },
+    Payload = new Dictionary<string, object>
+    {
+        ["updated"] = true
+    }
+});
+
+// Delete vector
+await client.DeleteVectorAsync("documents", "vector-id");
+
+// Vector search
+var results = await client.SearchAsync("documents", new float[] { 0.1f, 0.2f, 0.3f }, new SearchOptions
+{
+    Limit = 10
+});
+
+// Text search
+var textResults = await client.SearchTextAsync("documents", "query", new SearchOptions
+{
+    Limit = 10,
+    Filter = new Dictionary<string, object>
+    {
+        ["category"] = "AI"
+    }
+});
+```
+
+### Intelligent Search
+
+```csharp
+// Intelligent search with multi-query expansion
+var results = await client.IntelligentSearchAsync(new IntelligentSearchRequest
+{
+    Query = "machine learning algorithms",
+    Collections = new List<string> { "documents", "research" },
+    MaxResults = 15,
+    DomainExpansion = true,
+    TechnicalFocus = true,
+    MMREnabled = true,
+    MMRLambda = 0.7
+});
+```
+
+### Semantic Search
+
+```csharp
+// Semantic search with reranking
+var results = await client.SemanticSearchAsync(
+    collectionName: "documents",
+    query: "neural networks",
+    maxResults: 10,
+    semanticReranking: true,
+    similarityThreshold: 0.6
+);
+```
+
+### Batch Operations
+
+```csharp
+// Batch insert
+var batchResult = await client.BatchInsertAsync("documents", new BatchInsertRequest
+{
+    Texts = new List<string>
+    {
+        "Machine learning algorithms",
+        "Deep learning neural networks",
+        "Natural language processing"
+    }
+});
+
+// Batch search
+var batchSearchResult = await client.BatchSearchAsync("documents", new BatchSearchRequest
+{
+    Queries = new List<string>
+    {
+        "machine learning",
+        "neural networks",
+        "NLP techniques"
+    },
+    Limit = 5
+});
+```
+
+## Error Handling
+
+```csharp
+try
+{
+    var collection = await client.CreateCollectionAsync(new CreateCollectionRequest
+    {
+        Name = "documents",
+        Config = new CollectionConfig
+        {
+            Dimension = 384,
+            Metric = DistanceMetric.Cosine
+        }
+    });
+}
+catch (VectorizerException ex)
+{
+    if (ex.IsNotFound)
+    {
+        Console.WriteLine("Collection not found");
+    }
+    else if (ex.IsUnauthorized)
+    {
+        Console.WriteLine("Authentication failed");
+    }
+    else if (ex.IsValidationError)
+    {
+        Console.WriteLine($"Validation error: {ex.Message}");
+    }
+    else
+    {
+        Console.WriteLine($"Error: {ex.ErrorType} - {ex.Message} (status: {ex.StatusCode})");
+    }
+}
+```
+
+## Examples
+
+See [Examples](./Examples/) directory for more usage examples:
+
+- [Basic Example](./Examples/BasicExample.cs) - Basic operations
+- More examples coming soon
+
+## Development
+
+```bash
+# Restore dependencies
+dotnet restore
+
+# Build
+dotnet build
+
+# Run tests
+dotnet test
+
+# Build release
+dotnet build -c Release
+
+# Pack NuGet package
+dotnet pack -c Release
+```
+
+## Requirements
+
+- .NET 8.0 or later
+- System.Text.Json 9.0.0+
+
+## License
+
+Apache License 2.0 - see [LICENSE](./LICENSE) for details.
+
+## Support
+
+- **Documentation**: [Vectorizer Documentation](../../docs/)
+- **Issues**: [GitHub Issues](https://github.com/hivellm/vectorizer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/hivellm/vectorizer/discussions)

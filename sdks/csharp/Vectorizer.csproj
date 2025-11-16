@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>HiveLLM Contributors</Authors>
+    <Company>HiveLLM</Company>
+    <Product>Vectorizer.Sdk</Product>
+    <Description>Official C# client library for the Hive Vectorizer vector database</Description>
+    <PackageId>Vectorizer.Sdk</PackageId>
+    <Copyright>Copyright © HiveLLM 2025</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/hivellm/vectorizer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/hivellm/vectorizer</RepositoryUrl>
+    <Version>1.3.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

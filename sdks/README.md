@@ -5,6 +5,7 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ## Available SDKs
 
 ### 🟦 TypeScript SDK ✅
+
 - **Package**: `@hivellm/vectorizer-client-ts`
 - **Status**: Published on npm (v0.3.1)
 - **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search
@@ -12,6 +13,7 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
 
 ### 🟨 JavaScript SDK ✅
+
 - **Package**: `@hivellm/vectorizer-client-js`
 - **Status**: Published on npm (v0.3.1)
 - **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search
@@ -19,6 +21,7 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 - **Documentation**: [JavaScript SDK README](./javascript/README.md)
 
 ### 🦀 Rust SDK ✅
+
 - **Package**: `vectorizer-rust-sdk`
 - **Status**: Published on crates.io (v0.3.1)
 - **Features**: High performance, async/await, MCP support, type safety, intelligent search
@@ -26,33 +29,54 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
+
 - **Package**: `hivellm-vectorizer-client`
 - **Status**: Published on PyPI (v0.3.1)
 - **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search
 - **Installation**: `pip install hivellm-vectorizer-client`
 - **Documentation**: [Python SDK README](./python/README.md)
 
+### 🐹 Go SDK 🚧
+
+- **Package**: `github.com/hivellm/vectorizer-sdk-go`
+- **Status**: In Development
+- **Features**: High performance, simple API, comprehensive error handling, intelligent search
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go`
+- **Documentation**: [Go SDK README](./go/README.md)
+
+### 🔷 C# SDK 🚧
+
+- **Package**: `Vectorizer.Sdk`
+- **Status**: In Development
+- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search
+- **Installation**: `dotnet add package Vectorizer.Sdk`
+- **Documentation**: [C# SDK README](./csharp/README.md)
+
 ## 🧠 Intelligent Search Features (v0.3.1)
 
 All SDKs now support advanced intelligent search capabilities:
 
 ### 🔍 Intelligent Search
+
 - **Multi-query expansion**: Automatically generates multiple search queries
 - **Domain knowledge**: Technology-specific term expansion
 - **MMR diversification**: Ensures diverse, high-quality results
 - **Technical focus**: Prioritizes technical content and API documentation
 
 ### 🎯 Semantic Search
+
 - **Advanced reranking**: Multi-factor scoring system
 - **Similarity thresholds**: Configurable relevance filtering
 - **Cross-encoder support**: Optional neural reranking
 
 ### 🎪 Contextual Search
+
 - **Metadata filtering**: Search within specific contexts
 - **Context-aware reranking**: Considers metadata relevance
 - **Weighted scoring**: Balance between semantic and contextual factors
 
 ### 🔗 Multi-Collection Search
+
 - **Cross-collection search**: Search across multiple collections simultaneously
 - **Intelligent aggregation**: Unified ranking across collections
 - **Collection-specific limits**: Control results per collection
@@ -68,7 +92,7 @@ const results = await client.intelligentSearch({
   domain_expansion: true,
   technical_focus: true,
   mmr_enabled: true,
-  mmr_lambda: 0.7
+  mmr_lambda: 0.7,
 });
 
 // Contextual search with metadata filtering
@@ -78,10 +102,10 @@ const contextualResults = await client.contextualSearch({
   context_filters: {
     category: "AI",
     language: "en",
-    year: 2023
+    year: 2023,
   },
   max_results: 10,
-  context_weight: 0.4
+  context_weight: 0.4,
 });
 ```
 
@@ -90,31 +114,33 @@ const contextualResults = await client.contextualSearch({
 ### TypeScript/JavaScript
 
 ```typescript
-import { VectorizerClient } from '@hivellm/vectorizer-client';
+import { VectorizerClient } from "@hivellm/vectorizer-client";
 
 const client = new VectorizerClient({
-  baseURL: 'http://localhost:15001',
-  apiKey: 'your-api-key'
+  baseURL: "http://localhost:15001",
+  apiKey: "your-api-key",
 });
 
 // Create collection
 await client.createCollection({
-  name: 'documents',
+  name: "documents",
   dimension: 768,
-  similarity_metric: 'cosine'
+  similarity_metric: "cosine",
 });
 
 // Insert texts
-await client.insertTexts('documents', [{
-  id: 'doc_1',
-  text: 'This is a sample document about machine learning',
-  metadata: { source: 'document.pdf', category: 'AI' }
-}]);
+await client.insertTexts("documents", [
+  {
+    id: "doc_1",
+    text: "This is a sample document about machine learning",
+    metadata: { source: "document.pdf", category: "AI" },
+  },
+]);
 
 // Search
-const results = await client.searchVectors('documents', {
-  query_vector: [0.1, 0.2, 0.3, /* ... 768 dimensions */],
-  limit: 5
+const results = await client.searchVectors("documents", {
+  query_vector: [0.1, 0.2, 0.3 /* ... 768 dimensions */],
+  limit: 5,
 });
 ```
 
@@ -160,10 +186,10 @@ use std::collections::HashMap;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = VectorizerClient::new_default()?;
-    
+
     // Create collection
     client.create_collection("documents", 768, Some(SimilarityMetric::Cosine)).await?;
-    
+
     // Insert texts
     let texts = vec![BatchTextRequest {
         id: "doc_1".to_string(),
@@ -175,13 +201,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             meta
         }),
     }];
-    
+
     client.insert_texts("documents", texts).await?;
-    
+
     // Search
     let results = client.search_vectors("documents", "machine learning", Some(5), None).await?;
     println!("Found {} results", results.results.len());
-    
+
     Ok(())
 }
 ```
@@ -207,20 +233,33 @@ All SDKs provide:
 All SDKs support high-performance batch operations for efficient processing of large datasets:
 
 ### Batch Insert Texts
+
 ```typescript
 // TypeScript/JavaScript
-const batchResult = await client.batchInsertTexts('documents', {
+const batchResult = await client.batchInsertTexts("documents", {
   texts: [
-    { id: 'doc1', text: 'Machine learning algorithms', metadata: { category: 'AI' } },
-    { id: 'doc2', text: 'Deep learning neural networks', metadata: { category: 'AI' } },
-    { id: 'doc3', text: 'Natural language processing', metadata: { category: 'NLP' } }
+    {
+      id: "doc1",
+      text: "Machine learning algorithms",
+      metadata: { category: "AI" },
+    },
+    {
+      id: "doc2",
+      text: "Deep learning neural networks",
+      metadata: { category: "AI" },
+    },
+    {
+      id: "doc3",
+      text: "Natural language processing",
+      metadata: { category: "NLP" },
+    },
   ],
   config: {
-    provider: 'bm25',
+    provider: "bm25",
     max_batch_size: 100,
     parallel_workers: 4,
-    atomic: true
-  }
+    atomic: true,
+  },
 });
 ```
 
@@ -239,15 +278,16 @@ batch_result = await client.batch_insert_texts('documents', BatchInsertRequest(
 ```
 
 ### Batch Search
+
 ```typescript
 // TypeScript/JavaScript
-const searchResult = await client.batchSearchVectors('documents', {
+const searchResult = await client.batchSearchVectors("documents", {
   queries: [
-    { query: 'machine learning', limit: 5 },
-    { query: 'neural networks', limit: 3 },
-    { query: 'NLP techniques', limit: 4 }
+    { query: "machine learning", limit: 5 },
+    { query: "neural networks", limit: 3 },
+    { query: "NLP techniques", limit: 4 },
   ],
-  config: { provider: 'bm25', parallel_workers: 2 }
+  config: { provider: "bm25", parallel_workers: 2 },
 });
 ```
 
@@ -266,11 +306,12 @@ search_result = await client.batch_search_vectors('documents', BatchSearchReques
 ```
 
 ### Batch Delete
+
 ```typescript
 // TypeScript/JavaScript
-const deleteResult = await client.batchDeleteVectors('documents', {
-  vector_ids: ['doc1', 'doc2', 'doc3'],
-  config: { atomic: true }
+const deleteResult = await client.batchDeleteVectors("documents", {
+  vector_ids: ["doc1", "doc2", "doc3"],
+  config: { atomic: true },
 });
 ```
 
@@ -314,13 +355,14 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 All SDKs support intelligent text and context summarization with multiple algorithms:
 
 ### Summarize Text
+
 ```typescript
 // TypeScript/JavaScript
 const summary = await client.summarizeText({
-  text: 'Long document text here...',
-  method: 'extractive', // extractive, keyword, sentence, abstractive
+  text: "Long document text here...",
+  method: "extractive", // extractive, keyword, sentence, abstractive
   compression_ratio: 0.3,
-  language: 'en'
+  language: "en",
 });
 
 console.log(`Summary: ${summary.summary}`);
@@ -343,13 +385,14 @@ print(f"Compression: {summary.compression_ratio}")
 ```
 
 ### Summarize Context
+
 ```typescript
 // TypeScript/JavaScript
 const contextSummary = await client.summarizeContext({
-  context: 'Context information here...',
-  method: 'keyword',
+  context: "Context information here...",
+  method: "keyword",
   max_length: 100,
-  language: 'en'
+  language: "en",
 });
 ```
 
@@ -366,6 +409,7 @@ context_summary = await client.summarize_context(SummarizeContextRequest(
 ```
 
 ### Summary Management
+
 ```typescript
 // TypeScript/JavaScript
 // Get summary by ID
@@ -373,9 +417,9 @@ const retrieved = await client.getSummary(summary.summary_id);
 
 // List summaries with filtering
 const summaries = await client.listSummaries({
-  method: 'extractive',
-  language: 'en',
-  limit: 10
+  method: "extractive",
+  language: "en",
+  limit: 10,
 });
 ```
 
@@ -393,6 +437,7 @@ summaries = await client.list_summaries(
 ```
 
 ### Available Summarization Methods
+
 - **extractive**: Uses MMR (Maximal Marginal Relevance) algorithm for extractive summarization
 - **keyword**: Extracts key terms and phrases
 - **sentence**: Selects most important sentences
