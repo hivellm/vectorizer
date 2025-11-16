@@ -26,6 +26,7 @@ powershell -c "irm https://raw.githubusercontent.com/hivellm/vectorizer/main/scr
 ```
 
 This will:
+
 - Install Vectorizer CLI
 - Configure as Windows Service
 - Start the service automatically

@@ -1,22 +1,25 @@
-Add automatic system service installation to install scripts
+Reorganize user documentation using Dgeni-style structure with topics
 
-- Linux/macOS: Installs systemd service that auto-starts on boot
-  - Creates /var/lib/vectorizer data directory
-  - Creates vectorizer system user
-  - Configures service with security hardening
-  - Enables and starts service automatically
-  
-- Windows: Installs Windows Service that auto-starts on boot
-  - Creates ProgramData\Vectorizer data directory
-  - Configures service with auto-restart on failure
-  - Handles Administrator privilege requirements
-  
-- CLI remains available in PATH for terminal usage
-- Updated README with service management commands
-- Updated config/vectorizer.service with correct paths
+- Created topic-based directory structure:
+  - installation/ - Installation guides
+  - getting-started/ - Quick start tutorials
+  - collections/ - Collection management
+  - search/ - Search features and methods
+  - sdks/ - Client SDKs documentation
+  - service-management/ - Service management
+  - configuration/ - Configuration guides
+  - troubleshooting/ - Troubleshooting guide
 
-The Vectorizer server now runs as a system service that:
-- Starts automatically on system boot
-- Restarts automatically on failure
-- Runs in background
-- CLI tool remains available for manual operations
+- Added frontmatter YAML metadata to all documents (Dgeni format):
+  - title, module, id, order, description, tags
+  
+- Each document is self-contained with related topics links
+- Organized by user workflow and topics
+- Removed duplicate files from root
+- Updated main README with topic-based navigation
+
+This structure makes it easy to:
+- Navigate by topic
+- Generate documentation sites with Dgeni
+- Maintain and update specific topics independently
+- Follow user workflows logically
