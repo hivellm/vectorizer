@@ -1,7 +1,7 @@
 # Security Policy
 
-**Version**: 1.2.0  
-**Last Updated**: October 25, 2025
+**Version**: 1.3.0  
+**Last Updated**: November 16, 2025
 
 ---
 
@@ -172,6 +172,107 @@ security:
 - ✅ Restart server
 - ✅ Backup/restore data
 
+### 6. Enhanced Security Features
+
+Advanced security capabilities for high-security environments.
+
+#### Multi-Factor Authentication (MFA)
+
+Optional MFA support for additional authentication layers:
+
+```yaml
+security:
+  enhanced:
+    authentication:
+      enable_mfa: true
+      mfa_methods: ["totp", "sms", "email"]
+      account_lockout:
+        enabled: true
+        max_attempts: 5
+        lockout_duration_seconds: 900
+```
+
+**Supported MFA Methods**:
+- TOTP (Time-based One-Time Password)
+- SMS verification
+- Email verification
+- Biometric authentication (platform-dependent)
+
+#### Threat Detection
+
+Automated threat detection and response:
+
+```yaml
+security:
+  enhanced:
+    threat_detection:
+      enabled: true
+      alert_thresholds:
+        failed_login_attempts: 5
+        suspicious_activity_score: 80
+      response_actions:
+        - "block_ip"
+        - "require_mfa"
+        - "notify_admin"
+```
+
+**Detected Threats**:
+- Brute force attacks
+- Suspicious access patterns
+- Unusual API usage
+- Resource exhaustion attempts
+- Anomalous behavior patterns
+
+#### Security Policy Engine
+
+Configurable security policies for compliance:
+
+```yaml
+security:
+  enhanced:
+    security_policy:
+      enabled: true
+      rules:
+        - name: "password_policy"
+          type: "password_complexity"
+          min_length: 12
+          require_uppercase: true
+          require_lowercase: true
+          require_numbers: true
+          require_special: true
+```
+
+### 7. System Guardrails
+
+Runtime protection against system crashes and resource exhaustion.
+
+#### Guardrails Configuration
+
+```yaml
+security:
+  guardrails:
+    enabled: true
+    max_memory_percent: 75.0
+    max_cpu_percent: 90.0
+    min_free_memory_mb: 512
+    max_concurrent_ops: 4
+    auto_throttle: true
+    windows_protection: true
+```
+
+**Protection Features**:
+- Memory usage monitoring (prevents OOM crashes)
+- CPU usage throttling (prevents system overload)
+- Concurrent operation limits (prevents resource exhaustion)
+- Automatic throttling under load
+- Windows-specific protections (prevents BSOD)
+
+**Violation Handling**:
+- Automatic resource throttling
+- Operation queuing when limits exceeded
+- Violation logging and alerting
+- Graceful degradation
+
 ---
 
 ## Security Best Practices
@@ -198,6 +299,9 @@ security:
 - [ ] Backup audit logs to external storage
 - [ ] Use secrets management (Vault, AWS Secrets Manager)
 - [ ] Enable correlation IDs for request tracking
+- [ ] Enable enhanced security features (MFA, threat detection)
+- [ ] Configure system guardrails for production
+- [ ] Use client SDKs with built-in security features
 
 #### ⚠️ Avoid
 
@@ -305,6 +409,70 @@ secrets:
     external: true
 ```
 
+### Client SDK Security
+
+All Vectorizer client SDKs implement security best practices:
+
+#### SDK Security Features
+
+**TypeScript/JavaScript SDKs**:
+- ✅ Secure credential storage (never in code)
+- ✅ TLS/HTTPS enforcement
+- ✅ Request signing support
+- ✅ Automatic retry with exponential backoff
+- ✅ Input validation and sanitization
+
+**Python SDK**:
+- ✅ Environment variable support for credentials
+- ✅ Secure credential management
+- ✅ TLS certificate validation
+- ✅ Request timeout protection
+- ✅ Input sanitization
+
+**Rust SDK**:
+- ✅ Type-safe credential handling
+- ✅ Zero-copy where possible
+- ✅ Memory-safe operations
+- ✅ TLS certificate pinning support
+- ✅ Secure defaults
+
+**Go SDK**:
+- ✅ Secure credential storage
+- ✅ TLS configuration support
+- ✅ Context-based cancellation
+- ✅ Input validation
+- ✅ Error handling without information leakage
+
+**C# SDK**:
+- ✅ Secure credential management
+- ✅ Async/await for non-blocking operations
+- ✅ TLS certificate validation
+- ✅ Disposable pattern for resource cleanup
+- ✅ Strong typing for security
+
+#### SDK Security Best Practices
+
+```typescript
+// ✅ GOOD: Use environment variables
+const client = new VectorizerClient({
+  baseURL: process.env.VECTORIZER_URL,
+  apiKey: process.env.VECTORIZER_API_KEY
+});
+
+// ❌ BAD: Hardcoded credentials
+const client = new VectorizerClient({
+  baseURL: "https://api.example.com",
+  apiKey: "hardcoded-key-12345" // NEVER DO THIS
+});
+```
+
+**Recommendations**:
+- Store API keys in secure vaults (AWS Secrets Manager, HashiCorp Vault)
+- Use separate API keys per environment (dev/staging/prod)
+- Rotate API keys regularly
+- Never commit credentials to version control
+- Use least-privilege principle for API key permissions
+
 ---
 
 ## Compliance
@@ -362,6 +530,11 @@ secrets:
 - [ ] Document incident response
 - [ ] Regular security audits
 - [ ] Compliance documentation
+- [ ] Enable enhanced security features
+- [ ] Configure system guardrails
+- [ ] Test threat detection rules
+- [ ] Verify MFA configuration (if enabled)
+- [ ] Review security policy rules
 
 ---
 
@@ -371,6 +544,7 @@ secrets:
 
 | Version | Supported |
 |---------|-----------|
+| 1.3.x   | ✅ Yes    |
 | 1.2.x   | ✅ Yes    |
 | 1.1.x   | ✅ Yes    |
 | 1.0.x   | ⚠️ Limited |
