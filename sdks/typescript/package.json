@@ -18,7 +18,7 @@
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build",
+    "prepublishOnly": "pnpm run clean && pnpm run build",
     "dev": "ts-node examples/basic-usage.ts",
     "publish:wsl": "export BROWSER=wslview && npm publish"
   },
@@ -35,8 +35,8 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hivellm/vectorizer.git",
-    "directory": "client-sdks/typescript"
+    "url": "git+https://github.com/hivellm/vectorizer.git",
+    "directory": "sdks/typescript"
   },
   "bugs": {
     "url": "https://github.com/hivellm/vectorizer/issues"
