@@ -73,10 +73,13 @@ Managing the Vectorizer service:
 
 ### 🔧 [Configuration](./configuration/)
 
-Server and application configuration:
+Complete configuration guides:
 
-- [Configuration Guide](./configuration/CONFIGURATION.md) - Server settings, collection config, performance tuning
-- Environment variables and options
+- [Configuration Overview](./configuration/CONFIGURATION.md) - Quick reference and overview
+- [Server Configuration](./configuration/SERVER.md) - Network, ports, host binding, reverse proxy
+- [Logging Configuration](./configuration/LOGGING.md) - Log levels, filtering, aggregation
+- [Data Directory](./configuration/DATA_DIRECTORY.md) - Storage paths, snapshots, migration
+- [Performance Tuning](./configuration/PERFORMANCE.md) - Threads, memory, GPU, optimization
 
 ### 📈 [Performance](./performance/)
 
