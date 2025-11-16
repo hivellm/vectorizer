@@ -29,8 +29,28 @@ export VECTORIZER_PORT=15002
 ### Command Line Arguments
 
 ```bash
+# Basic usage
 vectorizer --host 0.0.0.0 --port 15002
+
+# With custom data directory
+vectorizer --host 0.0.0.0 --port 15002 --data-dir /var/lib/vectorizer
+
+# Enable verbose logging
+vectorizer --host 0.0.0.0 --port 15002 --log-level debug
 ```
+
+### Available Options
+
+```bash
+vectorizer --help
+```
+
+Common options:
+- `--host`: Bind address (default: 0.0.0.0)
+- `--port`: Server port (default: 15002)
+- `--data-dir`: Data directory path
+- `--log-level`: Logging level (trace, debug, info, warn, error)
+- `--workers`: Number of worker threads
 
 ## Collection Configuration
 
@@ -80,6 +100,55 @@ Vectorizer uses BM25 as the default embedding provider.
 - **BERT**: Deep learning embeddings
 - **MiniLM**: Lightweight transformer
 - **Custom**: Your own embedding model
+
+## Logging Configuration
+
+### Log Levels
+
+```bash
+# Set log level via environment variable
+export VECTORIZER_LOG_LEVEL=debug
+
+# Or via command line
+vectorizer --log-level debug
+```
+
+Available levels:
+- **trace**: Very detailed logs (development only)
+- **debug**: Debug information
+- **info**: General information (default)
+- **warn**: Warnings only
+- **error**: Errors only
+
+### Log Output
+
+Logs are written to:
+- **stdout**: When running directly
+- **systemd journal**: When running as systemd service (Linux)
+- **Event Log**: When running as Windows Service
+
+### Viewing Logs
+
+**Linux (systemd):**
+```bash
+# View recent logs
+sudo journalctl -u vectorizer -n 100
+
+# Follow logs in real-time
+sudo journalctl -u vectorizer -f
+
+# Filter by log level
+sudo journalctl -u vectorizer -p err
+```
+
+**Windows:**
+```powershell
+# View Event Log
+Get-EventLog -LogName Application -Source Vectorizer -Newest 50
+
+# Filter by level
+Get-EventLog -LogName Application -Source Vectorizer -EntryType Error
+```
 
 ## Performance Tuning
 
