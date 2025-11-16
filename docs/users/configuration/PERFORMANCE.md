@@ -20,16 +20,19 @@ Configure the number of worker threads for parallel processing.
 **Default:** Auto-detected based on CPU cores
 
 **Command Line:**
+
 ```bash
 vectorizer --workers 8
 ```
 
 **Environment Variable:**
+
 ```bash
 export VECTORIZER_WORKERS=8
 ```
 
 **YAML Configuration:**
+
 ```yaml
 performance:
   cpu:
@@ -39,11 +42,13 @@ performance:
 ### Thread Count Guidelines
 
 **Recommended:**
+
 - **Small servers (1-2 cores)**: 2-4 threads
 - **Medium servers (4-8 cores)**: 4-8 threads
 - **Large servers (8+ cores)**: 8-16 threads
 
 **Formula:**
+
 ```
 threads = CPU_cores * 1.5 (for I/O-bound workloads)
 threads = CPU_cores (for CPU-bound workloads)
@@ -56,6 +61,7 @@ threads = CPU_cores (for CPU-bound workloads)
 ### Memory Limits
 
 **Linux (systemd):**
+
 ```ini
 [Service]
 MemoryMax=4G
@@ -63,6 +69,7 @@ MemoryHigh=3G
 ```
 
 **Docker:**
+
 ```yaml
 services:
   vectorizer:
@@ -77,14 +84,16 @@ services:
 ### Memory Optimization
 
 **Enable quantization:**
+
 ```yaml
 quantization:
   enabled: true
   type: "scalar"
-  bits: 8  # 4x memory reduction
+  bits: 8 # 4x memory reduction
 ```
 
 **Enable compression:**
+
 ```yaml
 compression:
   enabled: true
@@ -93,10 +102,11 @@ compression:
 ```
 
 **Memory pool:**
+
 ```yaml
 performance:
   cpu:
-    memory_pool_size_mb: 1024  # Pre-allocated memory pool
+    memory_pool_size_mb: 1024 # Pre-allocated memory pool
 ```
 
 ## GPU Configuration
@@ -104,6 +114,7 @@ performance:
 ### macOS Metal GPU
 
 **Enable GPU acceleration:**
+
 ```yaml
 gpu:
   enabled: true
@@ -114,11 +125,13 @@ gpu:
 ```
 
 **Performance benefits:**
+
 - 3-5x faster search operations
 - 50-200x faster batch operations
 - < 1ms search latency (vs 0.6-2.4ms CPU)
 
 **Build with GPU support:**
+
 ```bash
 cargo build --release --features hive-gpu
 ```
@@ -128,6 +141,7 @@ cargo build --release --features hive-gpu
 ### Batch Size Configuration
 
 **Default batch size:**
+
 ```yaml
 performance:
   batch:
@@ -137,6 +151,7 @@ performance:
 ```
 
 **Optimal batch sizes:**
+
 - **Small batches (10-100)**: Real-time updates, low latency
 - **Medium batches (100-1000)**: Balanced performance (recommended)
 - **Large batches (1000-10000)**: Maximum throughput, bulk indexing
@@ -144,6 +159,7 @@ performance:
 ### Parallel Batch Processing
 
 **Enable parallel processing:**
+
 ```yaml
 performance:
   batch:
@@ -151,6 +167,7 @@ performance:
 ```
 
 **Benefits:**
+
 - Faster batch operations
 - Better CPU utilization
 - Improved throughput
@@ -160,6 +177,7 @@ performance:
 ### Cache Configuration
 
 **Enable query cache:**
+
 ```yaml
 performance:
   query_cache:
@@ -170,11 +188,13 @@ performance:
 ```
 
 **Parameters:**
+
 - `max_size`: Maximum cached queries (LRU eviction)
 - `ttl_seconds`: Cache entry time-to-live
 - `warmup_enabled`: Pre-populate cache on startup
 
 **Cache benefits:**
+
 - Faster repeated queries
 - Reduced CPU usage
 - Lower latency for common queries
@@ -184,59 +204,65 @@ performance:
 ### HNSW Index Tuning
 
 **High-speed configuration:**
+
 ```yaml
 index:
   type: "hnsw"
   hnsw:
-    m: 8              # Fewer connections (faster)
-    ef_construction: 100  # Faster build
-    ef_search: 32     # Faster search
+    m: 8 # Fewer connections (faster)
+    ef_construction: 100 # Faster build
+    ef_search: 32 # Faster search
 ```
 
 **High-quality configuration:**
+
 ```yaml
 index:
   type: "hnsw"
   hnsw:
-    m: 32             # More connections (better recall)
-    ef_construction: 400  # Better build quality
-    ef_search: 128    # Better search quality
+    m: 32 # More connections (better recall)
+    ef_construction: 400 # Better build quality
+    ef_search: 128 # Better search quality
 ```
 
 **Balanced configuration:**
+
 ```yaml
 index:
   type: "hnsw"
   hnsw:
-    m: 16             # Balanced
-    ef_construction: 200  # Balanced
-    ef_search: 64     # Balanced
+    m: 16 # Balanced
+    ef_construction: 200 # Balanced
+    ef_search: 64 # Balanced
 ```
 
 ### Quantization Settings
 
 **Memory-optimized:**
+
 ```yaml
 quantization:
   enabled: true
   type: "scalar"
-  bits: 4  # Maximum memory savings (8x reduction)
+  bits: 4 # Maximum memory savings (8x reduction)
 ```
 
 **Balanced:**
+
 ```yaml
 quantization:
   enabled: true
   type: "scalar"
-  bits: 8  # Recommended (4x reduction, <2% accuracy loss)
+  bits: 8 # Recommended (4x reduction, <2% accuracy loss)
 ```
 
 **Accuracy-optimized:**
+
 ```yaml
 quantization:
   enabled: true
   type: "scalar"
-  bits: 16  # Minimal accuracy loss (2x reduction)
+  bits: 16 # Minimal accuracy loss (2x reduction)
 ```
 
 ## Search Optimization
@@ -244,6 +270,7 @@ quantization:
 ### Search Parameters
 
 **Fast search:**
+
 ```python
 results = await client.search(
     "collection",
@@ -254,6 +281,7 @@ results = await client.search(
 ```
 
 **Optimized intelligent search:**
+
 ```python
 results = await client.intelligent_search(
     "collection",
@@ -280,6 +308,7 @@ results = await client.intelligent_search(
 ### Batch Insertion
 
 **Always use batch operations:**
+
 ```python
 # ✅ Good: Batch insert
 await client.batch_insert_text("collection", texts)
@@ -290,28 +319,30 @@ for text in texts:
 ```
 
 **Optimal batch size:**
+
 - 500-1000 vectors per batch
 - Adjust based on vector size and memory
 
 ### Parallel Insertion
 
 **Python example:**
+
 ```python
 import asyncio
 
 async def parallel_insert(collection, texts, batch_size=1000, workers=4):
     """Insert texts in parallel batches."""
     tasks = []
-    
+
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
         task = client.batch_insert_text(collection, batch)
         tasks.append(task)
-        
+
         if len(tasks) >= workers:
             await asyncio.gather(*tasks)
             tasks = []
-    
+
     if tasks:
         await asyncio.gather(*tasks)
 ```
@@ -321,31 +352,36 @@ async def parallel_insert(collection, texts, batch_size=1000, workers=4):
 ### CPU Affinity
 
 **Linux (taskset):**
+
 ```bash
 # Pin to specific CPU cores
 taskset -c 0-3 vectorizer --workers 4
 ```
 
 **Docker:**
+
 ```yaml
 services:
   vectorizer:
-    cpuset: "0-3"  # Use cores 0-3
+    cpuset: "0-3" # Use cores 0-3
 ```
 
 ### I/O Optimization
 
 **Use SSD storage:**
+
 - Faster random I/O for HNSW index
 - Better performance for large collections
 
 **Network optimization:**
+
 - Use localhost for local clients
 - Minimize network latency for remote clients
 
 ### Operating System Tuning
 
 **Linux (sysctl):**
+
 ```bash
 # Increase file descriptor limits
 echo "* soft nofile 65536" >> /etc/security/limits.conf
@@ -361,25 +397,30 @@ sysctl -p
 ### Key Metrics
 
 **Search latency:**
+
 - Target: < 10ms for small collections (<10K vectors)
 - Target: < 20ms for medium collections (10K-100K vectors)
 
 **Throughput:**
+
 - Insert: 4,000+ vectors/second
 - Search: 1,000+ QPS (small collections)
 
 **Memory usage:**
+
 - Monitor per collection
 - Enable quantization if > 2GB per 1M vectors
 
 ### Performance Monitoring
 
 **Prometheus metrics:**
+
 ```bash
 curl http://localhost:15002/prometheus/metrics | grep latency
 ```
 
 **Health endpoint:**
+
 ```bash
 curl http://localhost:15002/health
 ```
@@ -436,7 +477,7 @@ collections:
     quantization:
       type: "sq"
       sq:
-        bits: 4  # Maximum memory savings
+        bits: 4 # Maximum memory savings
     compression:
       enabled: true
       threshold_bytes: 512
@@ -471,12 +512,14 @@ collections:
 ### Slow Searches
 
 **Check:**
+
 1. Collection size and dimension
 2. HNSW index is built
 3. ef_search parameter (lower = faster)
 4. System resources (CPU, memory)
 
 **Solutions:**
+
 - Lower ef_search (32-48 for speed)
 - Enable quantization
 - Reduce search limit
@@ -485,12 +528,14 @@ collections:
 ### High Memory Usage
 
 **Check:**
+
 1. Collection count and size
 2. Quantization enabled
 3. Compression enabled
 4. Memory leaks
 
 **Solutions:**
+
 - Enable quantization (4x reduction)
 - Enable compression
 - Delete unused collections
@@ -499,12 +544,14 @@ collections:
 ### Low Throughput
 
 **Check:**
+
 1. Thread count
 2. Batch size
 3. Network latency
 4. Disk I/O
 
 **Solutions:**
+
 - Increase worker threads
 - Use larger batches
 - Use localhost for local clients
@@ -516,4 +563,3 @@ collections:
 - [Collection Configuration](../collections/CONFIGURATION.md) - Collection optimization
 - [Performance Guide](../performance/PERFORMANCE.md) - Detailed performance guide
 - [Monitoring Guide](../monitoring/MONITORING.md) - Performance monitoring
-

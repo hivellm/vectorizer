@@ -167,4 +167,3 @@ sc.exe failure Vectorizer reset= 86400 actions= restart/5000/restart/10000/resta
 - [Installation Guide](../installation/INSTALLATION.md) - Initial setup
 - [Configuration](../configuration/CONFIGURATION.md) - Service configuration
 - [Troubleshooting](../troubleshooting/TROUBLESHOOTING.md) - Common issues
-

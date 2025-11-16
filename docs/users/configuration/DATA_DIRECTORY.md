@@ -15,11 +15,11 @@ Complete guide to configuring data storage directories and persistence.
 
 ### Platform-Specific Defaults
 
-| Platform | Default Path | Description |
-|----------|-------------|-------------|
-| Linux | `/var/lib/vectorizer` | System data directory |
-| Windows | `%ProgramData%\Vectorizer` | Program data directory |
-| macOS | `/var/lib/vectorizer` | System data directory |
+| Platform | Default Path               | Description            |
+| -------- | -------------------------- | ---------------------- |
+| Linux    | `/var/lib/vectorizer`      | System data directory  |
+| Windows  | `%ProgramData%\Vectorizer` | Program data directory |
+| macOS    | `/var/lib/vectorizer`      | System data directory  |
 
 ### Directory Structure
 
@@ -38,22 +38,26 @@ Complete guide to configuring data storage directories and persistence.
 ### Setting Custom Directory
 
 **Command Line:**
+
 ```bash
 vectorizer --data-dir /custom/path/to/data
 ```
 
 **Environment Variable:**
+
 ```bash
 export VECTORIZER_DATA_DIR=/custom/path/to/data
 ```
 
 **YAML Configuration:**
+
 ```yaml
 storage:
   data_dir: "/custom/path/to/data"
 ```
 
 **Service Configuration (Linux):**
+
 ```ini
 [Service]
 Environment="VECTORIZER_DATA_DIR=/custom/path/to/data"
@@ -62,6 +66,7 @@ Environment="VECTORIZER_DATA_DIR=/custom/path/to/data"
 ### Directory Permissions
 
 **Linux:**
+
 ```bash
 # Create directory
 sudo mkdir -p /var/lib/vectorizer
@@ -74,6 +79,7 @@ sudo chmod 755 /var/lib/vectorizer
 ```
 
 **Windows:**
+
 ```powershell
 # Create directory
 New-Item -ItemType Directory -Path "C:\ProgramData\Vectorizer" -Force
@@ -87,6 +93,7 @@ icacls "C:\ProgramData\Vectorizer" /grant "NT AUTHORITY\SYSTEM:(OI)(CI)F"
 ### Snapshot Configuration
 
 **YAML:**
+
 ```yaml
 storage:
   snapshots_dir: "/var/lib/vectorizer/snapshots"
@@ -95,6 +102,7 @@ storage:
 ```
 
 **Parameters:**
+
 - `snapshots_dir`: Directory for storing snapshots
 - `max_snapshots`: Maximum number of snapshots to keep
 - `retention_days`: Days to retain snapshots before cleanup
@@ -102,20 +110,23 @@ storage:
 ### Write-Ahead Log (WAL)
 
 **Configuration:**
+
 ```yaml
 storage:
   wal:
     enabled: true
-    sync_interval: 1000  # milliseconds
+    sync_interval: 1000 # milliseconds
     max_size: 100MB
 ```
 
 **Benefits:**
+
 - Durability: Ensures data is written to disk
 - Recovery: Can recover from crashes
 - Performance: Batched writes
 
 **Trade-offs:**
+
 - Slightly slower writes
 - Additional disk space usage
 
@@ -124,6 +135,7 @@ storage:
 ### Monitoring Disk Usage
 
 **Check directory size:**
+
 ```bash
 # Linux
 du -sh /var/lib/vectorizer
@@ -132,7 +144,7 @@ du -sh /var/lib/vectorizer
 du -sh /var/lib/vectorizer/collections/*
 
 # Windows
-Get-ChildItem "C:\ProgramData\Vectorizer" -Recurse | 
+Get-ChildItem "C:\ProgramData\Vectorizer" -Recurse |
     Measure-Object -Property Length -Sum
 ```
 
@@ -141,13 +153,14 @@ Get-ChildItem "C:\ProgramData\Vectorizer" -Recurse |
 **Estimated space per million vectors:**
 
 | Dimension | Without Quantization | With 8-bit Quantization |
-|-----------|---------------------|------------------------|
-| 384 | ~1.5 GB | ~375 MB |
-| 512 | ~2 GB | ~500 MB |
-| 768 | ~3 GB | ~750 MB |
-| 1536 | ~6 GB | ~1.5 GB |
+| --------- | -------------------- | ----------------------- |
+| 384       | ~1.5 GB              | ~375 MB                 |
+| 512       | ~2 GB                | ~500 MB                 |
+| 768       | ~3 GB                | ~750 MB                 |
+| 1536      | ~6 GB                | ~1.5 GB                 |
 
 **Additional space:**
+
 - Indexes: ~20-30% of vector data
 - Snapshots: Full copy of data
 - WAL: ~10-20% of data (if enabled)
@@ -155,21 +168,24 @@ Get-ChildItem "C:\ProgramData\Vectorizer" -Recurse |
 ### Disk Space Optimization
 
 **Enable quantization:**
+
 ```yaml
 quantization:
   enabled: true
   type: "scalar"
-  bits: 8  # 4x reduction
+  bits: 8 # 4x reduction
 ```
 
 **Limit snapshots:**
+
 ```yaml
 storage:
-  max_snapshots: 5  # Keep fewer snapshots
-  retention_days: 3  # Shorter retention
+  max_snapshots: 5 # Keep fewer snapshots
+  retention_days: 3 # Shorter retention
 ```
 
 **Compress payloads:**
+
 ```yaml
 compression:
   enabled: true
@@ -182,11 +198,13 @@ compression:
 ### Backup Location
 
 **Default backup directory:**
+
 ```
 /var/lib/vectorizer/snapshots/
 ```
 
 **Custom backup directory:**
+
 ```yaml
 storage:
   snapshots_dir: "/backups/vectorizer"
@@ -195,6 +213,7 @@ storage:
 ### Manual Backup
 
 **Linux:**
+
 ```bash
 # Stop service
 sudo systemctl stop vectorizer
@@ -207,6 +226,7 @@ sudo systemctl start vectorizer
 ```
 
 **Windows:**
+
 ```powershell
 # Stop service
 Stop-Service Vectorizer
@@ -224,16 +244,19 @@ Start-Service Vectorizer
 ### Running Multiple Instances
 
 **Instance 1:**
+
 ```bash
 vectorizer --data-dir /var/lib/vectorizer1 --port 15002
 ```
 
 **Instance 2:**
+
 ```bash
 vectorizer --data-dir /var/lib/vectorizer2 --port 15012
 ```
 
 **Instance 3:**
+
 ```bash
 vectorizer --data-dir /var/lib/vectorizer3 --port 15022
 ```
@@ -250,6 +273,7 @@ vectorizer --data-dir /var/lib/vectorizer3 --port 15022
 ### NFS Mount (Linux)
 
 **Mount NFS share:**
+
 ```bash
 # Mount NFS
 sudo mount -t nfs nfs-server:/vectorizer-data /var/lib/vectorizer
@@ -259,6 +283,7 @@ nfs-server:/vectorizer-data /var/lib/vectorizer nfs defaults 0 0
 ```
 
 **Considerations:**
+
 - Network latency affects performance
 - Ensure NFS is reliable
 - Use NFSv4 for better performance
@@ -266,6 +291,7 @@ nfs-server:/vectorizer-data /var/lib/vectorizer nfs defaults 0 0
 ### SMB/CIFS Mount (Windows)
 
 **Mount SMB share:**
+
 ```powershell
 # Map network drive
 New-PSDrive -Name "V" -PSProvider FileSystem `
@@ -317,6 +343,7 @@ volumes:
 ### Moving Data Directory
 
 **Linux:**
+
 ```bash
 # Stop service
 sudo systemctl stop vectorizer
@@ -337,6 +364,7 @@ sudo systemctl start vectorizer
 ```
 
 **Windows:**
+
 ```powershell
 # Stop service
 Stop-Service Vectorizer
@@ -347,8 +375,8 @@ Copy-Item -Path "$env:ProgramData\Vectorizer" `
 
 # Update environment variable
 [System.Environment]::SetEnvironmentVariable(
-    "VECTORIZER_DATA_DIR", 
-    "D:\Vectorizer", 
+    "VECTORIZER_DATA_DIR",
+    "D:\Vectorizer",
     "Machine"
 )
 
@@ -363,6 +391,7 @@ Start-Service Vectorizer
 **Error:** `Permission denied: /var/lib/vectorizer`
 
 **Solution:**
+
 ```bash
 sudo chown -R vectorizer:vectorizer /var/lib/vectorizer
 sudo chmod 755 /var/lib/vectorizer
@@ -373,6 +402,7 @@ sudo chmod 755 /var/lib/vectorizer
 **Error:** `No space left on device`
 
 **Solutions:**
+
 1. Clean old snapshots
 2. Enable quantization
 3. Delete unused collections
@@ -383,6 +413,7 @@ sudo chmod 755 /var/lib/vectorizer
 **Error:** `Cannot write to data directory`
 
 **Solutions:**
+
 1. Check directory permissions
 2. Verify disk space
 3. Check filesystem mount status
@@ -403,4 +434,3 @@ sudo chmod 755 /var/lib/vectorizer
 - [Server Configuration](./SERVER.md) - Server settings
 - [Backup and Restore](../backup-restore/BACKUP.md) - Backup procedures
 - [Performance Guide](../performance/PERFORMANCE.md) - Storage optimization
-
