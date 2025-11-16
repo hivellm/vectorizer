@@ -26,6 +26,18 @@ A high-performance vector database and search engine built in Rust, designed for
 
 ## 🚀 Quick Start
 
+### Install Script (Linux/macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hivellm/vectorizer/main/scripts/install.sh | bash
+```
+
+### Install Script (Windows PowerShell)
+
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/hivellm/vectorizer/main/scripts/install.ps1 | iex"
+```
+
 ### Using Docker (Recommended)
 
 ```bash
