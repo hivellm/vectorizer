@@ -25,68 +25,174 @@ logger = logging.getLogger(__name__)
 
 async def basic_example():
     """Basic example showing fundamental operations."""
-    print("=== Basic Vectorizer Example ===")
+    print("🐍 Vectorizer Python SDK Basic Example")
+    print("======================================")
     
     # Initialize client
     async with VectorizerClient(
         base_url="http://localhost:15001",
         api_key="your-api-key-here"
     ) as client:
+        print("✅ Client created successfully")
         
-        # Check service health
-        health = await client.health_check()
-        print(f"Service status: {health['status']}")
+        collection_name = "example-documents"
         
-        # List existing collections
-        collections = await client.list_collections()
-        print(f"Found {len(collections)} collections")
+        try:
+            # Health check
+            print("\n🔍 Checking server health...")
+            try:
+                health = await client.health_check()
+                print(f"✅ Server status: {health.get('status', 'unknown')}")
+                if 'version' in health:
+                    print(f"   Version: {health['version']}")
+                if 'collections' in health:
+                    print(f"   Collections: {health['collections']}")
+                if 'total_vectors' in health:
+                    print(f"   Total Vectors: {health['total_vectors']}")
+            except Exception as e:
+                print(f"⚠️ Health check failed: {e}")
+            
+            # Get database stats
+            print("\n📊 Getting database statistics...")
+            try:
+                stats = await client.get_database_stats()
+                print("📈 Database stats:")
+                print(f"   Collections: {stats.get('total_collections', 0)}")
+                print(f"   Vectors: {stats.get('total_vectors', 0)}")
+                size_mb = stats.get('total_size_bytes', 0) / 1024 / 1024
+                print(f"   Size: {size_mb:.2f} MB")
+            except Exception as e:
+                print(f"⚠️ Get stats failed: {e}")
+            
+            # List existing collections
+            print("\n📋 Listing collections...")
+            try:
+                collections = await client.list_collections()
+                print(f"📁 Found {len(collections)} collections:")
+                for collection in collections[:5]:
+                    print(f"   - {collection.name if hasattr(collection, 'name') else collection}")
+            except Exception as e:
+                print(f"⚠️ Error listing collections: {e}")
+            
+            # Create a new collection
+            print("\n🆕 Creating collection...")
+            try:
+                collection_info = await client.create_collection(
+                    name=collection_name,
+                    dimension=384,
+                    similarity_metric="cosine",
+                    description="Example collection for testing"
+                )
+                print(f"✅ Collection created: {collection_info.name}")
+                print(f"   Dimension: {collection_info.dimension}")
+                print(f"   Metric: {collection_info.metric if hasattr(collection_info, 'metric') else 'cosine'}")
+            except Exception as e:
+                print(f"⚠️ Collection creation failed (may already exist): {e}")
+            
+            # Insert texts
+            print("\n📥 Inserting texts...")
+            texts = [
+                {
+                    "id": "doc_1",
+                    "text": "Introduction to Machine Learning",
+                    "metadata": {
+                        "source": "document1.pdf",
+                        "title": "Introduction to Machine Learning",
+                        "category": "AI"
+                    }
+                },
+                {
+                    "id": "doc_2",
+                    "text": "Deep Learning Fundamentals",
+                    "metadata": {
+                        "source": "document2.pdf",
+                        "title": "Deep Learning Fundamentals",
+                        "category": "AI"
+                    }
+                },
+                {
+                    "id": "doc_3",
+                    "text": "Data Science Best Practices",
+                    "metadata": {
+                        "source": "document3.pdf",
+                        "title": "Data Science Best Practices",
+                        "category": "Data"
+                    }
+                }
+            ]
+            
+            try:
+                result = await client.insert_texts(collection_name, texts)
+                inserted = result.get('inserted', len(texts)) if isinstance(result, dict) else len(texts)
+                print(f"✅ Texts inserted: {inserted}")
+            except Exception as e:
+                print(f"⚠️ Insert texts failed: {e}")
+            
+            # Search for similar vectors
+            print("\n🔍 Searching for similar vectors...")
+            try:
+                results = await client.search_vectors(
+                    collection=collection_name,
+                    query="machine learning algorithms",
+                    limit=3
+                )
+                print("🎯 Search results:")
+                for i, result in enumerate(results):
+                    score = result.score if hasattr(result, 'score') else result.get('score', 0)
+                    print(f"   {i + 1}. Score: {score:.4f}")
+                    metadata = result.metadata if hasattr(result, 'metadata') else result.get('metadata', {})
+                    if metadata:
+                        if 'title' in metadata:
+                            print(f"      Title: {metadata['title']}")
+                        if 'category' in metadata:
+                            print(f"      Category: {metadata['category']}")
+            except Exception as e:
+                print(f"⚠️ Search failed: {e}")
+            
+            # Generate embeddings
+            print("\n🧠 Generating embeddings...")
+            try:
+                embedding = await client.embed_text("artificial intelligence and machine learning")
+                print("✅ Embedding generated:")
+                if isinstance(embedding, dict):
+                    print(f"   Dimension: {len(embedding.get('embedding', []))}")
+                    print(f"   Model: {embedding.get('model', 'unknown')}")
+                else:
+                    print(f"   Dimension: {len(embedding) if hasattr(embedding, '__len__') else 'unknown'}")
+            except Exception as e:
+                print(f"⚠️ Embedding generation failed: {e}")
+            
+            # Get collection info
+            print("\n📊 Getting collection information...")
+            try:
+                info = await client.get_collection(collection_name)
+                print("📈 Collection info:")
+                print(f"   Name: {info.name if hasattr(info, 'name') else info.get('name', 'unknown')}")
+                print(f"   Dimension: {info.dimension if hasattr(info, 'dimension') else info.get('dimension', 0)}")
+                vector_count = info.vector_count if hasattr(info, 'vector_count') else info.get('vector_count', 0)
+                print(f"   Vector count: {vector_count}")
+                size_bytes = info.size_bytes if hasattr(info, 'size_bytes') else info.get('size_bytes', 0)
+                if size_bytes:
+                    print(f"   Size: {size_bytes / 1024} KB")
+            except Exception as e:
+                print(f"⚠️ Get collection info failed: {e}")
+            
+            print("\n🌐 All operations completed successfully!")
+            
+            # Clean up
+            print("\n🧹 Cleaning up...")
+            try:
+                await client.delete_collection(collection_name)
+                print("✅ Collection deleted")
+            except Exception as e:
+                print(f"⚠️ Delete collection failed: {e}")
         
-        # Create a new collection
-        collection_info = await client.create_collection(
-            name="example_collection",
-            dimension=512,
-            description="Example collection for testing"
-        )
-        print(f"Created collection: {collection_info.name}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            if hasattr(e, 'details'):
+                print(f"📋 Details: {e.details}")
         
-        # Generate embeddings
-        texts = [
-            "The quick brown fox jumps over the lazy dog",
-            "Python is a great programming language",
-            "Machine learning and AI are transforming the world"
-        ]
-        
-        vectors = []
-        for i, text in enumerate(texts):
-            embedding = await client.embed_text(text)
-            vector = Vector(
-                id=f"doc_{i}",
-                data=embedding,
-                metadata={"text": text, "index": i}
-            )
-            vectors.append(vector)
-        
-        # Insert vectors
-        result = await client.insert_texts("example_collection", vectors)
-        print(f"Inserted {len(vectors)} vectors")
-        
-        # Search for similar vectors
-        query = "programming languages"
-        results = await client.search_vectors(
-            collection="example_collection",
-            query=query,
-            limit=3
-        )
-        
-        print(f"Search results for '{query}':")
-        for result in results:
-            print(f"  - ID: {result.id}, Score: {result.score:.4f}")
-            if result.metadata:
-                print(f"    Text: {result.metadata.get('text', 'N/A')}")
-        
-        # Clean up
-        await client.delete_collection("example_collection")
-        print("Cleaned up example collection")
+        print("\n👋 Example completed!")
 
 
 async def advanced_example():

@@ -22,18 +22,18 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 
 ### 🦀 Rust SDK ✅
 
-- **Package**: `vectorizer-rust-sdk`
-- **Status**: Published on crates.io (v0.3.1)
+- **Package**: `vectorizer-sdk`
+- **Status**: Published on crates.io (v1.3.0)
 - **Features**: High performance, async/await, MCP support, type safety, intelligent search
-- **Installation**: Add to `Cargo.toml`: `vectorizer-rust-sdk = "0.3.1"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.3.0"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
 
-- **Package**: `hivellm-vectorizer-client`
-- **Status**: Published on PyPI (v0.3.1)
+- **Package**: `vectorizer-sdk`
+- **Status**: Published on PyPI (v1.3.0)
 - **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search
-- **Installation**: `pip install hivellm-vectorizer-client`
+- **Installation**: `pip install vectorizer-sdk`
 - **Documentation**: [Python SDK README](./python/README.md)
 
 ### 🐹 Go SDK 🚧
@@ -42,6 +42,7 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 - **Status**: In Development
 - **Features**: High performance, simple API, comprehensive error handling, intelligent search
 - **Installation**: `go get github.com/hivellm/vectorizer-sdk-go`
+- **Repository**: https://github.com/hivellm/vectorizer/tree/main/sdks/go
 - **Documentation**: [Go SDK README](./go/README.md)
 
 ### 🔷 C# SDK 🚧
@@ -210,6 +211,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+```
+
+**Note**: Add to `Cargo.toml`:
+```toml
+[dependencies]
+vectorizer-sdk = "1.3.0"
 ```
 
 ## Features
