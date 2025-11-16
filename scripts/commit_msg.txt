@@ -1,9 +1,14 @@
-Fix all clippy warnings and errors
+Improve installation scripts based on Bun's installation pattern
 
-- Remove unused imports (serde_json::json, Collection, Vector, create_test_collection, insert_test_vectors, Payload, Duration, sleep)
-- Fix field assignment outside initializer: convert all `let mut config = CollectionConfig::default(); config.field = value` to struct literal syntax
-- Fix format string warnings: use inline format strings (format!("vec_{i}") instead of format!("vec_{}", i))
-- Fix unused variable warnings: prefix unused variables with underscore or remove let-binding
-- Add #[allow(dead_code)] to helper functions that are used in tests but not directly referenced
+- Add parameter support (Version, NoPathUpdate, Force)
+- Add architecture compatibility checks
+- Improve error handling and user feedback
+- Add version normalization (v1.3.0 or 1.3.0)
+- Add binary backup before installation
+- Check for running processes before installation
+- Better PATH handling with option to skip
+- Improved success messages and tips
+- Add quiet git operations for cleaner output
+- Better Rust installation error handling
 
-All clippy checks now pass with -D warnings flag
+Scripts now follow industry best practices similar to Bun's installer
