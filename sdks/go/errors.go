@@ -39,4 +39,3 @@ func (e *VectorizerError) IsUnauthorized() bool {
 func (e *VectorizerError) IsValidationError() bool {
 	return e.Status == 400
 }
-

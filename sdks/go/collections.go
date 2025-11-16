@@ -2,11 +2,16 @@ package vectorizer
 
 // ListCollections returns a list of all collections
 func (c *Client) ListCollections() ([]string, error) {
-	var collections []string
-	if err := c.request("GET", "/collections", nil, &collections); err != nil {
+	var response CollectionsListResponse
+	if err := c.request("GET", "/collections", nil, &response); err != nil {
 		return nil, err
 	}
-	return collections, nil
+	// Extract collection names from the response
+	names := make([]string, len(response.Collections))
+	for i, col := range response.Collections {
+		names[i] = col.Name
+	}
+	return names, nil
 }
 
 // CreateCollection creates a new collection
@@ -31,4 +36,3 @@ func (c *Client) GetCollectionInfo(name string) (*CollectionInfo, error) {
 func (c *Client) DeleteCollection(name string) error {
 	return c.request("DELETE", "/collections/"+name, nil, nil)
 }
-

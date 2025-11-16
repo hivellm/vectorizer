@@ -36,7 +36,7 @@ func NewClient(config *Config) *Client {
 	}
 
 	if config.Timeout == 0 {
-		config.Timeout = 30 * time.Second
+		config.Timeout = 60 * time.Second
 	}
 
 	httpClient := config.HTTPClient
@@ -94,10 +94,10 @@ func (c *Client) request(method, path string, body interface{}, result interface
 		var errResp ErrorResponse
 		if err := json.Unmarshal(respBody, &errResp); err == nil {
 			return &VectorizerError{
-				Type:      errResp.ErrorType,
-				Message:   errResp.Message,
-				Status:    resp.StatusCode,
-				Details:   errResp.Details,
+				Type:    errResp.ErrorType,
+				Message: errResp.Message,
+				Status:  resp.StatusCode,
+				Details: errResp.Details,
 			}
 		}
 		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
@@ -125,4 +125,3 @@ func (c *Client) GetStats() (*DatabaseStats, error) {
 	}
 	return &stats, nil
 }
-

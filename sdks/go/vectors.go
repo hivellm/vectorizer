@@ -2,12 +2,15 @@ package vectorizer
 
 // InsertText inserts text into a collection (with automatic embedding)
 func (c *Client) InsertText(collection, text string, payload map[string]interface{}) (*InsertTextResponse, error) {
-	req := &InsertTextRequest{
-		Text:    text,
-		Payload: payload,
+	req := map[string]interface{}{
+		"collection": collection,
+		"text":       text,
+	}
+	if payload != nil {
+		req["metadata"] = payload
 	}
 	var resp InsertTextResponse
-	if err := c.request("POST", "/collections/"+collection+"/vectors", req, &resp); err != nil {
+	if err := c.request("POST", "/insert", req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -49,11 +52,11 @@ func (c *Client) Search(collection string, query []float32, options *SearchOptio
 		}
 	}
 
-	var results []SearchResult
-	if err := c.request("POST", "/collections/"+collection+"/search", req, &results); err != nil {
+	var response SearchResponse
+	if err := c.request("POST", "/collections/"+collection+"/search", req, &response); err != nil {
 		return nil, err
 	}
-	return results, nil
+	return response.Results, nil
 }
 
 // SearchText performs a text search (with automatic embedding)
@@ -73,9 +76,9 @@ func (c *Client) SearchText(collection, query string, options *SearchOptions) ([
 		}
 	}
 
-	var results []SearchResult
-	if err := c.request("POST", "/collections/"+collection+"/search/text", req, &results); err != nil {
+	var response SearchResponse
+	if err := c.request("POST", "/collections/"+collection+"/search/text", req, &response); err != nil {
 		return nil, err
 	}
-	return results, nil
+	return response.Results, nil
 }

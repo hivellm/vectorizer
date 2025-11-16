@@ -2,22 +2,22 @@ package vectorizer
 
 // IntelligentSearchRequest represents an intelligent search request
 type IntelligentSearchRequest struct {
-	Query              string   `json:"query"`
-	Collections        []string `json:"collections"`
-	MaxResults         int      `json:"max_results,omitempty"`
-	MMREnabled         bool     `json:"mmr_enabled,omitempty"`
-	DomainExpansion    bool     `json:"domain_expansion,omitempty"`
-	TechnicalFocus     bool     `json:"technical_focus,omitempty"`
-	MMRLambda          float64  `json:"mmr_lambda,omitempty"`
+	Query           string   `json:"query"`
+	Collections     []string `json:"collections"`
+	MaxResults      int      `json:"max_results,omitempty"`
+	MMREnabled      bool     `json:"mmr_enabled,omitempty"`
+	DomainExpansion bool     `json:"domain_expansion,omitempty"`
+	TechnicalFocus  bool     `json:"technical_focus,omitempty"`
+	MMRLambda       float64  `json:"mmr_lambda,omitempty"`
 }
 
 // IntelligentSearchResult represents an intelligent search result
 type IntelligentSearchResult struct {
-	ID       string                 `json:"id"`
-	Score    float64                `json:"score"`
-	Payload  map[string]interface{} `json:"payload,omitempty"`
-	Vector   []float32              `json:"vector,omitempty"`
-	Collection string               `json:"collection,omitempty"`
+	ID         string                 `json:"id"`
+	Score      float64                `json:"score"`
+	Payload    map[string]interface{} `json:"payload,omitempty"`
+	Vector     []float32              `json:"vector,omitempty"`
+	Collection string                 `json:"collection,omitempty"`
 }
 
 // IntelligentSearch performs an intelligent search
@@ -31,10 +31,10 @@ func (c *Client) IntelligentSearch(req *IntelligentSearchRequest) ([]Intelligent
 
 // SemanticSearchRequest represents a semantic search request
 type SemanticSearchRequest struct {
-	Collection         string   `json:"collection"`
-	Query              string   `json:"query"`
-	MaxResults         int      `json:"max_results,omitempty"`
-	SemanticReranking  bool     `json:"semantic_reranking,omitempty"`
+	Collection          string  `json:"collection"`
+	Query               string  `json:"query"`
+	MaxResults          int     `json:"max_results,omitempty"`
+	SemanticReranking   bool    `json:"semantic_reranking,omitempty"`
 	SimilarityThreshold float64 `json:"similarity_threshold,omitempty"`
 }
 
@@ -46,4 +46,3 @@ func (c *Client) SemanticSearch(req *SemanticSearchRequest) ([]SearchResult, err
 	}
 	return results, nil
 }
-

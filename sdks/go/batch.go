@@ -2,7 +2,7 @@ package vectorizer
 
 // BatchInsertRequest represents a batch insert request
 type BatchInsertRequest struct {
-	Texts   []string               `json:"texts"`
+	Texts   []string                 `json:"texts"`
 	Payload []map[string]interface{} `json:"payload,omitempty"`
 }
 
@@ -41,4 +41,3 @@ func (c *Client) BatchSearch(collection string, req *BatchSearchRequest) (*Batch
 	}
 	return &resp, nil
 }
-

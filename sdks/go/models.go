@@ -5,7 +5,7 @@ type Metric string
 
 const (
 	MetricCosine     Metric = "Cosine"
-	MetricEuclidean Metric = "Euclidean"
+	MetricEuclidean  Metric = "Euclidean"
 	MetricDotProduct Metric = "DotProduct"
 )
 
@@ -43,10 +43,10 @@ type SearchOptions struct {
 
 // SearchResult represents a search result
 type SearchResult struct {
-	ID       string                 `json:"id"`
-	Score    float64                `json:"score"`
-	Payload  map[string]interface{} `json:"payload,omitempty"`
-	Vector   []float32              `json:"vector,omitempty"`
+	ID      string                 `json:"id"`
+	Score   float64                `json:"score"`
+	Payload map[string]interface{} `json:"payload,omitempty"`
+	Vector  []float32              `json:"vector,omitempty"`
 }
 
 // InsertTextRequest represents a request to insert text
@@ -57,7 +57,15 @@ type InsertTextRequest struct {
 
 // InsertTextResponse represents a response from inserting text
 type InsertTextResponse struct {
-	ID string `json:"id"`
+	Message    string `json:"message"`
+	Text       string `json:"text,omitempty"`
+	VectorID   string `json:"vector_id"`
+	Collection string `json:"collection,omitempty"`
+}
+
+// ID returns the vector ID (for compatibility)
+func (r *InsertTextResponse) ID() string {
+	return r.VectorID
 }
 
 // DatabaseStats represents database statistics
@@ -74,3 +82,17 @@ type CollectionInfo struct {
 	Metric      string `json:"metric"`
 }
 
+// CollectionsListResponse represents the response from listing collections
+type CollectionsListResponse struct {
+	Collections     []CollectionInfo `json:"collections"`
+	TotalCollections int             `json:"total_collections"`
+}
+
+// SearchResponse represents the response from search operations
+type SearchResponse struct {
+	Results      []SearchResult `json:"results"`
+	Query        string         `json:"query,omitempty"`
+	Limit        int            `json:"limit,omitempty"`
+	Collection   string         `json:"collection,omitempty"`
+	TotalResults int            `json:"total_results,omitempty"`
+}

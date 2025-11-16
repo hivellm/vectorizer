@@ -24,4 +24,3 @@
 //		Limit: 10,
 //	})
 package vectorizer
-
