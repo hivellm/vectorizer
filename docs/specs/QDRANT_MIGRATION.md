@@ -275,7 +275,11 @@ await mcp.call_tool('search_intelligent', {
 ## Support
 
 For help with migration:
-- 📚 **Documentation**: `/docs/specs/API_REFERENCE.md`
+- 📚 **Qdrant Compatibility Docs**: `/docs/users/qdrant/` - Complete compatibility documentation
+- 🔍 **API Compatibility Matrix**: `/docs/users/qdrant/API_COMPATIBILITY.md` - Detailed compatibility matrix
+- 📊 **Feature Parity**: `/docs/users/qdrant/FEATURE_PARITY.md` - Feature comparison
+- 🛠️ **Troubleshooting**: `/docs/users/qdrant/TROUBLESHOOTING.md` - Common issues and solutions
+- 💻 **Examples**: `/docs/users/qdrant/EXAMPLES.md` - Code examples and tutorials
 - 🔍 **MCP Tools**: See `/docs/specs/MCP.md`
 - 🚀 **Native API**: See `/docs/specs/SPECIFICATIONS_INDEX.md`
 - 💬 **Issues**: https://github.com/hivellm/vectorizer/issues

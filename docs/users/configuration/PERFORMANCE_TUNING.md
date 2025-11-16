@@ -561,5 +561,5 @@ collections:
 
 - [Server Configuration](./SERVER.md) - Server settings
 - [Collection Configuration](../collections/CONFIGURATION.md) - Collection optimization
-- [Performance Guide](../performance/PERFORMANCE.md) - Detailed performance guide
-- [Monitoring Guide](../monitoring/MONITORING.md) - Performance monitoring
+- [Server Configuration](./SERVER.md) - Server settings
+- [Monitoring Guide](../operations/MONITORING.md) - Performance monitoring

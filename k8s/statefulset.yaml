@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vectorizer
+  namespace: vectorizer
+spec:
+  serviceName: vectorizer
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vectorizer
+  template:
+    metadata:
+      labels:
+        app: vectorizer
+    spec:
+      containers:
+        - name: vectorizer
+          image: vectorizer:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 15002
+              protocol: TCP
+            - name: replication
+              containerPort: 7001
+              protocol: TCP
+          env:
+            - name: RUST_LOG
+              value: "warn"
+            - name: DATA_DIR
+              value: "/data"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/vectorizer
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: vectorizer-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "fast-ssd"
+        resources:
+          requests:
+            storage: 100Gi
+

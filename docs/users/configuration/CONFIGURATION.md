@@ -47,7 +47,7 @@ vectorizer --config /etc/vectorizer/config.yml
 - **[Server Configuration](./SERVER.md)** - Network, ports, host binding, reverse proxy
 - **[Logging Configuration](./LOGGING.md)** - Log levels, output, filtering, aggregation
 - **[Data Directory](./DATA_DIRECTORY.md)** - Storage paths, snapshots, backups
-- **[Performance Tuning](./PERFORMANCE.md)** - Threads, memory, optimization
+- **[Performance Tuning](./PERFORMANCE_TUNING.md)** - Threads, memory, optimization
 
 ## Common Options
 
@@ -200,5 +200,5 @@ environment:
 
 ## Related Topics
 
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Managing the service
-- [Troubleshooting](../troubleshooting/TROUBLESHOOTING.md) - Configuration issues
+- [Service Management](../operations/SERVICE_MANAGEMENT.md) - Managing the service
+- [Troubleshooting](../operations/TROUBLESHOOTING.md) - Configuration issues

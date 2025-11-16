@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorizer
+  namespace: vectorizer
+  labels:
+    app: vectorizer
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 15002
+      targetPort: http
+      protocol: TCP
+    - name: replication
+      port: 7001
+      targetPort: replication
+      protocol: TCP
+  selector:
+    app: vectorizer
+
+---
+# LoadBalancer Service (optional)
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorizer-lb
+  namespace: vectorizer
+  labels:
+    app: vectorizer
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 15002
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: vectorizer
+

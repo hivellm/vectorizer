@@ -13,7 +13,7 @@ Get up and running with Vectorizer in minutes!
 
 ## Prerequisites
 
-- Vectorizer installed (see [Installation Guide](../installation/INSTALLATION.md))
+- Vectorizer installed (see [Installation Guide](./INSTALLATION.md))
 - Service running on `http://localhost:15002`
 - `curl` or similar HTTP client (or use the SDKs)
 

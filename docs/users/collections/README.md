@@ -65,5 +65,5 @@ info = await client.get_collection_info("my_docs")
 
 - [Search Guide](../search/SEARCH.md) - Searching within collections
 - [Vectors Guide](../vectors/VECTORS.md) - Managing vectors
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance tuning
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance tuning
 

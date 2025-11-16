@@ -250,4 +250,4 @@ asyncio.run(main())
 
 - [Search Guide](../search/SEARCH.md) - Similarity search
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection setup
-- [Performance Guide](../performance/PERFORMANCE.md) - Optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Optimization

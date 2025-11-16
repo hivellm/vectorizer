@@ -18,6 +18,7 @@ Complete REST API documentation and integration guides.
 Complete reference for all API endpoints:
 
 **REST API:**
+
 - System endpoints (health, stats)
 - Collection management
 - Vector operations
@@ -27,24 +28,98 @@ Complete reference for all API endpoints:
 - Discovery endpoints
 
 **MCP (Model Context Protocol):**
+
 - StreamableHTTP connection (v0.9.0)
 - JSON-RPC 2.0 protocol
 - 38+ MCP tools (collections, vectors, search, batch, discovery, files)
 - Complete tool reference with examples
 
 **UMICP (Universal Multi-Agent Communication Protocol):**
+
 - UMICP v0.2.1 support
 - Envelope-based communication
 - Tool discovery endpoint (`/umicp/discover`)
 - All 38+ MCP tools available via UMICP
 
 **Qdrant Compatibility:**
+
 - Full REST API compatibility
 - Collection management (create, get, update, delete, list)
 - Point operations (upsert, retrieve, delete, count, scroll)
 - Search operations (search, batch search, recommend)
 - Collection aliases
+- See [Qdrant Compatibility Documentation](../qdrant/) for complete guide
 - Migration guide
+
+## Advanced APIs
+
+### [Discovery API](./DISCOVERY.md)
+
+Intelligent content exploration:
+
+- Multi-collection discovery
+- Query expansion and refinement
+- Collection filtering and scoring
+- Evidence compression
+- Answer plan generation
+
+### [File Operations API](./FILE_OPERATIONS.md)
+
+File-level operations:
+
+- Retrieve complete file content
+- List files with filtering
+- Get file summaries
+- Access ordered file chunks
+- Project structure exploration
+- Find related files
+
+### [Replication API](./REPLICATION.md)
+
+Master-replica replication:
+
+- High availability setup
+- Read scaling
+- Replication monitoring
+- Failover procedures
+
+### [Backup and Restore API](./BACKUP_RESTORE.md)
+
+Data protection:
+
+- Create backups
+- Restore collections
+- Backup management
+- Automated backup strategies
+
+### [Workspace Management API](./WORKSPACE.md)
+
+Multi-project workspace management:
+
+- Add and remove workspaces
+- Workspace configuration
+- Multi-project indexing
+- File watcher integration
+
+### [UMICP Protocol](./UMICP.md)
+
+Universal Multi-Agent Communication Protocol:
+
+- Envelope-based communication
+- Tool discovery
+- All 38+ MCP tools accessible
+- High-performance streaming
+
+### [Admin and System API](./ADMIN.md)
+
+Administrative endpoints:
+
+- Server status and monitoring
+- Configuration management
+- Log access
+- Server restart
+- Indexing progress
+- Prometheus metrics
 
 ## Integration
 

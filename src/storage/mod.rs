@@ -3,6 +3,7 @@
 //! This module provides a unified storage format (.vecdb/.vecidx) with compression,
 //! snapshots, and automatic migration from legacy file structures.
 
+pub mod advanced;
 pub mod compact;
 pub mod config;
 pub mod index;
@@ -13,6 +14,7 @@ pub mod writer;
 
 use std::path::{Path, PathBuf};
 
+pub use advanced::{AdvancedStorage, CacheStats, StorageOptimizationResult, StorageStats};
 pub use compact::StorageCompactor;
 pub use config::StorageConfig;
 pub use index::{CollectionIndex, FileEntry, StorageIndex};

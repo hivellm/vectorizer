@@ -426,4 +426,4 @@ values = [values[i] for i in sorted_indices]
 
 - [Hybrid Search](../search/ADVANCED.md) - Advanced search methods
 - [Search Guide](../search/SEARCH.md) - Complete search guide
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance optimization

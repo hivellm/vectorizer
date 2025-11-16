@@ -482,5 +482,5 @@ server {
 - [REST API Reference](../api/API_REFERENCE.md) - Complete API documentation
 - [SDKs Guide](../sdks/README.md) - Client SDKs
 - [Configuration Guide](../configuration/SERVER.md) - Server configuration
-- [Monitoring Guide](../monitoring/MONITORING.md) - Monitoring setup
+- [Monitoring Guide](../operations/MONITORING.md) - Monitoring setup
 

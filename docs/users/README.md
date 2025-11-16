@@ -65,8 +65,25 @@ Client libraries and SDKs:
 REST API and integration:
 
 - [REST API Reference](./api/API_REFERENCE.md) - Complete API endpoint reference
+- [Discovery API](./api/DISCOVERY.md) - Intelligent content exploration
+- [File Operations API](./api/FILE_OPERATIONS.md) - File-level operations
+- [Replication API](./api/REPLICATION.md) - Master-replica replication
+- [Backup and Restore API](./api/BACKUP_RESTORE.md) - Data protection
+- [Workspace Management API](./api/WORKSPACE.md) - Multi-project management
+- [UMICP Protocol](./api/UMICP.md) - Universal Multi-Agent Communication Protocol
+- [Admin and System API](./api/ADMIN.md) - Administrative endpoints
 - [Integration Guide](./api/INTEGRATION.md) - Web frameworks, databases, LLMs, monitoring
-- All endpoints, request/response formats, examples
+
+### 🔄 [Qdrant Compatibility](./qdrant/)
+
+Qdrant API compatibility and migration:
+
+- [Qdrant Compatibility Overview](./qdrant/README.md) - Complete Qdrant compatibility guide
+- [API Compatibility Matrix](./qdrant/API_COMPATIBILITY.md) - Endpoint, parameter, and response compatibility
+- [Feature Parity](./qdrant/FEATURE_PARITY.md) - Feature comparison and limitations
+- [Examples](./qdrant/EXAMPLES.md) - Code examples and tutorials
+- [Troubleshooting](./qdrant/TROUBLESHOOTING.md) - Common issues and solutions
+- [Testing Guide](./qdrant/TESTING.md) - Testing compatibility and validation
 
 ### 🔧 [Configuration](./configuration/)
 

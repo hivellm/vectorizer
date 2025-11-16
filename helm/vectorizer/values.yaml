@@ -1,0 +1,142 @@
+# Default values for vectorizer
+replicaCount: 1
+
+image:
+  repository: vectorizer
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 15002
+  replicationPort: 7001
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: vectorizer.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: vectorizer-tls
+  #    hosts:
+  #      - vectorizer.local
+
+resources:
+  limits:
+    cpu: 4
+    memory: 8Gi
+  requests:
+    cpu: 2
+    memory: 4Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  storageClass: "fast-ssd"
+  accessMode: ReadWriteOnce
+  size: 100Gi
+  annotations: {}
+
+config:
+  server:
+    host: "0.0.0.0"
+    port: 15002
+    data_dir: "/data"
+  
+  logging:
+    level: "warn"
+    format: "json"
+    log_requests: false
+    log_responses: false
+    log_errors: true
+  
+  performance:
+    cpu:
+      max_threads: 8
+      enable_simd: true
+      memory_pool_size_mb: 2048
+    batch:
+      default_size: 500
+      max_size: 2000
+      parallel_processing: true
+  
+  auto_save:
+    enabled: true
+    interval_seconds: 300
+    min_operations: 1000
+
+replication:
+  enabled: false
+  role: "standalone"
+  master_address: ""
+  bind_address: "0.0.0.0:7001"
+  heartbeat_interval_secs: 5
+  replica_timeout_secs: 30
+  log_size: 1000000
+  reconnect_interval_secs: 5
+
+livenessProbe:
+  httpGet:
+    path: /api/status
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/status
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+monitoring:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 10s
+    scrapeTimeout: 10s
+

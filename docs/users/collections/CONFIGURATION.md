@@ -296,4 +296,4 @@ Compress payloads to save storage:
 
 - [Creating Collections](./CREATING.md) - How to create collections
 - [Collection Operations](./OPERATIONS.md) - Managing collections
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance tuning
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance tuning

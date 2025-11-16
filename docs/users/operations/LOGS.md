@@ -268,6 +268,6 @@ scrape_configs:
 
 ## Related Topics
 
-- [Monitoring Guide](../monitoring/MONITORING.md) - Metrics and monitoring
-- [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING.md) - Using logs for debugging
+- [Monitoring Guide](../operations/MONITORING.md) - Metrics and monitoring
+- [Troubleshooting Guide](./TROUBLESHOOTING.md) - Using logs for debugging
 

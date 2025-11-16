@@ -433,4 +433,4 @@ sudo chmod 755 /var/lib/vectorizer
 
 - [Server Configuration](./SERVER.md) - Server settings
 - [Backup and Restore](../backup-restore/BACKUP.md) - Backup procedures
-- [Performance Guide](../performance/PERFORMANCE.md) - Storage optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Storage optimization

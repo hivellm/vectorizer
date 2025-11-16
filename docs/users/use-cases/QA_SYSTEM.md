@@ -248,5 +248,5 @@ asyncio.run(main())
 
 - [Intelligent Search](../search/ADVANCED.md) - Advanced search for RAG
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection setup
-- [Performance Guide](../performance/PERFORMANCE.md) - Optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Optimization
 

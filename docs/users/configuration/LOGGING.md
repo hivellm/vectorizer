@@ -427,6 +427,6 @@ export RUST_LOG=vectorizer::db=debug,vectorizer::search=debug
 ## Related Topics
 
 - [Server Configuration](./SERVER.md) - Server settings
-- [Monitoring Guide](../monitoring/MONITORING.md) - Metrics and monitoring
-- [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING.md) - Using logs for debugging
+- [Monitoring Guide](../operations/MONITORING.md) - Metrics and monitoring
+- [Troubleshooting Guide](../operations/TROUBLESHOOTING.md) - Using logs for debugging
 - [Service Management](../service-management/LOGS.md) - Log management

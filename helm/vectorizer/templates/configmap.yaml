@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vectorizer.fullname" . }}-config
+  labels:
+    {{- include "vectorizer.labels" . | nindent 4 }}
+data:
+  config.yml: |
+    server:
+      host: {{ .Values.config.server.host | quote }}
+      port: {{ .Values.config.server.port }}
+      data_dir: {{ .Values.config.server.data_dir | quote }}
+    
+    logging:
+      level: {{ .Values.config.logging.level | quote }}
+      format: {{ .Values.config.logging.format | quote }}
+      log_requests: {{ .Values.config.logging.log_requests }}
+      log_responses: {{ .Values.config.logging.log_responses }}
+      log_errors: {{ .Values.config.logging.log_errors }}
+    
+    performance:
+      cpu:
+        max_threads: {{ .Values.config.performance.cpu.max_threads }}
+        enable_simd: {{ .Values.config.performance.cpu.enable_simd }}
+        memory_pool_size_mb: {{ .Values.config.performance.cpu.memory_pool_size_mb }}
+      batch:
+        default_size: {{ .Values.config.performance.batch.default_size }}
+        max_size: {{ .Values.config.performance.batch.max_size }}
+        parallel_processing: {{ .Values.config.performance.batch.parallel_processing }}
+    
+    auto_save:
+      enabled: {{ .Values.config.auto_save.enabled }}
+      interval_seconds: {{ .Values.config.auto_save.interval_seconds }}
+      min_operations: {{ .Values.config.auto_save.min_operations }}
+    {{- if .Values.replication.enabled }}
+    replication:
+      enabled: {{ .Values.replication.enabled }}
+      role: {{ .Values.replication.role | quote }}
+      {{- if eq .Values.replication.role "master" }}
+      bind_address: {{ .Values.replication.bind_address | quote }}
+      {{- end }}
+      {{- if eq .Values.replication.role "replica" }}
+      master_address: {{ .Values.replication.master_address | quote }}
+      {{- end }}
+      heartbeat_interval_secs: {{ .Values.replication.heartbeat_interval_secs }}
+      replica_timeout_secs: {{ .Values.replication.replica_timeout_secs }}
+      log_size: {{ .Values.replication.log_size }}
+      reconnect_interval_secs: {{ .Values.replication.reconnect_interval_secs }}
+    {{- end }}
+

@@ -203,4 +203,4 @@ asyncio.run(main())
 
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection configuration
 - [Search Guide](../search/SEARCH.md) - Advanced search features
-- [Performance Guide](../performance/PERFORMANCE.md) - Optimization tips
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Optimization tips

@@ -36,6 +36,7 @@ pub mod security;
 pub mod server;
 pub mod storage;
 pub mod summarization;
+pub mod testing;
 #[cfg(feature = "transmutation")]
 pub mod transmutation_integration;
 pub mod umicp;

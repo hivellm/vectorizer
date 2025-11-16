@@ -61,5 +61,5 @@ results = await client.hybrid_search(
 
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection configuration
 - [Vectors Guide](../vectors/VECTORS.md) - Vector operations
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance tuning
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance tuning
 

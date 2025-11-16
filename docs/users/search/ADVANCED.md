@@ -217,5 +217,5 @@ results = await client.multi_collection_search(
 
 - [Basic Search](./BASIC.md) - Basic search operations
 - [Search Guide](./SEARCH.md) - Complete search guide
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance optimization
 

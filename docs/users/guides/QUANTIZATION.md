@@ -303,5 +303,5 @@ Example: 1M vectors × 512 dim × 0.5 bytes = 256 MB (8x reduction)
 ## Related Topics
 
 - [Collection Configuration](../collections/CONFIGURATION.md) - Collection settings
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance optimization
-- [Memory Optimization](../configuration/PERFORMANCE.md) - Memory tuning
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance optimization
+- [Memory Optimization](../configuration/PERFORMANCE_TUNING.md) - Memory tuning

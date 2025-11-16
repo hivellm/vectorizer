@@ -184,8 +184,8 @@ for result in results:
 ### 5. Configure and Optimize
 
 - [Server Configuration](../configuration/SERVER.md) - Configure server settings
-- [Performance Tuning](../configuration/PERFORMANCE.md) - Optimize performance
-- [Monitoring](../monitoring/MONITORING.md) - Monitor your deployment
+- [Performance Tuning](../configuration/PERFORMANCE_TUNING.md) - Optimize performance
+- [Monitoring](../operations/MONITORING.md) - Monitor your deployment
 
 ## Common Tasks
 
@@ -242,6 +242,5 @@ Get-Service Vectorizer
 ## Related Topics
 
 - [Quick Start Guide](./QUICK_START.md) - Quick start tutorial
-- [Installation Guide](../installation/INSTALLATION.md) - Installation details
-- [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING.md) - Common issues
-
+- [Installation Guide](./INSTALLATION.md) - Installation details
+- [Troubleshooting Guide](../operations/TROUBLESHOOTING.md) - Common issues

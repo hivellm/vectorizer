@@ -472,4 +472,4 @@ curl -X PATCH http://localhost:15002/collections/my_collection \
 - [Search Guide](../search/SEARCH.md) - Searching within collections
 - [SDKs Guide](../sdks/SDKS.md) - SDK-specific collection operations
 - [Configuration Guide](../configuration/CONFIGURATION.md) - Advanced configuration
-- [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING.md) - Common issues
+- [Troubleshooting Guide](../operations/TROUBLESHOOTING.md) - Common issues

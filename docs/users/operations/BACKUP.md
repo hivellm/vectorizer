@@ -168,4 +168,4 @@ sudo systemctl restart vectorizer
 ## Related Topics
 
 - [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Service operations
-- [Troubleshooting](../troubleshooting/TROUBLESHOOTING.md) - Data recovery
+- [Troubleshooting](./TROUBLESHOOTING.md) - Data recovery

@@ -18,6 +18,10 @@ pub struct StorageConfig {
     /// Compaction settings
     #[serde(default)]
     pub compaction: CompactionConfig,
+
+    /// Advanced storage settings
+    #[serde(default)]
+    pub advanced: AdvancedStorageConfig,
 }
 
 impl Default for StorageConfig {
@@ -26,6 +30,7 @@ impl Default for StorageConfig {
             compression: CompressionConfig::default(),
             snapshots: SnapshotConfig::default(),
             compaction: CompactionConfig::default(),
+            advanced: AdvancedStorageConfig::default(),
         }
     }
 }
@@ -144,6 +149,60 @@ fn default_snapshot_path() -> String {
 
 fn default_batch_size() -> usize {
     1000
+}
+
+/// Advanced storage configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedStorageConfig {
+    /// Enable on-disk vector storage
+    #[serde(default = "default_enabled")]
+    pub on_disk_storage: bool,
+
+    /// Enable memory-mapped files for efficient access
+    #[serde(default = "default_enabled")]
+    pub memory_mapped_files: bool,
+
+    /// Maximum cache size for memory-mapped files in MB
+    #[serde(default = "default_mmap_cache_size_mb")]
+    pub mmap_cache_size_mb: usize,
+
+    /// Enable storage optimization (compaction, defragmentation)
+    #[serde(default = "default_enabled")]
+    pub optimization_enabled: bool,
+
+    /// Automatic optimization interval in hours
+    #[serde(default = "default_optimization_interval_hours")]
+    pub optimization_interval_hours: u64,
+
+    /// Enable storage logging
+    #[serde(default = "default_enabled")]
+    pub logging_enabled: bool,
+
+    /// Enable storage metrics
+    #[serde(default = "default_enabled")]
+    pub metrics_enabled: bool,
+}
+
+impl Default for AdvancedStorageConfig {
+    fn default() -> Self {
+        Self {
+            on_disk_storage: true,
+            memory_mapped_files: true,
+            mmap_cache_size_mb: 1024, // 1GB
+            optimization_enabled: true,
+            optimization_interval_hours: 24,
+            logging_enabled: true,
+            metrics_enabled: true,
+        }
+    }
+}
+
+fn default_mmap_cache_size_mb() -> usize {
+    1024
+}
+
+fn default_optimization_interval_hours() -> u64 {
+    24
 }
 
 impl StorageConfig {

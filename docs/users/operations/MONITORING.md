@@ -317,6 +317,6 @@ def monitor_vectorizer(base_url="http://localhost:15002"):
 
 ## Related Topics
 
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance optimization
 - [Configuration Guide](../configuration/CONFIGURATION.md) - Server configuration
-- [Troubleshooting Guide](../troubleshooting/TROUBLESHOOTING.md) - Debugging issues
+- [Troubleshooting Guide](./TROUBLESHOOTING.md) - Debugging issues
