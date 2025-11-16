@@ -14,6 +14,7 @@ If you discover a security vulnerability, please report it privately:
 - **Public Disclosure**: After fix is released
 
 **Please do NOT**:
+
 - Open public GitHub issues for security vulnerabilities
 - Disclose vulnerabilities before a fix is available
 - Exploit vulnerabilities in production systems
@@ -25,11 +26,13 @@ If you discover a security vulnerability, please report it privately:
 ### 1. Authentication
 
 #### JWT Tokens
+
 - **Algorithm**: RS256 (RSA with SHA-256)
 - **Expiration**: Configurable (default: 24 hours)
 - **Refresh**: Supported via token refresh endpoint
 
 #### API Keys
+
 - **Format**: UUID v4 (128-bit random)
 - **Storage**: Hashed with bcrypt
 - **Rotation**: Supported via API
@@ -40,6 +43,7 @@ If you discover a security vulnerability, please report it privately:
 Prevents API abuse and DoS attacks.
 
 **Configuration** (`config.yml`):
+
 ```yaml
 security:
   rate_limiting:
@@ -49,11 +53,13 @@ security:
 ```
 
 **Limits**:
+
 - **Per API Key**: 100 req/s (configurable)
 - **Burst Capacity**: 200 requests (configurable)
 - **Response**: HTTP 429 (Too Many Requests)
 
 **Headers**:
+
 ```
 HTTP/1.1 429 Too Many Requests
 Retry-After: 1
@@ -77,6 +83,7 @@ security:
 ```
 
 **Requirements**:
+
 - TLS 1.3 minimum
 - Strong cipher suites only
 - Valid certificate from trusted CA
@@ -110,12 +117,14 @@ security:
 ```
 
 **Logged Events**:
+
 - All API requests (method, endpoint, status, duration)
 - Authentication attempts (success and failures)
 - Administrative actions (config changes, server restart)
 - Permission checks (RBAC decisions)
 
 **Audit Log Entry**:
+
 ```json
 {
   "timestamp": "2025-10-25T10:30:45Z",
@@ -143,6 +152,7 @@ security:
 #### Predefined Roles
 
 **Viewer** (Read-Only):
+
 - ✅ List collections
 - ✅ Read collection details
 - ✅ Search vectors
@@ -151,6 +161,7 @@ security:
 - ❌ Create/update/delete anything
 
 **Editor** (Read/Write):
+
 - ✅ All Viewer permissions
 - ✅ Create collections
 - ✅ Update collections
@@ -162,6 +173,7 @@ security:
 - ❌ Admin actions
 
 **Admin** (Full Access):
+
 - ✅ All Editor permissions
 - ✅ Delete collections
 - ✅ Manage API keys
@@ -193,6 +205,7 @@ security:
 ```
 
 **Supported MFA Methods**:
+
 - TOTP (Time-based One-Time Password)
 - SMS verification
 - Email verification
@@ -217,6 +230,7 @@ security:
 ```
 
 **Detected Threats**:
+
 - Brute force attacks
 - Suspicious access patterns
 - Unusual API usage
@@ -261,6 +275,7 @@ security:
 ```
 
 **Protection Features**:
+
 - Memory usage monitoring (prevents OOM crashes)
 - CPU usage throttling (prevents system overload)
 - Concurrent operation limits (prevents resource exhaustion)
@@ -268,6 +283,7 @@ security:
 - Windows-specific protections (prevents BSOD)
 
 **Violation Handling**:
+
 - Automatic resource throttling
 - Operation queuing when limits exceeded
 - Violation logging and alerting
@@ -345,7 +361,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # Rate limiting at proxy level
         limit_req zone=vectorizer burst=20 nodelay;
     }
@@ -392,7 +408,7 @@ export VECTORIZER_API_KEY="your-api-key-here"
 #### Docker Secrets
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   vectorizer:
     image: vectorizer:latest
@@ -416,6 +432,7 @@ All Vectorizer client SDKs implement security best practices:
 #### SDK Security Features
 
 **TypeScript/JavaScript SDKs**:
+
 - ✅ Secure credential storage (never in code)
 - ✅ TLS/HTTPS enforcement
 - ✅ Request signing support
@@ -423,6 +440,7 @@ All Vectorizer client SDKs implement security best practices:
 - ✅ Input validation and sanitization
 
 **Python SDK**:
+
 - ✅ Environment variable support for credentials
 - ✅ Secure credential management
 - ✅ TLS certificate validation
@@ -430,6 +448,7 @@ All Vectorizer client SDKs implement security best practices:
 - ✅ Input sanitization
 
 **Rust SDK**:
+
 - ✅ Type-safe credential handling
 - ✅ Zero-copy where possible
 - ✅ Memory-safe operations
@@ -437,6 +456,7 @@ All Vectorizer client SDKs implement security best practices:
 - ✅ Secure defaults
 
 **Go SDK**:
+
 - ✅ Secure credential storage
 - ✅ TLS configuration support
 - ✅ Context-based cancellation
@@ -444,6 +464,7 @@ All Vectorizer client SDKs implement security best practices:
 - ✅ Error handling without information leakage
 
 **C# SDK**:
+
 - ✅ Secure credential management
 - ✅ Async/await for non-blocking operations
 - ✅ TLS certificate validation
@@ -456,17 +477,18 @@ All Vectorizer client SDKs implement security best practices:
 // ✅ GOOD: Use environment variables
 const client = new VectorizerClient({
   baseURL: process.env.VECTORIZER_URL,
-  apiKey: process.env.VECTORIZER_API_KEY
+  apiKey: process.env.VECTORIZER_API_KEY,
 });
 
 // ❌ BAD: Hardcoded credentials
 const client = new VectorizerClient({
   baseURL: "https://api.example.com",
-  apiKey: "hardcoded-key-12345" // NEVER DO THIS
+  apiKey: "hardcoded-key-12345", // NEVER DO THIS
 });
 ```
 
 **Recommendations**:
+
 - Store API keys in secure vaults (AWS Secrets Manager, HashiCorp Vault)
 - Use separate API keys per environment (dev/staging/prod)
 - Rotate API keys regularly
@@ -542,13 +564,13 @@ const client = new VectorizerClient({
 
 ### Supported Versions
 
-| Version | Supported |
-|---------|-----------|
-| 1.3.x   | ✅ Yes    |
-| 1.2.x   | ✅ Yes    |
-| 1.1.x   | ✅ Yes    |
+| Version | Supported  |
+| ------- | ---------- |
+| 1.3.x   | ✅ Yes     |
+| 1.2.x   | ✅ Yes     |
+| 1.1.x   | ✅ Yes     |
 | 1.0.x   | ⚠️ Limited |
-| < 1.0   | ❌ No     |
+| < 1.0   | ❌ No      |
 
 ### Security Updates
 
