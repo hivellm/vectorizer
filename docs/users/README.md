@@ -37,6 +37,13 @@ REST API documentation:
 - [REST API Reference](./api/API_REFERENCE.md) - Complete API endpoint reference
 - All endpoints, request/response formats, examples
 
+### 🔗 [Integration](./integration/)
+
+Integrating with other systems:
+
+- [Integration Guide](./integration/INTEGRATION.md) - Web frameworks, databases, LLMs, monitoring
+- FastAPI, Express, PostgreSQL, MongoDB, OpenAI, LangChain examples
+
 ### 📦 [Collections](./collections/)
 
 Managing collections and data:
