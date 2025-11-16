@@ -1,5 +1,6 @@
 //! Hybrid search models for combining dense and sparse vectors
 
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 /// Sparse vector representation
