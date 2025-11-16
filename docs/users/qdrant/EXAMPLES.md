@@ -676,6 +676,74 @@ response = requests.post(
 results = response.json()["result"]
 ```
 
+## Migration Examples
+
+### Export Collection from Qdrant
+
+```rust
+use vectorizer::migration::qdrant::QdrantDataExporter;
+
+// Export collection from Qdrant instance
+let exported = QdrantDataExporter::export_collection(
+    "http://localhost:6333",
+    "my_collection"
+).await?;
+
+// Save to file for backup
+QdrantDataExporter::export_to_file(&exported, "my_collection_backup.json")?;
+
+println!("Exported {} points", exported.points.len());
+```
+
+### Import Collection into Vectorizer
+
+```rust
+use vectorizer::migration::qdrant::{QdrantDataImporter, MigrationValidator};
+
+// Load exported collection
+let exported = QdrantDataImporter::import_from_file("my_collection_backup.json")?;
+
+// Validate before importing
+let validation = MigrationValidator::validate_export(&exported)?;
+if !validation.is_valid {
+    eprintln!("Validation errors: {:?}", validation.errors);
+    return Err("Invalid export data".into());
+}
+
+// Import into Vectorizer
+let result = QdrantDataImporter::import_collection(&store, &exported).await?;
+
+// Validate integrity
+let integrity = MigrationValidator::validate_integrity(&exported, result.imported_count)?;
+println!("Import complete: {:.2}% integrity", integrity.integrity_percentage);
+```
+
+### Convert Qdrant Configuration
+
+```rust
+use vectorizer::migration::qdrant::{QdrantConfigParser, ConfigFormat};
+
+// Parse Qdrant config file
+let qdrant_config = QdrantConfigParser::parse_file("qdrant_config.yaml")?;
+
+// Validate
+let validation = QdrantConfigParser::validate(&qdrant_config)?;
+if !validation.is_valid {
+    for error in &validation.errors {
+        eprintln!("Error: {}", error);
+    }
+}
+
+// Convert to Vectorizer format
+let vectorizer_configs = QdrantConfigParser::convert_to_vectorizer(&qdrant_config)?;
+
+// Create collections
+for (name, config) in vectorizer_configs {
+    store.create_collection(&name, config)?;
+    println!("Created collection: {}", name);
+}
+```
+
 ## Testing Scripts
 
 ### Automated Test Script

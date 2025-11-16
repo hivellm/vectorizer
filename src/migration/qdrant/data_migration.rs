@@ -428,8 +428,8 @@ pub enum QdrantVector {
 /// Qdrant sparse vector
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QdrantSparseVector {
-    indices: Vec<u32>,
-    values: Vec<f32>,
+    pub indices: Vec<u32>,
+    pub values: Vec<f32>,
 }
 
 /// Import result

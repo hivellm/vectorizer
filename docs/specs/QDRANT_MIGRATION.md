@@ -247,25 +247,105 @@ await mcp.call_tool('search_intelligent', {
 - ✅ Scroll operations
 - ✅ Batch operations
 
+## Migration Tools
+
+Vectorizer provides migration tools to help you migrate from Qdrant:
+
+### Configuration Migration
+
+Parse and convert Qdrant configuration files:
+
+```rust
+use vectorizer::migration::qdrant::{QdrantConfigParser, ConfigFormat};
+
+// Parse Qdrant config file
+let qdrant_config = QdrantConfigParser::parse_file("qdrant_config.yaml")?;
+
+// Validate configuration
+let validation = QdrantConfigParser::validate(&qdrant_config)?;
+if !validation.is_valid {
+    eprintln!("Validation errors: {:?}", validation.errors);
+}
+
+// Convert to Vectorizer format
+let vectorizer_configs = QdrantConfigParser::convert_to_vectorizer(&qdrant_config)?;
+
+// Create collections in Vectorizer
+for (name, config) in vectorizer_configs {
+    store.create_collection(&name, config)?;
+}
+```
+
+### Data Migration
+
+Export data from Qdrant and import into Vectorizer:
+
+```rust
+use vectorizer::migration::qdrant::{QdrantDataExporter, QdrantDataImporter};
+
+// Export collection from Qdrant
+let exported = QdrantDataExporter::export_collection(
+    "http://localhost:6333",
+    "my_collection"
+).await?;
+
+// Save to file for backup
+QdrantDataExporter::export_to_file(&exported, "backup.json")?;
+
+// Import into Vectorizer
+let result = QdrantDataImporter::import_collection(&store, &exported).await?;
+println!("Imported {} points", result.imported_count);
+```
+
+### Migration Validation
+
+Validate exported data before importing:
+
+```rust
+use vectorizer::migration::qdrant::MigrationValidator;
+
+// Validate export
+let validation = MigrationValidator::validate_export(&exported)?;
+if !validation.is_valid {
+    eprintln!("Validation errors: {:?}", validation.errors);
+}
+
+// Check compatibility
+let compatibility = MigrationValidator::validate_compatibility(&exported);
+if !compatibility.is_compatible {
+    eprintln!("Incompatible features: {:?}", compatibility.incompatible_features);
+}
+
+// Validate integrity after import
+let integrity = MigrationValidator::validate_integrity(&exported, result.imported_count)?;
+println!("Integrity: {:.2}%", integrity.integrity_percentage);
+```
+
 ## Migration Path
 
 ### Phase 1: Assessment (Week 1)
 1. Identify which Qdrant features you use
 2. Check compatibility table above
 3. Review native Vectorizer alternatives
-4. Plan migration timeline
+4. Use migration tools to validate your data
+5. Plan migration timeline
 
 ### Phase 2: Dual Mode (Weeks 2-4)
 1. Keep existing Qdrant API calls working via `/qdrant/*`
-2. Start using native APIs for new features
-3. Test native APIs in parallel
-4. Compare performance and results
+2. Export your collections using migration tools
+3. Import into Vectorizer for testing
+4. Start using native APIs for new features
+5. Test native APIs in parallel
+6. Compare performance and results
 
 ### Phase 3: Migration (Weeks 5-8)
-1. Replace Qdrant API calls with native equivalents
-2. Update client code to use MCP or native REST
-3. Test thoroughly
-4. Monitor performance improvements
+1. Use migration tools to export all collections
+2. Import into Vectorizer
+3. Validate data integrity
+4. Replace Qdrant API calls with native equivalents
+5. Update client code to use MCP or native REST
+6. Test thoroughly
+7. Monitor performance improvements
 
 ### Phase 4: Completion (Week 9+)
 1. Remove Qdrant API dependency

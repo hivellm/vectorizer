@@ -370,6 +370,28 @@ curl http://localhost:15002/qdrant/collections/{name}
 
 **A**: No, sharding and clustering are not supported. Use native replication API for high availability.
 
+### Q: How do I migrate my data from Qdrant?
+
+**A**: Use the migration tools provided in `vectorizer::migration::qdrant`:
+
+```rust
+// Export from Qdrant
+let exported = QdrantDataExporter::export_collection("http://qdrant:6333", "my_collection").await?;
+
+// Import into Vectorizer
+let result = QdrantDataImporter::import_collection(&store, &exported).await?;
+```
+
+See [Migration Guide](../../specs/QDRANT_MIGRATION.md) for detailed instructions.
+
+### Q: Can I migrate sparse vectors?
+
+**A**: No, sparse vectors are not supported in migration. You'll need to convert them to dense vectors first.
+
+### Q: What happens to named vectors during migration?
+
+**A**: Named vectors are not supported. Only the first named vector will be used during migration. Consider converting to single vector format before migrating.
+
 ### Q: What's the difference between Qdrant API and native API?
 
 **A**: Native API offers better performance, more features (intelligent search, etc.), and better integration (MCP, WebSocket).
