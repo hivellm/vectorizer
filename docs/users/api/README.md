@@ -3,18 +3,20 @@ title: API Documentation
 module: api
 id: api-index
 order: 0
-description: REST API documentation and reference
-tags: [api, rest, endpoints, reference]
+description: REST API and integration documentation
+tags: [api, rest, endpoints, integration]
 ---
 
 # API Documentation
 
-Complete REST API documentation for Vectorizer.
+Complete REST API documentation and integration guides.
 
-## Guides
+## API Reference
 
 ### [REST API Reference](./API_REFERENCE.md)
+
 Complete reference for all REST API endpoints:
+
 - System endpoints (health, stats)
 - Collection management
 - Vector operations
@@ -23,6 +25,21 @@ Complete reference for all REST API endpoints:
 - Qdrant-compatible endpoints
 - File operations
 - Discovery endpoints
+
+## Integration
+
+### [Integration Guide](./INTEGRATION.md)
+
+Integrating Vectorizer with other systems:
+
+- Web frameworks (FastAPI, Express, Axum)
+- Databases (PostgreSQL, MongoDB)
+- LLMs (OpenAI, LangChain)
+- ETL pipelines (Airflow, Kafka)
+- Monitoring (Prometheus, Grafana, Datadog)
+- CI/CD (GitHub Actions, GitLab CI)
+- Reverse proxy (Nginx, Caddy, Traefik)
+- Authentication and load balancing
 
 ## Quick Reference
 
@@ -47,6 +64,7 @@ Currently, Vectorizer does not require authentication. All endpoints are publicl
 ## Response Format
 
 **Success:**
+
 ```json
 {
   "status": "success",
@@ -55,6 +73,7 @@ Currently, Vectorizer does not require authentication. All endpoints are publicl
 ```
 
 **Error:**
+
 ```json
 {
   "error": {
@@ -70,4 +89,3 @@ Currently, Vectorizer does not require authentication. All endpoints are publicl
 - [Collections Guide](../collections/COLLECTIONS.md) - Using collections via API
 - [Search Guide](../search/SEARCH.md) - Search operations
 - [SDKs Guide](../sdks/README.md) - Client SDKs that wrap the API
-

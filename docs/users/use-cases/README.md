@@ -1,73 +1,62 @@
 ---
-title: Use Cases
+title: Examples and Use Cases
 module: use-cases
 id: use-cases-index
 order: 0
-description: Real-world use cases and examples for Vectorizer
+description: Real-world examples and use case implementations
 tags: [use-cases, examples, tutorials, practical]
 ---
 
-# Use Cases
+# Examples and Use Cases
 
 Real-world examples and tutorials showing how to use Vectorizer in common scenarios.
 
-## Available Use Cases
+## Use Case Guides
 
 ### [Document Search System](./DOCUMENT_SEARCH.md)
-
-Build a production-ready semantic document search system:
-
-- Index large document collections
-- Search by meaning, not keywords
+Build a semantic document search system:
+- Index documents with metadata
+- Search by meaning
 - Filter by metadata
-- Scale to millions of documents
-
-**Use cases:**
-
-- Knowledge base search
-- Document management systems
-- Content discovery platforms
+- Hybrid search capabilities
 
 ### [Recommendation System](./RECOMMENDATION_SYSTEM.md)
-
 Build a content-based recommendation system:
-
-- Recommend similar items
+- Index items with features
+- Find similar items
+- Generate recommendations
 - Handle user preferences
-- Real-time recommendations
-- Collaborative filtering
-
-**Use cases:**
-
-- E-commerce product recommendations
-- Content recommendations
-- Similar item discovery
 
 ### [Q&A System with RAG](./QA_SYSTEM.md)
-
 Build a Question-Answering system using RAG:
-
-- Store knowledge base documents
+- Index knowledge base
 - Retrieve relevant context
-- Generate accurate answers
+- Generate answers with LLM
 - Handle multiple domains
 
-**Use cases:**
+## Code Examples
 
-- Customer support chatbots
-- Technical documentation Q&A
-- Knowledge base assistants
+### [Practical Examples](./EXAMPLES.md)
+Real-world code examples:
+- Document search with metadata filtering
+- Code search engine
+- Recommendation system
+- Q&A system with RAG
+- Multi-collection search
+- Hybrid search with keywords
+- Batch processing
+- Real-time search
 
 ## Quick Start
 
 Choose a use case that matches your needs:
 
-1. **[Document Search](./DOCUMENT_SEARCH.md)** - If you need to search documents
-2. **[Recommendations](./RECOMMENDATION_SYSTEM.md)** - If you need to recommend items
-3. **[Q&A System](./QA_SYSTEM.md)** - If you need to answer questions
+1. **[Document Search](./DOCUMENT_SEARCH.md)** - Search documents semantically
+2. **[Recommendations](./RECOMMENDATION_SYSTEM.md)** - Recommend similar items
+3. **[Q&A System](./QA_SYSTEM.md)** - Answer questions with RAG
 
 ## Related Topics
 
-- [Examples Guide](../examples/EXAMPLES.md) - More code examples
 - [Search Guide](../search/SEARCH.md) - Search capabilities
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection management
+- [SDKs Guide](../sdks/README.md) - Client libraries

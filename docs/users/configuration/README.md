@@ -4,7 +4,7 @@ module: configuration
 id: configuration-index
 order: 0
 description: Complete configuration guide for Vectorizer
-tags: [configuration, settings, server, logging, storage]
+tags: [configuration, settings, server, logging, storage, performance]
 ---
 
 # Configuration Guide
@@ -13,8 +13,18 @@ Complete guide to configuring Vectorizer server, logging, storage, and performan
 
 ## Configuration Guides
 
+### [Configuration Overview](./CONFIGURATION.md)
+
+Quick reference and overview:
+
+- Configuration methods and priority
+- Common options
+- Quick examples
+
 ### [Server Configuration](./SERVER.md)
+
 Network and server settings:
+
 - Host binding and port configuration
 - Command line arguments
 - Environment variables
@@ -24,7 +34,9 @@ Network and server settings:
 - Network security
 
 ### [Logging Configuration](./LOGGING.md)
+
 Logging setup and management:
+
 - Log levels (trace, debug, info, warn, error)
 - Log output destinations
 - Request/response logging
@@ -33,7 +45,9 @@ Logging setup and management:
 - Log analysis
 
 ### [Data Directory Configuration](./DATA_DIRECTORY.md)
+
 Storage and persistence:
+
 - Default and custom data directories
 - Directory permissions
 - Snapshot configuration
@@ -41,13 +55,18 @@ Storage and persistence:
 - Network storage (NFS, SMB)
 - Data migration
 
-### [Performance Tuning](./PERFORMANCE.md)
+### [Performance Tuning](./PERFORMANCE_TUNING.md)
+
 Performance optimization:
+
 - Thread configuration
 - Memory settings
 - GPU acceleration
+- Batch processing
+- Query caching
 - Collection optimization
 - Search optimization
+- System-level optimization
 
 ## Quick Start
 
@@ -107,7 +126,6 @@ environment:
 
 ## Related Topics
 
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Service configuration
-- [Troubleshooting](../troubleshooting/TROUBLESHOOTING.md) - Configuration issues
-- [Installation Guide](../installation/INSTALLATION.md) - Initial setup
-
+- [Service Management](../operations/SERVICE_MANAGEMENT.md) - Service configuration
+- [Troubleshooting](../operations/TROUBLESHOOTING.md) - Configuration issues
+- [Installation Guide](../getting-started/INSTALLATION.md) - Initial setup

@@ -1,15 +1,15 @@
 ---
-title: Advanced Features
-module: advanced
-id: advanced-index
+title: Advanced Guides
+module: guides
+id: guides-index
 order: 0
 description: Advanced features and optimization guides
-tags: [advanced, features, optimization, sparse-vectors, quantization]
+tags: [advanced, guides, sparse-vectors, quantization, optimization]
 ---
 
-# Advanced Features
+# Advanced Guides
 
-Guides for advanced Vectorizer features and optimizations.
+Advanced features and optimization guides for experienced users.
 
 ## Guides
 
@@ -41,31 +41,20 @@ sparse = SparseVector(
     indices=[0, 5, 10],
     values=[0.8, 0.6, 0.9]
 )
-
-await client.insert_text(
-    "collection",
-    "text",
-    sparse_vector=sparse
-)
 ```
 
 ### Quantization
 
 ```python
-await client.create_collection(
-    "collection",
-    dimension=512,
-    quantization={
-        "enabled": True,
-        "type": "scalar",
-        "bits": 8  # 4x memory reduction
-    }
-)
+quantization={
+    "enabled": True,
+    "type": "scalar",
+    "bits": 8  # 4x memory reduction
+}
 ```
 
 ## Related Topics
 
-- [Performance Guide](../performance/PERFORMANCE.md) - Performance optimization
+- [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance optimization
 - [Collection Configuration](../collections/CONFIGURATION.md) - Collection settings
 - [Search Guide](../search/ADVANCED.md) - Advanced search methods
-

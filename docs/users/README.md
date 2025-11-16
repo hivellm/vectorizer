@@ -13,36 +13,16 @@ Welcome to the Vectorizer user documentation! This section contains guides and t
 
 ## 📚 Documentation by Topic
 
-### 🚀 [Installation](./installation/)
+### 🚀 [Getting Started](./getting-started/)
 
-Complete installation guides for all platforms:
+Installation and quick start guides:
 
-- [Installation Guide](./installation/INSTALLATION.md) - Quick installation and overview
-- [Docker Installation](./installation/DOCKER.md) - Complete Docker deployment guide
-- [Building from Source](./installation/BUILD_FROM_SOURCE.md) - Build from source code
-- Service setup and verification
-
-### 🎯 [Getting Started](./getting-started/)
-
-Quick start guides and tutorials:
-
+- [Installation Guide](./getting-started/INSTALLATION.md) - Quick installation and overview
+- [Docker Installation](./getting-started/DOCKER.md) - Complete Docker deployment guide
+- [Building from Source](./getting-started/BUILD_FROM_SOURCE.md) - Build from source code
 - [Quick Start Guide](./getting-started/QUICK_START.md) - Get up and running in minutes
 - [First Steps](./getting-started/FIRST_STEPS.md) - Complete guide after installation
 - [Quick Start (Windows)](./getting-started/QUICK_START_WINDOWS.md) - Windows-specific guide
-
-### 🔌 [API Reference](./api/)
-
-REST API documentation:
-
-- [REST API Reference](./api/API_REFERENCE.md) - Complete API endpoint reference
-- All endpoints, request/response formats, examples
-
-### 🔗 [Integration](./integration/)
-
-Integrating with other systems:
-
-- [Integration Guide](./integration/INTEGRATION.md) - Web frameworks, databases, LLMs, monitoring
-- FastAPI, Express, PostgreSQL, MongoDB, OpenAI, LangChain examples
 
 ### 📦 [Collections](./collections/)
 
@@ -53,14 +33,6 @@ Managing collections and data:
 - [Collection Operations](./collections/OPERATIONS.md) - Managing collections (list, get, update, delete)
 - [Complete Collections Guide](./collections/COLLECTIONS.md) - Comprehensive reference
 
-### 🔍 [Search](./search/)
-
-Search capabilities and features:
-
-- [Basic Search](./search/BASIC.md) - Simple text and vector search
-- [Advanced Search](./search/ADVANCED.md) - Intelligent, semantic, hybrid search
-- [Complete Search Guide](./search/SEARCH.md) - Comprehensive reference
-
 ### 📊 [Vectors](./vectors/)
 
 Vector operations and management:
@@ -69,6 +41,14 @@ Vector operations and management:
 - [Updating Vectors](./vectors/UPDATE.md) - Modifying existing vectors
 - [Deleting Vectors](./vectors/DELETE.md) - Removing vectors
 - [Complete Vectors Guide](./vectors/VECTORS.md) - Comprehensive reference
+
+### 🔍 [Search](./search/)
+
+Search capabilities and features:
+
+- [Basic Search](./search/BASIC.md) - Simple text and vector search
+- [Advanced Search](./search/ADVANCED.md) - Intelligent, semantic, hybrid search
+- [Complete Search Guide](./search/SEARCH.md) - Comprehensive reference
 
 ### 💻 [SDKs](./sdks/)
 
@@ -80,13 +60,13 @@ Client libraries and SDKs:
 - [Rust SDK](./sdks/RUST.md) - Complete Rust SDK guide
 - [SDKs Overview](./sdks/SDKS.md) - Quick comparison and overview
 
-### ⚙️ [Service Management](./service-management/)
+### 🔌 [API Reference](./api/)
 
-Managing the Vectorizer service:
+REST API and integration:
 
-- [Service Management Guide](./service-management/SERVICE_MANAGEMENT.md) - Linux systemd and Windows Service management
-- [Log Management](./service-management/LOGS.md) - Viewing, filtering, and analyzing logs
-- Service status, configuration, and troubleshooting
+- [REST API Reference](./api/API_REFERENCE.md) - Complete API endpoint reference
+- [Integration Guide](./api/INTEGRATION.md) - Web frameworks, databases, LLMs, monitoring
+- All endpoints, request/response formats, examples
 
 ### 🔧 [Configuration](./configuration/)
 
@@ -96,55 +76,39 @@ Complete configuration guides:
 - [Server Configuration](./configuration/SERVER.md) - Network, ports, host binding, reverse proxy
 - [Logging Configuration](./configuration/LOGGING.md) - Log levels, filtering, aggregation
 - [Data Directory](./configuration/DATA_DIRECTORY.md) - Storage paths, snapshots, migration
-- [Performance Tuning](./configuration/PERFORMANCE.md) - Threads, memory, GPU, optimization
+- [Performance Tuning](./configuration/PERFORMANCE_TUNING.md) - Threads, memory, GPU, optimization
 
-### 📈 [Performance](./performance/)
+### ⚙️ [Operations](./operations/)
 
-Performance optimization and tuning:
+Service management, monitoring, and troubleshooting:
 
-- [Performance Guide](./performance/PERFORMANCE.md) - Optimization strategies, benchmarks, tuning
+- [Service Management](./operations/SERVICE_MANAGEMENT.md) - Linux systemd and Windows Service management
+- [Log Management](./operations/LOGS.md) - Viewing, filtering, and analyzing logs
+- [Monitoring](./operations/MONITORING.md) - Health checks, Prometheus metrics, Grafana dashboards
+- [Backup and Restore](./operations/BACKUP.md) - Backup procedures and restore operations
+- [Troubleshooting](./operations/TROUBLESHOOTING.md) - Common problems and fixes
 
-### 📊 [Monitoring](./monitoring/)
+### 🎯 [Examples and Use Cases](./use-cases/)
 
-Monitor Vectorizer performance and health:
-
-- [Monitoring Guide](./monitoring/MONITORING.md) - Health checks, Prometheus metrics, Grafana dashboards, alerting
-
-### 📝 [Examples](./examples/)
-
-Practical examples and tutorials:
-
-- [Examples Guide](./examples/EXAMPLES.md) - Real-world examples and code samples
-- Document search, code search, recommendation systems
-- Q&A systems, batch processing, real-time search
-
-### 🎯 [Use Cases](./use-cases/)
-
-Real-world use case implementations:
+Real-world examples and tutorials:
 
 - [Document Search System](./use-cases/DOCUMENT_SEARCH.md) - Build a semantic document search
 - [Recommendation System](./use-cases/RECOMMENDATION_SYSTEM.md) - Content-based recommendations
 - [Q&A System with RAG](./use-cases/QA_SYSTEM.md) - RAG-based question answering
+- [Practical Examples](./use-cases/EXAMPLES.md) - Real-world code examples
 
-### 🐛 [Troubleshooting](./troubleshooting/)
+### 🚀 [Advanced Guides](./guides/)
 
-Common issues and solutions:
+Advanced features and optimizations:
 
-- [Troubleshooting Guide](./troubleshooting/TROUBLESHOOTING.md) - Common problems and fixes
-- Debugging tips and solutions
-
-### 💾 [Backup and Restore](./backup-restore/)
-
-Data protection and recovery:
-
-- [Backup Guide](./backup-restore/BACKUP.md) - Backup procedures and restore operations
-- Automated backups and scheduled tasks
+- [Sparse Vectors](./guides/SPARSE_VECTORS.md) - Sparse vector operations and hybrid search
+- [Quantization](./guides/QUANTIZATION.md) - Vector quantization for memory optimization
 
 ## 🚀 Quick Start
 
 New to Vectorizer? Start here:
 
-1. **[Install Vectorizer](./installation/INSTALLATION.md)** - Get Vectorizer running
+1. **[Install Vectorizer](./getting-started/INSTALLATION.md)** - Get Vectorizer running
 2. **[Quick Start Guide](./getting-started/QUICK_START.md)** - Create your first collection
 3. **[Creating Collections](./collections/CREATING.md)** - Learn about collections
 4. **[Basic Search](./search/BASIC.md)** - Start searching
@@ -159,5 +123,5 @@ New to Vectorizer? Start here:
 ## 💡 Need Help?
 
 - Check the [main README](../../README.md) for quick reference
-- Review [troubleshooting guide](./troubleshooting/TROUBLESHOOTING.md) for common issues
+- Review [troubleshooting guide](./operations/TROUBLESHOOTING.md) for common issues
 - See [specifications](../specs/) for technical details
