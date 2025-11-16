@@ -262,6 +262,10 @@ impl AdvancedStorage {
             .map_err(|e| VectorizerError::Io(e))?
             .len() as usize;
 
+        // Clear cache BEFORE re-storing to close memory-mapped file
+        // This prevents "file with a user-mapped section open" error
+        self.clear_cache(collection_name)?;
+
         // Re-store vectors (this will compact the file)
         self.store_vectors(collection_name, &vectors)?;
 
@@ -269,9 +273,6 @@ impl AdvancedStorage {
         let new_size = std::fs::metadata(&file_path)
             .map_err(|e| VectorizerError::Io(e))?
             .len() as usize;
-
-        // Clear cache to force reload
-        self.clear_cache(collection_name)?;
 
         let space_saved = original_size.saturating_sub(new_size);
         let compression_ratio = if original_size > 0 {
