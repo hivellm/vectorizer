@@ -20,6 +20,7 @@
 - ⏸️ Migration Tools - See `add-qdrant-migration` task
 
 **Not Planned** (out of scope):
+
 - ❌ gRPC - Not supported (REST API only)
 - ❌ Client SDKs - Not planned (users should use REST API or migrate to native APIs)
 - ❌ Clustering - Not supported (use native replication API)

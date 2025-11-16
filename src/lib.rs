@@ -25,6 +25,7 @@ pub mod gpu_adapter;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;
+pub mod migration;
 pub mod models;
 pub mod monitoring;
 pub mod normalization;
