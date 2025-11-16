@@ -137,10 +137,18 @@ async fn test_sparse_vector_with_payload() {
 
 #[tokio::test]
 async fn test_sparse_vector_search() {
-    let store = VectorStore::new();
-    let collection_name = "sparse_search_test";
+    use std::time::{SystemTime, UNIX_EPOCH};
 
-    create_test_collection(&store, collection_name, 128).expect("Failed to create collection");
+    // Use unique collection name to avoid conflicts with parallel tests
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let collection_name = format!("sparse_search_test_{timestamp}");
+
+    let store = VectorStore::new();
+
+    create_test_collection(&store, &collection_name, 128).expect("Failed to create collection");
 
     // Insert multiple sparse vectors
     let vectors = vec![
@@ -162,22 +170,58 @@ async fn test_sparse_vector_search() {
     ];
 
     store
-        .insert(collection_name, vectors)
+        .insert(&collection_name, vectors)
         .expect("Failed to insert sparse vectors");
+
+    // Verify vectors were inserted
+    let collection_info = store
+        .get_collection(&collection_name)
+        .expect("Failed to get collection");
+    assert_eq!(
+        collection_info.vector_count(),
+        3,
+        "Expected 3 vectors inserted"
+    );
 
     // Search with sparse query vector (should match sparse_1 and sparse_2)
     let query_sparse = SparseVector::new(vec![0, 1], vec![1.0, 1.0]).unwrap();
     let query_dense = query_sparse.to_dense(128);
 
     let results = store
-        .search(collection_name, &query_dense, 3)
+        .search(&collection_name, &query_dense, 3)
         .expect("Failed to search");
 
-    assert!(results.len() >= 2);
+    assert!(
+        results.len() >= 2,
+        "Expected at least 2 results, got {}",
+        results.len()
+    );
+
     // sparse_1 and sparse_2 should be more similar (share indices 0,1)
     let result_ids: Vec<String> = results.iter().map(|r| r.id.clone()).collect();
-    assert!(result_ids.contains(&"sparse_1".to_string()));
-    assert!(result_ids.contains(&"sparse_2".to_string()));
+
+    // Debug output if assertion fails
+    if !result_ids.contains(&"sparse_1".to_string())
+        || !result_ids.contains(&"sparse_2".to_string())
+    {
+        eprintln!("Search results: {result_ids:?}");
+        eprintln!(
+            "Result scores: {:?}",
+            results
+                .iter()
+                .map(|r| (r.id.clone(), r.score))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    assert!(
+        result_ids.contains(&"sparse_1".to_string()),
+        "Expected 'sparse_1' in results, got: {result_ids:?}"
+    );
+    assert!(
+        result_ids.contains(&"sparse_2".to_string()),
+        "Expected 'sparse_2' in results, got: {result_ids:?}"
+    );
 }
 
 #[tokio::test]
