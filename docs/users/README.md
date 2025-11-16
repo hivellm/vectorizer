@@ -17,7 +17,9 @@ Welcome to the Vectorizer user documentation! This section contains guides and t
 
 Complete installation guides for all platforms:
 
-- [Installation Guide](./installation/INSTALLATION.md) - Install Vectorizer on Linux, macOS, and Windows
+- [Installation Guide](./installation/INSTALLATION.md) - Quick installation and overview
+- [Docker Installation](./installation/DOCKER.md) - Complete Docker deployment guide
+- [Building from Source](./installation/BUILD_FROM_SOURCE.md) - Build from source code
 - Service setup and verification
 
 ### 🎯 [Getting Started](./getting-started/)
