@@ -17,10 +17,12 @@
 
 **Delegated to Other Tasks** (not part of this task scope):
 
-- ⏸️ gRPC - See `add-qdrant-grpc` task
-- ⏸️ Clients - See `add-qdrant-clients` task
 - ⏸️ Migration Tools - See `add-qdrant-migration` task
-- ⏸️ Clustering - Future scale-out feature (not part of compatibility)
+
+**Not Planned** (out of scope):
+- ❌ gRPC - Not supported (REST API only)
+- ❌ Client SDKs - Not planned (users should use REST API or migrate to native APIs)
+- ❌ Clustering - Not supported (use native replication API)
 
 ## 1. Core API Compatibility Layer ✅ (95%)
 
@@ -366,13 +368,9 @@
 
 **Status**: Not implemented (future scale-out feature)
 
-## 6. gRPC Interface ⏸️ (Delegated to `add-qdrant-grpc` task)
+## 6. gRPC Interface ❌ (Not Planned)
 
-**Note**: gRPC support is tracked in a separate task: `add-qdrant-grpc`. This task focuses on REST API compatibility only.
-
-### 6.1 Qdrant gRPC Service ⏸️ (Delegated)
-
-**Status**: See `add-qdrant-grpc` task for gRPC implementation
+**Note**: gRPC support is not planned. Vectorizer provides REST API compatibility only. Users should use REST API or migrate to native Vectorizer APIs.
 
 ### 6.2 gRPC Collection Operations ⏸️ (0%)
 
@@ -418,13 +416,9 @@
 
 **Status**: Not started (blocked by 6.1)
 
-## 7. Client Compatibility ⏸️ (Delegated to `add-qdrant-clients` task)
+## 7. Client Compatibility ❌ (Not Planned)
 
-**Note**: Client library testing is tracked in a separate task: `add-qdrant-clients`. This task focuses on REST API implementation only.
-
-### 7.1 Python Client Compatibility ⏸️ (Delegated)
-
-**Status**: See `add-qdrant-clients` task for client library compatibility testing
+**Note**: Client SDK compatibility is not planned. Users should use REST API directly or migrate to native Vectorizer APIs. This task focuses on REST API implementation only.
 
 ### 7.2 JavaScript Client Compatibility ⏸️ (0%)
 
@@ -675,13 +669,16 @@
 - ✅ **Testing** (100%) - REST API tested (22 integration tests + 18 benchmarks)
 - ✅ **Performance** (100%) - Benchmarks + CI/CD automation
 
-**Out of Scope** (delegated to other tasks - not part of REST API compatibility):
+**Out of Scope** (not part of REST API compatibility):
 
-- ⏸️ **gRPC** - Separate task: `add-qdrant-grpc`
-- ⏸️ **Clients** - Separate task: `add-qdrant-clients`
 - ⏸️ **Migration Tools** - Separate task: `add-qdrant-migration`
-- ⏸️ **Clustering** - Future scale-out feature (not part of compatibility)
 - ⏸️ **Documentation** - Comprehensive guides (can be added separately)
+
+**Not Planned**:
+
+- ❌ **gRPC** - Not supported (REST API only)
+- ❌ **Client SDKs** - Not planned (use REST API or migrate to native APIs)
+- ❌ **Clustering** - Not supported (use native replication API)
 
 **Files Created**:
 
@@ -694,15 +691,17 @@
 **Next Steps** (delegated to other tasks):
 
 1. ✅ Advanced filters (geo, range) - COMPLETED
-2. Implement client library testing (see `add-qdrant-clients` task)
-3. Create migration tools (see `add-qdrant-migration` task)
-4. Add gRPC support (see `add-qdrant-grpc` task)
-5. Add comprehensive documentation (pending)
+2. Create migration tools (see `add-qdrant-migration` task)
+3. Add comprehensive documentation (pending)
 
 ---
 
 **Note**: This task is archived. Remaining work is tracked in separate tasks:
 
-- `add-qdrant-grpc` - gRPC interface
-- `add-qdrant-clients` - Client library compatibility
 - `add-qdrant-migration` - Migration tools
+
+**Not Planned**:
+
+- ❌ gRPC interface - Not supported (REST API only)
+- ❌ Client SDK compatibility - Not planned (use REST API or migrate to native APIs)
+- ❌ Clustering - Not supported (use native replication API)

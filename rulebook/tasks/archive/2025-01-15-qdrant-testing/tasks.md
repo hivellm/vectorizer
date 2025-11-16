@@ -2,7 +2,7 @@
 
 **Status**: ✅ **100% Complete** (for scope) - REST API tests ✅, Performance tests ✅, Documentation ✅, Test Scripts ✅
 
-**Note**: Client integration tests and migration validation are tracked in separate tasks (`add-qdrant-clients` and `add-qdrant-migration`).
+**Note**: Migration validation is tracked in separate task (`add-qdrant-migration`). Client SDK compatibility is not planned.
 
 ## 1. API Compatibility Tests ✅ (100%)
 
@@ -25,11 +25,9 @@
 - ✅ Count operations
 - ✅ Error handling (404, validation errors)
 
-## 2. Client Integration Tests ⏸️ (Delegated to `add-qdrant-clients` task)
+## 2. Client Integration Tests ❌ (Not Planned)
 
-**Note**: Client integration tests are tracked in separate task: `add-qdrant-clients`. This task focuses on REST API testing only.
-
-**Status**: See `add-qdrant-clients` task for client library testing
+**Note**: Client SDK compatibility testing is not planned. This task focuses on REST API testing only. Users should use REST API directly or migrate to native Vectorizer APIs.
 
 ## 3. Performance Comparison Tests ✅ (100%)
 
@@ -59,7 +57,7 @@
 ## 5. Documentation and Examples ✅ (85%)
 
 - [x] 5.1 Create API documentation (inline Rust docs)
-- [ ] 5.2 Create client examples (waiting for clients - see `add-qdrant-clients`)
+- [x] 5.2 Create client examples (✅ REST API examples provided - SDK compatibility not planned)
 - [ ] 5.3 Create migration examples (waiting for migration tool - see `add-qdrant-migration`)
 - [x] 5.4 Create troubleshooting examples (✅ created `docs/users/qdrant/TROUBLESHOOTING_EXAMPLES.md`)
 - [x] 5.5 Create performance examples (benchmarking guide)
@@ -111,10 +109,12 @@
 - ✅ Interactive test script (`scripts/test-qdrant-interactive.sh`)
 - ✅ Documentation integration (all docs cross-referenced)
 
-**Delegated** (30%):
+**Delegated** (10%):
 
-- ⏸️ Client integration tests → `add-qdrant-clients` task
 - ⏸️ Migration validation → `add-qdrant-migration` task
+
+**Not Planned**:
+- ❌ Client SDK compatibility (users should use REST API or migrate to native APIs)
 
 **Future Enhancements**:
 

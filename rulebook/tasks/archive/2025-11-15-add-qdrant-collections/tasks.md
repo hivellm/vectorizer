@@ -87,7 +87,7 @@
 - ✅ Integration tests (including alias coverage)
 - ✅ All core features implemented
 
-**Note**: Sharding and advanced replication are separate features (see add-qdrant-clustering task)
+**Note**: Sharding and advanced clustering are not planned. Use native replication API for high availability.
 
 **Files**:
 
