@@ -83,6 +83,12 @@ Performance optimization and tuning:
 
 - [Performance Guide](./performance/PERFORMANCE.md) - Optimization strategies, benchmarks, tuning
 
+### 📊 [Monitoring](./monitoring/)
+
+Monitor Vectorizer performance and health:
+
+- [Monitoring Guide](./monitoring/MONITORING.md) - Health checks, Prometheus metrics, Grafana dashboards, alerting
+
 ### 📝 [Examples](./examples/)
 
 Practical examples and tutorials:

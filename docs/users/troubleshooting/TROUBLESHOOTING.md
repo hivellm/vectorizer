@@ -18,6 +18,7 @@ Common issues and their solutions.
 **Symptoms**: Service fails to start or immediately stops.
 
 **Solutions**:
+
 1. Check logs: `sudo journalctl -u vectorizer -n 50` (Linux) or `Get-EventLog -LogName Application -Source Vectorizer -Newest 50` (Windows)
 2. Verify port 15002 is not in use: `netstat -tuln | grep 15002` (Linux) or `netstat -ano | findstr 15002` (Windows)
 3. Check binary permissions: `ls -l /usr/local/bin/vectorizer` (Linux)
@@ -28,6 +29,7 @@ Common issues and their solutions.
 **Symptoms**: Service starts but immediately restarts in a loop.
 
 **Solutions**:
+
 1. Check logs for crash reasons
 2. Verify configuration is valid
 3. Check system resources (memory, disk space)
@@ -40,6 +42,7 @@ Common issues and their solutions.
 **Symptoms**: `curl http://localhost:15002/health` fails.
 
 **Solutions**:
+
 1. Verify service is running: `sudo systemctl status vectorizer` (Linux) or `Get-Service Vectorizer` (Windows)
 2. Check firewall settings
 3. Verify host binding: Should be `0.0.0.0` or `127.0.0.1`
@@ -50,6 +53,7 @@ Common issues and their solutions.
 **Symptoms**: Connection refused errors.
 
 **Solutions**:
+
 1. Service may not be running
 2. Port may be blocked by firewall
 3. Service may be binding to wrong interface
@@ -63,25 +67,29 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Check collection size and dimension**:
+
    - Large collections (>100K vectors) naturally take longer
    - Higher dimensions (768+) are slower than lower (384)
 
 2. **Verify HNSW index is built**:
+
    ```bash
    curl http://localhost:15002/collections/my_collection
    # Check "indexed_count" matches "vector_count"
    ```
 
 3. **Optimize HNSW parameters**:
+
    ```json
    {
      "hnsw_config": {
-       "ef_search": 32  // Lower = faster, but less accurate
+       "ef_search": 32 // Lower = faster, but less accurate
      }
    }
    ```
 
 4. **Enable quantization**:
+
    ```json
    {
      "quantization": {
@@ -93,10 +101,11 @@ Common issues and their solutions.
    ```
 
 5. **Check system resources**:
+
    ```bash
    # CPU usage
    top -p $(pgrep vectorizer)
-   
+
    # Memory usage
    ps aux | grep vectorizer
    ```
@@ -110,6 +119,7 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Enable quantization** (4x memory reduction):
+
    ```json
    {
      "quantization": {
@@ -123,12 +133,14 @@ Common issues and their solutions.
 2. **Reduce collection size**: Delete unused collections or vectors
 
 3. **Check for memory leaks**:
+
    ```bash
    # Monitor memory over time
    watch -n 1 'ps aux | grep vectorizer | awk "{print \$6/1024\" MB\"}"'
    ```
 
 4. **Use compression** for payloads:
+
    ```json
    {
      "compression": {
@@ -147,10 +159,11 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Use batch operations**:
+
    ```python
    # ✅ Good: Batch insert
    await client.batch_insert_text("collection", texts)
-   
+
    # ❌ Bad: Individual inserts
    for text in texts:
        await client.insert_text("collection", text)
@@ -159,10 +172,11 @@ Common issues and their solutions.
 2. **Optimize batch size**: 500-1000 vectors per batch is optimal
 
 3. **Lower ef_construction**: Faster indexing, slightly lower quality:
+
    ```json
    {
      "hnsw_config": {
-       "ef_construction": 100  // Lower = faster indexing
+       "ef_construction": 100 // Lower = faster indexing
      }
    }
    ```
@@ -182,6 +196,7 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Verify collection exists**:
+
    ```bash
    curl http://localhost:15002/collections
    ```
@@ -189,10 +204,11 @@ Common issues and their solutions.
 2. **Check collection name spelling**: Collection names are case-sensitive
 
 3. **Verify data directory permissions**:
+
    ```bash
    # Linux
    ls -la /var/lib/vectorizer
-   
+
    # Windows
    dir %ProgramData%\Vectorizer
    ```
@@ -208,11 +224,13 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Delete existing collection** (if you want to recreate it):
+
    ```bash
    curl -X DELETE http://localhost:15002/collections/my_collection
    ```
 
 2. **Use a different name**:
+
    ```bash
    curl -X POST http://localhost:15002/collections \
      -H "Content-Type: application/json" \
@@ -230,16 +248,18 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Check collection dimension**:
+
    ```bash
    curl http://localhost:15002/collections/my_collection
    ```
 
 2. **Verify vector dimension matches**:
+
    ```python
    # Python example
    collection_info = await client.get_collection_info("my_collection")
    expected_dim = collection_info["dimension"]
-   
+
    # Ensure your vector has this exact dimension
    vector = [0.1] * expected_dim  # Correct dimension
    ```
@@ -255,6 +275,7 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Verify all vectors have same dimension**:
+
    ```python
    # Check vector dimensions before insertion
    for vector in vectors:
@@ -275,6 +296,7 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Verify vector exists**:
+
    ```bash
    curl http://localhost:15002/collections/my_collection/vectors/vector_id
    ```
@@ -297,15 +319,17 @@ Common issues and their solutions.
 1. **Check data directory**: `/var/lib/vectorizer` (Linux) or `%ProgramData%\Vectorizer` (Windows)
 
 2. **Verify disk space**:
+
    ```bash
    # Linux
    df -h /var/lib/vectorizer
-   
+
    # Windows
    dir %ProgramData%\Vectorizer
    ```
 
 3. **Check logs for errors**:
+
    ```bash
    sudo journalctl -u vectorizer | grep -i error
    ```
@@ -325,28 +349,31 @@ Common issues and their solutions.
 **Common Issues**:
 
 1. **Invalid dimension**:
+
    ```json
    // ❌ Wrong: dimension must be positive integer
    {"dimension": -1}
-   
+
    // ✅ Correct
    {"dimension": 384}
    ```
 
 2. **Invalid metric**:
+
    ```json
    // ❌ Wrong: metric must be one of: cosine, euclidean, dot_product
    {"metric": "manhattan"}
-   
+
    // ✅ Correct
    {"metric": "cosine"}
    ```
 
 3. **Invalid vector data**:
+
    ```json
    // ❌ Wrong: vector must be array of numbers
    {"vector": "not an array"}
-   
+
    // ✅ Correct
    {"vector": [0.1, 0.2, 0.3]}
    ```
@@ -392,36 +419,40 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Verify installation**:
+
    ```bash
    # Linux
    which vectorizer
-   
+
    # Windows
    Get-Command vectorizer
    ```
 
 2. **Check PATH environment variable**:
+
    ```bash
    # Linux
    echo $PATH
    # Should include /usr/local/bin or $HOME/.cargo/bin
-   
+
    # Windows
    $env:PATH
    # Should include %USERPROFILE%\.cargo\bin
    ```
 
 3. **Reinstall if necessary**:
+
    ```bash
    # Re-run installation script
    curl -fsSL https://raw.githubusercontent.com/hivellm/vectorizer/main/scripts/install.sh | bash
    ```
 
 4. **Manual PATH addition** (if needed):
+
    ```bash
    # Linux - Add to ~/.bashrc or ~/.zshrc
    export PATH="$HOME/.cargo/bin:$PATH"
-   
+
    # Windows - Add to PATH environment variable
    ```
 
@@ -432,19 +463,22 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Use sudo for Linux** (when required):
+
    ```bash
    sudo systemctl start vectorizer
    ```
 
 2. **Run PowerShell as Administrator** on Windows:
+
    - Right-click PowerShell → "Run as Administrator"
 
 3. **Check file permissions**:
+
    ```bash
    # Linux
    ls -l /usr/local/bin/vectorizer
    # Should be executable: -rwxr-xr-x
-   
+
    chmod +x /usr/local/bin/vectorizer  # If not executable
    ```
 
@@ -462,21 +496,24 @@ Common issues and their solutions.
 **Solutions**:
 
 1. **Check Rust version**: Requires Rust 1.9+ with edition 2024
+
    ```bash
    rustc --version
    ```
 
 2. **Update Rust toolchain**:
+
    ```bash
    rustup update stable
    rustup default stable
    ```
 
 3. **Install build dependencies**:
+
    ```bash
    # Ubuntu/Debian
    sudo apt-get install build-essential pkg-config libssl-dev
-   
+
    # macOS
    xcode-select --install
    ```
@@ -489,13 +526,13 @@ Common issues and their solutions.
 
 ### HTTP Status Codes
 
-| Code | Meaning | Common Causes |
-|------|---------|---------------|
-| 200 | Success | - |
-| 400 | Bad Request | Invalid JSON, missing required fields, validation errors |
-| 404 | Not Found | Collection/vector doesn't exist, wrong URL |
-| 409 | Conflict | Collection already exists |
-| 500 | Internal Server Error | Server bug, system error |
+| Code | Meaning               | Common Causes                                            |
+| ---- | --------------------- | -------------------------------------------------------- |
+| 200  | Success               | -                                                        |
+| 400  | Bad Request           | Invalid JSON, missing required fields, validation errors |
+| 404  | Not Found             | Collection/vector doesn't exist, wrong URL               |
+| 409  | Conflict              | Collection already exists                                |
+| 500  | Internal Server Error | Server bug, system error                                 |
 
 ### Error Response Format
 
@@ -560,16 +597,19 @@ curl http://localhost:15002/health
 If you're still experiencing issues:
 
 1. **Check the documentation**:
+
    - [Main README](../../README.md)
    - [API Reference](../../specs/API_REFERENCE.md)
    - [Performance Guide](../performance/PERFORMANCE.md)
 
 2. **Review logs** for detailed error messages:
+
    ```bash
    sudo journalctl -u vectorizer -n 100 | grep -i error
    ```
 
 3. **Verify configuration**:
+
    - Check server configuration
    - Verify collection settings
    - Review environment variables
@@ -586,4 +626,3 @@ If you're still experiencing issues:
 - [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Service troubleshooting
 - [Configuration](../configuration/CONFIGURATION.md) - Configuration issues
 - [Installation Guide](../installation/INSTALLATION.md) - Installation problems
-
