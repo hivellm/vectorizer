@@ -45,9 +45,8 @@ public class BasicExample
             {
                 var stats = await client.GetStatsAsync();
                 Console.WriteLine("📈 Database stats:");
-                Console.WriteLine($"   Collections: {stats.TotalCollections}");
-                Console.WriteLine($"   Vectors: {stats.TotalVectors}");
-                Console.WriteLine($"   Size: {stats.TotalSizeBytes / 1024.0 / 1024.0:F2} MB");
+                Console.WriteLine($"   Collections: {stats.Collections}");
+                Console.WriteLine($"   Vectors: {stats.Vectors}");
             }
             catch (Exception ex)
             {
@@ -84,8 +83,11 @@ public class BasicExample
                     }
                 });
                 Console.WriteLine($"✅ Collection created: {collection.Name}");
-                Console.WriteLine($"   Dimension: {collection.Dimension}");
-                Console.WriteLine($"   Metric: {collection.Metric}");
+                if (collection.Config != null)
+                {
+                    Console.WriteLine($"   Dimension: {collection.Config.Dimension}");
+                    Console.WriteLine($"   Metric: {collection.Config.Metric}");
+                }
             }
             catch (Exception ex)
             {
@@ -172,10 +174,7 @@ public class BasicExample
                 Console.WriteLine($"   Name: {info.Name}");
                 Console.WriteLine($"   Dimension: {info.Dimension}");
                 Console.WriteLine($"   Vector count: {info.VectorCount}");
-                if (info.SizeBytes > 0)
-                {
-                    Console.WriteLine($"   Size: {info.SizeBytes / 1024} KB");
-                }
+                Console.WriteLine($"   Metric: {info.Metric}");
             }
             catch (Exception ex)
             {
