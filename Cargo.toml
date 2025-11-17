@@ -129,7 +129,7 @@ rmcp = { version = "0.8", features = ["server", "macros", "transport-streamable-
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.16.1"
-hyper = { version = "1.7", features = ["server", "http1", "http2"] }
+hyper = { version = "1.8", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
 
 # Monitoring and Observability
