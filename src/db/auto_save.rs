@@ -230,6 +230,25 @@ impl AutoSaveManager {
     pub fn has_pending_changes(&self) -> bool {
         self.changes_detected.load(Ordering::Relaxed)
     }
+
+    /// Clean up old snapshots (called on server startup)
+    pub fn cleanup_old_snapshots(&self) -> Result<usize> {
+        info!("🧹 Running initial snapshot cleanup on server startup...");
+        match self.snapshot_manager.cleanup_old_snapshots() {
+            Ok(deleted) => {
+                if deleted > 0 {
+                    info!("✅ Cleaned up {} old snapshots on startup", deleted);
+                } else {
+                    info!("✅ No old snapshots to clean up");
+                }
+                Ok(deleted)
+            }
+            Err(e) => {
+                error!("❌ Failed to clean up old snapshots on startup: {}", e);
+                Err(e)
+            }
+        }
+    }
 }
 
 impl Drop for AutoSaveManager {

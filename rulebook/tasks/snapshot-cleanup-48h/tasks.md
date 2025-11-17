@@ -15,8 +15,10 @@
 - [x] 2.1 Update AutoSaveManager::new to use retention_days: 2
 - [x] 2.2 Update AutoSaveManager::new to use max_snapshots: 48
 - [x] 2.3 Verify that snapshot interval remains 1 hour
+- [x] 2.4 Add cleanup_old_snapshots() method to AutoSaveManager
+- [x] 2.5 Call cleanup on server startup to remove accumulated old snapshots
 
-**Files**: `src/db/auto_save.rs`
+**Files**: `src/db/auto_save.rs`, `src/server/mod.rs`
 
 ## 3. Testing ✅
 

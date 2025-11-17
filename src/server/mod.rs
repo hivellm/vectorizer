@@ -580,6 +580,25 @@ impl VectorizerServer {
         // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
         info!("🔄 Initializing AutoSaveManager...");
         let auto_save_manager = Arc::new(crate::db::AutoSaveManager::new(store_arc.clone(), 1));
+
+        // Clean up old snapshots on server startup
+        info!("🧹 Cleaning up old snapshots on server startup...");
+        match auto_save_manager.cleanup_old_snapshots() {
+            Ok(deleted) => {
+                if deleted > 0 {
+                    info!(
+                        "✅ Cleaned up {} old snapshots (retention: 48 hours)",
+                        deleted
+                    );
+                } else {
+                    info!("✅ No old snapshots to clean up");
+                }
+            }
+            Err(e) => {
+                warn!("⚠️  Failed to clean up old snapshots on startup: {}", e);
+            }
+        }
+
         let _auto_save_handle = auto_save_manager.start();
         info!("✅ AutoSaveManager started (5min save + 1h snapshot intervals)");
 
