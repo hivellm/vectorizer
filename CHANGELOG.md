@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CHANGED**: Default snapshot retention period from 7 days to 48 hours (2 days)
 - **CHANGED**: Default maximum snapshots from 168 to 48 (24 snapshots/day × 2 days)
+- **ADDED**: Automatic cleanup on server startup to remove accumulated old snapshots
 - **BENEFIT**: Reduced disk space usage while maintaining sufficient recovery window
-- **NOTE**: Cleanup is automatic - snapshots older than 48 hours are automatically deleted
+- **NOTE**: Cleanup runs automatically on server startup and after each snapshot creation
 
 ### Added
 
