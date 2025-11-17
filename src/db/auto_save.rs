@@ -54,9 +54,9 @@ impl AutoSaveManager {
         let data_dir = VectorStore::get_data_dir();
         let compactor = StorageCompactor::new(&data_dir, 6, 1000);
 
-        // Create snapshot manager (keep last 7 days of snapshots)
+        // Create snapshot manager (keep last 48 hours / 2 days of snapshots)
         let snapshots_dir = data_dir.join(crate::storage::SNAPSHOT_DIR);
-        let snapshot_manager = SnapshotManager::new(&data_dir, snapshots_dir, 168, 7); // 24 snapshots/day * 7 days
+        let snapshot_manager = SnapshotManager::new(&data_dir, snapshots_dir, 48, 2); // 24 snapshots/day * 2 days = 48 snapshots max
 
         Self {
             store,
@@ -157,7 +157,7 @@ impl AutoSaveManager {
                     }
 
                     let snapshot_mgr =
-                        SnapshotManager::new(&data_dir, snapshots_dir.clone(), 168, 7);
+                        SnapshotManager::new(&data_dir, snapshots_dir.clone(), 48, 2); // 48 hours retention
                     match snapshot_mgr.create_snapshot() {
                         Ok(snapshot) => {
                             info!(

@@ -136,11 +136,11 @@ fn default_interval_hours() -> u64 {
 }
 
 fn default_retention_days() -> u64 {
-    2
+    2 // 48 hours retention (2 days)
 }
 
 fn default_max_snapshots() -> usize {
-    48
+    48 // 24 snapshots/day * 2 days = 48 snapshots max
 }
 
 fn default_snapshot_path() -> String {
