@@ -13,7 +13,7 @@ categories = ["database", "science"]
 ctrlc = { version = "3.5", optional = true }
 # Core dependencies
 tokio = { version = "1.48", features = ["full"] }
-axum = { version = "0.8", features = ["ws", "json"] }
+axum = { version = "0.8.7", features = ["ws", "json"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -38,7 +38,7 @@ fastembed = { version = "5.2", optional = true } # Embeddings + cross-encoder re
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
-ndarray = "0.16"
+ndarray = "0.17.1"
 
 # GPU acceleration via external hive-gpu crate only
 hive-gpu = { version = "0.1", optional = true }
@@ -80,7 +80,7 @@ whoami = "1.5"
 libc = "0.2"
 
 # Compression and caching
-lz4_flex = "0.11"
+lz4_flex = "0.12.0"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
@@ -98,7 +98,7 @@ uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
 lazy_static = "1.4"
 tower_governor = "0.8"  # Rate limiting middleware
-governor = "0.10"       # Rate limiting core
+governor = "0.10.2"       # Rate limiting core
 rustls = "0.23"         # TLS support
 tokio-rustls = "0.26"   # Tokio TLS integration
 rcgen = "0.14"          # Certificate generation for testing
@@ -129,8 +129,8 @@ rmcp = { version = "0.8", features = ["server", "macros", "transport-streamable-
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.16.1"
-hyper = { version = "1.7", features = ["server", "http1", "http2"] }
-hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto"] }
+hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1.18", features = ["tokio", "server", "server-auto"] }
 
 # Monitoring and Observability
 prometheus = "0.14"
@@ -144,7 +144,7 @@ tracing-opentelemetry = "0.32"
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
 
 [build-dependencies]
-cc = { version = "1.2", features = ["parallel"] }
+cc = { version = "1.2.46", features = ["parallel"] }
 winres = "0.1"
 
 [dev-dependencies]
