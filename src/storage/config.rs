@@ -253,6 +253,8 @@ mod tests {
         assert_eq!(config.compression.level, 3);
         assert!(config.snapshots.enabled);
         assert_eq!(config.snapshots.interval_hours, 1);
+        assert_eq!(config.snapshots.retention_days, 2); // 48 hours retention
+        assert_eq!(config.snapshots.max_snapshots, 48); // 24 snapshots/day * 2 days
         assert_eq!(config.compaction.batch_size, 1000);
     }
 

@@ -24,8 +24,11 @@
 - [x] 3.2 Test automatic cleanup of old snapshots (>48h) (cleanup_old_snapshots already implemented)
 - [x] 3.3 Verify that snapshots within 48h are kept (logic already exists)
 - [x] 3.4 Verify that max_snapshots limits correctly (logic already exists)
+- [x] 3.5 Add test assertions for retention_days: 2 and max_snapshots: 48 in test_default_config
 
-**Note**: The cleanup logic is already implemented in `SnapshotManager::cleanup_old_snapshots()`. We only updated the default values.
+**Files**: `src/storage/config.rs` (test_default_config)
+
+**Note**: The cleanup logic is already implemented in `SnapshotManager::cleanup_old_snapshots()`. We only updated the default values and added test validation.
 
 ## 4. Documentation ✅
 
