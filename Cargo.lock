@@ -3826,6 +3826,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz4_flex"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab6473172471198271ff72e9379150e9dfd70d8e533e0752a27e515b48dd375e"
+dependencies = [
+ "twox-hash",
+]
+
+[[package]]
 name = "lzma-rust2"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4796,7 +4805,7 @@ dependencies = [
  "flate2",
  "half 2.7.1",
  "hashbrown 0.16.0",
- "lz4_flex",
+ "lz4_flex 0.11.5",
  "num",
  "num-bigint",
  "paste",
@@ -6769,7 +6778,7 @@ dependencies = [
  "levenshtein_automata",
  "log",
  "lru 0.12.5",
- "lz4_flex",
+ "lz4_flex 0.11.5",
  "measure_time",
  "memmap2",
  "once_cell",
@@ -7991,7 +8000,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "lru 0.16.2",
- "lz4_flex",
+ "lz4_flex 0.12.0",
  "memmap2",
  "memory-stats",
  "ndarray",
