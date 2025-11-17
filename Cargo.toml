@@ -38,7 +38,7 @@ fastembed = { version = "5.2", optional = true } # Embeddings + cross-encoder re
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
-ndarray = "0.16"
+ndarray = "0.17"
 
 # GPU acceleration via external hive-gpu crate only
 hive-gpu = { version = "0.1", optional = true }

@@ -2103,7 +2103,7 @@ dependencies = [
  "anyhow",
  "hf-hub",
  "image 0.25.8",
- "ndarray",
+ "ndarray 0.16.1",
  "ort",
  "serde_json",
  "tokenizers",
@@ -4157,6 +4157,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndarray"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c7c9125e8f6f10c9da3aad044cc918cf8784fa34de857b1aa68038eb05a50a9"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "portable-atomic",
+ "portable-atomic-util",
+ "rawpointer",
+]
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4691,7 +4706,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fa7e49bd669d32d7bc2a15ec540a527e7764aec722a45467814005725bcd721"
 dependencies = [
  "half 2.7.1",
- "ndarray",
+ "ndarray 0.16.1",
  "ort-sys",
  "smallvec 2.0.0-alpha.10",
  "tracing",
@@ -7703,7 +7718,7 @@ dependencies = [
  "hex",
  "hyper",
  "hyper-util",
- "ndarray",
+ "ndarray 0.16.1",
  "parking_lot",
  "rand 0.8.5",
  "reqwest",
@@ -7994,7 +8009,7 @@ dependencies = [
  "lz4_flex",
  "memmap2",
  "memory-stats",
- "ndarray",
+ "ndarray 0.17.1",
  "notify",
  "num_cpus",
  "once_cell",
