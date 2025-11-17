@@ -296,4 +296,21 @@ mod tests {
         let elapsed = manager.time_since_last_save().await;
         assert!(elapsed >= Duration::from_millis(100));
     }
+
+    #[test]
+    fn test_cleanup_old_snapshots_method_exists() {
+        // Test that cleanup_old_snapshots() method exists and can be called
+        let store = Arc::new(VectorStore::new());
+        let auto_save_manager = AutoSaveManager::new(store, 1);
+
+        // The method should exist and return a Result
+        // Since we're using the default data directory, it may not have snapshots,
+        // but the method should not panic
+        let result = auto_save_manager.cleanup_old_snapshots();
+
+        // Should return Ok with number of deleted snapshots (0 if none exist)
+        assert!(result.is_ok());
+        let _deleted = result.unwrap();
+        // deleted is usize, so it's always >= 0
+    }
 }
