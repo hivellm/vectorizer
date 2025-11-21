@@ -23,7 +23,7 @@ async fn test_wal_multiple_operations() {
 
     let config = CollectionConfig {
         dimension: 384,
-        metric: DistanceMetric::Cosine,
+        metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
@@ -126,7 +126,7 @@ async fn test_wal_update_sequence() {
 
     let config = CollectionConfig {
         dimension: 384,
-        metric: DistanceMetric::Cosine,
+        metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
@@ -240,7 +240,7 @@ async fn test_wal_multiple_collections() {
 
     let config = CollectionConfig {
         dimension: 384,
-        metric: DistanceMetric::Cosine,
+        metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
