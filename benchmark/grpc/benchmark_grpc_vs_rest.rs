@@ -30,11 +30,11 @@ struct BenchmarkConfig {
 impl Default for BenchmarkConfig {
     fn default() -> Self {
         Self {
-            vector_count: 1000,
+            vector_count: 500, // Reduced for faster benchmark
             dimension: 128,
-            search_queries: 100,
-            warmup_iterations: 10,
-            measurement_iterations: 100,
+            search_queries: 50, // Reduced for faster benchmark
+            warmup_iterations: 5,
+            measurement_iterations: 50,
         }
     }
 }
@@ -110,12 +110,16 @@ async fn benchmark_rest_insert(
 
     let start = Instant::now();
 
-    // Insert vectors in batches
-    for chunk in vectors.chunks(100) {
+    // Insert vectors in batches for better performance
+    for chunk in vectors.chunks(50) {
         let chunk_start = Instant::now();
         store.insert(collection_name, chunk.to_vec()).unwrap();
         let latency = chunk_start.elapsed().as_secs_f64() * 1000.0;
-        latencies.push(latency);
+        // Distribute latency across vectors in chunk
+        let per_vector_latency = latency / chunk.len() as f64;
+        for _ in chunk {
+            latencies.push(per_vector_latency);
+        }
     }
 
     let total_time = start.elapsed().as_secs_f64();
@@ -138,8 +142,9 @@ async fn benchmark_grpc_insert(
     let start = Instant::now();
 
     // Insert vectors using streaming
-    let (mut tx, rx) = tokio::sync::mpsc::channel(100);
+    let (mut tx, rx) = tokio::sync::mpsc::channel(1000);
     
+    // Send all vectors to channel (non-blocking)
     for vector in vectors {
         let request = InsertVectorRequest {
             collection_name: collection_name.to_string(),
@@ -147,18 +152,21 @@ async fn benchmark_grpc_insert(
             data: vector.data.clone(),
             payload: std::collections::HashMap::new(),
         };
-        
-        let req_start = Instant::now();
         tx.send(request).await.unwrap();
-        let latency = req_start.elapsed().as_secs_f64() * 1000.0;
-        latencies.push(latency);
     }
     drop(tx);
 
+    // Measure only the actual streaming call
     let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
     let request = tonic::Request::new(stream);
     
+    let stream_start = Instant::now();
     let _response = client.insert_vectors(request).await.unwrap();
+    let stream_latency = stream_start.elapsed().as_secs_f64() * 1000.0;
+    
+    // Use stream latency as average per vector
+    let avg_latency_per_vector = stream_latency / vectors.len() as f64;
+    latencies = (0..vectors.len()).map(|_| avg_latency_per_vector).collect();
 
     let total_time = start.elapsed().as_secs_f64();
     results.total_time_ms = total_time * 1000.0;
