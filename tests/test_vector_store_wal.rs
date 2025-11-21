@@ -149,8 +149,23 @@ async fn test_wal_recover_all_collections_with_data() {
 
     tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
 
-    // Recover all
-    let count = store.recover_all_from_wal().await.unwrap();
-    // Should recover operations (may be 0 if async writes didn't complete, which is OK)
-    assert!(count >= 0);
+    // Recover all with timeout to prevent hanging
+    let result = tokio::time::timeout(
+        tokio::time::Duration::from_secs(30),
+        store.recover_all_from_wal(),
+    )
+    .await;
+
+    match result {
+        Ok(Ok(count)) => {
+            // Should recover operations (may be 0 if async writes didn't complete, which is OK)
+            assert!(count >= 0);
+        }
+        Ok(Err(e)) => {
+            panic!("Recovery failed: {}", e);
+        }
+        Err(_) => {
+            panic!("Recovery timed out after 30 seconds");
+        }
+    }
 }
