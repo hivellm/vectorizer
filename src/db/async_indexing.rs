@@ -388,11 +388,138 @@ impl AsyncIndexManager {
         let index = self.primary_index.write();
         index.batch_add(vectors)
     }
+
+    /// Verify search quality by comparing results between primary and secondary index
+    /// Returns quality metrics including overlap ratio and score differences
+    pub fn verify_search_quality(
+        &self,
+        test_queries: &[Vec<f32>],
+        k: usize,
+    ) -> Result<SearchQualityMetrics> {
+        // Check if secondary index exists
+        let secondary_exists = {
+            let sec = self.secondary_index.read();
+            sec.is_some()
+        };
+
+        if !secondary_exists {
+            return Err(VectorizerError::Storage(
+                "Secondary index not available for quality verification".to_string(),
+            ));
+        }
+
+        let mut total_overlap = 0.0;
+        let mut total_score_diff = 0.0;
+        let mut num_queries = 0;
+
+        for query in test_queries {
+            // Search in primary index
+            let primary_results = {
+                let index = self.primary_index.read();
+                index.search(query, k)?
+            };
+
+            // Search in secondary index
+            let secondary_results = {
+                let sec = self.secondary_index.read();
+                if let Some(sec_index) = sec.as_ref() {
+                    sec_index.search(query, k)?
+                } else {
+                    continue;
+                }
+            };
+
+            // Calculate overlap (Jaccard similarity of result IDs)
+            let primary_ids: std::collections::HashSet<String> =
+                primary_results.iter().map(|(id, _)| id.clone()).collect();
+            let secondary_ids: std::collections::HashSet<String> =
+                secondary_results.iter().map(|(id, _)| id.clone()).collect();
+
+            let intersection = primary_ids.intersection(&secondary_ids).count();
+            let union = primary_ids.union(&secondary_ids).count();
+            let overlap_ratio = if union > 0 {
+                intersection as f64 / union as f64
+            } else {
+                0.0
+            };
+
+            // Calculate average score difference for overlapping results
+            let mut score_diff_sum = 0.0f64;
+            let mut score_diff_count = 0;
+
+            for (id, primary_score) in &primary_results {
+                if let Some((_, secondary_score)) =
+                    secondary_results.iter().find(|(sid, _)| sid == id)
+                {
+                    score_diff_sum += (primary_score - secondary_score).abs() as f64;
+                    score_diff_count += 1;
+                }
+            }
+
+            let avg_score_diff = if score_diff_count > 0 {
+                score_diff_sum / score_diff_count as f64
+            } else {
+                0.0
+            };
+
+            total_overlap += overlap_ratio;
+            total_score_diff += avg_score_diff;
+            num_queries += 1;
+        }
+
+        let avg_overlap = if num_queries > 0 {
+            total_overlap / num_queries as f64
+        } else {
+            0.0
+        };
+
+        let avg_score_diff = if num_queries > 0 {
+            total_score_diff / num_queries as f64
+        } else {
+            0.0
+        };
+
+        Ok(SearchQualityMetrics {
+            overlap_ratio: avg_overlap as f32,
+            average_score_difference: avg_score_diff as f32,
+            num_queries_tested: num_queries,
+        })
+    }
+
+    /// Search in secondary index (for quality verification during rebuild)
+    pub fn search_secondary(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>> {
+        let sec = self.secondary_index.read();
+        if let Some(sec_index) = sec.as_ref() {
+            sec_index.search(query, k)
+        } else {
+            Err(VectorizerError::Storage(
+                "Secondary index not available".to_string(),
+            ))
+        }
+    }
+}
+
+/// Search quality metrics for comparing primary and secondary indices
+#[derive(Debug, Clone)]
+pub struct SearchQualityMetrics {
+    /// Overlap ratio (Jaccard similarity) between result sets
+    pub overlap_ratio: f32,
+    /// Average absolute difference in scores for overlapping results
+    pub average_score_difference: f32,
+    /// Number of test queries used
+    pub num_queries_tested: usize,
 }
 
 #[cfg(test)]
 mod tests {
+    use rand::Rng;
+
     use super::*;
+
+    fn generate_random_vector(dimension: usize) -> Vec<f32> {
+        let mut rng = rand::thread_rng();
+        (0..dimension).map(|_| rng.gen_range(-1.0..1.0)).collect()
+    }
 
     #[tokio::test]
     async fn test_async_index_manager_creation() {
@@ -451,5 +578,150 @@ mod tests {
         // Swap index
         assert!(manager.swap_index().unwrap());
         assert!(!manager.is_ready());
+    }
+
+    #[tokio::test]
+    async fn test_search_quality_verification() {
+        let config = OptimizedHnswConfig {
+            batch_size: 20,
+            ..Default::default()
+        };
+
+        // Create initial vectors with some variation
+        let mut initial_vectors = HashMap::new();
+        for i in 0..100 {
+            let mut vec = generate_random_vector(128);
+            // Normalize for cosine similarity
+            let norm: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
+            for x in &mut vec {
+                *x /= norm;
+            }
+            initial_vectors.insert(format!("v{}", i), vec);
+        }
+
+        let manager = AsyncIndexManager::new(128, config, initial_vectors.clone()).unwrap();
+
+        // Create vectors for rebuild (same vectors, simulating a rebuild)
+        let rebuild_vectors = initial_vectors.clone();
+
+        // Start rebuild
+        let mut progress_rx = manager.start_rebuild(rebuild_vectors).unwrap();
+
+        // Wait for rebuild to complete
+        while let Some(progress) = progress_rx.recv().await {
+            if progress.progress >= 1.0 && matches!(progress.status, IndexBuildStatus::Ready) {
+                break;
+            }
+        }
+
+        // Give a small delay for index to be fully ready
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+        // Generate test queries
+        let mut test_queries = Vec::new();
+        for _ in 0..10 {
+            let mut query = generate_random_vector(128);
+            // Normalize for cosine similarity
+            let norm: f32 = query.iter().map(|x| x * x).sum::<f32>().sqrt();
+            for x in &mut query {
+                *x /= norm;
+            }
+            test_queries.push(query);
+        }
+
+        // Verify search quality
+        let quality_metrics = manager
+            .verify_search_quality(&test_queries, 10)
+            .expect("Should be able to verify quality");
+
+        // Quality should be high since we're using the same vectors
+        // Overlap should be > 0.7 (70% of results should match)
+        assert!(
+            quality_metrics.overlap_ratio > 0.7,
+            "Overlap ratio should be > 0.7, got {}",
+            quality_metrics.overlap_ratio
+        );
+
+        // Score difference should be small (< 0.1 for normalized vectors)
+        assert!(
+            quality_metrics.average_score_difference < 0.1,
+            "Score difference should be < 0.1, got {}",
+            quality_metrics.average_score_difference
+        );
+
+        assert_eq!(quality_metrics.num_queries_tested, 10);
+    }
+
+    #[tokio::test]
+    async fn test_search_quality_during_rebuild() {
+        let config = OptimizedHnswConfig {
+            batch_size: 50,
+            ..Default::default()
+        };
+
+        // Create initial vectors
+        let mut initial_vectors = HashMap::new();
+        for i in 0..200 {
+            let mut vec = generate_random_vector(128);
+            let norm: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
+            for x in &mut vec {
+                *x /= norm;
+            }
+            initial_vectors.insert(format!("v{}", i), vec);
+        }
+
+        let manager = AsyncIndexManager::new(128, config, initial_vectors.clone()).unwrap();
+
+        // Create vectors for rebuild
+        let rebuild_vectors = initial_vectors.clone();
+
+        // Start rebuild
+        let _progress_rx = manager.start_rebuild(rebuild_vectors).unwrap();
+
+        // While rebuild is in progress, verify we can still search
+        let test_query = {
+            let mut query = generate_random_vector(128);
+            let norm: f32 = query.iter().map(|x| x * x).sum::<f32>().sqrt();
+            for x in &mut query {
+                *x /= norm;
+            }
+            query
+        };
+
+        // Search should work during rebuild (using primary index)
+        let results = manager.search(&test_query, 10).expect("Search should work");
+        assert!(
+            !results.is_empty(),
+            "Should get search results during rebuild"
+        );
+
+        // Wait for rebuild to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+        // After rebuild, verify quality
+        let quality_metrics = manager
+            .verify_search_quality(&[test_query], 10)
+            .expect("Should be able to verify quality after rebuild");
+
+        assert!(
+            quality_metrics.overlap_ratio > 0.5,
+            "Overlap should be reasonable, got {}",
+            quality_metrics.overlap_ratio
+        );
+    }
+
+    #[tokio::test]
+    async fn test_search_quality_without_secondary_index() {
+        let config = OptimizedHnswConfig::default();
+        let manager = AsyncIndexManager::new(128, config, HashMap::new()).unwrap();
+
+        let test_queries = vec![generate_random_vector(128)];
+
+        // Should fail when secondary index doesn't exist
+        let result = manager.verify_search_quality(&test_queries, 10);
+        assert!(
+            result.is_err(),
+            "Should fail when secondary index doesn't exist"
+        );
     }
 }
