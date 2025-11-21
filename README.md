@@ -13,7 +13,10 @@ A high-performance vector database and search engine built in Rust, designed for
 ## ✨ Key Features
 
 - **🔍 Semantic Search**: Advanced vector similarity with multiple distance metrics (Cosine, Euclidean, Dot Product)
+- **⚡ SIMD Acceleration**: AVX2-optimized vector operations (5-10x faster) with automatic CPU feature detection
+- **💾 Memory-Mapped Storage**: MMap support for datasets larger than RAM with efficient OS paging
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
+- **📦 Product Quantization**: PQ compression for 64x memory reduction with minimal accuracy loss
 - **💾 Compact Storage**: Unified `.vecdb` format with 20-30% space savings and automatic snapshots
 - **🔄 Master-Replica Replication**: High availability with automatic failover (BETA)
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
