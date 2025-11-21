@@ -151,7 +151,7 @@ transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf
 [build-dependencies]
 cc = { version = "1.2.46", features = ["parallel"] }
 winres = "0.1"
-prost-build = "0.14"
+tonic-build = "0.12"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }

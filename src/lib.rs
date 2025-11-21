@@ -22,6 +22,7 @@ pub mod file_watcher;
 // GPU module removed - using external hive-gpu crate
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_adapter;
+pub mod grpc;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;

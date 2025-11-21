@@ -640,6 +640,17 @@ impl VectorizerServer {
     /// Start the server
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
+        
+        // Start gRPC server in background
+        let grpc_port = port + 1; // gRPC on next port
+        let grpc_host = host.to_string();
+        let grpc_store = self.store.clone();
+        let grpc_handle = tokio::spawn(async move {
+            if let Err(e) = Self::start_grpc_server(&grpc_host, grpc_port, grpc_store).await {
+                error!("❌ gRPC server failed: {}", e);
+            }
+        });
+        info!("✅ gRPC server task spawned");
 
         // Create server state for metrics endpoint
         let server_state = ServerState {
@@ -1099,6 +1110,29 @@ impl VectorizerServer {
                 }
             }),
         )
+    }
+
+    /// Start gRPC server
+    async fn start_grpc_server(
+        host: &str,
+        port: u16,
+        store: Arc<VectorStore>,
+    ) -> anyhow::Result<()> {
+        use crate::grpc::VectorizerGrpcService;
+        use crate::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
+        use tonic::transport::Server;
+
+        let addr = format!("{}:{}", host, port).parse()?;
+        let service = VectorizerGrpcService::new(store);
+
+        info!("🚀 Starting gRPC server on {}", addr);
+
+        Server::builder()
+            .add_service(VectorizerServiceServer::new(service))
+            .serve(addr)
+            .await?;
+
+        Ok(())
     }
 }
 

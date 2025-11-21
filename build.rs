@@ -1,10 +1,11 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Compile protobuf definitions
-    // Note: tonic-build 0.14 uses a different API
-    // For now, we'll use prost-build directly until we verify the exact API
-    let mut config = prost_build::Config::new();
-    config.out_dir("src/grpc");
-    config.compile_protos(&["proto/vectorizer.proto"], &["proto"])?;
+    // Compile protobuf definitions with tonic-build
+    // Using tonic-build 0.12 for stable API compatibility
+    tonic_build::configure()
+        .build_server(true)
+        .build_client(false)
+        .out_dir("src/grpc")
+        .compile(&["proto/vectorizer.proto"], &["proto"])?;
 
     // Embed Windows icon resource
     #[cfg(all(target_os = "windows", not(target_env = "msvc")))]
