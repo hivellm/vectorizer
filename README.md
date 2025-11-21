@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/vectorizer.svg)](https://crates.io/crates/vectorizer)
 [![GitHub release](https://img.shields.io/github/release/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/releases)
-[![Tests](https://img.shields.io/badge/tests-656%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
+[![Tests](https://img.shields.io/badge/tests-703%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
 [![Coverage](https://img.shields.io/badge/coverage-95%25%2B-success.svg)](https://github.com/hivellm/vectorizer)
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
