@@ -713,6 +713,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = persistence
@@ -741,6 +742,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Collection doesn't exist yet
@@ -767,6 +769,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Initially empty
@@ -799,6 +802,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = persistence
@@ -838,6 +842,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Create collection
@@ -870,6 +875,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Create some collections

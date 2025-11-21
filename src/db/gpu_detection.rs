@@ -71,8 +71,7 @@ impl GpuDetector {
             return GpuBackendType::Metal;
         }
 
-        // Fallback: CPU-only mode
-        info!("💻 No GPU detected, using CPU mode");
+        // Fallback: CPU-only mode (no logging needed, this is the default)
         GpuBackendType::None
     }
 

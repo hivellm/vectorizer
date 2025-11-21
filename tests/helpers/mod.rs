@@ -12,7 +12,8 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::{
-    CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
+    CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
+    StorageType, Vector,
 };
 
 #[allow(dead_code)]
@@ -55,6 +56,7 @@ pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
         quantization: QuantizationConfig::SQ { bits: 8 },
         compression: CompressionConfig::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
     }
 }
 

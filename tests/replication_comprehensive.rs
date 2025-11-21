@@ -193,6 +193,7 @@ async fn test_basic_master_replica_sync() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -236,6 +237,7 @@ async fn test_incremental_replication() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -274,6 +276,7 @@ async fn test_multiple_replicas() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -326,6 +329,7 @@ async fn test_stress_high_volume_replication() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store
         .create_collection("stress_test", config)
@@ -391,6 +395,7 @@ async fn test_snapshot_with_large_vectors() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     store1.create_collection("large_dims", config).unwrap();
 

@@ -361,6 +361,7 @@ pub async fn handle_collection_command(
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: crate::models::CompressionConfig::default(),
                 normalization: Some(crate::normalization::NormalizationConfig::moderate()),
+                storage_type: Some(crate::models::StorageType::Memory),
             };
 
             store.create_collection(&name, config)?;
@@ -648,8 +649,9 @@ pub async fn handle_snapshot_command(
     let snapshots_path = config.storage.snapshots.path.clone();
     let max_snapshots = config.storage.snapshots.max_snapshots;
     let retention_days = config.storage.snapshots.retention_days;
+    let retention_hours = retention_days * 24; // Convert days to hours
 
-    let manager = SnapshotManager::new(&data_dir, &snapshots_path, max_snapshots, retention_days);
+    let manager = SnapshotManager::new(&data_dir, &snapshots_path, max_snapshots, retention_hours);
 
     match command {
         super::SnapshotCommands::List { detailed } => {
@@ -728,7 +730,8 @@ pub async fn handle_snapshot_command(
                 info!("DRY RUN - No changes will be made");
 
                 let snapshots = manager.list_snapshots()?;
-                let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days as i64);
+                let cutoff =
+                    chrono::Utc::now() - chrono::Duration::hours((retention_days * 24) as i64);
 
                 let to_delete: Vec<_> =
                     snapshots.iter().filter(|s| s.created_at < cutoff).collect();

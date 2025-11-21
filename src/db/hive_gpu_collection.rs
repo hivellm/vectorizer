@@ -714,6 +714,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             compression: CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // This would be tested with actual GPU context in integration tests

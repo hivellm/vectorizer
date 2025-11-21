@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::models::Payload;
 
@@ -480,76 +481,99 @@ impl PayloadIndex {
         }
     }
 
+    /// Get nested value from payload using dot notation (e.g., "user.age")
+    fn get_nested_value<'a>(&self, payload: &'a Payload, key: &str) -> Option<&'a Value> {
+        let keys: Vec<&str> = key.split('.').collect();
+        let mut current = &payload.data;
+
+        for k in keys {
+            match current {
+                Value::Object(map) => {
+                    current = map.get(k)?;
+                }
+                _ => return None,
+            }
+        }
+
+        Some(current)
+    }
+
     /// Index a vector's payload
     pub fn index_vector(&self, vector_id: String, payload: &Payload) {
-        // Extract field values from payload
-        if let Some(obj) = payload.data.as_object() {
-            for (field_name, value) in obj {
-                // Check if field is indexed
-                if let Some(config) = self.configs.get(field_name) {
-                    if !config.enabled {
-                        continue;
-                    }
+        // Index all configured fields (including nested fields)
+        for config_entry in self.configs.iter() {
+            let field_name = config_entry.key();
+            let config = config_entry.value();
 
-                    match config.index_type {
-                        PayloadIndexType::Keyword => {
-                            if let Some(mut keyword_index) =
-                                self.keyword_indexes.get_mut(field_name)
-                            {
-                                if let Some(value_str) = value.as_str() {
-                                    keyword_index.insert(vector_id.clone(), value_str.to_string());
-                                } else if let Some(value_num) = value.as_i64() {
-                                    keyword_index.insert(vector_id.clone(), value_num.to_string());
-                                } else if let Some(value_bool) = value.as_bool() {
-                                    keyword_index.insert(vector_id.clone(), value_bool.to_string());
-                                }
-                            }
+            if !config.enabled {
+                continue;
+            }
+
+            // Get value (supports nested fields via dot notation)
+            let value = if field_name.contains('.') {
+                // Nested field
+                self.get_nested_value(payload, field_name)
+            } else {
+                // Top-level field
+                payload.data.as_object().and_then(|obj| obj.get(field_name))
+            };
+
+            let value = match value {
+                Some(v) => v,
+                None => continue,
+            };
+
+            match config.index_type {
+                PayloadIndexType::Keyword => {
+                    if let Some(mut keyword_index) = self.keyword_indexes.get_mut(field_name) {
+                        if let Some(value_str) = value.as_str() {
+                            keyword_index.insert(vector_id.clone(), value_str.to_string());
+                        } else if let Some(value_num) = value.as_i64() {
+                            keyword_index.insert(vector_id.clone(), value_num.to_string());
+                        } else if let Some(value_bool) = value.as_bool() {
+                            keyword_index.insert(vector_id.clone(), value_bool.to_string());
                         }
-                        PayloadIndexType::Integer => {
-                            if let Some(mut integer_index) =
-                                self.integer_indexes.get_mut(field_name)
-                            {
-                                if let Some(value_num) = value.as_i64() {
-                                    integer_index.insert(vector_id.clone(), value_num);
-                                } else if let Some(value_float) = value.as_f64() {
-                                    integer_index.insert(vector_id.clone(), value_float as i64);
-                                }
-                            }
+                    }
+                }
+                PayloadIndexType::Integer => {
+                    if let Some(mut integer_index) = self.integer_indexes.get_mut(field_name) {
+                        if let Some(value_num) = value.as_i64() {
+                            integer_index.insert(vector_id.clone(), value_num);
+                        } else if let Some(value_float) = value.as_f64() {
+                            integer_index.insert(vector_id.clone(), value_float as i64);
                         }
-                        PayloadIndexType::Float => {
-                            if let Some(mut float_index) = self.float_indexes.get_mut(field_name) {
-                                if let Some(value_float) = value.as_f64() {
-                                    float_index.insert(vector_id.clone(), value_float);
-                                } else if let Some(value_num) = value.as_i64() {
-                                    float_index.insert(vector_id.clone(), value_num as f64);
-                                }
-                            }
+                    }
+                }
+                PayloadIndexType::Float => {
+                    if let Some(mut float_index) = self.float_indexes.get_mut(field_name) {
+                        if let Some(value_float) = value.as_f64() {
+                            float_index.insert(vector_id.clone(), value_float);
+                        } else if let Some(value_num) = value.as_i64() {
+                            float_index.insert(vector_id.clone(), value_num as f64);
                         }
-                        PayloadIndexType::Text => {
-                            if let Some(mut text_index) = self.text_indexes.get_mut(field_name) {
-                                if let Some(value_str) = value.as_str() {
-                                    text_index.insert(vector_id.clone(), value_str.to_string());
-                                }
-                            }
+                    }
+                }
+                PayloadIndexType::Text => {
+                    if let Some(mut text_index) = self.text_indexes.get_mut(field_name) {
+                        if let Some(value_str) = value.as_str() {
+                            text_index.insert(vector_id.clone(), value_str.to_string());
                         }
-                        PayloadIndexType::Geo => {
-                            if let Some(mut geo_index) = self.geo_indexes.get_mut(field_name) {
-                                // Support both object format {"lat": x, "lon": y} and array format [lat, lon]
-                                if let Some(obj) = value.as_object() {
-                                    if let (Some(lat), Some(lon)) = (
-                                        obj.get("lat").and_then(|v| v.as_f64()),
-                                        obj.get("lon").and_then(|v| v.as_f64()),
-                                    ) {
-                                        geo_index.insert(vector_id.clone(), lat, lon);
-                                    }
-                                } else if let Some(arr) = value.as_array() {
-                                    if arr.len() == 2 {
-                                        if let (Some(lat), Some(lon)) =
-                                            (arr[0].as_f64(), arr[1].as_f64())
-                                        {
-                                            geo_index.insert(vector_id.clone(), lat, lon);
-                                        }
-                                    }
+                    }
+                }
+                PayloadIndexType::Geo => {
+                    if let Some(mut geo_index) = self.geo_indexes.get_mut(field_name) {
+                        // Support both object format {"lat": x, "lon": y} and array format [lat, lon]
+                        if let Some(obj) = value.as_object() {
+                            if let (Some(lat), Some(lon)) = (
+                                obj.get("lat").and_then(|v| v.as_f64()),
+                                obj.get("lon").and_then(|v| v.as_f64()),
+                            ) {
+                                geo_index.insert(vector_id.clone(), lat, lon);
+                            }
+                        } else if let Some(arr) = value.as_array() {
+                            if arr.len() == 2 {
+                                if let (Some(lat), Some(lon)) = (arr[0].as_f64(), arr[1].as_f64()) {
+                                    geo_index.insert(vector_id.clone(), lat, lon);
                                 }
                             }
                         }
@@ -894,5 +918,69 @@ mod tests {
         assert_eq!(ids.len(), 2);
         assert!(ids.contains("v1"));
         assert!(ids.contains("v2"));
+    }
+
+    #[test]
+    fn test_nested_field_indexing() {
+        let index = PayloadIndex::new();
+
+        // Index nested field "user.age"
+        let config = PayloadIndexConfig::new("user.age".to_string(), PayloadIndexType::Integer);
+        index.add_index_config(config);
+
+        // Index nested field "metadata.price"
+        let config = PayloadIndexConfig::new("metadata.price".to_string(), PayloadIndexType::Float);
+        index.add_index_config(config);
+
+        // Index nested field "user.name"
+        let config = PayloadIndexConfig::new("user.name".to_string(), PayloadIndexType::Keyword);
+        index.add_index_config(config);
+
+        // Index vectors with nested payloads
+        let payload1 = Payload {
+            data: json!({
+                "user": {
+                    "name": "Alice",
+                    "age": 25
+                },
+                "metadata": {
+                    "price": 19.99
+                }
+            }),
+        };
+        index.index_vector("v1".to_string(), &payload1);
+
+        let payload2 = Payload {
+            data: json!({
+                "user": {
+                    "name": "Bob",
+                    "age": 30
+                },
+                "metadata": {
+                    "price": 29.99
+                }
+            }),
+        };
+        index.index_vector("v2".to_string(), &payload2);
+
+        // Query nested integer field
+        let ids = index
+            .get_ids_in_range("user.age", Some(25), Some(30))
+            .unwrap();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains("v1"));
+        assert!(ids.contains("v2"));
+
+        // Query nested float field
+        let ids = index
+            .get_ids_in_float_range("metadata.price", Some(20.0), Some(30.0))
+            .unwrap();
+        assert_eq!(ids.len(), 1);
+        assert!(ids.contains("v2"));
+
+        // Query nested keyword field
+        let ids = index.get_ids_for_keyword("user.name", "Alice").unwrap();
+        assert_eq!(ids.len(), 1);
+        assert!(ids.contains("v1"));
     }
 }

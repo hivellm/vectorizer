@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Seek};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
@@ -315,6 +315,7 @@ impl StorageReader {
                                 algorithm: crate::models::CompressionAlgorithm::Lz4,
                             },
                             normalization: None,
+                            storage_type: Some(crate::models::StorageType::Memory),
                         });
                     }
                 }
@@ -346,6 +347,7 @@ impl StorageReader {
                         algorithm: crate::models::CompressionAlgorithm::Lz4,
                     },
                     normalization: None,
+                    storage_type: Some(crate::models::StorageType::Memory),
                 });
             }
         }

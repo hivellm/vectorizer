@@ -20,14 +20,19 @@ struct Cli {
     /// Server port
     #[arg(long, default_value = "15002")]
     port: u16,
+
+    /// Enable verbose logging (default: only warnings and errors)
+    #[arg(long)]
+    verbose: bool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize logging
-    let _ = vectorizer::logging::init_logging("vectorizer");
-
     let cli = Cli::parse();
+
+    // Initialize logging with verbose flag
+    let log_level = if cli.verbose { "debug" } else { "warn" };
+    let _ = vectorizer::logging::init_logging_with_level("vectorizer", log_level);
 
     println!("🚀 Starting Vectorizer Server");
     println!("🌐 Server: {}:{}", cli.host, cli.port);

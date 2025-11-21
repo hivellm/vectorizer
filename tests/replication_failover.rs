@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, StorageType, Vector,
 };
 use vectorizer::replication::{MasterNode, NodeRole, ReplicaNode, ReplicationConfig};
 
@@ -90,6 +90,7 @@ async fn test_replica_reconnect_after_disconnect() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -148,6 +149,7 @@ async fn test_partial_sync_after_brief_disconnect() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -229,6 +231,7 @@ async fn test_full_sync_when_offset_too_old() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("test", col_config).unwrap();
 
@@ -288,6 +291,7 @@ async fn test_multiple_replicas_recovery() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -377,6 +381,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
     };
     master_store.create_collection("test", config).unwrap();
 

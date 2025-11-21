@@ -607,6 +607,7 @@ pub async fn create_collection(
         quantization: crate::models::QuantizationConfig::None,
         compression: crate::models::CompressionConfig::default(),
         normalization: None,
+        storage_type: Some(crate::models::StorageType::Memory),
     };
 
     // Actually create the collection in the store
@@ -2852,6 +2853,7 @@ pub async fn restore_backup(
                 quantization: QuantizationConfig::default(),
                 compression: CompressionConfig::default(),
                 normalization: None,
+                storage_type: Some(crate::models::StorageType::Memory),
             };
 
             state

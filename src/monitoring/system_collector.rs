@@ -141,6 +141,7 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let _ = store.create_collection("test_metrics", config);
 

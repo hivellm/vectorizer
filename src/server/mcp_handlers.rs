@@ -243,6 +243,7 @@ async fn handle_create_collection(
             algorithm: crate::models::CompressionAlgorithm::Lz4,
         },
         normalization: None,
+        storage_type: Some(crate::models::StorageType::Memory),
     };
 
     store.create_collection(name, config).map_err(|e| {

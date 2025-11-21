@@ -250,6 +250,7 @@ impl ReplicaNode {
                     quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
                     normalization: None,
+                    storage_type: Some(crate::models::StorageType::Memory),
                 };
 
                 self.vector_store

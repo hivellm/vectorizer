@@ -12,6 +12,7 @@ use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
 use super::hybrid_search::HybridSearchConfig;
+use super::wal_integration::WalIntegration;
 #[cfg(feature = "hive-gpu")]
 use crate::db::hive_gpu_collection::HiveGpuCollection;
 use crate::error::{Result, VectorizerError};
@@ -283,6 +284,8 @@ pub struct VectorStore {
     save_task_handle: Arc<std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Global metadata (for replication config, etc.)
     metadata: Arc<DashMap<String, String>>,
+    /// WAL integration (optional, for crash recovery)
+    wal: Arc<std::sync::Mutex<Option<WalIntegration>>>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -305,6 +308,7 @@ impl VectorStore {
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
+            wal: Arc::new(std::sync::Mutex::new(Some(WalIntegration::new_disabled()))),
         };
 
         // Check for automatic migration on startup
@@ -326,6 +330,7 @@ impl VectorStore {
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
+            wal: Arc::new(std::sync::Mutex::new(Some(WalIntegration::new_disabled()))),
         }
     }
 
@@ -455,6 +460,7 @@ impl VectorStore {
             pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(std::sync::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
+            wal: Arc::new(std::sync::Mutex::new(Some(WalIntegration::new_disabled()))),
         }
     }
 
@@ -487,8 +493,7 @@ impl VectorStore {
 
             match backend {
                 GpuBackendType::None => {
-                    eprintln!("💻 No GPU detected, using CPU mode");
-                    info!("💻 No GPU detected, using CPU mode");
+                    // CPU mode is the default, no need to log
                 }
                 _ => {
                     eprintln!("✅ {} GPU detected and enabled!", backend.name());
@@ -1077,6 +1082,9 @@ impl VectorStore {
             collection_name
         );
 
+        // Log to WAL before applying changes
+        self.log_wal_insert(collection_name, &vectors)?;
+
         let mut collection_ref = self.get_collection_mut(collection_name)?;
 
         // Check if this is a GPU collection that needs special handling
@@ -1109,6 +1117,9 @@ impl VectorStore {
             vector.id, collection_name
         );
 
+        // Log to WAL before applying changes
+        self.log_wal_update(collection_name, &vector)?;
+
         let mut collection_ref = self.get_collection_mut(collection_name)?;
         // Use atomic update method (2x faster than delete+add)
         collection_ref.update_vector(vector)?;
@@ -1125,6 +1136,9 @@ impl VectorStore {
             "Deleting vector '{}' from collection '{}'",
             vector_id, collection_name
         );
+
+        // Log to WAL before applying changes
+        self.log_wal_delete(collection_name, vector_id)?;
 
         let mut collection_ref = self.get_collection_mut(collection_name)?;
         collection_ref.delete_vector(vector_id)?;
@@ -1276,6 +1290,305 @@ impl VectorStore {
             .iter()
             .map(|entry| entry.key().clone())
             .collect()
+    }
+
+    /// Log insert operation to WAL (synchronous wrapper)
+    /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
+    fn log_wal_insert(&self, collection_name: &str, vectors: &[Vector]) -> Result<()> {
+        let wal_guard = self.wal.lock().unwrap();
+        if let Some(wal) = wal_guard.as_ref() {
+            if wal.is_enabled() {
+                // Try to get current runtime handle
+                if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+                    // We're in an async context, spawn task for logging (fire-and-forget)
+                    // Note: In production, this is acceptable as WAL is best-effort
+                    // For tests, we'll add a small delay to allow writes to complete
+                    let wal_clone = wal.clone();
+                    let collection_name = collection_name.to_string();
+                    let vectors_clone: Vec<Vector> = vectors.iter().cloned().collect();
+
+                    tokio::spawn(async move {
+                        for vector in vectors_clone {
+                            if let Err(e) = wal_clone.log_insert(&collection_name, &vector).await {
+                                error!("Failed to log insert to WAL: {}", e);
+                            }
+                        }
+                    });
+                } else {
+                    // No runtime exists, create a temporary one
+                    let rt = tokio::runtime::Runtime::new().map_err(|e| {
+                        error!("Failed to create tokio runtime for WAL: {}", e);
+                        VectorizerError::Storage(format!("Failed to create runtime for WAL: {}", e))
+                    })?;
+
+                    // Log each vector to WAL
+                    for vector in vectors {
+                        if let Err(e) =
+                            rt.block_on(async { wal.log_insert(collection_name, vector).await })
+                        {
+                            error!("Failed to log insert to WAL: {}", e);
+                            // Don't fail the operation, just log the error
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Log update operation to WAL (synchronous wrapper)
+    /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
+    fn log_wal_update(&self, collection_name: &str, vector: &Vector) -> Result<()> {
+        let wal_guard = self.wal.lock().unwrap();
+        if let Some(wal) = wal_guard.as_ref() {
+            if wal.is_enabled() {
+                if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+                    let wal_clone = wal.clone();
+                    let collection_name = collection_name.to_string();
+                    let vector_clone = vector.clone();
+
+                    tokio::spawn(async move {
+                        if let Err(e) = wal_clone.log_update(&collection_name, &vector_clone).await
+                        {
+                            error!("Failed to log update to WAL: {}", e);
+                        }
+                    });
+                } else {
+                    let rt = tokio::runtime::Runtime::new().map_err(|e| {
+                        error!("Failed to create tokio runtime for WAL: {}", e);
+                        VectorizerError::Storage(format!("Failed to create runtime for WAL: {}", e))
+                    })?;
+
+                    if let Err(e) =
+                        rt.block_on(async { wal.log_update(collection_name, vector).await })
+                    {
+                        error!("Failed to log update to WAL: {}", e);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Log delete operation to WAL (synchronous wrapper)
+    /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
+    fn log_wal_delete(&self, collection_name: &str, vector_id: &str) -> Result<()> {
+        let wal_guard = self.wal.lock().unwrap();
+        if let Some(wal) = wal_guard.as_ref() {
+            if wal.is_enabled() {
+                if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+                    let wal_clone = wal.clone();
+                    let collection_name = collection_name.to_string();
+                    let vector_id = vector_id.to_string();
+
+                    tokio::spawn(async move {
+                        if let Err(e) = wal_clone.log_delete(&collection_name, &vector_id).await {
+                            error!("Failed to log delete to WAL: {}", e);
+                        }
+                    });
+                } else {
+                    let rt = tokio::runtime::Runtime::new().map_err(|e| {
+                        error!("Failed to create tokio runtime for WAL: {}", e);
+                        VectorizerError::Storage(format!("Failed to create runtime for WAL: {}", e))
+                    })?;
+
+                    if let Err(e) =
+                        rt.block_on(async { wal.log_delete(collection_name, vector_id).await })
+                    {
+                        error!("Failed to log delete to WAL: {}", e);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Enable WAL for this vector store
+    pub async fn enable_wal(
+        &self,
+        data_dir: PathBuf,
+        config: Option<crate::persistence::wal::WALConfig>,
+    ) -> Result<()> {
+        let wal = WalIntegration::new(data_dir, config)
+            .await
+            .map_err(|e| VectorizerError::Storage(format!("Failed to enable WAL: {}", e)))?;
+
+        let mut wal_guard = self.wal.lock().unwrap();
+        *wal_guard = Some(wal);
+        info!("WAL enabled for VectorStore");
+        Ok(())
+    }
+
+    /// Recover collection from WAL after crash
+    pub async fn recover_from_wal(
+        &self,
+        collection_name: &str,
+    ) -> Result<Vec<crate::persistence::types::WALEntry>> {
+        let wal_guard = self.wal.lock().unwrap();
+        if let Some(wal) = wal_guard.as_ref() {
+            wal.recover_collection(collection_name)
+                .await
+                .map_err(|e| VectorizerError::Storage(format!("WAL recovery failed: {}", e)))
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Recover and replay WAL entries for a collection
+    pub async fn recover_and_replay_wal(&self, collection_name: &str) -> Result<usize> {
+        use crate::persistence::types::{Operation, WALEntry};
+
+        let entries = self.recover_from_wal(collection_name).await?;
+        if entries.is_empty() {
+            debug!(
+                "No WAL entries to recover for collection '{}'",
+                collection_name
+            );
+            return Ok(0);
+        }
+
+        info!(
+            "Recovering {} WAL entries for collection '{}'",
+            entries.len(),
+            collection_name
+        );
+
+        let mut replayed = 0;
+
+        for entry in entries {
+            match &entry.operation {
+                Operation::InsertVector {
+                    vector_id,
+                    data,
+                    metadata,
+                } => {
+                    // Reconstruct payload from metadata
+                    let payload = if !metadata.is_empty() {
+                        use serde_json::json;
+
+                        use crate::models::Payload;
+                        let mut payload_data = serde_json::Map::new();
+                        for (k, v) in metadata {
+                            payload_data.insert(k.clone(), json!(v));
+                        }
+                        Some(Payload {
+                            data: json!(payload_data),
+                        })
+                    } else {
+                        None
+                    };
+
+                    let vector = Vector {
+                        id: vector_id.clone(),
+                        data: data.clone(),
+                        payload,
+                        sparse: None,
+                    };
+
+                    // Try to insert (may fail if already exists, which is OK)
+                    if self.insert(collection_name, vec![vector]).is_ok() {
+                        replayed += 1;
+                    }
+                }
+                Operation::UpdateVector {
+                    vector_id,
+                    data,
+                    metadata,
+                } => {
+                    if let Some(data) = data {
+                        // Reconstruct payload from metadata
+                        let payload = if let Some(metadata) = metadata {
+                            if !metadata.is_empty() {
+                                use serde_json::json;
+
+                                use crate::models::Payload;
+                                let mut payload_data = serde_json::Map::new();
+                                for (k, v) in metadata {
+                                    payload_data.insert(k.clone(), json!(v));
+                                }
+                                Some(Payload {
+                                    data: json!(payload_data),
+                                })
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        let vector = Vector {
+                            id: vector_id.clone(),
+                            data: data.clone(),
+                            payload,
+                            sparse: None,
+                        };
+
+                        // Try to update (may fail if doesn't exist, which is OK)
+                        if self.update(collection_name, vector).is_ok() {
+                            replayed += 1;
+                        }
+                    }
+                }
+                Operation::DeleteVector { vector_id } => {
+                    // Try to delete (may fail if doesn't exist, which is OK)
+                    if self.delete(collection_name, vector_id).is_ok() {
+                        replayed += 1;
+                    }
+                }
+                Operation::Checkpoint { .. } => {
+                    // Checkpoint entries are informational, skip
+                    debug!("Skipping checkpoint entry in recovery");
+                }
+                Operation::CreateCollection { .. } | Operation::DeleteCollection => {
+                    // Collection operations are handled separately
+                    debug!("Skipping collection operation in recovery");
+                }
+            }
+        }
+
+        info!(
+            "Recovered {} operations from WAL for collection '{}'",
+            replayed, collection_name
+        );
+
+        Ok(replayed)
+    }
+
+    /// Recover all collections from WAL (call on startup)
+    pub async fn recover_all_from_wal(&self) -> Result<usize> {
+        let wal_guard = self.wal.lock().unwrap();
+        if let Some(wal) = wal_guard.as_ref() {
+            if !wal.is_enabled() {
+                debug!("WAL is disabled, skipping recovery");
+                return Ok(0);
+            }
+        } else {
+            return Ok(0);
+        }
+
+        // Get all collection names
+        let collection_names: Vec<String> = self.list_collections();
+
+        let mut total_recovered = 0;
+        for collection_name in collection_names {
+            match self.recover_and_replay_wal(&collection_name).await {
+                Ok(count) => {
+                    total_recovered += count;
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to recover WAL for collection '{}': {}",
+                        collection_name, e
+                    );
+                }
+            }
+        }
+
+        if total_recovered > 0 {
+            info!("Recovered {} total operations from WAL", total_recovered);
+        }
+
+        Ok(total_recovered)
     }
 }
 
@@ -2420,6 +2733,7 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Get initial collection count
@@ -2455,6 +2769,7 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Create collection
@@ -2479,6 +2794,7 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Get initial collection count
@@ -2514,6 +2830,7 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Get initial stats
@@ -2555,6 +2872,7 @@ mod tests {
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Create collection from main thread
@@ -2606,6 +2924,7 @@ mod tests {
                 algorithm: crate::models::CompressionAlgorithm::Lz4,
             },
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         store

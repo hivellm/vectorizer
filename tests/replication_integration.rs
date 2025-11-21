@@ -98,6 +98,7 @@ async fn test_master_start_and_accept_connections() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("pre_sync", config).unwrap();
 
@@ -162,6 +163,7 @@ async fn test_master_replicate_operations() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store
         .create_collection("test", config.clone())
@@ -231,6 +233,7 @@ async fn test_master_multiple_replicas_and_stats() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("multi", config).unwrap();
 
@@ -307,6 +310,7 @@ async fn test_replica_full_sync_on_connect() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("full_sync", config).unwrap();
 
@@ -350,6 +354,7 @@ async fn test_replica_partial_sync_on_reconnect() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("partial", config).unwrap();
 
@@ -437,6 +442,7 @@ async fn test_replica_apply_all_operation_types() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("ops_test", config).unwrap();
 
@@ -515,6 +521,7 @@ async fn test_replica_incremental_operations() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store
         .create_collection("incremental", config)
@@ -578,6 +585,7 @@ async fn test_replica_delete_operations() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store
         .create_collection("delete_test", config)
@@ -683,6 +691,7 @@ async fn test_replica_update_operations() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store
         .create_collection("update_test", config)
@@ -738,6 +747,7 @@ async fn test_replica_stats_tracking() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store.create_collection("stats", config).unwrap();
 
@@ -800,6 +810,7 @@ async fn test_large_payload_replication() {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        storage_type: None,
     };
     master_store
         .create_collection("large_payload", config)

@@ -121,6 +121,7 @@ impl Indexer {
             quantization: QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         store

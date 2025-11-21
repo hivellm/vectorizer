@@ -96,6 +96,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         assert_eq!(config.dimension, 128);

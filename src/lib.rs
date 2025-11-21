@@ -32,6 +32,7 @@ pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
+pub mod quantization;
 pub mod replication;
 pub mod security;
 pub mod server;
@@ -86,6 +87,7 @@ mod integration_tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         store.create_collection("concurrent", config).unwrap();
@@ -188,6 +190,7 @@ mod integration_tests {
                     quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
                     normalization: None,
+                    storage_type: Some(crate::models::StorageType::Memory),
                 },
             ),
             (
@@ -208,6 +211,7 @@ mod integration_tests {
                         algorithm: crate::models::CompressionAlgorithm::Lz4,
                     },
                     normalization: None,
+                    storage_type: Some(crate::models::StorageType::Memory),
                 },
             ),
         ];

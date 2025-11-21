@@ -380,6 +380,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = EnhancedCollectionMetadata::new_workspace(
@@ -405,6 +406,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = EnhancedCollectionMetadata::new_dynamic(
@@ -430,6 +432,7 @@ mod tests {
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let mut metadata = EnhancedCollectionMetadata::new_dynamic(

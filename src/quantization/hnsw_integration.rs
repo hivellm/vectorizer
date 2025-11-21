@@ -1,17 +1,17 @@
 //! HNSW integration for quantized vectors
-//! 
+//!
 //! Implements efficient similarity search using quantized vectors.
 //! Provides foundation for HNSW integration with quantization.
 
-use crate::quantization::{
-    QuantizationResult, QuantizationError, QuantizationType,
-    traits::{QuantizedVectors, QuantizationMethod, QuantizedSearch},
-    scalar::ScalarQuantization,
-    storage::QuantizedVectorStorage,
-};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+
+use serde::{Deserialize, Serialize};
+
+use crate::quantization::scalar::ScalarQuantization;
+use crate::quantization::storage::QuantizedVectorStorage;
+use crate::quantization::traits::{QuantizationMethod, QuantizedSearch, QuantizedVectors};
+use crate::quantization::{QuantizationError, QuantizationResult, QuantizationType};
 
 /// Configuration for HNSW integration with quantization
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,14 +65,14 @@ impl QuantizedHnswIndex {
         storage: Arc<QuantizedVectorStorage>,
     ) -> QuantizationResult<Self> {
         // Create quantization method based on config
-        let quantization: Box<dyn QuantizationMethod + Send + Sync> = match config.quantization_type {
-            QuantizationType::Scalar(bits) => {
-                Box::new(ScalarQuantization::new(bits)?)
-            },
+        let quantization: Box<dyn QuantizationMethod + Send + Sync> = match config.quantization_type
+        {
+            QuantizationType::Scalar(bits) => Box::new(ScalarQuantization::new(bits)?),
             _ => {
-                return Err(QuantizationError::InvalidParameters(
-                    format!("Unsupported quantization type: {:?}", config.quantization_type)
-                ));
+                return Err(QuantizationError::InvalidParameters(format!(
+                    "Unsupported quantization type: {:?}",
+                    config.quantization_type
+                )));
             }
         };
 
@@ -111,12 +111,10 @@ impl QuantizedHnswIndex {
         // Fit quantization if needed
         if self.vector_count == 0 {
             // Create new quantization with fitted parameters
-            let mut scalar_q = ScalarQuantization::new(
-                match self.config.quantization_type {
-                    QuantizationType::Scalar(bits) => bits,
-                    _ => 8,
-                }
-            )?;
+            let mut scalar_q = ScalarQuantization::new(match self.config.quantization_type {
+                QuantizationType::Scalar(bits) => bits,
+                _ => 8,
+            })?;
             scalar_q.fit(vectors)?;
             self.quantization = Box::new(scalar_q);
         }
@@ -197,11 +195,7 @@ impl QuantizedHnswIndex {
     }
 
     /// Hybrid search combining quantized and original similarity
-    pub fn search_hybrid(
-        &self,
-        query: &[f32],
-        k: usize,
-    ) -> QuantizationResult<Vec<(usize, f32)>> {
+    pub fn search_hybrid(&self, query: &[f32], k: usize) -> QuantizationResult<Vec<(usize, f32)>> {
         if !self.config.enable_hybrid_search {
             return self.search_quantized(query, k);
         }
@@ -239,7 +233,9 @@ impl QuantizedHnswIndex {
         let total_quantized_vectors = quantized_cache.len();
 
         let original_memory = self.vector_count * self.dimension * 4; // f32 = 4 bytes
-        let quantized_memory = self.quantization.memory_usage(self.vector_count, self.dimension);
+        let quantized_memory = self
+            .quantization
+            .memory_usage(self.vector_count, self.dimension);
         let compression_ratio = if quantized_memory > 0 {
             original_memory as f32 / quantized_memory as f32
         } else {
@@ -269,7 +265,7 @@ impl QuantizedHnswIndex {
     /// Save quantized vectors to storage
     pub fn save_to_storage(&self, collection_name: &str) -> QuantizationResult<()> {
         let cache = self.quantized_cache.read().unwrap();
-        
+
         // Convert cached quantized vectors to QuantizedVectors format
         let mut all_quantized_data = Vec::new();
         for i in 0..self.vector_count {
@@ -285,16 +281,18 @@ impl QuantizedHnswIndex {
             parameters: self.quantization.serialize_params()?,
         };
 
-        self.quantized_storage.store(collection_name, &quantized_vectors)?;
+        self.quantized_storage
+            .store(collection_name, &quantized_vectors)?;
         Ok(())
     }
 
     /// Load quantized vectors from storage
     pub fn load_from_storage(&mut self, collection_name: &str) -> QuantizationResult<()> {
         let quantized_vectors = self.quantized_storage.load(collection_name)?;
-        
+
         // Update quantization parameters
-        self.quantization.deserialize_params(quantized_vectors.parameters.clone())?;
+        self.quantization
+            .deserialize_params(quantized_vectors.parameters.clone())?;
         self.vector_count = quantized_vectors.count;
         self.dimension = quantized_vectors.dimension;
 
@@ -322,7 +320,7 @@ impl QuantizedHnswIndex {
         for i in 0..quantized.count {
             let start = i * bytes_per_vector;
             let end = start + bytes_per_vector;
-            
+
             if end <= quantized.data.len() {
                 let vector_data = quantized.data[start..end].to_vec();
                 cache.insert(i, vector_data);
@@ -385,8 +383,9 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_quantized_hnsw_basic() {
@@ -407,7 +406,7 @@ mod tests {
         ];
 
         index.add_vectors(&vectors).unwrap();
-        
+
         let results = index.search_quantized(&vec![1.0, 0.0, 0.0], 2).unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].0, 0); // First vector should be most similar
@@ -456,10 +455,11 @@ mod tests {
         let mut new_index = QuantizedHnswIndex::new(
             HnswQuantizationConfig::default(),
             index.quantized_storage.clone(),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         new_index.load_from_storage("test_collection").unwrap();
-        
+
         let stats = new_index.get_quantization_stats().unwrap();
         assert_eq!(stats.vector_count, 100);
     }
@@ -484,7 +484,7 @@ mod tests {
         ];
 
         index.add_vectors(&vectors).unwrap();
-        
+
         let results = index.search_hybrid(&vec![1.0, 0.0, 0.0], 2).unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].0, 0); // First vector should be most similar

@@ -269,6 +269,30 @@ pub struct CollectionConfig {
     /// Text normalization configuration (optional, disabled by default)
     #[serde(default)]
     pub normalization: Option<crate::normalization::NormalizationConfig>,
+    /// Storage type (Memory or Mmap)
+    /// Defaults to Memory if not specified
+    #[serde(default = "default_storage_type")]
+    pub storage_type: Option<StorageType>,
+}
+
+/// Storage backend type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StorageType {
+    /// In-memory storage (fastest, limited by RAM)
+    Memory,
+    /// Memory-mapped storage (slower, limited by disk)
+    Mmap,
+}
+
+impl Default for StorageType {
+    fn default() -> Self {
+        Self::Memory
+    }
+}
+
+/// Default storage type for CollectionConfig
+fn default_storage_type() -> Option<StorageType> {
+    Some(StorageType::Memory)
 }
 
 /// Distance metrics for vector similarity
@@ -326,6 +350,7 @@ impl Default for CollectionConfig {
             quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
             compression: CompressionConfig::default(),
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
+            storage_type: Some(StorageType::Memory),
         }
     }
 }
@@ -453,23 +478,25 @@ pub mod vector_utils {
         }
     }
 
-    /// Calculate dot product of two vectors
+    /// Calculate dot product of two vectors (SIMD-accelerated)
+    /// Uses runtime CPU feature detection to enable SIMD when available
+    #[inline]
     pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
-        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+        super::vector_utils_simd::dot_product_simd(a, b)
     }
 
-    /// Calculate Euclidean distance between two vectors
+    /// Calculate Euclidean distance between two vectors (SIMD-accelerated)
+    /// Uses runtime CPU feature detection to enable SIMD when available
+    #[inline]
     pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
-        a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| (x - y) * (x - y))
-            .sum::<f32>()
-            .sqrt()
+        super::vector_utils_simd::euclidean_distance_simd(a, b)
     }
 
-    /// Calculate cosine similarity between two vectors (assumes normalized vectors)
+    /// Calculate cosine similarity between two vectors (assumes normalized vectors, SIMD-accelerated)
+    /// Uses runtime CPU feature detection to enable SIMD when available
+    #[inline]
     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-        dot_product(a, b).clamp(-1.0, 1.0) // Clamp to [-1, 1]
+        super::vector_utils_simd::cosine_similarity_simd(a, b)
     }
 
     /// Convert distance metric result to similarity score
@@ -595,5 +622,8 @@ pub mod qdrant;
 
 /// Sparse vector support module
 pub mod sparse_vector;
+
+/// SIMD-accelerated vector utilities
+pub mod vector_utils_simd;
 
 pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};

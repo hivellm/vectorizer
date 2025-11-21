@@ -8,6 +8,7 @@
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
+    StorageType,
 };
 
 /// Helper to create a test store
@@ -35,6 +36,7 @@ fn create_test_collection(
         quantization: QuantizationConfig::SQ { bits: 8 },
         compression: CompressionConfig::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
     };
     store.create_collection(name, config)?;
     Ok(())

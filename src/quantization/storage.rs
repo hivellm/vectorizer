@@ -1,20 +1,20 @@
 //! Quantized vector storage system
-//! 
+//!
 //! Implements efficient storage and retrieval of quantized vectors with
 //! memory-mapped files, compression, and cache management.
 
-use crate::quantization::{
-    QuantizationResult, QuantizationError, QuantizationType,
-    traits::{QuantizedVectors, QuantizationMethod, QualityMetrics},
-    scalar::ScalarQuantization,
-};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Write, BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+
+use crate::quantization::scalar::ScalarQuantization;
+use crate::quantization::traits::{QualityMetrics, QuantizationMethod, QuantizedVectors};
+use crate::quantization::{QuantizationError, QuantizationResult, QuantizationType};
 
 /// Configuration for quantized vector storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,10 +97,9 @@ impl QuantizedVectorStorage {
     pub fn new(config: StorageConfig) -> QuantizationResult<Self> {
         // Create storage directory if it doesn't exist
         if !config.storage_dir.exists() {
-            std::fs::create_dir_all(&config.storage_dir)
-                .map_err(|e| QuantizationError::Internal(
-                    format!("Failed to create storage directory: {}", e)
-                ))?;
+            std::fs::create_dir_all(&config.storage_dir).map_err(|e| {
+                QuantizationError::Internal(format!("Failed to create storage directory: {}", e))
+            })?;
         }
 
         Ok(Self {
@@ -112,9 +111,13 @@ impl QuantizedVectorStorage {
     }
 
     /// Store quantized vectors to disk
-    pub fn store(&self, collection_name: &str, vectors: &QuantizedVectors) -> QuantizationResult<()> {
+    pub fn store(
+        &self,
+        collection_name: &str,
+        vectors: &QuantizedVectors,
+    ) -> QuantizationResult<()> {
         let file_path = self.get_file_path(collection_name);
-        
+
         // Create metadata
         let metadata = StorageMetadata {
             collection_name: collection_name.to_string(),
@@ -122,10 +125,14 @@ impl QuantizedVectorStorage {
             vector_count: vectors.count,
             dimension: vectors.dimension,
             file_size: 0, // Will be updated after writing
-            created_at: SystemTime::now().duration_since(UNIX_EPOCH)
-                .unwrap_or_default().as_secs(),
-            last_accessed: SystemTime::now().duration_since(UNIX_EPOCH)
-                .unwrap_or_default().as_secs(),
+            created_at: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            last_accessed: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
             quality_metrics: None,
             compression_ratio: self.calculate_compression_ratio(vectors),
             memory_usage: vectors.data.len(),
@@ -136,32 +143,30 @@ impl QuantizedVectorStorage {
         let compressed = self.compress_data(&serialized)?;
 
         // Write to disk
-        let mut file = File::create(&file_path)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to create file {}: {}", file_path.display(), e)
-            ))?;
+        let mut file = File::create(&file_path).map_err(|e| {
+            QuantizationError::Internal(format!(
+                "Failed to create file {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
 
         // Write metadata header
-        let metadata_bytes = bincode::serialize(&metadata)
-            .map_err(|e| QuantizationError::SerializationFailed(
-                format!("Failed to serialize metadata: {}", e)
-            ))?;
+        let metadata_bytes = bincode::serialize(&metadata).map_err(|e| {
+            QuantizationError::SerializationFailed(format!("Failed to serialize metadata: {}", e))
+        })?;
 
         let header_size = metadata_bytes.len() as u32;
-        file.write_all(&header_size.to_le_bytes())
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to write header size: {}", e)
-            ))?;
+        file.write_all(&header_size.to_le_bytes()).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to write header size: {}", e))
+        })?;
 
         file.write_all(&metadata_bytes)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to write metadata: {}", e)
-            ))?;
+            .map_err(|e| QuantizationError::Internal(format!("Failed to write metadata: {}", e)))?;
 
-        file.write_all(&compressed)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to write compressed data: {}", e)
-            ))?;
+        file.write_all(&compressed).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to write compressed data: {}", e))
+        })?;
 
         // Update cache
         self.update_cache(collection_name, vectors.clone(), metadata)?;
@@ -177,45 +182,47 @@ impl QuantizedVectorStorage {
         }
 
         let file_path = self.get_file_path(collection_name);
-        
+
         if !file_path.exists() {
-            return Err(QuantizationError::InvalidParameters(
-                format!("Storage file not found: {}", file_path.display())
-            ));
+            return Err(QuantizationError::InvalidParameters(format!(
+                "Storage file not found: {}",
+                file_path.display()
+            )));
         }
 
-        let mut file = File::open(&file_path)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to open file {}: {}", file_path.display(), e)
-            ))?;
+        let mut file = File::open(&file_path).map_err(|e| {
+            QuantizationError::Internal(format!(
+                "Failed to open file {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
 
         // Read header size
         let mut header_size_bytes = [0u8; 4];
-        file.read_exact(&mut header_size_bytes)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to read header size: {}", e)
-            ))?;
+        file.read_exact(&mut header_size_bytes).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to read header size: {}", e))
+        })?;
 
         let header_size = u32::from_le_bytes(header_size_bytes) as usize;
 
         // Read metadata
         let mut metadata_bytes = vec![0u8; header_size];
         file.read_exact(&mut metadata_bytes)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to read metadata: {}", e)
-            ))?;
+            .map_err(|e| QuantizationError::Internal(format!("Failed to read metadata: {}", e)))?;
 
-        let metadata: StorageMetadata = bincode::deserialize(&metadata_bytes)
-            .map_err(|e| QuantizationError::DeserializationFailed(
-                format!("Failed to deserialize metadata: {}", e)
-            ))?;
+        let metadata: StorageMetadata = bincode::deserialize(&metadata_bytes).map_err(|e| {
+            QuantizationError::DeserializationFailed(format!(
+                "Failed to deserialize metadata: {}",
+                e
+            ))
+        })?;
 
         // Read compressed data
         let mut compressed_data = Vec::new();
-        file.read_to_end(&mut compressed_data)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to read compressed data: {}", e)
-            ))?;
+        file.read_to_end(&mut compressed_data).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to read compressed data: {}", e))
+        })?;
 
         // Decompress and deserialize
         let serialized = self.decompress_data(&compressed_data)?;
@@ -235,10 +242,13 @@ impl QuantizedVectorStorage {
         // Remove file
         let file_path = self.get_file_path(collection_name);
         if file_path.exists() {
-            std::fs::remove_file(&file_path)
-                .map_err(|e| QuantizationError::Internal(
-                    format!("Failed to remove file {}: {}", file_path.display(), e)
-                ))?;
+            std::fs::remove_file(&file_path).map_err(|e| {
+                QuantizationError::Internal(format!(
+                    "Failed to remove file {}: {}",
+                    file_path.display(),
+                    e
+                ))
+            })?;
         }
 
         Ok(())
@@ -252,13 +262,12 @@ impl QuantizedVectorStorage {
             return Ok(collections);
         }
 
-        for entry in std::fs::read_dir(&self.storage_dir)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to read storage directory: {}", e)
-            ))? {
-            let entry = entry.map_err(|e| QuantizationError::Internal(
-                format!("Failed to read directory entry: {}", e)
-            ))?;
+        for entry in std::fs::read_dir(&self.storage_dir).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to read storage directory: {}", e))
+        })? {
+            let entry = entry.map_err(|e| {
+                QuantizationError::Internal(format!("Failed to read directory entry: {}", e))
+            })?;
 
             if let Some(file_name) = entry.file_name().to_str() {
                 if file_name.ends_with(".qvec") {
@@ -280,13 +289,12 @@ impl QuantizedVectorStorage {
         let mut total_size = 0u64;
         let mut total_vectors = 0;
 
-        for entry in std::fs::read_dir(&self.storage_dir)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to read storage directory: {}", e)
-            ))? {
-            let entry = entry.map_err(|e| QuantizationError::Internal(
-                format!("Failed to read directory entry: {}", e)
-            ))?;
+        for entry in std::fs::read_dir(&self.storage_dir).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to read storage directory: {}", e))
+        })? {
+            let entry = entry.map_err(|e| {
+                QuantizationError::Internal(format!("Failed to read directory entry: {}", e))
+            })?;
 
             if let Some(file_name) = entry.file_name().to_str() {
                 if file_name.ends_with(".qvec") {
@@ -317,7 +325,7 @@ impl QuantizedVectorStorage {
     pub fn clear_cache(&self) -> QuantizationResult<()> {
         let mut cache = self.cache.write().unwrap();
         let mut cache_size = self.cache_size.write().unwrap();
-        
+
         cache.clear();
         *cache_size = 0;
 
@@ -326,25 +334,28 @@ impl QuantizedVectorStorage {
 
     /// Cleanup old files
     pub fn cleanup(&self, max_age_seconds: u64) -> QuantizationResult<()> {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH)
-            .unwrap_or_default().as_secs();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
 
-        for entry in std::fs::read_dir(&self.storage_dir)
-            .map_err(|e| QuantizationError::Internal(
-                format!("Failed to read storage directory: {}", e)
-            ))? {
-            let entry = entry.map_err(|e| QuantizationError::Internal(
-                format!("Failed to read directory entry: {}", e)
-            ))?;
+        for entry in std::fs::read_dir(&self.storage_dir).map_err(|e| {
+            QuantizationError::Internal(format!("Failed to read storage directory: {}", e))
+        })? {
+            let entry = entry.map_err(|e| {
+                QuantizationError::Internal(format!("Failed to read directory entry: {}", e))
+            })?;
 
             if let Ok(metadata) = entry.metadata() {
                 if let Ok(created) = metadata.created() {
                     if let Ok(created_time) = created.duration_since(UNIX_EPOCH) {
                         if now - created_time.as_secs() > max_age_seconds {
-                            std::fs::remove_file(entry.path())
-                                .map_err(|e| QuantizationError::Internal(
-                                    format!("Failed to remove old file: {}", e)
-                                ))?;
+                            std::fs::remove_file(entry.path()).map_err(|e| {
+                                QuantizationError::Internal(format!(
+                                    "Failed to remove old file: {}",
+                                    e
+                                ))
+                            })?;
                         }
                     }
                 }
@@ -363,26 +374,27 @@ impl QuantizedVectorStorage {
     fn calculate_compression_ratio(&self, vectors: &QuantizedVectors) -> f32 {
         let original_size = vectors.count * vectors.dimension * 4; // f32 = 4 bytes
         let compressed_size = vectors.data.len();
-        
+
         if compressed_size == 0 {
             return 1.0;
         }
-        
+
         original_size as f32 / compressed_size as f32
     }
 
     fn serialize_vectors(&self, vectors: &QuantizedVectors) -> QuantizationResult<Vec<u8>> {
-        bincode::serialize(vectors)
-            .map_err(|e| QuantizationError::SerializationFailed(
-                format!("Failed to serialize vectors: {}", e)
-            ))
+        bincode::serialize(vectors).map_err(|e| {
+            QuantizationError::SerializationFailed(format!("Failed to serialize vectors: {}", e))
+        })
     }
 
     fn deserialize_vectors(&self, data: &[u8]) -> QuantizationResult<QuantizedVectors> {
-        bincode::deserialize(data)
-            .map_err(|e| QuantizationError::DeserializationFailed(
-                format!("Failed to deserialize vectors: {}", e)
+        bincode::deserialize(data).map_err(|e| {
+            QuantizationError::DeserializationFailed(format!(
+                "Failed to deserialize vectors: {}",
+                e
             ))
+        })
     }
 
     fn compress_data(&self, data: &[u8]) -> QuantizationResult<Vec<u8>> {
@@ -402,13 +414,18 @@ impl QuantizedVectorStorage {
         cache.get(collection_name).cloned()
     }
 
-    fn update_cache(&self, collection_name: &str, vectors: QuantizedVectors, metadata: StorageMetadata) -> QuantizationResult<()> {
+    fn update_cache(
+        &self,
+        collection_name: &str,
+        vectors: QuantizedVectors,
+        metadata: StorageMetadata,
+    ) -> QuantizationResult<()> {
         let memory_usage = vectors.data.len();
-        
+
         // Check if we need to evict from cache
         let max_cache_size = self.config.max_cache_size_mb * 1024 * 1024;
         let mut cache_size = self.cache_size.write().unwrap();
-        
+
         if *cache_size + memory_usage > max_cache_size {
             self.evict_from_cache(memory_usage)?;
         }
@@ -430,7 +447,7 @@ impl QuantizedVectorStorage {
     fn remove_from_cache(&self, collection_name: &str) {
         let mut cache = self.cache.write().unwrap();
         let mut cache_size = self.cache_size.write().unwrap();
-        
+
         if let Some(cached) = cache.remove(collection_name) {
             *cache_size -= cached.memory_usage;
         }
@@ -439,7 +456,7 @@ impl QuantizedVectorStorage {
     fn evict_from_cache(&self, required_space: usize) -> QuantizationResult<()> {
         let mut cache = self.cache.write().unwrap();
         let mut cache_size = self.cache_size.write().unwrap();
-        
+
         // Simple LRU eviction - remove oldest entries
         let mut entries: Vec<_> = cache.iter().collect();
         entries.sort_by_key(|(_, cached)| cached.last_access);
@@ -450,7 +467,7 @@ impl QuantizedVectorStorage {
         for (key, cached) in entries {
             to_remove.push(key.clone());
             freed_space += cached.memory_usage;
-            
+
             if freed_space >= required_space {
                 break;
             }
@@ -486,8 +503,10 @@ pub struct StorageStats {
 impl StorageMetadata {
     /// Update last accessed time
     pub fn touch(&mut self) {
-        self.last_accessed = SystemTime::now().duration_since(UNIX_EPOCH)
-            .unwrap_or_default().as_secs();
+        self.last_accessed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
     }
 
     /// Calculate storage efficiency
@@ -495,15 +514,16 @@ impl StorageMetadata {
         if self.memory_usage == 0 {
             return 1.0;
         }
-        
+
         self.compression_ratio
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[test]
     fn test_storage_basic_operations() {
@@ -518,10 +538,7 @@ mod tests {
 
         // Create test vectors
         let mut sq = ScalarQuantization::new(8).unwrap();
-        let test_vectors = vec![
-            vec![1.0, 2.0, 3.0],
-            vec![4.0, 5.0, 6.0],
-        ];
+        let test_vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
         sq.fit(&test_vectors).unwrap();
         let quantized = sq.quantize(&test_vectors).unwrap();
 
@@ -556,10 +573,7 @@ mod tests {
 
         // Create and store test data
         let mut sq = ScalarQuantization::new(8).unwrap();
-        let test_vectors = vec![
-            vec![1.0, 2.0, 3.0],
-            vec![4.0, 5.0, 6.0],
-        ];
+        let test_vectors = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
         sq.fit(&test_vectors).unwrap();
         let quantized = sq.quantize(&test_vectors).unwrap();
 
