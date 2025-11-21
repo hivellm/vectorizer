@@ -120,9 +120,16 @@ cargo test --test core::simd
 - ✅ Workflow tests structure created
 - ✅ Infrastructure tests structure created
 
-**Note**: Test files use `include!()` to reference original files, maintaining backward compatibility while organizing the structure.
+**Note**: All test files have been moved to their respective directories. The structure is fully organized and functional.
 
-## Legacy Test Files
+## Remaining Files in Root
 
-Test files in the root `tests/` directory will be gradually migrated to the new structure. They remain functional during the migration period.
+Some test files remain in the root `tests/` directory:
+- `grpc_*.rs` - gRPC tests (legacy, see `grpc/` for organized version)
+- `grpc_tests.rs` - Organized gRPC test entry point
+- `all_tests.rs` - All tests entry point
+- `test_new_features.rs` - New features tests (to be categorized)
+- `grpc_s2s.rs` - Server-to-server tests (requires `s2s-tests` feature)
+
+These will be gradually migrated or kept as entry points.
 
