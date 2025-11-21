@@ -159,9 +159,9 @@ async fn test_wal_recover_all_collections_with_data() {
     .await;
 
     match result {
-        Ok(Ok(count)) => {
+        Ok(Ok(_count)) => {
             // Should recover operations (may be 0 if async writes didn't complete, which is OK)
-            assert!(count >= 0);
+            // count is usize, always >= 0, no need to check
         }
         Ok(Err(e)) => {
             panic!("Recovery failed: {}", e);

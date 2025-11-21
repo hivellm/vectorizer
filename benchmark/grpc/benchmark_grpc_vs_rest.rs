@@ -11,12 +11,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::time::sleep;
+use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer::grpc::vectorizer::*;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector};
-
-use tonic::transport::Channel;
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
+};
 
 /// Benchmark configuration
 struct BenchmarkConfig {
@@ -67,7 +68,7 @@ impl BenchmarkResults {
 
     fn calculate_percentiles(&mut self, latencies: &mut [f64]) {
         latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        
+
         self.avg_latency_ms = latencies.iter().sum::<f64>() / latencies.len() as f64;
         self.p50_latency_ms = latencies[latencies.len() / 2];
         self.p95_latency_ms = latencies[(latencies.len() as f64 * 0.95) as usize];
@@ -143,7 +144,7 @@ async fn benchmark_grpc_insert(
 
     // Insert vectors using streaming
     let (mut tx, rx) = tokio::sync::mpsc::channel(1000);
-    
+
     // Send all vectors to channel (non-blocking)
     for vector in vectors {
         let request = InsertVectorRequest {
@@ -159,11 +160,11 @@ async fn benchmark_grpc_insert(
     // Measure only the actual streaming call
     let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
     let request = tonic::Request::new(stream);
-    
+
     let stream_start = Instant::now();
     let _response = client.insert_vectors(request).await.unwrap();
     let stream_latency = stream_start.elapsed().as_secs_f64() * 1000.0;
-    
+
     // Use stream latency as average per vector
     let avg_latency_per_vector = stream_latency / vectors.len() as f64;
     latencies = (0..vectors.len()).map(|_| avg_latency_per_vector).collect();
@@ -222,7 +223,7 @@ async fn benchmark_grpc_search(
             threshold: 0.0,
             filter: std::collections::HashMap::new(),
         });
-        
+
         let _response = client.search(request).await.unwrap();
         let latency = query_start.elapsed().as_secs_f64() * 1000.0;
         latencies.push(latency);
@@ -238,9 +239,9 @@ async fn benchmark_grpc_search(
 
 /// Start gRPC server for benchmarking
 async fn start_grpc_server(port: u16) -> Arc<VectorStore> {
+    use tonic::transport::Server;
     use vectorizer::grpc::VectorizerGrpcService;
     use vectorizer::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
-    use tonic::transport::Server;
 
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
@@ -275,7 +276,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=============================\n");
 
     let config = BenchmarkConfig::default();
-    
+
     println!("📊 Configuration:");
     println!("  Vector count: {}", config.vector_count);
     println!("  Dimension: {}", config.dimension);
@@ -308,13 +309,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         normalization: None,
         storage_type: None,
     };
-    rest_store.create_collection(rest_collection, rest_config).unwrap();
+    rest_store
+        .create_collection(rest_collection, rest_config)
+        .unwrap();
 
     // Setup gRPC server and client
     let grpc_port = 15020;
     let grpc_store = start_grpc_server(grpc_port).await;
     let mut grpc_client = create_grpc_client(grpc_port).await;
-    
+
     let grpc_collection = "grpc_bench";
     let grpc_config = CollectionConfig {
         dimension: config.dimension,
@@ -325,11 +328,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         normalization: None,
         storage_type: None,
     };
-    grpc_store.create_collection(grpc_collection, grpc_config).unwrap();
+    grpc_store
+        .create_collection(grpc_collection, grpc_config)
+        .unwrap();
 
     // Create gRPC collection via API
-    use vectorizer::grpc::vectorizer::{CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric, HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType};
-    
+    use vectorizer::grpc::vectorizer::{
+        CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
+        HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType,
+    };
+
     let create_request = tonic::Request::new(CreateCollectionRequest {
         name: grpc_collection.to_string(),
         config: Some(ProtoCollectionConfig {
@@ -353,39 +361,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 Benchmarking Insert Operations...");
     let rest_insert = benchmark_rest_insert(&rest_store, rest_collection, &vectors).await;
     rest_insert.print();
-    
+
     let grpc_insert = benchmark_grpc_insert(&mut grpc_client, grpc_collection, &vectors).await;
     grpc_insert.print();
 
     println!("\n📈 Insert Comparison:");
     let throughput_ratio = grpc_insert.throughput / rest_insert.throughput;
-    println!("  gRPC is {:.2}x {} than REST", 
-        throughput_ratio, 
-        if throughput_ratio > 1.0 { "faster" } else { "slower" }
+    println!(
+        "  gRPC is {:.2}x {} than REST",
+        throughput_ratio,
+        if throughput_ratio > 1.0 {
+            "faster"
+        } else {
+            "slower"
+        }
     );
 
     // Benchmark Search
     println!("\n🔍 Benchmarking Search Operations...");
     let rest_search = benchmark_rest_search(&rest_store, rest_collection, &queries).await;
     rest_search.print();
-    
+
     let grpc_search = benchmark_grpc_search(&mut grpc_client, grpc_collection, &queries).await;
     grpc_search.print();
 
     println!("\n📈 Search Comparison:");
     let latency_ratio = grpc_search.avg_latency_ms / rest_search.avg_latency_ms;
-    println!("  gRPC latency is {:.2}x {} than REST", 
+    println!(
+        "  gRPC latency is {:.2}x {} than REST",
         latency_ratio,
-        if latency_ratio < 1.0 { "lower" } else { "higher" }
+        if latency_ratio < 1.0 {
+            "lower"
+        } else {
+            "higher"
+        }
     );
     let throughput_ratio = grpc_search.throughput / rest_search.throughput;
-    println!("  gRPC throughput is {:.2}x {} than REST",
+    println!(
+        "  gRPC throughput is {:.2}x {} than REST",
         throughput_ratio,
-        if throughput_ratio > 1.0 { "higher" } else { "lower" }
+        if throughput_ratio > 1.0 {
+            "higher"
+        } else {
+            "lower"
+        }
     );
 
     println!("\n✅ Benchmark completed!");
 
     Ok(())
 }
-

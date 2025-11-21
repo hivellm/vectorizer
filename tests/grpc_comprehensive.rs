@@ -18,18 +18,19 @@ use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer::grpc::vectorizer::*;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Payload};
-
 // Import protobuf types
 use vectorizer::grpc::vectorizer::{
-    CollectionConfig as ProtoCollectionConfig,
-    DistanceMetric as ProtoDistanceMetric,
-    HnswConfig as ProtoHnswConfig,
-    StorageType as ProtoStorageType,
+    CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
+    HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType,
+};
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig,
 };
 
 /// Helper to create a test gRPC client
-async fn create_test_client(port: u16) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
+async fn create_test_client(
+    port: u16,
+) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
     let addr = format!("http://127.0.0.1:{}", port);
     let client = VectorizerServiceClient::connect(addr).await?;
     Ok(client)
@@ -57,9 +58,9 @@ fn create_test_vector(id: &str, seed: usize) -> Vec<f32> {
 
 /// Helper to start a test gRPC server
 async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::error::Error>> {
+    use tonic::transport::Server;
     use vectorizer::grpc::VectorizerGrpcService;
     use vectorizer::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
-    use tonic::transport::Server;
 
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
@@ -111,20 +112,25 @@ async fn test_get_stats() {
     store.create_collection("stats_test", config).unwrap();
 
     use vectorizer::models::Vector;
-    store.insert("stats_test", vec![
-        Vector {
-            id: "vec1".to_string(),
-            data: create_test_vector("vec1", 1),
-            sparse: None,
-            payload: None,
-        },
-        Vector {
-            id: "vec2".to_string(),
-            data: create_test_vector("vec2", 2),
-            sparse: None,
-            payload: None,
-        },
-    ]).unwrap();
+    store
+        .insert(
+            "stats_test",
+            vec![
+                Vector {
+                    id: "vec1".to_string(),
+                    data: create_test_vector("vec1", 1),
+                    sparse: None,
+                    payload: None,
+                },
+                Vector {
+                    id: "vec2".to_string(),
+                    data: create_test_vector("vec2", 2),
+                    sparse: None,
+                    payload: None,
+                },
+            ],
+        )
+        .unwrap();
 
     let request = tonic::Request::new(GetStatsRequest {});
     let response = timeout(Duration::from_secs(5), client.get_stats(request))
@@ -148,10 +154,13 @@ async fn test_collection_management_complete() {
 
     // 3.1: List collections (should be empty initially)
     let list_request = tonic::Request::new(ListCollectionsRequest {});
-    let list_response = timeout(Duration::from_secs(5), client.list_collections(list_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let list_response = timeout(
+        Duration::from_secs(5),
+        client.list_collections(list_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let initial_collections = list_response.into_inner().collection_names;
     let initial_count = initial_collections.len();
 
@@ -172,18 +181,24 @@ async fn test_collection_management_complete() {
         }),
     });
 
-    let create_response = timeout(Duration::from_secs(5), client.create_collection(create_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let create_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(create_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(create_response.into_inner().success);
 
     // 3.3: Verify collection appears in list
     let list_request = tonic::Request::new(ListCollectionsRequest {});
-    let list_response = timeout(Duration::from_secs(5), client.list_collections(list_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let list_response = timeout(
+        Duration::from_secs(5),
+        client.list_collections(list_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let collections = list_response.into_inner().collection_names;
     assert_eq!(collections.len(), initial_count + 1);
     assert!(collections.contains(&"test_collection".to_string()));
@@ -192,10 +207,13 @@ async fn test_collection_management_complete() {
     let info_request = tonic::Request::new(GetCollectionInfoRequest {
         collection_name: "test_collection".to_string(),
     });
-    let info_response = timeout(Duration::from_secs(5), client.get_collection_info(info_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let info_response = timeout(
+        Duration::from_secs(5),
+        client.get_collection_info(info_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let info = info_response.into_inner().info.unwrap();
     assert_eq!(info.name, "test_collection");
     assert_eq!(info.config.as_ref().unwrap().dimension, 128);
@@ -207,18 +225,24 @@ async fn test_collection_management_complete() {
     let delete_request = tonic::Request::new(DeleteCollectionRequest {
         collection_name: "test_collection".to_string(),
     });
-    let delete_response = timeout(Duration::from_secs(5), client.delete_collection(delete_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let delete_response = timeout(
+        Duration::from_secs(5),
+        client.delete_collection(delete_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(delete_response.into_inner().success);
 
     // 3.6: Verify collection is gone
     let list_request = tonic::Request::new(ListCollectionsRequest {});
-    let list_response = timeout(Duration::from_secs(5), client.list_collections(list_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let list_response = timeout(
+        Duration::from_secs(5),
+        client.list_collections(list_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let collections = list_response.into_inner().collection_names;
     assert_eq!(collections.len(), initial_count);
     assert!(!collections.contains(&"test_collection".to_string()));
@@ -422,7 +446,7 @@ async fn test_search_operations() {
     assert!(results.len() <= 5);
     // Results should be sorted by score (best first)
     for i in 1..results.len() {
-        assert!(results[i-1].score >= results[i].score);
+        assert!(results[i - 1].score >= results[i].score);
     }
 
     // 6.2: Batch search
@@ -503,10 +527,13 @@ async fn test_hybrid_search() {
         config: Some(hybrid_config),
     });
 
-    let hybrid_response = timeout(Duration::from_secs(10), client.hybrid_search(hybrid_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let hybrid_response = timeout(
+        Duration::from_secs(10),
+        client.hybrid_search(hybrid_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let results = hybrid_response.into_inner().results;
 
     assert!(!results.is_empty());
@@ -531,7 +558,11 @@ async fn test_error_handling() {
     let get_info_request = tonic::Request::new(GetCollectionInfoRequest {
         collection_name: "nonexistent".to_string(),
     });
-    let get_info_response = timeout(Duration::from_secs(5), client.get_collection_info(get_info_request)).await;
+    let get_info_response = timeout(
+        Duration::from_secs(5),
+        client.get_collection_info(get_info_request),
+    )
+    .await;
     assert!(get_info_response.is_err() || get_info_response.unwrap().is_err());
 
     // 8.2: Vector not found
@@ -543,7 +574,11 @@ async fn test_error_handling() {
         collection_name: "error_test".to_string(),
         vector_id: "nonexistent".to_string(),
     });
-    let get_vector_response = timeout(Duration::from_secs(5), client.get_vector(get_vector_request)).await;
+    let get_vector_response = timeout(
+        Duration::from_secs(5),
+        client.get_vector(get_vector_request),
+    )
+    .await;
     assert!(get_vector_response.is_err() || get_vector_response.unwrap().is_err());
 
     // 8.3: Invalid dimension
@@ -553,7 +588,8 @@ async fn test_error_handling() {
         data: vec![1.0, 2.0, 3.0], // Wrong dimension
         payload: HashMap::new(),
     });
-    let invalid_response = timeout(Duration::from_secs(5), client.insert_vector(invalid_insert)).await;
+    let invalid_response =
+        timeout(Duration::from_secs(5), client.insert_vector(invalid_insert)).await;
     // Should fail with invalid argument or return success=false
     match invalid_response {
         Ok(Ok(response)) => {
@@ -589,10 +625,13 @@ async fn test_end_to_end_workflow() {
             storage_type: ProtoStorageType::Memory as i32,
         }),
     });
-    let create_response = timeout(Duration::from_secs(5), client.create_collection(create_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let create_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(create_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(create_response.into_inner().success);
 
     // 2. Insert multiple vectors with payloads
@@ -619,10 +658,13 @@ async fn test_end_to_end_workflow() {
     let info_request = tonic::Request::new(GetCollectionInfoRequest {
         collection_name: "e2e_test".to_string(),
     });
-    let info_response = timeout(Duration::from_secs(5), client.get_collection_info(info_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let info_response = timeout(
+        Duration::from_secs(5),
+        client.get_collection_info(info_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let info = info_response.into_inner().info.unwrap();
     assert_eq!(info.vector_count, 5);
 
@@ -669,10 +711,13 @@ async fn test_end_to_end_workflow() {
     let info_request = tonic::Request::new(GetCollectionInfoRequest {
         collection_name: "e2e_test".to_string(),
     });
-    let info_response = timeout(Duration::from_secs(5), client.get_collection_info(info_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let info_response = timeout(
+        Duration::from_secs(5),
+        client.get_collection_info(info_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let info = info_response.into_inner().info.unwrap();
     assert_eq!(info.vector_count, 4); // 5 - 1 deleted
 
@@ -680,10 +725,12 @@ async fn test_end_to_end_workflow() {
     let delete_collection_request = tonic::Request::new(DeleteCollectionRequest {
         collection_name: "e2e_test".to_string(),
     });
-    let delete_collection_response = timeout(Duration::from_secs(5), client.delete_collection(delete_collection_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let delete_collection_response = timeout(
+        Duration::from_secs(5),
+        client.delete_collection(delete_collection_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(delete_collection_response.into_inner().success);
 }
-

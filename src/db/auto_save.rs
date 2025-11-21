@@ -350,9 +350,7 @@ mod tests {
                 panic!("Unexpected error: {}", e);
             }
         }
-        // If Ok, verify it returns a valid number
-        if let Ok(deleted) = result {
-            assert!(deleted >= 0);
-        }
+        // If Ok, verify it returns a valid number (deleted is usize, always >= 0)
+        // No need to check since usize is always non-negative
     }
 }

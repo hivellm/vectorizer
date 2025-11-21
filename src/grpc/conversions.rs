@@ -1,23 +1,23 @@
 //! Conversion utilities between Protobuf types and internal types
 
+use super::vectorizer;
+use crate::db::hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::error::{Result, VectorizerError};
 use crate::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, SearchResult,
     SparseVector, StorageType, Vector,
 };
-use crate::db::hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig};
-
-use super::vectorizer;
 
 impl TryFrom<&vectorizer::CollectionConfig> for crate::models::CollectionConfig {
     type Error = VectorizerError;
 
     fn try_from(proto: &vectorizer::CollectionConfig) -> Result<Self> {
-        let metric_enum = vectorizer::DistanceMetric::from_i32(proto.metric)
-            .ok_or_else(|| VectorizerError::InvalidConfiguration {
+        let metric_enum = vectorizer::DistanceMetric::from_i32(proto.metric).ok_or_else(|| {
+            VectorizerError::InvalidConfiguration {
                 message: "Invalid distance metric".to_string(),
-            })?;
-        
+            }
+        })?;
+
         Ok(CollectionConfig {
             dimension: proto.dimension as usize,
             metric: DistanceMetric::from(metric_enum),
@@ -36,7 +36,9 @@ impl TryFrom<&vectorizer::CollectionConfig> for crate::models::CollectionConfig 
                 .as_ref()
                 .map(|q| match q.config.as_ref() {
                     Some(vectorizer::quantization_config::Config::Scalar(s)) => {
-                        QuantizationConfig::SQ { bits: s.bits as usize }
+                        QuantizationConfig::SQ {
+                            bits: s.bits as usize,
+                        }
                     }
                     Some(vectorizer::quantization_config::Config::Product(p)) => {
                         QuantizationConfig::PQ {
@@ -136,13 +138,17 @@ impl From<vectorizer::HybridScoringAlgorithm> for HybridScoringAlgorithm {
     fn from(proto: vectorizer::HybridScoringAlgorithm) -> Self {
         match proto {
             vectorizer::HybridScoringAlgorithm::Rrf => HybridScoringAlgorithm::ReciprocalRankFusion,
-            vectorizer::HybridScoringAlgorithm::Weighted => HybridScoringAlgorithm::WeightedCombination,
+            vectorizer::HybridScoringAlgorithm::Weighted => {
+                HybridScoringAlgorithm::WeightedCombination
+            }
             vectorizer::HybridScoringAlgorithm::AlphaBlend => HybridScoringAlgorithm::AlphaBlending,
         }
     }
 }
 
-impl TryFrom<&vectorizer::HybridSearchRequest> for (Vec<f32>, Option<SparseVector>, HybridSearchConfig) {
+impl TryFrom<&vectorizer::HybridSearchRequest>
+    for (Vec<f32>, Option<SparseVector>, HybridSearchConfig)
+{
     type Error = VectorizerError;
 
     fn try_from(req: &vectorizer::HybridSearchRequest) -> Result<Self> {
@@ -172,4 +178,3 @@ impl TryFrom<&vectorizer::HybridSearchRequest> for (Vec<f32>, Option<SparseVecto
         ))
     }
 }
-

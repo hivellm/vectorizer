@@ -7,13 +7,13 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
-use crate::db::{hybrid_search::HybridScoringAlgorithm, HybridSearchConfig, VectorStore};
+use super::conversions::*;
+use super::vectorizer;
+use super::vectorizer::vectorizer_service_server::VectorizerService;
+use crate::db::hybrid_search::HybridScoringAlgorithm;
+use crate::db::{HybridSearchConfig, VectorStore};
 use crate::error::VectorizerError;
 use crate::models::{CollectionConfig, Payload, SparseVector, Vector};
-
-use super::conversions::*;
-use super::vectorizer::vectorizer_service_server::VectorizerService;
-use super::vectorizer;
 
 /// Vectorizer gRPC service implementation
 #[derive(Clone)]
@@ -77,7 +77,10 @@ impl VectorizerService for VectorizerGrpcService {
         request: Request<vectorizer::GetCollectionInfoRequest>,
     ) -> Result<Response<vectorizer::GetCollectionInfoResponse>, Status> {
         let req = request.into_inner();
-        debug!("gRPC: GetCollectionInfo request for '{}'", req.collection_name);
+        debug!(
+            "gRPC: GetCollectionInfo request for '{}'",
+            req.collection_name
+        );
 
         let collection = self
             .store
@@ -91,8 +94,12 @@ impl VectorizerService for VectorizerGrpcService {
             dimension: config.dimension as u32,
             metric: match config.metric {
                 crate::models::DistanceMetric::Cosine => vectorizer::DistanceMetric::Cosine as i32,
-                crate::models::DistanceMetric::Euclidean => vectorizer::DistanceMetric::Euclidean as i32,
-                crate::models::DistanceMetric::DotProduct => vectorizer::DistanceMetric::DotProduct as i32,
+                crate::models::DistanceMetric::Euclidean => {
+                    vectorizer::DistanceMetric::Euclidean as i32
+                }
+                crate::models::DistanceMetric::DotProduct => {
+                    vectorizer::DistanceMetric::DotProduct as i32
+                }
             },
             hnsw_config: Some(vectorizer::HnswConfig {
                 m: config.hnsw_config.m as u32,
@@ -126,7 +133,10 @@ impl VectorizerService for VectorizerGrpcService {
         request: Request<vectorizer::DeleteCollectionRequest>,
     ) -> Result<Response<vectorizer::DeleteCollectionResponse>, Status> {
         let req = request.into_inner();
-        debug!("gRPC: DeleteCollection request for '{}'", req.collection_name);
+        debug!(
+            "gRPC: DeleteCollection request for '{}'",
+            req.collection_name
+        );
 
         match self.store.delete_collection(&req.collection_name) {
             Ok(_) => Ok(Response::new(vectorizer::DeleteCollectionResponse {
@@ -348,7 +358,8 @@ impl VectorizerService for VectorizerGrpcService {
             .search(&req.collection_name, &req.query_vector, req.limit as usize)
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        let proto_results: Vec<vectorizer::SearchResult> = results.iter().map(|r| r.into()).collect();
+        let proto_results: Vec<vectorizer::SearchResult> =
+            results.iter().map(|r| r.into()).collect();
 
         Ok(Response::new(vectorizer::SearchResponse {
             results: proto_results,
@@ -369,12 +380,14 @@ impl VectorizerService for VectorizerGrpcService {
         let mut batch_results = Vec::new();
 
         for query in req.queries {
-            match self
-                .store
-                .search(&req.collection_name, &query.query_vector, query.limit as usize)
-            {
+            match self.store.search(
+                &req.collection_name,
+                &query.query_vector,
+                query.limit as usize,
+            ) {
                 Ok(results) => {
-                    let proto_results: Vec<vectorizer::SearchResult> = results.iter().map(|r| r.into()).collect();
+                    let proto_results: Vec<vectorizer::SearchResult> =
+                        results.iter().map(|r| r.into()).collect();
                     batch_results.push(vectorizer::SearchResponse {
                         results: proto_results,
                     });
@@ -396,7 +409,10 @@ impl VectorizerService for VectorizerGrpcService {
         request: Request<vectorizer::HybridSearchRequest>,
     ) -> Result<Response<vectorizer::HybridSearchResponse>, Status> {
         let req = request.into_inner();
-        debug!("gRPC: HybridSearch request for collection '{}'", req.collection_name);
+        debug!(
+            "gRPC: HybridSearch request for collection '{}'",
+            req.collection_name
+        );
 
         let sparse_query = req.sparse_query.as_ref().map(|sv| SparseVector {
             indices: sv.indices.iter().map(|&i| i as usize).collect(),
@@ -409,9 +425,15 @@ impl VectorizerService for VectorizerGrpcService {
             final_k: c.final_k as usize,
             alpha: c.alpha as f32,
             algorithm: match c.algorithm() {
-                vectorizer::HybridScoringAlgorithm::Rrf => HybridScoringAlgorithm::ReciprocalRankFusion,
-                vectorizer::HybridScoringAlgorithm::Weighted => HybridScoringAlgorithm::WeightedCombination,
-                vectorizer::HybridScoringAlgorithm::AlphaBlend => HybridScoringAlgorithm::AlphaBlending,
+                vectorizer::HybridScoringAlgorithm::Rrf => {
+                    HybridScoringAlgorithm::ReciprocalRankFusion
+                }
+                vectorizer::HybridScoringAlgorithm::Weighted => {
+                    HybridScoringAlgorithm::WeightedCombination
+                }
+                vectorizer::HybridScoringAlgorithm::AlphaBlend => {
+                    HybridScoringAlgorithm::AlphaBlending
+                }
             },
         });
 
@@ -425,7 +447,12 @@ impl VectorizerService for VectorizerGrpcService {
 
         let results = self
             .store
-            .hybrid_search(&req.collection_name, &req.dense_query, sparse_query.as_ref(), config)
+            .hybrid_search(
+                &req.collection_name,
+                &req.dense_query,
+                sparse_query.as_ref(),
+                config,
+            )
             .map_err(|e| Status::internal(e.to_string()))?;
 
         let proto_results: Vec<vectorizer::HybridSearchResult> = results
@@ -494,4 +521,3 @@ impl VectorizerService for VectorizerGrpcService {
         }))
     }
 }
-

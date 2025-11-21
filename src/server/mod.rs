@@ -640,7 +640,7 @@ impl VectorizerServer {
     /// Start the server
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
-        
+
         // Start gRPC server in background
         let grpc_port = port + 1; // gRPC on next port
         let grpc_host = host.to_string();
@@ -1118,9 +1118,10 @@ impl VectorizerServer {
         port: u16,
         store: Arc<VectorStore>,
     ) -> anyhow::Result<()> {
+        use tonic::transport::Server;
+
         use crate::grpc::VectorizerGrpcService;
         use crate::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
-        use tonic::transport::Server;
 
         let addr = format!("{}:{}", host, port).parse()?;
         let service = VectorizerGrpcService::new(store);

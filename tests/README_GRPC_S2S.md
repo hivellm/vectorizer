@@ -25,15 +25,21 @@ export VECTORIZER_GRPC_PORT=15003
 
 ## Running Tests
 
+**IMPORTANT:** These tests require the `s2s-tests` feature to be enabled.
+
 ```bash
-# Run all S2S tests
-cargo test --test grpc_s2s
+# Run all S2S tests (with feature flag)
+cargo test --features s2s-tests --test grpc_s2s
 
 # Run with output
-cargo test --test grpc_s2s -- --nocapture
+cargo test --features s2s-tests --test grpc_s2s -- --nocapture
 
 # Run specific test
-cargo test --test grpc_s2s test_real_server_health_check -- --nocapture
+cargo test --features s2s-tests --test grpc_s2s test_real_server_health_check -- --nocapture
+
+# With custom server address
+VECTORIZER_GRPC_HOST=127.0.0.1 VECTORIZER_GRPC_PORT=15003 \
+cargo test --features s2s-tests --test grpc_s2s -- --nocapture
 ```
 
 ## Test Coverage

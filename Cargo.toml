@@ -269,6 +269,10 @@ hive-gpu = ["dep:hive-gpu"]
 # Legacy features (deprecated - kept for backward compatibility)
 metal-native = ["hive-gpu"]
 gpu-accel = ["hive-gpu"]
+
+# Server-to-Server (S2S) tests - only compile when explicitly enabled
+# Usage: cargo test --features s2s-tests --test grpc_s2s
+s2s-tests = []
 benchmarks = []
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]

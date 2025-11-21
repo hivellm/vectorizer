@@ -21,20 +21,18 @@ use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer::grpc::vectorizer::*;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
-
 // Import protobuf types
 use vectorizer::grpc::vectorizer::{
-    CollectionConfig as ProtoCollectionConfig,
-    DistanceMetric as ProtoDistanceMetric,
-    HnswConfig as ProtoHnswConfig,
-    StorageType as ProtoStorageType,
-    QuantizationConfig as ProtoQuantizationConfig,
-    ScalarQuantization as ProtoScalarQuantization,
+    CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
+    HnswConfig as ProtoHnswConfig, QuantizationConfig as ProtoQuantizationConfig,
+    ScalarQuantization as ProtoScalarQuantization, StorageType as ProtoStorageType,
 };
+use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
 
 /// Helper to create a test gRPC client
-async fn create_test_client(port: u16) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
+async fn create_test_client(
+    port: u16,
+) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
     let addr = format!("http://127.0.0.1:{}", port);
     let client = VectorizerServiceClient::connect(addr).await?;
     Ok(client)
@@ -49,9 +47,9 @@ fn create_test_vector(id: &str, seed: usize, dimension: usize) -> Vec<f32> {
 
 /// Helper to start a test gRPC server
 async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::error::Error>> {
+    use tonic::transport::Server;
     use vectorizer::grpc::VectorizerGrpcService;
     use vectorizer::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
-    use tonic::transport::Server;
 
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
@@ -93,10 +91,13 @@ async fn test_different_distance_metrics() {
             storage_type: ProtoStorageType::Memory as i32,
         }),
     });
-    let cosine_response = timeout(Duration::from_secs(5), client.create_collection(cosine_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let cosine_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(cosine_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(cosine_response.into_inner().success);
 
     // Test Euclidean metric
@@ -115,10 +116,13 @@ async fn test_different_distance_metrics() {
             storage_type: ProtoStorageType::Memory as i32,
         }),
     });
-    let euclidean_response = timeout(Duration::from_secs(5), client.create_collection(euclidean_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let euclidean_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(euclidean_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(euclidean_response.into_inner().success);
 
     // Test DotProduct metric
@@ -137,18 +141,24 @@ async fn test_different_distance_metrics() {
             storage_type: ProtoStorageType::Memory as i32,
         }),
     });
-    let dotproduct_response = timeout(Duration::from_secs(5), client.create_collection(dotproduct_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let dotproduct_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(dotproduct_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(dotproduct_response.into_inner().success);
 
     // Verify all collections exist
     let list_request = tonic::Request::new(ListCollectionsRequest {});
-    let list_response = timeout(Duration::from_secs(5), client.list_collections(list_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let list_response = timeout(
+        Duration::from_secs(5),
+        client.list_collections(list_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let collections = list_response.into_inner().collection_names;
     assert!(collections.contains(&"cosine_test".to_string()));
     assert!(collections.contains(&"euclidean_test".to_string()));
@@ -178,10 +188,13 @@ async fn test_different_storage_types() {
             storage_type: ProtoStorageType::Memory as i32,
         }),
     });
-    let memory_response = timeout(Duration::from_secs(5), client.create_collection(memory_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let memory_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(memory_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(memory_response.into_inner().success);
 
     // Test MMap storage
@@ -200,10 +213,13 @@ async fn test_different_storage_types() {
             storage_type: ProtoStorageType::Mmap as i32,
         }),
     });
-    let mmap_response = timeout(Duration::from_secs(5), client.create_collection(mmap_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let mmap_response = timeout(
+        Duration::from_secs(5),
+        client.create_collection(mmap_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(mmap_response.into_inner().success);
 
     // Insert vectors in both and verify
@@ -214,10 +230,11 @@ async fn test_different_storage_types() {
         data: vector_data.clone(),
         payload: HashMap::new(),
     });
-    let insert_memory_response = timeout(Duration::from_secs(5), client.insert_vector(insert_memory))
-        .await
-        .unwrap()
-        .unwrap();
+    let insert_memory_response =
+        timeout(Duration::from_secs(5), client.insert_vector(insert_memory))
+            .await
+            .unwrap()
+            .unwrap();
     assert!(insert_memory_response.into_inner().success);
 
     let insert_mmap = tonic::Request::new(InsertVectorRequest {
@@ -253,9 +270,11 @@ async fn test_quantization_configurations() {
                 seed: 42,
             }),
             quantization: Some(ProtoQuantizationConfig {
-                config: Some(vectorizer::grpc::vectorizer::quantization_config::Config::Scalar(
-                    ProtoScalarQuantization { bits: 8 },
-                )),
+                config: Some(
+                    vectorizer::grpc::vectorizer::quantization_config::Config::Scalar(
+                        ProtoScalarQuantization { bits: 8 },
+                    ),
+                ),
             }),
             storage_type: ProtoStorageType::Memory as i32,
         }),
@@ -318,10 +337,13 @@ async fn test_empty_collection_operations() {
     let info_request = tonic::Request::new(GetCollectionInfoRequest {
         collection_name: "empty_collection".to_string(),
     });
-    let info_response = timeout(Duration::from_secs(5), client.get_collection_info(info_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let info_response = timeout(
+        Duration::from_secs(5),
+        client.get_collection_info(info_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let info = info_response.into_inner().info.unwrap();
     assert_eq!(info.vector_count, 0);
 
@@ -371,10 +393,13 @@ async fn test_large_payloads() {
         data: create_test_vector("vec1", 1, 128),
         payload: large_payload.clone(),
     });
-    let insert_response = timeout(Duration::from_secs(10), client.insert_vector(insert_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let insert_response = timeout(
+        Duration::from_secs(10),
+        client.insert_vector(insert_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(insert_response.into_inner().success);
 
     // Retrieve and verify payload
@@ -466,27 +491,34 @@ async fn test_multiple_collections_simultaneously() {
             normalization: None,
             storage_type: None,
         };
-        store.create_collection(&format!("collection_{}", i), config).unwrap();
+        store
+            .create_collection(&format!("collection_{}", i), config)
+            .unwrap();
     }
 
     // Insert vectors in each collection
     for i in 0..5 {
         use vectorizer::models::Vector;
         let vector = Vector {
-            id: format!("vec_{}", i),
-            data: create_test_vector(&format!("vec_{}", i), i, 128),
+            id: format!("vec_{i}"),
+            data: create_test_vector(&format!("vec_{i}"), i, 128),
             sparse: None,
             payload: None,
         };
-        store.insert(&format!("collection_{}", i), vec![vector]).unwrap();
+        store
+            .insert(&format!("collection_{}", i), vec![vector])
+            .unwrap();
     }
 
     // Verify all collections exist and have vectors
     let list_request = tonic::Request::new(ListCollectionsRequest {});
-    let list_response = timeout(Duration::from_secs(5), client.list_collections(list_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let list_response = timeout(
+        Duration::from_secs(5),
+        client.list_collections(list_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let collections = list_response.into_inner().collection_names;
     assert!(collections.len() >= 5);
 
@@ -494,10 +526,13 @@ async fn test_multiple_collections_simultaneously() {
         let info_request = tonic::Request::new(GetCollectionInfoRequest {
             collection_name: format!("collection_{}", i),
         });
-        let info_response = timeout(Duration::from_secs(5), client.get_collection_info(info_request))
-            .await
-            .unwrap()
-            .unwrap();
+        let info_response = timeout(
+            Duration::from_secs(5),
+            client.get_collection_info(info_request),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         let info = info_response.into_inner().info.unwrap();
         assert_eq!(info.vector_count, 1);
     }
@@ -526,10 +561,10 @@ async fn test_concurrent_operations() {
         let port = port;
         let handle = tokio::spawn(async move {
             let mut client = create_test_client(port).await.unwrap();
-            let vector_data = create_test_vector(&format!("vec{}", i), i, 128);
+            let vector_data = create_test_vector(&format!("vec{i}"), i, 128);
             let insert_request = tonic::Request::new(InsertVectorRequest {
                 collection_name: "concurrent_test".to_string(),
-                vector_id: format!("vec{}", i),
+                vector_id: format!("vec{i}"),
                 data: vector_data,
                 payload: HashMap::new(),
             });
@@ -591,10 +626,13 @@ async fn test_different_hnsw_configurations() {
 
     // Verify all collections exist
     let list_request = tonic::Request::new(ListCollectionsRequest {});
-    let list_response = timeout(Duration::from_secs(5), client.list_collections(list_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let list_response = timeout(
+        Duration::from_secs(5),
+        client.list_collections(list_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let collections = list_response.into_inner().collection_names;
     assert!(collections.contains(&"hnsw_small".to_string()));
     assert!(collections.contains(&"hnsw_medium".to_string()));
@@ -624,8 +662,8 @@ async fn test_batch_operations_stress() {
     for i in 0..100 {
         let request = InsertVectorRequest {
             collection_name: "batch_stress".to_string(),
-            vector_id: format!("vec{}", i),
-            data: create_test_vector(&format!("vec{}", i), i, 128),
+            vector_id: format!("vec{i}"),
+            data: create_test_vector(&format!("vec{i}"), i, 128),
             payload: HashMap::new(),
         };
         tx.send(request).await.unwrap();
@@ -741,7 +779,8 @@ async fn test_update_nonexistent_vector() {
     // Should either fail or return success=false
     let result = update_response.into_inner();
     // Accept either outcome (implementation dependent)
-    assert!(result.success || !result.success);
+    // Just verify we got a response (no panic)
+    let _ = result.success;
 }
 
 /// Test 13: Delete Non-Existent Vector
@@ -774,7 +813,8 @@ async fn test_delete_nonexistent_vector() {
     // Should either fail or return success=false
     let result = delete_response.into_inner();
     // Accept either outcome (implementation dependent)
-    assert!(result.success || !result.success);
+    // Just verify we got a response (no panic)
+    let _ = result.success;
 }
 
 /// Test 14: Very Large Vectors
@@ -804,10 +844,13 @@ async fn test_very_large_vectors() {
         data: large_vector.clone(),
         payload: HashMap::new(),
     });
-    let insert_response = timeout(Duration::from_secs(10), client.insert_vector(insert_request))
-        .await
-        .unwrap()
-        .unwrap();
+    let insert_response = timeout(
+        Duration::from_secs(10),
+        client.insert_vector(insert_request),
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert!(insert_response.into_inner().success);
 
     // Search with large vector
@@ -842,14 +885,16 @@ async fn test_multiple_batch_searches() {
         normalization: None,
         storage_type: None,
     };
-    store.create_collection("batch_search_test", config).unwrap();
+    store
+        .create_collection("batch_search_test", config)
+        .unwrap();
 
     // Insert multiple vectors
     use vectorizer::models::Vector;
     let vectors: Vec<Vector> = (0..10)
         .map(|i| Vector {
-            id: format!("vec{}", i),
-            data: create_test_vector(&format!("vec{}", i), i, 128),
+            id: format!("vec{i}"),
+            data: create_test_vector(&format!("vec{i}"), i, 128),
             sparse: None,
             payload: None,
         })
@@ -883,4 +928,3 @@ async fn test_multiple_batch_searches() {
         assert!(!result_set.results.is_empty());
     }
 }
-

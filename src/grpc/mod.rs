@@ -3,8 +3,8 @@
 //! This module provides gRPC API support using tonic, offering the same
 //! functionality as the REST API but with better performance for high-throughput scenarios.
 
-pub mod server;
 pub mod conversions;
+pub mod server;
 
 // Include generated protobuf code
 pub mod vectorizer {
@@ -13,4 +13,3 @@ pub mod vectorizer {
 
 // Re-export service types
 pub use server::VectorizerGrpcService;
-
