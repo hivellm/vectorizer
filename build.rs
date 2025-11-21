@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .build_client(true) // Enable client generation for tests
         .out_dir("src/grpc")
-        .compile(&["proto/vectorizer.proto"], &["proto"])?;
+        .compile_protos(&["proto/vectorizer.proto"], &["proto"])?;
 
     // Embed Windows icon resource
     #[cfg(all(target_os = "windows", not(target_env = "msvc")))]
