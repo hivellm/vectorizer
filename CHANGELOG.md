@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-11-21
+
 ### Fixed
 
 #### **Test Suite Corrections**
@@ -16,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FIXED**: `test_dimension_mismatch` - Check dimension before training status for better error messages
 - **FIXED**: `test_mmap_persistence_and_recovery` - Add header to persist count in mmap storage
 - **FIXED**: WAL comprehensive tests - Change DistanceMetric from Cosine to Euclidean to avoid automatic vector normalization
-- **BENEFIT**: All test suites now passing (704+ tests), improved test reliability
+- **BENEFIT**: All test suites now passing (703+ tests), improved test reliability
 
 #### **WAL Test Improvements**
 
