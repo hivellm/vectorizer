@@ -1,4 +1,11 @@
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Compile protobuf definitions
+    // Note: tonic-build 0.14 uses a different API
+    // For now, we'll use prost-build directly until we verify the exact API
+    let mut config = prost_build::Config::new();
+    config.out_dir("src/grpc");
+    config.compile_protos(&["proto/vectorizer.proto"], &["proto"])?;
+
     // Embed Windows icon resource
     #[cfg(all(target_os = "windows", not(target_env = "msvc")))]
     {
@@ -24,4 +31,6 @@ fn main() {
             "cargo:warning=Skipping winres resource generation on MSVC to avoid duplicate resource errors"
         );
     }
+
+    Ok(())
 }

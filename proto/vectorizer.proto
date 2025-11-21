@@ -1,0 +1,255 @@
+syntax = "proto3";
+
+package vectorizer;
+
+// Vectorizer gRPC service definition
+service VectorizerService {
+    // Collection management
+    rpc ListCollections(ListCollectionsRequest) returns (ListCollectionsResponse);
+    rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
+    rpc GetCollectionInfo(GetCollectionInfoRequest) returns (GetCollectionInfoResponse);
+    rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
+    
+    // Vector operations
+    rpc InsertVector(InsertVectorRequest) returns (InsertVectorResponse);
+    rpc InsertVectors(stream InsertVectorRequest) returns (InsertVectorsResponse);
+    rpc GetVector(GetVectorRequest) returns (GetVectorResponse);
+    rpc UpdateVector(UpdateVectorRequest) returns (UpdateVectorResponse);
+    rpc DeleteVector(DeleteVectorRequest) returns (DeleteVectorResponse);
+    
+    // Search operations
+    rpc Search(SearchRequest) returns (SearchResponse);
+    rpc BatchSearch(BatchSearchRequest) returns (BatchSearchResponse);
+    rpc HybridSearch(HybridSearchRequest) returns (HybridSearchResponse);
+    
+    // Health and stats
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+    rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+// Collection management messages
+message ListCollectionsRequest {}
+
+message ListCollectionsResponse {
+    repeated string collection_names = 1;
+}
+
+message CreateCollectionRequest {
+    string name = 1;
+    CollectionConfig config = 2;
+}
+
+message CreateCollectionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message GetCollectionInfoRequest {
+    string collection_name = 1;
+}
+
+message GetCollectionInfoResponse {
+    CollectionInfo info = 1;
+}
+
+message DeleteCollectionRequest {
+    string collection_name = 1;
+}
+
+message DeleteCollectionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Vector operation messages
+message InsertVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    repeated float data = 3;
+    map<string, string> payload = 4;
+}
+
+message InsertVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message InsertVectorsResponse {
+    uint32 inserted_count = 1;
+    uint32 failed_count = 2;
+    repeated string errors = 3;
+}
+
+message GetVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+}
+
+message GetVectorResponse {
+    string vector_id = 1;
+    repeated float data = 2;
+    map<string, string> payload = 3;
+}
+
+message UpdateVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    repeated float data = 3;
+    map<string, string> payload = 4;
+}
+
+message UpdateVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message DeleteVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+}
+
+message DeleteVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Search operation messages
+message SearchRequest {
+    string collection_name = 1;
+    repeated float query_vector = 2;
+    uint32 limit = 3;
+    double threshold = 4;
+    map<string, string> filter = 5;
+}
+
+message SearchResponse {
+    repeated SearchResult results = 1;
+}
+
+message BatchSearchRequest {
+    string collection_name = 1;
+    repeated SearchRequest queries = 2;
+}
+
+message BatchSearchResponse {
+    repeated SearchResponse results = 1;
+}
+
+message HybridSearchRequest {
+    string collection_name = 1;
+    repeated float dense_query = 2;
+    SparseVector sparse_query = 3;
+    HybridSearchConfig config = 4;
+}
+
+message HybridSearchResponse {
+    repeated HybridSearchResult results = 1;
+}
+
+// Health and stats messages
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+    string status = 1;
+    string version = 2;
+    int64 timestamp = 3;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+    uint32 collections_count = 1;
+    uint64 total_vectors = 2;
+    int64 uptime_seconds = 3;
+    string version = 4;
+}
+
+// Common data structures
+message CollectionConfig {
+    uint32 dimension = 1;
+    DistanceMetric metric = 2;
+    HnswConfig hnsw_config = 3;
+    QuantizationConfig quantization = 4;
+    StorageType storage_type = 5;
+}
+
+message CollectionInfo {
+    string name = 1;
+    CollectionConfig config = 2;
+    uint64 vector_count = 3;
+    int64 created_at = 4;
+    int64 updated_at = 5;
+}
+
+message SearchResult {
+    string id = 1;
+    double score = 2;
+    repeated float vector = 3;
+    map<string, string> payload = 4;
+}
+
+message HybridSearchResult {
+    string id = 1;
+    double hybrid_score = 2;
+    double dense_score = 3;
+    double sparse_score = 4;
+    repeated float vector = 5;
+    map<string, string> payload = 6;
+}
+
+message SparseVector {
+    repeated uint32 indices = 1;
+    repeated float values = 2;
+}
+
+message HybridSearchConfig {
+    uint32 dense_k = 1;
+    uint32 sparse_k = 2;
+    uint32 final_k = 3;
+    double alpha = 4;
+    HybridScoringAlgorithm algorithm = 5;
+}
+
+message HnswConfig {
+    uint32 m = 1;
+    uint32 ef_construction = 2;
+    uint32 ef = 3;
+    uint64 seed = 4;
+}
+
+message QuantizationConfig {
+    oneof config {
+        ScalarQuantization scalar = 1;
+        ProductQuantization product = 2;
+        BinaryQuantization binary = 3;
+    }
+}
+
+message ScalarQuantization {
+    uint32 bits = 1;
+}
+
+message ProductQuantization {
+    uint32 subvectors = 1;
+    uint32 centroids = 2;
+}
+
+message BinaryQuantization {}
+
+enum DistanceMetric {
+    COSINE = 0;
+    EUCLIDEAN = 1;
+    DOT_PRODUCT = 2;
+}
+
+enum StorageType {
+    MEMORY = 0;
+    MMAP = 1;
+}
+
+enum HybridScoringAlgorithm {
+    RRF = 0;
+    WEIGHTED = 1;
+    ALPHA_BLEND = 2;
+}
+
