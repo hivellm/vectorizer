@@ -20,6 +20,5 @@ pub mod vectors;
 // pub mod edge_cases;
 // pub mod performance;
 
-#[cfg(feature = "s2s-tests")]
-pub mod s2s;
-
+// S2S tests are in tests/grpc_s2s.rs (requires s2s-tests feature)
+// They are kept separate as they test against a real running server

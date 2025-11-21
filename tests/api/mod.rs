@@ -5,8 +5,7 @@
 //! - gRPC API (see ../grpc/)
 //! - MCP API
 
-pub mod rest;
 pub mod mcp;
+pub mod rest;
 
 // gRPC tests are in tests/grpc/ directory
-

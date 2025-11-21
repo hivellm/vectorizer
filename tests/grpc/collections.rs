@@ -7,8 +7,9 @@
 //! - Delete collection
 //! - Multiple collections
 
-use crate::grpc::helpers::*;
 use vectorizer::grpc::vectorizer::*;
+
+use crate::grpc::helpers::*;
 
 #[tokio::test]
 async fn test_list_collections() {
@@ -162,7 +163,9 @@ async fn test_multiple_collections() {
     // Create multiple collections
     for i in 0..5 {
         let config = create_test_config();
-        store.create_collection(&format!("multi_{i}"), config).unwrap();
+        store
+            .create_collection(&format!("multi_{i}"), config)
+            .unwrap();
     }
 
     let mut client = create_test_client(port).await.unwrap();
@@ -176,4 +179,3 @@ async fn test_multiple_collections() {
         assert!(collections.contains(&format!("multi_{i}")));
     }
 }
-

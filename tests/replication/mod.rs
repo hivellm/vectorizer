@@ -6,8 +6,7 @@
 //! - Replication handlers
 //! - Qdrant compatibility
 
-pub mod integration;
 pub mod failover;
 pub mod handlers;
+pub mod integration;
 pub mod qdrant;
-

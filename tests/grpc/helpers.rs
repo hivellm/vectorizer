@@ -74,4 +74,3 @@ pub fn unique_collection_name(prefix: &str) -> String {
         .as_nanos();
     format!("{prefix}_{timestamp}")
 }
-

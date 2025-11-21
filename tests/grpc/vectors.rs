@@ -8,9 +8,11 @@
 //! - Streaming bulk insert
 //! - Payload handling
 
-use crate::grpc::helpers::*;
 use std::collections::HashMap;
+
 use vectorizer::grpc::vectorizer::*;
+
+use crate::grpc::helpers::*;
 
 #[tokio::test]
 async fn test_insert_and_get_vector() {
@@ -217,4 +219,3 @@ async fn test_streaming_bulk_insert() {
     let collection = store.get_collection("test_streaming").unwrap();
     assert_eq!(collection.vector_count(), 5);
 }
-

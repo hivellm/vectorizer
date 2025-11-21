@@ -2,17 +2,16 @@
 //!
 //! This file imports all test modules organized by theme
 
-mod core;
 mod api;
-mod integration;
-mod replication;
-mod performance;
+mod core;
 mod gpu;
-mod workflow;
 mod infrastructure;
+mod integration;
+mod performance;
+mod replication;
+mod workflow;
 
 // Legacy tests that haven't been migrated yet
 // These will be gradually moved to appropriate categories
 #[path = "test_new_features.rs"]
 mod test_new_features;
-
