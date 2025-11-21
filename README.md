@@ -107,8 +107,26 @@ cargo build --release --features full
 | **Search Speed**      | < 3ms (CPU), < 1ms (Metal GPU) |
 | **Storage Reduction** | 30-50% with normalization      |
 | **Test Coverage**     | 95%+ coverage                  |
+| **Test Suite**        | 703 passing, 6 ignored        |
 | **MCP Tools**         | 20 focused individual tools    |
 | **Document Formats**  | 14 formats supported           |
+
+## 🔧 Recent Improvements (v1.4.0)
+
+### Test Suite Enhancements
+
+- **✅ Fixed**: SIMD vector operations - Improved precision handling for large vectors
+- **✅ Fixed**: Product Quantization - Corrected compression ratio calculations
+- **✅ Fixed**: MMap storage - Added header persistence for reliable data recovery
+- **✅ Fixed**: WAL tests - Improved test reliability with proper metric handling
+- **✅ Improved**: Test execution time - Slow tests marked as optional (run with `--ignored`)
+
+### Quality Improvements
+
+- **✅ All core tests passing**: 703+ tests with comprehensive coverage
+- **✅ Better error handling**: Improved dimension validation and error messages
+- **✅ Storage reliability**: MMap storage now properly persists vector counts
+- **✅ Test stability**: Timeout protection prevents hanging tests
 
 ## 🎯 Use Cases
 
