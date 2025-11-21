@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.0] - 2025-11-21
 
+### Added
+
+#### **Async Indexing - Search Quality Verification**
+
+- **ADDED**: `verify_search_quality` method to `AsyncIndexManager` for comparing search results between primary and secondary indices
+- **ADDED**: Quality metrics including overlap ratio (Jaccard similarity) and average score difference
+- **ADDED**: `search_secondary` method for quality verification during rebuild
+- **ADDED**: Comprehensive tests for search quality verification during async rebuild
+- **BENEFIT**: Ensures search quality is maintained during background index rebuilds, prevents quality degradation
+
 ### Fixed
+
+#### **Security Fixes**
+
+- **FIXED**: `js-yaml` prototype pollution vulnerability (CVE) - Updated from `^4.1.0` to `>=4.1.1` in GUI
+- **FIXED**: `glob` command injection vulnerability (CVE) - Added pnpm override to force `glob >=10.5.0` in GUI
+- **BENEFIT**: Eliminated security vulnerabilities in GUI dependencies, improved application security
 
 #### **Test Suite Corrections**
 
@@ -47,6 +63,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `test_vector_store_wal_integration` - Test failing, needs investigation
   - `test_wal_recover_all_collections_with_data` - Slow test with timeout protection
 - **BENEFIT**: Faster test execution, focus on critical tests, problematic tests can be run manually when needed
+
+#### **SDK Version Synchronization**
+
+- **CHANGED**: All SDKs updated to version 1.4.0 to match server version
+  - TypeScript SDK: `1.3.0` → `1.4.0`
+  - JavaScript SDK: `1.3.0` → `1.4.0`
+  - Rust SDK: `1.3.0` → `1.4.0`
+  - Python SDK: `1.3.0` → `1.4.0`
+- **BENEFIT**: Consistent versioning across all SDKs and server, easier dependency management
 
 ### Added
 

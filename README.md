@@ -176,10 +176,12 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-- **Python**: `pip install vectorizer-sdk`
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk`
-- **Rust**: `cargo add vectorizer-sdk`
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js`
+All SDKs are synchronized with server version **1.4.0**:
+
+- **Python**: `pip install vectorizer-sdk` (v1.4.0)
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.4.0)
+- **Rust**: `cargo add vectorizer-sdk` (v1.4.0)
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.4.0)
 
 ## 🔄 Qdrant Migration
 
