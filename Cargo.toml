@@ -141,9 +141,9 @@ opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio"
 tracing-opentelemetry = "0.32"
 
 # gRPC support
-tonic = { version = "0.14", features = [] }
-prost = "0.14"
-prost-types = "0.14"
+tonic = { version = "0.12", features = [] }
+prost = "0.13"
+prost-types = "0.13"
 
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
@@ -228,6 +228,10 @@ path = "src/bin/vectorizer-cli.rs"
 [[bin]]
 name = "vectorizer"
 path = "src/bin/vectorizer.rs"
+
+[[bin]]
+name = "benchmark_grpc_vs_rest"
+path = "benchmark/grpc/benchmark_grpc_vs_rest.rs"
 
 # [[bin]]
 # name = "test_basic_metal"

@@ -3,7 +3,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Using tonic-build 0.12 for stable API compatibility
     tonic_build::configure()
         .build_server(true)
-        .build_client(false)
+        .build_client(true) // Enable client generation for tests
         .out_dir("src/grpc")
         .compile(&["proto/vectorizer.proto"], &["proto"])?;
 
