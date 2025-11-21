@@ -3,8 +3,10 @@
 //! Tests concurrent searches, inserts, and read-while-write scenarios
 //! to verify thread-safety and absence of race conditions.
 
-// Include the original test file
-include!("../concurrent_test.rs");
+#[path = "../helpers/mod.rs"]
+mod helpers;
+
+use helpers::*;
 
 /// Test concurrent searches from multiple threads
 #[tokio::test]

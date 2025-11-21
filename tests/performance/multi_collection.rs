@@ -3,8 +3,10 @@
 //! Tests scenarios with 100+ collections, cross-collection searches,
 //! and memory scaling verification.
 
-// Include the original test file
-include!("../multi_collection_test.rs");
+#[path = "../helpers/mod.rs"]
+mod helpers;
+
+use helpers::*;
 
 /// Test creating and managing 100+ collections
 #[tokio::test]

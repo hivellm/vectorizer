@@ -5,12 +5,8 @@
 //! - Comprehensive WAL operations
 //! - Crash recovery scenarios
 
-// Include tests from test_vector_store_wal.rs
-include!("../test_vector_store_wal.rs");
-
-// Include tests from test_wal_comprehensive.rs
-include!("../test_wal_comprehensive.rs");
-
-// Include tests from wal_crash_recovery.rs
-include!("../wal_crash_recovery.rs");
+// Include tests from moved files
+include!("wal_vector_store.rs");
+include!("wal_comprehensive.rs");
+include!("wal_crash_recovery.rs");
 

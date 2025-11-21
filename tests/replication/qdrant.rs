@@ -1,4 +1,6 @@
 //! Qdrant Compatibility Tests
-include!("../qdrant_api_integration.rs");
-include!("../qdrant_migration_test.rs");
+
+// Include Qdrant test files
+include!("qdrant_api.rs");
+include!("qdrant_migration.rs");
 

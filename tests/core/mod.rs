@@ -9,5 +9,6 @@
 pub mod simd;
 pub mod quantization;
 pub mod storage;
+pub mod storage_integration;
 pub mod wal;
 
