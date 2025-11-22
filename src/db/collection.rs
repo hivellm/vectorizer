@@ -358,7 +358,12 @@ impl Collection {
                 .insert(id.clone(), quantized_vector);
         } else {
             // Update full precision storage
-            self.vectors.insert(id.clone(), vector)?;
+            // For MMAP storage, we need to use update instead of insert
+            if self.vectors.contains_key(&id)? {
+                self.vectors.update(&id, vector)?;
+            } else {
+                self.vectors.insert(id.clone(), vector)?;
+            }
         }
 
         // Update index

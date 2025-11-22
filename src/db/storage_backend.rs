@@ -102,6 +102,50 @@ impl VectorStorageBackend {
         }
     }
 
+    pub fn update(&self, id: &str, vector: Vector) -> Result<()> {
+        match self {
+            Self::Memory(map) => {
+                if map.read().contains_key(id) {
+                    map.write().insert(id.to_string(), vector);
+                    Ok(())
+                } else {
+                    Err(VectorizerError::VectorNotFound(id.to_string()))
+                }
+            }
+            Self::Mmap {
+                storage,
+                id_map,
+                payloads,
+                sparse,
+            } => {
+                let idx = {
+                    let map = id_map.read();
+                    match map.get(id) {
+                        Some(&idx) => idx,
+                        None => return Err(VectorizerError::VectorNotFound(id.to_string())),
+                    }
+                };
+
+                let mut storage_guard = storage.write();
+                storage_guard.update(idx, &vector.data)?;
+
+                if let Some(payload) = vector.payload {
+                    payloads.write().insert(id.to_string(), payload);
+                } else {
+                    payloads.write().remove(id);
+                }
+
+                if let Some(sp) = vector.sparse {
+                    sparse.write().insert(id.to_string(), sp);
+                } else {
+                    sparse.write().remove(id);
+                }
+
+                Ok(())
+            }
+        }
+    }
+
     pub fn remove(&self, id: &str) -> Result<bool> {
         match self {
             Self::Memory(map) => Ok(map.write().remove(id).is_some()),

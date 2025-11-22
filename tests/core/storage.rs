@@ -67,12 +67,23 @@ async fn test_mmap_insert_and_retrieve() {
 
     assert!(store.insert("mmap_collection", vectors).is_ok());
 
+    // Wait a bit for async operations
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
     // Retrieve vectors (note: vectors are normalized for cosine similarity)
     let vec1 = store.get_vector("mmap_collection", "vec1").unwrap();
     assert_eq!(vec1.data.len(), 128);
     // For cosine similarity, vectors are normalized, so check magnitude instead
     let magnitude1: f32 = vec1.data.iter().map(|x| x * x).sum::<f32>().sqrt();
-    assert!((magnitude1 - 1.0).abs() < 0.1 || magnitude1 > 0.0); // Normalized or has values
+    // Normalized vector should have magnitude ~1.0
+    assert!(
+        magnitude1 > 0.0,
+        "Vector magnitude should be > 0, got {magnitude1}"
+    );
+    assert!(
+        (magnitude1 - 1.0).abs() < 0.2,
+        "Normalized vector magnitude should be ~1.0, got {magnitude1}"
+    );
 
     let vec2 = store.get_vector("mmap_collection", "vec2").unwrap();
     assert_eq!(vec2.data.len(), 128);
@@ -158,6 +169,17 @@ async fn test_mmap_update_and_delete() {
     };
     assert!(store.insert("mmap_collection", vec![vector]).is_ok());
 
+    // Wait a bit for async operations
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // Verify vector was inserted before updating
+    let initial_vec = store.get_vector("mmap_collection", "test_vec").unwrap();
+    let initial_magnitude: f32 = initial_vec.data.iter().map(|x| x * x).sum::<f32>().sqrt();
+    assert!(
+        initial_magnitude > 0.0,
+        "Initial vector should have magnitude > 0, got {initial_magnitude}"
+    );
+
     // Update
     let updated = Vector {
         id: "test_vec".to_string(),
@@ -165,7 +187,12 @@ async fn test_mmap_update_and_delete() {
         payload: None,
         sparse: None,
     };
-    assert!(store.update("mmap_collection", updated).is_ok());
+    let update_result = store.update("mmap_collection", updated);
+    assert!(
+        update_result.is_ok(),
+        "Update failed: {:?}",
+        update_result.err()
+    );
 
     let retrieved = store.get_vector("mmap_collection", "test_vec").unwrap();
     assert_eq!(retrieved.data.len(), 128);

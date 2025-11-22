@@ -116,6 +116,33 @@ impl MmapVectorStorage {
         Ok(id)
     }
 
+    /// Update a vector at a specific index
+    pub fn update(&mut self, index: usize, vector: &[f32]) -> Result<()> {
+        if vector.len() != self.dimension {
+            return Err(VectorizerError::DimensionMismatch {
+                expected: self.dimension,
+                actual: vector.len(),
+            });
+        }
+
+        if index >= self.count {
+            return Err(VectorizerError::Storage(format!(
+                "Index {} out of bounds (count: {})",
+                index, self.count
+            )));
+        }
+
+        let vector_size = self.dimension * std::mem::size_of::<f32>();
+        let offset = HEADER_SIZE + (index * vector_size);
+        let bytes: &[u8] =
+            unsafe { std::slice::from_raw_parts(vector.as_ptr() as *const u8, vector_size) };
+
+        let mut mmap_guard = self.mmap.write();
+        mmap_guard[offset..offset + vector_size].copy_from_slice(bytes);
+
+        Ok(())
+    }
+
     /// Read a vector by index
     pub fn get(&self, index: usize) -> Result<Vec<f32>> {
         if index >= self.count {

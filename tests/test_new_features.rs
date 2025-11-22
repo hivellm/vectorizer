@@ -124,6 +124,10 @@ async fn test_collection_with_wal_disabled() {
             .insert("test_collection", vec![vector.clone()])
             .is_ok()
     );
+
+    // Wait a bit for async operations
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
     assert!(store.get_vector("test_collection", "test_vec").is_ok());
 
     // Update vector
@@ -133,7 +137,12 @@ async fn test_collection_with_wal_disabled() {
         payload: None,
         sparse: None,
     };
-    assert!(store.update("test_collection", updated_vector).is_ok());
+    let update_result = store.update("test_collection", updated_vector);
+    assert!(
+        update_result.is_ok(),
+        "Update failed: {:?}",
+        update_result.err()
+    );
 
     // Delete vector
     assert!(store.delete("test_collection", "test_vec").is_ok());

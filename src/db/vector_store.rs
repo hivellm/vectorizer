@@ -1417,19 +1417,26 @@ impl VectorStore {
                         }
                     });
                 } else {
-                    // No runtime exists, create a temporary one
-                    let rt = tokio::runtime::Runtime::new().map_err(|e| {
-                        error!("Failed to create tokio runtime for WAL: {}", e);
-                        VectorizerError::Storage(format!("Failed to create runtime for WAL: {}", e))
-                    })?;
-
-                    // Log each vector to WAL
-                    for vector in vectors {
-                        if let Err(e) =
-                            rt.block_on(async { wal.log_insert(collection_name, vector).await })
-                        {
-                            error!("Failed to log insert to WAL: {}", e);
-                            // Don't fail the operation, just log the error
+                    // No runtime exists, try to create a temporary one
+                    // WAL logging is best-effort and shouldn't block operations
+                    match tokio::runtime::Runtime::new() {
+                        Ok(rt) => {
+                            // Log each vector to WAL
+                            for vector in vectors {
+                                if let Err(e) = rt.block_on(async {
+                                    wal.log_insert(collection_name, vector).await
+                                }) {
+                                    error!("Failed to log insert to WAL: {}", e);
+                                    // Don't fail the operation, just log the error
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            debug!(
+                                "Could not create tokio runtime for WAL insert (non-async context): {}. WAL logging skipped.",
+                                e
+                            );
+                            // Don't fail the operation if WAL logging fails
                         }
                     }
                 }
@@ -1456,19 +1463,28 @@ impl VectorStore {
                         }
                     });
                 } else {
-                    let rt = tokio::runtime::Runtime::new().map_err(|e| {
-                        error!("Failed to create tokio runtime for WAL: {}", e);
-                        VectorizerError::Storage(format!("Failed to create runtime for WAL: {}", e))
-                    })?;
-
-                    if let Err(e) =
-                        rt.block_on(async { wal.log_update(collection_name, vector).await })
-                    {
-                        error!("Failed to log update to WAL: {}", e);
+                    // In non-async contexts, try to create a runtime, but don't fail if it doesn't work
+                    // WAL logging is best-effort and shouldn't block operations
+                    match tokio::runtime::Runtime::new() {
+                        Ok(rt) => {
+                            if let Err(e) =
+                                rt.block_on(async { wal.log_update(collection_name, vector).await })
+                            {
+                                error!("Failed to log update to WAL: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            debug!(
+                                "Could not create tokio runtime for WAL update (non-async context): {}. WAL logging skipped.",
+                                e
+                            );
+                            // Don't fail the operation if WAL logging fails
+                        }
                     }
                 }
             }
         }
+        // Always return Ok - WAL logging is best-effort and shouldn't fail operations
         Ok(())
     }
 

@@ -52,7 +52,12 @@ async fn test_wal_multiple_operations() {
         let vec = store
             .get_vector("test_collection", &format!("vec_{i}"))
             .unwrap();
-        assert_eq!(vec.data[0], i as f32);
+        // Euclidean metric doesn't normalize, so values should match
+        assert_eq!(
+            vec.data[0], i as f32,
+            "Vector vec_{i} should have data[0] = {}, got {}",
+            i, vec.data[0]
+        );
     }
 }
 
@@ -148,6 +153,13 @@ async fn test_wal_update_sequence() {
 
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
+    // Verify vector was inserted before updating
+    let initial_vec = store.get_vector("test_collection", "test_vec").unwrap();
+    assert_eq!(
+        initial_vec.data[0], 1.0,
+        "Initial vector should have data[0] = 1.0"
+    );
+
     // Update multiple times
     for i in 2..=5 {
         let updated = Vector {
@@ -156,7 +168,12 @@ async fn test_wal_update_sequence() {
             payload: None,
             sparse: None,
         };
-        assert!(store.update("test_collection", updated).is_ok());
+        let update_result = store.update("test_collection", updated);
+        assert!(
+            update_result.is_ok(),
+            "Update failed: {:?}",
+            update_result.err()
+        );
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 
@@ -278,7 +295,12 @@ async fn test_wal_multiple_collections() {
         let vec = store
             .get_vector(&format!("collection{i}"), &format!("vec_col{i}"))
             .unwrap();
-        assert_eq!(vec.data[0], i as f32);
+        // Euclidean metric doesn't normalize, so values should match
+        assert_eq!(
+            vec.data[0], i as f32,
+            "Vector vec_col{i} in collection{i} should have data[0] = {}, got {}",
+            i, vec.data[0]
+        );
     }
 }
 
@@ -396,7 +418,23 @@ async fn test_wal_without_enabling() {
             .insert("test_collection", vec![vector.clone()])
             .is_ok()
     );
-    assert!(store.update("test_collection", vector.clone()).is_ok());
+
+    // Wait a bit for async operations
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // Verify vector was inserted before updating
+    let initial_vec = store.get_vector("test_collection", "test_vec").unwrap();
+    assert_eq!(
+        initial_vec.data[0], 1.0,
+        "Initial vector should have data[0] = 1.0"
+    );
+
+    let update_result = store.update("test_collection", vector.clone());
+    assert!(
+        update_result.is_ok(),
+        "Update failed: {:?}",
+        update_result.err()
+    );
     assert!(store.delete("test_collection", "test_vec").is_ok());
 
     // Recover should return empty when WAL is not enabled
