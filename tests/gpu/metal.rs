@@ -116,6 +116,8 @@ mod metal_tests {
             quantization: QuantizationConfig::SQ { bits: 8 },
             compression: CompressionConfig::default(),
             normalization: None,
+            storage_type: None,
+            sharding: None,
         };
 
         let collection_name = "metal_test_collection";
