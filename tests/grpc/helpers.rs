@@ -3,11 +3,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::time::timeout;
 use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
-use vectorizer::grpc::vectorizer::*;
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
 
 /// Helper to create a test gRPC client

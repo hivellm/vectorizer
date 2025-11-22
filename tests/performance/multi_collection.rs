@@ -3,6 +3,7 @@
 //! Tests scenarios with 100+ collections, cross-collection searches,
 //! and memory scaling verification.
 
+#[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]
 mod helpers;
 use helpers::*;

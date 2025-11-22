@@ -3,7 +3,6 @@
 //! - Verbose flag
 //! - Log suppression
 
-
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Vector};

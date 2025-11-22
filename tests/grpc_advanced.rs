@@ -72,7 +72,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
 #[tokio::test]
 async fn test_different_distance_metrics() {
     let port = 17000;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Test Cosine metric
@@ -169,7 +169,7 @@ async fn test_different_distance_metrics() {
 #[tokio::test]
 async fn test_different_storage_types() {
     let port = 17001;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Test Memory storage
@@ -254,7 +254,7 @@ async fn test_different_storage_types() {
 #[tokio::test]
 async fn test_quantization_configurations() {
     let port = 17002;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Test Scalar Quantization
@@ -318,7 +318,7 @@ async fn test_quantization_configurations() {
 #[tokio::test]
 async fn test_empty_collection_operations() {
     let port = 17003;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create empty collection
@@ -367,7 +367,7 @@ async fn test_empty_collection_operations() {
 #[tokio::test]
 async fn test_large_payloads() {
     let port = 17004;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -419,7 +419,7 @@ async fn test_large_payloads() {
 #[tokio::test]
 async fn test_search_with_threshold() {
     let port = 17005;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -477,7 +477,7 @@ async fn test_search_with_threshold() {
 #[tokio::test]
 async fn test_multiple_collections_simultaneously() {
     let port = 17006;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create multiple collections
@@ -542,7 +542,7 @@ async fn test_multiple_collections_simultaneously() {
 #[tokio::test]
 async fn test_concurrent_operations() {
     let port = 17007;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     let config = CollectionConfig {
         dimension: 128,
@@ -590,7 +590,7 @@ async fn test_concurrent_operations() {
 #[tokio::test]
 async fn test_different_hnsw_configurations() {
     let port = 17008;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Test with different HNSW parameters
@@ -642,7 +642,7 @@ async fn test_different_hnsw_configurations() {
 #[tokio::test]
 async fn test_batch_operations_stress() {
     let port = 17009;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -690,7 +690,7 @@ async fn test_batch_operations_stress() {
 #[tokio::test]
 async fn test_search_with_filters() {
     let port = 17010;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -750,7 +750,7 @@ async fn test_search_with_filters() {
 #[tokio::test]
 async fn test_update_nonexistent_vector() {
     let port = 17011;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -786,7 +786,7 @@ async fn test_update_nonexistent_vector() {
 #[tokio::test]
 async fn test_delete_nonexistent_vector() {
     let port = 17012;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -820,7 +820,7 @@ async fn test_delete_nonexistent_vector() {
 #[tokio::test]
 async fn test_very_large_vectors() {
     let port = 17013;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection with large dimension (1536 dimensions, common for embeddings)
@@ -872,7 +872,7 @@ async fn test_very_large_vectors() {
 #[tokio::test]
 async fn test_multiple_batch_searches() {
     let port = 17014;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {

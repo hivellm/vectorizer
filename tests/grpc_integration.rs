@@ -11,7 +11,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::time::timeout;
 use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
@@ -76,7 +75,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
 #[tokio::test]
 async fn test_grpc_server_startup() {
     let port = 15003;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     let mut client = create_test_client(port).await.unwrap();
 
@@ -93,7 +92,7 @@ async fn test_grpc_server_startup() {
 #[tokio::test]
 async fn test_list_collections() {
     let port = 15004;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create a collection via direct store access
     let config = create_test_config();
@@ -111,7 +110,7 @@ async fn test_list_collections() {
 #[tokio::test]
 async fn test_create_collection() {
     let port = 15005;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     let mut client = create_test_client(port).await.unwrap();
 
@@ -148,7 +147,7 @@ async fn test_create_collection() {
 #[tokio::test]
 async fn test_insert_and_get_vector() {
     let port = 15006;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection
     let config = create_test_config();
@@ -188,7 +187,7 @@ async fn test_insert_and_get_vector() {
 #[tokio::test]
 async fn test_search() {
     let port = 15007;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection and insert vectors
     let config = create_test_config();
@@ -244,7 +243,7 @@ async fn test_search() {
 #[tokio::test]
 async fn test_update_vector() {
     let port = 15008;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection and insert vector
     let config = create_test_config();
@@ -295,7 +294,7 @@ async fn test_update_vector() {
 #[tokio::test]
 async fn test_delete_vector() {
     let port = 15009;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection and insert vector
     let config = create_test_config();
@@ -339,7 +338,7 @@ async fn test_delete_vector() {
 #[tokio::test]
 async fn test_streaming_bulk_insert() {
     let port = 15010;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection
     let config = create_test_config();
@@ -381,7 +380,7 @@ async fn test_streaming_bulk_insert() {
 #[tokio::test]
 async fn test_get_stats() {
     let port = 15011;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection and insert vectors
     let config = create_test_config();
@@ -422,7 +421,7 @@ async fn test_get_stats() {
 #[tokio::test]
 async fn test_error_handling_collection_not_found() {
     let port = 15012;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     let mut client = create_test_client(port).await.unwrap();
 
@@ -442,7 +441,7 @@ async fn test_error_handling_collection_not_found() {
 #[tokio::test]
 async fn test_error_handling_vector_not_found() {
     let port = 15013;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection but don't insert vector
     let config = create_test_config();

@@ -7,9 +7,6 @@
 //! - Geo filters (bounding box and radius)
 //! - Nested field filters
 
-use std::collections::HashSet;
-use std::sync::Arc;
-
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use serde_json::json;
 use vectorizer::db::payload_index::{PayloadIndex, PayloadIndexConfig, PayloadIndexType};
@@ -61,7 +58,7 @@ fn setup_index_with_vectors(count: usize) -> PayloadIndex {
                 }
             }),
         };
-        index.index_vector(format!("v{}", i), &payload);
+        index.index_vector(format!("v{i}"), &payload);
     }
 
     index

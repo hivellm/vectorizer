@@ -8,6 +8,7 @@ use vectorizer::models::Vector;
 // In integration tests, each file is a separate crate
 // Include helpers code directly
 #[macro_use]
+#[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]
 mod helpers;
 use helpers::*;

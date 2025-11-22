@@ -1,7 +1,5 @@
 //! Comprehensive tests for WAL (Write-Ahead Log) functionality
 
-use std::path::PathBuf;
-
 use serde_json::json;
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
@@ -201,11 +199,7 @@ async fn test_wal_delete_sequence() {
 
     // Delete some vectors
     for i in 0..3 {
-        assert!(
-            store
-                .delete("test_collection", &format!("vec_{i}"))
-                .is_ok()
-        );
+        assert!(store.delete("test_collection", &format!("vec_{i}")).is_ok());
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 

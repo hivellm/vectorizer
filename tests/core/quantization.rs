@@ -1,6 +1,5 @@
 //! Tests for Quantization functionality (PQ and SQ)
 
-use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, QuantizationConfig, Vector};
 

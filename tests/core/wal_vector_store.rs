@@ -1,7 +1,5 @@
 //! Integration tests for VectorStore with WAL
 
-use std::path::PathBuf;
-
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Vector};

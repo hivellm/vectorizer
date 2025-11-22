@@ -3,6 +3,7 @@
 //! Tests concurrent searches, inserts, and read-while-write scenarios
 //! to verify thread-safety and absence of race conditions.
 
+#[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]
 mod helpers;
 use helpers::*;

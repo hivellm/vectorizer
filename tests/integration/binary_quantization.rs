@@ -4,6 +4,7 @@ use serde_json::json;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, QuantizationConfig};
 
+#[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]
 mod helpers;
 use helpers::{generate_test_vectors, insert_test_vectors};

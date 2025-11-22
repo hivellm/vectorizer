@@ -90,7 +90,7 @@ async fn test_create_collection() {
 #[tokio::test]
 async fn test_get_collection_info() {
     let port = 15022;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection and insert vectors
     let config = create_test_config();
@@ -133,7 +133,7 @@ async fn test_get_collection_info() {
 #[tokio::test]
 async fn test_delete_collection() {
     let port = 15023;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create collection
     let config = create_test_config();
@@ -158,7 +158,7 @@ async fn test_delete_collection() {
 #[tokio::test]
 async fn test_multiple_collections() {
     let port = 15024;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     // Create multiple collections
     for i in 0..5 {

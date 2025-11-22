@@ -1,5 +1,6 @@
 //! Integration tests for Sparse Vector Support
 
+#[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]
 mod helpers;
 use helpers::create_test_collection;

@@ -24,7 +24,9 @@ struct BenchmarkConfig {
     vector_count: usize,
     dimension: usize,
     search_queries: usize,
+    #[allow(dead_code)]
     warmup_iterations: usize,
+    #[allow(dead_code)]
     measurement_iterations: usize,
 }
 
@@ -90,7 +92,7 @@ impl BenchmarkResults {
 fn generate_vectors(count: usize, dimension: usize) -> Vec<Vector> {
     (0..count)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: (0..dimension)
                 .map(|j| ((i * dimension + j) % 100) as f32 / 100.0)
                 .collect(),
@@ -143,7 +145,7 @@ async fn benchmark_grpc_insert(
     let start = Instant::now();
 
     // Insert vectors using streaming
-    let (mut tx, rx) = tokio::sync::mpsc::channel(1000);
+    let (tx, rx) = tokio::sync::mpsc::channel(1000);
 
     // Send all vectors to channel (non-blocking)
     for vector in vectors {
@@ -246,7 +248,7 @@ async fn start_grpc_server(port: u16) -> Arc<VectorStore> {
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
 
-    let addr = format!("127.0.0.1:{}", port).parse().unwrap();
+    let addr = format!("127.0.0.1:{port}").parse().unwrap();
 
     tokio::spawn(async move {
         Server::builder()
@@ -264,7 +266,7 @@ async fn start_grpc_server(port: u16) -> Arc<VectorStore> {
 
 /// Create gRPC client
 async fn create_grpc_client(port: u16) -> VectorizerServiceClient<Channel> {
-    let addr = format!("http://127.0.0.1:{}", port);
+    let addr = format!("http://127.0.0.1:{port}");
     VectorizerServiceClient::connect(addr)
         .await
         .expect("Failed to connect to gRPC server")

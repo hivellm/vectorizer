@@ -1,8 +1,5 @@
 //! Tests for logging level functionality
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-
 #[test]
 fn test_logging_function_exists() {
     // Test that the logging function exists and can be called

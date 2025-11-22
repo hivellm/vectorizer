@@ -1,7 +1,5 @@
 //! Tests for MMAP (Memory-Mapped) storage functionality
 
-use std::path::PathBuf;
-
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, StorageType, Vector};

@@ -23,9 +23,7 @@ use vectorizer::grpc::vectorizer::{
     CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
     HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType,
 };
-use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig,
-};
+use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
 
 /// Helper to create a test gRPC client
 async fn create_test_client(
@@ -85,7 +83,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
 #[tokio::test]
 async fn test_health_check() {
     let port = 16000;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let request = tonic::Request::new(HealthCheckRequest {});
@@ -149,7 +147,7 @@ async fn test_get_stats() {
 #[tokio::test]
 async fn test_collection_management_complete() {
     let port = 16002;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // 3.1: List collections (should be empty initially)
@@ -551,7 +549,7 @@ async fn test_hybrid_search() {
 #[tokio::test]
 async fn test_error_handling() {
     let port = 16007;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // 8.1: Collection not found
@@ -606,7 +604,7 @@ async fn test_error_handling() {
 #[tokio::test]
 async fn test_end_to_end_workflow() {
     let port = 16008;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // 1. Create collection
