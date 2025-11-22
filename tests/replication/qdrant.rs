@@ -1,5 +1,8 @@
 //! Qdrant Compatibility Tests
 
-// Include Qdrant test files
-include!("qdrant_api.rs");
-include!("qdrant_migration.rs");
+// Each file is a separate module to avoid import conflicts
+#[path = "qdrant_api.rs"]
+mod qdrant_api;
+
+#[path = "qdrant_migration.rs"]
+mod qdrant_migration;

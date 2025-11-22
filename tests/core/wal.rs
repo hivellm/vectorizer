@@ -5,7 +5,12 @@
 //! - Comprehensive WAL operations
 //! - Crash recovery scenarios
 
-// Include tests from moved files
-include!("wal_vector_store.rs");
-include!("wal_comprehensive.rs");
-include!("wal_crash_recovery.rs");
+// Each file is a separate module to avoid import conflicts
+#[path = "wal_vector_store.rs"]
+mod wal_vector_store;
+
+#[path = "wal_comprehensive.rs"]
+mod wal_comprehensive;
+
+#[path = "wal_crash_recovery.rs"]
+mod wal_crash_recovery;

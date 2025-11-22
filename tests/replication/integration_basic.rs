@@ -18,13 +18,13 @@ use vectorizer::replication::{
 
 static INTEGRATION_PORT: AtomicU16 = AtomicU16::new(50000);
 
-fn next_port() -> u16 {
+fn next_port_integration() -> u16 {
     INTEGRATION_PORT.fetch_add(1, Ordering::SeqCst)
 }
 
 /// Helper to create and start a master node
 async fn create_running_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::SocketAddr) {
-    let port = next_port();
+    let port = next_port_integration();
     let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {

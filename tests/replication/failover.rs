@@ -20,12 +20,12 @@ use vectorizer::replication::{MasterNode, NodeRole, ReplicaNode, ReplicationConf
 
 static FAILOVER_PORT: AtomicU16 = AtomicU16::new(45000);
 
-fn next_port() -> u16 {
+fn next_port_failover() -> u16 {
     FAILOVER_PORT.fetch_add(1, Ordering::SeqCst)
 }
 
 async fn create_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::SocketAddr) {
-    let port = next_port();
+    let port = next_port_failover();
     let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {
@@ -201,7 +201,7 @@ async fn test_partial_sync_after_brief_disconnect() {
 #[ignore] // Requires TCP connection
 async fn test_full_sync_when_offset_too_old() {
     // Create master with small log size
-    let port = next_port();
+    let port = next_port_failover();
     let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {

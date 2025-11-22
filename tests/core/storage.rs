@@ -9,7 +9,7 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, StorageType, Vector};
 #[tokio::test]
 async fn test_mmap_collection_creation() {
     let temp_dir = tempdir().unwrap();
-    let data_dir = temp_dir.path().to_path_buf();
+    let _data_dir = temp_dir.path().to_path_buf();
 
     let store = VectorStore::new();
 
@@ -33,7 +33,7 @@ async fn test_mmap_collection_creation() {
 #[tokio::test]
 async fn test_mmap_insert_and_retrieve() {
     let temp_dir = tempdir().unwrap();
-    let data_dir = temp_dir.path().to_path_buf();
+    let _data_dir = temp_dir.path().to_path_buf();
 
     let store = VectorStore::new();
 
@@ -83,7 +83,7 @@ async fn test_mmap_insert_and_retrieve() {
 #[tokio::test]
 async fn test_mmap_large_dataset() {
     let temp_dir = tempdir().unwrap();
-    let data_dir = temp_dir.path().to_path_buf();
+    let _data_dir = temp_dir.path().to_path_buf();
 
     let store = VectorStore::new();
 
@@ -131,7 +131,7 @@ async fn test_mmap_large_dataset() {
 #[tokio::test]
 async fn test_mmap_update_and_delete() {
     let temp_dir = tempdir().unwrap();
-    let data_dir = temp_dir.path().to_path_buf();
+    let _data_dir = temp_dir.path().to_path_buf();
 
     let store = VectorStore::new();
 
@@ -179,7 +179,7 @@ async fn test_mmap_update_and_delete() {
 #[tokio::test]
 async fn test_mmap_search() {
     let temp_dir = tempdir().unwrap();
-    let data_dir = temp_dir.path().to_path_buf();
+    let _data_dir = temp_dir.path().to_path_buf();
 
     let store = VectorStore::new();
 

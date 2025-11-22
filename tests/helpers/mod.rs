@@ -123,7 +123,7 @@ pub fn insert_test_vectors(
 }
 
 /// Assert that a collection exists
-#[macro_export]
+#[allow(unused_macros)] // May be unused in some test files
 macro_rules! assert_collection_exists {
     ($store:expr, $name:expr) => {
         assert!(
@@ -135,7 +135,7 @@ macro_rules! assert_collection_exists {
 }
 
 /// Assert that a vector exists in a collection
-#[macro_export]
+#[allow(unused_macros)] // May be unused in some test files
 macro_rules! assert_vector_exists {
     ($store:expr, $collection:expr, $id:expr) => {
         assert!(

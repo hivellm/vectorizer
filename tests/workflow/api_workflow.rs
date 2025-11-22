@@ -9,7 +9,6 @@ use vectorizer::models::Vector;
 // Include helpers code directly
 #[path = "../helpers/mod.rs"]
 mod helpers;
-
 use helpers::*;
 
 /// Test full CRUD workflow: Create, Read, Update, Delete

@@ -1,6 +1,11 @@
 //! Replication Integration Tests
 
-// Include replication test files
-include!("integration_basic.rs");
-include!("comprehensive.rs");
-include!("api.rs");
+// Each file is a separate module to avoid import conflicts
+#[path = "integration_basic.rs"]
+mod integration_basic;
+
+#[path = "comprehensive.rs"]
+mod comprehensive;
+
+#[path = "api.rs"]
+mod api;

@@ -2,6 +2,11 @@
 //!
 //! This file imports all test modules organized by theme
 
+// Import helpers once for all tests
+#[macro_use]
+#[path = "helpers/mod.rs"]
+mod helpers;
+
 mod api;
 mod core;
 mod gpu;

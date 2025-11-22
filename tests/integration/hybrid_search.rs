@@ -1,9 +1,6 @@
 //! Integration tests for Hybrid Search
 
-#[path = "../helpers/mod.rs"]
-mod helpers;
-
-// Helpers not used in this test file
+// Helpers not used in this test file - macros available via crate::
 use serde_json::json;
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig, VectorStore};
 use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, SparseVector, Vector};

@@ -2,7 +2,6 @@
 
 #[path = "../helpers/mod.rs"]
 mod helpers;
-
 use helpers::create_test_collection;
 use serde_json::json;
 use vectorizer::db::VectorStore;

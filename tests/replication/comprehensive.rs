@@ -23,13 +23,13 @@ use vectorizer::replication::{
 /// Port allocator for tests
 static TEST_PORT: AtomicU16 = AtomicU16::new(40000);
 
-fn next_port() -> u16 {
+fn next_port_comprehensive() -> u16 {
     TEST_PORT.fetch_add(1, Ordering::SeqCst)
 }
 
 /// Create a master node for testing
 async fn create_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::SocketAddr) {
-    let port = next_port();
+    let port = next_port_comprehensive();
     let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
 
     let config = ReplicationConfig {

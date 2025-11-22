@@ -5,7 +5,6 @@
 
 #[path = "../helpers/mod.rs"]
 mod helpers;
-
 use helpers::*;
 
 /// Test concurrent searches from multiple threads
