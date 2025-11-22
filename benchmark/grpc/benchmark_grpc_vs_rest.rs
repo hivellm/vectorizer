@@ -140,7 +140,6 @@ async fn benchmark_grpc_insert(
     vectors: &[Vector],
 ) -> BenchmarkResults {
     let mut results = BenchmarkResults::new("Insert".to_string(), "gRPC".to_string());
-    let mut latencies = Vec::new();
 
     let start = Instant::now();
 
@@ -169,7 +168,7 @@ async fn benchmark_grpc_insert(
 
     // Use stream latency as average per vector
     let avg_latency_per_vector = stream_latency / vectors.len() as f64;
-    latencies = (0..vectors.len()).map(|_| avg_latency_per_vector).collect();
+    let mut latencies: Vec<f64> = (0..vectors.len()).map(|_| avg_latency_per_vector).collect();
 
     let total_time = start.elapsed().as_secs_f64();
     results.total_time_ms = total_time * 1000.0;

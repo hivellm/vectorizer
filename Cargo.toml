@@ -232,6 +232,7 @@ path = "src/bin/vectorizer.rs"
 [[bin]]
 name = "benchmark_grpc_vs_rest"
 path = "benchmark/grpc/benchmark_grpc_vs_rest.rs"
+required-features = ["benchmarks"]
 
 # [[bin]]
 # name = "test_basic_metal"
