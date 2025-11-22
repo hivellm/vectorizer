@@ -49,6 +49,7 @@ async fn test_wal_integration_basic() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     assert!(store.create_collection("test_collection", config).is_ok());
@@ -105,6 +106,7 @@ async fn test_collection_with_wal_disabled() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     assert!(store.create_collection("test_collection", config).is_ok());

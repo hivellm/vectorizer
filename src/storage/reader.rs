@@ -316,6 +316,7 @@ impl StorageReader {
                             },
                             normalization: None,
                             storage_type: Some(crate::models::StorageType::Memory),
+                            sharding: None,
                         });
                     }
                 }
@@ -348,6 +349,7 @@ impl StorageReader {
                     },
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
+                    sharding: None,
                 });
             }
         }

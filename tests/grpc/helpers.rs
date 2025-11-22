@@ -28,6 +28,7 @@ pub fn create_test_config() -> CollectionConfig {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     }
 }
 

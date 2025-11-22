@@ -49,6 +49,18 @@ impl SnapshotManager {
         // Ensure data directory exists first (parent of snapshots)
         if let Some(parent) = self.snapshots_dir.parent() {
             fs::create_dir_all(parent).map_err(|e| {
+                // Check if it's a permission error
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    return VectorizerError::Io(std::io::Error::new(
+                        e.kind(),
+                        format!(
+                            "Permission denied creating parent directory {:?}. \
+                            Snapshots are optional - the system will continue without them. \
+                            To enable snapshots, ensure write permissions for: {:?}",
+                            parent, parent
+                        ),
+                    ));
+                }
                 VectorizerError::Io(std::io::Error::new(
                     e.kind(),
                     format!(
@@ -63,6 +75,18 @@ impl SnapshotManager {
 
         // Ensure snapshots directory exists
         fs::create_dir_all(&self.snapshots_dir).map_err(|e| {
+            // Check if it's a permission error
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                return VectorizerError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!(
+                        "Permission denied creating snapshots directory {:?}. \
+                        Snapshots are optional - the system will continue without them. \
+                        To enable snapshots, ensure write permissions for: {:?}",
+                        self.snapshots_dir, self.snapshots_dir
+                    ),
+                ));
+            }
             VectorizerError::Io(std::io::Error::new(
                 e.kind(),
                 format!(
@@ -84,6 +108,18 @@ impl SnapshotManager {
         );
 
         fs::create_dir_all(&snapshot_dir).map_err(|e| {
+            // Check if it's a permission error
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                return VectorizerError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!(
+                        "Permission denied creating snapshot directory {:?}. \
+                        Snapshots are optional - the system will continue without them. \
+                        To enable snapshots, ensure write permissions for: {:?}",
+                        snapshot_dir, self.snapshots_dir
+                    ),
+                ));
+            }
             VectorizerError::Io(std::io::Error::new(
                 e.kind(),
                 format!(

@@ -27,6 +27,7 @@ async fn test_wal_multiple_operations() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -73,6 +74,7 @@ async fn test_wal_with_payload() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -130,6 +132,7 @@ async fn test_wal_update_sequence() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -180,6 +183,7 @@ async fn test_wal_delete_sequence() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -240,6 +244,7 @@ async fn test_wal_multiple_collections() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     // Create multiple collections
@@ -300,6 +305,7 @@ async fn test_wal_checkpoint() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -345,6 +351,7 @@ async fn test_wal_error_handling() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -371,6 +378,7 @@ async fn test_wal_without_enabling() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection("test_collection", config).unwrap();

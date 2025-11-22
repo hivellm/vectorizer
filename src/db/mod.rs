@@ -14,8 +14,12 @@ pub mod hive_gpu_collection;
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_detection;
 
+pub mod multi_tenancy;
 pub mod optimized_hnsw;
-mod vector_store;
+pub mod raft;
+pub mod sharded_collection;
+pub mod sharding;
+pub mod vector_store;
 mod wal_integration;
 
 pub use async_indexing::{AsyncIndexManager, IndexBuildProgress, IndexBuildStatus};
@@ -25,5 +29,13 @@ pub use collection_normalization::CollectionNormalizationHelper;
 #[cfg(feature = "hive-gpu")]
 pub use gpu_detection::{GpuBackendType, GpuDetector, GpuInfo};
 pub use hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig, HybridSearchResult};
+pub use multi_tenancy::{
+    MultiTenancyManager, TenantId, TenantMetadata, TenantOperation, TenantQuotas, TenantUsage,
+    TenantUsageUpdate,
+};
 pub use optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
+pub use raft::{
+    LogEntry, LogIndex, NodeId, RaftConfig, RaftNode, RaftRole, RaftState, RaftStateMachine, Term,
+};
+pub use sharding::{ConsistentHashRing, ShardId, ShardRebalancer, ShardRouter};
 pub use vector_store::{CollectionType, VectorStore};

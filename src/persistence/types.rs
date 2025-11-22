@@ -374,6 +374,7 @@ mod tests {
     #[test]
     fn test_workspace_metadata_creation() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: crate::models::QuantizationConfig::default(),
@@ -400,6 +401,7 @@ mod tests {
     #[test]
     fn test_dynamic_metadata_creation() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: crate::models::QuantizationConfig::default(),
@@ -426,6 +428,7 @@ mod tests {
     #[test]
     fn test_metadata_update_after_operation() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: crate::models::QuantizationConfig::default(),

@@ -200,10 +200,35 @@ impl AutoSaveManager {
                             *last = Instant::now();
                         }
                         Err(e) => {
-                            error!(
-                                "❌ Snapshot: Failed to create snapshot: {} (data_dir: {:?}, snapshots_dir: {:?})",
-                                e, data_dir, snapshots_dir
-                            );
+                            // Check if it's a permission error - log as warning instead of error
+                            let error_msg = format!("{}", e);
+                            if error_msg.contains("Permission denied")
+                                || error_msg.contains("PermissionDenied")
+                            {
+                                // Only log permission errors once per hour to avoid spam
+                                let should_log = {
+                                    let last = last_snapshot.read().await;
+                                    last.elapsed() > Duration::from_secs(3600)
+                                };
+
+                                if should_log {
+                                    warn!(
+                                        "⚠️  Snapshot: Permission denied - snapshots disabled. \
+                                        The system will continue without automatic snapshots. \
+                                        Error: {} (data_dir: {:?}, snapshots_dir: {:?})",
+                                        e, data_dir, snapshots_dir
+                                    );
+                                    // Update timestamp to suppress further warnings for 1 hour
+                                    let mut last = last_snapshot.write().await;
+                                    *last = Instant::now();
+                                }
+                            } else {
+                                // Other errors are logged normally
+                                error!(
+                                    "❌ Snapshot: Failed to create snapshot: {} (data_dir: {:?}, snapshots_dir: {:?})",
+                                    e, data_dir, snapshots_dir
+                                );
+                            }
                         }
                     }
                 }

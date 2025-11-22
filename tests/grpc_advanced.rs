@@ -318,7 +318,7 @@ async fn test_quantization_configurations() {
 #[tokio::test]
 async fn test_empty_collection_operations() {
     let port = 17003;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create empty collection
@@ -330,6 +330,7 @@ async fn test_empty_collection_operations() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("empty_collection", config).unwrap();
 
@@ -367,7 +368,7 @@ async fn test_empty_collection_operations() {
 #[tokio::test]
 async fn test_large_payloads() {
     let port = 17004;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -378,6 +379,7 @@ async fn test_large_payloads() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("large_payload", config).unwrap();
 
@@ -419,7 +421,7 @@ async fn test_large_payloads() {
 #[tokio::test]
 async fn test_search_with_threshold() {
     let port = 17005;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -430,6 +432,7 @@ async fn test_search_with_threshold() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("threshold_test", config).unwrap();
 
@@ -477,7 +480,7 @@ async fn test_search_with_threshold() {
 #[tokio::test]
 async fn test_multiple_collections_simultaneously() {
     let port = 17006;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create multiple collections
@@ -490,6 +493,7 @@ async fn test_multiple_collections_simultaneously() {
             compression: Default::default(),
             normalization: None,
             storage_type: None,
+            sharding: None,
         };
         store
             .create_collection(&format!("collection_{i}"), config)
@@ -542,7 +546,7 @@ async fn test_multiple_collections_simultaneously() {
 #[tokio::test]
 async fn test_concurrent_operations() {
     let port = 17007;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
 
     let config = CollectionConfig {
         dimension: 128,
@@ -552,6 +556,7 @@ async fn test_concurrent_operations() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("concurrent_test", config).unwrap();
 
@@ -642,7 +647,7 @@ async fn test_different_hnsw_configurations() {
 #[tokio::test]
 async fn test_batch_operations_stress() {
     let port = 17009;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -653,6 +658,7 @@ async fn test_batch_operations_stress() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("batch_stress", config).unwrap();
 
@@ -690,7 +696,7 @@ async fn test_batch_operations_stress() {
 #[tokio::test]
 async fn test_search_with_filters() {
     let port = 17010;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -701,6 +707,7 @@ async fn test_search_with_filters() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("filter_test", config).unwrap();
 
@@ -750,7 +757,7 @@ async fn test_search_with_filters() {
 #[tokio::test]
 async fn test_update_nonexistent_vector() {
     let port = 17011;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -761,6 +768,7 @@ async fn test_update_nonexistent_vector() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("update_test", config).unwrap();
 
@@ -786,7 +794,7 @@ async fn test_update_nonexistent_vector() {
 #[tokio::test]
 async fn test_delete_nonexistent_vector() {
     let port = 17012;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -797,6 +805,7 @@ async fn test_delete_nonexistent_vector() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("delete_test", config).unwrap();
 
@@ -820,7 +829,7 @@ async fn test_delete_nonexistent_vector() {
 #[tokio::test]
 async fn test_very_large_vectors() {
     let port = 17013;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection with large dimension (1536 dimensions, common for embeddings)
@@ -832,6 +841,7 @@ async fn test_very_large_vectors() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store.create_collection("large_vectors", config).unwrap();
 
@@ -872,7 +882,7 @@ async fn test_very_large_vectors() {
 #[tokio::test]
 async fn test_multiple_batch_searches() {
     let port = 17014;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -883,6 +893,7 @@ async fn test_multiple_batch_searches() {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     };
     store
         .create_collection("batch_search_test", config)

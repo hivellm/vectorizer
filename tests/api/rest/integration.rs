@@ -17,6 +17,7 @@ fn test_collection_config_creation() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: Default::default(),
+        sharding: None,
         normalization: None,
         storage_type: None,
     };

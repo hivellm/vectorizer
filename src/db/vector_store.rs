@@ -12,6 +12,7 @@ use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
 use super::hybrid_search::HybridSearchConfig;
+use super::sharded_collection::ShardedCollection;
 use super::wal_integration::WalIntegration;
 #[cfg(feature = "hive-gpu")]
 use crate::db::hive_gpu_collection::HiveGpuCollection;
@@ -20,13 +21,15 @@ use crate::error::{Result, VectorizerError};
 use crate::gpu_adapter::GpuAdapter;
 use crate::models::{CollectionConfig, CollectionMetadata, SearchResult, Vector};
 
-/// Enum to represent different collection types (CPU or GPU)
+/// Enum to represent different collection types (CPU, GPU, or Sharded)
 pub enum CollectionType {
     /// CPU-based collection
     Cpu(Collection),
     /// Hive-GPU collection (Metal, CUDA, WebGPU)
     #[cfg(feature = "hive-gpu")]
     HiveGpu(HiveGpuCollection),
+    /// Sharded collection (distributed across multiple shards)
+    Sharded(ShardedCollection),
 }
 
 impl std::fmt::Debug for CollectionType {
@@ -35,6 +38,7 @@ impl std::fmt::Debug for CollectionType {
             CollectionType::Cpu(c) => write!(f, "CollectionType::Cpu({})", c.name()),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => write!(f, "CollectionType::HiveGpu({})", c.name()),
+            CollectionType::Sharded(c) => write!(f, "CollectionType::Sharded({})", c.name()),
         }
     }
 }
@@ -46,6 +50,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.name(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.name(),
+            CollectionType::Sharded(c) => c.name(),
         }
     }
 
@@ -55,6 +60,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.config(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.config(),
+            CollectionType::Sharded(c) => c.config(),
         }
     }
 
@@ -64,6 +70,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.insert(vector),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.add_vector(vector).map(|_| ()),
+            CollectionType::Sharded(c) => c.insert(vector),
         }
     }
 
@@ -73,6 +80,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.search(query, limit),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.search(query, limit),
+            CollectionType::Sharded(c) => c.search(query, limit, None),
         }
     }
 
@@ -91,6 +99,11 @@ impl CollectionType {
                 // Fallback to dense search
                 self.search(query_dense, config.final_k)
             }
+            CollectionType::Sharded(c) => {
+                // For sharded collections, use multi-shard search
+                // TODO: Implement proper hybrid search for sharded collections
+                c.search(query_dense, config.final_k, None)
+            }
         }
     }
 
@@ -100,6 +113,19 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.metadata(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.metadata(),
+            CollectionType::Sharded(c) => {
+                // Create metadata for sharded collection
+                let mut meta = CollectionMetadata {
+                    name: c.name().to_string(),
+                    tenant_id: None,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                    vector_count: c.vector_count(),
+                    document_count: 0, // TODO: track documents in sharded collections
+                    config: c.config().clone(),
+                };
+                meta
+            }
         }
     }
 
@@ -109,6 +135,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.delete(id),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.remove_vector(id.to_string()),
+            CollectionType::Sharded(c) => c.delete(id),
         }
     }
 
@@ -118,6 +145,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.update(vector),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.update(vector),
+            CollectionType::Sharded(c) => c.update(vector),
         }
     }
 
@@ -127,6 +155,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.get_vector(vector_id),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.get_vector_by_id(vector_id),
+            CollectionType::Sharded(c) => c.get_vector(vector_id),
         }
     }
 
@@ -136,6 +165,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.vector_count(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.vector_count(),
+            CollectionType::Sharded(c) => c.vector_count(),
         }
     }
 
@@ -145,6 +175,10 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.estimated_memory_usage(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.estimated_memory_usage(),
+            CollectionType::Sharded(c) => {
+                // Sum memory usage from all shards
+                c.shard_counts().values().sum::<usize>() * c.config().dimension * 4 // Rough estimate
+            }
         }
     }
 
@@ -154,6 +188,11 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.get_all_vectors(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.get_all_vectors(),
+            CollectionType::Sharded(_) => {
+                // Sharded collections don't support get_all_vectors efficiently
+                // Return empty for now - could be implemented by querying all shards
+                Vec::new()
+            }
         }
     }
 
@@ -163,6 +202,7 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.get_embedding_type(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.get_embedding_type(),
+            CollectionType::Sharded(_) => "sharded".to_string(),
         }
     }
 
@@ -172,6 +212,11 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.requantize_existing_vectors(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.requantize_existing_vectors(),
+            CollectionType::Sharded(_) => {
+                // Sharded collections handle quantization at shard level
+                // TODO: Implement requantization for sharded collections
+                Ok(())
+            }
         }
     }
 
@@ -185,6 +230,10 @@ impl CollectionType {
                 let total = c.estimated_memory_usage();
                 (total / 2, total / 2, total)
             }
+            CollectionType::Sharded(c) => {
+                let total = c.vector_count() * c.config().dimension * 4; // Rough estimate
+                (total / 2, total / 2, total)
+            }
         }
     }
 
@@ -195,6 +244,22 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => {
                 let total = c.estimated_memory_usage();
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
+            CollectionType::Sharded(c) => {
+                let total = c.vector_count() * c.config().dimension * 4;
                 let format_bytes = |bytes: usize| -> String {
                     if bytes >= 1024 * 1024 {
                         format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
@@ -224,6 +289,13 @@ impl CollectionType {
                     embedding_type
                 );
             }
+            CollectionType::Sharded(_) => {
+                // Sharded collections don't track embedding types at top level
+                debug!(
+                    "Sharded collections don't track embedding types: {}",
+                    embedding_type
+                );
+            }
         }
     }
 
@@ -240,6 +312,10 @@ impl CollectionType {
                 warn!("Hive-GPU collections don't support HNSW dump loading yet");
                 Ok(())
             }
+            CollectionType::Sharded(_) => {
+                warn!("Sharded collections don't support HNSW dump loading yet");
+                Ok(())
+            }
         }
     }
 
@@ -251,6 +327,10 @@ impl CollectionType {
             CollectionType::HiveGpu(_) => {
                 warn!("Hive-GPU collections don't support vector loading into memory yet");
                 Ok(())
+            }
+            CollectionType::Sharded(c) => {
+                // Use batch insert for sharded collections
+                c.insert_batch(vectors)
             }
         }
     }
@@ -264,6 +344,10 @@ impl CollectionType {
                 // Use batch insertion for better performance
                 c.add_vectors(vectors)?;
                 Ok(())
+            }
+            CollectionType::Sharded(c) => {
+                // Use batch insert for sharded collections
+                c.insert_batch(vectors)
             }
         }
     }
@@ -597,6 +681,18 @@ impl VectorStore {
             }
         }
 
+        // Check if sharding is enabled
+        if config.sharding.is_some() {
+            info!("Creating sharded collection '{}'", name);
+            let sharded_collection = ShardedCollection::new(name.to_string(), config)?;
+            self.collections.insert(
+                name.to_string(),
+                CollectionType::Sharded(sharded_collection),
+            );
+            info!("Sharded collection '{}' created successfully", name);
+            return Ok(());
+        }
+
         // Fallback to CPU
         debug!("Creating CPU-based collection '{}'", name);
         let collection = Collection::new(name.to_string(), config);
@@ -841,7 +937,7 @@ impl VectorStore {
         // Create collection if it doesn't exist
         if !self.has_collection_in_memory(name) {
             let config = persisted.config.clone().unwrap_or_else(|| {
-                warn!("⚠️  Collection '{}' has no config, using default", name);
+                debug!("⚠️  Collection '{}' has no config, using default", name);
                 crate::models::CollectionConfig::default()
             });
             self.create_collection(name, config)?;
@@ -1214,6 +1310,9 @@ impl VectorStore {
             CollectionType::HiveGpu(c) => {
                 c.load_from_cache(persisted_vectors)?;
             }
+            CollectionType::Sharded(_) => {
+                warn!("Sharded collections don't support load_from_cache yet");
+            }
         }
 
         Ok(())
@@ -1245,6 +1344,9 @@ impl VectorStore {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => {
                 c.load_from_cache_with_hnsw_dump(persisted_vectors, hnsw_dump_path, hnsw_basename)?;
+            }
+            CollectionType::Sharded(_) => {
+                warn!("Sharded collections don't support load_from_cache_with_hnsw_dump yet");
             }
         }
 
@@ -1707,7 +1809,7 @@ impl VectorStore {
 
             // Create collection with the persisted config
             let mut config = persisted_collection.config.clone().unwrap_or_else(|| {
-                warn!(
+                debug!(
                     "⚠️  Collection '{}' has no config, using default",
                     collection_name
                 );
@@ -2070,7 +2172,7 @@ impl VectorStore {
 
         // Create collection with the persisted config
         let mut config = persisted_collection.config.clone().unwrap_or_else(|| {
-            warn!(
+            debug!(
                 "⚠️  Collection '{}' has no config, using default",
                 collection_name
             );
@@ -2727,6 +2829,7 @@ mod tests {
         let store = VectorStore::new();
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -2763,6 +2866,7 @@ mod tests {
         let store = VectorStore::new();
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -2788,6 +2892,7 @@ mod tests {
         let store = VectorStore::new();
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -2824,6 +2929,7 @@ mod tests {
         let store = VectorStore::new();
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
@@ -2866,6 +2972,7 @@ mod tests {
         let store = Arc::new(VectorStore::new());
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
@@ -2909,6 +3016,7 @@ mod tests {
         let store = VectorStore::new();
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 768,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig {

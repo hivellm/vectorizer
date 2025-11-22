@@ -707,6 +707,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
@@ -736,6 +737,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
@@ -763,6 +765,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
@@ -796,6 +799,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
@@ -836,6 +840,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
@@ -869,6 +874,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),

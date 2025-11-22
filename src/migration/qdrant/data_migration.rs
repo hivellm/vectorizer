@@ -280,6 +280,7 @@ impl QdrantDataImporter {
             compression: CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            sharding: None,
         })
     }
 

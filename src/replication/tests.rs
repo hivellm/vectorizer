@@ -76,6 +76,7 @@ mod tests {
 
         // Create collection
         let config = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),

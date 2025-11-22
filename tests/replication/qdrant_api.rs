@@ -37,6 +37,7 @@ fn create_test_collection(
         compression: CompressionConfig::default(),
         normalization: None,
         storage_type: Some(StorageType::Memory),
+        sharding: None,
     };
     store.create_collection(name, config)?;
     Ok(())

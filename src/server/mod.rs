@@ -23,7 +23,7 @@ pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem, MetricsCollector};
 
@@ -59,6 +59,10 @@ pub struct VectorizerServer {
         >,
     >,
     system_collector_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    file_watcher_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    file_watcher_cancel: Arc<tokio::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
+    grpc_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    auto_save_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl VectorizerServer {
@@ -132,9 +136,12 @@ impl VectorizerServer {
         let watcher_system_for_task = watcher_system_arc.clone();
         let watcher_system_for_server = watcher_system_arc.clone();
 
-        if file_watcher_enabled {
+        // Create cancellation token for file watcher
+        let (file_watcher_cancel_tx, mut file_watcher_cancel_rx) =
+            tokio::sync::watch::channel(false);
+        let file_watcher_task_handle = if file_watcher_enabled {
             info!("✅ File watcher is ENABLED in config - starting...");
-            tokio::task::spawn(async move {
+            let handle = tokio::task::spawn(async move {
                 info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
                 info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
 
@@ -173,16 +180,33 @@ impl VectorizerServer {
 
                 info!("🔍 STEP 7: File watcher system is now running in background...");
 
-                // Keep the task alive by waiting indefinitely
-                // This ensures the file watcher continues running
+                // Keep the task alive but check for cancellation
                 loop {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-                    info!("🔍 File watcher is still running...");
+                    tokio::select! {
+                        _ = tokio::time::sleep(tokio::time::Duration::from_secs(60)) => {
+                            // Check if cancelled
+                            if *file_watcher_cancel_rx.borrow() {
+                                info!("🛑 File watcher task received cancellation signal");
+                                break;
+                            }
+                            debug!("🔍 File watcher is still running...");
+                        }
+                        _ = file_watcher_cancel_rx.changed() => {
+                            if *file_watcher_cancel_rx.borrow() {
+                                info!("🛑 File watcher task received cancellation signal");
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                info!("✅ File watcher task completed");
             });
+            Some(handle)
         } else {
             info!("⏭️  File watcher is DISABLED in config - skipping initialization");
-        }
+            None
+        };
 
         // Create cancellation token for background task
         let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
@@ -299,7 +323,7 @@ impl VectorizerServer {
                                     }
                                 }
                             } else {
-                                warn!("⚠️ File watcher not available for update");
+                                debug!("⚠️ File watcher not available for update");
                             }
 
                             count
@@ -385,7 +409,7 @@ impl VectorizerServer {
                                 } else {
                                     attempts += 1;
                                     if attempts >= max_attempts {
-                                        warn!(
+                                        debug!(
                                             "⚠️ File watcher not available after {} seconds, skipping discovery",
                                             max_attempts
                                         );
@@ -599,7 +623,7 @@ impl VectorizerServer {
             }
         }
 
-        let _auto_save_handle = auto_save_manager.start();
+        let auto_save_handle = auto_save_manager.start();
         info!("✅ AutoSaveManager started (5min save + 1h snapshot intervals)");
 
         // Start system metrics collector
@@ -634,6 +658,10 @@ impl VectorizerServer {
                 cancel_tx,
             )))),
             system_collector_task: Arc::new(tokio::sync::Mutex::new(Some(system_collector_handle))),
+            file_watcher_task: Arc::new(tokio::sync::Mutex::new(file_watcher_task_handle)),
+            file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(Some(file_watcher_cancel_tx))),
+            grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
+            auto_save_task: Arc::new(tokio::sync::Mutex::new(Some(auto_save_handle))),
         })
     }
 
@@ -650,6 +678,8 @@ impl VectorizerServer {
                 error!("❌ gRPC server failed: {}", e);
             }
         });
+        // Store gRPC handle for shutdown
+        *self.grpc_task.lock().await = Some(grpc_handle);
         info!("✅ gRPC server task spawned");
 
         // Create server state for metrics endpoint
@@ -1005,20 +1035,28 @@ impl VectorizerServer {
             info!("🛑 Received shutdown signal (Ctrl+C)");
         };
 
-        // Serve the application with graceful shutdown
-        let server_handle = axum::serve(listener, app);
+        // Create shutdown signal for axum graceful shutdown
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-        // Wait for either the server to complete or shutdown signal
-        tokio::select! {
-            result = server_handle => {
-                match result {
-                    Ok(_) => info!("✅ Server completed normally"),
-                    Err(e) => error!("❌ Server error: {}", e),
-                }
+        // Spawn task to listen for Ctrl+C and trigger shutdown
+        tokio::spawn(async move {
+            if let Ok(()) = tokio::signal::ctrl_c().await {
+                info!("🛑 Received shutdown signal (Ctrl+C)");
+                let _ = shutdown_tx.send(());
             }
-            _ = shutdown_signal => {
-                info!("🛑 Shutdown signal received, stopping server...");
-            }
+        });
+
+        // Serve the application with graceful shutdown
+        let server_handle = axum::serve(listener, app).with_graceful_shutdown(async {
+            shutdown_rx.await.ok();
+            info!("🛑 Graceful shutdown signal received, stopping HTTP server...");
+        });
+
+        // Wait for server to complete
+        if let Err(e) = server_handle.await {
+            error!("❌ Server error: {}", e);
+        } else {
+            info!("✅ HTTP server stopped");
         }
 
         // Cancel and await background collection loading task if still running
@@ -1054,13 +1092,66 @@ impl VectorizerServer {
             auto_save.shutdown();
         }
 
-        // Graceful shutdown of file watcher
-        info!("🛑 Starting graceful shutdown of file watcher...");
+        // Cancel file watcher task
+        info!("🛑 Stopping file watcher task...");
+        // First send cancellation signal
+        if let Some(cancel_tx) = self.file_watcher_cancel.lock().await.take() {
+            let _ = cancel_tx.send(true);
+            info!("📤 Sent cancellation signal to file watcher task");
+        }
+        // Then wait for task to finish
+        if let Some(handle) = self.file_watcher_task.lock().await.take() {
+            // Wait for it to finish (with timeout)
+            let timeout = tokio::time::Duration::from_secs(5);
+            match tokio::time::timeout(timeout, handle).await {
+                Ok(_) => info!("✅ File watcher task stopped"),
+                Err(_) => {
+                    warn!("⚠️  File watcher task did not stop within timeout, aborting...");
+                    // Force abort if it didn't respond
+                }
+            }
+        }
+
+        // Graceful shutdown of file watcher system
+        info!("🛑 Starting graceful shutdown of file watcher system...");
         if let Some(watcher_system) = self.file_watcher_system.lock().await.as_ref() {
             if let Err(e) = watcher_system.stop().await {
                 error!("❌ Failed to stop file watcher gracefully: {}", e);
             } else {
-                info!("✅ File watcher stopped gracefully");
+                info!("✅ File watcher system stopped gracefully");
+            }
+        }
+
+        // Cancel gRPC server task
+        info!("🛑 Stopping gRPC server task...");
+        if let Some(handle) = self.grpc_task.lock().await.take() {
+            handle.abort();
+            let timeout = tokio::time::Duration::from_secs(5);
+            match tokio::time::timeout(timeout, handle).await {
+                Ok(_) => info!("✅ gRPC server task stopped"),
+                Err(_) => warn!("⚠️  gRPC server task did not stop within timeout"),
+            }
+        }
+
+        // Cancel system collector task
+        info!("🛑 Stopping system collector task...");
+        if let Some(handle) = self.system_collector_task.lock().await.take() {
+            handle.abort();
+            let timeout = tokio::time::Duration::from_secs(5);
+            match tokio::time::timeout(timeout, handle).await {
+                Ok(_) => info!("✅ System collector task stopped"),
+                Err(_) => warn!("⚠️  System collector task did not stop within timeout"),
+            }
+        }
+
+        // Cancel auto save task
+        info!("🛑 Stopping auto save task...");
+        if let Some(handle) = self.auto_save_task.lock().await.take() {
+            handle.abort();
+            let timeout = tokio::time::Duration::from_secs(5);
+            match tokio::time::timeout(timeout, handle).await {
+                Ok(_) => info!("✅ Auto save task stopped"),
+                Err(_) => warn!("⚠️  Auto save task did not stop within timeout"),
             }
         }
 

@@ -273,6 +273,10 @@ pub struct CollectionConfig {
     /// Defaults to Memory if not specified
     #[serde(default = "default_storage_type")]
     pub storage_type: Option<StorageType>,
+    /// Sharding configuration (optional, disabled by default)
+    /// If set, the collection will be distributed across multiple shards
+    #[serde(default)]
+    pub sharding: Option<ShardingConfig>,
 }
 
 /// Storage backend type
@@ -351,6 +355,40 @@ impl Default for CollectionConfig {
             compression: CompressionConfig::default(),
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
             storage_type: Some(StorageType::Memory),
+            sharding: None, // Sharding disabled by default
+        }
+    }
+}
+
+/// Sharding configuration for distributed collections
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShardingConfig {
+    /// Number of shards for this collection
+    pub shard_count: u32,
+    /// Virtual nodes per shard (for consistent hashing)
+    /// Higher values provide better distribution but use more memory
+    #[serde(default = "default_virtual_nodes")]
+    pub virtual_nodes_per_shard: usize,
+    /// Rebalancing threshold (percentage deviation from average)
+    /// When shard sizes deviate more than this, rebalancing is triggered
+    #[serde(default = "default_rebalance_threshold")]
+    pub rebalance_threshold: f32,
+}
+
+fn default_virtual_nodes() -> usize {
+    100
+}
+
+fn default_rebalance_threshold() -> f32 {
+    0.2 // 20% deviation triggers rebalancing
+}
+
+impl Default for ShardingConfig {
+    fn default() -> Self {
+        Self {
+            shard_count: 4,
+            virtual_nodes_per_shard: 100,
+            rebalance_threshold: 0.2,
         }
     }
 }
@@ -427,6 +465,9 @@ pub struct SearchResult {
 pub struct CollectionMetadata {
     /// Collection name
     pub name: String,
+    /// Tenant ID (for multi-tenancy support)
+    #[serde(default)]
+    pub tenant_id: Option<String>,
     /// Creation timestamp
     pub created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp

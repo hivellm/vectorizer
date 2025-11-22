@@ -9,6 +9,12 @@
 
 pub mod binary_quantization;
 pub mod hybrid_search;
+pub mod multi_tenancy;
+pub mod multi_tenancy_comprehensive;
 pub mod payload_index;
 pub mod query_cache;
+pub mod raft;
+pub mod raft_comprehensive;
+pub mod sharding;
+pub mod sharding_comprehensive;
 pub mod sparse_vector;

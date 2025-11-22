@@ -19,6 +19,7 @@ async fn test_mmap_collection_creation() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(StorageType::Mmap),
+        sharding: None,
     };
 
     // Create collection with MMAP storage
@@ -43,6 +44,7 @@ async fn test_mmap_insert_and_retrieve() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(StorageType::Mmap),
+        sharding: None,
     };
 
     store.create_collection("mmap_collection", config).unwrap();
@@ -93,6 +95,7 @@ async fn test_mmap_large_dataset() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(StorageType::Mmap),
+        sharding: None,
     };
 
     store
@@ -141,6 +144,7 @@ async fn test_mmap_update_and_delete() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(StorageType::Mmap),
+        sharding: None,
     };
 
     store.create_collection("mmap_collection", config).unwrap();
@@ -189,6 +193,7 @@ async fn test_mmap_search() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(StorageType::Mmap),
+        sharding: None,
     };
 
     store.create_collection("mmap_collection", config).unwrap();

@@ -35,6 +35,7 @@ async fn test_wal_crash_recovery_insert() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
     store
         .create_collection("test_collection", config.clone())
@@ -126,6 +127,7 @@ async fn test_wal_crash_recovery_update() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
     store
         .create_collection("test_collection", config.clone())
@@ -218,6 +220,7 @@ async fn test_wal_crash_recovery_delete() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
     store
         .create_collection("test_collection", config.clone())
@@ -290,6 +293,7 @@ async fn test_wal_recover_all_collections() {
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
     };
 
     // Create multiple collections

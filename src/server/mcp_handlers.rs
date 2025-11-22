@@ -244,6 +244,7 @@ async fn handle_create_collection(
         },
         normalization: None,
         storage_type: Some(crate::models::StorageType::Memory),
+        sharding: None,
     };
 
     store.create_collection(name, config).map_err(|e| {

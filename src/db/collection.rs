@@ -149,6 +149,7 @@ impl Collection {
     pub fn metadata(&self) -> CollectionMetadata {
         CollectionMetadata {
             name: self.name.clone(),
+            tenant_id: None,
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
             vector_count: *self.vector_count.read(),
@@ -1310,6 +1311,7 @@ mod tests {
 
     fn create_test_collection() -> Collection {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
@@ -1388,6 +1390,7 @@ mod tests {
     fn test_vector_count_with_quantization() {
         // Create collection WITH quantization enabled
         let config = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1427,6 +1430,7 @@ mod tests {
 
         // Collection 1: WITH quantization
         let config_quantized = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1439,6 +1443,7 @@ mod tests {
 
         // Collection 2: WITHOUT quantization
         let config_normal = CollectionConfig {
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1482,6 +1487,7 @@ mod tests {
     #[test]
     fn test_collection_creation() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1501,6 +1507,7 @@ mod tests {
     #[test]
     fn test_collection_insert_single() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1521,6 +1528,7 @@ mod tests {
     #[test]
     fn test_collection_insert_batch() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1545,6 +1553,7 @@ mod tests {
     #[test]
     fn test_collection_get_vector() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1570,6 +1579,7 @@ mod tests {
     #[test]
     fn test_collection_get_nonexistent() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1588,6 +1598,7 @@ mod tests {
     #[test]
     fn test_collection_delete() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1619,6 +1630,7 @@ mod tests {
     #[test]
     fn test_collection_update() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1647,6 +1659,7 @@ mod tests {
     #[test]
     fn test_collection_search() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1678,6 +1691,7 @@ mod tests {
     #[test]
     fn test_collection_memory_usage() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1703,6 +1717,7 @@ mod tests {
     #[test]
     fn test_collection_metadata() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 256,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
@@ -1724,6 +1739,7 @@ mod tests {
     fn test_collection_different_metrics() {
         // Test Cosine
         let config_cosine = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1737,6 +1753,7 @@ mod tests {
 
         // Test Euclidean
         let config_euclidean = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
@@ -1750,6 +1767,7 @@ mod tests {
 
         // Test DotProduct
         let config_dot = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::DotProduct,
             hnsw_config: HnswConfig::default(),
@@ -1765,6 +1783,7 @@ mod tests {
     #[test]
     fn test_collection_with_quantization_sq() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1793,6 +1812,7 @@ mod tests {
     #[test]
     fn test_collection_update_nonexistent() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1812,6 +1832,7 @@ mod tests {
     #[test]
     fn test_collection_delete_nonexistent() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1830,6 +1851,7 @@ mod tests {
     #[test]
     fn test_collection_dimension_validation() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1851,6 +1873,7 @@ mod tests {
     #[test]
     fn test_collection_get_all_vectors_ids() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1879,6 +1902,7 @@ mod tests {
     #[test]
     fn test_collection_embedding_type() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 512,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1897,6 +1921,7 @@ mod tests {
     #[test]
     fn test_collection_search_empty() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1921,6 +1946,7 @@ mod tests {
         use std::thread;
 
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1958,6 +1984,7 @@ mod tests {
     #[test]
     fn test_collection_search_with_limit() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -1987,6 +2014,7 @@ mod tests {
     #[test]
     fn test_collection_get_all_vectors() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 32,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
@@ -2011,6 +2039,7 @@ mod tests {
     #[test]
     fn test_collection_metadata_updates() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),

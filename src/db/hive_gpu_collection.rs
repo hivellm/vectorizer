@@ -360,6 +360,7 @@ impl HiveGpuCollection {
     pub fn metadata(&self) -> CollectionMetadata {
         CollectionMetadata {
             name: self.name.clone(),
+            tenant_id: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             vector_count: self.vector_count,
@@ -708,6 +709,7 @@ mod tests {
     fn test_dimension_validation() {
         // Test dimension validation logic
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),

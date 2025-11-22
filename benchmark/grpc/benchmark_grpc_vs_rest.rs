@@ -303,6 +303,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rest_store = Arc::new(VectorStore::new());
     let rest_collection = "rest_bench";
     let rest_config = CollectionConfig {
+        sharding: None,
         dimension: config.dimension,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -322,6 +323,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let grpc_collection = "grpc_bench";
     let grpc_config = CollectionConfig {
+        sharding: None,
         dimension: config.dimension,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

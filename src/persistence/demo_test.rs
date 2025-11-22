@@ -22,6 +22,7 @@ async fn test_persistence_demo() {
 
     // 1. Create collection configuration
     let config = CollectionConfig {
+        sharding: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::default(),

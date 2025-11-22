@@ -90,6 +90,7 @@ mod tests {
     #[test]
     fn test_collection_config_creation() {
         let config = CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),

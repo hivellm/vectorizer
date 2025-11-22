@@ -44,6 +44,7 @@ fn create_test_config() -> CollectionConfig {
         compression: Default::default(),
         normalization: None,
         storage_type: None,
+        sharding: None,
     }
 }
 
@@ -102,7 +103,7 @@ async fn test_health_check() {
 #[tokio::test]
 async fn test_get_stats() {
     let port = 16001;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create a collection and insert vectors
@@ -250,7 +251,7 @@ async fn test_collection_management_complete() {
 #[tokio::test]
 async fn test_vector_operations_complete() {
     let port = 16003;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection
@@ -356,7 +357,7 @@ async fn test_vector_operations_complete() {
 #[tokio::test]
 async fn test_streaming_bulk_insert() {
     let port = 16004;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection
@@ -404,7 +405,7 @@ async fn test_streaming_bulk_insert() {
 #[tokio::test]
 async fn test_search_operations() {
     let port = 16005;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection and insert vectors
@@ -485,7 +486,7 @@ async fn test_search_operations() {
 #[tokio::test]
 async fn test_hybrid_search() {
     let port = 16006;
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection and insert vectors
@@ -565,7 +566,7 @@ async fn test_error_handling() {
 
     // 8.2: Vector not found
     let config = create_test_config();
-    let _store = start_test_server(port).await.unwrap();
+    let store = start_test_server(port).await.unwrap();
     store.create_collection("error_test", config).unwrap();
 
     let get_vector_request = tonic::Request::new(GetVectorRequest {

@@ -251,6 +251,7 @@ impl ReplicaNode {
                     compression: Default::default(),
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
+                    sharding: None,
                 };
 
                 self.vector_store

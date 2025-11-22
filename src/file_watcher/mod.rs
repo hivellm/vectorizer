@@ -495,7 +495,7 @@ impl FileWatcherSystem {
             file_count
         );
         if file_count == 0 {
-            tracing::warn!(
+            tracing::debug!(
                 "⚠️ DISCOVER_STEP_4: No indexed files found. File watcher will start with empty watch list."
             );
         } else {

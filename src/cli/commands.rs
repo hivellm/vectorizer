@@ -362,6 +362,7 @@ pub async fn handle_collection_command(
                 compression: crate::models::CompressionConfig::default(),
                 normalization: Some(crate::normalization::NormalizationConfig::moderate()),
                 storage_type: Some(crate::models::StorageType::Memory),
+                sharding: None,
             };
 
             store.create_collection(&name, config)?;

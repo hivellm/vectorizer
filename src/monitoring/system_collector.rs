@@ -135,6 +135,7 @@ mod tests {
 
         // Create a test collection
         let config = crate::models::CollectionConfig {
+            sharding: None,
             dimension: 128,
             metric: crate::models::DistanceMetric::Cosine,
             hnsw_config: Default::default(),

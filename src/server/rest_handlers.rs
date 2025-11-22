@@ -608,6 +608,7 @@ pub async fn create_collection(
         compression: crate::models::CompressionConfig::default(),
         normalization: None,
         storage_type: Some(crate::models::StorageType::Memory),
+        sharding: None,
     };
 
     // Actually create the collection in the store
@@ -2854,6 +2855,7 @@ pub async fn restore_backup(
                 compression: CompressionConfig::default(),
                 normalization: None,
                 storage_type: Some(crate::models::StorageType::Memory),
+                sharding: None,
             };
 
             state

@@ -82,6 +82,7 @@ mod integration_tests {
 
         // Create collection
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: crate::models::DistanceMetric::Euclidean,
             hnsw_config: crate::models::HnswConfig::default(),
@@ -180,6 +181,7 @@ mod integration_tests {
             (
                 "small_test_mgmt_unique",
                 CollectionConfig {
+                    sharding: None,
                     dimension: 64,
                     metric: crate::models::DistanceMetric::Euclidean,
                     hnsw_config: crate::models::HnswConfig {
@@ -197,6 +199,7 @@ mod integration_tests {
             (
                 "large_test_mgmt_unique",
                 CollectionConfig {
+                    sharding: None,
                     dimension: 512,
                     metric: crate::models::DistanceMetric::Cosine,
                     hnsw_config: crate::models::HnswConfig {

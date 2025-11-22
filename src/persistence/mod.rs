@@ -270,7 +270,7 @@ impl VectorStore {
         for collection in persisted.collections {
             // Create collection config with quantization enabled
             let mut config = collection.config.clone().unwrap_or_else(|| {
-                warn!(
+                debug!(
                     "⚠️  Collection '{}' has no config, using default",
                     collection.name
                 );
