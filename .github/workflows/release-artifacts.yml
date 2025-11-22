@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
       - name: Build and publish vectorizer
@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
       - name: Install cross-compilation tools
@@ -81,7 +81,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
       - name: Install cross-compilation tools
@@ -116,7 +116,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update-reset
-          brew install gcc cmake
+          brew install gcc cmake protobuf
           rustup default stable
           rustup update
           rustup show
@@ -147,7 +147,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update-reset
-          brew install gcc cmake
+          brew install gcc cmake protobuf
           rustup default stable
           rustup update
           rustup target add ${{ matrix.target }}

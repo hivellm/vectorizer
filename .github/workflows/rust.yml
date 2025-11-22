@@ -32,6 +32,17 @@ jobs:
             echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> .cargo/config.toml
           fi
         shell: bash
+      - name: Install protoc (Protocol Buffers compiler)
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            brew install protobuf
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            choco install protoc
+          fi
+        shell: bash
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Build

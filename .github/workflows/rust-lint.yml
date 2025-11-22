@@ -30,7 +30,7 @@ jobs:
     - name: Update apt
       run: sudo apt-get update
     - name: Install dependencies
-      run: sudo apt-get install clang
+      run: sudo apt-get install -y clang protobuf-compiler
     - name: Check code formatting
       run: cargo +nightly fmt --all -- --check
     - name: Check cargo clippy warnings
