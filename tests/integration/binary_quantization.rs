@@ -177,7 +177,7 @@ fn test_binary_quantization_with_payloads() {
         vector.payload = Some(Payload {
             data: json!({
                 "index": i,
-                "name": format!("vector_{}", i),
+                "name": format!("vector_{i}"),
                 "status": if i % 2 == 0 { "active" } else { "inactive" }
             }),
         });

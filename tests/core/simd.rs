@@ -13,9 +13,7 @@ fn test_simd_dot_product() {
 
     assert!(
         (result - expected).abs() < 1e-5,
-        "Dot product mismatch: {} vs {}",
-        result,
-        expected
+        "Dot product mismatch: {result} vs {expected}"
     );
 }
 

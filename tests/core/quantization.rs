@@ -69,7 +69,7 @@ async fn test_product_quantization() {
     // For testing, insert a smaller batch first
     let vectors: Vec<Vector> = (0..100)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![(i % 100) as f32 / 100.0; 384],
             payload: None,
             sparse: None,
@@ -148,7 +148,7 @@ async fn test_quantization_search_quality() {
     // Insert vectors
     let vectors: Vec<Vector> = (0..50)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32 / 50.0; 128],
             payload: None,
             sparse: None,
@@ -200,7 +200,7 @@ async fn test_quantization_memory_efficiency() {
     // Insert same vectors in both
     let vectors: Vec<Vector> = (0..100)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32 / 100.0; 384],
             payload: None,
             sparse: None,

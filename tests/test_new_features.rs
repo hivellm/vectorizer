@@ -3,7 +3,6 @@
 //! - Verbose flag
 //! - Log suppression
 
-use std::path::PathBuf;
 
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;

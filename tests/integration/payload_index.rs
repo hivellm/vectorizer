@@ -282,7 +282,7 @@ fn test_payload_index_list_indexed_fields() {
             data: json!({
                 "file_path": format!("/file_{}.rs", i),
                 "chunk_index": i,
-                "custom_field": format!("value_{}", i)
+                "custom_field": format!("value_{i}")
             }),
         });
     }

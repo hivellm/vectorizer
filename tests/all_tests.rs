@@ -1,11 +1,8 @@
 //! All Tests - Organized by Category
 //!
 //! This file imports all test modules organized by theme
-
-// Import helpers once for all tests
-#[macro_use]
-#[path = "helpers/mod.rs"]
-mod helpers;
+//!
+//! Note: Each test module imports its own helpers to avoid duplicate mod errors
 
 mod api;
 mod core;

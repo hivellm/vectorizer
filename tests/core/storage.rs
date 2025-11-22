@@ -104,7 +104,7 @@ async fn test_mmap_large_dataset() {
     // Insert many vectors (testing MMAP can handle large datasets)
     let vectors: Vec<Vector> = (0..100)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32; 256],
             payload: None,
             sparse: None,
@@ -116,7 +116,7 @@ async fn test_mmap_large_dataset() {
     // Verify we can retrieve vectors (they may be normalized)
     let mut retrieved_count = 0;
     for i in 0..100 {
-        if let Ok(vec) = store.get_vector("large_mmap_collection", &format!("vec_{}", i)) {
+        if let Ok(vec) = store.get_vector("large_mmap_collection", &format!("vec_{i}")) {
             assert_eq!(vec.data.len(), 256);
             retrieved_count += 1;
         }
@@ -198,7 +198,7 @@ async fn test_mmap_search() {
     // Insert vectors
     let vectors = (0..10)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,

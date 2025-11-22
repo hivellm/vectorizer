@@ -31,7 +31,7 @@ use vectorizer::models::{
 async fn create_test_client(
     port: u16,
 ) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
-    let addr = format!("http://127.0.0.1:{}", port);
+    let addr = format!("http://127.0.0.1:{port}");
     let client = VectorizerServiceClient::connect(addr).await?;
     Ok(client)
 }
@@ -50,7 +50,7 @@ fn create_test_config() -> CollectionConfig {
 }
 
 /// Helper to create a test vector with correct dimension
-fn create_test_vector(id: &str, seed: usize) -> Vec<f32> {
+fn create_test_vector(_id: &str, seed: usize) -> Vec<f32> {
     (0..128)
         .map(|i| ((seed * 128 + i) % 100) as f32 / 100.0)
         .collect()
@@ -65,7 +65,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
 
-    let addr = format!("127.0.0.1:{}", port).parse()?;
+    let addr = format!("127.0.0.1:{port}").parse()?;
 
     tokio::spawn(async move {
         Server::builder()
@@ -366,7 +366,7 @@ async fn test_streaming_bulk_insert() {
     store.create_collection("bulk_insert", config).unwrap();
 
     // Create streaming request
-    let (mut tx, rx) = tokio::sync::mpsc::channel(100);
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
 
     // Send 20 vectors
     for i in 0..20 {
@@ -375,8 +375,8 @@ async fn test_streaming_bulk_insert() {
 
         let request = InsertVectorRequest {
             collection_name: "bulk_insert".to_string(),
-            vector_id: format!("vec{}", i),
-            data: create_test_vector(&format!("vec{}", i), i),
+            vector_id: format!("vec{i}"),
+            data: create_test_vector(&format!("vec{i}"), i),
             payload,
         };
         tx.send(request).await.unwrap();
@@ -416,8 +416,8 @@ async fn test_search_operations() {
     use vectorizer::models::Vector;
     let vectors: Vec<Vector> = (0..10)
         .map(|i| Vector {
-            id: format!("vec{}", i),
-            data: create_test_vector(&format!("vec{}", i), i),
+            id: format!("vec{i}"),
+            data: create_test_vector(&format!("vec{i}"), i),
             sparse: None,
             payload: Some(vectorizer::models::Payload::new(
                 serde_json::json!({"index": i}),
@@ -497,8 +497,8 @@ async fn test_hybrid_search() {
     use vectorizer::models::Vector;
     let vectors: Vec<Vector> = (0..10)
         .map(|i| Vector {
-            id: format!("vec{}", i),
-            data: create_test_vector(&format!("vec{}", i), i),
+            id: format!("vec{i}"),
+            data: create_test_vector(&format!("vec{i}"), i),
             sparse: None,
             payload: None,
         })
@@ -642,8 +642,8 @@ async fn test_end_to_end_workflow() {
 
         let insert_request = tonic::Request::new(InsertVectorRequest {
             collection_name: "e2e_test".to_string(),
-            vector_id: format!("vec{}", i),
-            data: create_test_vector(&format!("vec{}", i), i),
+            vector_id: format!("vec{i}"),
+            data: create_test_vector(&format!("vec{i}"), i),
             payload,
         });
 

@@ -14,7 +14,7 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Quantizat
 pub async fn create_test_client(
     port: u16,
 ) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
-    let addr = format!("http://127.0.0.1:{}", port);
+    let addr = format!("http://127.0.0.1:{port}");
     let client = VectorizerServiceClient::connect(addr).await?;
     Ok(client)
 }
@@ -34,7 +34,7 @@ pub fn create_test_config() -> CollectionConfig {
 }
 
 /// Helper to create a test vector with correct dimension
-pub fn create_test_vector(id: &str, seed: usize, dimension: usize) -> Vec<f32> {
+pub fn create_test_vector(_id: &str, seed: usize, dimension: usize) -> Vec<f32> {
     (0..dimension)
         .map(|i| ((seed * dimension + i) % 100) as f32 / 100.0)
         .collect()
@@ -49,7 +49,7 @@ pub async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn st
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
 
-    let addr = format!("127.0.0.1:{}", port).parse()?;
+    let addr = format!("127.0.0.1:{port}").parse()?;
 
     tokio::spawn(async move {
         Server::builder()
@@ -66,6 +66,7 @@ pub async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn st
 }
 
 /// Helper to generate unique collection name
+#[allow(dead_code)]
 pub fn unique_collection_name(prefix: &str) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()

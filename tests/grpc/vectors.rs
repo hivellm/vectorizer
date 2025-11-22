@@ -190,7 +190,7 @@ async fn test_streaming_bulk_insert() {
     let mut client = create_test_client(port).await.unwrap();
 
     // Create streaming request
-    let (mut tx, rx) = tokio::sync::mpsc::channel(10);
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
 
     // Send multiple vectors
     for i in 0..5 {

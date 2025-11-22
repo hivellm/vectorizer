@@ -36,7 +36,7 @@ async fn test_wal_multiple_operations() {
     // Insert multiple vectors
     let vectors = (0..10)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
@@ -51,7 +51,7 @@ async fn test_wal_multiple_operations() {
     // Verify all vectors were inserted
     for i in 0..10 {
         let vec = store
-            .get_vector("test_collection", &format!("vec_{}", i))
+            .get_vector("test_collection", &format!("vec_{i}"))
             .unwrap();
         assert_eq!(vec.data[0], i as f32);
     }
@@ -189,7 +189,7 @@ async fn test_wal_delete_sequence() {
     // Insert multiple vectors
     let vectors = (0..5)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
@@ -203,7 +203,7 @@ async fn test_wal_delete_sequence() {
     for i in 0..3 {
         assert!(
             store
-                .delete("test_collection", &format!("vec_{}", i))
+                .delete("test_collection", &format!("vec_{i}"))
                 .is_ok()
         );
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
@@ -213,7 +213,7 @@ async fn test_wal_delete_sequence() {
     for i in 0..3 {
         assert!(
             store
-                .get_vector("test_collection", &format!("vec_{}", i))
+                .get_vector("test_collection", &format!("vec_{i}"))
                 .is_err()
         );
     }
@@ -222,7 +222,7 @@ async fn test_wal_delete_sequence() {
     for i in 3..5 {
         assert!(
             store
-                .get_vector("test_collection", &format!("vec_{}", i))
+                .get_vector("test_collection", &format!("vec_{i}"))
                 .is_ok()
         );
     }
@@ -260,14 +260,14 @@ async fn test_wal_multiple_collections() {
     // Insert vectors in each collection
     for i in 1..=3 {
         let vector = Vector {
-            id: format!("vec_col{}", i),
+            id: format!("vec_col{i}"),
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
         };
         assert!(
             store
-                .insert(&format!("collection{}", i), vec![vector])
+                .insert(&format!("collection{i}"), vec![vector])
                 .is_ok()
         );
     }
@@ -277,7 +277,7 @@ async fn test_wal_multiple_collections() {
     // Verify all collections have their vectors
     for i in 1..=3 {
         let vec = store
-            .get_vector(&format!("collection{}", i), &format!("vec_col{}", i))
+            .get_vector(&format!("collection{i}"), &format!("vec_col{i}"))
             .unwrap();
         assert_eq!(vec.data[0], i as f32);
     }
@@ -313,7 +313,7 @@ async fn test_wal_checkpoint() {
     // Insert vectors to trigger checkpoint threshold
     let vectors = (0..10)
         .map(|i| Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
@@ -327,7 +327,7 @@ async fn test_wal_checkpoint() {
     for i in 0..10 {
         assert!(
             store
-                .get_vector("test_collection", &format!("vec_{}", i))
+                .get_vector("test_collection", &format!("vec_{i}"))
                 .is_ok()
         );
     }

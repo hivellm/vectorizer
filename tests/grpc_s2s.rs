@@ -34,7 +34,7 @@ fn get_grpc_address() -> String {
         .unwrap_or_else(|_| "15003".to_string())
         .parse::<u16>()
         .unwrap_or(15003);
-    format!("http://{}:{}", host, port)
+    format!("http://{host}:{port}")
 }
 
 /// Helper to create a test gRPC client connected to real server
@@ -47,7 +47,7 @@ async fn create_real_client() -> Result<VectorizerServiceClient<Channel>, Box<dy
 }
 
 /// Helper to create a test vector with correct dimension
-fn create_test_vector(id: &str, seed: usize, dimension: usize) -> Vec<f32> {
+fn create_test_vector(_id: &str, seed: usize, dimension: usize) -> Vec<f32> {
     (0..dimension)
         .map(|i| ((seed * dimension + i) % 100) as f32 / 100.0)
         .collect()
@@ -60,7 +60,7 @@ fn unique_collection_name(prefix: &str) -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    format!("{}_{}", prefix, timestamp)
+    format!("{prefix}_{timestamp}")
 }
 
 /// Test 1: Health Check on Real Server
@@ -368,7 +368,7 @@ async fn test_real_server_streaming_bulk_insert() {
     .unwrap();
 
     // Create streaming request
-    let (mut tx, rx) = tokio::sync::mpsc::channel(100);
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
 
     // Send 20 vectors
     for i in 0..20 {

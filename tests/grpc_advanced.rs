@@ -33,13 +33,13 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Quantizat
 async fn create_test_client(
     port: u16,
 ) -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>> {
-    let addr = format!("http://127.0.0.1:{}", port);
+    let addr = format!("http://127.0.0.1:{port}");
     let client = VectorizerServiceClient::connect(addr).await?;
     Ok(client)
 }
 
 /// Helper to create a test vector with correct dimension
-fn create_test_vector(id: &str, seed: usize, dimension: usize) -> Vec<f32> {
+fn create_test_vector(_id: &str, seed: usize, dimension: usize) -> Vec<f32> {
     (0..dimension)
         .map(|i| ((seed * dimension + i) % 100) as f32 / 100.0)
         .collect()
@@ -54,7 +54,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());
 
-    let addr = format!("127.0.0.1:{}", port).parse()?;
+    let addr = format!("127.0.0.1:{port}").parse()?;
 
     tokio::spawn(async move {
         Server::builder()
@@ -72,7 +72,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
 #[tokio::test]
 async fn test_different_distance_metrics() {
     let port = 17000;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Test Cosine metric
@@ -169,7 +169,7 @@ async fn test_different_distance_metrics() {
 #[tokio::test]
 async fn test_different_storage_types() {
     let port = 17001;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Test Memory storage
@@ -318,7 +318,7 @@ async fn test_quantization_configurations() {
 #[tokio::test]
 async fn test_empty_collection_operations() {
     let port = 17003;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create empty collection
@@ -367,7 +367,7 @@ async fn test_empty_collection_operations() {
 #[tokio::test]
 async fn test_large_payloads() {
     let port = 17004;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -384,7 +384,7 @@ async fn test_large_payloads() {
     // Create large payload (1000 key-value pairs)
     let mut large_payload = HashMap::new();
     for i in 0..1000 {
-        large_payload.insert(format!("key_{}", i), format!("value_{}", i));
+        large_payload.insert(format!("key_{i}"), format!("value_{i}"));
     }
 
     let insert_request = tonic::Request::new(InsertVectorRequest {
@@ -419,7 +419,7 @@ async fn test_large_payloads() {
 #[tokio::test]
 async fn test_search_with_threshold() {
     let port = 17005;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -477,7 +477,7 @@ async fn test_search_with_threshold() {
 #[tokio::test]
 async fn test_multiple_collections_simultaneously() {
     let port = 17006;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create multiple collections
@@ -492,7 +492,7 @@ async fn test_multiple_collections_simultaneously() {
             storage_type: None,
         };
         store
-            .create_collection(&format!("collection_{}", i), config)
+            .create_collection(&format!("collection_{i}"), config)
             .unwrap();
     }
 
@@ -506,7 +506,7 @@ async fn test_multiple_collections_simultaneously() {
             payload: None,
         };
         store
-            .insert(&format!("collection_{}", i), vec![vector])
+            .insert(&format!("collection_{i}"), vec![vector])
             .unwrap();
     }
 
@@ -524,7 +524,7 @@ async fn test_multiple_collections_simultaneously() {
 
     for i in 0..5 {
         let info_request = tonic::Request::new(GetCollectionInfoRequest {
-            collection_name: format!("collection_{}", i),
+            collection_name: format!("collection_{i}"),
         });
         let info_response = timeout(
             Duration::from_secs(5),
@@ -542,7 +542,7 @@ async fn test_multiple_collections_simultaneously() {
 #[tokio::test]
 async fn test_concurrent_operations() {
     let port = 17007;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
 
     let config = CollectionConfig {
         dimension: 128,
@@ -558,7 +558,6 @@ async fn test_concurrent_operations() {
     // Spawn multiple concurrent clients
     let mut handles = vec![];
     for i in 0..10 {
-        let port = port;
         let handle = tokio::spawn(async move {
             let mut client = create_test_client(port).await.unwrap();
             let vector_data = create_test_vector(&format!("vec{i}"), i, 128);
@@ -643,7 +642,7 @@ async fn test_different_hnsw_configurations() {
 #[tokio::test]
 async fn test_batch_operations_stress() {
     let port = 17009;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -658,7 +657,7 @@ async fn test_batch_operations_stress() {
     store.create_collection("batch_stress", config).unwrap();
 
     // Insert 100 vectors via streaming
-    let (mut tx, rx) = tokio::sync::mpsc::channel(1000);
+    let (tx, rx) = tokio::sync::mpsc::channel(1000);
     for i in 0..100 {
         let request = InsertVectorRequest {
             collection_name: "batch_stress".to_string(),
@@ -691,7 +690,7 @@ async fn test_batch_operations_stress() {
 #[tokio::test]
 async fn test_search_with_filters() {
     let port = 17010;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -751,7 +750,7 @@ async fn test_search_with_filters() {
 #[tokio::test]
 async fn test_update_nonexistent_vector() {
     let port = 17011;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -787,7 +786,7 @@ async fn test_update_nonexistent_vector() {
 #[tokio::test]
 async fn test_delete_nonexistent_vector() {
     let port = 17012;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -821,7 +820,7 @@ async fn test_delete_nonexistent_vector() {
 #[tokio::test]
 async fn test_very_large_vectors() {
     let port = 17013;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection with large dimension (1536 dimensions, common for embeddings)
@@ -873,7 +872,7 @@ async fn test_very_large_vectors() {
 #[tokio::test]
 async fn test_multiple_batch_searches() {
     let port = 17014;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let config = CollectionConfig {
@@ -905,7 +904,7 @@ async fn test_multiple_batch_searches() {
     let batch_queries: Vec<SearchRequest> = (0..5)
         .map(|i| SearchRequest {
             collection_name: "batch_search_test".to_string(),
-            query_vector: create_test_vector(&format!("query{}", i), i, 128),
+            query_vector: create_test_vector(&format!("query{i}"), i, 128),
             limit: 3,
             threshold: 0.0,
             filter: HashMap::new(),

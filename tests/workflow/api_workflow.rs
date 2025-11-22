@@ -7,6 +7,7 @@ use vectorizer::models::Vector;
 
 // In integration tests, each file is a separate crate
 // Include helpers code directly
+#[macro_use]
 #[path = "../helpers/mod.rs"]
 mod helpers;
 use helpers::*;

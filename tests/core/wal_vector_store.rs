@@ -164,7 +164,7 @@ async fn test_wal_recover_all_collections_with_data() {
             // count is usize, always >= 0, no need to check
         }
         Ok(Err(e)) => {
-            panic!("Recovery failed: {}", e);
+            panic!("Recovery failed: {e}");
         }
         Err(_) => {
             panic!("Recovery timed out after 30 seconds");
