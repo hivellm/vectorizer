@@ -83,7 +83,7 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
 #[tokio::test]
 async fn test_health_check() {
     let port = 16000;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     let request = tonic::Request::new(HealthCheckRequest {});
@@ -102,7 +102,7 @@ async fn test_health_check() {
 #[tokio::test]
 async fn test_get_stats() {
     let port = 16001;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create a collection and insert vectors
@@ -147,7 +147,7 @@ async fn test_get_stats() {
 #[tokio::test]
 async fn test_collection_management_complete() {
     let port = 16002;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // 3.1: List collections (should be empty initially)
@@ -250,7 +250,7 @@ async fn test_collection_management_complete() {
 #[tokio::test]
 async fn test_vector_operations_complete() {
     let port = 16003;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection
@@ -356,7 +356,7 @@ async fn test_vector_operations_complete() {
 #[tokio::test]
 async fn test_streaming_bulk_insert() {
     let port = 16004;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection
@@ -404,7 +404,7 @@ async fn test_streaming_bulk_insert() {
 #[tokio::test]
 async fn test_search_operations() {
     let port = 16005;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection and insert vectors
@@ -485,7 +485,7 @@ async fn test_search_operations() {
 #[tokio::test]
 async fn test_hybrid_search() {
     let port = 16006;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // Create collection and insert vectors
@@ -549,7 +549,7 @@ async fn test_hybrid_search() {
 #[tokio::test]
 async fn test_error_handling() {
     let port = 16007;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // 8.1: Collection not found
@@ -565,7 +565,7 @@ async fn test_error_handling() {
 
     // 8.2: Vector not found
     let config = create_test_config();
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     store.create_collection("error_test", config).unwrap();
 
     let get_vector_request = tonic::Request::new(GetVectorRequest {
@@ -604,7 +604,7 @@ async fn test_error_handling() {
 #[tokio::test]
 async fn test_end_to_end_workflow() {
     let port = 16008;
-    let store = start_test_server(port).await.unwrap();
+    let _store = start_test_server(port).await.unwrap();
     let mut client = create_test_client(port).await.unwrap();
 
     // 1. Create collection
