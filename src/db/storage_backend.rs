@@ -49,6 +49,8 @@ impl VectorStorageBackend {
             } => {
                 let mut storage_guard = storage.write();
                 let idx = storage_guard.append(&vector.data)?;
+                // Flush mmap to ensure data is written to disk
+                storage_guard.flush()?;
                 id_map.write().insert(id.clone(), idx);
 
                 if let Some(payload) = vector.payload {
@@ -128,6 +130,8 @@ impl VectorStorageBackend {
 
                 let mut storage_guard = storage.write();
                 storage_guard.update(idx, &vector.data)?;
+                // Flush mmap to ensure data is written to disk
+                storage_guard.flush()?;
 
                 if let Some(payload) = vector.payload {
                     payloads.write().insert(id.to_string(), payload);

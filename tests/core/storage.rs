@@ -69,8 +69,8 @@ async fn test_mmap_insert_and_retrieve() {
 
     assert!(store.insert("mmap_collection", vectors).is_ok());
 
-    // Wait a bit for async operations
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    // Wait a bit for async operations and ensure mmap is synced
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
     // Retrieve vectors (note: vectors are normalized for cosine similarity)
     let vec1 = store.get_vector("mmap_collection", "vec1").unwrap();
@@ -173,8 +173,8 @@ async fn test_mmap_update_and_delete() {
     };
     assert!(store.insert("mmap_collection", vec![vector]).is_ok());
 
-    // Wait a bit for async operations
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    // Wait a bit for async operations and ensure mmap is synced
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
     // Verify vector was inserted before updating
     let initial_vec = store.get_vector("mmap_collection", "test_vec").unwrap();
