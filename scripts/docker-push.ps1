@@ -1,5 +1,8 @@
 # Script to push Docker image to Docker Hub
-# Usage: .\scripts\docker-push.ps1 -Username YOUR_USERNAME -Tag 1.5.0
+# Usage: .\scripts\docker-push.ps1 -Tag 1.5.0
+# 
+# For building with attestations (recommended for better Docker Scout score):
+#   .\scripts\docker-build.ps1 -Tag 1.5.0 -Push
 
 param(
     [Parameter(Mandatory=$false)]

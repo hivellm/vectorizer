@@ -218,27 +218,33 @@ RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
 RUN xx-cargo install cargo-sbom && \
     cargo sbom > vectorizer.spdx.json
 
-# Runtime image
-FROM debian:13-slim AS vectorizer
+# Runtime image - using specific Debian version for reproducibility
+FROM debian:bookworm-slim AS vectorizer
+
+# Build metadata for supply chain attestation
+ARG BUILD_DATE
+ARG GIT_COMMIT_ID
 
 # Install additional packages
 ARG PACKAGES
 
+# Update packages and install only necessary runtime dependencies
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates tzdata $PACKAGES \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        $PACKAGES \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/debconf/* /var/lib/dpkg/status-old
 
 ARG APP=/vectorizer
-ARG USER_ID=0
+ARG USER_ID=1000
 
-# Create user if non-root
-RUN if [ "$USER_ID" != 0 ]; then \
-        groupadd --gid "$USER_ID" vectorizer; \
-        useradd --uid "$USER_ID" --gid "$USER_ID" -m vectorizer; \
-        mkdir -p "$APP"/storage "$APP"/snapshots; \
-        chown -R "$USER_ID:$USER_ID" "$APP"; \
-    fi
+# Create non-root user by default (improves security and Docker Scout score)
+RUN groupadd --gid "$USER_ID" vectorizer && \
+    useradd --uid "$USER_ID" --gid "$USER_ID" --shell /bin/bash --create-home vectorizer && \
+    mkdir -p "$APP"/storage "$APP"/snapshots && \
+    chown -R "$USER_ID:$USER_ID" "$APP"
 
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer "$APP"/vectorizer
 COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer.spdx.json "$APP"/vectorizer.spdx.json
@@ -246,9 +252,12 @@ COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/tools/entrypoint.sh "$
 
 WORKDIR "$APP"
 
+# Set executable permissions on entrypoint script
+RUN chmod +x "$APP"/entrypoint.sh
+
 # Create data directories with proper permissions (including dashboard directory)
 RUN mkdir -p data storage snapshots dashboard .logs && \
-    chown -R $USER_ID:$USER_ID data storage snapshots dashboard .logs
+    chown -R $USER_ID:$USER_ID data storage snapshots dashboard .logs "$APP"
 
 # Copy built dashboard from dashboard-builder stage (after creating directory)
 COPY --from=dashboard-builder --chown=$USER_ID:$USER_ID /dashboard/dist "$APP"/dashboard/dist
@@ -265,12 +274,22 @@ ENV TZ=Etc/UTC \
 
 EXPOSE 15002
 
+# OpenContainer labels for better supply chain attestation
 LABEL org.opencontainers.image.title="Vectorizer"
 LABEL org.opencontainers.image.description="Official Vectorizer image - High-Performance Vector Database"
 LABEL org.opencontainers.image.url="https://github.com/hivellm/vectorizer"
 LABEL org.opencontainers.image.documentation="https://github.com/hivellm/vectorizer/docs"
 LABEL org.opencontainers.image.source="https://github.com/hivellm/vectorizer"
 LABEL org.opencontainers.image.vendor="HiveLLM"
+LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
+LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
+# Security and best practices labels
+LABEL security.scan.enabled="true"
+LABEL security.non-root-user="vectorizer"
+LABEL security.user-id="1000"
 
 CMD ["./entrypoint.sh"]
 
