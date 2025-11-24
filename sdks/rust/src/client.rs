@@ -73,7 +73,7 @@ impl VectorizerClient {
         let (transport, protocol, base_url): (Arc<dyn Transport>, Protocol, String) =
             if let Some(conn_str) = config.connection_string {
                 // Use connection string
-                let (proto, _host, _port) = crate::transport::parse_connection_string(&conn_str)?;
+                let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
 
                 match proto {
                     Protocol::Http => {
@@ -83,14 +83,14 @@ impl VectorizerClient {
                     }
                     #[cfg(feature = "umicp")]
                     Protocol::Umicp => {
-                        let port = port.unwrap_or(15003);
+                        let umicp_port = port.unwrap_or(15003);
                         let transport = UmicpTransport::new(
                             &host,
-                            port,
+                            umicp_port,
                             config.api_key.as_deref(),
                             timeout_secs,
                         )?;
-                        let base_url = format!("umicp://{host}:{port}");
+                        let base_url = format!("umicp://{host}:{umicp_port}");
                         (Arc::new(transport), Protocol::Umicp, base_url)
                     }
                 }
