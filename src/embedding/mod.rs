@@ -4,8 +4,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use crate::error::{Result, VectorizerError};
 use tracing::warn;
+
+use crate::error::{Result, VectorizerError};
 
 /// Trait for embedding providers
 pub trait EmbeddingProvider: Send + Sync {

@@ -9,10 +9,10 @@
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::info;
 
 use tokio::time::sleep;
 use tonic::transport::Channel;
+use tracing::info;
 use vectorizer::db::VectorStore;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer::grpc::vectorizer::*;

@@ -17,7 +17,6 @@ use hf_hub::api::sync::ApiBuilder;
 use serde_json;
 #[cfg(feature = "candle-models")]
 use tokenizers::Tokenizer;
-
 use tracing::info;
 
 use super::EmbeddingProvider;
