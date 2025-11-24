@@ -16,7 +16,7 @@ pub use config::{DocumentChunk, LoaderConfig};
 use glob::Pattern;
 pub use indexer::Indexer;
 pub use persistence::Persistence;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;
@@ -73,7 +73,7 @@ impl FileLoader {
         let documents = self.collect_documents_sync(project_path)?;
 
         if documents.is_empty() {
-            warn!("No documents found for collection '{}'", collection_name);
+            debug!("No documents found for collection '{}'", collection_name);
             return Ok(0);
         }
 

@@ -24,7 +24,7 @@
     <PackageProjectUrl>https://github.com/hivellm/vectorizer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/hivellm/vectorizer</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>1.3.1</Version>
+    <Version>1.4.0</Version>
     <!-- SourceLink Configuration -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -48,5 +48,18 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude test files from the main project -->
+    <Compile Remove="Vectorizer.Tests\**\*" />
+    <Content Remove="Vectorizer.Tests\**\*" />
+    <EmbeddedResource Remove="Vectorizer.Tests\**\*" />
+    <None Remove="Vectorizer.Tests\**\*" />
+  </ItemGroup>
+  
+  <PropertyGroup>
+    <!-- Exclude test directories from default includes -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Vectorizer.Tests\**\*</DefaultItemExcludes>
+  </PropertyGroup>
 
 </Project>

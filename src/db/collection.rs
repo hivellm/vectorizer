@@ -7,16 +7,18 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
+use super::graph_relationship_discovery::{GraphRelationshipHelper, discover_relationships};
 use super::hybrid_search::{
     DenseSearchResult, HybridScoringAlgorithm, HybridSearchConfig, SparseSearchResult,
     hybrid_search,
 };
 use super::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
 use super::payload_index::PayloadIndex;
+use super::storage_backend::VectorStorageBackend;
 use crate::error::{Result, VectorizerError};
 use crate::models::{
     CollectionConfig, CollectionMetadata, DistanceMetric, SearchResult, SparseVector,
-    SparseVectorIndex, Vector, vector_utils,
+    SparseVectorIndex, StorageType, Vector, vector_utils,
 };
 
 /// A collection of vectors with an associated HNSW index
@@ -26,8 +28,8 @@ pub struct Collection {
     name: String,
     /// Collection configuration
     config: CollectionConfig,
-    /// Vector storage (quantized for memory efficiency when SQ enabled)
-    vectors: Arc<Mutex<HashMap<String, Vector>>>,
+    /// Vector storage (Memory or Mmap)
+    vectors: VectorStorageBackend,
     /// Quantized vector storage (only used when quantization is enabled)
     /// Uses 75% less memory than Vec<f32> (1 byte vs 4 bytes per dimension)
     quantized_vectors: Arc<Mutex<HashMap<String, crate::models::QuantizedVector>>>,
@@ -45,10 +47,29 @@ pub struct Collection {
     payload_index: Arc<PayloadIndex>,
     /// Sparse vector index for sparse vector search
     sparse_index: Arc<RwLock<SparseVectorIndex>>,
+    /// Product Quantization instance (optional, only when PQ is enabled)
+    pq_quantizer: Arc<RwLock<Option<crate::quantization::product::ProductQuantization>>>,
     /// Creation timestamp
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
     updated_at: Arc<RwLock<chrono::DateTime<chrono::Utc>>>,
+    /// Graph for relationship tracking (optional, enabled via config)
+    graph: Option<Arc<super::graph::Graph>>,
+}
+
+impl GraphRelationshipHelper for Collection {
+    fn search_similar_vectors(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<(String, f32)>> {
+        let results = self.search(query_vector, limit)?;
+        Ok(results.into_iter().map(|r| (r.id, r.score)).collect())
+    }
+
+    fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+        self.get_vector(vector_id)
+    }
 }
 
 impl Collection {
@@ -60,6 +81,311 @@ impl Collection {
     /// Get collection config
     pub fn config(&self) -> &CollectionConfig {
         &self.config
+    }
+
+    /// Get graph reference (if enabled)
+    pub fn get_graph(&self) -> Option<&Arc<super::graph::Graph>> {
+        self.graph.as_ref()
+    }
+
+    /// Set graph directly (used for loading from persistence)
+    pub fn set_graph(&mut self, graph: Arc<super::graph::Graph>) {
+        self.graph = Some(graph);
+    }
+
+    /// Populate graph with nodes from existing vectors if graph is empty
+    /// This is useful when loading a graph from disk that has no nodes
+    pub fn populate_graph_if_empty(&mut self) -> Result<()> {
+        use crate::db::graph::Node;
+
+        let graph = match &self.graph {
+            Some(g) => g,
+            None => return Ok(()), // No graph, nothing to populate
+        };
+
+        // Check if graph is empty
+        if graph.node_count() > 0 {
+            return Ok(()); // Graph already has nodes
+        }
+
+        info!(
+            "Graph for collection '{}' is empty, populating with nodes from existing vectors",
+            self.name
+        );
+
+        // Save edges from current graph (if any)
+        let old_edges = graph.get_all_edges();
+        let edge_count = old_edges.len();
+
+        // Get all vector IDs
+        let vector_ids: Vec<String> = {
+            let vector_order = self.vector_order.read();
+            vector_order.iter().cloned().collect()
+        };
+
+        // Create nodes for all existing vectors
+        let mut nodes_created = 0;
+        for vector_id in &vector_ids {
+            if let Ok(vector) = self.get_vector(vector_id) {
+                let node = Node::from_vector(&vector.id, vector.payload.as_ref());
+                if let Err(e) = graph.add_node(node) {
+                    debug!("Failed to add graph node for vector '{}': {}", vector_id, e);
+                } else {
+                    nodes_created += 1;
+                }
+            }
+        }
+
+        info!(
+            "Populated graph for collection '{}' with {} nodes (out of {} vectors)",
+            self.name,
+            nodes_created,
+            vector_ids.len()
+        );
+
+        // Preserve edges from original graph (if any)
+        if edge_count > 0 {
+            for edge in &old_edges {
+                let _ = graph.add_edge(edge.clone());
+            }
+            info!(
+                "Preserved {} edges from previous graph for collection '{}'",
+                edge_count, self.name
+            );
+        } else {
+            // If no edges exist, discover edges automatically
+            // Use default config if graph config doesn't have auto_relationship enabled
+            let discovery_config = if let Some(graph_config) = &self.config.graph {
+                if !graph_config.auto_relationship.enabled_types.is_empty() {
+                    Some(graph_config.auto_relationship.clone())
+                } else {
+                    // Use default config for auto-discovery
+                    Some(crate::models::AutoRelationshipConfig {
+                        similarity_threshold: 0.7,
+                        max_per_node: 10,
+                        enabled_types: vec!["SIMILAR_TO".to_string()],
+                    })
+                }
+            } else {
+                // No graph config, use default for auto-discovery
+                Some(crate::models::AutoRelationshipConfig {
+                    similarity_threshold: 0.7,
+                    max_per_node: 10,
+                    enabled_types: vec!["SIMILAR_TO".to_string()],
+                })
+            };
+
+            // Limit to first 100 nodes to avoid blocking
+            if let Some(config) = discovery_config {
+                let nodes = graph.get_all_nodes();
+                let nodes_to_process: Vec<String> =
+                    nodes.iter().take(100).map(|n| n.id.clone()).collect();
+
+                if !nodes_to_process.is_empty() {
+                    info!(
+                        "Auto-discovering edges for collection '{}' (limited to first {} nodes)",
+                        self.name,
+                        nodes_to_process.len()
+                    );
+
+                    let mut edges_created = 0;
+                    for node_id in &nodes_to_process {
+                        if let Ok(_edges) =
+                            crate::db::graph_relationship_discovery::discover_edges_for_node(
+                                graph, node_id, self, &config,
+                            )
+                        {
+                            edges_created += _edges;
+                        }
+                    }
+
+                    info!(
+                        "Auto-discovery created {} edges for {} nodes in collection '{}'",
+                        edges_created,
+                        nodes_to_process.len(),
+                        self.name
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Enable graph for this collection and populate with existing vectors
+    /// This creates graph nodes for all existing vectors in the collection
+    /// and discovers relationships based on metadata (fast) and optionally similarity (slower)
+    pub fn enable_graph(&mut self) -> Result<()> {
+        use crate::db::graph::Node;
+
+        // If graph already exists, check if it needs edges discovered
+        if let Some(existing_graph) = &self.graph {
+            let edge_count = existing_graph.edge_count();
+            let node_count = existing_graph.node_count();
+
+            // If graph has nodes but no edges, discover edges automatically
+            if edge_count == 0 && node_count > 0 {
+                info!(
+                    "Graph for collection '{}' already enabled with {} nodes but no edges, discovering edges automatically",
+                    self.name, node_count
+                );
+
+                // Use default config for auto-discovery
+                let discovery_config = if let Some(graph_config) = &self.config.graph {
+                    if !graph_config.auto_relationship.enabled_types.is_empty() {
+                        graph_config.auto_relationship.clone()
+                    } else {
+                        crate::models::AutoRelationshipConfig {
+                            similarity_threshold: 0.7,
+                            max_per_node: 10,
+                            enabled_types: vec!["SIMILAR_TO".to_string()],
+                        }
+                    }
+                } else {
+                    crate::models::AutoRelationshipConfig {
+                        similarity_threshold: 0.7,
+                        max_per_node: 10,
+                        enabled_types: vec!["SIMILAR_TO".to_string()],
+                    }
+                };
+
+                // Limit to first 100 nodes to avoid blocking
+                let nodes = existing_graph.get_all_nodes();
+                let nodes_to_process: Vec<String> =
+                    nodes.iter().take(100).map(|n| n.id.clone()).collect();
+
+                let mut edges_created = 0;
+                for node_id in &nodes_to_process {
+                    if let Ok(_edges) =
+                        crate::db::graph_relationship_discovery::discover_edges_for_node(
+                            existing_graph,
+                            node_id,
+                            self,
+                            &discovery_config,
+                        )
+                    {
+                        edges_created += _edges;
+                    }
+                }
+
+                info!(
+                    "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
+                    edges_created,
+                    nodes_to_process.len().min(node_count),
+                    self.name,
+                    self.name
+                );
+            } else {
+                info!(
+                    "Graph already enabled for collection '{}' with {} nodes and {} edges",
+                    self.name, node_count, edge_count
+                );
+            }
+            return Ok(());
+        }
+
+        info!("Enabling graph for collection '{}'", self.name);
+
+        // Create new graph
+        let graph = Arc::new(super::graph::Graph::new(self.name.clone()));
+
+        // Set graph field immediately
+        self.graph = Some(graph.clone());
+
+        // Create nodes for ALL existing vectors (no limit - nodes are lightweight)
+        let vector_ids: Vec<String> = {
+            let vector_order = self.vector_order.read();
+            vector_order.iter().cloned().collect() // Create nodes for ALL vectors
+        };
+
+        if !vector_ids.is_empty() {
+            info!(
+                "Creating graph nodes for {} existing vectors in collection '{}'",
+                vector_ids.len(),
+                self.name
+            );
+
+            let mut nodes_created = 0;
+            for vector_id in &vector_ids {
+                if let Ok(vector) = self.get_vector(vector_id) {
+                    let node = Node::from_vector(&vector.id, vector.payload.as_ref());
+                    if let Err(e) = graph.add_node(node) {
+                        debug!("Failed to add graph node for vector '{}': {}", vector_id, e);
+                    } else {
+                        nodes_created += 1;
+                    }
+                }
+            }
+
+            info!(
+                "Created {} graph nodes for collection '{}' (out of {} vectors)",
+                nodes_created,
+                self.name,
+                vector_ids.len()
+            );
+        }
+
+        info!("Graph enabled for collection '{}'", self.name);
+
+        // Discover edges automatically for existing collections
+        // Use default config if graph config doesn't have auto_relationship enabled
+        let discovery_config = if let Some(graph_config) = &self.config.graph {
+            if !graph_config.auto_relationship.enabled_types.is_empty() {
+                Some(graph_config.auto_relationship.clone())
+            } else {
+                // Use default config for auto-discovery
+                Some(crate::models::AutoRelationshipConfig {
+                    similarity_threshold: 0.7,
+                    max_per_node: 10,
+                    enabled_types: vec!["SIMILAR_TO".to_string()],
+                })
+            }
+        } else {
+            // No graph config, use default for auto-discovery
+            Some(crate::models::AutoRelationshipConfig {
+                similarity_threshold: 0.7,
+                max_per_node: 10,
+                enabled_types: vec!["SIMILAR_TO".to_string()],
+            })
+        };
+
+        // Limit to first 100 nodes to avoid blocking (full discovery can be done via API)
+        if let Some(config) = discovery_config {
+            let node_count = graph.node_count();
+            if node_count > 0 {
+                info!(
+                    "Auto-discovering edges for collection '{}' (limited to first 100 nodes to avoid blocking)",
+                    self.name
+                );
+
+                // Limit to first 100 nodes for auto-discovery
+                let nodes_to_process: Vec<String> = {
+                    let vector_order = self.vector_order.read();
+                    vector_order.iter().cloned().take(100).collect()
+                };
+
+                let mut edges_created = 0;
+                for node_id in &nodes_to_process {
+                    if let Ok(_edges) =
+                        crate::db::graph_relationship_discovery::discover_edges_for_node(
+                            &graph, node_id, self, &config,
+                        )
+                    {
+                        edges_created += _edges;
+                    }
+                }
+
+                info!(
+                    "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
+                    edges_created,
+                    nodes_to_process.len().min(node_count),
+                    self.name,
+                    self.name
+                );
+            }
+        }
+
+        Ok(())
     }
 
     /// Create a new collection
@@ -105,10 +431,37 @@ impl Collection {
         // Initialize sparse vector index
         let sparse_index = Arc::new(RwLock::new(SparseVectorIndex::new()));
 
+        // Initialize vector storage
+        let vectors = match config.storage_type.unwrap_or(StorageType::Memory) {
+            StorageType::Memory => VectorStorageBackend::new_memory(),
+            StorageType::Mmap => {
+                // Use a standard path for mmap files: ./data/{name}.mmap
+                // In a real implementation, the data directory should be passed in
+                let data_dir = std::path::Path::new("./data");
+                if !data_dir.exists() {
+                    let _ = std::fs::create_dir_all(data_dir);
+                }
+                let path = data_dir.join(format!("{}.mmap", name));
+
+                let storage =
+                    crate::storage::mmap::MmapVectorStorage::open(&path, config.dimension)
+                        .expect("Failed to initialize mmap storage");
+                VectorStorageBackend::new_mmap(storage)
+            }
+        };
+
+        let graph_enabled = config.graph.as_ref().map(|g| g.enabled).unwrap_or(false);
+        let collection_name = name.clone();
+        let graph = if graph_enabled {
+            Some(Arc::new(super::graph::Graph::new(collection_name)))
+        } else {
+            None
+        };
+
         Self {
             name,
             config,
-            vectors: Arc::new(Mutex::new(HashMap::new())),
+            vectors,
             quantized_vectors: Arc::new(Mutex::new(HashMap::new())),
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
@@ -117,8 +470,10 @@ impl Collection {
             vector_count: Arc::new(RwLock::new(0)),
             payload_index,
             sparse_index,
+            pq_quantizer: Arc::new(RwLock::new(None)),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
+            graph,
         }
     }
 
@@ -126,6 +481,7 @@ impl Collection {
     pub fn metadata(&self) -> CollectionMetadata {
         CollectionMetadata {
             name: self.name.clone(),
+            tenant_id: None,
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
             vector_count: *self.vector_count.read(),
@@ -222,7 +578,7 @@ impl Collection {
                 // It will be reconstructed on-demand from quantized version
             } else {
                 // Store full precision vector
-                self.vectors.lock().unwrap().insert(id.clone(), vector);
+                self.vectors.insert(id.clone(), vector.clone())?;
             }
 
             // Track insertion order for persistence consistency
@@ -230,6 +586,78 @@ impl Collection {
 
             // Add to index (using full precision for search accuracy)
             index.add(id.clone(), data.clone())?;
+
+            // Discover graph relationships if graph is enabled
+            // Note: Relationship discovery is done synchronously but with limited search scope
+            // to avoid timeout during insertion. For large collections, consider disabling
+            // auto_relationship.enabled_types or running relationship discovery in background.
+            if let Some(graph) = &self.graph {
+                if let Some(graph_config) = &self.config.graph {
+                    if graph_config.enabled {
+                        // Only create node, skip expensive similarity search during insertion
+                        // Similarity relationships can be created later via explicit edge creation
+                        let node =
+                            crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                        if let Err(e) = graph.add_node(node) {
+                            warn!("Failed to add graph node for vector '{}': {}", id, e);
+                        }
+
+                        // Optionally discover relationships if auto_relationship is enabled
+                        // Note: Similarity-based relationships are skipped during insertion
+                        // to avoid timeout. Only metadata-based relationships are created.
+                        let auto_config = &graph_config.auto_relationship;
+                        if !auto_config.enabled_types.is_empty() {
+                            // Ensure the source node exists before creating relationships
+                            // (it should already exist from line 321-324, but double-check)
+                            if graph.get_node(&id).is_none() {
+                                let node = crate::db::graph::Node::from_vector(
+                                    &id,
+                                    vector.payload.as_ref(),
+                                );
+                                let _ = graph.add_node(node);
+                            }
+
+                            // Only do fast metadata-based relationships during insertion
+                            // Skip SIMILAR_TO to avoid timeout during insertion
+                            if let Some(payload) = &vector.payload {
+                                use super::graph_relationship_discovery::{
+                                    discover_contains_relationships,
+                                    discover_derived_from_relationships,
+                                    discover_reference_relationships, is_relationship_type_enabled,
+                                };
+
+                                // Create metadata-based relationships (fast)
+                                if is_relationship_type_enabled("REFERENCES", auto_config) {
+                                    if let Err(e) =
+                                        discover_reference_relationships(graph, &id, payload)
+                                    {
+                                        debug!("Failed to discover REFERENCES for '{}': {}", id, e);
+                                    }
+                                }
+                                if is_relationship_type_enabled("CONTAINS", auto_config) {
+                                    if let Err(e) =
+                                        discover_contains_relationships(graph, &id, payload)
+                                    {
+                                        debug!("Failed to discover CONTAINS for '{}': {}", id, e);
+                                    }
+                                }
+                                if is_relationship_type_enabled("DERIVED_FROM", auto_config) {
+                                    if let Err(e) =
+                                        discover_derived_from_relationships(graph, &id, payload)
+                                    {
+                                        debug!(
+                                            "Failed to discover DERIVED_FROM for '{}': {}",
+                                            id, e
+                                        );
+                                    }
+                                }
+                                // SIMILAR_TO relationships are skipped during insertion to avoid timeout
+                                // They can be created later via explicit edge creation
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Update vector count
@@ -237,6 +665,19 @@ impl Collection {
 
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
+
+        // Train PQ if enabled and enough vectors collected
+        if matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::PQ { .. }
+        ) {
+            let count = *self.vector_count.read();
+            // Train when we reach 1000 vectors (good balance between quality and startup time)
+            if count >= 1000 && count < 1000 + vectors_len {
+                debug!("Auto-training PQ with {} vectors", count);
+                let _ = self.train_pq_if_needed();
+            }
+        }
 
         Ok(())
     }
@@ -267,7 +708,7 @@ impl Collection {
         ) {
             self.quantized_vectors.lock().unwrap().contains_key(&id)
         } else {
-            self.vectors.lock().unwrap().contains_key(&id)
+            self.vectors.contains_key(&id)?
         };
 
         if !vector_exists {
@@ -321,7 +762,12 @@ impl Collection {
                 .insert(id.clone(), quantized_vector);
         } else {
             // Update full precision storage
-            self.vectors.lock().unwrap().insert(id.clone(), vector);
+            // For MMAP storage, we need to use update instead of insert
+            if self.vectors.contains_key(&id)? {
+                self.vectors.update(&id, vector)?;
+            } else {
+                self.vectors.insert(id.clone(), vector)?;
+            }
         }
 
         // Update index
@@ -357,7 +803,7 @@ impl Collection {
                 .remove(vector_id)
                 .is_some()
         } else {
-            self.vectors.lock().unwrap().remove(vector_id).is_some()
+            self.vectors.remove(vector_id)?
         };
 
         if !found {
@@ -411,10 +857,7 @@ impl Collection {
         // Otherwise get from full precision storage
         let vector = self
             .vectors
-            .lock()
-            .unwrap()
-            .get(vector_id)
-            .cloned()
+            .get(vector_id)?
             .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
 
         // Normalize payload content (fix line endings from legacy data)
@@ -465,8 +908,8 @@ impl Collection {
                 }
             } else {
                 // Get from full precision storage
-                if let Some(v) = self.vectors.lock().unwrap().get(&id) {
-                    v.clone()
+                if let Ok(Some(v)) = self.vectors.get(&id) {
+                    v
                 } else {
                     continue; // Vector not found
                 }
@@ -579,8 +1022,8 @@ impl Collection {
                     continue;
                 }
             } else {
-                if let Some(v) = self.vectors.lock().unwrap().get(&hybrid_result.id) {
-                    v.clone()
+                if let Ok(Some(v)) = self.vectors.get(&hybrid_result.id) {
+                    v
                 } else {
                     continue;
                 }
@@ -626,8 +1069,9 @@ impl Collection {
                 self.name
             );
 
-            let mut vectors = self.vectors.lock().unwrap();
-            let vector_count = vectors.len();
+            // Use vector_order to iterate over all vectors
+            let vector_order = self.vector_order.read();
+            let vector_count = vector_order.len();
 
             if vector_count == 0 {
                 return Ok(());
@@ -635,14 +1079,18 @@ impl Collection {
 
             // Convert all vectors to quantized format in parallel
             let quantization_config = self.config.quantization.clone();
-            let quantized: Vec<(String, crate::models::QuantizedVector)> = vectors
+            let quantized: Vec<(String, crate::models::QuantizedVector)> = vector_order
                 .par_iter()
-                .map(|(id, vector)| {
-                    let qv = crate::models::QuantizedVector::from_vector(
-                        vector.clone(),
-                        &quantization_config,
-                    );
-                    (id.clone(), qv)
+                .filter_map(|id| {
+                    if let Ok(Some(vector)) = self.vectors.get(id) {
+                        let qv = crate::models::QuantizedVector::from_vector(
+                            vector,
+                            &quantization_config,
+                        );
+                        Some((id.clone(), qv))
+                    } else {
+                        None
+                    }
                 })
                 .collect();
 
@@ -651,10 +1099,6 @@ impl Collection {
             for (id, qv) in quantized {
                 quantized_storage.insert(id, qv);
             }
-
-            // Clear full precision storage to free memory
-            vectors.clear();
-            drop(vectors); // Explicitly drop to free memory immediately
 
             info!(
                 "✅ Migrated {} vectors to quantized storage (~75% memory reduction)",
@@ -698,7 +1142,7 @@ impl Collection {
 
     /// Estimate memory usage in bytes with quantization support
     pub fn estimated_memory_usage(&self) -> usize {
-        let vector_count = self.vectors.lock().unwrap().len();
+        let vector_count = self.vectors.len();
         let dimension = self.config.dimension;
 
         // Check if quantization is enabled in config
@@ -711,28 +1155,29 @@ impl Collection {
             // Calculate memory usage for quantized vectors (4x compression with SQ-8bit)
             let mut total_memory = 0;
             let mut quantized_vectors = 0;
-            let mut unquantized_vectors = 0;
+            let vector_order = self.vector_order.read();
 
-            for vector in self.vectors.lock().unwrap().iter() {
-                // Base overhead for Vector struct
-                total_memory += std::mem::size_of::<Vector>();
+            for id in vector_order.iter() {
+                if let Ok(Some(vector)) = self.vectors.get(id) {
+                    // Base overhead for Vector struct
+                    total_memory += std::mem::size_of::<Vector>();
 
-                // Check if vector is quantized (data cleared)
-                let is_quantized = vector.1.data.is_empty();
+                    // Check if vector is quantized (data cleared)
+                    let is_quantized = vector.data.is_empty();
 
-                if is_quantized {
-                    // Vector is quantized - minimal memory usage
-                    total_memory += dimension; // 1 byte per dimension for quantized data
-                    quantized_vectors += 1;
-                } else {
-                    // Vector not yet quantized - use f32 data size
-                    total_memory += std::mem::size_of::<f32>() * dimension;
-                    unquantized_vectors += 1;
-                }
+                    if is_quantized {
+                        // Vector is quantized - minimal memory usage
+                        total_memory += dimension; // 1 byte per dimension for quantized data
+                        quantized_vectors += 1;
+                    } else {
+                        // Vector not yet quantized - use f32 data size
+                        total_memory += std::mem::size_of::<f32>() * dimension;
+                    }
 
-                // Payload overhead
-                if let Some(payload) = &vector.1.payload {
-                    total_memory += std::mem::size_of_val(payload);
+                    // Payload overhead
+                    if let Some(payload) = &vector.payload {
+                        total_memory += std::mem::size_of_val(payload);
+                    }
                 }
             }
 
@@ -798,7 +1243,7 @@ impl Collection {
 
         debug!(
             "Fast loaded {} vectors into collection '{}' with HNSW index",
-            self.vectors.lock().unwrap().len(),
+            self.vectors.len(),
             self.name
         );
         Ok(())
@@ -867,7 +1312,7 @@ impl Collection {
 
         debug!(
             "Loaded {} vectors into collection '{}' {}",
-            self.vectors.lock().unwrap().len(),
+            self.vectors.len(),
             self.name,
             if hnsw_loaded {
                 "(from dump)"
@@ -883,6 +1328,10 @@ impl Collection {
         let vectors_len = vectors.len();
         let mut vector_order = self.vector_order.write();
 
+        // Check if graph is enabled and should create nodes
+        // Graph is enabled if it exists (regardless of config, since it can be enabled manually)
+        let should_create_graph_nodes = self.graph.is_some();
+
         for vector in vectors {
             let id = vector.id.clone();
 
@@ -896,7 +1345,20 @@ impl Collection {
             }
 
             // Store vector
-            self.vectors.lock().unwrap().insert(id.clone(), vector);
+            self.vectors.insert(id.clone(), vector.clone())?;
+
+            // Create graph node if graph is enabled
+            if should_create_graph_nodes {
+                if let Some(graph) = &self.graph {
+                    let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                    if let Err(e) = graph.add_node(node) {
+                        debug!(
+                            "Failed to add graph node for vector '{}' during load: {}",
+                            id, e
+                        );
+                    }
+                }
+            }
 
             // Track insertion order
             vector_order.push(id.clone());
@@ -908,11 +1370,19 @@ impl Collection {
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
 
-        debug!(
-            "Loaded {} vectors into memory for collection '{}'",
-            vector_order.len(),
-            self.name
-        );
+        if should_create_graph_nodes {
+            info!(
+                "Loaded {} vectors into memory for collection '{}' and created graph nodes",
+                vector_order.len(),
+                self.name
+            );
+        } else {
+            debug!(
+                "Loaded {} vectors into memory for collection '{}'",
+                vector_order.len(),
+                self.name
+            );
+        }
         Ok(())
     }
 
@@ -926,6 +1396,10 @@ impl Collection {
 
         let mut vector_order = self.vector_order.write();
         let index = self.index.write();
+
+        // Check if graph is enabled and should create nodes
+        // Graph is enabled if it exists (regardless of config, since it can be enabled manually)
+        let should_create_graph_nodes = self.graph.is_some();
 
         // Prepare vectors for batch insertion
         let mut batch_vectors = Vec::with_capacity(vectors_len);
@@ -965,10 +1439,20 @@ impl Collection {
                 // Don't store full precision vector to save memory
             } else {
                 // Store full precision vector
-                self.vectors
-                    .lock()
-                    .unwrap()
-                    .insert(id.clone(), vector.clone());
+                self.vectors.insert(id.clone(), vector.clone())?;
+            }
+
+            // Create graph node if graph is enabled
+            if should_create_graph_nodes {
+                if let Some(graph) = &self.graph {
+                    let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                    if let Err(e) = graph.add_node(node) {
+                        debug!(
+                            "Failed to add graph node for vector '{}' during fast load: {}",
+                            id, e
+                        );
+                    }
+                }
             }
 
             // Add to batch for HNSW index (using full precision for search accuracy)
@@ -1013,10 +1497,9 @@ impl Collection {
                 .collect()
         } else {
             // Get from full precision storage
-            let vectors = self.vectors.lock().unwrap();
             vector_order
                 .iter()
-                .filter_map(|id| vectors.get(id).cloned())
+                .filter_map(|id| self.vectors.get(id).ok().flatten())
                 .collect()
         }
     }
@@ -1089,32 +1572,34 @@ impl Collection {
             total_size += index_overhead;
         } else {
             // Calculate from full precision storage
-            let vectors = self.vectors.lock().unwrap();
-            let vector_count = vectors.len();
+            let vector_count = self.vectors.len();
+            let vector_order = self.vector_order.read();
 
-            for (id, vector) in vectors.iter() {
-                // Vector ID size
-                let id_size = id.len();
+            for id in vector_order.iter() {
+                if let Ok(Some(vector)) = self.vectors.get(id) {
+                    // Vector ID size
+                    let id_size = id.len();
 
-                // Vector data size (f32 = 4 bytes per element)
-                let vector_data_size = vector.data.len() * 4;
+                    // Vector data size (f32 = 4 bytes per element)
+                    let vector_data_size = vector.data.len() * 4;
 
-                // Payload size (approximate JSON serialization size)
-                let vector_payload_size = if let Some(ref payload) = vector.payload {
-                    match serde_json::to_string(&payload.data) {
-                        Ok(json_str) => json_str.len(),
-                        Err(_) => 0,
-                    }
-                } else {
-                    0
-                };
+                    // Payload size (approximate JSON serialization size)
+                    let vector_payload_size = if let Some(ref payload) = vector.payload {
+                        match serde_json::to_string(&payload.data) {
+                            Ok(json_str) => json_str.len(),
+                            Err(_) => 0,
+                        }
+                    } else {
+                        0
+                    };
 
-                // Total size for this vector
-                let vector_total_size = id_size + vector_data_size + vector_payload_size;
+                    // Total size for this vector
+                    let vector_total_size = id_size + vector_data_size + vector_payload_size;
 
-                index_size += id_size + vector_data_size;
-                payload_size += vector_payload_size;
-                total_size += vector_total_size;
+                    index_size += id_size + vector_data_size;
+                    payload_size += vector_payload_size;
+                    total_size += vector_total_size;
+                }
             }
 
             // Add HNSW index overhead (approximate)
@@ -1185,6 +1670,89 @@ impl Collection {
         );
         Ok(())
     }
+
+    /// Train Product Quantization if enabled and not yet trained
+    pub fn train_pq_if_needed(&self) -> Result<()> {
+        use crate::models::QuantizationConfig;
+        use crate::quantization::product::{ProductQuantization, ProductQuantizationConfig};
+
+        // Check if PQ is enabled
+        let (n_centroids, n_subquantizers) = match &self.config.quantization {
+            QuantizationConfig::PQ {
+                n_centroids,
+                n_subquantizers,
+            } => (*n_centroids, *n_subquantizers),
+            _ => return Ok(()), // PQ not enabled
+        };
+
+        // Check if already trained
+        {
+            let pq = self.pq_quantizer.read();
+            if pq.is_some() {
+                return Ok(()); // Already trained
+            }
+        }
+
+        // Collect training vectors (up to 10k)
+        let training_limit = 10000;
+        let vector_order = self.vector_order.read();
+        let mut training_vectors = Vec::new();
+
+        for id in vector_order.iter().take(training_limit) {
+            if let Ok(Some(vector)) = self.vectors.get(id) {
+                training_vectors.push(vector.data);
+            }
+        }
+
+        if training_vectors.is_empty() {
+            warn!("Cannot train PQ: no vectors available");
+            return Ok(());
+        }
+
+        info!(
+            "Training PQ with {} vectors (subvectors={}, centroids={})",
+            training_vectors.len(),
+            n_subquantizers,
+            n_centroids
+        );
+
+        // Create and train PQ
+        let pq_config = ProductQuantizationConfig {
+            subvectors: n_subquantizers,
+            centroids_per_subvector: n_centroids,
+            training_samples: training_limit,
+            adaptive_assignment: true,
+        };
+
+        let mut pq = ProductQuantization::new(pq_config, self.config.dimension);
+
+        if let Err(e) = pq.train(&training_vectors) {
+            warn!("Failed to train PQ: {}", e);
+            return Ok(());
+        }
+
+        // Store trained quantizer
+        *self.pq_quantizer.write() = Some(pq);
+        info!("✅ PQ trained successfully");
+
+        Ok(())
+    }
+
+    /// Get PQ-quantized representation of a vector
+    pub fn pq_quantize_vector(&self, vector: &[f32]) -> Result<Option<Vec<u8>>> {
+        let pq = self.pq_quantizer.read();
+        if let Some(ref quantizer) = *pq {
+            match quantizer.quantize(vector) {
+                Ok(codes) => Ok(Some(codes)),
+                Err(e) => {
+                    warn!("PQ quantization failed: {}", e);
+                    Ok(None)
+                }
+            }
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1194,12 +1762,15 @@ mod tests {
 
     fn create_test_collection() -> Collection {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         Collection::new("test".to_string(), config)
     }
@@ -1271,12 +1842,15 @@ mod tests {
     fn test_vector_count_with_quantization() {
         // Create collection WITH quantization enabled
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::SQ { bits: 8 }, // QUANTIZED!
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let collection = Collection::new("quantized_test".to_string(), config);
 
@@ -1309,23 +1883,29 @@ mod tests {
 
         // Collection 1: WITH quantization
         let config_quantized = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let collection_quantized = Collection::new("quantized".to_string(), config_quantized);
 
         // Collection 2: WITHOUT quantization
         let config_normal = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let collection_normal = Collection::new("normal".to_string(), config_normal);
 
@@ -1362,12 +1942,15 @@ mod tests {
     #[test]
     fn test_collection_creation() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: None,
         };
 
         let collection = Collection::new("test_coll".to_string(), config);
@@ -1380,12 +1963,15 @@ mod tests {
     #[test]
     fn test_collection_insert_single() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1399,12 +1985,15 @@ mod tests {
     #[test]
     fn test_collection_insert_batch() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1422,12 +2011,15 @@ mod tests {
     #[test]
     fn test_collection_get_vector() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1446,12 +2038,15 @@ mod tests {
     #[test]
     fn test_collection_get_nonexistent() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1463,12 +2058,15 @@ mod tests {
     #[test]
     fn test_collection_delete() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1493,12 +2091,15 @@ mod tests {
     #[test]
     fn test_collection_update() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1520,12 +2121,15 @@ mod tests {
     #[test]
     fn test_collection_search() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1550,12 +2154,15 @@ mod tests {
     #[test]
     fn test_collection_memory_usage() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1574,12 +2181,15 @@ mod tests {
     #[test]
     fn test_collection_metadata() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 256,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: None,
         };
 
         let collection = Collection::new("metadata_test".to_string(), config);
@@ -1594,36 +2204,45 @@ mod tests {
     fn test_collection_different_metrics() {
         // Test Cosine
         let config_cosine = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let coll_cosine = Collection::new("cosine".to_string(), config_cosine);
         assert_eq!(coll_cosine.config().metric, DistanceMetric::Cosine);
 
         // Test Euclidean
         let config_euclidean = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Euclidean,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let coll_euclidean = Collection::new("euclidean".to_string(), config_euclidean);
         assert_eq!(coll_euclidean.config().metric, DistanceMetric::Euclidean);
 
         // Test DotProduct
         let config_dot = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::DotProduct,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let coll_dot = Collection::new("dot".to_string(), config_dot);
         assert_eq!(coll_dot.config().metric, DistanceMetric::DotProduct);
@@ -1632,12 +2251,15 @@ mod tests {
     #[test]
     fn test_collection_with_quantization_sq() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
             normalization: None,
+            storage_type: None,
         };
 
         let collection = Collection::new("quantized_sq".to_string(), config);
@@ -1659,12 +2281,15 @@ mod tests {
     #[test]
     fn test_collection_update_nonexistent() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1677,12 +2302,15 @@ mod tests {
     #[test]
     fn test_collection_delete_nonexistent() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1694,12 +2322,15 @@ mod tests {
     #[test]
     fn test_collection_dimension_validation() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1714,12 +2345,15 @@ mod tests {
     #[test]
     fn test_collection_get_all_vectors_ids() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1741,12 +2375,15 @@ mod tests {
     #[test]
     fn test_collection_embedding_type() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 512,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: None,
         };
 
         let collection =
@@ -1758,12 +2395,15 @@ mod tests {
     #[test]
     fn test_collection_search_empty() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1781,12 +2421,15 @@ mod tests {
         use std::thread;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: None,
         };
 
         let collection = Arc::new(Collection::new("concurrent".to_string(), config));
@@ -1817,12 +2460,15 @@ mod tests {
     #[test]
     fn test_collection_search_with_limit() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1845,12 +2491,15 @@ mod tests {
     #[test]
     fn test_collection_get_all_vectors() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 32,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);
@@ -1868,12 +2517,15 @@ mod tests {
     #[test]
     fn test_collection_metadata_updates() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let collection = Collection::new("test".to_string(), config);

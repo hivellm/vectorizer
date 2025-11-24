@@ -707,12 +707,15 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = persistence
@@ -735,12 +738,15 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Collection doesn't exist yet
@@ -761,12 +767,15 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Initially empty
@@ -793,12 +802,15 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = persistence
@@ -832,12 +844,15 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Create collection
@@ -864,12 +879,15 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         // Create some collections

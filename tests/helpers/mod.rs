@@ -12,7 +12,8 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::{
-    CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
+    CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
+    StorageType, Vector,
 };
 
 #[allow(dead_code)]
@@ -44,6 +45,7 @@ pub fn create_test_embedding_manager() -> anyhow::Result<EmbeddingManager> {
 #[allow(dead_code)]
 pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
     CollectionConfig {
+        graph: None,
         dimension,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig {
@@ -55,6 +57,8 @@ pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
         quantization: QuantizationConfig::SQ { bits: 8 },
         compression: CompressionConfig::default(),
         normalization: None,
+        storage_type: Some(StorageType::Memory),
+        sharding: None,
     }
 }
 
@@ -121,7 +125,7 @@ pub fn insert_test_vectors(
 }
 
 /// Assert that a collection exists
-#[macro_export]
+#[allow(unused_macros)] // May be unused in some test files
 macro_rules! assert_collection_exists {
     ($store:expr, $name:expr) => {
         assert!(
@@ -133,7 +137,7 @@ macro_rules! assert_collection_exists {
 }
 
 /// Assert that a vector exists in a collection
-#[macro_export]
+#[allow(unused_macros)] // May be unused in some test files
 macro_rules! assert_vector_exists {
     ($store:expr, $collection:expr, $id:expr) => {
         assert!(

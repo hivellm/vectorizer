@@ -269,6 +269,38 @@ pub struct CollectionConfig {
     /// Text normalization configuration (optional, disabled by default)
     #[serde(default)]
     pub normalization: Option<crate::normalization::NormalizationConfig>,
+    /// Storage type (Memory or Mmap)
+    /// Defaults to Memory if not specified
+    #[serde(default = "default_storage_type")]
+    pub storage_type: Option<StorageType>,
+    /// Sharding configuration (optional, disabled by default)
+    /// If set, the collection will be distributed across multiple shards
+    #[serde(default)]
+    pub sharding: Option<ShardingConfig>,
+    /// Graph configuration (optional, disabled by default)
+    /// If set, the collection will maintain a graph of relationships between documents
+    #[serde(default)]
+    pub graph: Option<GraphConfig>,
+}
+
+/// Storage backend type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StorageType {
+    /// In-memory storage (fastest, limited by RAM)
+    Memory,
+    /// Memory-mapped storage (slower, limited by disk)
+    Mmap,
+}
+
+impl Default for StorageType {
+    fn default() -> Self {
+        Self::Memory
+    }
+}
+
+/// Default storage type for CollectionConfig
+fn default_storage_type() -> Option<StorageType> {
+    Some(StorageType::Memory)
 }
 
 /// Distance metrics for vector similarity
@@ -326,6 +358,111 @@ impl Default for CollectionConfig {
             quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
             compression: CompressionConfig::default(),
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
+            storage_type: Some(StorageType::Memory),
+            sharding: None, // Sharding disabled by default
+            graph: None,    // Graph disabled by default
+        }
+    }
+}
+
+/// Sharding configuration for distributed collections
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShardingConfig {
+    /// Number of shards for this collection
+    pub shard_count: u32,
+    /// Virtual nodes per shard (for consistent hashing)
+    /// Higher values provide better distribution but use more memory
+    #[serde(default = "default_virtual_nodes")]
+    pub virtual_nodes_per_shard: usize,
+    /// Rebalancing threshold (percentage deviation from average)
+    /// When shard sizes deviate more than this, rebalancing is triggered
+    #[serde(default = "default_rebalance_threshold")]
+    pub rebalance_threshold: f32,
+}
+
+fn default_virtual_nodes() -> usize {
+    100
+}
+
+fn default_rebalance_threshold() -> f32 {
+    0.2 // 20% deviation triggers rebalancing
+}
+
+/// Graph configuration for relationship tracking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphConfig {
+    /// Enable graph relationship tracking
+    #[serde(default = "default_graph_enabled")]
+    pub enabled: bool,
+    /// Automatic relationship discovery configuration
+    #[serde(default)]
+    pub auto_relationship: AutoRelationshipConfig,
+}
+
+impl Default for GraphConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            auto_relationship: AutoRelationshipConfig::default(),
+        }
+    }
+}
+
+fn default_graph_enabled() -> bool {
+    false // Disabled by default
+}
+
+/// Automatic relationship discovery configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRelationshipConfig {
+    /// Similarity threshold for creating SIMILAR_TO relationships (0.0 to 1.0)
+    /// Relationships are only created when similarity exceeds this threshold
+    #[serde(default = "default_similarity_threshold")]
+    pub similarity_threshold: f32,
+    /// Maximum number of relationships to create per node
+    #[serde(default = "default_max_relationships")]
+    pub max_per_node: usize,
+    /// Enabled relationship types for automatic creation
+    #[serde(default = "default_enabled_relationship_types")]
+    pub enabled_types: Vec<String>,
+}
+
+impl Default for AutoRelationshipConfig {
+    fn default() -> Self {
+        Self {
+            similarity_threshold: 0.7, // 70% similarity threshold
+            max_per_node: 10,          // Maximum 10 relationships per node
+            enabled_types: vec![
+                "SIMILAR_TO".to_string(),
+                "REFERENCES".to_string(),
+                "CONTAINS".to_string(),
+            ],
+        }
+    }
+}
+
+fn default_similarity_threshold() -> f32 {
+    0.7
+}
+
+fn default_max_relationships() -> usize {
+    10
+}
+
+fn default_enabled_relationship_types() -> Vec<String> {
+    vec![
+        "SIMILAR_TO".to_string(),
+        "REFERENCES".to_string(),
+        "CONTAINS".to_string(),
+    ]
+}
+
+impl Default for ShardingConfig {
+    fn default() -> Self {
+        Self {
+            shard_count: 4,
+            virtual_nodes_per_shard: 100,
+            rebalance_threshold: 0.2,
         }
     }
 }
@@ -402,6 +539,9 @@ pub struct SearchResult {
 pub struct CollectionMetadata {
     /// Collection name
     pub name: String,
+    /// Tenant ID (for multi-tenancy support)
+    #[serde(default)]
+    pub tenant_id: Option<String>,
     /// Creation timestamp
     pub created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
@@ -453,23 +593,25 @@ pub mod vector_utils {
         }
     }
 
-    /// Calculate dot product of two vectors
+    /// Calculate dot product of two vectors (SIMD-accelerated)
+    /// Uses runtime CPU feature detection to enable SIMD when available
+    #[inline]
     pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
-        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+        super::vector_utils_simd::dot_product_simd(a, b)
     }
 
-    /// Calculate Euclidean distance between two vectors
+    /// Calculate Euclidean distance between two vectors (SIMD-accelerated)
+    /// Uses runtime CPU feature detection to enable SIMD when available
+    #[inline]
     pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
-        a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| (x - y) * (x - y))
-            .sum::<f32>()
-            .sqrt()
+        super::vector_utils_simd::euclidean_distance_simd(a, b)
     }
 
-    /// Calculate cosine similarity between two vectors (assumes normalized vectors)
+    /// Calculate cosine similarity between two vectors (assumes normalized vectors, SIMD-accelerated)
+    /// Uses runtime CPU feature detection to enable SIMD when available
+    #[inline]
     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-        dot_product(a, b).clamp(-1.0, 1.0) // Clamp to [-1, 1]
+        super::vector_utils_simd::cosine_similarity_simd(a, b)
     }
 
     /// Convert distance metric result to similarity score
@@ -596,4 +738,10 @@ pub mod qdrant;
 /// Sparse vector support module
 pub mod sparse_vector;
 
+/// SIMD-accelerated vector utilities
+pub mod vector_utils_simd;
+
 pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};
+
+/// Graph models (re-exported from db::graph)
+pub use crate::db::graph::{Edge, Node, RelationshipType};

@@ -11,7 +11,7 @@ import os
 from unittest.mock import AsyncMock, Mock, patch
 
 # Add current directory to path
-sys.path.append(os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import client and models
 from client import VectorizerClient

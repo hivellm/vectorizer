@@ -135,12 +135,15 @@ mod tests {
 
         // Create a test collection
         let config = crate::models::CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: crate::models::DistanceMetric::Cosine,
             hnsw_config: Default::default(),
             quantization: Default::default(),
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         let _ = store.create_collection("test_metrics", config);
 

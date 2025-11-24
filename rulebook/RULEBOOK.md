@@ -357,6 +357,168 @@ The system requires a second factor.  # ❌ Missing SHALL/MUST
 4. Commit with conventional commit format
 5. Archive task when complete
 
+## ⚠️ CRITICAL: Git Hooks Will Block Commits with Problems
+
+**ABSOLUTE RULE**: Pre-commit and pre-push hooks will **BLOCK** any commit attempt if there are:
+- ❌ Lint errors or warnings
+- ❌ Test failures
+- ❌ Type check errors
+- ❌ Formatting issues
+- ❌ Coverage below thresholds
+
+### Why This Matters
+
+**DO NOT attempt to commit code with problems:**
+- ❌ `git commit` will **FAIL** if lint has errors
+- ❌ `git commit` will **FAIL** if tests are failing
+- ❌ `git push` will **FAIL** if pre-push checks fail
+- ❌ You will waste time trying to commit broken code
+- ❌ The hooks will reject your commit automatically
+
+**ALWAYS fix problems BEFORE attempting to commit:**
+- ✅ Run `npm run lint` and fix ALL errors/warnings first
+- ✅ Run `npm test` and ensure ALL tests pass
+- ✅ Run `npm run type-check` and fix ALL type errors
+- ✅ Run `npm run format` if formatting is required
+- ✅ Run `npm test -- --coverage` and ensure coverage thresholds are met
+- ✅ **ONLY THEN** attempt `git commit`
+
+### Mandatory Pre-Commit Workflow
+
+**BEFORE every commit, you MUST:**
+
+```bash
+# 1. Fix lint errors FIRST (highest priority)
+npm run lint
+# Fix ALL errors and warnings
+# If lint fails, commit will be blocked
+
+# 2. Fix test failures SECOND
+npm test
+# Fix ALL failing tests
+# If tests fail, commit will be blocked
+
+# 3. Fix type errors THIRD
+npm run type-check
+# Fix ALL type errors
+# If type check fails, commit will be blocked
+
+# 4. Fix formatting (if required)
+npm run format
+# Apply formatting fixes
+
+# 5. Verify coverage (if required by hooks)
+npm test -- --coverage
+# Ensure coverage thresholds are met
+
+# 6. ONLY AFTER all checks pass, attempt commit
+git add .
+git commit -m "feat: your commit message"
+# This will now succeed because all checks passed
+```
+
+### What Happens If You Try to Commit with Problems
+
+**Example of blocked commit:**
+
+```bash
+$ git commit -m "feat: add new feature"
+
+🔍 Running TypeScript/JavaScript pre-commit checks...
+  → Type checking...
+  → Linting...
+
+/mnt/f/project/src/feature.ts
+   42:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 1 problem (1 error, 0 warnings)
+
+❌ Commit blocked: Lint errors found
+```
+
+**You MUST fix the error before committing:**
+
+```bash
+# Fix the lint error
+# ... edit code to fix the issue ...
+
+# Run lint again to verify
+npm run lint
+# ✅ All checks pass
+
+# NOW commit will succeed
+git commit -m "feat: add new feature"
+# ✅ Commit successful
+```
+
+### ⚠️ CRITICAL: NEVER Use --no-verify to Bypass Hooks
+
+**ABSOLUTE PROHIBITION**: You MUST NEVER use `--no-verify` or `--no-gpg-sign` flags to bypass git hooks.
+
+**FORBIDDEN COMMANDS:**
+- ❌ `git commit --no-verify` - **NEVER USE THIS**
+- ❌ `git commit -n` - **NEVER USE THIS** (short form of --no-verify)
+- ❌ `git push --no-verify` - **NEVER USE THIS**
+- ❌ Any flag that skips pre-commit or pre-push hooks
+
+### Why This Is Prohibited
+
+**Using `--no-verify` defeats the entire purpose of quality gates:**
+- ❌ Allows broken code to be committed
+- ❌ Bypasses all quality checks (lint, test, type-check)
+- ❌ Introduces technical debt and bugs
+- ❌ Violates project quality standards
+- ❌ Can break the build for other developers
+- ❌ Makes code review harder (reviewers see broken code)
+
+**The hooks exist for a reason:**
+- ✅ They protect code quality
+- ✅ They prevent bugs from entering the codebase
+- ✅ They ensure consistency across the project
+- ✅ They catch errors before they reach production
+
+### What to Do Instead
+
+**If you're tempted to use `--no-verify`, it means:**
+1. **You have problems that need fixing** - Fix them first
+2. **You're trying to commit too early** - Complete the work properly
+3. **You're rushing** - Slow down and do it right
+
+**Correct approach:**
+
+```bash
+# ❌ WRONG: Trying to bypass hooks
+git commit --no-verify -m "feat: add feature"
+# This is FORBIDDEN - never do this
+
+# ✅ CORRECT: Fix problems first, then commit
+npm run lint
+# Fix all errors...
+
+npm test
+# Fix all failing tests...
+
+npm run type-check
+# Fix all type errors...
+
+# NOW commit (hooks will pass)
+git commit -m "feat: add feature"
+# ✅ Commit successful - all checks passed
+```
+
+### Summary
+
+**CRITICAL RULES:**
+- ⚠️ **NEVER** attempt to commit code with lint errors - hooks will block it
+- ⚠️ **NEVER** attempt to commit code with test failures - hooks will block it
+- ⚠️ **NEVER** attempt to commit code with type errors - hooks will block it
+- ⚠️ **NEVER** use `--no-verify` or any flag to bypass hooks - **ABSOLUTELY FORBIDDEN**
+- ⚠️ **ALWAYS** fix ALL problems BEFORE attempting to commit
+- ⚠️ **ALWAYS** run quality checks manually before `git commit`
+- ⚠️ **ALWAYS** ensure all checks pass before committing
+
+**The hooks are there to protect code quality - they will NOT let broken code through. Always resolve problems first, then commit. Bypassing hooks is strictly prohibited and defeats the purpose of quality gates.**
+
 ## MANDATORY: Task List Updates During Implementation
 
 **CRITICAL RULE**: You MUST update the task list (`tasks.md`) immediately after completing and testing each implementation step.
@@ -1145,23 +1307,473 @@ npm run build
 
 ## CLI Commands Reference
 
-```bash
-# Task Management
-rulebook task create <task-id>          # Create new task
-rulebook task list                      # List all tasks
-rulebook task list --active             # List active tasks only
-rulebook task show <task-id>            # Show task details
-rulebook task validate <task-id>        # Validate task format
-rulebook task validate --all            # Validate all tasks
-rulebook task update <task-id> --status <status>  # Update task status
-rulebook task archive <task-id>         # Archive completed task
-rulebook task archive <task-id> --yes   # Archive without prompts
+### Task Management Commands
 
-# Task Status Values
-# - pending: Task not started
-# - in-progress: Task being worked on
-# - completed: Task finished
-# - blocked: Task blocked by dependency
+#### `rulebook task create <task-id>`
+
+Create a new Rulebook task with OpenSpec-compatible format.
+
+**Usage:**
+```bash
+rulebook task create add-user-authentication
+```
+
+**What it does:**
+- Creates `/rulebook/tasks/<task-id>/` directory
+- Generates `proposal.md` template
+- Generates `tasks.md` template
+- Creates `specs/` directory for spec deltas
+
+**Requirements:**
+- Task ID must be unique (verb-led kebab-case)
+- Context7 MCP must be available (for format validation)
+
+**Example:**
+```bash
+$ rulebook task create add-email-notifications
+✅ Task add-email-notifications created successfully
+Location: rulebook/tasks/add-email-notifications/
+
+⚠️  Remember to:
+  1. Check Context7 MCP for OpenSpec format requirements
+  2. Fill in proposal.md (minimum 20 characters in "Why" section)
+  3. Add tasks to tasks.md
+  4. Create spec deltas in specs/*/spec.md
+  5. Validate with: rulebook task validate add-email-notifications
+```
+
+**Error Handling:**
+- `Task <task-id> already exists`: Choose a different task ID or archive existing task
+
+---
+
+#### `rulebook task list [--archived]`
+
+List all Rulebook tasks (active and optionally archived).
+
+**Usage:**
+```bash
+# List active tasks only
+rulebook task list
+
+# List including archived tasks
+rulebook task list --archived
+```
+
+**Output:**
+- Active tasks with status (pending, in-progress, completed, blocked)
+- Archived tasks with archive date (if --archived flag is used)
+
+**Example:**
+```bash
+$ rulebook task list
+
+📋 Rulebook Tasks
+
+Active Tasks:
+  pending      add-user-authentication - Add user authentication feature
+  in-progress  refactor-api-validation - Refactor API validation logic
+  completed    update-documentation - Update project documentation
+
+$ rulebook task list --archived
+
+📋 Rulebook Tasks
+
+Active Tasks:
+  pending      add-user-authentication - Add user authentication feature
+
+Archived Tasks:
+  archived     2025-01-15-add-email-notifications - Add email notifications (2025-01-15)
+```
+
+**Task Status Values:**
+- `pending`: Task not started
+- `in-progress`: Task being worked on
+- `completed`: Task finished (ready for archive)
+- `blocked`: Task blocked by dependency
+
+---
+
+#### `rulebook task show <task-id>`
+
+Show detailed information about a specific task.
+
+**Usage:**
+```bash
+rulebook task show add-user-authentication
+```
+
+**Output:**
+- Task ID and title
+- Status (pending, in-progress, completed, blocked)
+- Created and updated dates
+- Archive date (if archived)
+- Proposal summary (first 500 characters)
+- Spec files list
+
+**Example:**
+```bash
+$ rulebook task show add-user-authentication
+
+📋 Task: add-user-authentication
+
+Title: add-user-authentication
+Status: pending
+Created: 2025-01-15T10:30:00.000Z
+Updated: 2025-01-15T10:30:00.000Z
+
+Proposal:
+# Proposal: Add User Authentication
+
+## Why
+We need to implement secure user authentication to protect user accounts and enable personalized features. This will include JWT token-based authentication with refresh tokens and password hashing using bcrypt...
+
+Specs:
+  core/spec.md (1234 chars)
+```
+
+**Error Handling:**
+- `Task <task-id> not found`: Verify task ID exists with `rulebook task list`
+
+---
+
+#### `rulebook task validate <task-id>`
+
+Validate task format against OpenSpec-compatible requirements.
+
+**Usage:**
+```bash
+rulebook task validate add-user-authentication
+```
+
+**Validation Checks:**
+- Purpose section length (≥20 characters)
+- Requirement keywords (SHALL/MUST)
+- Scenario format (4 hashtags, not 3)
+- Given/When/Then structure
+- Delta headers format (ADDED/MODIFIED/REMOVED/RENAMED)
+
+**Example:**
+```bash
+$ rulebook task validate add-user-authentication
+✅ Task add-user-authentication is valid
+
+⚠️  Warnings:
+  - Scenario in core/spec.md should use Given/When/Then structure
+```
+
+**Error Example:**
+```bash
+$ rulebook task validate invalid-task
+❌ Task invalid-task validation failed
+
+Errors:
+  - Scenarios in core/spec.md must use 4 hashtags (####), not 3 (###)
+  - Requirement in core/spec.md missing SHALL or MUST keyword: ### Requirement: Auth
+  - Purpose section (## Why) must have at least 20 characters
+```
+
+**Error Handling:**
+- Fix all errors before proceeding
+- Warnings are informational but don't block archiving
+
+---
+
+#### `rulebook task archive <task-id> [--skip-validation]`
+
+Archive a completed task and apply spec deltas to main specifications.
+
+**Usage:**
+```bash
+# Archive with validation (recommended)
+rulebook task archive add-user-authentication
+
+# Archive without validation (use with caution)
+rulebook task archive add-user-authentication --skip-validation
+```
+
+**Archive Process:**
+1. Validates task format (unless `--skip-validation` is used)
+2. Checks task completion status
+3. Applies spec deltas to main specifications
+4. Moves task to `/rulebook/tasks/archive/YYYY-MM-DD-<task-id>/`
+5. Updates related specifications
+
+**Example:**
+```bash
+$ rulebook task archive add-user-authentication
+✅ Task add-user-authentication archived successfully
+```
+
+**Error Handling:**
+- `Task validation failed`: Fix validation errors before archiving
+- `Task <task-id> not found`: Verify task ID exists
+- `Archive <archive-name> already exists`: Archive with that date already exists
+
+**Important:**
+- Only archive tasks that are fully completed
+- All items in `tasks.md` should be marked as `[x]`
+- All tests should pass
+- Documentation should be updated
+
+---
+
+### Core Rulebook Commands
+
+#### `rulebook init [--minimal] [--light] [--yes]`
+
+Initialize Rulebook for current project.
+
+**Usage:**
+```bash
+# Interactive mode
+rulebook init
+
+# Minimal setup (essentials only)
+rulebook init --minimal
+
+# Light mode (no quality enforcement)
+rulebook init --light
+
+# Skip prompts, use defaults
+rulebook init --yes
+```
+
+**What it does:**
+- Detects languages, frameworks, and MCP modules
+- Generates AGENTS.md with AI assistant rules
+- Creates `/rulebook/` directory with templates
+- Creates/updates `.gitignore` automatically
+- Optionally installs Git hooks
+- Generates Cursor commands (if Cursor is selected IDE)
+
+---
+
+#### `rulebook update [--yes] [--minimal] [--light]`
+
+Update AGENTS.md and .rulebook to latest version.
+
+**Usage:**
+```bash
+# Interactive mode
+rulebook update
+
+# Skip confirmation
+rulebook update --yes
+
+# Minimal mode
+rulebook update --minimal
+
+# Light mode
+rulebook update --light
+```
+
+**What it does:**
+- Migrates OpenSpec tasks to Rulebook format (if OpenSpec exists)
+- Migrates OpenSpec archives to Rulebook format
+- Removes OpenSpec commands from `.cursor/commands/`
+- Updates AGENTS.md with latest templates
+- Merges templates while preserving customizations
+- Updates Cursor commands (if Cursor is selected IDE)
+
+---
+
+#### `rulebook validate`
+
+Validate project structure against Rulebook standards.
+
+**Usage:**
+```bash
+rulebook validate
+```
+
+**Validation Checks:**
+- AGENTS.md presence and format
+- Rulebook directory structure
+- Documentation structure
+- Tests directory
+- Score calculation (0-100)
+
+---
+
+#### `rulebook health`
+
+Check project health score.
+
+**Usage:**
+```bash
+rulebook health
+```
+
+**Categories Scored:**
+- Quality (linting, formatting, code quality)
+- Testing (test coverage, test quality)
+- Security (vulnerabilities, secrets)
+- Documentation (README, docs/, comments)
+
+**Score Range:** 0-100
+
+---
+
+#### `rulebook workflows`
+
+Generate GitHub Actions workflows for detected languages.
+
+**Usage:**
+```bash
+rulebook workflows
+```
+
+**What it does:**
+- Creates `.github/workflows/` directory
+- Generates language-specific workflows (test, lint, publish)
+- Adds codespell workflow for spelling checks
+
+---
+
+#### `rulebook check-deps`
+
+Check for outdated and vulnerable dependencies.
+
+**Usage:**
+```bash
+rulebook check-deps
+```
+
+**Supported Package Managers:**
+- npm (package.json)
+- Cargo (Cargo.toml)
+- pip (requirements.txt, pyproject.toml)
+- Go modules (go.mod)
+
+---
+
+#### `rulebook check-coverage [-t <threshold>]`
+
+Check test coverage against threshold.
+
+**Usage:**
+```bash
+# Default threshold (95%)
+rulebook check-coverage
+
+# Custom threshold
+rulebook check-coverage -t 80
+```
+
+---
+
+#### `rulebook generate-docs [--yes]`
+
+Generate documentation structure and standard files.
+
+**Usage:**
+```bash
+# Interactive mode
+rulebook generate-docs
+
+# Skip prompts
+rulebook generate-docs --yes
+```
+
+---
+
+#### `rulebook version <major|minor|patch>`
+
+Bump project version (semantic versioning).
+
+**Usage:**
+```bash
+rulebook version major  # 1.0.0 -> 2.0.0
+rulebook version minor  # 1.0.0 -> 1.1.0
+rulebook version patch  # 1.0.0 -> 1.0.1
+```
+
+---
+
+#### `rulebook changelog [-v <version>]`
+
+Generate changelog from git commits.
+
+**Usage:**
+```bash
+# Auto-detect version
+rulebook changelog
+
+# Specify version
+rulebook changelog -v 1.0.0
+```
+
+---
+
+#### `rulebook fix`
+
+Auto-fix common project issues.
+
+**Usage:**
+```bash
+rulebook fix
+```
+
+---
+
+### Advanced Commands (Beta)
+
+#### `rulebook watcher`
+
+Start modern full-screen console watcher for task progress.
+
+**Usage:**
+```bash
+rulebook watcher
+```
+
+**Features:**
+- Live task progress tracking
+- Activity log with timestamps
+- System status monitoring
+- Auto-refresh every 2 seconds
+
+---
+
+#### `rulebook agent [--dry-run] [--tool <name>] [--iterations <n>] [--watch]`
+
+Start autonomous agent for managing AI CLI workflows.
+
+**Usage:**
+```bash
+# Dry run (simulate without changes)
+rulebook agent --dry-run
+
+# Specify CLI tool
+rulebook agent --tool cursor-agent
+
+# Set max iterations
+rulebook agent --iterations 10
+
+# Enable watcher mode
+rulebook agent --watch
+```
+
+---
+
+#### `rulebook config [--show] [--set <key=value>] [--feature <name> --enable|--disable]`
+
+Manage Rulebook configuration.
+
+**Usage:**
+```bash
+# Show current config
+rulebook config --show
+
+# Set config value
+rulebook config --set rulebookDir=custom-rulebook
+
+# Enable feature
+rulebook config --feature watcher --enable
+
+# Disable feature
+rulebook config --feature agent --disable
 ```
 
 ## Migration from OpenSpec
@@ -1192,23 +1804,67 @@ If your project previously used OpenSpec:
 
 **Error**: "Requirement must contain SHALL or MUST keyword"
 - **Fix**: Add SHALL or MUST to requirement text
+- **Example**: Change "The system provides authentication" to "The system SHALL provide authentication"
 
 **Error**: "Scenario must use 4 hashtags"
-- **Fix**: Change `### Scenario:` to `#### Scenario:`
+- **Fix**: Change `### Scenario:` to `#### Scenario:` (at start of line)
+- **Note**: Validation only checks headers at start of line, not in text content
 
 **Error**: "Purpose section too short"
-- **Fix**: Expand purpose to at least 20 characters
+- **Fix**: Expand "Why" section in proposal.md to at least 20 characters
+- **Example**: "Auth system" → "Authentication system for secure user access with JWT tokens and session management"
 
 **Error**: "Scenario must use Given/When/Then structure"
 - **Fix**: Replace bullet points with Given/When/Then format
+- **Example**: 
+  ```markdown
+  #### Scenario: User login
+  Given a user has valid credentials
+  When they submit the login form
+  Then they are authenticated successfully
+  ```
 
 ### Task Creation Errors
 
 **Error**: "Context7 MCP not available"
 - **Fix**: Configure Context7 MCP in your MCP configuration file
+- **See**: `/rulebook/CONTEXT7.md` for setup instructions
 
 **Error**: "Task ID already exists"
 - **Fix**: Choose a different task ID or archive existing task
+- **Check**: Use `rulebook task list` to see existing tasks
+
+### Task Archive Errors
+
+**Error**: "Task validation failed"
+- **Fix**: Run `rulebook task validate <task-id>` to see all errors
+- **Fix**: Address all validation errors before archiving
+- **Option**: Use `--skip-validation` flag only if you're certain the task is valid
+
+**Error**: "Archive <archive-name> already exists"
+- **Fix**: Archive with that date already exists
+- **Check**: Use `rulebook task list --archived` to see archived tasks
+
+### Command Errors
+
+**Error**: "Task <task-id> not found"
+- **Fix**: Verify task ID exists with `rulebook task list`
+- **Check**: Ensure you're in the correct project directory
+
+**Error**: "No tasks found"
+- **Fix**: Create a task first with `rulebook task create <task-id>`
+- **Check**: Verify `/rulebook/tasks/` directory exists
+
+### Migration Errors
+
+**Error**: "Failed to migrate task"
+- **Fix**: Check error message for specific issue
+- **Check**: Verify OpenSpec task structure is correct
+- **Fix**: Manually migrate if automatic migration fails
+
+**Error**: "Failed to read OpenSpec changes directory"
+- **Fix**: Verify `/openspec/changes/` directory exists
+- **Check**: Ensure you have read permissions
 
 ## Examples
 

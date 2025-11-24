@@ -2,30 +2,36 @@
  * Tests for the VectorizerClient class.
  */
 
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { VectorizerClient } from '../src/client';
 import { HttpClient } from '../src/utils/http-client';
 
 // Mock the HTTP client
-jest.mock('../src/utils/http-client');
+vi.mock('../src/utils/http-client');
 
 describe('VectorizerClient', () => {
   let client: VectorizerClient;
-  let mockHttpClient: jest.Mocked<HttpClient>;
+  let mockHttpClient: {
+    get: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
+    put: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Create mock instances
     mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      put: jest.fn(),
-      delete: jest.fn(),
-    } as any;
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
 
     // Mock constructors
-    (HttpClient as jest.Mock).mockImplementation(() => mockHttpClient);
+    (HttpClient as unknown as Mock).mockImplementation(() => mockHttpClient);
 
     // Create client
     client = new VectorizerClient({
@@ -53,17 +59,17 @@ describe('VectorizerClient', () => {
   describe('healthCheck', () => {
     it('should return health status', async () => {
       const mockResponse = { status: 'healthy', timestamp: '2025-01-01T00:00:00Z' };
-      mockHttpClient.get.mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse as any);
 
       const result = await client.healthCheck();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/health');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/health' as any);
       expect(result).toEqual(mockResponse);
     });
 
     it('should handle errors', async () => {
       const error = new Error('Connection failed');
-      mockHttpClient.get.mockRejectedValue(error);
+      mockHttpClient.get.mockRejectedValue(error as any);
 
       await expect(client.healthCheck()).rejects.toThrow('Connection failed');
     });
@@ -78,11 +84,11 @@ describe('VectorizerClient', () => {
         uptime_seconds: 3600,
         collections: [],
       };
-      mockHttpClient.get.mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse as any);
 
       const result = await client.getDatabaseStats();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/stats');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/stats' as any);
       expect(result).toEqual(mockResponse);
     });
   });
@@ -93,11 +99,11 @@ describe('VectorizerClient', () => {
         { name: 'collection1', dimension: 384, similarity_metric: 'cosine' },
         { name: 'collection2', dimension: 768, similarity_metric: 'euclidean' },
       ];
-      mockHttpClient.get.mockResolvedValue(mockResponse);
+      mockHttpClient.get.mockResolvedValue(mockResponse as any);
 
       const result = await client.listCollections();
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/collections');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/collections' as any);
       expect(result).toEqual(mockResponse);
     });
   });
@@ -111,11 +117,11 @@ describe('VectorizerClient', () => {
         description: 'Test collection',
       };
       const mockResponse = { ...request, created_at: new Date() };
-      mockHttpClient.post.mockResolvedValue(mockResponse);
+      mockHttpClient.post.mockResolvedValue(mockResponse as any);
 
       const result = await client.createCollection(request);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/collections', request);
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/collections' as any, request);
       expect(result).toEqual(mockResponse);
     });
 
@@ -137,12 +143,12 @@ describe('VectorizerClient', () => {
         { data: [0.4, 0.5, 0.6], metadata: { source: 'doc2' } },
       ];
       const mockResponse = { inserted: 2 };
-      mockHttpClient.post.mockResolvedValue(mockResponse);
+      mockHttpClient.post.mockResolvedValue(mockResponse as any);
 
       const result = await client.insertVectors('test-collection', vectors);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/collections/test-collection/vectors',
+        '/collections/test-collection/vectors' as any,
         { vectors }
       );
       expect(result).toEqual(mockResponse);
@@ -171,12 +177,12 @@ describe('VectorizerClient', () => {
         ],
         total: 1,
       };
-      mockHttpClient.post.mockResolvedValue(mockResponse);
+      mockHttpClient.post.mockResolvedValue(mockResponse as any);
 
       const result = await client.searchVectors('test-collection', request);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/collections/test-collection/search',
+        '/collections/test-collection/search' as any,
         request
       );
       expect(result).toEqual(mockResponse);
@@ -205,12 +211,12 @@ describe('VectorizerClient', () => {
         ],
         total: 1,
       };
-      mockHttpClient.post.mockResolvedValue(mockResponse);
+      mockHttpClient.post.mockResolvedValue(mockResponse as any);
 
       const result = await client.searchText('test-collection', request);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/collections/test-collection/search/text',
+        '/collections/test-collection/search/text' as any,
         request
       );
       expect(result).toEqual(mockResponse);
@@ -228,11 +234,11 @@ describe('VectorizerClient', () => {
         model: 'bert-base',
         text: 'machine learning algorithms',
       };
-      mockHttpClient.post.mockResolvedValue(mockResponse);
+      mockHttpClient.post.mockResolvedValue(mockResponse as any);
 
       const result = await client.embedText(request);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/embed', request);
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/embed' as any, request);
       expect(result).toEqual(mockResponse);
     });
   });

@@ -99,6 +99,13 @@ impl StorageCompactor {
                             );
                             continue;
                         }
+                        CollectionType::Sharded(_) => {
+                            warn!(
+                                "⚠️  Sharded collections not yet supported for memory compaction, skipping '{}'",
+                                name
+                            );
+                            continue;
+                        }
                     };
 
                     info!("   Collection '{}': {} vectors", name, vectors.len());
@@ -115,6 +122,13 @@ impl StorageCompactor {
                         CollectionType::HiveGpu(c) => {
                             warn!(
                                 "⚠️  GPU collections not yet supported for memory compaction, skipping '{}'",
+                                name
+                            );
+                            c.config().clone()
+                        }
+                        CollectionType::Sharded(c) => {
+                            warn!(
+                                "⚠️  Sharded collections not yet supported for memory compaction, skipping '{}'",
                                 name
                             );
                             c.config().clone()

@@ -8,11 +8,12 @@
 
 #[cfg(test)]
 mod discovery_tests {
-    use vectorizer_rust_sdk::*;
     use std::env;
+    use vectorizer_sdk::*;
 
     fn get_test_client() -> VectorizerClient {
-        let base_url = env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
+        let base_url =
+            env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
         VectorizerClient::new_with_url(&base_url).expect("Failed to create client")
     }
 
@@ -30,14 +31,16 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.discover(
-            "How does CMMV framework work?",
-            None,
-            None,
-            Some(20),
-            Some(50),
-            Some(15),
-        ).await;
+        let response = client
+            .discover(
+                "How does CMMV framework work?",
+                None,
+                None,
+                Some(20),
+                Some(50),
+                Some(15),
+            )
+            .await;
 
         assert!(response.is_ok(), "Discover should succeed");
         let result = response.unwrap();
@@ -45,7 +48,10 @@ mod discovery_tests {
         assert!(result.is_object(), "Response should be a JSON object");
         // The response may contain different fields depending on server implementation
         // We just verify that we got some data back
-        assert!(!result.as_object().unwrap().is_empty(), "Response should not be empty");
+        assert!(
+            !result.as_object().unwrap().is_empty(),
+            "Response should not be empty"
+        );
     }
 
     #[tokio::test]
@@ -56,14 +62,16 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.discover(
-            "API authentication methods",
-            Some(vec!["api-docs".to_string(), "security-docs".to_string()]),
-            None,
-            Some(15),
-            None,
-            None,
-        ).await;
+        let response = client
+            .discover(
+                "API authentication methods",
+                Some(vec!["api-docs".to_string(), "security-docs".to_string()]),
+                None,
+                Some(15),
+                None,
+                None,
+            )
+            .await;
 
         assert!(response.is_ok());
     }
@@ -76,14 +84,16 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.discover(
-            "database migrations",
-            None,
-            Some(vec!["test-*".to_string(), "*-backup".to_string()]),
-            Some(10),
-            None,
-            None,
-        ).await;
+        let response = client
+            .discover(
+                "database migrations",
+                None,
+                Some(vec!["test-*".to_string(), "*-backup".to_string()]),
+                Some(10),
+                None,
+                None,
+            )
+            .await;
 
         assert!(response.is_ok());
     }
@@ -96,21 +106,19 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.discover(
-            "vector search algorithms",
-            None,
-            None,
-            Some(10),
-            None,
-            None,
-        ).await;
+        let response = client
+            .discover("vector search algorithms", None, None, Some(10), None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
         // Check that we got a valid JSON response
         assert!(result.is_object(), "Response should be a JSON object");
         // Verify we got some data back
-        assert!(!result.as_object().unwrap().is_empty(), "Response should not be empty");
+        assert!(
+            !result.as_object().unwrap().is_empty(),
+            "Response should not be empty"
+        );
     }
 
     #[tokio::test]
@@ -121,14 +129,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.discover(
-            "system architecture",
-            None,
-            None,
-            Some(15),
-            None,
-            None,
-        ).await;
+        let response = client
+            .discover("system architecture", None, None, Some(15), None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
@@ -166,11 +169,13 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.filter_collections(
-            "api endpoints",
-            Some(vec!["*-docs".to_string(), "api-*".to_string()]),
-            None,
-        ).await;
+        let response = client
+            .filter_collections(
+                "api endpoints",
+                Some(vec!["*-docs".to_string(), "api-*".to_string()]),
+                None,
+            )
+            .await;
 
         assert!(response.is_ok());
     }
@@ -183,15 +188,23 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.filter_collections(
-            "source code",
-            None,
-            Some(vec!["*-test".to_string(), "*-backup".to_string()]),
-        ).await;
+        let response = client
+            .filter_collections(
+                "source code",
+                None,
+                Some(vec!["*-test".to_string(), "*-backup".to_string()]),
+            )
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
-        assert!(result.get("excluded_count").and_then(|c| c.as_u64()).unwrap_or(0) >= 0);
+        assert!(
+            result
+                .get("excluded_count")
+                .and_then(|c| c.as_u64())
+                .unwrap_or(0)
+                >= 0
+        );
     }
 
     #[tokio::test]
@@ -202,11 +215,13 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.filter_collections(
-            "configuration",
-            Some(vec!["config-*".to_string(), "*-settings".to_string()]),
-            Some(vec!["*-old".to_string(), "*-deprecated".to_string()]),
-        ).await;
+        let response = client
+            .filter_collections(
+                "configuration",
+                Some(vec!["config-*".to_string(), "*-settings".to_string()]),
+                Some(vec!["*-old".to_string(), "*-deprecated".to_string()]),
+            )
+            .await;
 
         assert!(response.is_ok());
     }
@@ -221,7 +236,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.score_collections("machine learning", None, None, None).await;
+        let response = client
+            .score_collections("machine learning", None, None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
@@ -237,7 +254,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.score_collections("database queries", None, Some(0.4), None).await;
+        let response = client
+            .score_collections("database queries", None, Some(0.4), None)
+            .await;
 
         assert!(response.is_ok());
     }
@@ -250,7 +269,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.score_collections("performance optimization", None, None, Some(0.2)).await;
+        let response = client
+            .score_collections("performance optimization", None, None, Some(0.2))
+            .await;
 
         assert!(response.is_ok());
     }
@@ -263,16 +284,26 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.score_collections("search functionality", None, None, None).await;
+        let response = client
+            .score_collections("search functionality", None, None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
-        if let Some(scored_collections) = result.get("scored_collections").and_then(|s| s.as_array()) {
+        if let Some(scored_collections) =
+            result.get("scored_collections").and_then(|s| s.as_array())
+        {
             // Verify sorting
             if scored_collections.len() > 1 {
                 for i in 0..(scored_collections.len() - 1) {
-                    let score_i = scored_collections[i].get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
-                    let score_next = scored_collections[i + 1].get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+                    let score_i = scored_collections[i]
+                        .get("score")
+                        .and_then(|s| s.as_f64())
+                        .unwrap_or(0.0);
+                    let score_next = scored_collections[i + 1]
+                        .get("score")
+                        .and_then(|s| s.as_f64())
+                        .unwrap_or(0.0);
                     assert!(score_i >= score_next);
                 }
             }
@@ -289,12 +320,22 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.expand_queries("CMMV framework", None, None, None, None).await;
+        let response = client
+            .expand_queries("CMMV framework", None, None, None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
-        assert_eq!(result["original_query"].as_str().unwrap_or(""), "CMMV framework");
-        assert!(result.get("expanded_queries").and_then(|e| e.as_array()).map_or(false, |a| a.len() > 0));
+        assert_eq!(
+            result["original_query"].as_str().unwrap_or(""),
+            "CMMV framework"
+        );
+        assert!(
+            result
+                .get("expanded_queries")
+                .and_then(|e| e.as_array())
+                .map_or(false, |a| a.len() > 0)
+        );
     }
 
     #[tokio::test]
@@ -305,11 +346,18 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.expand_queries("vector database", Some(5), None, None, None).await;
+        let response = client
+            .expand_queries("vector database", Some(5), None, None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
-        assert!(result.get("expanded_queries").and_then(|e| e.as_array()).map_or(false, |a| a.len() <= 5));
+        assert!(
+            result
+                .get("expanded_queries")
+                .and_then(|e| e.as_array())
+                .map_or(false, |a| a.len() <= 5)
+        );
     }
 
     #[tokio::test]
@@ -320,7 +368,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.expand_queries("semantic search", None, Some(true), None, None).await;
+        let response = client
+            .expand_queries("semantic search", None, Some(true), None, None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
@@ -338,7 +388,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.expand_queries("API gateway", None, None, Some(true), None).await;
+        let response = client
+            .expand_queries("API gateway", None, None, Some(true), None)
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
@@ -356,12 +408,16 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.expand_queries("microservices", None, None, None, Some(true)).await;
+        let response = client
+            .expand_queries("microservices", None, None, None, Some(true))
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
         if let Some(query_types) = result.get("query_types").and_then(|q| q.as_array()) {
-            let contains_architecture = query_types.iter().any(|t| t.as_str() == Some("architecture"));
+            let contains_architecture = query_types
+                .iter()
+                .any(|t| t.as_str() == Some("architecture"));
             assert!(contains_architecture);
         }
     }
@@ -374,23 +430,24 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.expand_queries(
-            "authentication system",
-            Some(10),
-            Some(true),
-            Some(true),
-            Some(true),
-        ).await;
+        let response = client
+            .expand_queries(
+                "authentication system",
+                Some(10),
+                Some(true),
+                Some(true),
+                Some(true),
+            )
+            .await;
 
         assert!(response.is_ok());
         let result = response.unwrap();
         if let Some(expanded_queries) = result.get("expanded_queries").and_then(|e| e.as_array()) {
             assert!(expanded_queries.len() > 1);
-            
+
             // Check for diversity
-            let unique_queries: std::collections::HashSet<_> = expanded_queries.iter()
-                .filter_map(|q| q.as_str())
-                .collect();
+            let unique_queries: std::collections::HashSet<_> =
+                expanded_queries.iter().filter_map(|q| q.as_str()).collect();
             assert_eq!(unique_queries.len(), expanded_queries.len());
         }
     }
@@ -417,7 +474,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.discover("test", None, None, Some(0), None, None).await;
+        let response = client
+            .discover("test", None, None, Some(0), None, None)
+            .await;
         assert!(response.is_err(), "Invalid max_bullets should fail");
     }
 
@@ -441,7 +500,9 @@ mod discovery_tests {
             return;
         }
 
-        let response = client.score_collections("test", Some(1.5), None, None).await;
+        let response = client
+            .score_collections("test", Some(1.5), None, None)
+            .await;
         assert!(response.is_err(), "Invalid name_match_weight should fail");
     }
 
@@ -456,16 +517,16 @@ mod discovery_tests {
         }
 
         // First filter
-        let filter_response = client.filter_collections(
-            "documentation",
-            Some(vec!["*-docs".to_string()]),
-            None,
-        ).await;
+        let filter_response = client
+            .filter_collections("documentation", Some(vec!["*-docs".to_string()]), None)
+            .await;
 
         assert!(filter_response.is_ok());
 
         // Then score the filtered collections
-        let score_response = client.score_collections("API documentation", None, None, None).await;
+        let score_response = client
+            .score_collections("API documentation", None, None, None)
+            .await;
 
         assert!(score_response.is_ok());
     }
@@ -479,11 +540,14 @@ mod discovery_tests {
         }
 
         // First expand queries
-        let expand_response = client.expand_queries("database optimization", Some(5), None, None, None).await;
+        let expand_response = client
+            .expand_queries("database optimization", Some(5), None, None, None)
+            .await;
 
         assert!(expand_response.is_ok());
         let expand_result = expand_response.unwrap();
-        let first_query = expand_result.get("expanded_queries")
+        let first_query = expand_result
+            .get("expanded_queries")
             .and_then(|e| e.as_array())
             .and_then(|a| a.first())
             .and_then(|q| q.as_str())
@@ -491,14 +555,9 @@ mod discovery_tests {
         assert!(!first_query.is_empty());
 
         // Use expanded queries in discovery
-        let discover_response = client.discover(
-            first_query,
-            None,
-            None,
-            Some(10),
-            None,
-            None,
-        ).await;
+        let discover_response = client
+            .discover(first_query, None, None, Some(10), None, None)
+            .await;
 
         assert!(discover_response.is_ok());
     }
@@ -514,9 +573,11 @@ mod discovery_tests {
         }
 
         let start_time = std::time::Instant::now();
-        
-        let _ = client.discover("performance test", None, None, Some(10), None, None).await;
-        
+
+        let _ = client
+            .discover("performance test", None, None, Some(10), None, None)
+            .await;
+
         let duration = start_time.elapsed();
         assert!(duration.as_secs() < 10, "Should complete within 10 seconds");
     }
@@ -534,4 +595,3 @@ mod discovery_tests {
         assert!(response.is_ok());
     }
 }
-

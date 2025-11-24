@@ -1111,7 +1111,10 @@ impl AdvancedApiServer {
         if let Some(route) = routes.get(&request.path) {
             Ok(route.clone())
         } else {
-            Err(VectorizerError::ApiError("Route not found".to_string()).into())
+            Err(VectorizerError::InvalidConfiguration {
+                message: "Route not found".to_string(),
+            }
+            .into())
         }
     }
 

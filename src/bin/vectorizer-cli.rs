@@ -40,7 +40,7 @@ enum Commands {
         host: String,
 
         /// Port for REST API server
-        #[arg(long, default_value = "15001")]
+        #[arg(long, default_value = "15002")]
         port: u16,
 
         /// Port for MCP server
@@ -300,7 +300,7 @@ async fn check_status() {
 
     if rest_running {
         // Try to check REST API health
-        match reqwest::get("http://127.0.0.1:15001/health").await {
+        match reqwest::get("http://127.0.0.1:15002/health").await {
             Ok(resp) if resp.status().is_success() => println!("REST API Health: 🟢 OK"),
             _ => println!("REST API Health: 🟡 UNREACHABLE"),
         }

@@ -7,7 +7,7 @@
 A comprehensive Python SDK for the Vectorizer semantic search service.
 
 **Package**: `vectorizer_sdk` (PEP 625 compliant)  
-**Version**: 1.3.0  
+**Version**: 1.4.0  
 **PyPI**: https://pypi.org/project/vectorizer-sdk/
 
 ## Features
@@ -34,7 +34,7 @@ A comprehensive Python SDK for the Vectorizer semantic search service.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==1.3.0
+pip install vectorizer-sdk==1.4.0
 ```
 
 ## Quick Start
@@ -96,6 +96,79 @@ async def main():
                 semantic_reranking=True,
                 similarity_threshold=0.6
             )
+        )
+
+        # Graph Operations (requires graph enabled in collection config)
+        # List all graph nodes
+        nodes = await client.list_graph_nodes("my_collection")
+        print(f"Graph has {nodes.count} nodes")
+
+        # Get neighbors of a node
+        neighbors = await client.get_graph_neighbors("my_collection", "document1")
+        print(f"Node has {len(neighbors.neighbors)} neighbors")
+
+        # Find related nodes within 2 hops
+        from models import FindRelatedRequest
+        related = await client.find_related_nodes(
+            "my_collection",
+            "document1",
+            FindRelatedRequest(max_hops=2, relationship_type="SIMILAR_TO")
+        )
+        print(f"Found {len(related.related)} related nodes")
+
+        # Find shortest path between two nodes
+        from models import FindPathRequest
+        path = await client.find_graph_path(
+            FindPathRequest(
+                collection="my_collection",
+                source="document1",
+                target="document2"
+            )
+        )
+        if path.found:
+            print(f"Path found: {' -> '.join([n.id for n in path.path])}")
+
+        # Create explicit relationship
+        from models import CreateEdgeRequest
+        edge = await client.create_graph_edge(
+            CreateEdgeRequest(
+                collection="my_collection",
+                source="document1",
+                target="document2",
+                relationship_type="REFERENCES",
+                weight=0.9
+            )
+        )
+        print(f"Created edge: {edge.edge_id}")
+
+        # Discover SIMILAR_TO edges for entire collection
+        from models import DiscoverEdgesRequest
+        discovery_result = await client.discover_graph_edges(
+            "my_collection",
+            DiscoverEdgesRequest(
+                similarity_threshold=0.7,
+                max_per_node=10
+            )
+        )
+        print(f"Discovered {discovery_result.edges_created} edges")
+
+        # Discover edges for a specific node
+        node_discovery = await client.discover_graph_edges_for_node(
+            "my_collection",
+            "document1",
+            DiscoverEdgesRequest(
+                similarity_threshold=0.7,
+                max_per_node=10
+            )
+        )
+        print(f"Discovered {node_discovery.edges_created} edges for node")
+
+        # Get discovery status
+        status = await client.get_graph_discovery_status("my_collection")
+        print(
+            f"Discovery status: {status.total_nodes} nodes, "
+            f"{status.total_edges} edges, "
+            f"{status.progress_percentage:.1f}% complete"
         )
 
         # Contextual search with metadata filtering

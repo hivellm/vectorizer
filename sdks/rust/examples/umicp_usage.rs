@@ -5,7 +5,7 @@
 //! - Efficient transport layer
 //! - Built on umicp-core crate
 
-use vectorizer_rust_sdk::{VectorizerClient, ClientConfig};
+use vectorizer_rust_sdk::{ClientConfig, VectorizerClient};
 
 #[cfg(feature = "umicp")]
 use vectorizer_rust_sdk::{Protocol, UmicpConfig};
@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "umicp://localhost:15003",
             Some("your-api-key-here"),
         )?;
-        
+
         println!("Protocol: {}", client1.protocol());
     }
 
@@ -61,14 +61,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if !collections.is_empty() {
                 let collection_name = &collections[0].name;
                 println!("\n3. Searching in collection: {}", collection_name);
-                
-                match client2.search_vectors(collection_name, "example search", Some(5), None).await {
+
+                match client2
+                    .search_vectors(collection_name, "example search", Some(5), None)
+                    .await
+                {
                     Ok(results) => {
                         println!("Found {} result(s)", results.results.len());
                         for (i, result) in results.results.iter().enumerate() {
                             println!("  {}. Score: {:.4}", i + 1, result.score);
                         }
-                    },
+                    }
                     Err(e) => eprintln!("Search failed: {}", e),
                 }
             }
@@ -80,10 +83,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("UMICP feature is not enabled.");
         println!("To use UMICP, rebuild with: cargo build --features umicp");
         println!("\nUsing HTTP transport instead:");
-        
+
         let client = VectorizerClient::new_with_url("http://localhost:15002")?;
         println!("Protocol: {}", client.protocol());
-        
+
         match client.health_check().await {
             Ok(health) => println!("Server status: {:?}", health.status),
             Err(e) => eprintln!("Health check failed: {}", e),
@@ -93,4 +96,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== UMICP Demo Complete ===");
     Ok(())
 }
-

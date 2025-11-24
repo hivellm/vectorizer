@@ -44,6 +44,13 @@ client-sdks/*/target/
 **/build/
 **/target/
 
+# Dashboard (Vite + React)
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
+dashboard/*.log
+dashboard/.env.local
+
 # Test coverage
 coverage/
 *.lcov

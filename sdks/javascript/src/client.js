@@ -7,6 +7,7 @@
 
 import { TransportFactory, parseConnectionString } from './utils/transport.js';
 import { createLogger } from './utils/logger.js';
+import { validateNonEmptyString } from './utils/validation.js';
 
 import {
   validateVector,
@@ -47,11 +48,13 @@ import {
 } from './models/batch.js';
 
 import {
-  SummarizeTextResponse,
-  SummarizeContextResponse,
-  GetSummaryResponse,
-  ListSummariesResponse,
-} from './models/summarization.js';
+  validateFindRelatedRequest,
+  validateFindPathRequest,
+  validateCreateEdgeRequest,
+  validateDiscoverEdgesRequest,
+} from './models/graph.js';
+
+// Summarization models are used internally but not directly exported
 
 // Removed unused exception imports - exceptions are handled in http-client
 
@@ -692,14 +695,25 @@ export class VectorizerClient {
    */
   setApiKey(apiKey) {
     this.config.apiKey = apiKey;
-    // Reinitialize HTTP client with new API key
-    const httpConfig = {
-      baseURL: this.config.baseURL,
-      timeout: this.config.timeout,
-      apiKey: this.config.apiKey,
-      headers: this.config.headers,
-    };
-    this.httpClient = new HttpClient(httpConfig);
+    // Reinitialize transport with new API key
+    if (this.protocol === 'http') {
+      const httpConfig = {
+        baseURL: this.config.baseURL,
+        ...(this.config.timeout && { timeout: this.config.timeout }),
+        ...(this.config.headers && { headers: this.config.headers }),
+        ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+      };
+      this.transport = TransportFactory.create({ protocol: 'http', http: httpConfig });
+    } else if (this.protocol === 'umicp' && this.config.umicp) {
+      const umicpConfig = {
+        host: this.config.umicp.host || 'localhost',
+        port: this.config.umicp.port || 15003,
+        ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+        ...(this.config.timeout && { timeout: this.config.timeout }),
+        ...this.config.umicp,
+      };
+      this.transport = TransportFactory.create({ protocol: 'umicp', umicp: umicpConfig });
+    }
 
     this.logger.info('API key updated');
   }
@@ -1195,7 +1209,7 @@ export class VectorizerClient {
    * Get server configuration (GUI endpoint).
    * @returns {Promise<Object>} Server configuration
    */
-  async getConfig() {
+  async getServerConfig() {
     this.logger.debug('Getting server configuration');
     return this.transport.get('/api/config');
   }
@@ -1257,5 +1271,219 @@ export class VectorizerClient {
   async getBackupDirectory() {
     this.logger.debug('Getting backup directory');
     return this.transport.get('/api/backups/directory');
+  }
+
+  // ========== Graph Operations ==========
+
+  /**
+   * List all nodes in a collection's graph.
+   * @param {string} collection - Collection name
+   * @returns {Promise<ListNodesResponse>} List of nodes
+   */
+  async listGraphNodes(collection) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      this.logger.debug('Listing graph nodes', { collection });
+      const response = await this.transport.get(`/graph/nodes/${collection}`);
+      this.logger.debug('Graph nodes listed', { collection, count: response.count });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to list graph nodes', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get neighbors of a specific node.
+   * @param {string} collection - Collection name
+   * @param {string} nodeId - Node ID
+   * @returns {Promise<GetNeighborsResponse>} List of neighbors
+   */
+  async getGraphNeighbors(collection, nodeId) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateNonEmptyString(nodeId, 'nodeId');
+      this.logger.debug('Getting graph neighbors', { collection, nodeId });
+      const response = await this.transport.get(`/graph/nodes/${collection}/${nodeId}/neighbors`);
+      this.logger.debug('Graph neighbors retrieved', { collection, nodeId, count: response.neighbors?.length });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to get graph neighbors', { collection, nodeId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Find related nodes within N hops.
+   * @param {string} collection - Collection name
+   * @param {string} nodeId - Node ID
+   * @param {FindRelatedRequest} request - Find related request
+   * @returns {Promise<FindRelatedResponse>} List of related nodes
+   */
+  async findRelatedNodes(collection, nodeId, request) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateNonEmptyString(nodeId, 'nodeId');
+      validateFindRelatedRequest(request);
+      this.logger.debug('Finding related nodes', { collection, nodeId, request });
+      const response = await this.transport.post(`/graph/nodes/${collection}/${nodeId}/related`, request);
+      this.logger.debug('Related nodes found', { collection, nodeId, count: response.related?.length });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to find related nodes', { collection, nodeId, request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Find shortest path between two nodes.
+   * @param {FindPathRequest} request - Find path request
+   * @returns {Promise<FindPathResponse>} Path between nodes
+   */
+  async findGraphPath(request) {
+    try {
+      validateFindPathRequest(request);
+      this.logger.debug('Finding graph path', { request });
+      const response = await this.transport.post('/graph/path', request);
+      this.logger.debug('Graph path found', { 
+        collection: request.collection, 
+        found: response.found, 
+        pathLength: response.path?.length 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to find graph path', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Create an explicit edge between two nodes.
+   * @param {CreateEdgeRequest} request - Create edge request
+   * @returns {Promise<CreateEdgeResponse>} Created edge response
+   */
+  async createGraphEdge(request) {
+    try {
+      validateCreateEdgeRequest(request);
+      this.logger.debug('Creating graph edge', { request });
+      const response = await this.transport.post('/graph/edges', request);
+      this.logger.info('Graph edge created', { 
+        collection: request.collection, 
+        edgeId: response.edge_id,
+        success: response.success 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to create graph edge', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an edge by ID.
+   * @param {string} edgeId - Edge ID
+   * @returns {Promise<void>}
+   */
+  async deleteGraphEdge(edgeId) {
+    try {
+      validateNonEmptyString(edgeId, 'edgeId');
+      this.logger.debug('Deleting graph edge', { edgeId });
+      await this.transport.delete(`/graph/edges/${edgeId}`);
+      this.logger.info('Graph edge deleted', { edgeId });
+    } catch (error) {
+      this.logger.error('Failed to delete graph edge', { edgeId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * List all edges in a collection.
+   * @param {string} collection - Collection name
+   * @returns {Promise<ListEdgesResponse>} List of edges
+   */
+  async listGraphEdges(collection) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      this.logger.debug('Listing graph edges', { collection });
+      const response = await this.transport.get(`/graph/collections/${collection}/edges`);
+      this.logger.debug('Graph edges listed', { collection, count: response.count });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to list graph edges', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Discover SIMILAR_TO edges for entire collection.
+   * @param {string} collection - Collection name
+   * @param {DiscoverEdgesRequest} request - Discover edges request
+   * @returns {Promise<DiscoverEdgesResponse>} Discovery response
+   */
+  async discoverGraphEdges(collection, request) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateDiscoverEdgesRequest(request);
+      this.logger.debug('Discovering graph edges', { collection, request });
+      const response = await this.transport.post(`/graph/discover/${collection}`, request);
+      this.logger.info('Graph edges discovered', { 
+        collection, 
+        edgesCreated: response.edges_created,
+        success: response.success 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to discover graph edges', { collection, request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Discover SIMILAR_TO edges for a specific node.
+   * @param {string} collection - Collection name
+   * @param {string} nodeId - Node ID
+   * @param {DiscoverEdgesRequest} request - Discover edges request
+   * @returns {Promise<DiscoverEdgesResponse>} Discovery response
+   */
+  async discoverGraphEdgesForNode(collection, nodeId, request) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateNonEmptyString(nodeId, 'nodeId');
+      validateDiscoverEdgesRequest(request);
+      this.logger.debug('Discovering graph edges for node', { collection, nodeId, request });
+      const response = await this.transport.post(`/graph/discover/${collection}/${nodeId}`, request);
+      this.logger.info('Graph edges discovered for node', { 
+        collection, 
+        nodeId,
+        edgesCreated: response.edges_created,
+        success: response.success 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to discover graph edges for node', { collection, nodeId, request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get discovery status for a collection.
+   * @param {string} collection - Collection name
+   * @returns {Promise<DiscoveryStatusResponse>} Discovery status
+   */
+  async getGraphDiscoveryStatus(collection) {
+    try {
+      validateNonEmptyString(collection, 'collection');
+      this.logger.debug('Getting graph discovery status', { collection });
+      const response = await this.transport.get(`/graph/discover/${collection}/status`);
+      this.logger.debug('Graph discovery status retrieved', { 
+        collection, 
+        progress: response.progress_percentage,
+        totalEdges: response.total_edges 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to get graph discovery status', { collection, error });
+      throw error;
+    }
   }
 }

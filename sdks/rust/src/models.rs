@@ -8,22 +8,21 @@ use std::collections::HashMap;
 pub mod hybrid_search;
 pub use hybrid_search::*;
 
+// Re-export graph models
+pub mod graph;
+pub use graph::*;
+
 /// Vector similarity metrics
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilarityMetric {
     /// Cosine similarity
+    #[default]
     Cosine,
     /// Euclidean distance
     Euclidean,
     /// Dot product
     DotProduct,
-}
-
-impl Default for SimilarityMetric {
-    fn default() -> Self {
-        Self::Cosine
-    }
 }
 
 /// Vector representation
@@ -335,10 +334,11 @@ pub struct BatchDeleteRequest {
 }
 
 /// Summarization methods
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SummarizationMethod {
     /// Extractive summarization
+    #[default]
     Extractive,
     /// Keyword summarization
     Keyword,
@@ -346,12 +346,6 @@ pub enum SummarizationMethod {
     Sentence,
     /// Abstractive summarization
     Abstractive,
-}
-
-impl Default for SummarizationMethod {
-    fn default() -> Self {
-        Self::Extractive
-    }
 }
 
 /// Summarize text request
@@ -709,7 +703,7 @@ pub struct ReplicaInfo {
     pub last_heartbeat: DateTime<Utc>,
     /// Number of operations successfully synced
     pub operations_synced: u64,
-    
+
     // Legacy fields (backwards compatible)
     /// Legacy: Current offset on replica (deprecated, use operations_synced)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -744,7 +738,7 @@ pub struct ReplicationStats {
     /// Number of connected replicas (Master only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connected_replicas: Option<usize>,
-    
+
     // Legacy fields (backwards compatible - always present)
     /// Current offset on master node
     pub master_offset: u64,

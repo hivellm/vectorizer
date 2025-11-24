@@ -2,6 +2,7 @@
  * Logger utility for the Hive Vectorizer SDK.
  */
 
+/* eslint-disable no-console */
 export class DefaultLogger {
   constructor(config = {}) {
     this.config = {

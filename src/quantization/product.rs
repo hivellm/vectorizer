@@ -4,10 +4,14 @@
 //! independently. This provides better compression ratios than scalar quantization for
 //! high-dimensional vectors.
 
-use crate::quantization::traits::{QuantizationMethod, QuantizedVectors, QuantizationParams, QualityMetrics};
-use crate::quantization::QuantizationError;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
+use crate::quantization::QuantizationError;
+use crate::quantization::traits::{
+    QualityMetrics, QuantizationMethod, QuantizationParams, QuantizedVectors,
+};
 
 /// Product Quantization configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +38,7 @@ impl Default for ProductQuantizationConfig {
 }
 
 /// Product Quantization implementation
+#[derive(Debug)]
 pub struct ProductQuantization {
     config: ProductQuantizationConfig,
     codebooks: Vec<Vec<Vec<f32>>>, // [subvector][centroid][dimension]
@@ -47,7 +52,7 @@ impl ProductQuantization {
     pub fn new(config: ProductQuantizationConfig, dimension: usize) -> Self {
         let subvector_size = dimension / config.subvectors;
         let mut codebooks = Vec::with_capacity(config.subvectors);
-        
+
         for _ in 0..config.subvectors {
             let mut subvector_codebook = Vec::with_capacity(config.centroids_per_subvector);
             for _ in 0..config.centroids_per_subvector {
@@ -68,7 +73,9 @@ impl ProductQuantization {
     /// Train the quantizer on a sample of vectors
     pub fn train(&mut self, training_vectors: &[Vec<f32>]) -> Result<(), QuantizationError> {
         if training_vectors.is_empty() {
-            return Err(QuantizationError::InvalidParameters("No training vectors provided".to_string()));
+            return Err(QuantizationError::InvalidParameters(
+                "No training vectors provided".to_string(),
+            ));
         }
 
         if training_vectors[0].len() != self.dimension {
@@ -86,7 +93,7 @@ impl ProductQuantization {
         for subvector_idx in 0..self.config.subvectors {
             let start_dim = subvector_idx * self.subvector_size;
             let end_dim = std::cmp::min(start_dim + self.subvector_size, self.dimension);
-            
+
             // Extract subvectors
             let mut subvectors = Vec::new();
             for vector in training_sample {
@@ -102,7 +109,11 @@ impl ProductQuantization {
     }
 
     /// Train codebook for a single subvector using K-means
-    fn train_subvector(&mut self, subvector_idx: usize, subvectors: &[Vec<f32>]) -> Result<(), QuantizationError> {
+    fn train_subvector(
+        &mut self,
+        subvector_idx: usize,
+        subvectors: &[Vec<f32>],
+    ) -> Result<(), QuantizationError> {
         let k = self.config.centroids_per_subvector;
         let mut centroids = self.initialize_centroids(subvectors, k);
         let mut assignments = vec![0; subvectors.len()];
@@ -189,7 +200,12 @@ impl ProductQuantization {
     }
 
     /// Update centroids based on current assignments
-    fn update_centroids(&self, subvectors: &[Vec<f32>], assignments: &[usize], centroids: &mut Vec<Vec<f32>>) {
+    fn update_centroids(
+        &self,
+        subvectors: &[Vec<f32>],
+        assignments: &[usize],
+        centroids: &mut Vec<Vec<f32>>,
+    ) {
         let k = centroids.len();
         let mut counts = vec![0; k];
         let mut sums = vec![vec![0.0; self.subvector_size]; k];
@@ -223,15 +239,18 @@ impl ProductQuantization {
 
     /// Quantize a vector
     pub fn quantize(&self, vector: &[f32]) -> Result<Vec<u8>, QuantizationError> {
-        if !self.trained {
-            return Err(QuantizationError::InvalidParameters("Quantizer not trained".to_string()));
-        }
-
+        // Check dimension first (before training check) to provide better error messages
         if vector.len() != self.dimension {
             return Err(QuantizationError::DimensionMismatch {
                 expected: self.dimension,
                 actual: vector.len(),
             });
+        }
+
+        if !self.trained {
+            return Err(QuantizationError::InvalidParameters(
+                "Quantizer not trained".to_string(),
+            ));
         }
 
         let mut codes = Vec::with_capacity(self.config.subvectors);
@@ -262,18 +281,21 @@ impl ProductQuantization {
     /// Reconstruct a vector from quantized codes
     pub fn reconstruct(&self, codes: &[u8]) -> Result<Vec<f32>, QuantizationError> {
         if codes.len() != self.config.subvectors {
-            return Err(QuantizationError::InvalidParameters(
-                format!("Expected {} codes, got {}", self.config.subvectors, codes.len())
-            ));
+            return Err(QuantizationError::InvalidParameters(format!(
+                "Expected {} codes, got {}",
+                self.config.subvectors,
+                codes.len()
+            )));
         }
 
         let mut reconstructed = Vec::with_capacity(self.dimension);
 
         for (subvector_idx, &code) in codes.iter().enumerate() {
             if code as usize >= self.config.centroids_per_subvector {
-                return Err(QuantizationError::InvalidParameters(
-                    format!("Invalid code {} for subvector {}", code, subvector_idx)
-                ));
+                return Err(QuantizationError::InvalidParameters(format!(
+                    "Invalid code {} for subvector {}",
+                    code, subvector_idx
+                )));
             }
 
             let centroid = &self.codebooks[subvector_idx][code as usize];
@@ -289,7 +311,11 @@ impl ProductQuantization {
     }
 
     /// Calculate quantization error for a vector
-    pub fn quantization_error(&self, original: &[f32], quantized: &[u8]) -> Result<f32, QuantizationError> {
+    pub fn quantization_error(
+        &self,
+        original: &[f32],
+        quantized: &[u8],
+    ) -> Result<f32, QuantizationError> {
         let reconstructed = self.reconstruct(quantized)?;
         Ok(self.euclidean_distance(original, &reconstructed))
     }
@@ -307,55 +333,8 @@ impl ProductQuantization {
     }
 }
 
-impl QuantizationMethod for ProductQuantization {
-    type Params = ProductQuantizationConfig;
-
-    fn new(params: Self::Params, dimension: usize) -> Self {
-        Self::new(params, dimension)
-    }
-
-    fn quantize(&self, vector: &[f32]) -> Result<Vec<u8>, QuantizationError> {
-        self.quantize(vector)
-    }
-
-    fn reconstruct(&self, codes: &[u8]) -> Result<Vec<f32>, QuantizationError> {
-        self.reconstruct(codes)
-    }
-
-    fn compression_ratio(&self) -> f32 {
-        self.compression_ratio()
-    }
-
-    fn memory_per_vector(&self) -> usize {
-        self.memory_per_vector()
-    }
-}
-
-impl QuantizedVectors for ProductQuantization {
-    fn add_vector(&mut self, _id: String, _vector: Vec<f32>) -> Result<(), QuantizationError> {
-        Err(QuantizationError::MethodNotSupported("Use quantize() method directly".to_string()))
-    }
-
-    fn get_vector(&self, _id: &str) -> Result<Option<Vec<f32>>, QuantizationError> {
-        Err(QuantizationError::MethodNotSupported("Use reconstruct() method directly".to_string()))
-    }
-
-    fn search(&self, _query: &[f32], _k: usize) -> Result<Vec<(String, f32)>, QuantizationError> {
-        Err(QuantizationError::MethodNotSupported("Use external search with quantized codes".to_string()))
-    }
-
-    fn remove_vector(&mut self, _id: &str) -> Result<bool, QuantizationError> {
-        Err(QuantizationError::MethodNotSupported("Use external storage management".to_string()))
-    }
-
-    fn vector_count(&self) -> usize {
-        0 // Not applicable for this implementation
-    }
-
-    fn memory_usage(&self) -> usize {
-        self.memory_per_vector()
-    }
-}
+// Note: ProductQuantization implements its own methods directly
+// and is used via direct method calls, not through the QuantizationMethod trait
 
 #[cfg(test)]
 mod tests {
@@ -365,7 +344,7 @@ mod tests {
     fn test_product_quantization_creation() {
         let config = ProductQuantizationConfig::default();
         let pq = ProductQuantization::new(config, 128);
-        
+
         assert_eq!(pq.config.subvectors, 8);
         assert_eq!(pq.config.centroids_per_subvector, 256);
         assert_eq!(pq.dimension, 128);
@@ -377,10 +356,13 @@ mod tests {
     fn test_compression_ratio() {
         let config = ProductQuantizationConfig::default();
         let pq = ProductQuantization::new(config, 128);
-        
+
         let ratio = pq.compression_ratio();
         assert!(ratio > 1.0); // Should compress
-        assert_eq!(ratio, 4.0); // 128 * 32 / (8 * 8) = 4.0
+        // 128 dimensions * 32 bits per float = 4096 bits
+        // 8 subvectors * 8 bits per code = 64 bits
+        // Ratio = 4096 / 64 = 64.0
+        assert_eq!(ratio, 64.0);
     }
 
     #[test]
@@ -391,9 +373,9 @@ mod tests {
             training_samples: 100,
             adaptive_assignment: false,
         };
-        
+
         let mut pq = ProductQuantization::new(config, 8);
-        
+
         // Generate training data
         let mut training_vectors = Vec::new();
         for i in 0..100 {
@@ -403,21 +385,21 @@ mod tests {
             }
             training_vectors.push(vector);
         }
-        
+
         // Train
         let result = pq.train(&training_vectors);
         assert!(result.is_ok());
         assert!(pq.trained);
-        
+
         // Test quantization
         let test_vector = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let quantized = pq.quantize(&test_vector).unwrap();
         assert_eq!(quantized.len(), 4);
-        
+
         // Test reconstruction
         let reconstructed = pq.reconstruct(&quantized).unwrap();
         assert_eq!(reconstructed.len(), 8);
-        
+
         // Test quantization error
         let error = pq.quantization_error(&test_vector, &quantized).unwrap();
         assert!(error >= 0.0);
@@ -427,19 +409,103 @@ mod tests {
     fn test_dimension_mismatch() {
         let config = ProductQuantizationConfig::default();
         let pq = ProductQuantization::new(config, 128);
-        
+
         let wrong_vector = vec![1.0; 64]; // Wrong dimension
         let result = pq.quantize(&wrong_vector);
-        assert!(matches!(result, Err(QuantizationError::DimensionMismatch { .. })));
+        assert!(matches!(
+            result,
+            Err(QuantizationError::DimensionMismatch { .. })
+        ));
     }
 
     #[test]
     fn test_not_trained() {
         let config = ProductQuantizationConfig::default();
         let pq = ProductQuantization::new(config, 128);
-        
+
         let vector = vec![1.0; 128];
         let result = pq.quantize(&vector);
-        assert!(matches!(result, Err(QuantizationError::InvalidParameters(_))));
+        assert!(matches!(
+            result,
+            Err(QuantizationError::InvalidParameters(_))
+        ));
+    }
+
+    #[test]
+    #[ignore] // Slow test - trains 1000 vectors with K-means, takes >60 seconds
+    fn test_pq_compression_and_search_accuracy() {
+        // Test PQ compression ratio and verify search accuracy
+        let config = ProductQuantizationConfig {
+            subvectors: 8,
+            centroids_per_subvector: 256,
+            training_samples: 1000,
+            adaptive_assignment: true,
+        };
+
+        let mut pq = ProductQuantization::new(config, 128);
+
+        // Generate diverse training data
+        let mut training_vectors = Vec::new();
+        for i in 0..1000 {
+            let mut vector = Vec::with_capacity(128);
+            for j in 0..128 {
+                vector.push((i as f32 * 0.01 + j as f32 * 0.001).sin());
+            }
+            training_vectors.push(vector);
+        }
+
+        // Train
+        pq.train(&training_vectors).unwrap();
+
+        // Test compression ratio
+        let compression_ratio = pq.compression_ratio();
+        assert!(compression_ratio > 1.0, "PQ should provide compression");
+        assert!(
+            compression_ratio >= 3.0,
+            "PQ should provide at least 3x compression"
+        );
+
+        // Test quantization and reconstruction accuracy
+        let test_vectors = &training_vectors[0..10];
+        let mut total_error = 0.0;
+        let mut max_error: f32 = 0.0;
+
+        for original in test_vectors {
+            let quantized = pq.quantize(original).unwrap();
+            let reconstructed = pq.reconstruct(&quantized).unwrap();
+
+            // Calculate reconstruction error
+            let error = original
+                .iter()
+                .zip(reconstructed.iter())
+                .map(|(a, b)| (a - b).abs())
+                .sum::<f32>()
+                / original.len() as f32;
+
+            total_error += error;
+            max_error = max_error.max(error);
+        }
+
+        let avg_error = total_error / test_vectors.len() as f32;
+
+        // Verify reasonable reconstruction quality
+        assert!(
+            avg_error < 0.1,
+            "Average reconstruction error should be < 0.1, got {}",
+            avg_error
+        );
+        assert!(
+            max_error < 0.2,
+            "Max reconstruction error should be < 0.2, got {}",
+            max_error
+        );
+
+        // Verify memory savings
+        let memory_per_vector = pq.memory_per_vector();
+        let original_memory = 128 * std::mem::size_of::<f32>(); // 128 * 4 = 512 bytes
+        assert!(
+            memory_per_vector < original_memory,
+            "PQ should use less memory per vector"
+        );
     }
 }

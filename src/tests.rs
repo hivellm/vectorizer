@@ -90,12 +90,15 @@ mod tests {
     #[test]
     fn test_collection_config_creation() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         assert_eq!(config.dimension, 128);

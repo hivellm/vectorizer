@@ -212,6 +212,34 @@ For maximum accuracy:
 - Memory is not a concern
 - Research/development
 
+## Sharding Configuration
+
+Sharding distributes vectors across multiple shards for scalability. See the [Sharding Guide](./SHARDING.md) for complete details.
+
+**Basic sharding configuration:**
+
+```json
+{
+  "sharding": {
+    "shard_count": 4,
+    "virtual_nodes_per_shard": 100,
+    "rebalance_threshold": 0.2
+  }
+}
+```
+
+**When to enable:**
+- Collections with > 100K vectors
+- Need for horizontal scalability
+- High concurrent load
+
+**Quick reference:**
+- `shard_count`: Number of shards (default: 4)
+- `virtual_nodes_per_shard`: Virtual nodes for consistent hashing (default: 100)
+- `rebalance_threshold`: Rebalancing trigger threshold (default: 0.2 = 20%)
+
+For detailed sharding configuration, see [Sharding Guide](./SHARDING.md).
+
 ## Compression Configuration
 
 Compress payloads to save storage:
@@ -296,4 +324,5 @@ Compress payloads to save storage:
 
 - [Creating Collections](./CREATING.md) - How to create collections
 - [Collection Operations](./OPERATIONS.md) - Managing collections
+- [Sharding Guide](./SHARDING.md) - Distributed sharding configuration
 - [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance tuning

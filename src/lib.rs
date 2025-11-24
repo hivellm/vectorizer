@@ -5,10 +5,12 @@
 
 #![allow(warnings)]
 
+pub mod api;
 pub mod auth;
 pub mod batch;
 pub mod cache;
 pub mod cli;
+pub mod cluster;
 pub mod config;
 pub mod db;
 pub mod discovery;
@@ -22,6 +24,7 @@ pub mod file_watcher;
 // GPU module removed - using external hive-gpu crate
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_adapter;
+pub mod grpc;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;
@@ -32,6 +35,7 @@ pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
+pub mod quantization;
 pub mod replication;
 pub mod security;
 pub mod server;
@@ -80,12 +84,15 @@ mod integration_tests {
 
         // Create collection
         let config = CollectionConfig {
+            sharding: None,
             dimension: 64,
             metric: crate::models::DistanceMetric::Euclidean,
             hnsw_config: crate::models::HnswConfig::default(),
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         store.create_collection("concurrent", config).unwrap();
@@ -177,6 +184,7 @@ mod integration_tests {
             (
                 "small_test_mgmt_unique",
                 CollectionConfig {
+                    sharding: None,
                     dimension: 64,
                     metric: crate::models::DistanceMetric::Euclidean,
                     hnsw_config: crate::models::HnswConfig {
@@ -188,11 +196,14 @@ mod integration_tests {
                     quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
                     normalization: None,
+                    storage_type: Some(crate::models::StorageType::Memory),
+                    graph: None,
                 },
             ),
             (
                 "large_test_mgmt_unique",
                 CollectionConfig {
+                    sharding: None,
                     dimension: 512,
                     metric: crate::models::DistanceMetric::Cosine,
                     hnsw_config: crate::models::HnswConfig {
@@ -208,6 +219,8 @@ mod integration_tests {
                         algorithm: crate::models::CompressionAlgorithm::Lz4,
                     },
                     normalization: None,
+                    storage_type: Some(crate::models::StorageType::Memory),
+                    graph: None,
                 },
             ),
         ];

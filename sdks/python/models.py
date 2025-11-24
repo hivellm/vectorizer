@@ -703,9 +703,9 @@ class HybridSearchResponse:
     
     results: List[HybridSearchResult]
     query: str
-    query_sparse: Optional[Dict[str, List]] = None
     alpha: float
     algorithm: str
+    query_sparse: Optional[Dict[str, List]] = None
     duration_ms: Optional[int] = None
 
 
@@ -813,3 +813,199 @@ class ReplicaListResponse:
             raise ValueError("Count cannot be negative")
         if self.count != len(self.replicas):
             raise ValueError("Count must match number of replicas")
+
+
+# ========== Graph Models ==========
+
+@dataclass
+class GraphNode:
+    """Graph node representing a document/file."""
+    
+    id: str
+    node_type: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class GraphEdge:
+    """Graph edge representing a relationship between nodes."""
+    
+    id: str
+    source: str
+    target: str
+    relationship_type: str
+    weight: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str = ""
+
+
+@dataclass
+class NeighborInfo:
+    """Neighbor information."""
+    
+    node: GraphNode
+    edge: GraphEdge
+
+
+@dataclass
+class RelatedNodeInfo:
+    """Related node information."""
+    
+    node: GraphNode
+    distance: int
+    weight: float
+
+
+@dataclass
+class FindRelatedRequest:
+    """Request to find related nodes."""
+    
+    max_hops: Optional[int] = None
+    relationship_type: Optional[str] = None
+    
+    def __post_init__(self):
+        """Validate find related request data after initialization."""
+        if self.max_hops is not None:
+            if not isinstance(self.max_hops, int) or self.max_hops < 1:
+                raise ValueError("max_hops must be a positive integer")
+        
+        if self.relationship_type is not None:
+            if not isinstance(self.relationship_type, str) or not self.relationship_type.strip():
+                raise ValueError("relationship_type must be a non-empty string")
+
+
+@dataclass
+class FindRelatedResponse:
+    """Response for finding related nodes."""
+    
+    related: List[RelatedNodeInfo]
+
+
+@dataclass
+class FindPathRequest:
+    """Request to find path between nodes."""
+    
+    collection: str
+    source: str
+    target: str
+    
+    def __post_init__(self):
+        """Validate find path request data after initialization."""
+        if not isinstance(self.collection, str) or not self.collection.strip():
+            raise ValueError("collection must be a non-empty string")
+        
+        if not isinstance(self.source, str) or not self.source.strip():
+            raise ValueError("source must be a non-empty string")
+        
+        if not isinstance(self.target, str) or not self.target.strip():
+            raise ValueError("target must be a non-empty string")
+
+
+@dataclass
+class FindPathResponse:
+    """Response for finding path."""
+    
+    path: List[GraphNode]
+    found: bool
+
+
+@dataclass
+class CreateEdgeRequest:
+    """Request to create an edge."""
+    
+    collection: str
+    source: str
+    target: str
+    relationship_type: str
+    weight: Optional[float] = None
+    
+    def __post_init__(self):
+        """Validate create edge request data after initialization."""
+        if not isinstance(self.collection, str) or not self.collection.strip():
+            raise ValueError("collection must be a non-empty string")
+        
+        if not isinstance(self.source, str) or not self.source.strip():
+            raise ValueError("source must be a non-empty string")
+        
+        if not isinstance(self.target, str) or not self.target.strip():
+            raise ValueError("target must be a non-empty string")
+        
+        if not isinstance(self.relationship_type, str) or not self.relationship_type.strip():
+            raise ValueError("relationship_type must be a non-empty string")
+        
+        if self.weight is not None:
+            if not isinstance(self.weight, (int, float)):
+                raise ValueError("weight must be a number")
+            if self.weight < 0.0 or self.weight > 1.0:
+                raise ValueError("weight must be between 0.0 and 1.0")
+
+
+@dataclass
+class CreateEdgeResponse:
+    """Response for creating an edge."""
+    
+    edge_id: str
+    success: bool
+    message: str
+
+
+@dataclass
+class ListNodesResponse:
+    """Response for listing nodes."""
+    
+    nodes: List[GraphNode]
+    count: int
+
+
+@dataclass
+class GetNeighborsResponse:
+    """Response for getting neighbors."""
+    
+    neighbors: List[NeighborInfo]
+
+
+@dataclass
+class ListEdgesResponse:
+    """Response for listing edges."""
+    
+    edges: List[GraphEdge]
+    count: int
+
+
+@dataclass
+class DiscoverEdgesRequest:
+    """Request to discover edges."""
+    
+    similarity_threshold: Optional[float] = None
+    max_per_node: Optional[int] = None
+    
+    def __post_init__(self):
+        """Validate discover edges request data after initialization."""
+        if self.similarity_threshold is not None:
+            if not isinstance(self.similarity_threshold, (int, float)):
+                raise ValueError("similarity_threshold must be a number")
+            if self.similarity_threshold < 0.0 or self.similarity_threshold > 1.0:
+                raise ValueError("similarity_threshold must be between 0.0 and 1.0")
+        
+        if self.max_per_node is not None:
+            if not isinstance(self.max_per_node, int) or self.max_per_node < 1:
+                raise ValueError("max_per_node must be a positive integer")
+
+
+@dataclass
+class DiscoverEdgesResponse:
+    """Response for discovering edges."""
+    
+    success: bool
+    edges_created: int
+    message: str
+
+
+@dataclass
+class DiscoveryStatusResponse:
+    """Response for discovery status."""
+    
+    total_nodes: int
+    nodes_with_edges: int
+    total_edges: int
+    progress_percentage: float

@@ -507,5 +507,8 @@ fn convert_from_qdrant_config(
         quantization: quantization_config,
         compression: crate::models::CompressionConfig::default(),
         normalization: None, // Qdrant doesn't have normalization concept
+        storage_type: Some(crate::models::StorageType::Memory),
+        sharding: None,
+        graph: None,
     })
 }

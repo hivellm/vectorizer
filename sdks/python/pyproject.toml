@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vectorizer_sdk"
-version = "1.3.0"
+version = "1.4.0"
 description = "Python SDK for Vectorizer - Semantic search and vector operations with UMICP protocol support"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "Apache-2.0"
+license = {text = "Apache-2.0"}
 authors = [
     {name = "HiveLLM Team", email = "team@hivellm.org"}
 ]
@@ -42,10 +42,12 @@ classifiers = [
 
 dependencies = [
     "aiohttp>=3.8.0",
-    "umicp-sdk>=0.3.2",
 ]
 
 [project.optional-dependencies]
+umicp = [
+    "umicp-python>=0.1.3",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",

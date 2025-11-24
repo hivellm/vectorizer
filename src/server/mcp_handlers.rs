@@ -7,7 +7,9 @@ use serde_json::json;
 
 use super::discovery_handlers::*;
 use super::file_operations_handlers::*;
+use super::graph_handlers::*;
 use crate::VectorStore;
+use crate::db::graph::RelationshipType;
 use crate::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::discovery::{
     CollectionRef, Discovery, DiscoveryConfig, ExpansionConfig, expand_queries_baseline,
@@ -92,6 +94,7 @@ pub async fn handle_mcp_tool(
     request: CallToolRequestParam,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
 ) -> Result<CallToolResult, ErrorData> {
     match request.name.as_ref() {
         // Core Collection/Vector Operations
@@ -123,6 +126,28 @@ pub async fn handle_mcp_tool(
         "get_file_chunks" => handle_get_file_chunks_ordered(request, store).await,
         "get_project_outline" => handle_get_project_outline(request, store).await,
         "get_related_files" => handle_get_related_files(request, store, embedding_manager).await,
+
+        // Graph Operations
+        "graph_list_nodes" => handle_graph_list_nodes(request, store).await,
+        "graph_get_neighbors" => handle_graph_get_neighbors(request, store).await,
+        "graph_find_related" => handle_graph_find_related(request, store).await,
+        "graph_find_path" => handle_graph_find_path(request, store).await,
+        "graph_create_edge" => handle_graph_create_edge(request, store).await,
+        "graph_delete_edge" => handle_graph_delete_edge(request, store).await,
+        "graph_discover_edges" => handle_graph_discover_edges(request, store).await,
+        "graph_discover_status" => handle_graph_discover_status(request, store).await,
+
+        // Cluster Operations
+        "cluster_list_nodes" => handle_cluster_list_nodes(store, cluster_manager).await,
+        "cluster_get_shard_distribution" => {
+            handle_cluster_get_shard_distribution(store, cluster_manager).await
+        }
+        "cluster_rebalance" => handle_cluster_rebalance(request, store, cluster_manager).await,
+        "cluster_add_node" => handle_cluster_add_node(request, store, cluster_manager).await,
+        "cluster_remove_node" => handle_cluster_remove_node(request, store, cluster_manager).await,
+        "cluster_get_node_info" => {
+            handle_cluster_get_node_info(request, store, cluster_manager).await
+        }
 
         _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
@@ -232,6 +257,22 @@ async fn handle_create_collection(
         _ => crate::models::DistanceMetric::Cosine,
     };
 
+    // Parse graph configuration if provided
+    let graph_config = args.get("graph").and_then(|g| {
+        if let Some(enabled) = g.get("enabled").and_then(|e| e.as_bool()) {
+            if enabled {
+                Some(crate::models::GraphConfig {
+                    enabled: true,
+                    auto_relationship: crate::models::AutoRelationshipConfig::default(),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+
     let config = crate::models::CollectionConfig {
         dimension,
         metric: distance_metric,
@@ -243,6 +284,9 @@ async fn handle_create_collection(
             algorithm: crate::models::CompressionAlgorithm::Lz4,
         },
         normalization: None,
+        storage_type: Some(crate::models::StorageType::Memory),
+        graph: graph_config,
+        sharding: None,
     };
 
     store.create_collection(name, config).map_err(|e| {
@@ -1100,6 +1144,177 @@ async fn handle_hybrid_search(
             "sparse_k": sparse_k,
             "final_k": final_k
         }
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
+// Cluster Management Handlers
+async fn handle_cluster_list_nodes(
+    _store: Arc<VectorStore>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+) -> Result<CallToolResult, ErrorData> {
+    let manager =
+        cluster_manager.ok_or_else(|| ErrorData::invalid_params("Cluster not enabled", None))?;
+
+    let nodes = manager.get_nodes();
+    let response = json!({
+        "nodes": nodes.iter().map(|n| json!({
+            "id": n.id.as_str(),
+            "address": n.address,
+            "grpc_port": n.grpc_port,
+            "status": format!("{:?}", n.status),
+            "shards": n.shards.iter().map(|s| s.as_u32()).collect::<Vec<_>>(),
+        })).collect::<Vec<_>>(),
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
+async fn handle_cluster_get_shard_distribution(
+    _store: Arc<VectorStore>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+) -> Result<CallToolResult, ErrorData> {
+    let manager =
+        cluster_manager.ok_or_else(|| ErrorData::invalid_params("Cluster not enabled", None))?;
+
+    let router = manager.shard_router();
+    let nodes = manager.get_nodes();
+    let mut distribution = std::collections::HashMap::new();
+
+    for node in nodes {
+        let shards = router.get_shards_for_node(&node.id);
+        distribution.insert(node.id.as_str().to_string(), shards.len());
+    }
+
+    let response = json!({
+        "distribution": distribution,
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
+async fn handle_cluster_rebalance(
+    _request: CallToolRequestParam,
+    _store: Arc<VectorStore>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+) -> Result<CallToolResult, ErrorData> {
+    let manager =
+        cluster_manager.ok_or_else(|| ErrorData::invalid_params("Cluster not enabled", None))?;
+
+    let router = manager.shard_router();
+    let all_nodes: Vec<_> = manager.get_nodes().iter().map(|n| n.id.clone()).collect();
+    let all_shards: Vec<_> = all_nodes
+        .iter()
+        .flat_map(|node_id| router.get_shards_for_node(node_id))
+        .collect();
+    if !all_nodes.is_empty() && !all_shards.is_empty() {
+        router.rebalance(&all_shards, &all_nodes);
+    }
+
+    Ok(CallToolResult::success(vec![Content::text(
+        json!({"message": "Rebalancing triggered"}).to_string(),
+    )]))
+}
+
+async fn handle_cluster_add_node(
+    request: CallToolRequestParam,
+    _store: Arc<VectorStore>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+) -> Result<CallToolResult, ErrorData> {
+    let manager =
+        cluster_manager.ok_or_else(|| ErrorData::invalid_params("Cluster not enabled", None))?;
+
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let node_id = args
+        .get("node_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing node_id", None))?;
+    let address = args
+        .get("address")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing address", None))?;
+    let grpc_port = args
+        .get("grpc_port")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| ErrorData::invalid_params("Missing grpc_port", None))?;
+
+    let mut node = crate::cluster::ClusterNode::new(
+        crate::cluster::NodeId::new(node_id.to_string()),
+        address.to_string(),
+        grpc_port as u16,
+    );
+    node.mark_active();
+    manager.add_node(node);
+
+    Ok(CallToolResult::success(vec![Content::text(
+        json!({"message": "Node added"}).to_string(),
+    )]))
+}
+
+async fn handle_cluster_remove_node(
+    request: CallToolRequestParam,
+    _store: Arc<VectorStore>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+) -> Result<CallToolResult, ErrorData> {
+    let manager =
+        cluster_manager.ok_or_else(|| ErrorData::invalid_params("Cluster not enabled", None))?;
+
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let node_id = args
+        .get("node_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing node_id", None))?;
+
+    manager.remove_node(&crate::cluster::NodeId::new(node_id.to_string()));
+
+    Ok(CallToolResult::success(vec![Content::text(
+        json!({"message": "Node removed"}).to_string(),
+    )]))
+}
+
+async fn handle_cluster_get_node_info(
+    request: CallToolRequestParam,
+    _store: Arc<VectorStore>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+) -> Result<CallToolResult, ErrorData> {
+    let manager =
+        cluster_manager.ok_or_else(|| ErrorData::invalid_params("Cluster not enabled", None))?;
+
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let node_id = args
+        .get("node_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing node_id", None))?;
+
+    let node = manager
+        .get_node(&crate::cluster::NodeId::new(node_id.to_string()))
+        .ok_or_else(|| ErrorData::invalid_params("Node not found", None))?;
+
+    let response = json!({
+        "id": node.id.as_str(),
+        "address": node.address,
+        "grpc_port": node.grpc_port,
+        "status": format!("{:?}", node.status),
+        "shards": node.shards.iter().map(|s| s.as_u32()).collect::<Vec<_>>(),
     });
 
     Ok(CallToolResult::success(vec![Content::text(

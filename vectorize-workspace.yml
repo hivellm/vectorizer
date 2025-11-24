@@ -1,96 +1,97 @@
-# HiveLLM Ecosystem Workspace
+global_settings:
+  file_watcher:
+    enabled: true
 projects:
-  - name: "vectorizer"
-    path: "."
-    description: "Vectorizer - Vector database and search engine"
-    collections:
-      - name: "vectorizer-docs"
-        description: "Vectorizer documentation"
-        include_patterns:
-          - "docs/**/*.md"
-          - "*.md"
-        exclude_patterns:
-          - "target/**"
-          - "data/**"
-      - name: "vectorizer-source"
-        description: "Vectorizer Rust source code"
-        include_patterns:
-          - "src/**/*.rs"
-          - "**/*.toml"
-          - "build.rs"
-        exclude_patterns:
-          - "target/**"
-          - "data/**"
-      - name: "vectorizer-sdk-typescript"
-        description: "Vectorizer TypeScript SDK"
-        include_patterns:
-          - "client-sdks/**/*.ts"
-          - "client-sdks/**/*.json"
-        exclude_patterns:
-          - "client-sdks/**/node_modules/**"
-      - name: "vectorizer-sdk-python"
-        description: "Vectorizer Python SDK"
-        include_patterns:
-          - "client-sdks/**/*.py"
-        exclude_patterns:
-          - "client-sdks/**/__pycache__/**"
-
-  - name: "tos-server"
-    path: "/mnt/g/ToS/Server"
-    description: "Tales of Shadowland MMORPG Server - Complete documentation and codebase"
-    collections:
-      - name: "tos-docs-server"
-        description: "Server-side documentation (architecture, systems, spells, skills, etc.)"
-        include_patterns:
-          - "docs/server/**/*.md"
-          - "docs/server/**/*.rs"
-        exclude_patterns:
-          - "**/target/**"
-          - "**/node_modules/**"
-          - "**/.git/**"
-      - name: "tos-docs-client"
-        description: "Client-side documentation (UI, systems, visual, world)"
-        include_patterns:
-          - "docs/client/**/*.md"
-        exclude_patterns:
-          - "**/target/**"
-          - "**/node_modules/**"
-          - "**/.git/**"
-      - name: "tos-docs-admin"
-        description: "Admin panel and API documentation"
-        include_patterns:
-          - "docs/admin/**/*.md"
-          - "docs/api/**/*.md"
-        exclude_patterns:
-          - "**/target/**"
-          - "**/node_modules/**"
-          - "**/.git/**"
-      - name: "tos-docs-core"
-        description: "Core documentation (README, architecture overview, gap analysis)"
-        include_patterns:
-          - "docs/*.md"
-          - "README.md"
-          - "AGENTS.md"
-        exclude_patterns:
-          - "**/target/**"
-          - "**/node_modules/**"
-          - "**/.git/**"
-      - name: "tos-source-rust"
-        description: "Rust source code (when implemented)"
-        include_patterns:
-          - "crates/**/*.rs"
-          - "bin/**/*.rs"
-          - "**/Cargo.toml"
-          - "**/Cargo.lock"
-        exclude_patterns:
-          - "**/target/**"
-          - "**/node_modules/**"
-          - "**/.git/**"
-      - name: "tos-database-schema"
-        description: "Database schemas and migrations"
-        include_patterns:
-          - "docs/server/database/**/*.md"
-          - "migrations/**/*.sql"
-        exclude_patterns:
-          - "**/target/**"
-          - "**/.git/**"
+- collections:
+  - description: Vectorizer documentation
+    exclude_patterns:
+    - target/**
+    - data/**
+    include_patterns:
+    - docs/**/*.md
+    - '*.md'
+    name: vectorizer-docs
+  - description: Vectorizer Rust source code
+    exclude_patterns:
+    - target/**
+    - data/**
+    include_patterns:
+    - src/**/*.rs
+    - '**/*.toml'
+    - build.rs
+    name: vectorizer-source
+  - description: Vectorizer TypeScript SDK
+    exclude_patterns:
+    - client-sdks/**/node_modules/**
+    include_patterns:
+    - client-sdks/**/*.ts
+    - client-sdks/**/*.json
+    name: vectorizer-sdk-typescript
+  - description: Vectorizer Python SDK
+    exclude_patterns:
+    - client-sdks/**/__pycache__/**
+    include_patterns:
+    - client-sdks/**/*.py
+    name: vectorizer-sdk-python
+  description: Vectorizer - Vector database and search engine
+  name: vectorizer
+  path: .
+- collections:
+  - description: Server-side documentation (architecture, systems, spells, skills, etc.)
+    exclude_patterns:
+    - '**/target/**'
+    - '**/node_modules/**'
+    - '**/.git/**'
+    include_patterns:
+    - docs/server/**/*.md
+    - docs/server/**/*.rs
+    name: tos-docs-server
+  - description: Client-side documentation (UI, systems, visual, world)
+    exclude_patterns:
+    - '**/target/**'
+    - '**/node_modules/**'
+    - '**/.git/**'
+    include_patterns:
+    - docs/client/**/*.md
+    name: tos-docs-client
+  - description: Admin panel and API documentation
+    exclude_patterns:
+    - '**/target/**'
+    - '**/node_modules/**'
+    - '**/.git/**'
+    include_patterns:
+    - docs/admin/**/*.md
+    - docs/api/**/*.md
+    name: tos-docs-admin
+  - description: Core documentation (README, architecture overview, gap analysis)
+    exclude_patterns:
+    - '**/target/**'
+    - '**/node_modules/**'
+    - '**/.git/**'
+    include_patterns:
+    - docs/*.md
+    - README.md
+    - AGENTS.md
+    name: tos-docs-core
+  - description: Rust source code (when implemented)
+    exclude_patterns:
+    - '**/target/**'
+    - '**/node_modules/**'
+    - '**/.git/**'
+    include_patterns:
+    - crates/**/*.rs
+    - bin/**/*.rs
+    - '**/Cargo.toml'
+    - '**/Cargo.lock'
+    name: tos-source-rust
+  - description: Database schemas and migrations
+    exclude_patterns:
+    - '**/target/**'
+    - '**/.git/**'
+    include_patterns:
+    - docs/server/database/**/*.md
+    - migrations/**/*.sql
+    name: tos-database-schema
+  description: Tales of Shadowland MMORPG Server - Complete documentation and codebase
+  name: tos-server
+  path: /mnt/g/ToS/Server

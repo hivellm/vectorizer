@@ -8,11 +8,12 @@
 
 #[cfg(test)]
 mod intelligent_search_tests {
-    use vectorizer_rust_sdk::*;
     use std::env;
+    use vectorizer_sdk::*;
 
     fn get_test_client() -> VectorizerClient {
-        let base_url = env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
+        let base_url =
+            env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
         VectorizerClient::new_with_url(&base_url).expect("Failed to create client")
     }
 
@@ -27,7 +28,7 @@ mod intelligent_search_tests {
                 Ok(result) => {
                     println!("✓ {} succeeded", $test_name);
                     Some(result)
-                },
+                }
                 Err(e) => {
                     println!("WARNING: {} failed: {:?}", $test_name, e);
                     println!("This may be due to missing collections or endpoint configuration");
@@ -61,9 +62,15 @@ mod intelligent_search_tests {
         // Test may fail if collections don't exist or endpoint configuration issue
         match response {
             Ok(result) => {
-                assert!(result.total_results >= 0, "total_results should be non-negative");
-                println!("✓ Intelligent search succeeded with {} results", result.total_results);
-            },
+                assert!(
+                    result.total_results >= 0,
+                    "total_results should be non-negative"
+                );
+                println!(
+                    "✓ Intelligent search succeeded with {} results",
+                    result.total_results
+                );
+            }
             Err(e) => {
                 println!("WARNING: Intelligent search failed: {:?}", e);
                 println!("This may be due to:");
@@ -86,7 +93,10 @@ mod intelligent_search_tests {
         let request = IntelligentSearchRequest {
             query: "vector database features".to_string(),
             max_results: Some(5),
-            collections: Some(vec!["test-collection-1".to_string(), "test-collection-2".to_string()]),
+            collections: Some(vec![
+                "test-collection-1".to_string(),
+                "test-collection-2".to_string(),
+            ]),
             domain_expansion: None,
             technical_focus: None,
             mmr_enabled: None,
@@ -287,7 +297,11 @@ mod intelligent_search_tests {
 
         let request = MultiCollectionSearchRequest {
             query: "REST API endpoints".to_string(),
-            collections: vec!["collection-1".to_string(), "collection-2".to_string(), "collection-3".to_string()],
+            collections: vec![
+                "collection-1".to_string(),
+                "collection-2".to_string(),
+                "collection-3".to_string(),
+            ],
             max_per_collection: Some(5),
             max_total_results: Some(15),
             cross_collection_reranking: None,
@@ -307,7 +321,11 @@ mod intelligent_search_tests {
 
         let request = MultiCollectionSearchRequest {
             query: "database queries".to_string(),
-            collections: vec!["docs".to_string(), "examples".to_string(), "tests".to_string()],
+            collections: vec![
+                "docs".to_string(),
+                "examples".to_string(),
+                "tests".to_string(),
+            ],
             max_per_collection: Some(3),
             max_total_results: Some(9),
             cross_collection_reranking: Some(true),
@@ -327,7 +345,12 @@ mod intelligent_search_tests {
 
         let request = MultiCollectionSearchRequest {
             query: "common term".to_string(),
-            collections: vec!["col1".to_string(), "col2".to_string(), "col3".to_string(), "col4".to_string()],
+            collections: vec![
+                "col1".to_string(),
+                "col2".to_string(),
+                "col3".to_string(),
+                "col4".to_string(),
+            ],
             max_per_collection: Some(10),
             max_total_results: Some(5),
             cross_collection_reranking: None,
@@ -402,7 +425,10 @@ mod intelligent_search_tests {
         };
 
         let response = client.semantic_search(request).await;
-        assert!(response.is_err(), "Invalid similarity threshold should fail");
+        assert!(
+            response.is_err(),
+            "Invalid similarity threshold should fail"
+        );
     }
 
     #[tokio::test]
@@ -436,7 +462,7 @@ mod intelligent_search_tests {
         }
 
         let start_time = std::time::Instant::now();
-        
+
         let request = IntelligentSearchRequest {
             query: "performance test".to_string(),
             max_results: Some(10),
@@ -448,9 +474,9 @@ mod intelligent_search_tests {
         };
 
         let response = client.intelligent_search(request).await;
-        
+
         let duration = start_time.elapsed();
-        
+
         // Only assert duration if the request succeeded
         if response.is_ok() {
             assert!(duration.as_secs() < 5, "Should complete within 5 seconds");
@@ -484,4 +510,3 @@ mod intelligent_search_tests {
         }
     }
 }
-

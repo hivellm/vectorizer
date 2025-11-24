@@ -1,8 +1,8 @@
 //! Basic usage example for the Hive Vectorizer Rust SDK.
 //! This example demonstrates all core operations available in the SDK.
 
-use vectorizer_sdk::*;
 use std::collections::HashMap;
+use vectorizer_sdk::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -39,7 +39,10 @@ async fn main() -> Result<()> {
         Ok(collections) => {
             println!("📁 Found {} collections:", collections.len());
             for collection in collections.iter().take(5) {
-                println!("   - {} ({} vectors)", collection.name, collection.vector_count);
+                println!(
+                    "   - {} ({} vectors)",
+                    collection.name, collection.vector_count
+                );
             }
         }
         Err(e) => {
@@ -49,7 +52,10 @@ async fn main() -> Result<()> {
 
     // Create a new collection
     println!("\n🆕 Creating collection...");
-    match client.create_collection(collection_name, 384, Some(SimilarityMetric::Cosine)).await {
+    match client
+        .create_collection(collection_name, 384, Some(SimilarityMetric::Cosine))
+        .await
+    {
         Ok(collection) => {
             println!("✅ Collection created: {}", collection.name);
             println!("   Dimension: {}", collection.dimension);
@@ -68,9 +74,18 @@ async fn main() -> Result<()> {
             text: "Introduction to Machine Learning".to_string(),
             metadata: Some({
                 let mut meta = HashMap::new();
-                meta.insert("source".to_string(), serde_json::Value::String("document1.pdf".to_string()));
-                meta.insert("title".to_string(), serde_json::Value::String("Introduction to Machine Learning".to_string()));
-                meta.insert("category".to_string(), serde_json::Value::String("AI".to_string()));
+                meta.insert(
+                    "source".to_string(),
+                    serde_json::Value::String("document1.pdf".to_string()),
+                );
+                meta.insert(
+                    "title".to_string(),
+                    serde_json::Value::String("Introduction to Machine Learning".to_string()),
+                );
+                meta.insert(
+                    "category".to_string(),
+                    serde_json::Value::String("AI".to_string()),
+                );
                 meta
             }),
         },
@@ -79,9 +94,18 @@ async fn main() -> Result<()> {
             text: "Deep Learning Fundamentals".to_string(),
             metadata: Some({
                 let mut meta = HashMap::new();
-                meta.insert("source".to_string(), serde_json::Value::String("document2.pdf".to_string()));
-                meta.insert("title".to_string(), serde_json::Value::String("Deep Learning Fundamentals".to_string()));
-                meta.insert("category".to_string(), serde_json::Value::String("AI".to_string()));
+                meta.insert(
+                    "source".to_string(),
+                    serde_json::Value::String("document2.pdf".to_string()),
+                );
+                meta.insert(
+                    "title".to_string(),
+                    serde_json::Value::String("Deep Learning Fundamentals".to_string()),
+                );
+                meta.insert(
+                    "category".to_string(),
+                    serde_json::Value::String("AI".to_string()),
+                );
                 meta
             }),
         },
@@ -90,9 +114,18 @@ async fn main() -> Result<()> {
             text: "Data Science Best Practices".to_string(),
             metadata: Some({
                 let mut meta = HashMap::new();
-                meta.insert("source".to_string(), serde_json::Value::String("document3.pdf".to_string()));
-                meta.insert("title".to_string(), serde_json::Value::String("Data Science Best Practices".to_string()));
-                meta.insert("category".to_string(), serde_json::Value::String("Data".to_string()));
+                meta.insert(
+                    "source".to_string(),
+                    serde_json::Value::String("document3.pdf".to_string()),
+                );
+                meta.insert(
+                    "title".to_string(),
+                    serde_json::Value::String("Data Science Best Practices".to_string()),
+                );
+                meta.insert(
+                    "category".to_string(),
+                    serde_json::Value::String("Data".to_string()),
+                );
                 meta
             }),
         },
@@ -109,7 +142,15 @@ async fn main() -> Result<()> {
 
     // Search for similar vectors
     println!("\n🔍 Searching for similar vectors...");
-    match client.search_vectors(collection_name, "machine learning algorithms", Some(3), None).await {
+    match client
+        .search_vectors(
+            collection_name,
+            "machine learning algorithms",
+            Some(3),
+            None,
+        )
+        .await
+    {
         Ok(results) => {
             println!("🎯 Search results:");
             for (index, result) in results.results.iter().enumerate() {
@@ -131,7 +172,10 @@ async fn main() -> Result<()> {
 
     // Generate embeddings
     println!("\n🧠 Generating embeddings...");
-    match client.embed_text("artificial intelligence and machine learning", None).await {
+    match client
+        .embed_text("artificial intelligence and machine learning", None)
+        .await
+    {
         Ok(embedding) => {
             println!("✅ Embedding generated:");
             println!("   Text: {}", embedding.text);

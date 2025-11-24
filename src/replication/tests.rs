@@ -76,12 +76,15 @@ mod tests {
 
         // Create collection
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
         store1.create_collection("test", config).unwrap();
 

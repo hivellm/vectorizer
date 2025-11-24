@@ -155,13 +155,28 @@ impl VectorOperations {
     /// Remove file from index
     pub async fn remove_file(&self, file_path: &str, collection_name: &str) -> Result<()> {
         // Remove vector by ID (file path)
-        self.vector_store.delete(collection_name, file_path)?;
-
-        tracing::info!(
-            "Removed file: {} from collection: {}",
-            file_path,
-            collection_name
-        );
+        // If vector not found, treat as warning (file may have been deleted already)
+        match self.vector_store.delete(collection_name, file_path) {
+            Ok(_) => {
+                tracing::info!(
+                    "Removed file: {} from collection: {}",
+                    file_path,
+                    collection_name
+                );
+            }
+            Err(crate::error::VectorizerError::VectorNotFound(_)) => {
+                tracing::debug!(
+                    "File already removed (not found in vector store): {} from collection: {}",
+                    file_path,
+                    collection_name
+                );
+                // This is fine - file may have been deleted already or never indexed
+            }
+            Err(e) => {
+                // Other errors should still be propagated
+                return Err(e);
+            }
+        }
         Ok(())
     }
 

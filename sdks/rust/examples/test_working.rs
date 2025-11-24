@@ -1,7 +1,7 @@
 //! Simple and functional test example
 
-use vectorizer_rust_sdk::*;
 use std::collections::HashMap;
+use vectorizer_rust_sdk::*;
 
 #[tokio::main]
 async fn main() -> vectorizer_rust_sdk::Result<()> {
@@ -32,7 +32,10 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
         Ok(collections) => {
             println!("✅ Found {} collections:", collections.len());
             for collection in collections.iter().take(3) {
-                println!("   - {} ({} vectors)", collection.name, collection.vector_count);
+                println!(
+                    "   - {} ({} vectors)",
+                    collection.name, collection.vector_count
+                );
             }
         }
         Err(e) => {
@@ -42,7 +45,10 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
 
     // Test search
     println!("\n🔍 Testing Search:");
-    match client.search_vectors("gov-bips", "bitcoin", Some(2), None).await {
+    match client
+        .search_vectors("gov-bips", "bitcoin", Some(2), None)
+        .await
+    {
         Ok(results) => {
             println!("✅ Search successful: {} results", results.results.len());
             for result in results.results {
@@ -57,8 +63,11 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
     // Test collection creation
     println!("\n🆕 Testing Collection Creation:");
     let test_collection = format!("test_rust_{}", uuid::Uuid::new_v4());
-    
-    match client.create_collection(&test_collection, 384, Some(SimilarityMetric::Cosine)).await {
+
+    match client
+        .create_collection(&test_collection, 384, Some(SimilarityMetric::Cosine))
+        .await
+    {
         Ok(info) => {
             println!("✅ Collection '{}' created:", info.name);
             println!("   Dimension: {}", info.dimension);
@@ -113,7 +122,10 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
 
     // Test search in test collection
     println!("\n🔍 Testing Search in Test Collection:");
-    match client.search_vectors(&test_collection, "vectorizer performance", Some(5), None).await {
+    match client
+        .search_vectors(&test_collection, "vectorizer performance", Some(5), None)
+        .await
+    {
         Ok(results) => {
             println!("✅ Search successful:");
             println!("   Found {} results", results.results.len());
@@ -128,7 +140,10 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
 
     // Test embedding generation
     println!("\n🧠 Testing Embedding Generation:");
-    match client.embed_text("This is a test text for embedding.", None).await {
+    match client
+        .embed_text("This is a test text for embedding.", None)
+        .await
+    {
         Ok(response) => {
             println!("✅ Embedding generated:");
             println!("   Text: {}", response.text);

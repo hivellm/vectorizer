@@ -14,7 +14,7 @@ from typing import List, Dict, Any
 # Importar módulos do SDK
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from models import (
     Vector, Collection, CollectionInfo, SearchResult,

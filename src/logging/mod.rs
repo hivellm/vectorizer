@@ -18,11 +18,21 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 /// Initialize the centralized logging system
 pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    init_logging_with_level(service_name, "info")
+}
+
+/// Initialize the centralized logging system with a specific log level
+pub fn init_logging_with_level(
+    service_name: &str,
+    default_level: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Create logs directory if it doesn't exist
     let logs_dir = PathBuf::from(".logs");
     if !logs_dir.exists() {
         fs::create_dir_all(&logs_dir)?;
-        info!("Created logs directory: {:?}", logs_dir);
+        if default_level == "debug" || default_level == "info" {
+            info!("Created logs directory: {:?}", logs_dir);
+        }
     }
 
     // Clean up old logs before initializing
@@ -43,7 +53,7 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
     let result = tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| format!("{}={}", service_name, "info").into()),
+                .unwrap_or_else(|_| format!("{}={}", service_name, default_level).into()),
         )
         .with(
             tracing_subscriber::fmt::layer()
@@ -68,10 +78,13 @@ pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>
         return Err(format!("Failed to initialize tracing: {}", e).into());
     }
 
-    info!(
-        "Logging initialized for {} - Log file: {:?}",
-        service_name, log_path
-    );
+    // Only log initialization message if verbose
+    if default_level == "debug" || default_level == "info" {
+        info!(
+            "Logging initialized for {} - Log file: {:?}",
+            service_name, log_path
+        );
+    }
     Ok(())
 }
 

@@ -41,6 +41,32 @@ pub use watcher::Watcher as FileWatcher;
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;
 
+/// Convert WSL path format (/mnt/X/path) to Windows path format (X:\path)
+/// On non-Windows systems, returns the path as-is
+pub fn normalize_wsl_path(path_str: &str) -> PathBuf {
+    #[cfg(windows)]
+    {
+        // Check if path starts with /mnt/X/ format (WSL path)
+        if path_str.starts_with("/mnt/") && path_str.len() > 5 {
+            // Extract drive letter (should be a single character after /mnt/)
+            let drive_letter = path_str.chars().nth(5);
+            if let Some(drive) = drive_letter {
+                if drive.is_ascii_alphabetic() && path_str.chars().nth(6) == Some('/') {
+                    // Convert /mnt/X/path to X:\path
+                    let rest_of_path = &path_str[7..];
+                    let windows_path = format!("{}:\\{}", drive.to_uppercase(), rest_of_path);
+                    // Replace forward slashes with backslashes
+                    let windows_path = windows_path.replace('/', "\\");
+                    return PathBuf::from(windows_path);
+                }
+            }
+        }
+    }
+
+    // For non-WSL paths or non-Windows systems, return as-is
+    PathBuf::from(path_str)
+}
+
 /// Workspace watch configuration
 #[derive(Debug, Clone)]
 struct WorkspaceWatchConfig {
@@ -495,7 +521,7 @@ impl FileWatcherSystem {
             file_count
         );
         if file_count == 0 {
-            tracing::warn!(
+            tracing::debug!(
                 "⚠️ DISCOVER_STEP_4: No indexed files found. File watcher will start with empty watch list."
             );
         } else {
@@ -539,7 +565,8 @@ impl FileWatcherSystem {
                     if let Some(paths_array) = paths.as_sequence() {
                         for path in paths_array {
                             if let Some(path_str) = path.as_str() {
-                                watch_paths.push(std::path::PathBuf::from(path_str));
+                                let normalized_path = normalize_wsl_path(path_str);
+                                watch_paths.push(normalized_path);
                             }
                         }
                     }
@@ -553,9 +580,18 @@ impl FileWatcherSystem {
                 for project in projects_array {
                     if let Some(path) = project.get("path") {
                         if let Some(path_str) = path.as_str() {
-                            let project_path = std::env::current_dir()
-                                .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                                .join(path_str);
+                            // Normalize WSL path first
+                            let normalized_path = normalize_wsl_path(path_str);
+
+                            // If it's an absolute path (already normalized), use it directly
+                            // Otherwise, join with current_dir
+                            let project_path = if normalized_path.is_absolute() {
+                                normalized_path
+                            } else {
+                                std::env::current_dir()
+                                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                                    .join(normalized_path)
+                            };
 
                             // Canonicalize the path to resolve relative paths like ../docs
                             if let Ok(canonical_path) = project_path.canonicalize() {

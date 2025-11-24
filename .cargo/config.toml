@@ -1,2 +1,47 @@
 [build]
+# Note: Cargo automatically uses all CPU cores by default
+# No need to set jobs = 0 (that's invalid)
+# To limit cores, use: jobs = 4
+
+# Incremental compilation (faster rebuilds)
+incremental = true
+
+# Use sccache for compilation caching (significantly faster rebuilds)
+# Install with: cargo install sccache
+# 
+# Option 1: Set environment variable (recommended for flexibility)
+#   export RUSTC_WRAPPER=$(which sccache)
+#   Or use: source scripts/setup-sccache.sh
+#
+# Option 2: Uncomment the line below if sccache is in your PATH:
+# rustc-wrapper = "sccache"
+#
+# Option 3: Use full path (most reliable)
+# rustc-wrapper = "/home/andre/.cargo/bin/sccache"  # Linux/WSL
+# rustc-wrapper = "C:\\Users\\SEUUSER\\.cargo\\bin\\sccache.exe"  # Windows
+
+# Rust flags for faster builds
 rustflags = ["-A", "warnings"]
+
+# Use faster linker (LLD) - significantly faster linking for large binaries
+# To enable: Install LLD first, then uncomment the section below
+# 
+# Linux/WSL: sudo apt install lld clang
+# macOS: brew install llvm
+# Windows: rust-lld.exe is bundled with Rust (no install needed)
+#
+# After installing, uncomment the appropriate section:
+
+# [target.x86_64-unknown-linux-gnu]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# Windows MSVC - use rust-lld (bundled with Rust)
+# [target.x86_64-pc-windows-msvc]
+# linker = "rust-lld.exe"
+# rustflags = ["-C", "link-arg=/OPT:REF", "-C", "link-arg=/OPT:ICF"]
+
+# Network configuration for faster dependency downloads
+[net]
+retry = 2
+git-fetch-with-cli = true

@@ -30,6 +30,9 @@ pub struct VectorizerConfig {
     pub storage: StorageConfig,
     /// Projects configuration
     pub projects: Vec<ProjectConfig>,
+    /// Cluster configuration (for distributed sharding)
+    #[serde(default)]
+    pub cluster: crate::cluster::ClusterConfig,
 }
 
 /// Server configuration
@@ -204,6 +207,7 @@ impl Default for VectorizerConfig {
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
             gpu: GpuConfig::default(),
+            cluster: crate::cluster::ClusterConfig::default(),
             summarization: SummarizationConfig::default(),
             transmutation: TransmutationConfig::default(),
             storage: StorageConfig::default(),

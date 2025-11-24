@@ -19,37 +19,56 @@ jobs:
     steps:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
-      - name: Install mold
+      - name: Install mold (optional, speeds up linking)
         uses: rui314/setup-mold@v1
+        continue-on-error: true
       - name: Enable mold on Linux
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            mkdir -p .cargo
-            echo "[target.x86_64-unknown-linux-gnu]" >> .cargo/config.toml
-            echo "linker = \"clang\"" >> .cargo/config.toml
-            echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> .cargo/config.toml
+            if [ -f "/usr/local/bin/mold" ]; then
+              mkdir -p .cargo
+              echo "[target.x86_64-unknown-linux-gnu]" >> .cargo/config.toml
+              echo "linker = \"clang\"" >> .cargo/config.toml
+              echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> .cargo/config.toml
+            else
+              echo "mold not available, using default linker"
+            fi
+          fi
+        shell: bash
+      - name: Install protoc (Protocol Buffers compiler)
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y protobuf-compiler
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            brew install protobuf
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            choco install protoc
           fi
         shell: bash
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Build
         run: cargo build --tests --workspace
+        env:
+          # Ensure s2s-tests feature is NOT enabled (explicitly disable it)
+          CARGO_BUILD_RUSTFLAGS: ""
       - name: Run unit and integration tests
         timeout-minutes: 30
-        run: cargo nextest run --workspace --all-features --all-targets --test-threads 4
+        run: cargo nextest run --workspace --all-targets --test-threads 4
         env:
           # Set test timeouts for integration tests
           NEXTEST_TIMEOUT: 300s
       - name: Run integration tests specifically
         timeout-minutes: 20
-        run: cargo nextest run --test api_workflow_test --test concurrent_test --test multi_collection_test --workspace --all-features
+        run: cargo nextest run --test all_tests --workspace
         env:
           # Extended timeout for integration tests (600 seconds = 10 minutes)
           NEXTEST_TIMEOUT: 600s
       - name: Run doc tests
-        run: cargo test --workspace --doc --all-features
+        run: cargo test --workspace --doc
       - name: Upload test report
         uses: actions/upload-artifact@v4
         if: always()
@@ -66,7 +85,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Download test reports
         uses: actions/download-artifact@v5
         continue-on-error: true

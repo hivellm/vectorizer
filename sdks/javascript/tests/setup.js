@@ -2,10 +2,11 @@
  * Test setup for JavaScript SDK tests.
  */
 
+import { beforeAll, afterAll, vi } from 'vitest';
+
 // Global test setup
 beforeAll(() => {
-  // Set test timeout
-  jest.setTimeout(10000);
+  // Set test timeout (vitest uses testTimeout option in config)
 });
 
 // Global test teardown
@@ -14,11 +15,11 @@ afterAll(() => {
 });
 
 // Mock fetch for tests
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Mock AbortController
-global.AbortController = jest.fn().mockImplementation(() => ({
-  abort: jest.fn(),
+global.AbortController = vi.fn().mockImplementation(() => ({
+  abort: vi.fn(),
   signal: {},
 }));
 

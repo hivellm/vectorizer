@@ -68,6 +68,17 @@ Performance optimization:
 - Search optimization
 - System-level optimization
 
+### [Cluster Configuration](./CLUSTER.md)
+
+Distributed sharding configuration:
+
+- Enabling cluster mode
+- Node configuration
+- Discovery methods
+- Network settings
+- Health checks
+- Best practices
+
 ## Quick Start
 
 ### Minimal Configuration

@@ -1,16 +1,22 @@
 //! Model tests for the Rust SDK
 //! Tests for Vector, Collection, SearchResult, and Batch models
 
-use vectorizer_rust_sdk::*;
 use std::collections::HashMap;
+use vectorizer_sdk::*;
 
 #[test]
 fn test_vector_creation() {
     let data = vec![0.1, 0.2, 0.3, 0.4, 0.5];
     let metadata = Some({
         let mut meta = HashMap::new();
-        meta.insert("category".to_string(), serde_json::Value::String("test".to_string()));
-        meta.insert("source".to_string(), serde_json::Value::String("test_doc".to_string()));
+        meta.insert(
+            "category".to_string(),
+            serde_json::Value::String("test".to_string()),
+        );
+        meta.insert(
+            "source".to_string(),
+            serde_json::Value::String("test_doc".to_string()),
+        );
         meta
     });
 
@@ -108,8 +114,14 @@ fn test_collection_info_creation() {
 fn test_search_result_creation() {
     let metadata = Some({
         let mut meta = HashMap::new();
-        meta.insert("category".to_string(), serde_json::Value::String("ai".to_string()));
-        meta.insert("confidence".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(0.95).unwrap()));
+        meta.insert(
+            "category".to_string(),
+            serde_json::Value::String("ai".to_string()),
+        );
+        meta.insert(
+            "confidence".to_string(),
+            serde_json::Value::Number(serde_json::Number::from_f64(0.95).unwrap()),
+        );
         meta
     });
 
@@ -122,7 +134,10 @@ fn test_search_result_creation() {
 
     assert_eq!(search_result.id, "search_result_1");
     assert_eq!(search_result.score, 0.95);
-    assert_eq!(search_result.content, Some("This is a search result".to_string()));
+    assert_eq!(
+        search_result.content,
+        Some("This is a search result".to_string())
+    );
 }
 
 #[test]
@@ -293,14 +308,17 @@ fn test_embedding_request_creation() {
     };
 
     assert_eq!(embedding_request.text, "This is a test text");
-    assert_eq!(embedding_request.model, Some("sentence-transformers/all-MiniLM-L6-v2".to_string()));
+    assert_eq!(
+        embedding_request.model,
+        Some("sentence-transformers/all-MiniLM-L6-v2".to_string())
+    );
     assert!(embedding_request.parameters.is_some());
 }
 
 #[test]
 fn test_embedding_response_creation() {
     let embedding = vec![0.1, 0.2, 0.3, 0.4, 0.5];
-    
+
     let embedding_response = EmbeddingResponse {
         embedding: embedding.clone(),
         model: "test-model".to_string(),
@@ -373,7 +391,10 @@ fn test_similarity_metric_serialization() {
 
     assert_eq!(serde_json::to_string(&cosine).unwrap(), "\"cosine\"");
     assert_eq!(serde_json::to_string(&euclidean).unwrap(), "\"euclidean\"");
-    assert_eq!(serde_json::to_string(&dot_product).unwrap(), "\"dot_product\"");
+    assert_eq!(
+        serde_json::to_string(&dot_product).unwrap(),
+        "\"dot_product\""
+    );
 }
 
 #[test]
@@ -383,16 +404,25 @@ fn test_summarization_method_serialization() {
     let sentence = SummarizationMethod::Sentence;
     let abstractive = SummarizationMethod::Abstractive;
 
-    assert_eq!(serde_json::to_string(&extractive).unwrap(), "\"extractive\"");
+    assert_eq!(
+        serde_json::to_string(&extractive).unwrap(),
+        "\"extractive\""
+    );
     assert_eq!(serde_json::to_string(&keyword).unwrap(), "\"keyword\"");
     assert_eq!(serde_json::to_string(&sentence).unwrap(), "\"sentence\"");
-    assert_eq!(serde_json::to_string(&abstractive).unwrap(), "\"abstractive\"");
+    assert_eq!(
+        serde_json::to_string(&abstractive).unwrap(),
+        "\"abstractive\""
+    );
 }
 
 #[test]
 fn test_default_values() {
     assert_eq!(SimilarityMetric::default(), SimilarityMetric::Cosine);
-    assert_eq!(SummarizationMethod::default(), SummarizationMethod::Extractive);
+    assert_eq!(
+        SummarizationMethod::default(),
+        SummarizationMethod::Extractive
+    );
 }
 
 #[test]

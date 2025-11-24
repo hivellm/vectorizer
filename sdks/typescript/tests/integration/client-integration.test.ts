@@ -2,29 +2,35 @@
  * Integration tests for VectorizerClient.
  */
 
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { VectorizerClient } from '../../src/client';
 import { HttpClient } from '../../src/utils/http-client';
 
 // Mock the HTTP client
-jest.mock('../../src/utils/http-client');
+vi.mock('../../src/utils/http-client');
 
 describe('VectorizerClient Integration Tests', () => {
   let client: VectorizerClient;
-  let mockHttpClient: jest.Mocked<HttpClient>;
+  let mockHttpClient: {
+    get: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
+    put: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Create mock instances
     mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      put: jest.fn(),
-      delete: jest.fn(),
-    } as any;
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
 
     // Mock constructors
-    (HttpClient as unknown as jest.Mock).mockImplementation(() => mockHttpClient);
+    (HttpClient as unknown as Mock).mockImplementation(() => mockHttpClient);
 
     client = new VectorizerClient({
       baseURL: 'http://localhost:15002',
@@ -35,7 +41,7 @@ describe('VectorizerClient Integration Tests', () => {
   describe('Complete Workflow', () => {
     it('should handle complete vector workflow', async () => {
       // 1. Health check
-      mockHttpClient.get.mockResolvedValueOnce({ status: 'healthy', timestamp: '2025-01-01T00:00:00Z' });
+      mockHttpClient.get.mockResolvedValueOnce({ status: 'healthy', timestamp: '2025-01-01T00:00:00Z' } as any);
 
       const health = await client.healthCheck();
       expect(health.status).toBe('healthy');
@@ -47,7 +53,7 @@ describe('VectorizerClient Integration Tests', () => {
         similarity_metric: 'cosine' as const,
         description: 'Test collection'
       };
-      mockHttpClient.post.mockResolvedValueOnce(collectionData);
+      mockHttpClient.post.mockResolvedValueOnce(collectionData as any);
 
       const collection = await client.createCollection(collectionData);
       expect(collection.name).toBe('test-collection');
@@ -63,7 +69,7 @@ describe('VectorizerClient Integration Tests', () => {
           metadata: { source: 'doc2.pdf' }
         }
       ];
-      mockHttpClient.post.mockResolvedValueOnce({ inserted: 2 });
+      mockHttpClient.post.mockResolvedValueOnce({ inserted: 2 } as any);
 
       const insertResult = await client.insertVectors('test-collection', vectors);
       expect(insertResult.inserted).toBe(2);
@@ -85,7 +91,7 @@ describe('VectorizerClient Integration Tests', () => {
         ],
         total: 1
       };
-      mockHttpClient.post.mockResolvedValueOnce(searchResults);
+      mockHttpClient.post.mockResolvedValueOnce(searchResults as any);
 
       const searchResponse = await client.searchVectors('test-collection', searchRequest);
       expect(searchResponse.results).toHaveLength(1);
@@ -97,7 +103,7 @@ describe('VectorizerClient Integration Tests', () => {
         limit: 3,
         include_metadata: true
       };
-      mockHttpClient.post.mockResolvedValueOnce(searchResults);
+      mockHttpClient.post.mockResolvedValueOnce(searchResults as any);
 
       const textSearchResponse = await client.searchText('test-collection', textSearchRequest);
       expect(textSearchResponse.results).toHaveLength(1);
@@ -112,7 +118,7 @@ describe('VectorizerClient Integration Tests', () => {
         model: 'bert-base',
         text: 'artificial intelligence'
       };
-      mockHttpClient.post.mockResolvedValueOnce(embeddingResponse);
+      mockHttpClient.post.mockResolvedValueOnce(embeddingResponse as any);
 
       const embedding = await client.embedText(embeddingRequest);
       expect(embedding.embedding).toHaveLength(768);
@@ -128,13 +134,13 @@ describe('VectorizerClient Integration Tests', () => {
         created_at: new Date(),
         updated_at: new Date()
       };
-      mockHttpClient.get.mockResolvedValueOnce(collectionInfo);
+      mockHttpClient.get.mockResolvedValueOnce(collectionInfo as any);
 
       const info = await client.getCollection('test-collection');
       expect(info.vector_count).toBe(2);
 
       // 8. Delete collection
-      mockHttpClient.delete.mockResolvedValueOnce(undefined);
+      mockHttpClient.delete.mockResolvedValueOnce(undefined as any);
 
       await client.deleteCollection('test-collection');
       expect(mockHttpClient.delete).toHaveBeenCalledWith('/collections/test-collection');
@@ -187,7 +193,7 @@ describe('VectorizerClient Integration Tests', () => {
       await expect(client.healthCheck()).rejects.toThrow('Network error');
 
       // Second call succeeds
-      mockHttpClient.get.mockResolvedValueOnce({ status: 'healthy' });
+      mockHttpClient.get.mockResolvedValueOnce({ status: 'healthy' } as any);
       const health = await client.healthCheck();
       expect(health.status).toBe('healthy');
     });
@@ -199,7 +205,7 @@ describe('VectorizerClient Integration Tests', () => {
       ];
 
       // Simulate partial success
-      mockHttpClient.post.mockResolvedValueOnce({ inserted: 1 });
+      mockHttpClient.post.mockResolvedValueOnce({ inserted: 1 } as any);
 
       const result = await client.insertVectors('test-collection', vectors);
       expect(result.inserted).toBe(1);
@@ -213,7 +219,7 @@ describe('VectorizerClient Integration Tests', () => {
         metadata: { source: 'large-doc.pdf' }
       };
 
-      mockHttpClient.post.mockResolvedValueOnce({ inserted: 1 });
+      mockHttpClient.post.mockResolvedValueOnce({ inserted: 1 } as any);
 
       const result = await client.insertVectors('test-collection', [largeVector]);
       expect(result.inserted).toBe(1);
@@ -223,7 +229,7 @@ describe('VectorizerClient Integration Tests', () => {
       const promises = [];
       
       for (let i = 0; i < 10; i++) {
-        mockHttpClient.get.mockResolvedValueOnce({ status: 'healthy' });
+        mockHttpClient.get.mockResolvedValueOnce({ status: 'healthy' } as any);
         promises.push(client.healthCheck());
       }
 
@@ -237,7 +243,7 @@ describe('VectorizerClient Integration Tests', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty collections', async () => {
-      mockHttpClient.get.mockResolvedValueOnce([]);
+      mockHttpClient.get.mockResolvedValueOnce([] as any);
       const collections = await client.listCollections();
       expect(collections).toEqual([]);
     });
@@ -248,7 +254,7 @@ describe('VectorizerClient Integration Tests', () => {
         limit: 5
       };
       const emptyResults = { results: [], total: 0 };
-      mockHttpClient.post.mockResolvedValueOnce(emptyResults);
+      mockHttpClient.post.mockResolvedValueOnce(emptyResults as any);
 
       const searchResponse = await client.searchVectors('test-collection', searchRequest);
       expect(searchResponse.results).toEqual([]);

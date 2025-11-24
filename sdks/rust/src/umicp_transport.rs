@@ -1,7 +1,7 @@
 //! UMICP transport implementation using umicp-core
 
 #[cfg(feature = "umicp")]
-use crate::error::{VectorizerError, Result};
+use crate::error::{Result, VectorizerError};
 #[cfg(feature = "umicp")]
 use crate::transport::{Protocol, Transport};
 #[cfg(feature = "umicp")]
@@ -35,12 +35,15 @@ impl UmicpTransport {
         // Note: This is a simplified implementation.
         // For a full UMICP implementation, you would use the umicp-core crate
         // to create proper UMICP envelopes and establish connections.
-        
+
         // Since umicp-core doesn't have high-level HTTP client, we use a hybrid approach:
         // Use HTTP with UMICP protocol headers
-        
-        use reqwest::{Client, ClientBuilder, header::{HeaderMap, HeaderValue, CONTENT_TYPE}};
-        
+
+        use reqwest::{
+            Client, ClientBuilder,
+            header::{CONTENT_TYPE, HeaderMap, HeaderValue},
+        };
+
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert("X-UMICP-Protocol", HeaderValue::from_static("true"));
@@ -48,8 +51,8 @@ impl UmicpTransport {
         if let Some(key) = &self.api_key {
             headers.insert(
                 "Authorization",
-                HeaderValue::from_str(&format!("Bearer {}", key))
-                    .map_err(|e| VectorizerError::configuration(format!("Invalid API key: {}", e)))?,
+                HeaderValue::from_str(&format!("Bearer {key}"))
+                    .map_err(|e| VectorizerError::configuration(format!("Invalid API key: {e}")))?,
             );
         }
 
@@ -57,33 +60,46 @@ impl UmicpTransport {
             .timeout(std::time::Duration::from_secs(self.timeout_secs))
             .default_headers(headers)
             .build()
-            .map_err(|e| VectorizerError::configuration(format!("Failed to create client: {}", e)))?;
+            .map_err(|e| VectorizerError::configuration(format!("Failed to create client: {e}")))?;
 
-        let url = format!("http://{}:{}{}", self.host, self.port, path);
+        let url = format!("http://{}:{}{}", self.host, self.port, path); // Multiple variables, keep as is
 
         let mut request = match method {
             "GET" => client.get(&url),
             "POST" => client.post(&url),
             "PUT" => client.put(&url),
             "DELETE" => client.delete(&url),
-            _ => return Err(VectorizerError::configuration(format!("Unsupported method: {}", method))),
+            _ => {
+                return Err(VectorizerError::configuration(format!(
+                    "Unsupported method: {method}"
+                )));
+            }
         };
 
         if let Some(data) = body {
             request = request.json(data);
         }
 
-        let response = request.send().await
-            .map_err(|e| VectorizerError::network(format!("UMICP request failed: {}", e)))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|e| VectorizerError::network(format!("UMICP request failed: {e}")))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(VectorizerError::server(format!("UMICP HTTP {}: {}", status, error_text)));
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(VectorizerError::server(format!(
+                "UMICP HTTP {status}: {error_text}"
+            )));
         }
 
-        response.text().await
-            .map_err(|e| VectorizerError::network(format!("Failed to read response: {}", e)))
+        response
+            .text()
+            .await
+            .map_err(|e| VectorizerError::network(format!("Failed to read response: {e}")))
     }
 }
 
@@ -110,4 +126,3 @@ impl Transport for UmicpTransport {
         Protocol::Umicp
     }
 }
-

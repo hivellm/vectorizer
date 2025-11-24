@@ -9,7 +9,7 @@ file_watcher:
   enabled: true
   debounce_delay_ms: 1000
   min_file_size_bytes: 1
-  max_file_size_bytes: 10485760  # 10MB
+  max_file_size_bytes: 10485760 # 10MB
   hash_validation_enabled: true
   collection_name: "workspace-files"
 
@@ -18,23 +18,23 @@ file_watcher:
 # =============================================================================
 server:
   # Basic server settings
-  host: "127.0.0.1"          # Server bind address
-  port: 15002                # Server port
-  mcp_port: 15002            # MCP server port
+  host: "127.0.0.1" # Server bind address
+  port: 15002 # Server port
+  mcp_port: 15002 # MCP server port
 
 # =============================================================================
 # LOGGING CONFIGURATION
 # =============================================================================
 logging:
   # Log levels
-  level: "info"               # Global log level: error/warn/info/debug/trace
-  format: "json"              # Log format: json/text
-  
+  level: "info" # Global log level: error/warn/info/debug/trace
+  format: "json" # Log format: json/text
+
   # Request/Response logging
-  log_requests: true          # Log all requests
-  log_responses: false        # Log responses (can be verbose)
-  log_errors: true            # Log errors
-  
+  log_requests: true # Log all requests
+  log_responses: false # Log responses (can be verbose)
+  log_errors: true # Log errors
+
   # Correlation ID tracking
   correlation_id_enabled: true # Add correlation IDs to all requests
 
@@ -44,14 +44,14 @@ logging:
 gpu:
   # Enable GPU acceleration (default: true on macOS, false on other platforms)
   enabled: true
-  
+
   # Batch size for GPU batch operations (default: 1000)
   # Higher values = better GPU utilization, more memory usage
   batch_size: 1000
-  
+
   # Fallback to CPU if GPU initialization fails (default: true)
   fallback_to_cpu: true
-  
+
   # Preferred backend: auto (detect best), metal (force Metal on macOS), cpu (disable GPU)
   # Options: auto | metal | cpu
   preferred_backend: "auto"
@@ -62,34 +62,109 @@ gpu:
 monitoring:
   # Prometheus metrics
   prometheus:
-    enabled: true             # Enable Prometheus metrics export
-    endpoint: "/prometheus/metrics"  # Metrics endpoint path
-    
+    enabled: true # Enable Prometheus metrics export
+    endpoint: "/prometheus/metrics" # Metrics endpoint path
+
   # System metrics collector
   system_metrics:
-    enabled: true             # Enable periodic system metrics collection
-    interval_secs: 15         # Collection interval in seconds
-    
+    enabled: true # Enable periodic system metrics collection
+    interval_secs: 15 # Collection interval in seconds
+
   # OpenTelemetry distributed tracing
   telemetry:
-    enabled: false            # Enable OpenTelemetry tracing (requires OTLP collector)
-    otlp_endpoint: "http://localhost:4317"  # OTLP gRPC endpoint
-    service_name: "vectorizer"               # Service name in traces
-    sampler: "always_on"      # Sampling strategy: always_on/always_off/parent_based
-    
+    enabled: false # Enable OpenTelemetry tracing (requires OTLP collector)
+    otlp_endpoint: "http://localhost:4317" # OTLP gRPC endpoint
+    service_name: "vectorizer" # Service name in traces
+    sampler: "always_on" # Sampling strategy: always_on/always_off/parent_based
+
   # Metrics to track
   metrics:
     # Search metrics
-    search_enabled: true      # Track search requests, latency, results
-    
+    search_enabled: true # Track search requests, latency, results
+
     # Indexing metrics
-    indexing_enabled: true    # Track insert operations, vector/collection counts
-    
+    indexing_enabled: true # Track insert operations, vector/collection counts
+
     # Replication metrics
     replication_enabled: true # Track replication lag, bytes sent/received
-    
+
     # System metrics
-    system_enabled: true      # Track memory usage, cache hits, API errors
+    system_enabled: true # Track memory usage, cache hits, API errors
+
+# =============================================================================
+# CLUSTER CONFIGURATION (Distributed Sharding)
+# =============================================================================
+# Cluster mode enables distributed sharding across multiple Vectorizer servers
+# for horizontal scalability and high availability.
+#
+# When enabled, collections with sharding enabled will automatically distribute
+# shards across cluster nodes using consistent hashing.
+#
+# Example: 3-node cluster setup
+# -----------------------------
+# Node 1 (this server):
+#   cluster:
+#     enabled: true
+#     node_id: "node-1"
+#     servers:
+#       - id: "node-1"
+#         address: "192.168.1.10"
+#         grpc_port: 15003
+#       - id: "node-2"
+#         address: "192.168.1.11"
+#         grpc_port: 15003
+#       - id: "node-3"
+#         address: "192.168.1.12"
+#         grpc_port: 15003
+#
+# Node 2 and Node 3 should have the same servers list but different node_id.
+#
+# For more information, see:
+# - docs/users/configuration/CLUSTER.md
+# - docs/users/collections/SHARDING.md
+# - docs/deployment/CLUSTER.md
+
+cluster:
+  # Enable cluster mode for distributed sharding across multiple servers
+  # When false, sharding works only within a single server
+  enabled: false
+  
+  # This server's unique node ID
+  # Auto-generated UUID if not specified (recommended: use descriptive names)
+  # Examples: "node-1", "node-dc1-1", "vectorizer-primary"
+  node_id: null  # e.g., "node-1"
+  
+  # Discovery method for finding cluster nodes
+  # Options:
+  #   - "static": Manually configure all nodes in servers list (recommended)
+  #   - "dns": DNS-based discovery (future feature)
+  #   - "service_registry": Service registry discovery (future feature)
+  discovery: "static"
+  
+  # gRPC request timeout in milliseconds
+  # Operations to remote nodes will fail after this timeout
+  # Increase for slow networks or high-latency connections
+  timeout_ms: 5000
+  
+  # Number of retries for failed operations
+  # Failed operations (insert, update, delete, search) will be retried this many times
+  # before returning an error
+  retry_count: 3
+  
+  # Static server list (required when discovery: "static")
+  # All nodes in the cluster must be listed here
+  # Each node should have the same list (with different node_id)
+  servers:
+    # Example configuration for a 3-node cluster:
+    # - id: "node-1"
+    #   address: "192.168.1.10"      # Node 1 IP address
+    #   grpc_port: 15003             # gRPC port for inter-server communication
+    # - id: "node-2"
+    #   address: "192.168.1.11"      # Node 2 IP address
+    #   grpc_port: 15003             # gRPC port (can be same or different per node)
+    # - id: "node-3"
+    #   address: "192.168.1.12"      # Node 3 IP address
+    #   grpc_port: 15003             # gRPC port
 
 # =============================================================================
 # DEFAULT COLLECTION CONFIGURATION
@@ -97,42 +172,42 @@ monitoring:
 collections:
   defaults:
     # Vector settings
-    dimension: 512            # Default vector dimension
-    metric: "cosine"          # Default distance metric: cosine/euclidean/dot_product
+    dimension: 512 # Default vector dimension
+    metric: "cosine" # Default distance metric: cosine/euclidean/dot_product
 
     # Quantization (memory optimization)
     quantization:
-      type: "sq"              # Quantization type: sq (scalar quantization)
+      type: "sq" # Quantization type: sq (scalar quantization)
       sq:
-        bits: 8               # SQ bits per dimension
+        bits: 8 # SQ bits per dimension
 
     # Embedding settings
     embedding:
-      model: "bm25"     # Default embedding: bm25
+      model: "bm25" # Default embedding: bm25
       bow:
-        vocab_size: 50000     # BOW vocabulary size
+        vocab_size: 50000 # BOW vocabulary size
         max_sequence_length: 512 # Maximum sequence length
       hash:
-        hash_size: 1000000    # Feature hash size
+        hash_size: 1000000 # Feature hash size
       ngram:
-        ngram_range: [1, 3]   # N-gram range [min, max]
-        vocab_size: 100000    # N-gram vocabulary size
+        ngram_range: [1, 3] # N-gram range [min, max]
+        vocab_size: 100000 # N-gram vocabulary size
       bm25:
-        k1: 1.5               # BM25 k1 parameter
-        b: 0.75               # BM25 b parameter
+        k1: 1.5 # BM25 k1 parameter
+        b: 0.75 # BM25 b parameter
 
     # Index settings (HNSW)
     index:
-      type: "hnsw"            # Index type: hnsw/optimized_hnsw
+      type: "hnsw" # Index type: hnsw/optimized_hnsw
       hnsw:
-        m: 16                 # HNSW connections per layer
-        ef_construction: 200  # Construction search width
-        ef_search: 64         # Query search width
+        m: 16 # HNSW connections per layer
+        ef_construction: 200 # Construction search width
+        ef_search: 64 # Query search width
       optimized_hnsw:
-        batch_size: 1000      # Batch insertion size
-        parallel: true        # Enable parallel construction
-        initial_capacity: 100000  # Pre-allocation size
-        max_connections: 16   # Maximum connections per layer
+        batch_size: 1000 # Batch insertion size
+        parallel: true # Enable parallel construction
+        initial_capacity: 100000 # Pre-allocation size
+        max_connections: 16 # Maximum connections per layer
         max_connections_0: 32 # Connections for layer 0
 
 # =============================================================================
@@ -141,15 +216,15 @@ collections:
 transmutation:
   # Enable/disable transmutation document conversion
   enabled: true
-  
+
   # Maximum file size for conversion (in MB)
   # Files larger than this will be skipped
   max_file_size_mb: 50
-  
+
   # Conversion timeout (in seconds)
   # Conversions taking longer than this will be aborted
   conversion_timeout_secs: 300
-  
+
   # Preserve images during conversion
   # Note: Requires additional dependencies (LibreOffice for DOCX images)
   preserve_images: false
@@ -177,38 +252,38 @@ transmutation:
 normalization:
   # Enable/disable text normalization globally
   enabled: true
-  
+
   # Normalization level: conservative/moderate/aggressive
   # - conservative: Only fixes line endings (CRLF -> LF), preserves structure
   # - moderate: Collapses whitespace, normalizes unicode, fixes line endings
   # - aggressive: All moderate + removes extra spaces, normalizes quotes
   level: "conservative"
-  
+
   # Line ending normalization
   line_endings:
-    normalize_crlf: true          # Normalize CRLF to LF
-    normalize_cr: true            # Normalize CR to LF
-    collapse_multiple_newlines: true  # Collapse 3+ newlines to 2
-    trim_trailing_whitespace: true    # Remove trailing spaces from lines
-  
+    normalize_crlf: true # Normalize CRLF to LF
+    normalize_cr: true # Normalize CR to LF
+    collapse_multiple_newlines: true # Collapse 3+ newlines to 2
+    trim_trailing_whitespace: true # Remove trailing spaces from lines
+
   # Content-specific normalization
   content_detection:
-    enabled: true                 # Auto-detect content type (code/text/markdown)
+    enabled: true # Auto-detect content type (code/text/markdown)
     preserve_code_structure: true # Don't normalize indentation in code blocks
     preserve_markdown_format: true # Preserve markdown formatting
-  
+
   # Normalization cache
   cache:
-    enabled: true                 # Enable normalization result caching
-    max_entries: 10000            # Maximum cache entries
-    ttl_seconds: 3600             # Cache entry TTL (1 hour)
-  
+    enabled: true # Enable normalization result caching
+    max_entries: 10000 # Maximum cache entries
+    ttl_seconds: 3600 # Cache entry TTL (1 hour)
+
   # Apply normalization at different stages
   stages:
-    on_file_read: true            # Normalize when reading files
-    on_chunk_creation: true       # Normalize when creating chunks
-    on_payload_return: true       # Normalize when returning payloads
-    on_cache_load: true           # Normalize when loading from cache
+    on_file_read: true # Normalize when reading files
+    on_chunk_creation: true # Normalize when creating chunks
+    on_payload_return: true # Normalize when returning payloads
+    on_cache_load: true # Normalize when loading from cache
 
 # =============================================================================
 # PERFORMANCE OPTIMIZATION CONFIGURATION
@@ -216,22 +291,31 @@ normalization:
 performance:
   # CPU optimization settings
   cpu:
-    max_threads: 8                # Maximum CPU threads for parallel operations
-    enable_simd: true             # Enable SIMD optimizations
-    memory_pool_size_mb: 1024     # Memory pool size for allocations
-  
+    max_threads: 8 # Maximum CPU threads for parallel operations
+    enable_simd: true # Enable SIMD optimizations
+    memory_pool_size_mb: 1024 # Memory pool size for allocations
+
+  # SIMD (Single Instruction Multiple Data) configuration
+  simd:
+    enabled: true # Enable SIMD optimizations globally
+    # SIMD is automatically used for:
+    # - Vector dot product calculations
+    # - Euclidean distance calculations
+    # - Cosine similarity calculations
+    # Runtime CPU feature detection enables SIMD when available
+
   # Batch processing
   batch:
-    default_size: 100             # Default batch size for operations
-    max_size: 1000                # Maximum batch size
-    parallel_processing: true     # Enable parallel batch processing
-  
+    default_size: 100 # Default batch size for operations
+    max_size: 1000 # Maximum batch size
+    parallel_processing: true # Enable parallel batch processing
+
   # Query result caching
   query_cache:
-    enabled: true                 # Enable LRU query result caching
-    max_size: 1000                # Maximum number of cached queries
-    ttl_seconds: 300              # Cache entry TTL (5 minutes)
-    warmup_enabled: false         # Enable cache warmup on startup
+    enabled: true # Enable LRU query result caching
+    max_size: 1000 # Maximum number of cached queries
+    ttl_seconds: 300 # Cache entry TTL (5 minutes)
+    warmup_enabled: false # Enable cache warmup on startup
 
 # =============================================================================
 # WORKSPACE CONFIGURATION
@@ -239,7 +323,7 @@ performance:
 workspace:
   # Enable workspace functionality
   enabled: true
-  
+
   # Default workspace file
   default_workspace_file: "./vectorize-workspace.yml"
 
@@ -249,16 +333,23 @@ workspace:
 api:
   # REST API settings
   rest:
-    enabled: true                 # Enable REST API
-    cors_enabled: true            # Enable CORS
-    max_request_size_mb: 10       # Maximum request size
-    timeout_seconds: 30           # Request timeout
-  
+    enabled: true # Enable REST API
+    cors_enabled: true # Enable CORS
+    max_request_size_mb: 10 # Maximum request size
+    timeout_seconds: 30 # Request timeout
+
   # MCP (Model Context Protocol) settings
   mcp:
-    enabled: true                 # Enable MCP server
-    port: 15002                   # MCP server port
-    max_connections: 100          # Maximum concurrent connections
+    enabled: true # Enable MCP server
+    port: 15002 # MCP server port
+    max_connections: 100 # Maximum concurrent connections
+
+  # gRPC API settings
+  grpc:
+    enabled: true # Enable gRPC server
+    port: 15003 # gRPC server port (default: REST port + 1)
+    max_concurrent_streams: 100 # Maximum concurrent gRPC streams
+    max_message_size_mb: 10 # Maximum gRPC message size in MB
 
 # =============================================================================
 # SECURITY CONFIGURATION
@@ -266,34 +357,85 @@ api:
 security:
   # Rate limiting
   rate_limiting:
-    enabled: true                 # Enable rate limiting
-    requests_per_second: 100      # Requests per second per API key
-    burst_size: 200               # Allow burst up to this size
-    
+    enabled: true # Enable rate limiting
+    requests_per_second: 100 # Requests per second per API key
+    burst_size: 200 # Allow burst up to this size
+
   # TLS/mTLS
   tls:
-    enabled: false                # Enable TLS (requires certificate files)
-    cert_path: ""                 # Path to TLS certificate
-    key_path: ""                  # Path to TLS private key
-    mtls_enabled: false           # Enable mutual TLS (client certificates)
-    client_ca_path: ""            # Path to client CA certificate
-    
+    enabled: false # Enable TLS (requires certificate files)
+    cert_path: "" # Path to TLS certificate
+    key_path: "" # Path to TLS private key
+    mtls_enabled: false # Enable mutual TLS (client certificates)
+    client_ca_path: "" # Path to client CA certificate
+
   # Audit logging
   audit:
-    enabled: true                 # Enable audit logging
-    max_entries: 10000            # Maximum audit log entries in memory
-    log_auth_attempts: true       # Log all authentication attempts
-    log_failed_requests: true     # Log failed requests
-    log_admin_actions: true       # Log administrative actions
-    
+    enabled: true # Enable audit logging
+    max_entries: 10000 # Maximum audit log entries in memory
+    log_auth_attempts: true # Log all authentication attempts
+    log_failed_requests: true # Log failed requests
+    log_admin_actions: true # Log administrative actions
+
   # Role-Based Access Control (RBAC)
   rbac:
-    enabled: false                # Enable RBAC (requires role assignments)
-    default_role: "Viewer"        # Default role for new API keys
+    enabled: false # Enable RBAC (requires role assignments)
+    default_role: "Viewer" # Default role for new API keys
     # Available roles: Viewer, Editor, Admin
     # Viewer: Read-only access
     # Editor: Read/write access (no admin)
     # Admin: Full access including configuration
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+storage:
+  # Memory-Mapped File (MMap) storage configuration
+  mmap:
+    enabled: false # Enable MMAP storage for collections
+    # When enabled, collections can use MMAP storage instead of in-memory
+    # Benefits: Lower memory usage, persistence, larger dataset support
+    # Trade-off: Slightly slower than pure in-memory storage
+    default_for_new_collections: false # Use MMAP by default for new collections
+
+  # Write-Ahead Log (WAL) configuration
+  wal:
+    enabled: true # Enable Write-Ahead Logging
+    # WAL provides:
+    # - Crash recovery
+    # - Atomic operations
+    # - Transaction support
+    checkpoint_interval: 1000 # Checkpoint after N operations
+    checkpoint_interval_secs: 300 # Checkpoint after N seconds (5 minutes)
+    max_wal_size_mb: 100 # Maximum WAL file size before rotation
+    wal_dir: "./data/wal" # Directory for WAL files
+
+  # Product Quantization (PQ) configuration
+  quantization:
+    # Global PQ settings (can be overridden per collection)
+    pq:
+      enabled: false # Enable Product Quantization globally
+      # PQ reduces memory usage by 75% with minimal quality loss
+      # Collection-level PQ settings override global settings
+      default_subquantizers: 8 # Default number of subquantizers
+      default_centroids: 256 # Default number of centroids per subquantizer
+      # PQ is recommended for:
+      # - Large collections (>1M vectors)
+      # - Memory-constrained environments
+      # - Collections where slight quality loss is acceptable
+
+  # Sharding configuration
+  sharding:
+    enabled: false # Enable distributed sharding globally
+    # Sharding distributes collections across multiple shards for:
+    # - Horizontal scaling
+    # - Better performance with large datasets
+    # - Load distribution
+    default_shard_count: 4 # Default number of shards for new collections
+    default_virtual_nodes: 100 # Default virtual nodes per shard (consistent hashing)
+    default_rebalance_threshold: 0.2 # Default rebalance threshold (20% deviation)
+    # Sharding can be enabled per-collection in CollectionConfig
+    # When enabled globally, all new collections use sharding by default
 
 # =============================================================================
 # REPLICATION CONFIGURATION (Master-Replica Architecture)
@@ -301,38 +443,37 @@ security:
 replication:
   # Enable/disable replication
   enabled: false
-  
+
   # Node role in replication topology
   # - standalone: No replication (default)
   # - master: Accepts writes, replicates to replicas
   # - replica: Read-only, receives from master
   role: "standalone"
-  
+
   # Master node settings (role=master)
   # bind_address: "0.0.0.0:7001"  # TCP address for replicas to connect
-  
+
   # Replica node settings (role=replica)
   # master_address: "127.0.0.1:7001"  # Master address to connect to
-  
+
   # Heartbeat interval (seconds)
   heartbeat_interval_secs: 5
-  
+
   # Replica timeout (seconds)
   # Replicas are disconnected if no heartbeat received within this time
   replica_timeout_secs: 30
-  
+
   # Replication log size (number of operations)
   # Circular buffer for incremental sync (Redis-style)
   # Default: 1M operations (~240MB for typical operations)
   log_size: 1000000
-  
+
   # Auto-reconnect interval for replicas (seconds)
   reconnect_interval_secs: 5
-
 # =============================================================================
 # REPLICATION EXAMPLES
 # =============================================================================
-# 
+#
 # Example 1: Master Configuration
 # --------------------------------
 # replication:

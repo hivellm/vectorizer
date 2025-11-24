@@ -1,6 +1,7 @@
 mod discovery_handlers;
 mod error_middleware;
 pub mod file_operations_handlers;
+mod graph_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
 mod qdrant_alias_handlers;
@@ -21,9 +22,9 @@ use axum::routing::{delete, get, post, put};
 pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem, MetricsCollector};
 
@@ -59,6 +60,14 @@ pub struct VectorizerServer {
         >,
     >,
     system_collector_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    file_watcher_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    file_watcher_cancel: Arc<tokio::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
+    grpc_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    auto_save_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Cluster manager (optional, only if cluster is enabled)
+    pub cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+    /// Cluster client pool (optional, only if cluster is enabled)
+    pub cluster_client_pool: Option<Arc<crate::cluster::ClusterClientPool>>,
 }
 
 impl VectorizerServer {
@@ -132,9 +141,12 @@ impl VectorizerServer {
         let watcher_system_for_task = watcher_system_arc.clone();
         let watcher_system_for_server = watcher_system_arc.clone();
 
-        if file_watcher_enabled {
+        // Create cancellation token for file watcher
+        let (file_watcher_cancel_tx, mut file_watcher_cancel_rx) =
+            tokio::sync::watch::channel(false);
+        let file_watcher_task_handle = if file_watcher_enabled {
             info!("✅ File watcher is ENABLED in config - starting...");
-            tokio::task::spawn(async move {
+            let handle = tokio::task::spawn(async move {
                 info!("🔍 STEP 4: Inside file watcher task - starting file watcher system...");
                 info!("🔍 STEP 5: Creating FileWatcherSystem instance...");
 
@@ -173,16 +185,33 @@ impl VectorizerServer {
 
                 info!("🔍 STEP 7: File watcher system is now running in background...");
 
-                // Keep the task alive by waiting indefinitely
-                // This ensures the file watcher continues running
+                // Keep the task alive but check for cancellation
                 loop {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-                    info!("🔍 File watcher is still running...");
+                    tokio::select! {
+                        _ = tokio::time::sleep(tokio::time::Duration::from_secs(60)) => {
+                            // Check if cancelled
+                            if *file_watcher_cancel_rx.borrow() {
+                                info!("🛑 File watcher task received cancellation signal");
+                                break;
+                            }
+                            debug!("🔍 File watcher is still running...");
+                        }
+                        _ = file_watcher_cancel_rx.changed() => {
+                            if *file_watcher_cancel_rx.borrow() {
+                                info!("🛑 File watcher task received cancellation signal");
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                info!("✅ File watcher task completed");
             });
+            Some(handle)
         } else {
             info!("⏭️  File watcher is DISABLED in config - skipping initialization");
-        }
+            None
+        };
 
         // Create cancellation token for background task
         let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
@@ -299,7 +328,7 @@ impl VectorizerServer {
                                     }
                                 }
                             } else {
-                                warn!("⚠️ File watcher not available for update");
+                                debug!("⚠️ File watcher not available for update");
                             }
 
                             count
@@ -385,7 +414,7 @@ impl VectorizerServer {
                                 } else {
                                     attempts += 1;
                                     if attempts >= max_attempts {
-                                        warn!(
+                                        debug!(
                                             "⚠️ File watcher not available after {} seconds, skipping discovery",
                                             max_attempts
                                         );
@@ -599,7 +628,7 @@ impl VectorizerServer {
             }
         }
 
-        let _auto_save_handle = auto_save_manager.start();
+        let auto_save_handle = auto_save_manager.start();
         info!("✅ AutoSaveManager started (5min save + 1h snapshot intervals)");
 
         // Start system metrics collector
@@ -619,6 +648,40 @@ impl VectorizerServer {
             max_size, ttl_seconds
         );
 
+        // Initialize cluster manager if cluster is enabled
+        let (cluster_manager, cluster_client_pool) = {
+            // Try to load cluster config from config.yml or use default
+            let cluster_config = std::fs::read_to_string("config.yml")
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                        .ok()
+                        .map(|config| config.cluster)
+                })
+                .unwrap_or_default();
+
+            if cluster_config.enabled {
+                info!("🔗 Initializing cluster manager...");
+                match crate::cluster::ClusterManager::new(cluster_config.clone()) {
+                    Ok(manager) => {
+                        let manager_arc = Arc::new(manager);
+                        let timeout = std::time::Duration::from_millis(cluster_config.timeout_ms);
+                        let client_pool = Arc::new(crate::cluster::ClusterClientPool::new(timeout));
+
+                        info!("✅ Cluster manager initialized");
+                        (Some(manager_arc), Some(client_pool))
+                    }
+                    Err(e) => {
+                        warn!("⚠️  Failed to initialize cluster manager: {}", e);
+                        (None, None)
+                    }
+                }
+            } else {
+                info!("ℹ️  Cluster mode disabled");
+                (None, None)
+            }
+        };
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -634,12 +697,35 @@ impl VectorizerServer {
                 cancel_tx,
             )))),
             system_collector_task: Arc::new(tokio::sync::Mutex::new(Some(system_collector_handle))),
+            file_watcher_task: Arc::new(tokio::sync::Mutex::new(file_watcher_task_handle)),
+            file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(Some(file_watcher_cancel_tx))),
+            grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
+            auto_save_task: Arc::new(tokio::sync::Mutex::new(Some(auto_save_handle))),
+            cluster_manager,
+            cluster_client_pool,
         })
     }
 
     /// Start the server
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
+
+        // Start gRPC server in background
+        let grpc_port = port + 1; // gRPC on next port
+        let grpc_host = host.to_string();
+        let grpc_store = self.store.clone();
+        let grpc_cluster_manager = self.cluster_manager.clone();
+        let grpc_handle = tokio::spawn(async move {
+            if let Err(e) =
+                Self::start_grpc_server(&grpc_host, grpc_port, grpc_store, grpc_cluster_manager)
+                    .await
+            {
+                error!("❌ gRPC server failed: {}", e);
+            }
+        });
+        // Store gRPC handle for shutdown
+        *self.grpc_task.lock().await = Some(grpc_handle);
+        info!("✅ gRPC server task spawned");
 
         // Create server state for metrics endpoint
         let server_state = ServerState {
@@ -806,6 +892,8 @@ impl VectorizerServer {
                 "/discovery/semantic_focus",
                 post(rest_handlers::semantic_focus),
             )
+            // Cluster management routes (if cluster is enabled)
+            // Note: These will be conditionally added when cluster is enabled
             .route(
                 "/discovery/promote_readme",
                 post(rest_handlers::promote_readme),
@@ -913,10 +1001,8 @@ impl VectorizerServer {
                 "/qdrant/collections/{name}/points/recommend/batch",
                 post(qdrant_search_handlers::batch_recommend_points),
             )
-            // Dashboard - serve static files
-            .nest_service("/dashboard", ServeDir::new("dashboard"))
-            .fallback_service(ServeDir::new("dashboard"))
-            .layer(CorsLayer::permissive())
+            // Dashboard - serve static files from dist directory (production build)
+            .nest_service("/dashboard", ServeDir::new("dashboard/dist"))
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
             ))
@@ -945,6 +1031,29 @@ impl VectorizerServer {
             ))
             .with_state(self.clone());
 
+        // Add cluster routes if cluster is enabled
+        let rest_routes = if let (Some(cluster_mgr), Some(_client_pool)) = (
+            self.cluster_manager.as_ref(),
+            self.cluster_client_pool.as_ref(),
+        ) {
+            let cluster_state = crate::api::cluster::ClusterApiState {
+                cluster_manager: cluster_mgr.clone(),
+                store: self.store.clone(),
+            };
+            let cluster_router =
+                crate::api::cluster::create_cluster_router().with_state(cluster_state);
+            rest_routes.merge(cluster_router)
+        } else {
+            rest_routes
+        };
+
+        // Add graph routes
+        let graph_state = crate::api::graph::GraphApiState {
+            store: self.store.clone(),
+        };
+        let graph_router = crate::api::graph::create_graph_router().with_state(graph_state);
+        let rest_routes = rest_routes.merge(graph_router);
+
         // Create UMICP state
         let umicp_state = crate::umicp::UmicpState {
             store: self.store.clone(),
@@ -961,12 +1070,68 @@ impl VectorizerServer {
             )
             .with_state(umicp_state);
 
-        // Merge all routes - UMICP first so it doesn't get masked
+        // Create fallback handler for SPA routing (serve index.html for dashboard routes)
+        // This handles client-side routing for React Router
+        async fn dashboard_fallback(
+            uri: axum::extract::Request<axum::body::Body>,
+        ) -> impl axum::response::IntoResponse {
+            use std::path::PathBuf;
+
+            use axum::http::{StatusCode, Uri, header};
+            use axum::response::Response;
+
+            let path = uri.uri().path();
+
+            // Only handle dashboard routes (with or without trailing slash)
+            if !path.starts_with("/dashboard/") && path != "/dashboard" {
+                return Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from("Not found"))
+                    .unwrap();
+            }
+
+            // Don't serve index.html for static assets (they should be handled by ServeDir)
+            if path.starts_with("/dashboard/assets/") {
+                return Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from("Asset not found"))
+                    .unwrap();
+            }
+
+            // Serve index.html for all other dashboard routes (SPA routing)
+            let index_path = PathBuf::from("dashboard/dist/index.html");
+            match tokio::fs::read_to_string(&index_path).await {
+                Ok(content) => Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+                    .body(axum::body::Body::from(content))
+                    .unwrap(),
+                Err(_) => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from(
+                        "Dashboard not found. Please build the dashboard first: cd dashboard && npm run build",
+                    ))
+                    .unwrap(),
+            }
+        }
+
+        // Merge all routes - order matters!
+        // 1. UMICP routes (most specific)
+        // 2. MCP routes
+        // 3. REST API routes (including /api/*)
+        // 4. Metrics routes
+        // 5. Dashboard static files (ServeDir handles /dashboard/assets/*)
+        // 6. Dashboard SPA fallback (handles /dashboard/* routes for React Router)
         let app = Router::new()
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
-            .merge(metrics_router);
+            .merge(metrics_router)
+            .fallback(dashboard_fallback)
+            // Apply CORS to all routes (must be after merging all routes)
+            // Use permissive() which allows all origins, methods, and headers
+            // This is safe for development and internal APIs
+            .layer(CorsLayer::permissive());
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
@@ -977,7 +1142,7 @@ impl VectorizerServer {
             host, port
         );
         info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
-        info!("   📊 Dashboard: http://{}:{}/", host, port);
+        info!("   📊 Dashboard: http://{}:{}/dashboard/", host, port);
 
         // Bind and start the server
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
@@ -986,74 +1151,112 @@ impl VectorizerServer {
             host, port
         );
 
-        // Set up graceful shutdown
-        let shutdown_signal = async {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("Failed to install Ctrl+C handler");
-            info!("🛑 Received shutdown signal (Ctrl+C)");
-        };
+        // Create shutdown signal for axum graceful shutdown
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+        // Spawn task to listen for Ctrl+C and trigger shutdown
+        tokio::spawn(async move {
+            if let Ok(()) = tokio::signal::ctrl_c().await {
+                info!("🛑 Received shutdown signal (Ctrl+C)");
+                let _ = shutdown_tx.send(());
+            }
+        });
 
         // Serve the application with graceful shutdown
-        let server_handle = axum::serve(listener, app);
+        let server_handle = axum::serve(listener, app).with_graceful_shutdown(async {
+            shutdown_rx.await.ok();
+            info!("🛑 Graceful shutdown signal received, stopping HTTP server...");
+        });
 
-        // Wait for either the server to complete or shutdown signal
-        tokio::select! {
-            result = server_handle => {
-                match result {
-                    Ok(_) => info!("✅ Server completed normally"),
-                    Err(e) => error!("❌ Server error: {}", e),
-                }
+        // Spawn server task
+        let server_task = tokio::spawn(async move {
+            if let Err(e) = server_handle.await {
+                error!("❌ Server error: {}", e);
+            } else {
+                info!("✅ HTTP server stopped");
             }
-            _ = shutdown_signal => {
-                info!("🛑 Shutdown signal received, stopping server...");
+        });
+
+        // Get abort handle before moving server_task (for emergency shutdown)
+        let server_task_abort = server_task.abort_handle();
+
+        // Wait for HTTP server to stop (this will block until Ctrl+C is pressed)
+        // When shutdown signal is received, the server will stop gracefully
+        // No timeout here - server should run indefinitely until Ctrl+C
+        match server_task.await {
+            Ok(_) => {
+                info!("✅ HTTP server stopped gracefully");
             }
-        }
-
-        // Cancel and await background collection loading task if still running
-        info!("🛑 Stopping background collection loading task...");
-        if let Some((handle, cancel_tx)) = self.background_task.lock().await.take() {
-            // Send cancellation signal
-            let _ = cancel_tx.send(true);
-            info!("📤 Sent cancellation signal to background task");
-
-            // CRITICAL: Wait for task to finish gracefully (with timeout)
-            // This ensures all collections are fully loaded before shutdown/compaction
-            info!("⏳ Waiting for background task to complete (max 10 seconds)...");
-            let timeout_duration = tokio::time::Duration::from_secs(10);
-            match tokio::time::timeout(timeout_duration, handle).await {
-                Ok(_) => {
-                    info!("✅ Background task completed gracefully");
-                }
-                Err(_) => {
-                    warn!(
-                        "⚠️  Background task did not complete within timeout - some collections may be incomplete"
-                    );
-                }
+            Err(e) => {
+                error!("❌ HTTP server task join error: {}", e);
+                // Force abort as fallback
+                server_task_abort.abort();
             }
         }
 
-        // Force final save before shutdown
+        // Now shutdown all background tasks AFTER HTTP server has stopped
+        info!("🛑 Stopping all background tasks...");
+
+        // Background collection loading task (non-blocking)
+        if let Ok(mut bg_task) = self.background_task.try_lock() {
+            if let Some((handle, cancel_tx)) = bg_task.take() {
+                let _ = cancel_tx.send(true);
+                handle.abort();
+                info!("✅ Background task aborted");
+            }
+        }
+
+        // File watcher cancellation (non-blocking)
+        if let Ok(mut cancel) = self.file_watcher_cancel.try_lock() {
+            if let Some(cancel_tx) = cancel.take() {
+                let _ = cancel_tx.send(true);
+            }
+        }
+
+        // File watcher task (non-blocking)
+        if let Ok(mut fw_task) = self.file_watcher_task.try_lock() {
+            if let Some(handle) = fw_task.take() {
+                handle.abort();
+                info!("✅ File watcher task aborted");
+            }
+        }
+
+        // File watcher system (non-blocking)
+        if let Ok(mut fw_system) = self.file_watcher_system.try_lock() {
+            fw_system.take(); // Just drop it
+            info!("✅ File watcher system dropped");
+        }
+
+        // gRPC server task (non-blocking)
+        if let Ok(mut grpc_task) = self.grpc_task.try_lock() {
+            if let Some(handle) = grpc_task.take() {
+                handle.abort();
+                info!("✅ gRPC server task aborted");
+            }
+        }
+
+        // System collector task (non-blocking)
+        if let Ok(mut sys_task) = self.system_collector_task.try_lock() {
+            if let Some(handle) = sys_task.take() {
+                handle.abort();
+                info!("✅ System collector task aborted");
+            }
+        }
+
+        // Auto save task (non-blocking)
+        if let Ok(mut auto_task) = self.auto_save_task.try_lock() {
+            if let Some(handle) = auto_task.take() {
+                handle.abort();
+                info!("✅ Auto save task aborted");
+            }
+        }
+
+        // Auto save manager shutdown (non-blocking, no await)
         if let Some(auto_save) = &self.auto_save_manager {
-            info!("💾 Performing final save before shutdown...");
-            match auto_save.force_save().await {
-                Ok(_) => info!("✅ Final save completed successfully"),
-                Err(e) => warn!("⚠️  Final save failed: {}", e),
-            }
             auto_save.shutdown();
         }
 
-        // Graceful shutdown of file watcher
-        info!("🛑 Starting graceful shutdown of file watcher...");
-        if let Some(watcher_system) = self.file_watcher_system.lock().await.as_ref() {
-            if let Err(e) = watcher_system.stop().await {
-                error!("❌ Failed to stop file watcher gracefully: {}", e);
-            } else {
-                info!("✅ File watcher stopped gracefully");
-            }
-        }
-
-        info!("✅ Server stopped gracefully");
+        info!("✅ Server stopped");
         Ok(())
     }
 
@@ -1069,6 +1272,7 @@ impl VectorizerServer {
         // Create MCP service handler
         let store = self.store.clone();
         let embedding_manager = self.embedding_manager.clone();
+        let cluster_manager = self.cluster_manager.clone();
 
         // Create StreamableHTTP service
         let streamable_service = StreamableHttpService::new(
@@ -1076,6 +1280,7 @@ impl VectorizerServer {
                 Ok(VectorizerMcpService {
                     store: store.clone(),
                     embedding_manager: embedding_manager.clone(),
+                    cluster_manager: cluster_manager.clone(),
                 })
             },
             LocalSessionManager::default().into(),
@@ -1099,6 +1304,41 @@ impl VectorizerServer {
                 }
             }),
         )
+    }
+
+    /// Start gRPC server
+    async fn start_grpc_server(
+        host: &str,
+        port: u16,
+        store: Arc<VectorStore>,
+        cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+    ) -> anyhow::Result<()> {
+        use tonic::transport::Server;
+
+        use crate::grpc::VectorizerGrpcService;
+        use crate::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
+
+        let addr = format!("{}:{}", host, port).parse()?;
+        let service = VectorizerGrpcService::new(store.clone());
+
+        info!("🚀 Starting gRPC server on {}", addr);
+
+        let mut server_builder =
+            Server::builder().add_service(VectorizerServiceServer::new(service));
+
+        // Add ClusterService if cluster is enabled
+        if let Some(cluster_mgr) = cluster_manager {
+            use crate::cluster::ClusterGrpcService;
+            use crate::grpc::cluster::cluster_service_server::ClusterServiceServer;
+
+            info!("🔗 Adding Cluster gRPC service");
+            let cluster_service = ClusterGrpcService::new(store.clone(), cluster_mgr);
+            server_builder = server_builder.add_service(ClusterServiceServer::new(cluster_service));
+        }
+
+        server_builder.serve(addr).await?;
+
+        Ok(())
     }
 }
 
@@ -1175,6 +1415,7 @@ pub async fn get_file_watcher_metrics(
 struct VectorizerMcpService {
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
 }
 
 impl rmcp::ServerHandler for VectorizerMcpService {
@@ -1230,6 +1471,7 @@ impl rmcp::ServerHandler for VectorizerMcpService {
                 request,
                 self.store.clone(),
                 self.embedding_manager.clone(),
+                self.cluster_manager.clone(),
             )
             .await
         }
@@ -1382,88 +1624,82 @@ pub async fn load_workspace_collections(
                             let vector_store_path = format!("{}_vector_store.bin", collection.name);
                             match reader.read_file(&vector_store_path) {
                                 Ok(data) => {
-                                    match serde_json::from_slice::<
-                                        crate::persistence::PersistedCollection,
-                                    >(&data)
-                                    {
-                                        Ok(persisted) => {
-                                            // Use EXACT config from .vecdb (not workspace config!)
-                                            let config = persisted.config.clone().unwrap_or_else(|| {
+                                    // Try to deserialize as PersistedVectorStore first (correct format)
+                                    let persisted = match serde_json::from_slice::<
+                                        crate::persistence::PersistedVectorStore,
+                                    >(
+                                        &data
+                                    ) {
+                                        Ok(persisted_store) => {
+                                            // Extract the first collection from the store
+                                            persisted_store.collections.into_iter().next()
+                                        }
+                                        Err(_) => {
+                                            // Fallback: try deserializing as PersistedCollection directly (legacy format)
+                                            serde_json::from_slice::<
+                                                crate::persistence::PersistedCollection,
+                                            >(&data)
+                                            .ok()
+                                        }
+                                    };
+
+                                    if let Some(mut persisted) = persisted {
+                                        // BACKWARD COMPATIBILITY: If name is empty, infer from filename
+                                        if persisted.name.is_empty() {
+                                            persisted.name = collection.name.clone();
+                                        }
+
+                                        // Use EXACT config from .vecdb (not workspace config!)
+                                        let config = persisted.config.clone().unwrap_or_else(|| {
                                                 warn!("⚠️  Collection '{}' has no config in .vecdb, using default", collection.name);
                                                 crate::models::CollectionConfig::default()
                                             });
-                                            let vector_count = persisted.vectors.len();
+                                        let vector_count = persisted.vectors.len();
 
-                                            info!(
-                                                "📥 Loading collection '{}' from .vecdb with {} vectors...",
-                                                collection.name, vector_count
-                                            );
+                                        info!(
+                                            "📥 Loading collection '{}' from .vecdb with {} vectors...",
+                                            collection.name, vector_count
+                                        );
 
-                                            // Convert vectors FIRST (before creating collection)
-                                            info!(
-                                                "🔄 Converting {} persisted vectors to runtime format...",
-                                                persisted.vectors.len()
-                                            );
-                                            let vectors: Vec<crate::models::Vector> = persisted.vectors
-                                                .into_iter()
-                                                .filter_map(|pv| {
-                                                    match pv.into_runtime() {
-                                                        Ok(v) => Some(v),
-                                                        Err(e) => {
-                                                            warn!("Failed to convert persisted vector: {}", e);
-                                                            None
-                                                        }
-                                                    }
-                                                })
-                                                .collect();
-
-                                            info!(
-                                                "🔄 Converted {} vectors successfully",
-                                                vectors.len()
-                                            );
-
-                                            // Create collection with config FROM .vecdb
-                                            if let Err(e) =
-                                                store.create_collection(&collection.name, config)
-                                            {
-                                                // Collection might already exist from lazy loading - just load vectors with HNSW
-                                                warn!(
-                                                    "Collection '{}' already exists (maybe from lazy loading), loading vectors with HNSW anyway: {}",
-                                                    collection.name, e
-                                                );
-                                                if let Ok(mut collection_ref) =
-                                                    store.get_collection_mut(&collection.name)
-                                                {
-                                                    info!(
-                                                        "🔄 Loading {} vectors with HNSW index into existing collection '{}'...",
-                                                        vectors.len(),
-                                                        collection.name
+                                        // Convert vectors FIRST (before creating collection)
+                                        info!(
+                                            "🔄 Converting {} persisted vectors to runtime format...",
+                                            persisted.vectors.len()
+                                        );
+                                        let vectors: Vec<crate::models::Vector> = persisted
+                                            .vectors
+                                            .into_iter()
+                                            .filter_map(|pv| match pv.into_runtime() {
+                                                Ok(v) => Some(v),
+                                                Err(e) => {
+                                                    warn!(
+                                                        "Failed to convert persisted vector: {}",
+                                                        e
                                                     );
-                                                    // Use fast_load_vectors() to build HNSW index properly
-                                                    if let Err(e) =
-                                                        collection_ref.fast_load_vectors(vectors)
-                                                    {
-                                                        warn!(
-                                                            "❌ FAILED to load vectors with HNSW into collection '{}': {}",
-                                                            collection.name, e
-                                                        );
-                                                    } else {
-                                                        info!(
-                                                            "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
-                                                            collection.name, vector_count
-                                                        );
-                                                        indexed_count += 1;
-                                                    }
+                                                    None
                                                 }
-                                                continue;
-                                            }
+                                            })
+                                            .collect();
 
-                                            // Collection created successfully - now load vectors with HNSW index
+                                        info!(
+                                            "🔄 Converted {} vectors successfully",
+                                            vectors.len()
+                                        );
+
+                                        // Create collection with config FROM .vecdb
+                                        if let Err(e) =
+                                            store.create_collection(&collection.name, config)
+                                        {
+                                            // Collection might already exist from lazy loading - just load vectors with HNSW
+                                            warn!(
+                                                "Collection '{}' already exists (maybe from lazy loading), loading vectors with HNSW anyway: {}",
+                                                collection.name, e
+                                            );
                                             if let Ok(mut collection_ref) =
                                                 store.get_collection_mut(&collection.name)
                                             {
                                                 info!(
-                                                    "🔄 Loading {} vectors with HNSW index into collection '{}'...",
+                                                    "🔄 Loading {} vectors with HNSW index into existing collection '{}'...",
                                                     vectors.len(),
                                                     collection.name
                                                 );
@@ -1476,25 +1712,83 @@ pub async fn load_workspace_collections(
                                                         collection.name, e
                                                     );
                                                 } else {
+                                                    // Enable graph for this collection automatically
+                                                    if let Err(e) = store
+                                                        .enable_graph_for_collection(
+                                                            &collection.name,
+                                                        )
+                                                    {
+                                                        warn!(
+                                                            "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
+                                                            collection.name, e
+                                                        );
+                                                    } else {
+                                                        info!(
+                                                            "✅ Graph enabled for collection '{}'",
+                                                            collection.name
+                                                        );
+                                                    }
+
                                                     info!(
                                                         "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
                                                         collection.name, vector_count
                                                     );
                                                     indexed_count += 1;
                                                 }
-                                            } else {
-                                                warn!(
-                                                    "❌ FAILED to get collection '{}' after creation!",
-                                                    collection.name
-                                                );
                                             }
+                                            continue;
                                         }
-                                        Err(e) => {
+
+                                        // Collection created successfully - now load vectors with HNSW index
+                                        if let Ok(mut collection_ref) =
+                                            store.get_collection_mut(&collection.name)
+                                        {
+                                            info!(
+                                                "🔄 Loading {} vectors with HNSW index into collection '{}'...",
+                                                vectors.len(),
+                                                collection.name
+                                            );
+                                            // Use fast_load_vectors() to build HNSW index properly
+                                            if let Err(e) =
+                                                collection_ref.fast_load_vectors(vectors)
+                                            {
+                                                warn!(
+                                                    "❌ FAILED to load vectors with HNSW into collection '{}': {}",
+                                                    collection.name, e
+                                                );
+                                            } else {
+                                                // Enable graph for this collection automatically
+                                                if let Err(e) = store
+                                                    .enable_graph_for_collection(&collection.name)
+                                                {
+                                                    warn!(
+                                                        "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
+                                                        collection.name, e
+                                                    );
+                                                } else {
+                                                    info!(
+                                                        "✅ Graph enabled for collection '{}'",
+                                                        collection.name
+                                                    );
+                                                }
+
+                                                info!(
+                                                    "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
+                                                    collection.name, vector_count
+                                                );
+                                                indexed_count += 1;
+                                            }
+                                        } else {
                                             warn!(
-                                                "Failed to deserialize collection '{}' from .vecdb: {}",
-                                                collection.name, e
+                                                "❌ FAILED to get collection '{}' after creation!",
+                                                collection.name
                                             );
                                         }
+                                    } else {
+                                        debug!(
+                                            "Failed to deserialize collection '{}' from .vecdb: no collection found",
+                                            collection.name
+                                        );
                                     }
                                 }
                                 Err(e) => {

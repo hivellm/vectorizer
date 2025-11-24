@@ -1,21 +1,22 @@
 //! Client integration tests for the Rust SDK
 //! Tests for client operations, model integration, and data transformation
 
-use vectorizer_rust_sdk::*;
 use std::collections::HashMap;
+use vectorizer_sdk::*;
 
 #[test]
 fn test_client_initialization() {
     // Test default client initialization
     let client = VectorizerClient::new_default().unwrap();
     assert_eq!(client.base_url(), "http://localhost:15002");
-    
+
     // Test custom URL initialization
     let client_custom = VectorizerClient::new_with_url("http://custom:8080").unwrap();
     assert_eq!(client_custom.base_url(), "http://custom:8080");
-    
+
     // Test API key initialization
-    let client_with_key = VectorizerClient::new_with_api_key("http://localhost:15002", "test-key").unwrap();
+    let client_with_key =
+        VectorizerClient::new_with_api_key("http://localhost:15002", "test-key").unwrap();
     assert_eq!(client_with_key.base_url(), "http://localhost:15002");
 }
 
@@ -25,8 +26,14 @@ fn test_vector_model_validation() {
     let valid_data = vec![0.1, 0.2, 0.3, 0.4, 0.5];
     let metadata = Some({
         let mut meta = HashMap::new();
-        meta.insert("category".to_string(), serde_json::Value::String("test".to_string()));
-        meta.insert("source".to_string(), serde_json::Value::String("test_doc".to_string()));
+        meta.insert(
+            "category".to_string(),
+            serde_json::Value::String("test".to_string()),
+        );
+        meta.insert(
+            "source".to_string(),
+            serde_json::Value::String("test_doc".to_string()),
+        );
         meta
     });
 
@@ -41,11 +48,11 @@ fn test_vector_model_validation() {
     assert_eq!(vector.data.len(), 5);
     assert!(vector.data.iter().all(|&x| x.is_finite()));
     assert!(vector.metadata.is_some());
-    
+
     // Test serialization
     let json = serde_json::to_string(&vector).unwrap();
     assert!(!json.is_empty());
-    
+
     // Test deserialization
     let deserialized: Vector = serde_json::from_str(&json).unwrap();
     assert_eq!(vector.id, deserialized.id);
@@ -69,12 +76,15 @@ fn test_collection_model_validation() {
     assert_eq!(collection.dimension, 384);
     assert_eq!(collection.similarity_metric, SimilarityMetric::Cosine);
     assert!(collection.description.is_some());
-    assert_eq!(collection.description.clone().unwrap(), "Test collection for validation");
-    
+    assert_eq!(
+        collection.description.clone().unwrap(),
+        "Test collection for validation"
+    );
+
     // Test serialization
     let json = serde_json::to_string(&collection).unwrap();
     assert!(!json.is_empty());
-    
+
     // Test deserialization
     let deserialized: Collection = serde_json::from_str(&json).unwrap();
     assert_eq!(collection.name, deserialized.name);
@@ -87,8 +97,14 @@ fn test_search_result_model_validation() {
     // Test SearchResult model creation and validation
     let metadata = Some({
         let mut meta = HashMap::new();
-        meta.insert("category".to_string(), serde_json::Value::String("ai".to_string()));
-        meta.insert("confidence".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(0.95).unwrap()));
+        meta.insert(
+            "category".to_string(),
+            serde_json::Value::String("ai".to_string()),
+        );
+        meta.insert(
+            "confidence".to_string(),
+            serde_json::Value::Number(serde_json::Number::from_f64(0.95).unwrap()),
+        );
         meta
     });
 
@@ -104,12 +120,15 @@ fn test_search_result_model_validation() {
     assert_eq!(search_result.score, 0.95);
     assert!(search_result.score >= 0.0 && search_result.score <= 1.0);
     assert!(search_result.content.is_some());
-    assert_eq!(search_result.content.clone().unwrap(), "This is a search result");
-    
+    assert_eq!(
+        search_result.content.clone().unwrap(),
+        "This is a search result"
+    );
+
     // Test serialization
     let json = serde_json::to_string(&search_result).unwrap();
     assert!(!json.is_empty());
-    
+
     // Test deserialization
     let deserialized: SearchResult = serde_json::from_str(&json).unwrap();
     assert_eq!(search_result.id, deserialized.id);
@@ -149,18 +168,18 @@ fn test_batch_models_integration() {
     assert_eq!(batch_request.id, "batch_text_1");
     assert_eq!(batch_request.text, "This is a batch text request");
     assert!(batch_request.metadata.is_some());
-    
+
     assert_eq!(config.max_batch_size, Some(100));
     assert_eq!(config.parallel_workers, Some(4));
     assert_eq!(config.atomic, Some(true));
-    
+
     assert_eq!(batch_insert.texts.len(), 1);
     assert!(batch_insert.config.is_some());
-    
+
     // Test serialization
     let json = serde_json::to_string(&batch_insert).unwrap();
     assert!(!json.is_empty());
-    
+
     // Test deserialization
     let deserialized: BatchInsertRequest = serde_json::from_str(&json).unwrap();
     assert_eq!(batch_insert.texts.len(), deserialized.texts.len());
@@ -194,14 +213,17 @@ fn test_embedding_models_integration() {
 
     // Validate embedding models
     assert_eq!(embedding_request.text, "This is a test text");
-    assert_eq!(embedding_request.model, Some("sentence-transformers/all-MiniLM-L6-v2".to_string()));
+    assert_eq!(
+        embedding_request.model,
+        Some("sentence-transformers/all-MiniLM-L6-v2".to_string())
+    );
     assert!(embedding_request.parameters.is_some());
-    
+
     assert_eq!(embedding_response.embedding, embedding);
     assert_eq!(embedding_response.model, "test-model");
     assert_eq!(embedding_response.dimension, 5);
     assert_eq!(embedding_response.provider, "test-provider");
-    
+
     // Test serialization
     let request_json = serde_json::to_string(&embedding_request).unwrap();
     let response_json = serde_json::to_string(&embedding_response).unwrap();
@@ -227,11 +249,11 @@ fn test_health_status_integration() {
     assert_eq!(health.uptime, Some(3600));
     assert_eq!(health.collections, Some(5));
     assert_eq!(health.total_vectors, Some(1000));
-    
+
     // Test serialization
     let json = serde_json::to_string(&health).unwrap();
     assert!(!json.is_empty());
-    
+
     // Test deserialization
     let deserialized: HealthStatus = serde_json::from_str(&json).unwrap();
     assert_eq!(health.status, deserialized.status);
@@ -260,7 +282,7 @@ fn test_data_transformation_consistency() {
 #[test]
 fn test_model_edge_cases() {
     // Test edge cases for models
-    
+
     // Test empty vector data
     let empty_vector = Vector {
         id: "empty".to_string(),
@@ -268,7 +290,7 @@ fn test_model_edge_cases() {
         metadata: None,
     };
     assert!(empty_vector.data.is_empty());
-    
+
     // Test large vector data
     let large_data: Vec<f32> = (0..1000).map(|i| i as f32 * 0.001).collect();
     let large_vector = Vector {
@@ -277,7 +299,7 @@ fn test_model_edge_cases() {
         metadata: None,
     };
     assert_eq!(large_vector.data.len(), 1000);
-    
+
     // Test zero values
     let zero_vector = Vector {
         id: "zero".to_string(),
@@ -285,7 +307,7 @@ fn test_model_edge_cases() {
         metadata: None,
     };
     assert!(zero_vector.data.iter().all(|&x| x == 0.0));
-    
+
     // Test special floating point values
     let special_vector = Vector {
         id: "special".to_string(),
@@ -329,11 +351,11 @@ fn test_collection_info_integration() {
     assert_eq!(collection_info.document_count, 50);
     assert_eq!(collection_info.indexing_status.status, "ready");
     assert_eq!(collection_info.indexing_status.progress, 100.0);
-    
+
     // Test serialization
     let json = serde_json::to_string(&collection_info).unwrap();
     assert!(!json.is_empty());
-    
+
     // Test deserialization
     let deserialized: CollectionInfo = serde_json::from_str(&json).unwrap();
     assert_eq!(collection_info.name, deserialized.name);
@@ -353,12 +375,12 @@ fn test_similarity_metric_enum_integration() {
         // Test serialization
         let json = serde_json::to_string(&metric).unwrap();
         assert!(!json.is_empty());
-        
+
         // Test deserialization
         let deserialized: SimilarityMetric = serde_json::from_str(&json).unwrap();
         assert_eq!(metric, deserialized);
     }
-    
+
     // Test default value
     assert_eq!(SimilarityMetric::default(), SimilarityMetric::Cosine);
 }
@@ -377,27 +399,33 @@ fn test_summarization_method_enum_integration() {
         // Test serialization
         let json = serde_json::to_string(&method).unwrap();
         assert!(!json.is_empty());
-        
+
         // Test deserialization
         let deserialized: SummarizationMethod = serde_json::from_str(&json).unwrap();
         assert_eq!(method, deserialized);
     }
-    
+
     // Test default value
-    assert_eq!(SummarizationMethod::default(), SummarizationMethod::Extractive);
+    assert_eq!(
+        SummarizationMethod::default(),
+        SummarizationMethod::Extractive
+    );
 }
 
 #[test]
 fn test_comprehensive_model_integration() {
     // Test comprehensive integration of all models
-    
+
     // Create a complete workflow scenario
     let vector = Vector {
         id: "workflow_vector".to_string(),
         data: vec![0.1, 0.2, 0.3, 0.4, 0.5],
         metadata: Some({
             let mut meta = HashMap::new();
-            meta.insert("workflow".to_string(), serde_json::Value::String("test".to_string()));
+            meta.insert(
+                "workflow".to_string(),
+                serde_json::Value::String("test".to_string()),
+            );
             meta
         }),
     };
@@ -432,24 +460,24 @@ fn test_comprehensive_model_integration() {
     assert_eq!(vector.data.len(), collection.dimension);
     assert_eq!(search_result.id, vector.id);
     assert!(search_result.score > 0.0);
-    
+
     // Test serialization of all models
     let vector_json = serde_json::to_string(&vector).unwrap();
     let collection_json = serde_json::to_string(&collection).unwrap();
     let search_json = serde_json::to_string(&search_result).unwrap();
     let batch_json = serde_json::to_string(&batch_request).unwrap();
-    
+
     assert!(!vector_json.is_empty());
     assert!(!collection_json.is_empty());
     assert!(!search_json.is_empty());
     assert!(!batch_json.is_empty());
-    
+
     // Test deserialization
     let deserialized_vector: Vector = serde_json::from_str(&vector_json).unwrap();
     let deserialized_collection: Collection = serde_json::from_str(&collection_json).unwrap();
     let deserialized_search: SearchResult = serde_json::from_str(&search_json).unwrap();
     let deserialized_batch: BatchTextRequest = serde_json::from_str(&batch_json).unwrap();
-    
+
     // Verify consistency
     assert_eq!(vector.id, deserialized_vector.id);
     assert_eq!(collection.name, deserialized_collection.name);

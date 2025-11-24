@@ -5,6 +5,24 @@
 #   docker-compose -f docker-compose.test.yml up --build
 #   docker-compose -f docker-compose.test.yml up --build vectorizer-test
 
+# Dashboard builder stage (optional for tests, but included for consistency)
+FROM node:20-bookworm AS dashboard-builder
+WORKDIR /dashboard
+
+# Install pnpm
+RUN npm install -g pnpm@latest
+
+# Copy dashboard files
+COPY dashboard/package.json dashboard/pnpm-lock.yaml dashboard/pnpm-workspace.yaml ./
+COPY dashboard/tsconfig.json dashboard/vite.config.ts dashboard/eslint.config.js ./
+COPY dashboard/index.html ./
+COPY dashboard/src ./src
+COPY dashboard/public ./public
+
+# Install dependencies and build dashboard
+RUN pnpm install --frozen-lockfile && \
+    pnpm run build
+
 FROM rust:1.83-bookworm AS test-builder
 
 WORKDIR /vectorizer
@@ -67,6 +85,12 @@ COPY --from=test-builder /usr/local/rustup /usr/local/rustup
 
 # Copy built artifacts and source
 COPY --from=test-builder /vectorizer ./
+
+# Create dashboard directory first, then copy built dashboard
+RUN mkdir -p /vectorizer/dashboard
+
+# Copy built dashboard from dashboard-builder stage
+COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 
 # Create output directories
 RUN mkdir -p /vectorizer/target/test-results /vectorizer/coverage /vectorizer/.logs

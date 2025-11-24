@@ -2,14 +2,19 @@
  * UMICP client utility using the official @hivellm/umicp SDK.
  * 
  * Wrapper around UMICPWebSocketClient for Vectorizer API requests.
+ * 
+ * Note: @hivellm/umicp is an optional dependency. If it's not installed,
+ * this module will fail to load, which is handled gracefully by the transport layer.
  */
 
-import { StreamableHTTPClient } from '@hivellm/umicp';
 import {
   NetworkError,
   ServerError,
   AuthenticationError,
 } from '../exceptions/index.js';
+
+// Lazy load UMICP module - it's an optional dependency
+let StreamableHTTPClient = null;
 
 export class UMICPClient {
   constructor(config = {}) {
@@ -32,9 +37,21 @@ export class UMICPClient {
       return;
     }
 
+    // Try to load UMICP module if not already loaded
+    if (!StreamableHTTPClient) {
+      try {
+        const umicpModule = await import('@hivellm/umicp');
+        StreamableHTTPClient = umicpModule.StreamableHTTPClient;
+      } catch (error) {
+        throw new Error(
+          '@hivellm/umicp is not installed. Install it with: npm install @hivellm/umicp'
+        );
+      }
+    }
+
     try {
       const url = `http://${this.config.host}:${this.config.port}`;
-      
+
       this.client = new StreamableHTTPClient(url, {
         timeout: this.config.timeout,
       });
@@ -71,15 +88,6 @@ export class UMICPClient {
       await this.connect();
     }
 
-    const payload = {
-      method,
-      path,
-      ...(data && { body: data }),
-      ...(requestConfig.params && { params: requestConfig.params }),
-      ...(requestConfig.headers && { headers: requestConfig.headers }),
-      ...(this.config.apiKey && { authorization: `Bearer ${this.config.apiKey}` }),
-    };
-
     try {
       // Use StreamableHTTPClient's request method
       const response = await this.client.request(path, {
@@ -97,11 +105,11 @@ export class UMICPClient {
       if (error instanceof ServerError || error instanceof AuthenticationError) {
         throw error;
       }
-      
+
       if (error instanceof Error) {
         throw new NetworkError(`UMICP request failed: ${error.message}`);
       }
-      
+
       throw new NetworkError('Unknown UMICP error');
     }
   }
@@ -141,7 +149,7 @@ export class UMICPClient {
     const message = response.message || `UMICP Error ${response.statusCode || 'Unknown'}`;
 
     const statusCode = response.statusCode || 500;
-    
+
     switch (statusCode) {
       case 401:
         return new AuthenticationError(message);
@@ -161,4 +169,3 @@ export class UMICPClient {
     }
   }
 }
-

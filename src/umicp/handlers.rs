@@ -40,6 +40,7 @@ pub async fn handle_umicp_request(state: UmicpState, envelope: Envelope) -> Resu
         mcp_request,
         state.store.clone(),
         state.embedding_manager.clone(),
+        None, // Cluster manager not available in UMICP context
     )
     .await;
 

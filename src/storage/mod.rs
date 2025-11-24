@@ -8,6 +8,7 @@ pub mod compact;
 pub mod config;
 pub mod index;
 pub mod migration;
+pub mod mmap;
 pub mod reader;
 pub mod snapshot;
 pub mod writer;

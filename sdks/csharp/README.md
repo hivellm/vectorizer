@@ -6,7 +6,7 @@
 High-performance C# SDK for Vectorizer vector database.
 
 **Package**: `Vectorizer.Sdk`  
-**Version**: 1.3.0  
+**Version**: 1.4.0  
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 
 ## Features
@@ -33,7 +33,7 @@ dotnet add package Vectorizer.Sdk
 Install-Package Vectorizer.Sdk
 
 # Or specific version
-dotnet add package Vectorizer.Sdk --version 1.3.0
+dotnet add package Vectorizer.Sdk --version 1.4.0
 ```
 
 ## Quick Start
@@ -90,6 +90,46 @@ try
         MMRLambda = 0.7
     });
     Console.WriteLine($"✓ Intelligent search found {intelligentResults.Count} results");
+
+    // Graph Operations (requires graph enabled in collection config)
+    // List all graph nodes
+    var nodes = await client.ListGraphNodesAsync("documents");
+    Console.WriteLine($"✓ Graph has {nodes.Count} nodes");
+
+    // Get neighbors of a node
+    var neighbors = await client.GetGraphNeighborsAsync("documents", "document1");
+    Console.WriteLine($"✓ Node has {neighbors.Neighbors.Count} neighbors");
+
+    // Find related nodes within 2 hops
+    var related = await client.FindRelatedNodesAsync("documents", "document1", new FindRelatedRequest
+    {
+        MaxHops = 2,
+        RelationshipType = "SIMILAR_TO"
+    });
+    Console.WriteLine($"✓ Found {related.Related.Count} related nodes");
+
+    // Find shortest path between two nodes
+    var path = await client.FindGraphPathAsync(new FindPathRequest
+    {
+        Collection = "documents",
+        Source = "document1",
+        Target = "document2"
+    });
+    if (path.Found)
+    {
+        Console.WriteLine($"✓ Path found: {string.Join(" -> ", path.Path.Select(n => n.Id))}");
+    }
+
+    // Create explicit relationship
+    var edge = await client.CreateGraphEdgeAsync(new CreateEdgeRequest
+    {
+        Collection = "documents",
+        Source = "document1",
+        Target = "document2",
+        RelationshipType = "REFERENCES",
+        Weight = 0.9f
+    });
+    Console.WriteLine($"✓ Created edge: {edge.EdgeId}");
 
     // Semantic search
     var semanticResults = await client.SemanticSearchAsync(

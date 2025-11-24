@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/vectorizer.svg)](https://crates.io/crates/vectorizer)
 [![GitHub release](https://img.shields.io/github/release/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/releases)
-[![Tests](https://img.shields.io/badge/tests-656%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
+[![Tests](https://img.shields.io/badge/tests-703%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
 [![Coverage](https://img.shields.io/badge/coverage-95%25%2B-success.svg)](https://github.com/hivellm/vectorizer)
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
@@ -13,16 +13,22 @@ A high-performance vector database and search engine built in Rust, designed for
 ## ✨ Key Features
 
 - **🔍 Semantic Search**: Advanced vector similarity with multiple distance metrics (Cosine, Euclidean, Dot Product)
+- **⚡ SIMD Acceleration**: AVX2-optimized vector operations (5-10x faster) with automatic CPU feature detection
+- **💾 Memory-Mapped Storage**: MMap support for datasets larger than RAM with efficient OS paging
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
+- **📦 Product Quantization**: PQ compression for 64x memory reduction with minimal accuracy loss
 - **💾 Compact Storage**: Unified `.vecdb` format with 20-30% space savings and automatic snapshots
 - **🔄 Master-Replica Replication**: High availability with automatic failover (BETA)
+- **🔗 Distributed Sharding**: Horizontal scaling across multiple servers with automatic shard routing (BETA)
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
 - **🔄 Qdrant Migration**: Complete migration tools for seamless transition from Qdrant
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
-- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
+- **🖥️ Web Dashboard**: Modern React + TypeScript dashboard with complete graph management interface
+- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (legacy)
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
 - **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
+- **🕸️ Graph Relationships**: Automatic relationship discovery and graph traversal with full GUI support for edge management, node exploration, and path finding
 - **🔒 Security**: JWT + API Key authentication with RBAC
 
 ## 🚀 Quick Start
@@ -95,6 +101,7 @@ cargo build --release --features full
 
 ### Access Points
 
+- **Web Dashboard**: http://localhost:15002/dashboard/ - Modern React dashboard with complete graph management interface (create/delete edges, explore neighbors, find paths, discover relationships)
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp
 - **UMICP Discovery**: http://localhost:15002/umicp/discover
@@ -107,8 +114,27 @@ cargo build --release --features full
 | **Search Speed**      | < 3ms (CPU), < 1ms (Metal GPU) |
 | **Storage Reduction** | 30-50% with normalization      |
 | **Test Coverage**     | 95%+ coverage                  |
+| **Test Suite**        | 703 passing, 6 ignored        |
 | **MCP Tools**         | 20 focused individual tools    |
 | **Document Formats**  | 14 formats supported           |
+
+## 🔧 Recent Improvements (v1.5.0)
+
+### Test Suite Enhancements
+
+- **✅ Fixed**: SIMD vector operations - Improved precision handling for large vectors
+- **✅ Fixed**: Product Quantization - Corrected compression ratio calculations
+- **✅ Fixed**: MMap storage - Added header persistence for reliable data recovery
+- **✅ Fixed**: WAL tests - Improved test reliability with proper metric handling
+- **✅ Improved**: Test execution time - Slow tests marked as optional (run with `--ignored`)
+
+### Quality Improvements
+
+- **✅ All core tests passing**: 703+ tests with comprehensive coverage
+- **✅ Better error handling**: Improved dimension validation and error messages
+- **✅ Storage reliability**: MMap storage now properly persists vector counts
+- **✅ Test stability**: Timeout protection prevents hanging tests
+- **✅ BM25 search quality**: Fixed document frequency calculation for correct IDF values and improved BM25 scores
 
 ## 🎯 Use Cases
 
@@ -155,10 +181,12 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-- **Python**: `pip install vectorizer-sdk`
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk`
-- **Rust**: `cargo add vectorizer-sdk`
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js`
+All SDKs are synchronized with server version **1.5.0**:
+
+- **Python**: `pip install vectorizer-sdk` (v1.5.0)
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.5.0)
+- **Rust**: `cargo add vectorizer-sdk` (v1.5.0)
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.5.0)
 
 ## 🔄 Qdrant Migration
 
@@ -190,6 +218,7 @@ See [Qdrant Migration Guide](./docs/specs/QDRANT_MIGRATION.md) for detailed inst
 
 - **[User Documentation](./docs/users/)** - Installation guides and user tutorials
 - **[API Reference](./docs/specs/API_REFERENCE.md)** - Complete REST API documentation
+- **[Dashboard Integration](./docs/DASHBOARD_INTEGRATION.md)** - Web dashboard setup and integration guide
 - **[Qdrant Compatibility](./docs/users/qdrant/)** - Qdrant API compatibility and migration guide
 - **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
 - **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide

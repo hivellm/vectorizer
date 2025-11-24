@@ -374,12 +374,15 @@ mod tests {
     #[test]
     fn test_workspace_metadata_creation() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: crate::models::QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = EnhancedCollectionMetadata::new_workspace(
@@ -399,12 +402,15 @@ mod tests {
     #[test]
     fn test_dynamic_metadata_creation() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: crate::models::QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let metadata = EnhancedCollectionMetadata::new_dynamic(
@@ -424,12 +430,15 @@ mod tests {
     #[test]
     fn test_metadata_update_after_operation() {
         let config = CollectionConfig {
+            graph: None,
+            sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
             quantization: crate::models::QuantizationConfig::default(),
             hnsw_config: crate::models::HnswConfig::default(),
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
         };
 
         let mut metadata = EnhancedCollectionMetadata::new_dynamic(

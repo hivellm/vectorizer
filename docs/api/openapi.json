@@ -3,23 +3,23 @@
   "info": {
     "title": "Vectorizer API",
     "description": "High-performance vector database engine with semantic search capabilities.\nSupports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and\nprovides real-time indexing with HNSW optimization.\n",
-    "version": "0.3.1",
+    "version": "1.4.0",
     "contact": {
       "name": "Vectorizer Team",
       "url": "https://github.com/hivellm/vectorizer"
     },
     "license": {
-      "name": "MIT",
-      "url": "https://opensource.org/licenses/MIT"
+      "name": "Apache-2.0",
+      "url": "https://opensource.org/licenses/Apache-2.0"
     }
   },
   "servers": [
     {
-      "url": "http://localhost:15001/api/v1",
+      "url": "http://localhost:15002",
       "description": "Local development server"
     },
     {
-      "url": "http://127.0.0.1:15001/api/v1",
+      "url": "http://127.0.0.1:15002",
       "description": "Local server alternative"
     }
   ],
@@ -1703,6 +1703,540 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SearchByFileTypeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/nodes/{collection}": {
+      "get": {
+        "summary": "List Graph Nodes",
+        "description": "List all nodes (vectors) in a collection's graph",
+        "operationId": "listGraphNodes",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListGraphNodesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/nodes/{collection}/{node_id}/neighbors": {
+      "get": {
+        "summary": "Get Graph Neighbors",
+        "description": "Get all neighbors (connected nodes) of a specific node",
+        "operationId": "getGraphNeighbors",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "description": "Node ID (vector ID)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "relationship_type",
+            "in": "query",
+            "description": "Filter by relationship type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SIMILAR_TO",
+                "REFERENCES",
+                "CONTAINS",
+                "DERIVED_FROM"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of neighbors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphNeighborsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/nodes/{collection}/{node_id}/related": {
+      "post": {
+        "summary": "Find Related Nodes",
+        "description": "Find all nodes related to a specific node within a specified number of hops",
+        "operationId": "findRelatedNodes",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "description": "Node ID (vector ID)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindRelatedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List of related nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindRelatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/path": {
+      "post": {
+        "summary": "Find Graph Path",
+        "description": "Find the shortest path between two nodes",
+        "operationId": "findGraphPath",
+        "tags": [
+          "Graph Operations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindPathRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Path information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindPathResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/edges": {
+      "post": {
+        "summary": "Create Graph Edge",
+        "description": "Create an explicit relationship (edge) between two nodes",
+        "operationId": "createGraphEdge",
+        "tags": [
+          "Graph Operations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEdgeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Edge created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateEdgeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Edge already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/edges/{edge_id}": {
+      "delete": {
+        "summary": "Delete Graph Edge",
+        "description": "Delete a specific edge by its ID",
+        "operationId": "deleteGraphEdge",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "edge_id",
+            "in": "path",
+            "required": true,
+            "description": "Edge ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Edge deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteEdgeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Edge not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/collections/{collection}/edges": {
+      "get": {
+        "summary": "List Graph Edges",
+        "description": "List all edges in a collection's graph",
+        "operationId": "listGraphEdges",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "relationship_type",
+            "in": "query",
+            "description": "Filter by relationship type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SIMILAR_TO",
+                "REFERENCES",
+                "CONTAINS",
+                "DERIVED_FROM"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of edges to return",
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of edges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListGraphEdgesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/discover/{collection}": {
+      "post": {
+        "summary": "Discover Graph Edges (Collection)",
+        "description": "Discover SIMILAR_TO relationships for all nodes in a collection",
+        "operationId": "discoverGraphEdgesCollection",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverEdgesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Discovery results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverEdgesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/discover/{collection}/{node_id}": {
+      "post": {
+        "summary": "Discover Graph Edges (Node)",
+        "description": "Discover SIMILAR_TO relationships for a specific node",
+        "operationId": "discoverGraphEdgesNode",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "description": "Node ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverEdgesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Discovery results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverEdgesNodeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph/discover/{collection}/status": {
+      "get": {
+        "summary": "Get Discovery Status",
+        "description": "Get discovery status and statistics for a collection",
+        "operationId": "getDiscoveryStatus",
+        "tags": [
+          "Graph Operations"
+        ],
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "description": "Collection name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Discovery status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3653,6 +4187,452 @@
             }
           }
         }
+      },
+      "GraphNode": {
+        "type": "object",
+        "required": [
+          "id",
+          "node_type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Node ID (vector ID)"
+          },
+          "node_type": {
+            "type": "string",
+            "description": "Node type (usually \"document\" or \"vector\")"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Node metadata"
+          }
+        }
+      },
+      "ListGraphNodesResponse": {
+        "type": "object",
+        "required": [
+          "nodes",
+          "count"
+        ],
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphNode"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total number of nodes"
+          }
+        }
+      },
+      "GraphNeighbor": {
+        "type": "object",
+        "required": [
+          "edge_id",
+          "target",
+          "relationship_type",
+          "weight"
+        ],
+        "properties": {
+          "edge_id": {
+            "type": "string",
+            "description": "Edge ID"
+          },
+          "target": {
+            "$ref": "#/components/schemas/GraphNode"
+          },
+          "relationship_type": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Edge weight"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Edge metadata"
+          }
+        }
+      },
+      "GraphNeighborsResponse": {
+        "type": "object",
+        "required": [
+          "neighbors",
+          "count"
+        ],
+        "properties": {
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphNeighbor"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of neighbors"
+          }
+        }
+      },
+      "FindRelatedRequest": {
+        "type": "object",
+        "required": [
+          "max_hops"
+        ],
+        "properties": {
+          "max_hops": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Maximum number of hops to traverse"
+          },
+          "relationship_type": {
+            "$ref": "#/components/schemas/RelationshipType",
+            "description": "Filter by relationship type"
+          }
+        }
+      },
+      "RelatedNode": {
+        "type": "object",
+        "required": [
+          "node",
+          "hops",
+          "path"
+        ],
+        "properties": {
+          "node": {
+            "$ref": "#/components/schemas/GraphNode"
+          },
+          "hops": {
+            "type": "integer",
+            "description": "Number of hops to reach this node"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Path from source to this node"
+          }
+        }
+      },
+      "FindRelatedResponse": {
+        "type": "object",
+        "required": [
+          "related",
+          "count"
+        ],
+        "properties": {
+          "related": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedNode"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of related nodes"
+          }
+        }
+      },
+      "FindPathRequest": {
+        "type": "object",
+        "required": [
+          "collection",
+          "source",
+          "target"
+        ],
+        "properties": {
+          "collection": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source node ID"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target node ID"
+          }
+        }
+      },
+      "FindPathResponse": {
+        "type": "object",
+        "required": [
+          "found",
+          "path"
+        ],
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "description": "Whether a path was found"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphNode"
+            },
+            "description": "Path from source to target (empty if not found)"
+          },
+          "length": {
+            "type": "integer",
+            "description": "Path length (number of edges)"
+          }
+        }
+      },
+      "CreateEdgeRequest": {
+        "type": "object",
+        "required": [
+          "collection",
+          "source",
+          "target",
+          "relationship_type"
+        ],
+        "properties": {
+          "collection": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source node ID"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target node ID"
+          },
+          "relationship_type": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 1.0,
+            "description": "Edge weight"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional edge metadata"
+          }
+        }
+      },
+      "CreateEdgeResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "edge_id",
+          "edge"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the edge was created"
+          },
+          "edge_id": {
+            "type": "string",
+            "description": "Created edge ID"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/GraphEdge"
+          }
+        }
+      },
+      "GraphEdge": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "target",
+          "relationship_type",
+          "weight"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Edge ID"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source node ID"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target node ID"
+          },
+          "relationship_type": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "weight": {
+            "type": "number",
+            "description": "Edge weight"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Edge metadata"
+          }
+        }
+      },
+      "DeleteEdgeResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the edge was deleted"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          }
+        }
+      },
+      "ListGraphEdgesResponse": {
+        "type": "object",
+        "required": [
+          "edges",
+          "count"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraphEdge"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total number of edges"
+          }
+        }
+      },
+      "DiscoverEdgesRequest": {
+        "type": "object",
+        "properties": {
+          "similarity_threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.7,
+            "description": "Minimum similarity score"
+          },
+          "max_per_node": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10,
+            "description": "Maximum edges per node"
+          },
+          "enabled_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelationshipType"
+            },
+            "default": [
+              "SIMILAR_TO"
+            ],
+            "description": "Relationship types to discover"
+          }
+        }
+      },
+      "DiscoverEdgesResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "stats"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether discovery completed successfully"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/DiscoveryStats"
+          }
+        }
+      },
+      "DiscoverEdgesNodeResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "edges_created"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether discovery completed successfully"
+          },
+          "edges_created": {
+            "type": "integer",
+            "description": "Number of edges created"
+          }
+        }
+      },
+      "DiscoveryStats": {
+        "type": "object",
+        "required": [
+          "total_nodes",
+          "nodes_processed",
+          "total_edges_created",
+          "nodes_with_edges"
+        ],
+        "properties": {
+          "total_nodes": {
+            "type": "integer",
+            "description": "Total number of nodes in collection"
+          },
+          "nodes_processed": {
+            "type": "integer",
+            "description": "Number of nodes processed"
+          },
+          "total_edges_created": {
+            "type": "integer",
+            "description": "Total edges created"
+          },
+          "nodes_with_edges": {
+            "type": "integer",
+            "description": "Number of nodes that have edges"
+          }
+        }
+      },
+      "DiscoveryStatusResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "stats"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "in_progress",
+              "pending"
+            ],
+            "description": "Discovery status"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/DiscoveryStats"
+          }
+        }
+      },
+      "RelationshipType": {
+        "type": "string",
+        "enum": [
+          "SIMILAR_TO",
+          "REFERENCES",
+          "CONTAINS",
+          "DERIVED_FROM"
+        ],
+        "description": "Type of relationship between nodes"
       }
     },
     "securitySchemes": {
@@ -3708,6 +4688,10 @@
     {
       "name": "File Operations",
       "description": "File content retrieval and analysis operations"
+    },
+    {
+      "name": "Graph Operations",
+      "description": "Graph relationship discovery and querying operations"
     }
   ],
   "externalDocs": {

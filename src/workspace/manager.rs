@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, error, info, warn};
 
 use crate::error::{Result, VectorizerError};
+use crate::file_watcher::normalize_wsl_path;
 use crate::workspace::config::*;
 use crate::workspace::parser::*;
 use crate::workspace::simplified_config::*;
@@ -202,7 +203,18 @@ impl WorkspaceManager {
             ))
         })?;
 
-        Ok(self.workspace_root.join(&project.path))
+        // Normalize WSL paths before joining
+        let project_path_str = project.path.to_string_lossy();
+        let normalized_project_path = normalize_wsl_path(&project_path_str);
+
+        let workspace_root_str = self.workspace_root.to_string_lossy();
+        let normalized_workspace_root = normalize_wsl_path(&workspace_root_str);
+
+        Ok(if normalized_project_path.is_absolute() {
+            normalized_project_path
+        } else {
+            normalized_workspace_root.join(&normalized_project_path)
+        })
     }
 
     /// Get collection configuration
@@ -245,8 +257,19 @@ impl WorkspaceManager {
             )));
         }
 
-        // Validate project path
-        let project_path = self.workspace_root.join(&project.path);
+        // Validate project path (normalize WSL paths first)
+        let project_path_str = project.path.to_string_lossy();
+        let normalized_project_path = normalize_wsl_path(&project_path_str);
+
+        let workspace_root_str = self.workspace_root.to_string_lossy();
+        let normalized_workspace_root = normalize_wsl_path(&workspace_root_str);
+
+        let project_path = if normalized_project_path.is_absolute() {
+            normalized_project_path
+        } else {
+            normalized_workspace_root.join(&normalized_project_path)
+        };
+
         if !project_path.exists() {
             return Err(VectorizerError::IoError(std::io::Error::new(
                 std::io::ErrorKind::NotFound,

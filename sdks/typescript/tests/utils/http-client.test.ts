@@ -2,6 +2,7 @@
  * Tests for HttpClient utility.
  */
 
+import { describe, it, expect, beforeEach, vi, type MockedFunction } from 'vitest';
 import { HttpClient } from '../../src/utils/http-client';
 import {
   NetworkError,
@@ -12,14 +13,14 @@ import {
 } from '../../src/exceptions';
 
 // Mock fetch
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+const mockFetch = vi.fn() as MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
 describe('HttpClient', () => {
   let httpClient: HttpClient;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Default successful response
     mockFetch.mockResolvedValue({
@@ -27,8 +28,8 @@ describe('HttpClient', () => {
       status: 200,
       statusText: 'OK',
       headers: new Headers({ 'content-type': 'application/json' }),
-      json: jest.fn().mockResolvedValue({}),
-      text: jest.fn().mockResolvedValue(''),
+        json: vi.fn().mockResolvedValue({}),
+        text: vi.fn().mockResolvedValue(''),
     } as any);
     
     httpClient = new HttpClient({

@@ -6,7 +6,7 @@
 
 - **Package**: `@hivellm/vectorizer-client-ts`
 - **Registry**: npm
-- **Version**: v1.3.0
+- **Version**: v1.4.0
 - **Status**: ✅ Published successfully
 - **Installation**: `npm install @hivellm/vectorizer-client-ts`
 
@@ -14,7 +14,7 @@
 
 - **Package**: `@hivellm/vectorizer-client-js`
 - **Registry**: npm
-- **Version**: v1.3.0
+- **Version**: v1.4.0
 - **Status**: ✅ Published successfully
 - **Installation**: `npm install @hivellm/vectorizer-client-js`
 
@@ -22,26 +22,36 @@
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: crates.io
-- **Version**: v1.3.0
+- **Version**: v1.4.0
 - **Status**: ✅ Published successfully
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.3.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.4.0"`
 
 ### Python SDK
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: PyPI
-- **Version**: v1.3.0
+- **Version**: v1.4.0
 - **Status**: ✅ Published successfully
 - **Installation**: `pip install vectorizer-sdk`
+
+### C# SDK
+
+- **Package**: `Vectorizer.Sdk`
+- **Registry**: NuGet
+- **Version**: v1.4.0
+- **Status**: ✅ Published successfully
+- **Installation**: `dotnet add package Vectorizer.Sdk`
 
 ## 📋 **Publishing Summary**
 
 | SDK        | Registry  | Status       | Version | Package Name                  |
 | ---------- | --------- | ------------ | ------- | ----------------------------- |
-| TypeScript | npm       | ✅ Published | v1.3.0  | @hivellm/vectorizer-client-ts |
-| JavaScript | npm       | ✅ Published | v1.3.0  | @hivellm/vectorizer-client-js |
-| Rust       | crates.io | ✅ Published | v1.3.0  | vectorizer-sdk                |
-| Python     | PyPI      | ✅ Published | v1.3.0  | vectorizer-sdk                |
+| TypeScript | npm       | ✅ Published | v1.4.0  | @hivellm/vectorizer-client-ts |
+| JavaScript | npm       | ✅ Published | v1.4.0  | @hivellm/vectorizer-client-js |
+| Rust       | crates.io | ✅ Published | v1.4.0  | vectorizer-sdk                |
+| Python     | PyPI      | ✅ Published | v1.4.0  | vectorizer-sdk                |
+| C#         | NuGet     | ✅ Published | v1.4.0  | Vectorizer.Sdk                |
+| Go         | Go Modules| 🚧 In Dev    | v1.4.0  | github.com/hivellm/vectorizer-sdk-go |
 
 ## 🔧 **Publishing Infrastructure**
 
@@ -68,19 +78,19 @@
 
 ## 🎯 **SDK Feature Completeness**
 
-All 4 SDKs are **100% complete** with all latest features implemented:
+All 5 published SDKs are **100% complete** with all latest features implemented (Go SDK in development):
 
 ### Feature Coverage Matrix
 
-| Feature Category          | TypeScript | JavaScript | Python   | Rust     |
-| ------------------------- | ---------- | ---------- | -------- | -------- |
-| **Intelligent Search**    | ✅ 4/4     | ✅ 4/4     | ✅ 4/4   | ✅ 4/4   |
-| **Discovery Operations**  | ✅ 4/4     | ✅ 4/4     | ✅ 6/6   | ✅ 4/4   |
-| **File Operations**       | ✅ 7/7     | ✅ 7/7     | ✅ 7/7   | ✅ 7/7   |
-| **Batch Operations**      | ✅         | ✅         | ✅       | ✅       |
-| **Collection Management** | ✅         | ✅         | ✅       | ✅       |
-| **Vector Operations**     | ✅         | ✅         | ✅       | ✅       |
-| **Status**                | **100%**   | **100%**   | **100%** | **100%** |
+| Feature Category          | TypeScript | JavaScript | Python   | Rust     | C#        |
+| ------------------------- | ---------- | ---------- | -------- | -------- | --------- |
+| **Intelligent Search**    | ✅ 4/4     | ✅ 4/4     | ✅ 4/4   | ✅ 4/4   | ✅ 4/4    |
+| **Discovery Operations**  | ✅ 4/4     | ✅ 4/4     | ✅ 6/6   | ✅ 4/4   | ✅ 4/4    |
+| **File Operations**       | ✅ 7/7     | ✅ 7/7     | ✅ 7/7   | ✅ 7/7   | ✅ 7/7    |
+| **Batch Operations**      | ✅         | ✅         | ✅       | ✅       | ✅        |
+| **Collection Management** | ✅         | ✅         | ✅       | ✅       | ✅        |
+| **Vector Operations**     | ✅         | ✅         | ✅       | ✅       | ✅        |
+| **Status**                | **100%**   | **100%**   | **100%** | **100%** | **100%**  |
 
 ### Implemented Methods (Oct 2025)
 
@@ -123,7 +133,7 @@ All 4 SDKs are **100% complete** with all latest features implemented:
 
 ## 📊 **Success Metrics**
 
-- **4 out of 4 SDKs** successfully published ✅
+- **5 out of 6 SDKs** successfully published ✅ (Go SDK in development)
 - **100% test coverage** maintained across all SDKs
 - **Cross-platform support** with Bash, PowerShell, and Batch scripts
 - **Comprehensive documentation** with troubleshooting guides
