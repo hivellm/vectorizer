@@ -13,11 +13,11 @@ jobs:
   build-linux-x86_64-gnu:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          sudo apt-get install -y gcc-multilib clang cmake
           rustup default stable
           rustup update
       - name: Build and publish vectorizer
@@ -36,11 +36,11 @@ jobs:
   build-linux-x86_64-musl:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          sudo apt-get install -y gcc-multilib clang cmake
           rustup default stable
           rustup update
       - name: Install cross-compilation tools
@@ -77,11 +77,11 @@ jobs:
   build-linux-aarch64-musl:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          sudo apt-get install -y gcc-multilib clang cmake
           rustup default stable
           rustup update
       - name: Install cross-compilation tools
@@ -116,12 +116,12 @@ jobs:
       - name: Install dependencies
         run: |
           brew update-reset
-          brew install gcc cmake protobuf
+          brew install gcc cmake
           rustup default stable
           rustup update
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -134,7 +134,6 @@ jobs:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features full
 
   build-mac-metal-binaries:
     name: Build macOS ARM with Metal GPU support
@@ -148,19 +147,19 @@ jobs:
       - name: Install dependencies
         run: |
           brew update-reset
-          brew install gcc cmake protobuf
+          brew install gcc cmake
           rustup default stable
           rustup update
           rustup target add ${{ matrix.target }}
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       - name: Build vectorizer with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
-          features: hive-gpu
+          features: hive-gpu-metal
           archive: vectorizer-$target-metal
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build vectorizer-cli with Metal support
@@ -168,7 +167,7 @@ jobs:
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
-          features: hive-gpu
+          features: hive-gpu-metal
           archive: vectorizer-cli-$target-metal
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -181,7 +180,7 @@ jobs:
     steps:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
       - uses: Swatinem/rust-cache@v2
 
       - name: Build
@@ -198,80 +197,41 @@ jobs:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows-complete:
-    name: Build Windows Complete Package (Vectorizer + CLI + GUI)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-          run_install: false
-
-      - name: Install Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: "pnpm"
-          cache-dependency-path: gui/pnpm-lock.yaml
-
-      - name: Install minimal stable Rust
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Build Rust binaries
-        run: cargo build --release
-
-      - name: Install GUI dependencies
-        working-directory: gui
-        run: pnpm install --frozen-lockfile
-
-      - name: Build GUI with MSI (includes Rust binaries via extraResources)
-        working-directory: gui
-        run: pnpm electron:build:win --config.win.target=msi
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Upload GUI MSI installer
-        uses: softprops/action-gh-release@v2
-        with:
-          files: gui/dist-release/*.msi
-          tag_name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-
-      - name: Create combined package directory
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "dist-combined\vectorizer-windows-x64"
-
-          # Copy Rust binaries
-          Copy-Item "target\release\vectorizer.exe" -Destination "dist-combined\vectorizer-windows-x64\"
-          Copy-Item "target\release\vectorizer-cli.exe" -Destination "dist-combined\vectorizer-windows-x64\"
-
-          # Copy GUI (entire win-unpacked folder)
-          Copy-Item "gui\dist-release\win-unpacked\*" -Destination "dist-combined\vectorizer-windows-x64\gui\" -Recurse -Force
-
-          # Copy config files
-          Copy-Item "config.yml" -Destination "dist-combined\vectorizer-windows-x64\"
-          Copy-Item "config.example.yml" -Destination "dist-combined\vectorizer-windows-x64\"
-          Copy-Item "vectorize-workspace.example.yml" -Destination "dist-combined\vectorizer-windows-x64\"
-
-      - name: Create ZIP archive
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}"
-          if ($version -match "^v(.+)") {
-            $version = $matches[1]
-          }
-          Compress-Archive -Path "dist-combined\vectorizer-windows-x64\*" -DestinationPath "vectorizer-windows-x64-complete-$version.zip" -Force
-
-      - name: Upload ZIP archive
-        uses: softprops/action-gh-release@v2
-        with:
-          files: vectorizer-windows-x64-complete-*.zip
-          tag_name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
+  # Temporarily disabled - MSI build has issues
+  # build-windows-msi:
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - os: windows-latest
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Install minimal stable
+  #       uses: dtolnay/rust-toolchain@stable
+  #     - uses: actions/checkout@v5
+  #     - uses: Swatinem/rust-cache@v2
+  #
+  #     - name: Build release binaries
+  #       run: cargo build --release
+  #
+  #     - name: Install WiX Toolset
+  #       run: |
+  #         dotnet tool install --global wix --version 5.0.2
+  #         wix extension add -g WixToolset.UI.wixext
+  #         wix extension list
+  #         wix --version
+  #
+  #     - name: Build MSI installer
+  #       shell: pwsh
+  #       env:
+  #         CargoTargetBinDir: ${{ github.workspace }}\target\release
+  #       run: |
+  #         wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
+  #
+  #     - name: Upload MSI
+  #       uses: svenstaro/upload-release-action@v2
+  #       with:
+  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
+  #         file: vectorizer.msi
+  #         asset_name: vectorizer-x86_64.msi
+  #         tag: ${{ github.ref }}
+  #         overwrite: true
