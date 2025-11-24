@@ -38,9 +38,9 @@ fn test_graph_rest_api_functionality() {
 
     let store = VectorStore::new();
 
-    // Create collection with graph enabled
+    // Create collection with graph enabled (CPU-only for deterministic tests)
     store
-        .create_collection("test_graph_rest", create_test_collection_config())
+        .create_collection_cpu_only("test_graph_rest", create_test_collection_config())
         .unwrap();
 
     // Insert vectors to create nodes
@@ -87,9 +87,9 @@ fn test_graph_discovery_creates_edges_and_api_returns_them() {
     let store = VectorStore::new();
     let collection_name = "test_discovery_edges_api";
 
-    // Create collection with graph enabled
+    // Create collection with graph enabled (CPU-only for deterministic tests)
     store
-        .create_collection(collection_name, create_test_collection_config())
+        .create_collection_cpu_only(collection_name, create_test_collection_config())
         .unwrap();
 
     // Insert vectors with varying similarity
@@ -222,9 +222,9 @@ fn test_graph_discovery_via_api_and_list_edges_returns_them() {
     let store = Arc::new(VectorStore::new());
     let collection_name = "test_api_discovery_flow";
 
-    // Create collection with graph enabled
+    // Create collection with graph enabled (CPU-only for deterministic tests)
     store
-        .create_collection(collection_name, create_test_collection_config())
+        .create_collection_cpu_only(collection_name, create_test_collection_config())
         .unwrap();
 
     // Insert vectors
