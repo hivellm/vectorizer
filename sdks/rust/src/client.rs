@@ -1,10 +1,12 @@
 //! Vectorizer client with transport abstraction
 
-use crate::error::{VectorizerError, Result};
-use crate::models::*;
-use crate::models::hybrid_search::{HybridSearchRequest, HybridSearchResponse, HybridScoringAlgorithm};
-use crate::transport::{Transport, Protocol};
+use crate::error::{Result, VectorizerError};
 use crate::http_transport::HttpTransport;
+use crate::models::hybrid_search::{
+    HybridScoringAlgorithm, HybridSearchRequest, HybridSearchResponse,
+};
+use crate::models::*;
+use crate::transport::{Protocol, Transport};
 
 #[cfg(feature = "umicp")]
 use crate::umicp_transport::UmicpTransport;
@@ -68,61 +70,78 @@ impl VectorizerClient {
         let timeout_secs = config.timeout_secs.unwrap_or(30);
 
         // Determine protocol and create transport
-        let (transport, protocol, base_url): (Arc<dyn Transport>, Protocol, String) = if let Some(conn_str) = config.connection_string {
-            // Use connection string
-            let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
-            
-            match proto {
-                Protocol::Http => {
-                    let transport = HttpTransport::new(&host, config.api_key.as_deref(), timeout_secs)?;
-                    (Arc::new(transport), Protocol::Http, host.clone())
-                },
-                #[cfg(feature = "umicp")]
-                Protocol::Umicp => {
-                    let port = port.unwrap_or(15003);
-                    let transport = UmicpTransport::new(&host, port, config.api_key.as_deref(), timeout_secs)?;
-                    let base_url = format!("umicp://{}:{}", host, port);
-                    (Arc::new(transport), Protocol::Umicp, base_url)
-                },
-            }
-        } else {
-            // Use explicit configuration
-            let proto = config.protocol.unwrap_or(Protocol::Http);
-            
-            match proto {
-                Protocol::Http => {
-                    let base_url = config.base_url.unwrap_or_else(|| "http://localhost:15002".to_string());
-                    let transport = HttpTransport::new(&base_url, config.api_key.as_deref(), timeout_secs)?;
-                    (Arc::new(transport), Protocol::Http, base_url.clone())
-                },
-                #[cfg(feature = "umicp")]
-                Protocol::Umicp => {
+        let (transport, protocol, base_url): (Arc<dyn Transport>, Protocol, String) =
+            if let Some(conn_str) = config.connection_string {
+                // Use connection string
+                let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
+
+                match proto {
+                    Protocol::Http => {
+                        let transport =
+                            HttpTransport::new(&host, config.api_key.as_deref(), timeout_secs)?;
+                        (Arc::new(transport), Protocol::Http, host.clone())
+                    }
                     #[cfg(feature = "umicp")]
-                    {
-                        let umicp_config = config.umicp.ok_or_else(|| {
-                            VectorizerError::configuration("UMICP configuration is required when using UMICP protocol")
-                        })?;
-                        
+                    Protocol::Umicp => {
+                        let port = port.unwrap_or(15003);
                         let transport = UmicpTransport::new(
-                            &umicp_config.host,
-                            umicp_config.port,
+                            &host,
+                            port,
                             config.api_key.as_deref(),
                             timeout_secs,
                         )?;
-                        let base_url = format!("umicp://{}:{}", umicp_config.host, umicp_config.port);
+                        let base_url = format!("umicp://{host}:{port}");
                         (Arc::new(transport), Protocol::Umicp, base_url)
                     }
-                    #[cfg(not(feature = "umicp"))]
-                    {
-                        return Err(VectorizerError::configuration(
-                            "UMICP feature is not enabled. Enable it with --features umicp"
-                        ));
-                    }
-                },
-            }
-        };
+                }
+            } else {
+                // Use explicit configuration
+                let proto = config.protocol.unwrap_or(Protocol::Http);
 
-        Ok(Self { transport, protocol, base_url })
+                match proto {
+                    Protocol::Http => {
+                        let base_url = config
+                            .base_url
+                            .unwrap_or_else(|| "http://localhost:15002".to_string());
+                        let transport =
+                            HttpTransport::new(&base_url, config.api_key.as_deref(), timeout_secs)?;
+                        (Arc::new(transport), Protocol::Http, base_url.clone())
+                    }
+                    #[cfg(feature = "umicp")]
+                    Protocol::Umicp => {
+                        #[cfg(feature = "umicp")]
+                        {
+                            let umicp_config = config.umicp.ok_or_else(|| {
+                                VectorizerError::configuration(
+                                    "UMICP configuration is required when using UMICP protocol",
+                                )
+                            })?;
+
+                            let transport = UmicpTransport::new(
+                                &umicp_config.host,
+                                umicp_config.port,
+                                config.api_key.as_deref(),
+                                timeout_secs,
+                            )?;
+                            let base_url =
+                                format!("umicp://{}:{}", umicp_config.host, umicp_config.port);
+                            (Arc::new(transport), Protocol::Umicp, base_url)
+                        }
+                        #[cfg(not(feature = "umicp"))]
+                        {
+                            return Err(VectorizerError::configuration(
+                                "UMICP feature is not enabled. Enable it with --features umicp",
+                            ));
+                        }
+                    }
+                }
+            };
+
+        Ok(Self {
+            transport,
+            protocol,
+            base_url,
+        })
     }
 
     /// Create a new client with default configuration
@@ -164,16 +183,19 @@ impl VectorizerClient {
     /// Health check
     pub async fn health_check(&self) -> Result<HealthStatus> {
         let response = self.make_request("GET", "/health", None).await?;
-        let health: HealthStatus = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse health check response: {}", e)))?;
+        let health: HealthStatus = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse health check response: {e}"))
+        })?;
         Ok(health)
     }
 
     /// List collections
     pub async fn list_collections(&self) -> Result<Vec<CollectionInfo>> {
         let response = self.make_request("GET", "/collections", None).await?;
-        let collections_response: CollectionsResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse collections response: {}", e)))?;
+        let collections_response: CollectionsResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!("Failed to parse collections response: {e}"))
+            })?;
         Ok(collections_response.collections)
     }
 
@@ -186,55 +208,127 @@ impl VectorizerClient {
         score_threshold: Option<f32>,
     ) -> Result<SearchResponse> {
         let mut payload = serde_json::Map::new();
-        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
-        payload.insert("limit".to_string(), serde_json::Value::Number(limit.unwrap_or(10).into()));
+        payload.insert(
+            "query".to_string(),
+            serde_json::Value::String(query.to_string()),
+        );
+        payload.insert(
+            "limit".to_string(),
+            serde_json::Value::Number(limit.unwrap_or(10).into()),
+        );
 
         if let Some(threshold) = score_threshold {
-            payload.insert("score_threshold".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(threshold as f64).unwrap()));
+            payload.insert(
+                "score_threshold".to_string(),
+                serde_json::Value::Number(serde_json::Number::from_f64(threshold as f64).unwrap()),
+            );
         }
 
-        let response = self.make_request("POST", &format!("/collections/{}/search/text", collection), Some(serde_json::Value::Object(payload))).await?;
-        let search_response: SearchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse search response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                &format!("/collections/{}/search/text", collection),
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let search_response: SearchResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse search response: {e}"))
+        })?;
         Ok(search_response)
     }
 
     // ===== INTELLIGENT SEARCH OPERATIONS =====
 
     /// Intelligent search with multi-query expansion and semantic reranking
-    pub async fn intelligent_search(&self, request: IntelligentSearchRequest) -> Result<IntelligentSearchResponse> {
-        let response = self.make_request("POST", "/intelligent_search", Some(serde_json::to_value(request).unwrap())).await?;
-        let search_response: IntelligentSearchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse intelligent search response: {}", e)))?;
+    pub async fn intelligent_search(
+        &self,
+        request: IntelligentSearchRequest,
+    ) -> Result<IntelligentSearchResponse> {
+        let response = self
+            .make_request(
+                "POST",
+                "/intelligent_search",
+                Some(serde_json::to_value(request).unwrap()),
+            )
+            .await?;
+        let search_response: IntelligentSearchResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!(
+                    "Failed to parse intelligent search response: {}",
+                    e
+                ))
+            })?;
         Ok(search_response)
     }
 
     /// Semantic search with advanced reranking and similarity thresholds
-    pub async fn semantic_search(&self, request: SemanticSearchRequest) -> Result<SemanticSearchResponse> {
-        let response = self.make_request("POST", "/semantic_search", Some(serde_json::to_value(request).unwrap())).await?;
-        let search_response: SemanticSearchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse semantic search response: {}", e)))?;
+    pub async fn semantic_search(
+        &self,
+        request: SemanticSearchRequest,
+    ) -> Result<SemanticSearchResponse> {
+        let response = self
+            .make_request(
+                "POST",
+                "/semantic_search",
+                Some(serde_json::to_value(request).unwrap()),
+            )
+            .await?;
+        let search_response: SemanticSearchResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!("Failed to parse semantic search response: {e}"))
+            })?;
         Ok(search_response)
     }
 
     /// Context-aware search with metadata filtering and contextual reranking
-    pub async fn contextual_search(&self, request: ContextualSearchRequest) -> Result<ContextualSearchResponse> {
-        let response = self.make_request("POST", "/contextual_search", Some(serde_json::to_value(request).unwrap())).await?;
-        let search_response: ContextualSearchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse contextual search response: {}", e)))?;
+    pub async fn contextual_search(
+        &self,
+        request: ContextualSearchRequest,
+    ) -> Result<ContextualSearchResponse> {
+        let response = self
+            .make_request(
+                "POST",
+                "/contextual_search",
+                Some(serde_json::to_value(request).unwrap()),
+            )
+            .await?;
+        let search_response: ContextualSearchResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!(
+                    "Failed to parse contextual search response: {}",
+                    e
+                ))
+            })?;
         Ok(search_response)
     }
 
     /// Multi-collection search with cross-collection reranking and aggregation
-    pub async fn multi_collection_search(&self, request: MultiCollectionSearchRequest) -> Result<MultiCollectionSearchResponse> {
-        let response = self.make_request("POST", "/multi_collection_search", Some(serde_json::to_value(request).unwrap())).await?;
+    pub async fn multi_collection_search(
+        &self,
+        request: MultiCollectionSearchRequest,
+    ) -> Result<MultiCollectionSearchResponse> {
+        let response = self
+            .make_request(
+                "POST",
+                "/multi_collection_search",
+                Some(serde_json::to_value(request).unwrap()),
+            )
+            .await?;
         let search_response: MultiCollectionSearchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse multi-collection search response: {}", e)))?;
+            .map_err(|e| {
+                VectorizerError::server(format!(
+                    "Failed to parse multi-collection search response: {}",
+                    e
+                ))
+            })?;
         Ok(search_response)
     }
 
     /// Perform hybrid search combining dense and sparse vectors
-    pub async fn hybrid_search(&self, request: HybridSearchRequest) -> Result<HybridSearchResponse> {
+    pub async fn hybrid_search(
+        &self,
+        request: HybridSearchRequest,
+    ) -> Result<HybridSearchResponse> {
         let url = format!("/collections/{}/hybrid_search", request.collection);
         let payload = serde_json::json!({
             "query": request.query,
@@ -253,8 +347,10 @@ impl VectorizerClient {
             })),
         });
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let search_response: HybridSearchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse hybrid search response: {}", e)))?;
+        let search_response: HybridSearchResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!("Failed to parse hybrid search response: {e}"))
+            })?;
         Ok(search_response)
     }
 
@@ -262,41 +358,65 @@ impl VectorizerClient {
 
     /// List all collections (Qdrant-compatible API)
     pub async fn qdrant_list_collections(&self) -> Result<serde_json::Value> {
-        let response = self.make_request("GET", "/qdrant/collections", None).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant collections response: {}", e)))?;
+        let response = self
+            .make_request("GET", "/qdrant/collections", None)
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant collections response: {}",
+                e
+            ))
+        })?;
         Ok(result)
     }
 
     /// Get collection information (Qdrant-compatible API)
     pub async fn qdrant_get_collection(&self, name: &str) -> Result<serde_json::Value> {
-        let url = format!("/qdrant/collections/{}", name);
+        let url = format!("/qdrant/collections/{name}");
         let response = self.make_request("GET", &url, None).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant collection response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse Qdrant collection response: {e}"))
+        })?;
         Ok(result)
     }
 
     /// Create collection (Qdrant-compatible API)
-    pub async fn qdrant_create_collection(&self, name: &str, config: &serde_json::Value) -> Result<serde_json::Value> {
-        let url = format!("/qdrant/collections/{}", name);
+    pub async fn qdrant_create_collection(
+        &self,
+        name: &str,
+        config: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{name}");
         let payload = serde_json::json!({ "config": config });
         let response = self.make_request("PUT", &url, Some(payload)).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant create collection response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant create collection response: {}",
+                e
+            ))
+        })?;
         Ok(result)
     }
 
     /// Upsert points to collection (Qdrant-compatible API)
-    pub async fn qdrant_upsert_points(&self, collection: &str, points: &serde_json::Value, wait: bool) -> Result<serde_json::Value> {
-        let url = format!("/qdrant/collections/{}/points", collection);
+    pub async fn qdrant_upsert_points(
+        &self,
+        collection: &str,
+        points: &serde_json::Value,
+        wait: bool,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points");
         let payload = serde_json::json!({
             "points": points,
             "wait": wait,
         });
         let response = self.make_request("PUT", &url, Some(payload)).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant upsert points response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant upsert points response: {}",
+                e
+            ))
+        })?;
         Ok(result)
     }
 
@@ -310,7 +430,7 @@ impl VectorizerClient {
         with_payload: bool,
         with_vector: bool,
     ) -> Result<serde_json::Value> {
-        let url = format!("/qdrant/collections/{}/points/search", collection);
+        let url = format!("/qdrant/collections/{collection}/points/search");
         let mut payload = serde_json::json!({
             "vector": vector,
             "limit": limit.unwrap_or(10),
@@ -321,21 +441,31 @@ impl VectorizerClient {
             payload["filter"] = filter.clone();
         }
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant search response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse Qdrant search response: {e}"))
+        })?;
         Ok(result)
     }
 
     /// Delete points from collection (Qdrant-compatible API)
-    pub async fn qdrant_delete_points(&self, collection: &str, point_ids: &[serde_json::Value], wait: bool) -> Result<serde_json::Value> {
-        let url = format!("/qdrant/collections/{}/points/delete", collection);
+    pub async fn qdrant_delete_points(
+        &self,
+        collection: &str,
+        point_ids: &[serde_json::Value],
+        wait: bool,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/delete");
         let payload = serde_json::json!({
             "points": point_ids,
             "wait": wait,
         });
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant delete points response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant delete points response: {}",
+                e
+            ))
+        })?;
         Ok(result)
     }
 
@@ -347,7 +477,8 @@ impl VectorizerClient {
         with_payload: bool,
         with_vector: bool,
     ) -> Result<serde_json::Value> {
-        let ids_str = point_ids.iter()
+        let ids_str = point_ids
+            .iter()
             .map(|id| match id {
                 serde_json::Value::String(s) => s.clone(),
                 serde_json::Value::Number(n) => n.to_string(),
@@ -360,22 +491,34 @@ impl VectorizerClient {
             collection, ids_str, with_payload, with_vector
         );
         let response = self.make_request("GET", &url, None).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant retrieve points response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant retrieve points response: {}",
+                e
+            ))
+        })?;
         Ok(result)
     }
 
     /// Count points in collection (Qdrant-compatible API)
-    pub async fn qdrant_count_points(&self, collection: &str, filter: Option<&serde_json::Value>) -> Result<serde_json::Value> {
-        let url = format!("/qdrant/collections/{}/points/count", collection);
+    pub async fn qdrant_count_points(
+        &self,
+        collection: &str,
+        filter: Option<&serde_json::Value>,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/count");
         let payload = if let Some(filter) = filter {
             serde_json::json!({ "filter": filter })
         } else {
             serde_json::json!({})
         };
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse Qdrant count points response: {}", e)))?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant count points response: {}",
+                e
+            ))
+        })?;
         Ok(result)
     }
 
@@ -387,13 +530,33 @@ impl VectorizerClient {
         metric: Option<SimilarityMetric>,
     ) -> Result<CollectionInfo> {
         let mut payload = serde_json::Map::new();
-        payload.insert("name".to_string(), serde_json::Value::String(name.to_string()));
-        payload.insert("dimension".to_string(), serde_json::Value::Number(dimension.into()));
-        payload.insert("metric".to_string(), serde_json::Value::String(format!("{:?}", metric.unwrap_or_default()).to_lowercase()));
+        payload.insert(
+            "name".to_string(),
+            serde_json::Value::String(name.to_string()),
+        );
+        payload.insert(
+            "dimension".to_string(),
+            serde_json::Value::Number(dimension.into()),
+        );
+        payload.insert(
+            "metric".to_string(),
+            serde_json::Value::String(format!("{:?}", metric.unwrap_or_default()).to_lowercase()),
+        );
 
-        let response = self.make_request("POST", "/collections", Some(serde_json::Value::Object(payload))).await?;
-        let create_response: CreateCollectionResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse create collection response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/collections",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let create_response: CreateCollectionResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!(
+                    "Failed to parse create collection response: {}",
+                    e
+                ))
+            })?;
 
         // Create a basic CollectionInfo from the response
         let info = CollectionInfo {
@@ -427,46 +590,74 @@ impl VectorizerClient {
             "texts": texts
         });
 
-        let response = self.make_request("POST", &format!("/collections/{}/documents", collection), Some(serde_json::to_value(payload)?)).await?;
-        let batch_response: BatchResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse insert texts response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                &format!("/collections/{collection}/documents"),
+                Some(serde_json::to_value(payload)?),
+            )
+            .await?;
+        let batch_response: BatchResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse insert texts response: {e}"))
+        })?;
         Ok(batch_response)
     }
 
     /// Delete collection
     pub async fn delete_collection(&self, name: &str) -> Result<()> {
-        self.make_request("DELETE", &format!("/collections/{}", name), None).await?;
+        self.make_request("DELETE", &format!("/collections/{}", name), None)
+            .await?;
         Ok(())
     }
 
     /// Get vector
     pub async fn get_vector(&self, collection: &str, vector_id: &str) -> Result<Vector> {
-        let response = self.make_request("GET", &format!("/collections/{}/vectors/{}", collection, vector_id), None).await?;
-        let vector: Vector = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse get vector response: {}", e)))?;
+        let response = self
+            .make_request(
+                "GET",
+                &format!("/collections/{collection}/vectors/{vector_id}"),
+                None,
+            )
+            .await?;
+        let vector: Vector = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse get vector response: {e}"))
+        })?;
         Ok(vector)
     }
 
     /// Get collection info
     pub async fn get_collection_info(&self, collection: &str) -> Result<CollectionInfo> {
-        let response = self.make_request("GET", &format!("/collections/{}", collection), None).await?;
-        let info: CollectionInfo = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse collection info: {}", e)))?;
+        let response = self
+            .make_request("GET", &format!("/collections/{}", collection), None)
+            .await?;
+        let info: CollectionInfo = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse collection info: {e}"))
+        })?;
         Ok(info)
     }
 
     /// Generate embeddings
     pub async fn embed_text(&self, text: &str, model: Option<&str>) -> Result<EmbeddingResponse> {
         let mut payload = serde_json::Map::new();
-        payload.insert("text".to_string(), serde_json::Value::String(text.to_string()));
+        payload.insert(
+            "text".to_string(),
+            serde_json::Value::String(text.to_string()),
+        );
 
         if let Some(model) = model {
-            payload.insert("model".to_string(), serde_json::Value::String(model.to_string()));
+            payload.insert(
+                "model".to_string(),
+                serde_json::Value::String(model.to_string()),
+            );
         }
 
-        let response = self.make_request("POST", "/embed", Some(serde_json::Value::Object(payload))).await?;
-        let embedding_response: EmbeddingResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse embedding response: {}", e)))?;
+        let response = self
+            .make_request("POST", "/embed", Some(serde_json::Value::Object(payload)))
+            .await?;
+        let embedding_response: EmbeddingResponse =
+            serde_json::from_str(&response).map_err(|e| {
+                VectorizerError::server(format!("Failed to parse embedding response: {e}"))
+            })?;
         Ok(embedding_response)
     }
 
@@ -488,25 +679,39 @@ impl VectorizerClient {
         if query.trim().is_empty() {
             return Err(VectorizerError::validation("Query cannot be empty"));
         }
-        
+
         // Validate max_bullets
         if let Some(max) = max_bullets {
             if max == 0 {
-                return Err(VectorizerError::validation("max_bullets must be greater than 0"));
+                return Err(VectorizerError::validation(
+                    "max_bullets must be greater than 0",
+                ));
             }
         }
-        
+
         let mut payload = serde_json::Map::new();
-        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
-        
+        payload.insert(
+            "query".to_string(),
+            serde_json::Value::String(query.to_string()),
+        );
+
         if let Some(inc) = include_collections {
-            payload.insert("include_collections".to_string(), serde_json::to_value(inc).unwrap());
+            payload.insert(
+                "include_collections".to_string(),
+                serde_json::to_value(inc).unwrap(),
+            );
         }
         if let Some(exc) = exclude_collections {
-            payload.insert("exclude_collections".to_string(), serde_json::to_value(exc).unwrap());
+            payload.insert(
+                "exclude_collections".to_string(),
+                serde_json::to_value(exc).unwrap(),
+            );
         }
         if let Some(max) = max_bullets {
-            payload.insert("max_bullets".to_string(), serde_json::Value::Number(max.into()));
+            payload.insert(
+                "max_bullets".to_string(),
+                serde_json::Value::Number(max.into()),
+            );
         }
         if let Some(k) = broad_k {
             payload.insert("broad_k".to_string(), serde_json::Value::Number(k.into()));
@@ -515,9 +720,16 @@ impl VectorizerClient {
             payload.insert("focus_k".to_string(), serde_json::Value::Number(k.into()));
         }
 
-        let response = self.make_request("POST", "/discover", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse discover response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/discover",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse discover response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -532,10 +744,13 @@ impl VectorizerClient {
         if query.trim().is_empty() {
             return Err(VectorizerError::validation("Query cannot be empty"));
         }
-        
+
         let mut payload = serde_json::Map::new();
-        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
-        
+        payload.insert(
+            "query".to_string(),
+            serde_json::Value::String(query.to_string()),
+        );
+
         if let Some(inc) = include {
             payload.insert("include".to_string(), serde_json::to_value(inc).unwrap());
         }
@@ -543,9 +758,16 @@ impl VectorizerClient {
             payload.insert("exclude".to_string(), serde_json::to_value(exc).unwrap());
         }
 
-        let response = self.make_request("POST", "/discovery/filter_collections", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse filter response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/discovery/filter_collections",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse filter response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -560,23 +782,32 @@ impl VectorizerClient {
         // Validate weights (must be between 0.0 and 1.0)
         if let Some(w) = name_match_weight {
             if w < 0.0 || w > 1.0 {
-                return Err(VectorizerError::validation("name_match_weight must be between 0.0 and 1.0"));
+                return Err(VectorizerError::validation(
+                    "name_match_weight must be between 0.0 and 1.0",
+                ));
             }
         }
         if let Some(w) = term_boost_weight {
             if w < 0.0 || w > 1.0 {
-                return Err(VectorizerError::validation("term_boost_weight must be between 0.0 and 1.0"));
+                return Err(VectorizerError::validation(
+                    "term_boost_weight must be between 0.0 and 1.0",
+                ));
             }
         }
         if let Some(w) = signal_boost_weight {
             if w < 0.0 || w > 1.0 {
-                return Err(VectorizerError::validation("signal_boost_weight must be between 0.0 and 1.0"));
+                return Err(VectorizerError::validation(
+                    "signal_boost_weight must be between 0.0 and 1.0",
+                ));
             }
         }
-        
+
         let mut payload = serde_json::Map::new();
-        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
-        
+        payload.insert(
+            "query".to_string(),
+            serde_json::Value::String(query.to_string()),
+        );
+
         if let Some(w) = name_match_weight {
             payload.insert("name_match_weight".to_string(), serde_json::json!(w));
         }
@@ -587,9 +818,16 @@ impl VectorizerClient {
             payload.insert("signal_boost_weight".to_string(), serde_json::json!(w));
         }
 
-        let response = self.make_request("POST", "/discovery/score_collections", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse score response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/discovery/score_collections",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse score response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -603,24 +841,46 @@ impl VectorizerClient {
         include_architecture: Option<bool>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
-        
+        payload.insert(
+            "query".to_string(),
+            serde_json::Value::String(query.to_string()),
+        );
+
         if let Some(max) = max_expansions {
-            payload.insert("max_expansions".to_string(), serde_json::Value::Number(max.into()));
+            payload.insert(
+                "max_expansions".to_string(),
+                serde_json::Value::Number(max.into()),
+            );
         }
         if let Some(def) = include_definition {
-            payload.insert("include_definition".to_string(), serde_json::Value::Bool(def));
+            payload.insert(
+                "include_definition".to_string(),
+                serde_json::Value::Bool(def),
+            );
         }
         if let Some(feat) = include_features {
-            payload.insert("include_features".to_string(), serde_json::Value::Bool(feat));
+            payload.insert(
+                "include_features".to_string(),
+                serde_json::Value::Bool(feat),
+            );
         }
         if let Some(arch) = include_architecture {
-            payload.insert("include_architecture".to_string(), serde_json::Value::Bool(arch));
+            payload.insert(
+                "include_architecture".to_string(),
+                serde_json::Value::Bool(arch),
+            );
         }
 
-        let response = self.make_request("POST", "/discovery/expand_queries", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse expand response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/discovery/expand_queries",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse expand response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -636,16 +896,32 @@ impl VectorizerClient {
         max_size_kb: Option<usize>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+        payload.insert(
+            "file_path".to_string(),
+            serde_json::Value::String(file_path.to_string()),
+        );
+
         if let Some(max) = max_size_kb {
-            payload.insert("max_size_kb".to_string(), serde_json::Value::Number(max.into()));
+            payload.insert(
+                "max_size_kb".to_string(),
+                serde_json::Value::Number(max.into()),
+            );
         }
 
-        let response = self.make_request("POST", "/file/content", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse file content response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/content",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse file content response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -659,24 +935,46 @@ impl VectorizerClient {
         sort_by: Option<&str>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+
         if let Some(types) = filter_by_type {
-            payload.insert("filter_by_type".to_string(), serde_json::to_value(types).unwrap());
+            payload.insert(
+                "filter_by_type".to_string(),
+                serde_json::to_value(types).unwrap(),
+            );
         }
         if let Some(min) = min_chunks {
-            payload.insert("min_chunks".to_string(), serde_json::Value::Number(min.into()));
+            payload.insert(
+                "min_chunks".to_string(),
+                serde_json::Value::Number(min.into()),
+            );
         }
         if let Some(max) = max_results {
-            payload.insert("max_results".to_string(), serde_json::Value::Number(max.into()));
+            payload.insert(
+                "max_results".to_string(),
+                serde_json::Value::Number(max.into()),
+            );
         }
         if let Some(sort) = sort_by {
-            payload.insert("sort_by".to_string(), serde_json::Value::String(sort.to_string()));
+            payload.insert(
+                "sort_by".to_string(),
+                serde_json::Value::String(sort.to_string()),
+            );
         }
 
-        let response = self.make_request("POST", "/file/list", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse list files response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/list",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse list files response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -689,19 +987,38 @@ impl VectorizerClient {
         max_sentences: Option<usize>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+        payload.insert(
+            "file_path".to_string(),
+            serde_json::Value::String(file_path.to_string()),
+        );
+
         if let Some(stype) = summary_type {
-            payload.insert("summary_type".to_string(), serde_json::Value::String(stype.to_string()));
+            payload.insert(
+                "summary_type".to_string(),
+                serde_json::Value::String(stype.to_string()),
+            );
         }
         if let Some(max) = max_sentences {
-            payload.insert("max_sentences".to_string(), serde_json::Value::Number(max.into()));
+            payload.insert(
+                "max_sentences".to_string(),
+                serde_json::Value::Number(max.into()),
+            );
         }
 
-        let response = self.make_request("POST", "/file/summary", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse file summary response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/summary",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse file summary response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -715,11 +1032,20 @@ impl VectorizerClient {
         include_context: Option<bool>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+        payload.insert(
+            "file_path".to_string(),
+            serde_json::Value::String(file_path.to_string()),
+        );
+
         if let Some(start) = start_chunk {
-            payload.insert("start_chunk".to_string(), serde_json::Value::Number(start.into()));
+            payload.insert(
+                "start_chunk".to_string(),
+                serde_json::Value::Number(start.into()),
+            );
         }
         if let Some(lim) = limit {
             payload.insert("limit".to_string(), serde_json::Value::Number(lim.into()));
@@ -728,9 +1054,16 @@ impl VectorizerClient {
             payload.insert("include_context".to_string(), serde_json::Value::Bool(ctx));
         }
 
-        let response = self.make_request("POST", "/file/chunks", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse chunks response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/chunks",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse chunks response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -743,21 +1076,40 @@ impl VectorizerClient {
         highlight_key_files: Option<bool>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+
         if let Some(depth) = max_depth {
-            payload.insert("max_depth".to_string(), serde_json::Value::Number(depth.into()));
+            payload.insert(
+                "max_depth".to_string(),
+                serde_json::Value::Number(depth.into()),
+            );
         }
         if let Some(summ) = include_summaries {
-            payload.insert("include_summaries".to_string(), serde_json::Value::Bool(summ));
+            payload.insert(
+                "include_summaries".to_string(),
+                serde_json::Value::Bool(summ),
+            );
         }
         if let Some(highlight) = highlight_key_files {
-            payload.insert("highlight_key_files".to_string(), serde_json::Value::Bool(highlight));
+            payload.insert(
+                "highlight_key_files".to_string(),
+                serde_json::Value::Bool(highlight),
+            );
         }
 
-        let response = self.make_request("POST", "/file/outline", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse outline response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/outline",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse outline response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -771,22 +1123,41 @@ impl VectorizerClient {
         include_reason: Option<bool>,
     ) -> Result<serde_json::Value> {
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        payload.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+        payload.insert(
+            "file_path".to_string(),
+            serde_json::Value::String(file_path.to_string()),
+        );
+
         if let Some(lim) = limit {
             payload.insert("limit".to_string(), serde_json::Value::Number(lim.into()));
         }
         if let Some(thresh) = similarity_threshold {
-            payload.insert("similarity_threshold".to_string(), serde_json::json!(thresh));
+            payload.insert(
+                "similarity_threshold".to_string(),
+                serde_json::json!(thresh),
+            );
         }
         if let Some(reason) = include_reason {
-            payload.insert("include_reason".to_string(), serde_json::Value::Bool(reason));
+            payload.insert(
+                "include_reason".to_string(),
+                serde_json::Value::Bool(reason),
+            );
         }
 
-        let response = self.make_request("POST", "/file/related", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse related files response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/related",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse related files response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -803,22 +1174,41 @@ impl VectorizerClient {
         if file_types.is_empty() {
             return Err(VectorizerError::validation("file_types cannot be empty"));
         }
-        
+
         let mut payload = serde_json::Map::new();
-        payload.insert("collection".to_string(), serde_json::Value::String(collection.to_string()));
-        payload.insert("query".to_string(), serde_json::Value::String(query.to_string()));
-        payload.insert("file_types".to_string(), serde_json::to_value(file_types).unwrap());
-        
+        payload.insert(
+            "collection".to_string(),
+            serde_json::Value::String(collection.to_string()),
+        );
+        payload.insert(
+            "query".to_string(),
+            serde_json::Value::String(query.to_string()),
+        );
+        payload.insert(
+            "file_types".to_string(),
+            serde_json::to_value(file_types).unwrap(),
+        );
+
         if let Some(lim) = limit {
             payload.insert("limit".to_string(), serde_json::Value::Number(lim.into()));
         }
         if let Some(full) = return_full_files {
-            payload.insert("return_full_files".to_string(), serde_json::Value::Bool(full));
+            payload.insert(
+                "return_full_files".to_string(),
+                serde_json::Value::Bool(full),
+            );
         }
 
-        let response = self.make_request("POST", "/file/search_by_type", Some(serde_json::Value::Object(payload))).await?;
-        let result: serde_json::Value = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse search by type response: {}", e)))?;
+        let response = self
+            .make_request(
+                "POST",
+                "/file/search_by_type",
+                Some(serde_json::Value::Object(payload)),
+            )
+            .await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse search by type response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -834,7 +1224,10 @@ impl VectorizerClient {
             "POST" => self.transport.post(endpoint, payload.as_ref()).await,
             "PUT" => self.transport.put(endpoint, payload.as_ref()).await,
             "DELETE" => self.transport.delete(endpoint).await,
-            _ => Err(VectorizerError::configuration(format!("Unsupported method: {}", method))),
+            _ => Err(VectorizerError::configuration(format!(
+                "Unsupported method: {}",
+                method
+            ))),
         }
     }
 
@@ -844,17 +1237,23 @@ impl VectorizerClient {
     pub async fn list_graph_nodes(&self, collection: &str) -> Result<ListNodesResponse> {
         let url = format!("/graph/nodes/{}", collection);
         let response = self.make_request("GET", &url, None).await?;
-        let result: ListNodesResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse list nodes response: {}", e)))?;
+        let result: ListNodesResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse list nodes response: {e}"))
+        })?;
         Ok(result)
     }
 
     /// Get neighbors of a specific node
-    pub async fn get_graph_neighbors(&self, collection: &str, node_id: &str) -> Result<GetNeighborsResponse> {
+    pub async fn get_graph_neighbors(
+        &self,
+        collection: &str,
+        node_id: &str,
+    ) -> Result<GetNeighborsResponse> {
         let url = format!("/graph/nodes/{}/{}/neighbors", collection, node_id);
         let response = self.make_request("GET", &url, None).await?;
-        let result: GetNeighborsResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse neighbors response: {}", e)))?;
+        let result: GetNeighborsResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse neighbors response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -866,31 +1265,44 @@ impl VectorizerClient {
         request: FindRelatedRequest,
     ) -> Result<FindRelatedResponse> {
         let url = format!("/graph/nodes/{}/{}/related", collection, node_id);
-        let payload = serde_json::to_value(&request)
-            .map_err(|e| VectorizerError::validation(format!("Failed to serialize request: {}", e)))?;
+        let payload = serde_json::to_value(&request).map_err(|e| {
+            VectorizerError::validation(format!("Failed to serialize request: {e}"))
+        })?;
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let result: FindRelatedResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse related nodes response: {}", e)))?;
+        let result: FindRelatedResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse related nodes response: {e}"))
+        })?;
         Ok(result)
     }
 
     /// Find shortest path between two nodes
     pub async fn find_graph_path(&self, request: FindPathRequest) -> Result<FindPathResponse> {
-        let payload = serde_json::to_value(&request)
-            .map_err(|e| VectorizerError::validation(format!("Failed to serialize request: {}", e)))?;
-        let response = self.make_request("POST", "/graph/path", Some(payload)).await?;
-        let result: FindPathResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse path response: {}", e)))?;
+        let payload = serde_json::to_value(&request).map_err(|e| {
+            VectorizerError::validation(format!("Failed to serialize request: {e}"))
+        })?;
+        let response = self
+            .make_request("POST", "/graph/path", Some(payload))
+            .await?;
+        let result: FindPathResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse path response: {e}"))
+        })?;
         Ok(result)
     }
 
     /// Create an explicit edge between two nodes
-    pub async fn create_graph_edge(&self, request: CreateEdgeRequest) -> Result<CreateEdgeResponse> {
-        let payload = serde_json::to_value(&request)
-            .map_err(|e| VectorizerError::validation(format!("Failed to serialize request: {}", e)))?;
-        let response = self.make_request("POST", "/graph/edges", Some(payload)).await?;
-        let result: CreateEdgeResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse create edge response: {}", e)))?;
+    pub async fn create_graph_edge(
+        &self,
+        request: CreateEdgeRequest,
+    ) -> Result<CreateEdgeResponse> {
+        let payload = serde_json::to_value(&request).map_err(|e| {
+            VectorizerError::validation(format!("Failed to serialize request: {e}"))
+        })?;
+        let response = self
+            .make_request("POST", "/graph/edges", Some(payload))
+            .await?;
+        let result: CreateEdgeResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse create edge response: {e}"))
+        })?;
         Ok(result)
     }
 
@@ -905,8 +1317,9 @@ impl VectorizerClient {
     pub async fn list_graph_edges(&self, collection: &str) -> Result<ListEdgesResponse> {
         let url = format!("/graph/collections/{}/edges", collection);
         let response = self.make_request("GET", &url, None).await?;
-        let result: ListEdgesResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse list edges response: {}", e)))?;
+        let result: ListEdgesResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse list edges response: {}", e))
+        })?;
         Ok(result)
     }
 
@@ -917,11 +1330,13 @@ impl VectorizerClient {
         request: DiscoverEdgesRequest,
     ) -> Result<DiscoverEdgesResponse> {
         let url = format!("/graph/discover/{}", collection);
-        let payload = serde_json::to_value(&request)
-            .map_err(|e| VectorizerError::validation(format!("Failed to serialize request: {}", e)))?;
+        let payload = serde_json::to_value(&request).map_err(|e| {
+            VectorizerError::validation(format!("Failed to serialize request: {e}"))
+        })?;
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let result: DiscoverEdgesResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse discover edges response: {}", e)))?;
+        let result: DiscoverEdgesResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse discover edges response: {}", e))
+        })?;
         Ok(result)
     }
 
@@ -932,21 +1347,27 @@ impl VectorizerClient {
         node_id: &str,
         request: DiscoverEdgesRequest,
     ) -> Result<DiscoverEdgesResponse> {
-        let url = format!("/graph/discover/{}/{}", collection, node_id);
-        let payload = serde_json::to_value(&request)
-            .map_err(|e| VectorizerError::validation(format!("Failed to serialize request: {}", e)))?;
+        let url = format!("/graph/discover/{collection}/{node_id}");
+        let payload = serde_json::to_value(&request).map_err(|e| {
+            VectorizerError::validation(format!("Failed to serialize request: {e}"))
+        })?;
         let response = self.make_request("POST", &url, Some(payload)).await?;
-        let result: DiscoverEdgesResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse discover edges response: {}", e)))?;
+        let result: DiscoverEdgesResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse discover edges response: {}", e))
+        })?;
         Ok(result)
     }
 
     /// Get discovery status for a collection
-    pub async fn get_graph_discovery_status(&self, collection: &str) -> Result<DiscoveryStatusResponse> {
+    pub async fn get_graph_discovery_status(
+        &self,
+        collection: &str,
+    ) -> Result<DiscoveryStatusResponse> {
         let url = format!("/graph/discover/{}/status", collection);
         let response = self.make_request("GET", &url, None).await?;
-        let result: DiscoveryStatusResponse = serde_json::from_str(&response)
-            .map_err(|e| VectorizerError::server(format!("Failed to parse discovery status response: {}", e)))?;
+        let result: DiscoveryStatusResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse discovery status response: {}", e))
+        })?;
         Ok(result)
     }
 }

@@ -862,6 +862,16 @@ class FindRelatedRequest:
     
     max_hops: Optional[int] = None
     relationship_type: Optional[str] = None
+    
+    def __post_init__(self):
+        """Validate find related request data after initialization."""
+        if self.max_hops is not None:
+            if not isinstance(self.max_hops, int) or self.max_hops < 1:
+                raise ValueError("max_hops must be a positive integer")
+        
+        if self.relationship_type is not None:
+            if not isinstance(self.relationship_type, str) or not self.relationship_type.strip():
+                raise ValueError("relationship_type must be a non-empty string")
 
 
 @dataclass
@@ -878,6 +888,17 @@ class FindPathRequest:
     collection: str
     source: str
     target: str
+    
+    def __post_init__(self):
+        """Validate find path request data after initialization."""
+        if not isinstance(self.collection, str) or not self.collection.strip():
+            raise ValueError("collection must be a non-empty string")
+        
+        if not isinstance(self.source, str) or not self.source.strip():
+            raise ValueError("source must be a non-empty string")
+        
+        if not isinstance(self.target, str) or not self.target.strip():
+            raise ValueError("target must be a non-empty string")
 
 
 @dataclass
@@ -897,6 +918,26 @@ class CreateEdgeRequest:
     target: str
     relationship_type: str
     weight: Optional[float] = None
+    
+    def __post_init__(self):
+        """Validate create edge request data after initialization."""
+        if not isinstance(self.collection, str) or not self.collection.strip():
+            raise ValueError("collection must be a non-empty string")
+        
+        if not isinstance(self.source, str) or not self.source.strip():
+            raise ValueError("source must be a non-empty string")
+        
+        if not isinstance(self.target, str) or not self.target.strip():
+            raise ValueError("target must be a non-empty string")
+        
+        if not isinstance(self.relationship_type, str) or not self.relationship_type.strip():
+            raise ValueError("relationship_type must be a non-empty string")
+        
+        if self.weight is not None:
+            if not isinstance(self.weight, (int, float)):
+                raise ValueError("weight must be a number")
+            if self.weight < 0.0 or self.weight > 1.0:
+                raise ValueError("weight must be between 0.0 and 1.0")
 
 
 @dataclass
@@ -937,6 +978,18 @@ class DiscoverEdgesRequest:
     
     similarity_threshold: Optional[float] = None
     max_per_node: Optional[int] = None
+    
+    def __post_init__(self):
+        """Validate discover edges request data after initialization."""
+        if self.similarity_threshold is not None:
+            if not isinstance(self.similarity_threshold, (int, float)):
+                raise ValueError("similarity_threshold must be a number")
+            if self.similarity_threshold < 0.0 or self.similarity_threshold > 1.0:
+                raise ValueError("similarity_threshold must be between 0.0 and 1.0")
+        
+        if self.max_per_node is not None:
+            if not isinstance(self.max_per_node, int) or self.max_per_node < 1:
+                raise ValueError("max_per_node must be a positive integer")
 
 
 @dataclass

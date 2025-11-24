@@ -50,6 +50,22 @@ public class FindRelatedRequest
 {
     public int? MaxHops { get; set; }
     public string? RelationshipType { get; set; }
+
+    /// <summary>
+    /// Validates the request
+    /// </summary>
+    public void Validate()
+    {
+        if (MaxHops.HasValue && (MaxHops.Value < 1))
+        {
+            throw new ArgumentException("MaxHops must be a positive integer", nameof(MaxHops));
+        }
+
+        if (!string.IsNullOrWhiteSpace(RelationshipType) && string.IsNullOrEmpty(RelationshipType.Trim()))
+        {
+            throw new ArgumentException("RelationshipType must be a non-empty string", nameof(RelationshipType));
+        }
+    }
 }
 
 /// <summary>
@@ -68,6 +84,27 @@ public class FindPathRequest
     public string Collection { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public string Target { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Validates the request
+    /// </summary>
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(Collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(Source))
+        {
+            throw new ArgumentException("Source must be a non-empty string", nameof(Source));
+        }
+
+        if (string.IsNullOrWhiteSpace(Target))
+        {
+            throw new ArgumentException("Target must be a non-empty string", nameof(Target));
+        }
+    }
 }
 
 /// <summary>
@@ -89,6 +126,37 @@ public class CreateEdgeRequest
     public string Target { get; set; } = string.Empty;
     public string RelationshipType { get; set; } = string.Empty;
     public float? Weight { get; set; }
+
+    /// <summary>
+    /// Validates the request
+    /// </summary>
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(Collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(Source))
+        {
+            throw new ArgumentException("Source must be a non-empty string", nameof(Source));
+        }
+
+        if (string.IsNullOrWhiteSpace(Target))
+        {
+            throw new ArgumentException("Target must be a non-empty string", nameof(Target));
+        }
+
+        if (string.IsNullOrWhiteSpace(RelationshipType))
+        {
+            throw new ArgumentException("RelationshipType must be a non-empty string", nameof(RelationshipType));
+        }
+
+        if (Weight.HasValue && (Weight.Value < 0.0f || Weight.Value > 1.0f))
+        {
+            throw new ArgumentException("Weight must be between 0.0 and 1.0", nameof(Weight));
+        }
+    }
 }
 
 /// <summary>
@@ -134,6 +202,22 @@ public class DiscoverEdgesRequest
 {
     public float? SimilarityThreshold { get; set; }
     public int? MaxPerNode { get; set; }
+
+    /// <summary>
+    /// Validates the request
+    /// </summary>
+    public void Validate()
+    {
+        if (SimilarityThreshold.HasValue && (SimilarityThreshold.Value < 0.0f || SimilarityThreshold.Value > 1.0f))
+        {
+            throw new ArgumentException("SimilarityThreshold must be between 0.0 and 1.0", nameof(SimilarityThreshold));
+        }
+
+        if (MaxPerNode.HasValue && MaxPerNode.Value < 1)
+        {
+            throw new ArgumentException("MaxPerNode must be a positive integer", nameof(MaxPerNode));
+        }
+    }
 }
 
 /// <summary>

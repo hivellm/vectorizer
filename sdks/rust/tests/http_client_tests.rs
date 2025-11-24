@@ -1,8 +1,8 @@
 //! HTTP client tests for the Rust SDK
 //! Tests for HTTP request handling, error mapping, and response processing
 
-use vectorizer_sdk::*;
 use std::collections::HashMap;
+use vectorizer_sdk::*;
 
 // Note: These tests focus on error mapping and client initialization
 // since actual HTTP mocking would require more complex setup
@@ -12,7 +12,7 @@ fn test_vectorizer_client_creation() {
     // Test default client creation
     let client_result = VectorizerClient::new_default();
     assert!(client_result.is_ok());
-    
+
     let client = client_result.unwrap();
     assert_eq!(client.base_url(), "http://localhost:15002");
 }
@@ -22,7 +22,7 @@ fn test_vectorizer_client_with_custom_url() {
     // Test client creation with custom URL
     let client_result = VectorizerClient::new_with_url("http://custom:8080");
     assert!(client_result.is_ok());
-    
+
     let client = client_result.unwrap();
     assert_eq!(client.base_url(), "http://custom:8080");
 }
@@ -30,9 +30,10 @@ fn test_vectorizer_client_with_custom_url() {
 #[test]
 fn test_vectorizer_client_with_api_key() {
     // Test client creation with API key
-    let client_result = VectorizerClient::new_with_api_key("http://localhost:15002", "test-api-key");
+    let client_result =
+        VectorizerClient::new_with_api_key("http://localhost:15002", "test-api-key");
     assert!(client_result.is_ok());
-    
+
     let client = client_result.unwrap();
     assert_eq!(client.base_url(), "http://localhost:15002");
     // Note: API key verification would require actual HTTP calls
@@ -42,12 +43,16 @@ fn test_vectorizer_client_with_api_key() {
 fn test_http_error_mapping() {
     // Test HTTP status code mapping to VectorizerError
     let error_401 = error::map_http_error(401, Some("Unauthorized".to_string()));
-    assert!(matches!(error_401, VectorizerError::Authentication { message } 
-        if message == "Unauthorized"));
+    assert!(
+        matches!(error_401, VectorizerError::Authentication { message } 
+        if message == "Unauthorized")
+    );
 
     let error_403 = error::map_http_error(403, None);
-    assert!(matches!(error_403, VectorizerError::Authentication { message } 
-        if message == "Access forbidden"));
+    assert!(
+        matches!(error_403, VectorizerError::Authentication { message } 
+        if message == "Access forbidden")
+    );
 
     let error_404 = error::map_http_error(404, Some("Not found".to_string()));
     assert!(matches!(error_404, VectorizerError::Server { message } 
@@ -72,8 +77,11 @@ fn test_error_conversion_from_serde_json() {
     let io_error = std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid JSON");
     let json_error = serde_json::Error::io(io_error);
     let vectorizer_error = VectorizerError::from(json_error);
-    
-    assert!(matches!(vectorizer_error, VectorizerError::Serialization(_)));
+
+    assert!(matches!(
+        vectorizer_error,
+        VectorizerError::Serialization(_)
+    ));
     let error_msg = format!("{}", vectorizer_error);
     assert!(error_msg.contains("Serialization error"));
     assert!(error_msg.contains("Invalid JSON"));
@@ -84,7 +92,7 @@ fn test_error_conversion_from_io_error() {
     // Test conversion from std::io::Error
     let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
     let vectorizer_error = VectorizerError::from(io_error);
-    
+
     assert!(matches!(vectorizer_error, VectorizerError::Io(_)));
     let error_msg = format!("{}", vectorizer_error);
     assert!(error_msg.contains("IO error"));
@@ -98,7 +106,7 @@ async fn test_error_conversion_from_reqwest() {
     let result = client.get("http://localhost:9999/nonexistent").send().await;
     let reqwest_error = result.unwrap_err();
     let vectorizer_error = VectorizerError::from(reqwest_error);
-    
+
     assert!(matches!(vectorizer_error, VectorizerError::Http(_)));
     let error_msg = format!("{}", vectorizer_error);
     assert!(error_msg.contains("HTTP error"));
@@ -138,11 +146,18 @@ fn test_error_display_consistency() {
         let error_msg = format!("{}", error);
         assert!(!error_msg.is_empty());
         assert!(error_msg.len() > 10); // Should have substantial content
-        
+
         // Each error message should contain descriptive text
-        assert!(error_msg.contains("error") || error_msg.contains("failed") || error_msg.contains("timeout") || 
-                error_msg.contains("exceeded") || error_msg.contains("not found") || error_msg.contains("HTTP") ||
-                error_msg.contains("IO") || error_msg.contains("Serialization"));
+        assert!(
+            error_msg.contains("error")
+                || error_msg.contains("failed")
+                || error_msg.contains("timeout")
+                || error_msg.contains("exceeded")
+                || error_msg.contains("not found")
+                || error_msg.contains("HTTP")
+                || error_msg.contains("IO")
+                || error_msg.contains("Serialization")
+        );
     }
 }
 
@@ -151,7 +166,7 @@ fn test_error_debug_formatting() {
     // Test that errors have proper debug formatting
     let error = VectorizerError::authentication("Debug test");
     let debug_str = format!("{:?}", error);
-    
+
     assert!(debug_str.contains("Authentication"));
     assert!(debug_str.contains("Debug test"));
 }
@@ -161,7 +176,7 @@ fn test_std_error_trait_implementation() {
     // Test that VectorizerError properly implements std::error::Error
     let error = VectorizerError::authentication("Std error test");
     let error_ref: &dyn std::error::Error = &error;
-    
+
     let error_msg = error_ref.to_string();
     assert!(error_msg.contains("Authentication failed"));
 }
@@ -187,9 +202,9 @@ fn test_error_chain_conversion() {
     // Test error conversion chaining
     let io_error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Permission denied");
     let vectorizer_error: VectorizerError = io_error.into();
-    
+
     assert!(matches!(vectorizer_error, VectorizerError::Io(_)));
-    
+
     let error_msg = format!("{}", vectorizer_error);
     assert!(error_msg.contains("IO error"));
     assert!(error_msg.contains("Permission denied"));
@@ -199,27 +214,64 @@ fn test_error_chain_conversion() {
 fn test_comprehensive_error_scenarios() {
     // Test realistic error scenarios that might occur in HTTP client operations
     let scenarios = vec![
-        ("Authentication failed", VectorizerError::authentication("Invalid API key")),
-        ("Collection not found", VectorizerError::collection_not_found("missing_collection")),
-        ("Validation error", VectorizerError::validation("Invalid dimension: must be > 0")),
-        ("Network timeout", VectorizerError::network("Connection timeout")),
-        ("Server error", VectorizerError::server("Internal server error")),
-        ("Rate limiting", VectorizerError::rate_limit("Rate limit exceeded")),
-        ("Serialization error", VectorizerError::Serialization("JSON parsing failed".to_string())),
+        (
+            "Authentication failed",
+            VectorizerError::authentication("Invalid API key"),
+        ),
+        (
+            "Collection not found",
+            VectorizerError::collection_not_found("missing_collection"),
+        ),
+        (
+            "Validation error",
+            VectorizerError::validation("Invalid dimension: must be > 0"),
+        ),
+        (
+            "Network timeout",
+            VectorizerError::network("Connection timeout"),
+        ),
+        (
+            "Server error",
+            VectorizerError::server("Internal server error"),
+        ),
+        (
+            "Rate limiting",
+            VectorizerError::rate_limit("Rate limit exceeded"),
+        ),
+        (
+            "Serialization error",
+            VectorizerError::Serialization("JSON parsing failed".to_string()),
+        ),
     ];
 
     for (scenario_name, error) in scenarios {
         let error_msg = format!("{}", error);
-        assert!(!error_msg.is_empty(), "Error message for '{}' should not be empty", scenario_name);
-        assert!(error_msg.len() > 5, "Error message for '{}' should have substantial content", scenario_name);
-        
+        assert!(
+            !error_msg.is_empty(),
+            "Error message for '{}' should not be empty",
+            scenario_name
+        );
+        assert!(
+            error_msg.len() > 5,
+            "Error message for '{}' should have substantial content",
+            scenario_name
+        );
+
         // Each error should be debuggable
         let debug_msg = format!("{:?}", error);
-        assert!(!debug_msg.is_empty(), "Debug message for '{}' should not be empty", scenario_name);
-        
+        assert!(
+            !debug_msg.is_empty(),
+            "Debug message for '{}' should not be empty",
+            scenario_name
+        );
+
         // Each error should implement std::error::Error
         let error_ref: &dyn std::error::Error = &error;
-        assert!(!error_ref.to_string().is_empty(), "Std error message for '{}' should not be empty", scenario_name);
+        assert!(
+            !error_ref.to_string().is_empty(),
+            "Std error message for '{}' should not be empty",
+            scenario_name
+        );
     }
 }
 
@@ -230,13 +282,25 @@ fn test_http_status_code_edge_cases() {
         (200, "Should not be mapped to error"),
         (201, "Created - should not be mapped to error"),
         (400, "Bad request - should be mapped to server error"),
-        (401, "Unauthorized - should be mapped to authentication error"),
+        (
+            401,
+            "Unauthorized - should be mapped to authentication error",
+        ),
         (403, "Forbidden - should be mapped to authentication error"),
         (404, "Not found - should be mapped to server error"),
-        (429, "Too many requests - should be mapped to rate limit error"),
-        (500, "Internal server error - should be mapped to server error"),
+        (
+            429,
+            "Too many requests - should be mapped to rate limit error",
+        ),
+        (
+            500,
+            "Internal server error - should be mapped to server error",
+        ),
         (502, "Bad gateway - should be mapped to server error"),
-        (503, "Service unavailable - should be mapped to server error"),
+        (
+            503,
+            "Service unavailable - should be mapped to server error",
+        ),
         (504, "Gateway timeout - should be mapped to server error"),
         (999, "Unknown status - should be mapped to server error"),
     ];
@@ -244,20 +308,37 @@ fn test_http_status_code_edge_cases() {
     for (status, description) in edge_cases {
         let error = error::map_http_error(status, Some(format!("HTTP {}", status)));
         let error_msg = format!("{}", error);
-        
+
         // All errors should have meaningful messages
-        assert!(!error_msg.is_empty(), "Error message for status {} ({}) should not be empty", status, description);
-        
+        assert!(
+            !error_msg.is_empty(),
+            "Error message for status {} ({}) should not be empty",
+            status,
+            description
+        );
+
         // Verify correct error type mapping
         match status {
-            401 | 403 => assert!(matches!(error, VectorizerError::Authentication { .. }), 
-                                 "Status {} should map to Authentication error", status),
-            429 => assert!(matches!(error, VectorizerError::RateLimit { .. }), 
-                          "Status {} should map to RateLimit error", status),
-            400..=599 => assert!(matches!(error, VectorizerError::Server { .. }), 
-                                "Status {} should map to Server error", status),
-            _ => assert!(matches!(error, VectorizerError::Server { .. }), 
-                        "Status {} should map to Server error", status),
+            401 | 403 => assert!(
+                matches!(error, VectorizerError::Authentication { .. }),
+                "Status {} should map to Authentication error",
+                status
+            ),
+            429 => assert!(
+                matches!(error, VectorizerError::RateLimit { .. }),
+                "Status {} should map to RateLimit error",
+                status
+            ),
+            400..=599 => assert!(
+                matches!(error, VectorizerError::Server { .. }),
+                "Status {} should map to Server error",
+                status
+            ),
+            _ => assert!(
+                matches!(error, VectorizerError::Server { .. }),
+                "Status {} should map to Server error",
+                status
+            ),
         }
     }
 }
@@ -274,8 +355,12 @@ fn test_client_url_handling() {
 
     for url in urls {
         let client_result = VectorizerClient::new_with_url(url);
-        assert!(client_result.is_ok(), "Client creation should succeed for URL: {}", url);
-        
+        assert!(
+            client_result.is_ok(),
+            "Client creation should succeed for URL: {}",
+            url
+        );
+
         let client = client_result.unwrap();
         assert_eq!(client.base_url(), url);
     }
@@ -286,17 +371,20 @@ fn test_error_message_consistency() {
     // Test that error messages are consistent and informative
     let error = VectorizerError::authentication("Invalid API key provided");
     let error_msg = format!("{}", error);
-    
+
     assert!(error_msg.starts_with("Authentication failed"));
     assert!(error_msg.contains("Invalid API key provided"));
-    
+
     let collection_error = VectorizerError::collection_not_found("my_collection");
     let collection_msg = format!("{}", collection_error);
-    
+
     assert_eq!(collection_msg, "Collection 'my_collection' not found");
-    
+
     let vector_error = VectorizerError::vector_not_found("my_collection", "vector_123");
     let vector_msg = format!("{}", vector_error);
-    
-    assert_eq!(vector_msg, "Vector 'vector_123' not found in collection 'my_collection'");
+
+    assert_eq!(
+        vector_msg,
+        "Vector 'vector_123' not found in collection 'my_collection'"
+    );
 }

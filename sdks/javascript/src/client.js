@@ -7,6 +7,7 @@
 
 import { TransportFactory, parseConnectionString } from './utils/transport.js';
 import { createLogger } from './utils/logger.js';
+import { validateNonEmptyString } from './utils/validation.js';
 
 import {
   validateVector,
@@ -45,6 +46,13 @@ import {
   BatchResponse,
   BatchSearchResponse,
 } from './models/batch.js';
+
+import {
+  validateFindRelatedRequest,
+  validateFindPathRequest,
+  validateCreateEdgeRequest,
+  validateDiscoverEdgesRequest,
+} from './models/graph.js';
 
 // Summarization models are used internally but not directly exported
 
@@ -1273,8 +1281,16 @@ export class VectorizerClient {
    * @returns {Promise<ListNodesResponse>} List of nodes
    */
   async listGraphNodes(collection) {
-    this.logger.debug('Listing graph nodes', { collection });
-    return this.transport.get(`/graph/nodes/${collection}`);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      this.logger.debug('Listing graph nodes', { collection });
+      const response = await this.transport.get(`/graph/nodes/${collection}`);
+      this.logger.debug('Graph nodes listed', { collection, count: response.count });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to list graph nodes', { collection, error });
+      throw error;
+    }
   }
 
   /**
@@ -1284,8 +1300,17 @@ export class VectorizerClient {
    * @returns {Promise<GetNeighborsResponse>} List of neighbors
    */
   async getGraphNeighbors(collection, nodeId) {
-    this.logger.debug('Getting graph neighbors', { collection, nodeId });
-    return this.transport.get(`/graph/nodes/${collection}/${nodeId}/neighbors`);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateNonEmptyString(nodeId, 'nodeId');
+      this.logger.debug('Getting graph neighbors', { collection, nodeId });
+      const response = await this.transport.get(`/graph/nodes/${collection}/${nodeId}/neighbors`);
+      this.logger.debug('Graph neighbors retrieved', { collection, nodeId, count: response.neighbors?.length });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to get graph neighbors', { collection, nodeId, error });
+      throw error;
+    }
   }
 
   /**
@@ -1296,8 +1321,18 @@ export class VectorizerClient {
    * @returns {Promise<FindRelatedResponse>} List of related nodes
    */
   async findRelatedNodes(collection, nodeId, request) {
-    this.logger.debug('Finding related nodes', { collection, nodeId, request });
-    return this.transport.post(`/graph/nodes/${collection}/${nodeId}/related`, request);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateNonEmptyString(nodeId, 'nodeId');
+      validateFindRelatedRequest(request);
+      this.logger.debug('Finding related nodes', { collection, nodeId, request });
+      const response = await this.transport.post(`/graph/nodes/${collection}/${nodeId}/related`, request);
+      this.logger.debug('Related nodes found', { collection, nodeId, count: response.related?.length });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to find related nodes', { collection, nodeId, request, error });
+      throw error;
+    }
   }
 
   /**
@@ -1306,8 +1341,20 @@ export class VectorizerClient {
    * @returns {Promise<FindPathResponse>} Path between nodes
    */
   async findGraphPath(request) {
-    this.logger.debug('Finding graph path', { request });
-    return this.transport.post('/graph/path', request);
+    try {
+      validateFindPathRequest(request);
+      this.logger.debug('Finding graph path', { request });
+      const response = await this.transport.post('/graph/path', request);
+      this.logger.debug('Graph path found', { 
+        collection: request.collection, 
+        found: response.found, 
+        pathLength: response.path?.length 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to find graph path', { request, error });
+      throw error;
+    }
   }
 
   /**
@@ -1316,8 +1363,20 @@ export class VectorizerClient {
    * @returns {Promise<CreateEdgeResponse>} Created edge response
    */
   async createGraphEdge(request) {
-    this.logger.debug('Creating graph edge', { request });
-    return this.transport.post('/graph/edges', request);
+    try {
+      validateCreateEdgeRequest(request);
+      this.logger.debug('Creating graph edge', { request });
+      const response = await this.transport.post('/graph/edges', request);
+      this.logger.info('Graph edge created', { 
+        collection: request.collection, 
+        edgeId: response.edge_id,
+        success: response.success 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to create graph edge', { request, error });
+      throw error;
+    }
   }
 
   /**
@@ -1326,8 +1385,15 @@ export class VectorizerClient {
    * @returns {Promise<void>}
    */
   async deleteGraphEdge(edgeId) {
-    this.logger.debug('Deleting graph edge', { edgeId });
-    return this.transport.delete(`/graph/edges/${edgeId}`);
+    try {
+      validateNonEmptyString(edgeId, 'edgeId');
+      this.logger.debug('Deleting graph edge', { edgeId });
+      await this.transport.delete(`/graph/edges/${edgeId}`);
+      this.logger.info('Graph edge deleted', { edgeId });
+    } catch (error) {
+      this.logger.error('Failed to delete graph edge', { edgeId, error });
+      throw error;
+    }
   }
 
   /**
@@ -1336,8 +1402,16 @@ export class VectorizerClient {
    * @returns {Promise<ListEdgesResponse>} List of edges
    */
   async listGraphEdges(collection) {
-    this.logger.debug('Listing graph edges', { collection });
-    return this.transport.get(`/graph/collections/${collection}/edges`);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      this.logger.debug('Listing graph edges', { collection });
+      const response = await this.transport.get(`/graph/collections/${collection}/edges`);
+      this.logger.debug('Graph edges listed', { collection, count: response.count });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to list graph edges', { collection, error });
+      throw error;
+    }
   }
 
   /**
@@ -1347,8 +1421,21 @@ export class VectorizerClient {
    * @returns {Promise<DiscoverEdgesResponse>} Discovery response
    */
   async discoverGraphEdges(collection, request) {
-    this.logger.debug('Discovering graph edges', { collection, request });
-    return this.transport.post(`/graph/discover/${collection}`, request);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateDiscoverEdgesRequest(request);
+      this.logger.debug('Discovering graph edges', { collection, request });
+      const response = await this.transport.post(`/graph/discover/${collection}`, request);
+      this.logger.info('Graph edges discovered', { 
+        collection, 
+        edgesCreated: response.edges_created,
+        success: response.success 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to discover graph edges', { collection, request, error });
+      throw error;
+    }
   }
 
   /**
@@ -1359,8 +1446,23 @@ export class VectorizerClient {
    * @returns {Promise<DiscoverEdgesResponse>} Discovery response
    */
   async discoverGraphEdgesForNode(collection, nodeId, request) {
-    this.logger.debug('Discovering graph edges for node', { collection, nodeId, request });
-    return this.transport.post(`/graph/discover/${collection}/${nodeId}`, request);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      validateNonEmptyString(nodeId, 'nodeId');
+      validateDiscoverEdgesRequest(request);
+      this.logger.debug('Discovering graph edges for node', { collection, nodeId, request });
+      const response = await this.transport.post(`/graph/discover/${collection}/${nodeId}`, request);
+      this.logger.info('Graph edges discovered for node', { 
+        collection, 
+        nodeId,
+        edgesCreated: response.edges_created,
+        success: response.success 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to discover graph edges for node', { collection, nodeId, request, error });
+      throw error;
+    }
   }
 
   /**
@@ -1369,7 +1471,19 @@ export class VectorizerClient {
    * @returns {Promise<DiscoveryStatusResponse>} Discovery status
    */
   async getGraphDiscoveryStatus(collection) {
-    this.logger.debug('Getting graph discovery status', { collection });
-    return this.transport.get(`/graph/discover/${collection}/status`);
+    try {
+      validateNonEmptyString(collection, 'collection');
+      this.logger.debug('Getting graph discovery status', { collection });
+      const response = await this.transport.get(`/graph/discover/${collection}/status`);
+      this.logger.debug('Graph discovery status retrieved', { 
+        collection, 
+        progress: response.progress_percentage,
+        totalEdges: response.total_edges 
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to get graph discovery status', { collection, error });
+      throw error;
+    }
   }
 }

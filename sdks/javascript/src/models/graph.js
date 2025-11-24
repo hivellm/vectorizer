@@ -4,6 +4,14 @@
  * Models for graph operations including nodes, edges, and relationships.
  */
 
+import { ValidationError } from '../exceptions/index.js';
+import {
+  validateNonEmptyString,
+  validateNumberRange,
+  validateOptional,
+  validateRequired,
+} from '../utils/validation.js';
+
 /**
  * Graph node representing a document/file
  * @typedef {Object} GraphNode
@@ -129,5 +137,92 @@
  * @property {number} progress_percentage - Progress percentage
  */
 
-export {};
+/**
+ * Validates a FindRelatedRequest object
+ * @param {Partial<FindRelatedRequest>} request - The request to validate
+ * @throws {ValidationError} If validation fails
+ */
+export function validateFindRelatedRequest(request) {
+  if (!request || typeof request !== 'object') {
+    throw new ValidationError('FindRelatedRequest must be an object');
+  }
+
+  if (request.max_hops !== undefined) {
+    if (typeof request.max_hops !== 'number' || request.max_hops < 1 || !Number.isInteger(request.max_hops)) {
+      throw new ValidationError('max_hops must be a positive integer');
+    }
+  }
+
+  if (request.relationship_type !== undefined) {
+    validateNonEmptyString(request.relationship_type, 'relationship_type');
+  }
+}
+
+/**
+ * Validates a FindPathRequest object
+ * @param {Partial<FindPathRequest>} request - The request to validate
+ * @throws {ValidationError} If validation fails
+ */
+export function validateFindPathRequest(request) {
+  if (!request || typeof request !== 'object') {
+    throw new ValidationError('FindPathRequest must be an object');
+  }
+
+  validateRequired(request.collection, 'collection');
+  validateNonEmptyString(request.collection, 'collection');
+
+  validateRequired(request.source, 'source');
+  validateNonEmptyString(request.source, 'source');
+
+  validateRequired(request.target, 'target');
+  validateNonEmptyString(request.target, 'target');
+}
+
+/**
+ * Validates a CreateEdgeRequest object
+ * @param {Partial<CreateEdgeRequest>} request - The request to validate
+ * @throws {ValidationError} If validation fails
+ */
+export function validateCreateEdgeRequest(request) {
+  if (!request || typeof request !== 'object') {
+    throw new ValidationError('CreateEdgeRequest must be an object');
+  }
+
+  validateRequired(request.collection, 'collection');
+  validateNonEmptyString(request.collection, 'collection');
+
+  validateRequired(request.source, 'source');
+  validateNonEmptyString(request.source, 'source');
+
+  validateRequired(request.target, 'target');
+  validateNonEmptyString(request.target, 'target');
+
+  validateRequired(request.relationship_type, 'relationship_type');
+  validateNonEmptyString(request.relationship_type, 'relationship_type');
+
+  if (request.weight !== undefined) {
+    validateNumberRange(request.weight, 'weight', 0.0, 1.0);
+  }
+}
+
+/**
+ * Validates a DiscoverEdgesRequest object
+ * @param {Partial<DiscoverEdgesRequest>} request - The request to validate
+ * @throws {ValidationError} If validation fails
+ */
+export function validateDiscoverEdgesRequest(request) {
+  if (!request || typeof request !== 'object') {
+    throw new ValidationError('DiscoverEdgesRequest must be an object');
+  }
+
+  if (request.similarity_threshold !== undefined) {
+    validateNumberRange(request.similarity_threshold, 'similarity_threshold', 0.0, 1.0);
+  }
+
+  if (request.max_per_node !== undefined) {
+    if (typeof request.max_per_node !== 'number' || request.max_per_node < 1 || !Number.isInteger(request.max_per_node)) {
+      throw new ValidationError('max_per_node must be a positive integer');
+    }
+  }
+}
 

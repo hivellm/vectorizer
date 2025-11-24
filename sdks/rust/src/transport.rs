@@ -56,7 +56,7 @@ pub trait Transport: Send + Sync {
 pub fn parse_connection_string(connection_string: &str) -> Result<(Protocol, String, Option<u16>)> {
     // Simple manual parsing
     let parts: Vec<&str> = connection_string.split("://").collect();
-    
+
     if parts.len() != 2 {
         return Err(crate::error::VectorizerError::configuration(
             "Invalid connection string format. Expected protocol://host[:port]",
@@ -74,9 +74,9 @@ pub fn parse_connection_string(connection_string: &str) -> Result<(Protocol, Str
                 "Invalid host:port format",
             ));
         }
-        let port = host_port[1].parse::<u16>().map_err(|_| {
-            crate::error::VectorizerError::configuration("Invalid port number")
-        })?;
+        let port = host_port[1]
+            .parse::<u16>()
+            .map_err(|_| crate::error::VectorizerError::configuration("Invalid port number"))?;
         (host_port[0].to_string(), Some(port))
     } else {
         (authority.to_string(), None)
@@ -87,9 +87,9 @@ pub fn parse_connection_string(connection_string: &str) -> Result<(Protocol, Str
         "https" => Ok((Protocol::Http, format!("https://{}", authority), None)),
         #[cfg(feature = "umicp")]
         "umicp" => Ok((Protocol::Umicp, host, port)),
-        _ => Err(crate::error::VectorizerError::configuration(
-            format!("Unsupported protocol: {}", scheme),
-        )),
+        _ => Err(crate::error::VectorizerError::configuration(format!(
+            "Unsupported protocol: {}",
+            scheme
+        ))),
     }
 }
-

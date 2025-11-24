@@ -713,7 +713,7 @@ pub struct ReplicaInfo {
     pub last_heartbeat: DateTime<Utc>,
     /// Number of operations successfully synced
     pub operations_synced: u64,
-    
+
     // Legacy fields (backwards compatible)
     /// Legacy: Current offset on replica (deprecated, use operations_synced)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -748,7 +748,7 @@ pub struct ReplicationStats {
     /// Number of connected replicas (Master only)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connected_replicas: Option<usize>,
-    
+
     // Legacy fields (backwards compatible - always present)
     /// Current offset on master node
     pub master_offset: u64,

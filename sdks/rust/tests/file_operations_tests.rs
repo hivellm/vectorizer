@@ -11,13 +11,14 @@
 
 #[cfg(test)]
 mod file_operations_tests {
-    use vectorizer_sdk::*;
     use std::env;
+    use vectorizer_sdk::*;
 
     const TEST_COLLECTION: &str = "test-collection";
 
     fn get_test_client() -> VectorizerClient {
-        let base_url = env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
+        let base_url =
+            env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
         VectorizerClient::new_with_url(&base_url).expect("Failed to create client")
     }
 
@@ -32,7 +33,7 @@ mod file_operations_tests {
                 Ok(result) => {
                     println!("✓ {} succeeded", $test_name);
                     Some(result)
-                },
+                }
                 Err(e) => {
                     println!("WARNING: {} failed: {:?}", $test_name, e);
                     println!("This may be due to files not being indexed in the test collection");
@@ -52,7 +53,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_content(TEST_COLLECTION, "README.md", None).await;
+        let response = client
+            .get_file_content(TEST_COLLECTION, "README.md", None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "get_file_content README.md") {
             assert_eq!(result["file_path"].as_str().unwrap_or(""), "README.md");
@@ -69,7 +72,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_content(TEST_COLLECTION, "large-file.md", Some(100)).await;
+        let response = client
+            .get_file_content(TEST_COLLECTION, "large-file.md", Some(100))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "get_file_content large-file.md") {
             if let Some(size_kb) = result.get("size_kb").and_then(|s| s.as_u64()) {
@@ -86,7 +91,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_content(TEST_COLLECTION, "src/main.ts", None).await;
+        let response = client
+            .get_file_content(TEST_COLLECTION, "src/main.ts", None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "get_file_content src/main.ts") {
             assert!(result.get("metadata").is_some());
@@ -105,7 +112,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_content(TEST_COLLECTION, "non-existent-file.txt", None).await;
+        let response = client
+            .get_file_content(TEST_COLLECTION, "non-existent-file.txt", None)
+            .await;
         assert!(response.is_err(), "Non-existent file should fail");
     }
 
@@ -119,7 +128,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(TEST_COLLECTION, None, None, None, None).await;
+        let response = client
+            .list_files_in_collection(TEST_COLLECTION, None, None, None, None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "list_files_in_collection") {
             assert!(result.get("files").is_some());
@@ -135,13 +146,15 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(
-            TEST_COLLECTION,
-            Some(vec!["ts".to_string(), "js".to_string()]),
-            None,
-            None,
-            None,
-        ).await;
+        let response = client
+            .list_files_in_collection(
+                TEST_COLLECTION,
+                Some(vec!["ts".to_string(), "js".to_string()]),
+                None,
+                None,
+                None,
+            )
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
@@ -161,13 +174,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(
-            TEST_COLLECTION,
-            None,
-            Some(5),
-            None,
-            None,
-        ).await;
+        let response = client
+            .list_files_in_collection(TEST_COLLECTION, None, Some(5), None, None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
@@ -186,13 +195,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(
-            TEST_COLLECTION,
-            None,
-            None,
-            Some(10),
-            None,
-        ).await;
+        let response = client
+            .list_files_in_collection(TEST_COLLECTION, None, None, Some(10), None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
@@ -209,13 +214,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(
-            TEST_COLLECTION,
-            None,
-            None,
-            None,
-            Some("name"),
-        ).await;
+        let response = client
+            .list_files_in_collection(TEST_COLLECTION, None, None, None, Some("name"))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
@@ -238,13 +239,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(
-            TEST_COLLECTION,
-            None,
-            None,
-            None,
-            Some("size"),
-        ).await;
+        let response = client
+            .list_files_in_collection(TEST_COLLECTION, None, None, None, Some("size"))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
@@ -267,13 +264,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.list_files_in_collection(
-            TEST_COLLECTION,
-            None,
-            None,
-            None,
-            Some("chunks"),
-        ).await;
+        let response = client
+            .list_files_in_collection(TEST_COLLECTION, None, None, None, Some("chunks"))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(files) = result.get("files").and_then(|f| f.as_array()) {
@@ -298,12 +291,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_summary(
-            TEST_COLLECTION,
-            "README.md",
-            Some("extractive"),
-            Some(5),
-        ).await;
+        let response = client
+            .get_file_summary(TEST_COLLECTION, "README.md", Some("extractive"), Some(5))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert!(result.get("summary").is_some());
@@ -322,12 +312,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_summary(
-            TEST_COLLECTION,
-            "src/main.ts",
-            Some("structural"),
-            None,
-        ).await;
+        let response = client
+            .get_file_summary(TEST_COLLECTION, "src/main.ts", Some("structural"), None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert!(result.get("summary").is_some());
@@ -344,12 +331,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_summary(
-            TEST_COLLECTION,
-            "docs/api.md",
-            Some("both"),
-            None,
-        ).await;
+        let response = client
+            .get_file_summary(TEST_COLLECTION, "docs/api.md", Some("both"), None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert!(result.get("extractive_summary").is_some());
@@ -367,13 +351,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_chunks_ordered(
-            TEST_COLLECTION,
-            "README.md",
-            None,
-            None,
-            None,
-        ).await;
+        let response = client
+            .get_file_chunks_ordered(TEST_COLLECTION, "README.md", None, None, None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert!(result.get("chunks").is_some());
@@ -389,13 +369,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_chunks_ordered(
-            TEST_COLLECTION,
-            "README.md",
-            Some(5),
-            Some(10),
-            None,
-        ).await;
+        let response = client
+            .get_file_chunks_ordered(TEST_COLLECTION, "README.md", Some(5), Some(10), None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert_eq!(result["start_chunk"].as_u64().unwrap_or(0), 5);
@@ -413,13 +389,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_chunks_ordered(
-            TEST_COLLECTION,
-            "README.md",
-            None,
-            None,
-            Some(true),
-        ).await;
+        let response = client
+            .get_file_chunks_ordered(TEST_COLLECTION, "README.md", None, None, Some(true))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(chunks) = result.get("chunks").and_then(|c| c.as_array()) {
@@ -440,24 +412,16 @@ mod file_operations_tests {
         }
 
         // Get first page
-        let page1 = client.get_file_chunks_ordered(
-            TEST_COLLECTION,
-            "README.md",
-            Some(0),
-            Some(5),
-            None,
-        ).await;
+        let page1 = client
+            .get_file_chunks_ordered(TEST_COLLECTION, "README.md", Some(0), Some(5), None)
+            .await;
 
         if let Some(page1_result) = assert_or_warn!(page1, "paginate first page") {
             if page1_result["total_chunks"].as_u64().unwrap_or(0) > 5 {
                 // Get second page
-                let page2 = client.get_file_chunks_ordered(
-                    TEST_COLLECTION,
-                    "README.md",
-                    Some(5),
-                    Some(5),
-                    None,
-                ).await;
+                let page2 = client
+                    .get_file_chunks_ordered(TEST_COLLECTION, "README.md", Some(5), Some(5), None)
+                    .await;
 
                 if let Some(page2_result) = assert_or_warn!(page2, "paginate second page") {
                     assert_eq!(page2_result["start_chunk"].as_u64().unwrap_or(0), 5);
@@ -476,7 +440,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_project_outline(TEST_COLLECTION, None, None, None).await;
+        let response = client
+            .get_project_outline(TEST_COLLECTION, None, None, None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "get_project_outline") {
             assert!(result.get("structure").is_some());
@@ -492,7 +458,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_project_outline(TEST_COLLECTION, None, None, Some(true)).await;
+        let response = client
+            .get_project_outline(TEST_COLLECTION, None, None, Some(true))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "get_project_outline with key_files") {
             assert!(result.get("key_files").is_some());
@@ -509,13 +477,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_related_files(
-            TEST_COLLECTION,
-            "src/main.ts",
-            None,
-            None,
-            None,
-        ).await;
+        let response = client
+            .get_related_files(TEST_COLLECTION, "src/main.ts", None, None, None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert!(result.get("related_files").is_some());
@@ -530,13 +494,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_related_files(
-            TEST_COLLECTION,
-            "README.md",
-            Some(5),
-            None,
-            None,
-        ).await;
+        let response = client
+            .get_related_files(TEST_COLLECTION, "README.md", Some(5), None, None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(related_files) = result.get("related_files").and_then(|f| f.as_array()) {
@@ -553,13 +513,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_related_files(
-            TEST_COLLECTION,
-            "src/main.ts",
-            None,
-            Some(0.7),
-            None,
-        ).await;
+        let response = client
+            .get_related_files(TEST_COLLECTION, "src/main.ts", None, Some(0.7), None)
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(related_files) = result.get("related_files").and_then(|f| f.as_array()) {
@@ -579,13 +535,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_related_files(
-            TEST_COLLECTION,
-            "src/main.ts",
-            None,
-            None,
-            Some(true),
-        ).await;
+        let response = client
+            .get_related_files(TEST_COLLECTION, "src/main.ts", None, None, Some(true))
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(related_files) = result.get("related_files").and_then(|f| f.as_array()) {
@@ -606,13 +558,15 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.search_by_file_type(
-            TEST_COLLECTION,
-            "test",
-            vec!["ts".to_string(), "js".to_string()],
-            Some(10),
-            None,
-        ).await;
+        let response = client
+            .search_by_file_type(
+                TEST_COLLECTION,
+                "test",
+                vec!["ts".to_string(), "js".to_string()],
+                Some(10),
+                None,
+            )
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             if let Some(results) = result.get("results").and_then(|r| r.as_array()) {
@@ -629,13 +583,20 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.search_by_file_type(
-            TEST_COLLECTION,
-            "code",
-            vec!["ts".to_string(), "js".to_string(), "py".to_string(), "rs".to_string()],
-            None,
-            None,
-        ).await;
+        let response = client
+            .search_by_file_type(
+                TEST_COLLECTION,
+                "code",
+                vec![
+                    "ts".to_string(),
+                    "js".to_string(),
+                    "py".to_string(),
+                    "rs".to_string(),
+                ],
+                None,
+                None,
+            )
+            .await;
 
         if let Some(result) = assert_or_warn!(response, "file_operation") {
             assert!(result.get("results").is_some());
@@ -652,7 +613,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_content("non-existent-collection", "README.md", None).await;
+        let response = client
+            .get_file_content("non-existent-collection", "README.md", None)
+            .await;
         assert!(response.is_err(), "Invalid collection should fail");
     }
 
@@ -664,7 +627,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.get_file_content(TEST_COLLECTION, "README.md", Some(0)).await;
+        let response = client
+            .get_file_content(TEST_COLLECTION, "README.md", Some(0))
+            .await;
         assert!(response.is_err(), "Invalid max_size_kb should fail");
     }
 
@@ -676,7 +641,9 @@ mod file_operations_tests {
             return;
         }
 
-        let response = client.search_by_file_type(TEST_COLLECTION, "test", vec![], None, None).await;
+        let response = client
+            .search_by_file_type(TEST_COLLECTION, "test", vec![], None, None)
+            .await;
         assert!(response.is_err(), "Empty file types should fail");
     }
 
@@ -691,9 +658,11 @@ mod file_operations_tests {
         }
 
         let start_time = std::time::Instant::now();
-        
-        let _ = client.list_files_in_collection(TEST_COLLECTION, None, None, Some(100), None).await;
-        
+
+        let _ = client
+            .list_files_in_collection(TEST_COLLECTION, None, None, Some(100), None)
+            .await;
+
         let duration = start_time.elapsed();
         assert!(duration.as_secs() < 5, "Should complete within 5 seconds");
     }
@@ -707,11 +676,12 @@ mod file_operations_tests {
         }
 
         let start_time = std::time::Instant::now();
-        
-        let _ = client.get_file_content(TEST_COLLECTION, "README.md", None).await;
-        
+
+        let _ = client
+            .get_file_content(TEST_COLLECTION, "README.md", None)
+            .await;
+
         let duration = start_time.elapsed();
         assert!(duration.as_secs() < 3, "Should complete within 3 seconds");
     }
 }
-

@@ -1,9 +1,12 @@
 //! HTTP transport implementation using reqwest
 
-use crate::error::{VectorizerError, Result};
+use crate::error::{Result, VectorizerError};
 use crate::transport::{Protocol, Transport};
 use async_trait::async_trait;
-use reqwest::{Client, ClientBuilder, header::{HeaderMap, HeaderValue, CONTENT_TYPE}};
+use reqwest::{
+    Client, ClientBuilder,
+    header::{CONTENT_TYPE, HeaderMap, HeaderValue},
+};
 use serde_json::Value;
 
 /// HTTP transport client
@@ -21,8 +24,8 @@ impl HttpTransport {
         if let Some(key) = api_key {
             headers.insert(
                 "Authorization",
-                HeaderValue::from_str(&format!("Bearer {}", key))
-                    .map_err(|e| VectorizerError::configuration(format!("Invalid API key: {}", e)))?,
+                HeaderValue::from_str(&format!("Bearer {key}"))
+                    .map_err(|e| VectorizerError::configuration(format!("Invalid API key: {e}")))?,
             );
         }
 
@@ -30,7 +33,9 @@ impl HttpTransport {
             .timeout(std::time::Duration::from_secs(timeout_secs))
             .default_headers(headers)
             .build()
-            .map_err(|e| VectorizerError::configuration(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| {
+                VectorizerError::configuration(format!("Failed to create HTTP client: {e}"))
+            })?;
 
         Ok(Self {
             client,
@@ -47,24 +52,37 @@ impl HttpTransport {
             "POST" => self.client.post(&url),
             "PUT" => self.client.put(&url),
             "DELETE" => self.client.delete(&url),
-            _ => return Err(VectorizerError::configuration(format!("Unsupported HTTP method: {}", method))),
+            _ => {
+                return Err(VectorizerError::configuration(format!(
+                    "Unsupported HTTP method: {method}"
+                )));
+            }
         };
 
         if let Some(data) = body {
             request = request.json(data);
         }
 
-        let response = request.send().await
-            .map_err(|e| VectorizerError::network(format!("HTTP request failed: {}", e)))?;
+        let response = request
+            .send()
+            .await
+            .map_err(|e| VectorizerError::network(format!("HTTP request failed: {e}")))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(VectorizerError::server(format!("HTTP {}: {}", status, error_text)));
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(VectorizerError::server(format!(
+                "HTTP {status}: {error_text}"
+            )));
         }
 
-        response.text().await
-            .map_err(|e| VectorizerError::network(format!("Failed to read response: {}", e)))
+        response
+            .text()
+            .await
+            .map_err(|e| VectorizerError::network(format!("Failed to read response: {e}")))
     }
 }
 
@@ -90,4 +108,3 @@ impl Transport for HttpTransport {
         Protocol::Http
     }
 }
-

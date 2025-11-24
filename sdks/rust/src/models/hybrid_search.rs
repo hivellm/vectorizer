@@ -1,7 +1,7 @@
 //! Hybrid search models for combining dense and sparse vectors
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Sparse vector representation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,4 +134,3 @@ pub struct SparseVectorResponse {
     /// Values
     pub values: Vec<f32>,
 }
-

@@ -1,6 +1,6 @@
 //! Essential utilities for the Vectorizer SDK
 
-use crate::error::{VectorizerError, Result};
+use crate::error::{Result, VectorizerError};
 
 /// Input validation
 pub mod validation {
@@ -54,36 +54,39 @@ pub mod validation {
     /// Validate collection name
     pub fn validate_collection_name(name: &str) -> Result<()> {
         validate_non_empty_string(name, "collection name")?;
-        
+
         // Check for specific invalid characters first (for specific error messages)
         if name.contains(' ') {
             return Err(VectorizerError::validation(
-                "Collection name cannot contain spaces"
+                "Collection name cannot contain spaces",
             ));
         }
         if name.contains('/') {
             return Err(VectorizerError::validation(
-                "Collection name cannot contain slashes"
+                "Collection name cannot contain slashes",
             ));
         }
         if name.contains('\\') {
             return Err(VectorizerError::validation(
-                "Collection name cannot contain backslashes"
+                "Collection name cannot contain backslashes",
             ));
         }
         if name.contains('@') {
             return Err(VectorizerError::validation(
-                "Collection name cannot contain @ symbols"
+                "Collection name cannot contain @ symbols",
             ));
         }
-        
+
         // Only allow alphanumeric characters, hyphens, and underscores
-        if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(VectorizerError::validation(
-                "Collection name can only contain alphanumeric characters, hyphens, and underscores"
+                "Collection name can only contain alphanumeric characters, hyphens, and underscores",
             ));
         }
-        
+
         Ok(())
     }
 

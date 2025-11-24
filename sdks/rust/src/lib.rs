@@ -5,24 +5,24 @@
 
 pub mod client;
 pub mod error;
-pub mod models;
-pub mod utils;
-pub mod transport;
 pub mod http_transport;
+pub mod models;
+pub mod transport;
+pub mod utils;
 
 #[cfg(feature = "umicp")]
 pub mod umicp_transport;
 
 // Re-export main types for convenience
-pub use client::{VectorizerClient, ClientConfig};
+pub use client::{ClientConfig, VectorizerClient};
 
 #[cfg(feature = "umicp")]
 pub use client::UmicpConfig;
 
-pub use error::{VectorizerError, Result};
-pub use models::*;
-pub use transport::{Transport, Protocol, parse_connection_string};
+pub use error::{Result, VectorizerError};
 pub use http_transport::HttpTransport;
+pub use models::*;
+pub use transport::{Protocol, Transport, parse_connection_string};
 
 #[cfg(feature = "umicp")]
 pub use umicp_transport::UmicpTransport;
@@ -32,7 +32,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Default API base URL
 pub const DEFAULT_BASE_URL: &str = "http://localhost:15002";
-
 
 /// Default MCP server URL
 pub const DEFAULT_MCP_URL: &str = "http://localhost:15002/sse";

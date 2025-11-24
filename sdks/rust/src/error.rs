@@ -13,7 +13,10 @@ pub enum VectorizerError {
     CollectionNotFound { collection: String },
 
     /// Vector not found
-    VectorNotFound { collection: String, vector_id: String },
+    VectorNotFound {
+        collection: String,
+        vector_id: String,
+    },
 
     /// Validation error
     Validation { message: String },
@@ -47,7 +50,6 @@ pub enum VectorizerError {
 
     /// MCP (Model Context Protocol) error
     Mcp { message: String },
-
 
     /// Serialization error
     Serialization(String),
@@ -156,27 +158,47 @@ impl VectorizerError {
             message: message.into(),
         }
     }
-
 }
 
 impl std::fmt::Display for VectorizerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VectorizerError::Authentication { message } => write!(f, "Authentication failed: {}", message),
-            VectorizerError::CollectionNotFound { collection } => write!(f, "Collection '{}' not found", collection),
-            VectorizerError::VectorNotFound { collection, vector_id } => write!(f, "Vector '{}' not found in collection '{}'", vector_id, collection),
+            VectorizerError::Authentication { message } => {
+                write!(f, "Authentication failed: {}", message)
+            }
+            VectorizerError::CollectionNotFound { collection } => {
+                write!(f, "Collection '{}' not found", collection)
+            }
+            VectorizerError::VectorNotFound {
+                collection,
+                vector_id,
+            } => write!(
+                f,
+                "Vector '{}' not found in collection '{}'",
+                vector_id, collection
+            ),
             VectorizerError::Validation { message } => write!(f, "Validation error: {}", message),
             VectorizerError::Network { message } => write!(f, "Network error: {}", message),
             VectorizerError::Server { message } => write!(f, "Server error: {}", message),
-            VectorizerError::Timeout { timeout_secs } => write!(f, "Request timeout after {}s", timeout_secs),
+            VectorizerError::Timeout { timeout_secs } => {
+                write!(f, "Request timeout after {}s", timeout_secs)
+            }
             VectorizerError::RateLimit { message } => write!(f, "Rate limit exceeded: {}", message),
-            VectorizerError::Configuration { message } => write!(f, "Configuration error: {}", message),
-            VectorizerError::Embedding { message } => write!(f, "Embedding generation failed: {}", message),
+            VectorizerError::Configuration { message } => {
+                write!(f, "Configuration error: {}", message)
+            }
+            VectorizerError::Embedding { message } => {
+                write!(f, "Embedding generation failed: {}", message)
+            }
             VectorizerError::Search { message } => write!(f, "Search failed: {}", message),
             VectorizerError::Storage { message } => write!(f, "Storage error: {}", message),
-            VectorizerError::BatchOperation { message } => write!(f, "Batch operation failed: {}", message),
+            VectorizerError::BatchOperation { message } => {
+                write!(f, "Batch operation failed: {}", message)
+            }
             VectorizerError::Mcp { message } => write!(f, "MCP error: {}", message),
-            VectorizerError::Serialization(message) => write!(f, "Serialization error: {}", message),
+            VectorizerError::Serialization(message) => {
+                write!(f, "Serialization error: {}", message)
+            }
             VectorizerError::Http(err) => write!(f, "HTTP error: {}", err),
             VectorizerError::Io(err) => write!(f, "IO error: {}", err),
         }

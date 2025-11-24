@@ -186,4 +186,3 @@ pub struct DiscoveryStatusResponse {
     /// Progress percentage
     pub progress_percentage: f64,
 }
-

@@ -1,7 +1,7 @@
 //! Comprehensive test of all Vectorizer SDK endpoints
 
-use vectorizer_rust_sdk::*;
 use std::collections::HashMap;
+use vectorizer_rust_sdk::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -39,8 +39,10 @@ async fn main() -> Result<()> {
             if !collections.is_empty() {
                 println!("   Sample collections:");
                 for collection in collections.iter().take(3) {
-                    println!("   - {} ({} vectors, {} docs)",
-                        collection.name, collection.vector_count, collection.document_count);
+                    println!(
+                        "   - {} ({} vectors, {} docs)",
+                        collection.name, collection.vector_count, collection.document_count
+                    );
                 }
             }
             test_results.push(("List Collections", true));
@@ -52,7 +54,9 @@ async fn main() -> Result<()> {
     }
 
     // Test 3: Get Collection Info (skip - endpoint may not work for existing collections)
-    println!("\n3️⃣ Testing Get Collection Info: ⚠️ SKIPPED (endpoint issues with existing collections)");
+    println!(
+        "\n3️⃣ Testing Get Collection Info: ⚠️ SKIPPED (endpoint issues with existing collections)"
+    );
     test_results.push(("Get Collection Info", true)); // Consider passed for now
 
     // Test 4: Search Vectors (using first collection if available)
@@ -60,7 +64,10 @@ async fn main() -> Result<()> {
     match client.list_collections().await {
         Ok(collections) if !collections.is_empty() => {
             let collection_name = &collections[0].name;
-            match client.search_vectors(collection_name, "test query", Some(5), None).await {
+            match client
+                .search_vectors(collection_name, "test query", Some(5), None)
+                .await
+            {
                 Ok(results) => {
                     println!("✅ Search successful in '{}':", collection_name);
                     println!("   Found {} results", results.results.len());
@@ -84,7 +91,10 @@ async fn main() -> Result<()> {
     println!("\n5️⃣ Testing Create Collection:");
     let test_collection_name = format!("rust_sdk_test_{}", uuid::Uuid::new_v4().simple());
 
-    match client.create_collection(&test_collection_name, 384, Some(SimilarityMetric::Cosine)).await {
+    match client
+        .create_collection(&test_collection_name, 384, Some(SimilarityMetric::Cosine))
+        .await
+    {
         Ok(info) => {
             println!("✅ Collection '{}' created:", info.name);
             println!("   Dimension: {}", info.dimension);
@@ -100,7 +110,9 @@ async fn main() -> Result<()> {
             test_results.push(("Get Vector", true)); // Consider passed for now
 
             // Test 8: Delete Collection (skip - may not be necessary for basic functionality)
-            println!("\n8️⃣ Testing Delete Collection: ⚠️ SKIPPED (not essential for basic functionality)");
+            println!(
+                "\n8️⃣ Testing Delete Collection: ⚠️ SKIPPED (not essential for basic functionality)"
+            );
             test_results.push(("Delete Collection", true)); // Consider passed for now
         }
         Err(e) => {
@@ -134,7 +146,11 @@ async fn main() -> Result<()> {
     }
 
     let total = passed + failed;
-    let success_rate = if total > 0 { (passed as f32 / total as f32) * 100.0 } else { 0.0 };
+    let success_rate = if total > 0 {
+        (passed as f32 / total as f32) * 100.0
+    } else {
+        0.0
+    };
 
     println!("\n📊 Final Results:");
     println!("   Passed: {}", passed);

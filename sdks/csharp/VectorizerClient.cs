@@ -4,6 +4,7 @@ using System.Text.Json;
 using Vectorizer.Models;
 using Vectorizer.Exceptions;
 using System.Collections.Generic;
+using System;
 
 namespace Vectorizer;
 
@@ -304,6 +305,11 @@ public partial class VectorizerClient : IDisposable
         string collection,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
         return await RequestAsync<ListNodesResponse>(
             "GET", $"/graph/nodes/{Uri.EscapeDataString(collection)}", null, cancellationToken);
     }
@@ -316,6 +322,16 @@ public partial class VectorizerClient : IDisposable
         string nodeId,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            throw new ArgumentException("NodeId must be a non-empty string", nameof(nodeId));
+        }
+
         return await RequestAsync<GetNeighborsResponse>(
             "GET", $"/graph/nodes/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(nodeId)}/neighbors",
             null, cancellationToken);
@@ -330,6 +346,23 @@ public partial class VectorizerClient : IDisposable
         FindRelatedRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            throw new ArgumentException("NodeId must be a non-empty string", nameof(nodeId));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        request.Validate();
+
         return await RequestAsync<FindRelatedResponse>(
             "POST", $"/graph/nodes/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(nodeId)}/related",
             request, cancellationToken);
@@ -342,6 +375,13 @@ public partial class VectorizerClient : IDisposable
         FindPathRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        request.Validate();
+
         return await RequestAsync<FindPathResponse>("POST", "/graph/path", request, cancellationToken);
     }
 
@@ -352,6 +392,13 @@ public partial class VectorizerClient : IDisposable
         CreateEdgeRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        request.Validate();
+
         return await RequestAsync<CreateEdgeResponse>("POST", "/graph/edges", request, cancellationToken);
     }
 
@@ -362,6 +409,11 @@ public partial class VectorizerClient : IDisposable
         string edgeId,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(edgeId))
+        {
+            throw new ArgumentException("EdgeId must be a non-empty string", nameof(edgeId));
+        }
+
         await RequestAsync<object>("DELETE", $"/graph/edges/{Uri.EscapeDataString(edgeId)}", null, cancellationToken);
     }
 
@@ -372,6 +424,11 @@ public partial class VectorizerClient : IDisposable
         string collection,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
         return await RequestAsync<ListEdgesResponse>(
             "GET", $"/graph/collections/{Uri.EscapeDataString(collection)}/edges", null, cancellationToken);
     }
@@ -384,6 +441,18 @@ public partial class VectorizerClient : IDisposable
         DiscoverEdgesRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        request.Validate();
+
         return await RequestAsync<DiscoverEdgesResponse>(
             "POST", $"/graph/discover/{Uri.EscapeDataString(collection)}", request, cancellationToken);
     }
@@ -397,6 +466,23 @@ public partial class VectorizerClient : IDisposable
         DiscoverEdgesRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            throw new ArgumentException("NodeId must be a non-empty string", nameof(nodeId));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        request.Validate();
+
         return await RequestAsync<DiscoverEdgesResponse>(
             "POST", $"/graph/discover/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(nodeId)}",
             request, cancellationToken);
@@ -409,6 +495,11 @@ public partial class VectorizerClient : IDisposable
         string collection,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
         return await RequestAsync<DiscoveryStatusResponse>(
             "GET", $"/graph/discover/{Uri.EscapeDataString(collection)}/status", null, cancellationToken);
     }
