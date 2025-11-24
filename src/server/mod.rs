@@ -1140,102 +1140,58 @@ impl VectorizerServer {
             info!("✅ HTTP server stopped");
         }
 
-        // Cancel and await background collection loading task if still running
-        info!("🛑 Stopping background collection loading task...");
+        // Abort all background tasks immediately (no waiting)
+        info!("🛑 Stopping all background tasks...");
+        
+        // Background collection loading task
         if let Some((handle, cancel_tx)) = self.background_task.lock().await.take() {
-            // Send cancellation signal
             let _ = cancel_tx.send(true);
-            info!("📤 Sent cancellation signal to background task");
-
-            // CRITICAL: Wait for task to finish gracefully (with timeout)
-            // This ensures all collections are fully loaded before shutdown/compaction
-            info!("⏳ Waiting for background task to complete (max 10 seconds)...");
-            let timeout_duration = tokio::time::Duration::from_secs(10);
-            match tokio::time::timeout(timeout_duration, handle).await {
-                Ok(_) => {
-                    info!("✅ Background task completed gracefully");
-                }
-                Err(_) => {
-                    warn!(
-                        "⚠️  Background task did not complete within timeout - task already cancelled"
-                    );
-                }
-            }
+            handle.abort();
+            info!("✅ Background task aborted");
         }
 
-        // Force final save before shutdown
+        // File watcher cancellation
+        if let Some(cancel_tx) = self.file_watcher_cancel.lock().await.take() {
+            let _ = cancel_tx.send(true);
+        }
+        
+        // File watcher task
+        if let Some(handle) = self.file_watcher_task.lock().await.take() {
+            handle.abort();
+            info!("✅ File watcher task aborted");
+        }
+
+        // File watcher system (non-blocking)
+        if let Some(watcher_system) = self.file_watcher_system.lock().await.take() {
+            // Don't wait for stop - just drop it
+            drop(watcher_system);
+            info!("✅ File watcher system dropped");
+        }
+
+        // gRPC server task
+        if let Some(handle) = self.grpc_task.lock().await.take() {
+            handle.abort();
+            info!("✅ gRPC server task aborted");
+        }
+
+        // System collector task
+        if let Some(handle) = self.system_collector_task.lock().await.take() {
+            handle.abort();
+            info!("✅ System collector task aborted");
+        }
+
+        // Auto save task
+        if let Some(handle) = self.auto_save_task.lock().await.take() {
+            handle.abort();
+            info!("✅ Auto save task aborted");
+        }
+
+        // Auto save manager shutdown (non-blocking)
         if let Some(auto_save) = &self.auto_save_manager {
-            info!("💾 Performing final save before shutdown...");
-            match auto_save.force_save().await {
-                Ok(_) => info!("✅ Final save completed successfully"),
-                Err(e) => warn!("⚠️  Final save failed: {}", e),
-            }
             auto_save.shutdown();
         }
 
-        // Cancel file watcher task
-        info!("🛑 Stopping file watcher task...");
-        // First send cancellation signal
-        if let Some(cancel_tx) = self.file_watcher_cancel.lock().await.take() {
-            let _ = cancel_tx.send(true);
-            info!("📤 Sent cancellation signal to file watcher task");
-        }
-        // Then wait for task to finish
-        if let Some(handle) = self.file_watcher_task.lock().await.take() {
-            // Wait for it to finish (with timeout)
-            let timeout = tokio::time::Duration::from_secs(5);
-            match tokio::time::timeout(timeout, handle).await {
-                Ok(_) => info!("✅ File watcher task stopped"),
-                Err(_) => {
-                    warn!("⚠️  File watcher task did not stop within timeout - task already cancelled");
-                }
-            }
-        }
-
-        // Graceful shutdown of file watcher system
-        info!("🛑 Starting graceful shutdown of file watcher system...");
-        if let Some(watcher_system) = self.file_watcher_system.lock().await.as_ref() {
-            if let Err(e) = watcher_system.stop().await {
-                error!("❌ Failed to stop file watcher gracefully: {}", e);
-            } else {
-                info!("✅ File watcher system stopped gracefully");
-            }
-        }
-
-        // Cancel gRPC server task
-        info!("🛑 Stopping gRPC server task...");
-        if let Some(handle) = self.grpc_task.lock().await.take() {
-            handle.abort();
-            let timeout = tokio::time::Duration::from_secs(5);
-            match tokio::time::timeout(timeout, handle).await {
-                Ok(_) => info!("✅ gRPC server task stopped"),
-                Err(_) => warn!("⚠️  gRPC server task did not stop within timeout"),
-            }
-        }
-
-        // Cancel system collector task
-        info!("🛑 Stopping system collector task...");
-        if let Some(handle) = self.system_collector_task.lock().await.take() {
-            handle.abort();
-            let timeout = tokio::time::Duration::from_secs(5);
-            match tokio::time::timeout(timeout, handle).await {
-                Ok(_) => info!("✅ System collector task stopped"),
-                Err(_) => warn!("⚠️  System collector task did not stop within timeout"),
-            }
-        }
-
-        // Cancel auto save task
-        info!("🛑 Stopping auto save task...");
-        if let Some(handle) = self.auto_save_task.lock().await.take() {
-            handle.abort();
-            let timeout = tokio::time::Duration::from_secs(5);
-            match tokio::time::timeout(timeout, handle).await {
-                Ok(_) => info!("✅ Auto save task stopped"),
-                Err(_) => warn!("⚠️  Auto save task did not stop within timeout"),
-            }
-        }
-
-        info!("✅ Server stopped gracefully");
+        info!("✅ Server stopped");
         Ok(())
     }
 
