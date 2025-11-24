@@ -52,13 +52,13 @@ jobs:
           CARGO_BUILD_RUSTFLAGS: ""
       - name: Run unit and integration tests
         timeout-minutes: 30
-        run: cargo nextest run --workspace --all-targets --test-threads 4 --skip grpc_s2s
+        run: cargo nextest run --workspace --all-targets --test-threads 4
         env:
           # Set test timeouts for integration tests
           NEXTEST_TIMEOUT: 300s
       - name: Run integration tests specifically
         timeout-minutes: 20
-        run: cargo nextest run --test all_tests --workspace --skip grpc_s2s
+        run: cargo nextest run --test all_tests --workspace
         env:
           # Extended timeout for integration tests (600 seconds = 10 minutes)
           NEXTEST_TIMEOUT: 600s
