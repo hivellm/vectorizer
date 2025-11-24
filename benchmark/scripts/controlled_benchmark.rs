@@ -4,6 +4,7 @@
 //! Outputs strictly valid JSON array as specified
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -58,7 +59,7 @@ struct TestDataset {
 
 impl TestDataset {
     fn load_from_workspace(max_docs: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Loading test dataset...");
+        tracing::info!("📂 Loading test dataset...");
 
         let test_paths = vec!["../gov", "../vectorizer/docs", "../task-queue/docs"];
         let mut all_documents = Vec::new();
@@ -101,7 +102,7 @@ impl TestDataset {
         // If we don't have enough real documents, expand them by creating variations
         let real_docs_count = docs.len();
         if docs.len() < max_docs {
-            println!("📈 Expanding {} real documents to {} for testing...", real_docs_count, max_docs);
+            tracing::info!("📈 Expanding {} real documents to {} for testing...", real_docs_count, max_docs);
 
             let expansion_factor = (max_docs + real_docs_count - 1) / real_docs_count; // Ceiling division
             let mut expanded_docs = Vec::new();
@@ -146,7 +147,7 @@ impl TestDataset {
         let ground_truth = Self::generate_semantic_ground_truth(&docs, &queries, 512)?;
 
         // Pre-compute and normalize embeddings
-        println!("📊 Pre-computing embeddings...");
+        tracing::info!("📊 Pre-computing embeddings...");
         let mut manager = EmbeddingManager::new();
         let bm25 = Bm25Embedding::new(512);
         manager.register_provider("bm25".to_string(), Box::new(bm25));
@@ -168,7 +169,7 @@ impl TestDataset {
             })
             .collect();
 
-        println!("✅ Loaded {} documents, {} queries, {} embeddings", docs.len(), queries.len(), base_embeddings.len());
+        tracing::info!("✅ Loaded {} documents, {} queries, {} embeddings", docs.len(), queries.len(), base_embeddings.len());
 
         Ok(Self {
             documents: docs,
@@ -179,7 +180,7 @@ impl TestDataset {
     }
 
     fn generate_synthetic(max_docs: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("🔄 Generating synthetic dataset with {} documents...", max_docs);
+        tracing::info!("🔄 Generating synthetic dataset with {} documents...", max_docs);
 
         // Generate diverse synthetic documents for realistic testing
         let topics = vec![
@@ -223,7 +224,7 @@ impl TestDataset {
         let ground_truth = Self::generate_semantic_ground_truth(&all_documents, &queries, 512)?;
 
         // Pre-compute embeddings with progress tracking
-        println!("🧮 Computing embeddings for {} documents...", all_documents.len());
+        tracing::info!("🧮 Computing embeddings for {} documents...", all_documents.len());
         let mut manager = EmbeddingManager::new();
         let bm25 = Bm25Embedding::new(512);
         manager.register_provider("bm25".to_string(), Box::new(bm25));
@@ -255,11 +256,11 @@ impl TestDataset {
 
             // Progress reporting every 10 batches or at the end
             if (batch_idx + 1) % 10 == 0 || batch_start + chunk.len() >= all_documents.len() {
-                println!("  Processed {}/{} embeddings...", base_embeddings.len(), all_documents.len());
+                tracing::info!("  Processed {}/{} embeddings...", base_embeddings.len(), all_documents.len());
             }
         }
 
-        println!("✅ Generated {} embeddings", base_embeddings.len());
+        tracing::info!("✅ Generated {} embeddings", base_embeddings.len());
 
         Ok(Self {
             documents: all_documents,
@@ -429,7 +430,7 @@ fn benchmark_configuration(
     phase: &str,
     index: Option<&OptimizedHnswIndex>,
 ) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
-    println!("  🔬 Benchmarking: {} {} k={} ef={} phase={}", mode, quantization, k, ef_search, phase);
+    tracing::info!("  🔬 Benchmarking: {} {} k={} ef={} phase={}", mode, quantization, k, ef_search, phase);
 
     // Prepare queries - normalize them once
     let mut manager = EmbeddingManager::new();
@@ -453,7 +454,7 @@ fn benchmark_configuration(
 
     // Warm-up phase (only for warm phase)
     if phase == "warm" {
-        println!("    🔥 Warm-up phase...");
+        tracing::info!("    🔥 Warm-up phase...");
         for _ in 0..200 {
             let query_idx = (0 % queries_normalized.len()) as usize;
             let query = &queries_normalized[query_idx];
@@ -473,7 +474,7 @@ fn benchmark_configuration(
     }
 
     // Measurement phase
-    println!("    📊 Measurement phase...");
+    tracing::info!("    📊 Measurement phase...");
     let mut latencies = Vec::new();
     let mut visited_nodes = Vec::new();
     let mut query_results = Vec::new();
@@ -811,8 +812,8 @@ fn generate_markdown_report(results: &[BenchmarkResult], datasets: &[usize]) -> 
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔬 Controlled FLAT vs HNSW Benchmark");
-    println!("====================================\n");
+    tracing::info!("🔬 Controlled FLAT vs HNSW Benchmark");
+    tracing::info!("====================================\n");
 
     let datasets = vec![10_000]; // Use real workspace documents for authentic testing
     let k_values = vec![1, 10, 50, 100];
@@ -822,8 +823,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut all_results = Vec::new();
 
     for &dataset_size in &datasets {
-        println!("\n🚀 TESTING DATASET: {} vectors", dataset_size);
-        println!("{}", "=".repeat(50));
+        tracing::info!("\n🚀 TESTING DATASET: {} vectors", dataset_size);
+        tracing::info!("{}", "=".repeat(50));
 
         // Load real dataset from workspace for authentic testing
         let dataset = TestDataset::load_from_workspace(dataset_size)?;
@@ -832,7 +833,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let actual_size = dataset.base_embeddings.len().min(dataset_size);
 
         // Build HNSW index once per dataset
-        println!("🏗️  Building HNSW index...");
+        tracing::info!("🏗️  Building HNSW index...");
         let hnsw_config = OptimizedHnswConfig {
             max_connections: 16,
             max_connections_0: 32,
@@ -852,7 +853,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         index.batch_add(batch_vectors)?;
         index.optimize()?;
-        println!("✅ HNSW index built");
+        tracing::info!("✅ HNSW index built");
 
         // Test all combinations
         for quantization in &quantizations {
@@ -901,7 +902,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        println!("✅ Completed dataset {} vectors", actual_size);
+        tracing::info!("✅ Completed dataset {} vectors", actual_size);
     }
 
     // Post-processing: calculate speedup for warm vs cold
@@ -948,7 +949,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Output JSON
     let json_output = serde_json::to_string_pretty(&all_results)?;
-    println!("{}", json_output);
+    tracing::info!("{}", json_output);
 
     // Also save to file
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -962,7 +963,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let filepath = report_dir.join(filename);
     fs::write(&filepath, &json_output)?;
 
-    println!("\n📄 JSON report saved to: {}", filepath.display());
+    tracing::info!("\n📄 JSON report saved to: {}", filepath.display());
 
     // Generate and save markdown report
     let md_filename = format!("controlled_benchmark_{}.md", timestamp);
@@ -970,7 +971,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let md_content = generate_markdown_report(&all_results, &datasets)?;
     fs::write(&md_filepath, md_content)?;
 
-    println!("📄 Markdown report saved to: {}", md_filepath.display());
+    tracing::info!("📄 Markdown report saved to: {}", md_filepath.display());
 
     Ok(())
 }

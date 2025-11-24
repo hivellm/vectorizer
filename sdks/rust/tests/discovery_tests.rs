@@ -9,6 +9,7 @@
 #[cfg(test)]
 mod discovery_tests {
     use std::env;
+use tracing::{info, error, warn, debug};
     use vectorizer_sdk::*;
 
     fn get_test_client() -> VectorizerClient {
@@ -27,7 +28,7 @@ mod discovery_tests {
     async fn test_discover_complete_pipeline() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -58,7 +59,7 @@ mod discovery_tests {
     async fn test_discover_with_specific_collections() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -80,7 +81,7 @@ mod discovery_tests {
     async fn test_discover_with_excluded_collections() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -102,7 +103,7 @@ mod discovery_tests {
     async fn test_discover_generates_llm_ready_prompt() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -125,7 +126,7 @@ mod discovery_tests {
     async fn test_discover_includes_citations() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -149,7 +150,7 @@ mod discovery_tests {
     async fn test_filter_collections_by_query() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -165,7 +166,7 @@ mod discovery_tests {
     async fn test_filter_with_include_patterns() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -184,7 +185,7 @@ mod discovery_tests {
     async fn test_filter_with_exclude_patterns() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -211,7 +212,7 @@ mod discovery_tests {
     async fn test_filter_with_both_include_and_exclude() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -232,7 +233,7 @@ mod discovery_tests {
     async fn test_score_collections_by_relevance() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -250,7 +251,7 @@ mod discovery_tests {
     async fn test_score_with_custom_term_boost_weight() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -265,7 +266,7 @@ mod discovery_tests {
     async fn test_score_with_custom_signal_boost_weight() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -280,7 +281,7 @@ mod discovery_tests {
     async fn test_score_collections_sorted_by_score() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -316,7 +317,7 @@ mod discovery_tests {
     async fn test_expand_query_with_default_options() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -342,7 +343,7 @@ mod discovery_tests {
     async fn test_expand_query_limits_expansions() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -364,7 +365,7 @@ mod discovery_tests {
     async fn test_expand_query_includes_definition() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -384,7 +385,7 @@ mod discovery_tests {
     async fn test_expand_query_includes_features() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -404,7 +405,7 @@ mod discovery_tests {
     async fn test_expand_query_includes_architecture() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -426,7 +427,7 @@ mod discovery_tests {
     async fn test_expand_query_generates_diverse_variations() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -458,7 +459,7 @@ mod discovery_tests {
     async fn test_empty_query_in_discover() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -470,7 +471,7 @@ mod discovery_tests {
     async fn test_invalid_max_bullets() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -484,7 +485,7 @@ mod discovery_tests {
     async fn test_empty_query_in_filter_collections() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -496,7 +497,7 @@ mod discovery_tests {
     async fn test_invalid_weights_in_score_collections() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -512,7 +513,7 @@ mod discovery_tests {
     async fn test_chain_filter_and_score_operations() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -535,7 +536,7 @@ mod discovery_tests {
     async fn test_use_expanded_queries_in_discovery() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -568,7 +569,7 @@ mod discovery_tests {
     async fn test_discover_performance() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -586,7 +587,7 @@ mod discovery_tests {
     async fn test_score_collections_with_large_collections() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 

@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
 use tokio::time::sleep;
+use tracing::info;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
@@ -145,7 +146,7 @@ async fn test_master_start_and_accept_connections() {
     // Verify replica received full sync
     assert_eq!(replicas[0].offset, 0); // Replica got full sync, not incremental
 
-    println!("✅ Master start and full sync: PASS");
+    info!("✅ Master start and full sync: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -221,7 +222,7 @@ async fn test_master_replicate_operations() {
     assert!(stats.master_offset >= 11); // 1 CreateCollection + 10 InsertVector
     assert_eq!(stats.role, vectorizer::replication::NodeRole::Master);
 
-    println!("✅ Master replicate operations: PASS");
+    info!("✅ Master replicate operations: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -248,7 +249,7 @@ async fn test_master_multiple_replicas_and_stats() {
     for i in 0..3 {
         let (replica, store) = create_running_replica(master_addr).await;
         replicas.push((replica, store));
-        println!("Replica {i} connected");
+        info!("Replica {i} connected");
         sleep(Duration::from_millis(500)).await;
     }
 
@@ -296,7 +297,7 @@ async fn test_master_multiple_replicas_and_stats() {
         assert!(info.offset > 0);
     }
 
-    println!("✅ Master multiple replicas: PASS");
+    info!("✅ Master multiple replicas: PASS");
 }
 
 // ============================================================================
@@ -346,7 +347,7 @@ async fn test_replica_full_sync_on_connect() {
     assert_eq!(stats.role, vectorizer::replication::NodeRole::Replica);
     assert!(replica.is_connected());
 
-    println!("✅ Replica full sync: PASS");
+    info!("✅ Replica full sync: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -433,7 +434,7 @@ async fn test_replica_partial_sync_on_reconnect() {
     let offset_after = replica2.get_offset();
     assert!(offset_after > offset_before);
 
-    println!("✅ Replica partial sync: PASS");
+    info!("✅ Replica partial sync: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -492,7 +493,7 @@ async fn test_replica_apply_all_operation_types() {
             .contains(&"ops_test".to_string())
     );
 
-    println!("✅ All operation types applied: PASS");
+    info!("✅ All operation types applied: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -517,7 +518,7 @@ async fn test_replica_heartbeat_and_connection_status() {
     assert_eq!(stats.role, vectorizer::replication::NodeRole::Replica);
     assert!(stats.lag_ms < 5000); // Should be recent (within 5 seconds)
 
-    println!("✅ Replica heartbeat: PASS");
+    info!("✅ Replica heartbeat: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -583,7 +584,7 @@ async fn test_replica_incremental_operations() {
     let stats = replica.get_stats();
     assert_eq!(stats.total_replicated, 20);
 
-    println!("✅ Replica incremental operations: PASS");
+    info!("✅ Replica incremental operations: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -624,15 +625,15 @@ async fn test_replica_delete_operations() {
     sleep(Duration::from_secs(2)).await;
 
     // Check replica connection status
-    println!("Replica connected: {}", replica.is_connected());
-    println!("Replica offset: {}", replica.get_offset());
+    info!("Replica connected: {}", replica.is_connected());
+    info!("Replica offset: {}", replica.get_offset());
 
     // Wait additional time for sync
     sleep(Duration::from_secs(3)).await;
 
     // Debug: List what collections exist
     let collections = replica_store.list_collections();
-    println!("Collections in replica: {collections:?}");
+    info!("Collections in replica: {collections:?}");
 
     // Verify replica received snapshot
     assert!(
@@ -664,12 +665,12 @@ async fn test_replica_delete_operations() {
     sleep(Duration::from_secs(2)).await;
 
     // Check if replica is still connected
-    println!("Replica connected: {}", replica.is_connected());
-    println!("Replica offset: {}", replica.get_offset());
+    info!("Replica connected: {}", replica.is_connected());
+    info!("Replica offset: {}", replica.get_offset());
 
     // Verify deletes replicated
     let collection = replica_store.get_collection("delete_test").unwrap();
-    println!(
+    info!(
         "After deletes - vector_count: {}",
         collection.vector_count()
     );
@@ -691,7 +692,7 @@ async fn test_replica_delete_operations() {
             .contains(&"delete_test".to_string())
     );
 
-    println!("✅ Replica delete operations: PASS");
+    info!("✅ Replica delete operations: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -749,7 +750,7 @@ async fn test_replica_update_operations() {
         .unwrap();
     assert_eq!(updated_vector.data, vec![9.0, 9.0, 9.0]);
 
-    println!("✅ Replica update operations: PASS");
+    info!("✅ Replica update operations: PASS");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -797,7 +798,7 @@ async fn test_replica_stats_tracking() {
     assert!(stats2.replica_offset > stats1.replica_offset);
     assert_eq!(stats2.role, vectorizer::replication::NodeRole::Replica);
 
-    println!("✅ Replica stats tracking: PASS");
+    info!("✅ Replica stats tracking: PASS");
 }
 
 // ============================================================================
@@ -814,7 +815,7 @@ async fn test_empty_snapshot_replication() {
 
     // Should have empty state (or auto-loaded collections if any)
     // The important test is that replication doesn't crash with empty master
-    println!("✅ Empty snapshot: PASS (replica connected successfully)");
+    info!("✅ Empty snapshot: PASS (replica connected successfully)");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

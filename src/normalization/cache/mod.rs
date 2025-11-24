@@ -37,7 +37,7 @@
 //!
 //! // Retrieve from cache
 //! if let Some(cached) = cache.get_normalized(&hash).await? {
-//!     println!("Cache hit: {}", cached);
+//!     tracing::info!("Cache hit: {}", cached);
 //! }
 //! # Ok(())
 //! # }

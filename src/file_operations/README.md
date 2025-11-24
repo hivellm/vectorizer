@@ -30,9 +30,9 @@ let content = file_ops.get_file_content(
     500 // max KB
 ).await?;
 
-println!("File: {}", content.file_path);
-println!("Size: {}KB", content.metadata.size_kb);
-println!("Content: {}", content.content);
+tracing::info!("File: {}", content.file_path);
+tracing::info!("Size: {}KB", content.metadata.size_kb);
+tracing::info!("Content: {}", content.content);
 ```
 
 **Features:**
@@ -59,7 +59,7 @@ let list = file_ops.list_files_in_collection(
 ).await?;
 
 for file in list.files {
-    println!("{}: {} chunks, {}KB", 
+    tracing::info!("{}: {} chunks, {}KB", 
         file.path, file.chunk_count, file.size_estimate_kb);
 }
 ```
@@ -83,12 +83,12 @@ let summary = file_ops.get_file_summary(
 ).await?;
 
 if let Some(text) = summary.extractive_summary {
-    println!("Summary: {}", text);
+    tracing::info!("Summary: {}", text);
 }
 
 if let Some(structure) = summary.structural_summary {
-    println!("Outline:\n{}", structure.outline);
-    println!("Key points: {:?}", structure.key_points);
+    tracing::info!("Outline:\n{}", structure.outline);
+    tracing::info!("Key points: {:?}", structure.key_points);
 }
 ```
 
@@ -115,8 +115,8 @@ The module uses an LRU cache with three layers:
 ```rust
 // Get cache statistics
 let stats = file_ops.cache_stats().await;
-println!("Files cached: {}", stats.file_content_entries);
-println!("Summaries cached: {}", stats.summary_entries);
+tracing::info!("Files cached: {}", stats.file_content_entries);
+tracing::info!("Summaries cached: {}", stats.summary_entries);
 
 // Clear cache for specific collection
 file_ops.clear_cache("vectorizer-source").await;
@@ -144,15 +144,15 @@ use file_operations::FileOperationError;
 match file_ops.get_file_content(...).await {
     Ok(content) => { /* use content */ },
     Err(FileOperationError::FileNotFound { file_path, collection }) => {
-        eprintln!("File {} not found in {}", file_path, collection);
+        tracing::error!("File {} not found in {}", file_path, collection);
     },
     Err(FileOperationError::FileTooLarge { size_kb, max_size_kb }) => {
-        eprintln!("File too large: {}KB > {}KB", size_kb, max_size_kb);
+        tracing::error!("File too large: {}KB > {}KB", size_kb, max_size_kb);
     },
     Err(FileOperationError::InvalidPath { path, reason }) => {
-        eprintln!("Invalid path '{}': {}", path, reason);
+        tracing::error!("Invalid path '{}': {}", path, reason);
     },
-    Err(e) => eprintln!("Error: {}", e),
+    Err(e) => tracing::error!("Error: {}", e),
 }
 ```
 

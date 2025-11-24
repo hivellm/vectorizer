@@ -9,6 +9,7 @@
 //! Note: These tests require a running server or use direct API calls.
 //! For now, we test the graph functionality through the VectorStore directly.
 
+use tracing::info;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, GraphConfig, HnswConfig, QuantizationConfig,
@@ -205,7 +206,7 @@ fn test_graph_discovery_creates_edges_and_api_returns_them() {
             .collect::<Vec<_>>()
     );
 
-    println!(
+    info!(
         "✅ Discovery created {} edges, API can retrieve {} edges",
         stats.total_edges_created,
         all_edges.len()
@@ -331,7 +332,7 @@ fn test_graph_discovery_via_api_and_list_edges_returns_them() {
             .collect::<Vec<_>>()
     );
 
-    println!(
+    info!(
         "✅ API flow test: Discovery created {} edges, list_edges returns {} edges",
         stats.total_edges_created,
         edges.len()

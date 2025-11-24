@@ -23,9 +23,9 @@
 //! let raw = "Hello   World\r\n\r\n  With extra   spaces  ";
 //! let normalized = normalizer.normalize(raw, None);
 //!
-//! println!("Original: {} bytes", raw.len());
-//! println!("Normalized: {} bytes", normalized.text.len());
-//! println!("Content hash: {:?}", normalized.content_hash);
+//! tracing::info!("Original: {} bytes", raw.len());
+//! tracing::info!("Normalized: {} bytes", normalized.text.len());
+//! tracing::info!("Content hash: {:?}", normalized.content_hash);
 //! ```
 
 pub mod cache;

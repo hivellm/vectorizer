@@ -134,7 +134,10 @@ mod tests {
 
         for i in 0..file_count {
             let file_path = test_path.join(format!("test_{}.rs", i));
-            let content = format!("fn test_{}() {{ println!(\"Test function {}\"); }}", i, i);
+            let content = format!(
+                "fn test_{}() {{ tracing::info!(\"Test function {}\"); }}",
+                i, i
+            );
             std::fs::write(&file_path, content).unwrap();
             test_files.push(file_path);
         }

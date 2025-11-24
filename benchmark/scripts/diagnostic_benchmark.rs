@@ -11,6 +11,7 @@
 //!   cargo run --release --bin diagnostic_benchmark
 
 use std::collections::HashMap;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -124,7 +125,7 @@ fn benchmark_hnsw_vs_flat(
     dimension: usize,
     k: usize,
 ) -> Result<Vec<DiagnosticMetrics>, Box<dyn std::error::Error>> {
-    println!("\n🔬 Benchmarking HNSW vs FLAT search comparison...");
+    tracing::info!("\n🔬 Benchmarking HNSW vs FLAT search comparison...");
 
     let mut results = Vec::new();
 
@@ -144,7 +145,7 @@ fn benchmark_hnsw_vs_flat(
     index.batch_add(test_vectors.to_vec())?;
     index.optimize()?;
 
-    println!("  ✅ HNSW index built with {} vectors", test_vectors.len());
+    tracing::info!("  ✅ HNSW index built with {} vectors", test_vectors.len());
 
     // Test queries (sample from dataset)
     let num_queries = 100;
@@ -153,7 +154,7 @@ fn benchmark_hnsw_vs_flat(
         .collect();
 
     // HNSW Search
-    println!("  🔍 Testing HNSW search...");
+    tracing::info!("  🔍 Testing HNSW search...");
     let mut hnsw_latencies = Vec::new();
     let mut hnsw_visited = Vec::new();
     let hnsw_start = Instant::now();
@@ -171,7 +172,7 @@ fn benchmark_hnsw_vs_flat(
     let hnsw_total_time = hnsw_start.elapsed().as_millis() as f64;
 
     // Flat Search
-    println!("  🔍 Testing FLAT search...");
+    tracing::info!("  🔍 Testing FLAT search...");
     let mut flat_latencies = Vec::new();
     let flat_start = Instant::now();
 
@@ -255,11 +256,11 @@ fn benchmark_hnsw_vs_flat(
     results.push(hnsw_metrics);
     results.push(flat_metrics);
 
-    println!(
+    tracing::info!(
         "  ✅ HNSW: {:.2} QPS, {:.0} μs avg, {:.0} nodes visited avg",
         results[0].throughput_ops_per_sec, results[0].avg_latency_us, results[0].avg_visited_nodes
     );
-    println!(
+    tracing::info!(
         "  ✅ Flat:  {:.2} QPS, {:.0} μs avg, {:.0} nodes visited",
         results[1].throughput_ops_per_sec, results[1].avg_latency_us, results[1].avg_visited_nodes
     );
@@ -273,7 +274,7 @@ fn benchmark_ef_search_sweep(
     dimension: usize,
     k: usize,
 ) -> Result<Vec<DiagnosticMetrics>, Box<dyn std::error::Error>> {
-    println!("\n🔬 Benchmarking ef_search parameter sweep...");
+    tracing::info!("\n🔬 Benchmarking ef_search parameter sweep...");
 
     let mut results = Vec::new();
     let ef_values = vec![64, 128, 256, 512];
@@ -294,7 +295,7 @@ fn benchmark_ef_search_sweep(
     index.batch_add(test_vectors.to_vec())?;
     index.optimize()?;
 
-    println!("  ✅ Index built with {} vectors", test_vectors.len());
+    tracing::info!("  ✅ Index built with {} vectors", test_vectors.len());
 
     // Test queries
     let num_queries = 50;
@@ -303,7 +304,7 @@ fn benchmark_ef_search_sweep(
         .collect();
 
     for &ef_search in &ef_values {
-        println!("  Testing ef_search = {}...", ef_search);
+        tracing::info!("  Testing ef_search = {}...", ef_search);
 
         let mut latencies = Vec::new();
         let mut visited_counts = Vec::new();
@@ -354,7 +355,7 @@ fn benchmark_ef_search_sweep(
             search_type: "hnsw".to_string(),
         };
 
-        println!(
+        tracing::info!(
             "    ✅ {:.2} QPS, {:.0} μs avg, {:.0} nodes visited avg",
             metrics.throughput_ops_per_sec, metrics.avg_latency_us, metrics.avg_visited_nodes
         );
@@ -371,7 +372,7 @@ fn benchmark_warm_vs_cold(
     dimension: usize,
     k: usize,
 ) -> Result<Vec<DiagnosticMetrics>, Box<dyn std::error::Error>> {
-    println!("\n🔬 Benchmarking WARM vs COLD cache performance...");
+    tracing::info!("\n🔬 Benchmarking WARM vs COLD cache performance...");
 
     let mut results = Vec::new();
 
@@ -391,7 +392,7 @@ fn benchmark_warm_vs_cold(
     index.batch_add(test_vectors.to_vec())?;
     index.optimize()?;
 
-    println!("  ✅ Index built with {} vectors", test_vectors.len());
+    tracing::info!("  ✅ Index built with {} vectors", test_vectors.len());
 
     let num_queries = 100;
     let query_indices: Vec<usize> = (0..num_queries)
@@ -399,7 +400,7 @@ fn benchmark_warm_vs_cold(
         .collect();
 
     // Cold cache test (first run)
-    println!("  Testing COLD cache...");
+    tracing::info!("  Testing COLD cache...");
     let mut cold_latencies = Vec::new();
     let mut cold_visited = Vec::new();
 
@@ -414,7 +415,7 @@ fn benchmark_warm_vs_cold(
     }
 
     // Warm cache test (second run on same data)
-    println!("  Testing WARM cache...");
+    tracing::info!("  Testing WARM cache...");
     let mut warm_latencies = Vec::new();
     let mut warm_visited = Vec::new();
 
@@ -498,17 +499,17 @@ fn benchmark_warm_vs_cold(
     results.push(cold_metrics);
     results.push(warm_metrics);
 
-    println!(
+    tracing::info!(
         "  ✅ Cold: {:.2} QPS, {:.0} μs avg",
         results[0].throughput_ops_per_sec, results[0].avg_latency_us
     );
-    println!(
+    tracing::info!(
         "  ✅ Warm: {:.2} QPS, {:.0} μs avg",
         results[1].throughput_ops_per_sec, results[1].avg_latency_us
     );
 
     let speedup = results[0].avg_latency_us / results[1].avg_latency_us;
-    println!("  ✅ Warm cache speedup: {:.2}x", speedup);
+    tracing::info!("  ✅ Warm cache speedup: {:.2}x", speedup);
 
     Ok(results)
 }
@@ -518,7 +519,7 @@ fn generate_test_vectors(
     num_vectors: usize,
     dimension: usize,
 ) -> Result<Vec<(String, Vec<f32>)>, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "🔧 Generating {} test vectors (dimension {})...",
         num_vectors, dimension
     );
@@ -544,7 +545,7 @@ fn generate_test_vectors(
         vectors.push((id, vec));
     }
 
-    println!("  ✅ Generated {} test vectors", vectors.len());
+    tracing::info!("  ✅ Generated {} test vectors", vectors.len());
     Ok(vectors)
 }
 
@@ -554,24 +555,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN)
         .init();
 
-    println!("🔬 HNSW Diagnostic Benchmark");
-    println!("===========================\n");
+    tracing::info!("🔬 HNSW Diagnostic Benchmark");
+    tracing::info!("===========================\n");
 
     let dimension = 512;
     let dataset_sizes = vec![10_000, 100_000, 1_000_000];
     let k = 10;
 
-    println!("📊 Diagnostic Configuration:");
-    println!("  - Dimensions: {}", dimension);
-    println!("  - Search k: {}", k);
-    println!("  - Dataset sizes: {:?}", dataset_sizes);
-    println!("  - HNSW: M=16, ef_construction=200");
-    println!();
+    tracing::info!("📊 Diagnostic Configuration:");
+    tracing::info!("  - Dimensions: {}", dimension);
+    tracing::info!("  - Search k: {}", k);
+    tracing::info!("  - Dataset sizes: {:?}", dataset_sizes);
+    tracing::info!("  - HNSW: M=16, ef_construction=200");
+    tracing::info!();
 
     let mut all_results = Vec::new();
 
     for &dataset_size in &dataset_sizes {
-        println!("🚀 Testing with {} vectors", dataset_size);
+        tracing::info!("🚀 Testing with {} vectors", dataset_size);
 
         // Generate test data
         let test_vectors = generate_test_vectors(dataset_size, dimension)?;
@@ -585,7 +586,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         all_results.extend(ef_sweep);
         all_results.extend(warm_vs_cold);
 
-        println!("  ✅ Completed diagnostics for {} vectors\n", dataset_size);
+        tracing::info!("  ✅ Completed diagnostics for {} vectors\n", dataset_size);
     }
 
     // Create report
@@ -602,7 +603,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Generate and save report
-    println!("\n📊 Generating diagnostic report...");
+    tracing::info!("\n📊 Generating diagnostic report...");
     let md_report = generate_diagnostic_report(&report);
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -615,11 +616,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let report_path = report_dir.join(format!("diagnostic_{}.md", timestamp));
     fs::write(&report_path, &md_report)?;
 
-    println!("✅ Diagnostic report saved to: {}", report_path.display());
+    tracing::info!("✅ Diagnostic report saved to: {}", report_path.display());
 
     // Print key findings
-    println!("\n🔍 KEY DIAGNOSTIC FINDINGS");
-    println!("=========================");
+    tracing::info!("\n🔍 KEY DIAGNOSTIC FINDINGS");
+    tracing::info!("=========================");
 
     // Analyze HNSW efficiency
     let hnsw_results: Vec<_> = report
@@ -638,30 +639,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let efficiency = flat.avg_latency_us / hnsw.avg_latency_us;
         let scan_ratio = hnsw.avg_visited_nodes / flat.avg_visited_nodes;
 
-        println!("Dataset {}k vectors:", hnsw.dataset_size / 1000);
-        println!(
+        tracing::info!("Dataset {}k vectors:", hnsw.dataset_size / 1000);
+        tracing::info!(
             "  HNSW latency: {:.0} μs ({:.2} QPS)",
             hnsw.avg_latency_us, hnsw.throughput_ops_per_sec
         );
-        println!(
+        tracing::info!(
             "  Flat latency:  {:.0} μs ({:.2} QPS)",
             flat.avg_latency_us, flat.throughput_ops_per_sec
         );
-        println!("  HNSW efficiency: {:.1}x speedup", efficiency);
-        println!(
+        tracing::info!("  HNSW efficiency: {:.1}x speedup", efficiency);
+        tracing::info!(
             "  Nodes visited: {:.0} avg (HNSW) vs {:.0} (Flat)",
             hnsw.avg_visited_nodes, flat.avg_visited_nodes
         );
-        println!("  Scan ratio: {:.3}", scan_ratio);
+        tracing::info!("  Scan ratio: {:.3}", scan_ratio);
 
         if scan_ratio > 0.5 {
-            println!("  ⚠️  WARNING: HNSW visiting >50% of nodes - likely degraded to scan!");
+            tracing::info!("  ⚠️  WARNING: HNSW visiting >50% of nodes - likely degraded to scan!");
         }
-        println!();
+        tracing::info!();
     }
 
-    println!("\n✅ Diagnostic completed successfully!");
-    println!("📄 Full report: {}", report_path.display());
+    tracing::info!("\n✅ Diagnostic completed successfully!");
+    tracing::info!("📄 Full report: {}", report_path.display());
 
     Ok(())
 }

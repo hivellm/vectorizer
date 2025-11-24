@@ -4,6 +4,7 @@
 
 #[cfg(target_os = "macos")]
 use std::time::Instant;
+use tracing::{info, error, warn, debug};
 
 #[cfg(target_os = "macos")]
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
@@ -12,28 +13,28 @@ use hive_gpu::{GpuContext, GpuDistanceMetric, GpuVector, GpuVectorStorage};
 
 #[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔧 Simple Metal Native Test");
-    println!("==========================");
+    tracing::info!("🔧 Simple Metal Native Test");
+    tracing::info!("==========================");
 
     // Test parameters
     let vector_count = 100;
     let dimension = 128;
 
-    println!("📊 Test 1: Create Collection");
-    println!("----------------------------");
+    tracing::info!("📊 Test 1: Create Collection");
+    tracing::info!("----------------------------");
 
     let start = Instant::now();
     let context = MetalNativeContext::new()?;
     let mut storage = context.create_storage(dimension, GpuDistanceMetric::Cosine)?;
     let create_time = start.elapsed();
 
-    println!("  ✅ Collection created: {:?}", create_time);
-    println!("  Dimension: {}D", dimension);
-    println!("  Metric: {:?}", GpuDistanceMetric::Cosine);
-    println!();
+    tracing::info!("  ✅ Collection created: {:?}", create_time);
+    tracing::info!("  Dimension: {}D", dimension);
+    tracing::info!("  Metric: {:?}", GpuDistanceMetric::Cosine);
+    tracing::info!();
 
-    println!("📊 Test 2: Add Vectors");
-    println!("----------------------");
+    tracing::info!("📊 Test 2: Add Vectors");
+    tracing::info!("----------------------");
 
     let start = Instant::now();
     for i in 0..vector_count {
@@ -46,44 +47,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         storage.add_vectors(&[vector])?;
 
         if (i + 1) % 10 == 0 {
-            println!("  Added {} vectors...", i + 1);
+            tracing::info!("  Added {} vectors...", i + 1);
         }
     }
     let add_time = start.elapsed();
 
-    println!("  ✅ Added {} vectors: {:?}", vector_count, add_time);
-    println!(
+    tracing::info!("  ✅ Added {} vectors: {:?}", vector_count, add_time);
+    tracing::info!(
         "  Throughput: {:.2} vectors/sec",
         vector_count as f64 / add_time.as_secs_f64()
     );
-    println!();
+    tracing::info!();
 
-    println!("📊 Test 3: Basic Search");
-    println!("-----------------------");
+    tracing::info!("📊 Test 3: Basic Search");
+    tracing::info!("-----------------------");
 
     let query = vec![50.0; dimension];
     let start = Instant::now();
     let results = storage.search(&query, 5)?;
     let search_time = start.elapsed();
 
-    println!("  ✅ Search completed: {:?}", search_time);
-    println!("  Results: {} found", results.len());
+    tracing::info!("  ✅ Search completed: {:?}", search_time);
+    tracing::info!("  Results: {} found", results.len());
     for (i, result) in results.iter().enumerate() {
-        println!(
+        tracing::info!(
             "    {}. ID: {}, Score: {:.4}",
             i + 1,
             result.id,
             result.score
         );
     }
-    println!();
+    tracing::info!();
 
-    println!("🎉 All tests passed!");
+    tracing::info!("🎉 All tests passed!");
     Ok(())
 }
 
 #[cfg(not(target_os = "macos"))]
 fn main() {
-    eprintln!("⚠️  This benchmark is only available on macOS (Metal backend)");
+    etracing::info!("⚠️  This benchmark is only available on macOS (Metal backend)");
     std::process::exit(1);
 }

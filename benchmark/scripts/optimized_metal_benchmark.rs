@@ -4,6 +4,7 @@
 //! to achieve performance up to 20k vectors.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use vectorizer::gpu::{OptimizedMetalNativeCollection, MetalNativeContext};
 use vectorizer::models::{DistanceMetric, Vector};
 use std::time::Instant;
@@ -16,14 +17,14 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🚀 Optimized Metal Native Benchmark");
-    println!("===================================");
-    println!("Testing optimized implementation with buffer pooling and batch processing");
-    println!("Target: 20k vectors with acceptable performance\n");
+    tracing::info!("🚀 Optimized Metal Native Benchmark");
+    tracing::info!("===================================");
+    tracing::info!("Testing optimized implementation with buffer pooling and batch processing");
+    tracing::info!("Target: 20k vectors with acceptable performance\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ This benchmark requires macOS with Metal support");
+        tracing::info!("❌ This benchmark requires macOS with Metal support");
         return Ok(());
     }
 
@@ -78,13 +79,13 @@ async fn run_optimized_benchmark() -> Result<()> {
     let mut all_results = Vec::new();
 
     for scenario in scenarios {
-        println!("🎯 Running Scenario: {}", scenario.name);
-        println!("=====================================");
+        tracing::info!("🎯 Running Scenario: {}", scenario.name);
+        tracing::info!("=====================================");
         
         let result = run_optimized_scenario_benchmark(&scenario).await?;
         all_results.push(result);
         
-        println!();
+        tracing::info!();
     }
 
     // Generate comprehensive report
@@ -107,26 +108,26 @@ struct OptimizedBenchmarkScenario {
 async fn run_optimized_scenario_benchmark(scenario: &OptimizedBenchmarkScenario) -> Result<OptimizedBenchmarkResult> {
     use std::time::Instant;
 
-    println!("📊 Test Parameters");
-    println!("------------------");
-    println!("  Dimension: {}", scenario.dimension);
-    println!("  Vector count: {}", scenario.vector_count);
-    println!("  Search queries: {}", scenario.search_queries);
-    println!("  k (results): {}", scenario.k);
-    println!("  Batch size: {}", scenario.batch_size);
-    println!();
+    tracing::info!("📊 Test Parameters");
+    tracing::info!("------------------");
+    tracing::info!("  Dimension: {}", scenario.dimension);
+    tracing::info!("  Vector count: {}", scenario.vector_count);
+    tracing::info!("  Search queries: {}", scenario.search_queries);
+    tracing::info!("  k (results): {}", scenario.k);
+    tracing::info!("  Batch size: {}", scenario.batch_size);
+    tracing::info!();
 
     // 1. Generate test vectors
-    println!("🔧 Generating test vectors...");
+    tracing::info!("🔧 Generating test vectors...");
     let start = Instant::now();
     let vectors = generate_test_vectors(scenario.vector_count, scenario.dimension);
     let generation_time = start.elapsed();
-    println!("  ✅ Generated {} vectors in {:.3}ms", scenario.vector_count, generation_time.as_millis());
-    println!();
+    tracing::info!("  ✅ Generated {} vectors in {:.3}ms", scenario.vector_count, generation_time.as_millis());
+    tracing::info!();
 
     // 2. Create optimized collection
-    println!("📊 Test 1: Create Optimized Metal Native Collection");
-    println!("----------------------------------------------------");
+    tracing::info!("📊 Test 1: Create Optimized Metal Native Collection");
+    tracing::info!("----------------------------------------------------");
     let start = Instant::now();
     let mut collection = OptimizedMetalNativeCollection::new(
         scenario.dimension,
@@ -134,14 +135,14 @@ async fn run_optimized_scenario_benchmark(scenario: &OptimizedBenchmarkScenario)
         scenario.vector_count, // Pre-allocate for expected size
     )?;
     let creation_time = start.elapsed();
-    println!("  ✅ Collection created: {:.3}ms", creation_time.as_millis());
-    println!("  Device: Optimized Metal native (VRAM only)");
-    println!("  Pre-allocated capacity: {}", scenario.vector_count);
-    println!();
+    tracing::info!("  ✅ Collection created: {:.3}ms", creation_time.as_millis());
+    tracing::info!("  Device: Optimized Metal native (VRAM only)");
+    tracing::info!("  Pre-allocated capacity: {}", scenario.vector_count);
+    tracing::info!();
 
     // 3. Add vectors in batches (optimized)
-    println!("📊 Test 2: Add Vectors in Batches (Optimized)");
-    println!("---------------------------------------------");
+    tracing::info!("📊 Test 2: Add Vectors in Batches (Optimized)");
+    tracing::info!("---------------------------------------------");
     let start = Instant::now();
     let mut total_added = 0;
     
@@ -154,28 +155,28 @@ async fn run_optimized_scenario_benchmark(scenario: &OptimizedBenchmarkScenario)
         let batch_time = batch_start_time.elapsed();
         
         total_added += batch.len();
-        println!("  Added batch {} vectors... ({:.3}ms)", total_added, batch_time.as_millis());
+        tracing::info!("  Added batch {} vectors... ({:.3}ms)", total_added, batch_time.as_millis());
     }
     
     let addition_time = start.elapsed();
-    println!("  ✅ Added {} vectors in batches: {:.3}ms", total_added, addition_time.as_millis());
-    println!("  Throughput: {:.2} vectors/sec", total_added as f64 / addition_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Added {} vectors in batches: {:.3}ms", total_added, addition_time.as_millis());
+    tracing::info!("  Throughput: {:.2} vectors/sec", total_added as f64 / addition_time.as_secs_f64());
+    tracing::info!();
 
     // 4. Build HNSW index
-    println!("📊 Test 3: Build HNSW Index on GPU (VRAM)");
-    println!("-----------------------------------------");
+    tracing::info!("📊 Test 3: Build HNSW Index on GPU (VRAM)");
+    tracing::info!("-----------------------------------------");
     let start = Instant::now();
     collection.build_index()?;
     let construction_time = start.elapsed();
-    println!("  ✅ HNSW index built on GPU: {:.3}ms", construction_time.as_millis());
-    println!("  Storage: VRAM only (no CPU access)");
-    println!("  Nodes: {}", total_added);
-    println!();
+    tracing::info!("  ✅ HNSW index built on GPU: {:.3}ms", construction_time.as_millis());
+    tracing::info!("  Storage: VRAM only (no CPU access)");
+    tracing::info!("  Nodes: {}", total_added);
+    tracing::info!();
 
     // 5. Search performance
-    println!("📊 Test 4: Search Performance");
-    println!("-----------------------------");
+    tracing::info!("📊 Test 4: Search Performance");
+    tracing::info!("-----------------------------");
     let start = Instant::now();
     let mut search_times = Vec::new();
     
@@ -187,7 +188,7 @@ async fn run_optimized_scenario_benchmark(scenario: &OptimizedBenchmarkScenario)
         search_times.push(query_time.as_millis() as f64);
         
         if i % 10 == 0 {
-            println!("  Completed {} searches...", i + 1);
+            tracing::info!("  Completed {} searches...", i + 1);
         }
     }
     
@@ -196,37 +197,37 @@ async fn run_optimized_scenario_benchmark(scenario: &OptimizedBenchmarkScenario)
     let min_search_time = search_times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
     let max_search_time = search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
     
-    println!("  ✅ Completed {} searches", search_times.len());
-    println!("  Average search time: {:.3}ms", avg_search_time);
-    println!("  Min search time: {:.3}ms", min_search_time);
-    println!("  Max search time: {:.3}ms", max_search_time);
-    println!("  Total search time: {:.3}s", total_search_time.as_secs_f64());
-    println!("  Throughput: {:.2} searches/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Completed {} searches", search_times.len());
+    tracing::info!("  Average search time: {:.3}ms", avg_search_time);
+    tracing::info!("  Min search time: {:.3}ms", min_search_time);
+    tracing::info!("  Max search time: {:.3}ms", max_search_time);
+    tracing::info!("  Total search time: {:.3}s", total_search_time.as_secs_f64());
+    tracing::info!("  Throughput: {:.2} searches/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
+    tracing::info!();
 
     // 6. Memory usage analysis
-    println!("📊 Test 5: Memory Usage Analysis");
-    println!("--------------------------------");
+    tracing::info!("📊 Test 5: Memory Usage Analysis");
+    tracing::info!("--------------------------------");
     let memory_stats = collection.get_memory_stats();
-    println!("  Vector count: {}", memory_stats.vector_count);
-    println!("  Buffer capacity: {}", memory_stats.buffer_capacity);
-    println!("  Used bytes: {:.2} MB", memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
-    println!("  Allocated bytes: {:.2} MB", memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
-    println!("  Utilization: {:.1}%", memory_stats.utilization * 100.0);
-    println!("  Pool utilization: {:.1}%", memory_stats.buffer_pool_stats.pool_utilization * 100.0);
-    println!();
+    tracing::info!("  Vector count: {}", memory_stats.vector_count);
+    tracing::info!("  Buffer capacity: {}", memory_stats.buffer_capacity);
+    tracing::info!("  Used bytes: {:.2} MB", memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Allocated bytes: {:.2} MB", memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Utilization: {:.1}%", memory_stats.utilization * 100.0);
+    tracing::info!("  Pool utilization: {:.1}%", memory_stats.buffer_pool_stats.pool_utilization * 100.0);
+    tracing::info!();
 
     // 7. Memory compaction test
-    println!("📊 Test 6: Memory Compaction");
-    println!("-----------------------------");
+    tracing::info!("📊 Test 6: Memory Compaction");
+    tracing::info!("-----------------------------");
     let start = Instant::now();
     collection.compact_memory()?;
     let compaction_time = start.elapsed();
-    println!("  ✅ Memory compaction: {:.3}ms", compaction_time.as_millis());
+    tracing::info!("  ✅ Memory compaction: {:.3}ms", compaction_time.as_millis());
     
     let final_memory_stats = collection.get_memory_stats();
-    println!("  Final utilization: {:.1}%", final_memory_stats.utilization * 100.0);
-    println!();
+    tracing::info!("  Final utilization: {:.1}%", final_memory_stats.utilization * 100.0);
+    tracing::info!();
 
     Ok(OptimizedBenchmarkResult {
         scenario: scenario.clone(),
@@ -271,51 +272,51 @@ fn generate_test_vectors(count: usize, dimension: usize) -> Vec<Vector> {
 
 #[cfg(target_os = "macos")]
 async fn generate_optimized_report(results: &[OptimizedBenchmarkResult]) -> Result<()> {
-    println!("📊 Optimized Benchmark Report");
-    println!("=============================");
-    println!("Comprehensive analysis of optimized Metal Native performance\n");
+    tracing::info!("📊 Optimized Benchmark Report");
+    tracing::info!("=============================");
+    tracing::info!("Comprehensive analysis of optimized Metal Native performance\n");
     
     for result in results {
-        println!("🎯 Scenario: {}", result.scenario.name);
-        println!("----------------------------------------");
-        println!("  Dimension: {}", result.scenario.dimension);
-        println!("  Vector count: {}", result.scenario.vector_count);
-        println!("  Batch size: {}", result.scenario.batch_size);
-        println!();
+        tracing::info!("🎯 Scenario: {}", result.scenario.name);
+        tracing::info!("----------------------------------------");
+        tracing::info!("  Dimension: {}", result.scenario.dimension);
+        tracing::info!("  Vector count: {}", result.scenario.vector_count);
+        tracing::info!("  Batch size: {}", result.scenario.batch_size);
+        tracing::info!();
         
-        println!("📈 Performance Metrics");
-        println!("----------------------");
-        println!("  Vector generation: {:.3}ms", result.generation_time.as_millis());
-        println!("  Collection creation: {:.3}ms", result.creation_time.as_millis());
-        println!("  Vector addition: {:.3}ms", result.addition_time.as_millis());
-        println!("  Throughput addition: {:.2} vectors/sec", 
+        tracing::info!("📈 Performance Metrics");
+        tracing::info!("----------------------");
+        tracing::info!("  Vector generation: {:.3}ms", result.generation_time.as_millis());
+        tracing::info!("  Collection creation: {:.3}ms", result.creation_time.as_millis());
+        tracing::info!("  Vector addition: {:.3}ms", result.addition_time.as_millis());
+        tracing::info!("  Throughput addition: {:.2} vectors/sec", 
             result.scenario.vector_count as f64 / result.addition_time.as_secs_f64());
-        println!("  HNSW construction: {:.3}ms", result.construction_time.as_millis());
-        println!();
+        tracing::info!("  HNSW construction: {:.3}ms", result.construction_time.as_millis());
+        tracing::info!();
         
         if !result.search_times.is_empty() {
             let avg_search = result.search_times.iter().sum::<f64>() / result.search_times.len() as f64;
             let min_search = result.search_times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
             let max_search = result.search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
             
-            println!("🔍 Search Performance");
-            println!("--------------------");
-            println!("  Average search time: {:.3}ms", avg_search);
-            println!("  Min search time: {:.3}ms", min_search);
-            println!("  Max search time: {:.3}ms", max_search);
-            println!("  Search queries: {}", result.search_times.len());
-            println!();
+            tracing::info!("🔍 Search Performance");
+            tracing::info!("--------------------");
+            tracing::info!("  Average search time: {:.3}ms", avg_search);
+            tracing::info!("  Min search time: {:.3}ms", min_search);
+            tracing::info!("  Max search time: {:.3}ms", max_search);
+            tracing::info!("  Search queries: {}", result.search_times.len());
+            tracing::info!();
         }
         
-        println!("💾 Memory Usage");
-        println!("---------------");
-        println!("  Vector count: {}", result.memory_stats.vector_count);
-        println!("  Buffer capacity: {}", result.memory_stats.buffer_capacity);
-        println!("  Used memory: {:.2} MB", result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
-        println!("  Allocated memory: {:.2} MB", result.memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
-        println!("  Memory utilization: {:.1}%", result.memory_stats.utilization * 100.0);
-        println!("  Pool utilization: {:.1}%", result.memory_stats.buffer_pool_stats.pool_utilization * 100.0);
-        println!();
+        tracing::info!("💾 Memory Usage");
+        tracing::info!("---------------");
+        tracing::info!("  Vector count: {}", result.memory_stats.vector_count);
+        tracing::info!("  Buffer capacity: {}", result.memory_stats.buffer_capacity);
+        tracing::info!("  Used memory: {:.2} MB", result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Allocated memory: {:.2} MB", result.memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Memory utilization: {:.1}%", result.memory_stats.utilization * 100.0);
+        tracing::info!("  Pool utilization: {:.1}%", result.memory_stats.buffer_pool_stats.pool_utilization * 100.0);
+        tracing::info!();
         
         // Performance assessment
         let throughput = result.scenario.vector_count as f64 / result.addition_time.as_secs_f64();
@@ -325,37 +326,37 @@ async fn generate_optimized_report(results: &[OptimizedBenchmarkResult]) -> Resu
             0.0
         };
         
-        println!("🎯 Performance Assessment");
-        println!("-------------------------");
+        tracing::info!("🎯 Performance Assessment");
+        tracing::info!("-------------------------");
         if throughput > 2000.0 {
-            println!("  ✅ Vector addition: EXCELLENT ({:.0} vectors/sec)", throughput);
+            tracing::info!("  ✅ Vector addition: EXCELLENT ({:.0} vectors/sec)", throughput);
         } else if throughput > 1000.0 {
-            println!("  ✅ Vector addition: GOOD ({:.0} vectors/sec)", throughput);
+            tracing::info!("  ✅ Vector addition: GOOD ({:.0} vectors/sec)", throughput);
         } else if throughput > 500.0 {
-            println!("  ⚠️ Vector addition: ACCEPTABLE ({:.0} vectors/sec)", throughput);
+            tracing::info!("  ⚠️ Vector addition: ACCEPTABLE ({:.0} vectors/sec)", throughput);
         } else {
-            println!("  ❌ Vector addition: POOR ({:.0} vectors/sec)", throughput);
+            tracing::info!("  ❌ Vector addition: POOR ({:.0} vectors/sec)", throughput);
         }
         
         if search_throughput > 10.0 {
-            println!("  ✅ Search performance: EXCELLENT ({:.1} searches/sec)", search_throughput);
+            tracing::info!("  ✅ Search performance: EXCELLENT ({:.1} searches/sec)", search_throughput);
         } else if search_throughput > 5.0 {
-            println!("  ✅ Search performance: GOOD ({:.1} searches/sec)", search_throughput);
+            tracing::info!("  ✅ Search performance: GOOD ({:.1} searches/sec)", search_throughput);
         } else if search_throughput > 1.0 {
-            println!("  ⚠️ Search performance: ACCEPTABLE ({:.1} searches/sec)", search_throughput);
+            tracing::info!("  ⚠️ Search performance: ACCEPTABLE ({:.1} searches/sec)", search_throughput);
         } else {
-            println!("  ❌ Search performance: POOR ({:.1} searches/sec)", search_throughput);
+            tracing::info!("  ❌ Search performance: POOR ({:.1} searches/sec)", search_throughput);
         }
         
         if result.memory_stats.utilization > 0.8 {
-            println!("  ✅ Memory efficiency: EXCELLENT ({:.1}%)", result.memory_stats.utilization * 100.0);
+            tracing::info!("  ✅ Memory efficiency: EXCELLENT ({:.1}%)", result.memory_stats.utilization * 100.0);
         } else if result.memory_stats.utilization > 0.6 {
-            println!("  ✅ Memory efficiency: GOOD ({:.1}%)", result.memory_stats.utilization * 100.0);
+            tracing::info!("  ✅ Memory efficiency: GOOD ({:.1}%)", result.memory_stats.utilization * 100.0);
         } else {
-            println!("  ⚠️ Memory efficiency: LOW ({:.1}%)", result.memory_stats.utilization * 100.0);
+            tracing::info!("  ⚠️ Memory efficiency: LOW ({:.1}%)", result.memory_stats.utilization * 100.0);
         }
         
-        println!();
+        tracing::info!();
     }
     
     Ok(())

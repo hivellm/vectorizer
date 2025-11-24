@@ -3,6 +3,7 @@
 //! Fast benchmark to validate basic performance
 
 use anyhow::Result;
+use tracing::{info, error, warn, debug};
 use std::time::Instant;
 use vectorizer::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Vector};
@@ -27,8 +28,8 @@ fn generate_random_vectors(count: usize, dimension: usize) -> Vec<Vector> {
 }
 
 fn main() -> Result<()> {
-    println!("⚡ Quick Benchmark - CPU Performance");
-    println!("====================================\n");
+    tracing::info!("⚡ Quick Benchmark - CPU Performance");
+    tracing::info!("====================================\n");
     
     // Test configurations (reduced)
     let test_configs = vec![
@@ -37,7 +38,7 @@ fn main() -> Result<()> {
     ];
     
     for (vector_count, dimension, description) in test_configs {
-        println!("📊 Test: {} ({} vectors, {}D)", description, vector_count, dimension);
+        tracing::info!("📊 Test: {} ({} vectors, {}D)", description, vector_count, dimension);
         
         let config = CollectionConfig {
             dimension,
@@ -52,7 +53,7 @@ fn main() -> Result<()> {
         };
         
         let vectors = generate_random_vectors(vector_count, dimension);
-        println!("  • Generated {} vectors", vectors.len());
+        tracing::info!("  • Generated {} vectors", vectors.len());
         
         // Create store and collection
         let store = VectorStore::new();
@@ -60,7 +61,7 @@ fn main() -> Result<()> {
         
         let start = Instant::now();
         store.create_collection(&collection_name, config.clone())?;
-        println!("  ✅ Collection created: {:.2}ms", start.elapsed().as_secs_f64() * 1000.0);
+        tracing::info!("  ✅ Collection created: {:.2}ms", start.elapsed().as_secs_f64() * 1000.0);
         
         // IMPORTANT: Use collection in a scope to release the lock before delete
         {
@@ -74,7 +75,7 @@ fn main() -> Result<()> {
             let insert_time = insert_start.elapsed();
             let insert_ms = insert_time.as_secs_f64() * 1000.0;
             
-            println!("  ✅ Insertion: {:.2}ms ({:.0} vectors/sec)", 
+            tracing::info!("  ✅ Insertion: {:.2}ms ({:.0} vectors/sec)", 
                      insert_ms, 
                      vectors.len() as f64 / (insert_ms / 1000.0));
             
@@ -90,17 +91,17 @@ fn main() -> Result<()> {
             let search_time = search_start.elapsed();
             let search_ms = search_time.as_secs_f64() * 1000.0 / 10.0;
             
-            println!("  ✅ Search: {:.4}ms per query ({:.0} QPS)", 
+            tracing::info!("  ✅ Search: {:.4}ms per query ({:.0} QPS)", 
                      search_ms,
                      1000.0 / search_ms);
         } // collection dropped here, lock released
         
         // Cleanup
         store.delete_collection(&collection_name)?;
-        println!("  ✅ Cleanup done\n");
+        tracing::info!("  ✅ Cleanup done\n");
     }
     
-    println!("✅ Benchmark completed successfully!");
+    tracing::info!("✅ Benchmark completed successfully!");
     
     Ok(())
 }

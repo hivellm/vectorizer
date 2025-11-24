@@ -132,7 +132,7 @@ watcher.set_event_callback(move |event| {
     let sync_manager = Arc::clone(&sync_manager_clone);
     tokio::spawn(async move {
         if let Err(e) = sync_manager.process_file_change(&event).await {
-            eprintln!("Failed to process file change: {}", e);
+            tracing::error!("Failed to process file change: {}", e);
         }
     });
 }).await;
@@ -220,8 +220,8 @@ The system provides comprehensive error handling:
 
 ```rust
 match sync_manager.process_file_change(&event).await {
-    Ok(_) => println!("File change processed successfully"),
-    Err(e) => eprintln!("Failed to process file change: {}", e),
+    Ok(_) => tracing::info!("File change processed successfully"),
+    Err(e) => tracing::error!("Failed to process file change: {}", e),
 }
 ```
 

@@ -1,6 +1,7 @@
 //! Comprehensive tests for the Rust SDK
 
 use std::collections::HashMap;
+use tracing::{info, error, warn, debug};
 use vectorizer_sdk::*;
 
 #[tokio::test]
@@ -133,7 +134,7 @@ async fn test_insert_texts() {
         }
         Err(e) => {
             // If insert fails due to server issues, that's acceptable for testing
-            println!("Insert texts failed (expected in test environment): {}", e);
+            tracing::info!("Insert texts failed (expected in test environment): {}", e);
         }
     }
 
@@ -195,7 +196,7 @@ async fn test_search_vectors() {
         }
         Err(e) => {
             // If search fails due to provider issues, that's acceptable for testing
-            println!(
+            tracing::info!(
                 "Search vectors failed (expected in test environment): {}",
                 e
             );
@@ -238,7 +239,7 @@ async fn test_get_vector() {
         }
         Err(e) => {
             // If vector not found or indexing not complete, that's acceptable for testing
-            println!("Get vector failed (expected in test environment): {}", e);
+            tracing::info!("Get vector failed (expected in test environment): {}", e);
         }
     }
 
@@ -294,7 +295,7 @@ async fn test_embed_text() {
         }
         Err(e) => {
             // If embedding fails due to provider issues, that's acceptable for testing
-            println!("Embed text failed (expected in test environment): {}", e);
+            tracing::info!("Embed text failed (expected in test environment): {}", e);
         }
     }
 }
@@ -412,7 +413,7 @@ async fn test_batch_operations() {
         }
         Err(e) => {
             // If batch insert fails due to server issues, that's acceptable for testing
-            println!("Batch insert failed (expected in test environment): {}", e);
+            tracing::info!("Batch insert failed (expected in test environment): {}", e);
         }
     }
 
@@ -430,7 +431,7 @@ async fn test_batch_operations() {
         }
         Err(e) => {
             // If search fails due to provider issues, that's acceptable for testing
-            println!("Batch search failed (expected in test environment): {}", e);
+            tracing::info!("Batch search failed (expected in test environment): {}", e);
         }
     }
 
@@ -467,7 +468,7 @@ async fn test_performance() {
     let insert_result = match client.insert_texts(&collection_name, texts).await {
         Ok(result) => result,
         Err(e) => {
-            println!("Insert texts failed (expected in test environment): {}", e);
+            tracing::info!("Insert texts failed (expected in test environment): {}", e);
             return;
         }
     };
@@ -487,7 +488,7 @@ async fn test_performance() {
     {
         Ok(result) => result,
         Err(e) => {
-            println!(
+            tracing::info!(
                 "Search vectors failed (expected in test environment): {}",
                 e
             );

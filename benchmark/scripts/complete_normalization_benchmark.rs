@@ -9,6 +9,7 @@
 //! Run with: cargo run --bin complete_normalization_benchmark --features benchmarks --release
 
 use std::collections::{HashMap, HashSet};
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -276,18 +277,18 @@ async fn run_scenario(
                 };
 
                 if let Err(e) = collection.insert(vector) {
-                    eprintln!("Failed to insert vector {}: {}", doc.id, e);
+                    etracing::info!("Failed to insert vector {}: {}", doc.id, e);
                 }
             }
             Err(e) => {
-                eprintln!("Failed to generate embedding for {}: {}", doc.id, e);
+                etracing::info!("Failed to generate embedding for {}: {}", doc.id, e);
             }
         }
     }
 
     let indexed_count = collection.vector_count();
     if indexed_count == 0 {
-        eprintln!(
+        etracing::info!(
             "⚠️  Warning: No vectors indexed for scenario '{}'",
             config.name
         );
@@ -395,23 +396,23 @@ async fn run_scenario(
 
 /// Print results table
 fn print_results_table(results: &[ScenarioResult]) {
-    println!("\n{}", "=".repeat(120));
-    println!("📊 COMPLETE BENCHMARK RESULTS - Using REAL BM25 + HNSW");
-    println!("{}\n", "=".repeat(120));
+    tracing::info!("\n{}", "=".repeat(120));
+    tracing::info!("📊 COMPLETE BENCHMARK RESULTS - Using REAL BM25 + HNSW");
+    tracing::info!("{}\n", "=".repeat(120));
 
     let baseline_storage = results[0].total_storage_bytes;
 
-    println!("💾 STORAGE IMPACT:");
-    println!("{}", "-".repeat(120));
-    println!(
+    tracing::info!("💾 STORAGE IMPACT:");
+    tracing::info!("{}", "-".repeat(120));
+    tracing::info!(
         "{:<40} {:>12} {:>12} {:>12} {:>12} {:>12}",
         "Scenario", "Text Size", "Vector Size", "Total", "Saved", "vs Baseline"
     );
-    println!("{}", "-".repeat(120));
+    tracing::info!("{}", "-".repeat(120));
 
     for result in results {
         let saved = baseline_storage as i64 - result.total_storage_bytes as i64;
-        println!(
+        tracing::info!(
             "{:<40} {:>12} {:>12} {:>12} {:>12} {:>11.1}%",
             result.config.name,
             format!("{} KB", result.processed_size_bytes / 1024),
@@ -422,16 +423,16 @@ fn print_results_table(results: &[ScenarioResult]) {
         );
     }
 
-    println!("\n⚡ PERFORMANCE:");
-    println!("{}", "-".repeat(120));
-    println!(
+    tracing::info!("\n⚡ PERFORMANCE:");
+    tracing::info!("{}", "-".repeat(120));
+    tracing::info!(
         "{:<40} {:>15} {:>15} {:>15}",
         "Scenario", "Preprocessing", "Search Time", "Total Time"
     );
-    println!("{}", "-".repeat(120));
+    tracing::info!("{}", "-".repeat(120));
 
     for result in results {
-        println!(
+        tracing::info!(
             "{:<40} {:>15?} {:>15?} {:>15?}",
             result.config.name,
             result.preprocessing_time,
@@ -440,16 +441,16 @@ fn print_results_table(results: &[ScenarioResult]) {
         );
     }
 
-    println!("\n🎯 SEARCH QUALITY:");
-    println!("{}", "-".repeat(120));
-    println!(
+    tracing::info!("\n🎯 SEARCH QUALITY:");
+    tracing::info!("{}", "-".repeat(120));
+    tracing::info!(
         "{:<40} {:>12} {:>12} {:>12}",
         "Scenario", "Precision", "Recall", "F1-Score"
     );
-    println!("{}", "-".repeat(120));
+    tracing::info!("{}", "-".repeat(120));
 
     for result in results {
-        println!(
+        tracing::info!(
             "{:<40} {:>11.1}% {:>11.1}% {:>11.1}%",
             result.config.name,
             result.avg_precision * 100.0,
@@ -458,14 +459,14 @@ fn print_results_table(results: &[ScenarioResult]) {
         );
     }
 
-    println!();
+    tracing::info!();
 }
 
 /// Print analysis
 fn print_analysis(results: &[ScenarioResult]) {
-    println!("\n{}", "=".repeat(120));
-    println!("📈 KEY FINDINGS");
-    println!("{}\n", "=".repeat(120));
+    tracing::info!("\n{}", "=".repeat(120));
+    tracing::info!("📈 KEY FINDINGS");
+    tracing::info!("{}\n", "=".repeat(120));
 
     let baseline = &results[0];
 
@@ -477,13 +478,13 @@ fn print_analysis(results: &[ScenarioResult]) {
             * 100.0;
         let quality_diff = ((result.avg_f1 - baseline.avg_f1) / baseline.avg_f1.max(0.01)) * 100.0;
 
-        println!("vs {}", result.config.name);
-        println!(
+        tracing::info!("vs {}", result.config.name);
+        tracing::info!(
             "   Storage:  {:>+7.1}% {}",
             storage_diff,
             if storage_diff > 0.0 { "✅" } else { "→" }
         );
-        println!(
+        tracing::info!(
             "   Latency:  {:>+7.1}% {}",
             time_diff,
             if time_diff.abs() < 10.0 {
@@ -492,7 +493,7 @@ fn print_analysis(results: &[ScenarioResult]) {
                 "⚠️"
             }
         );
-        println!(
+        tracing::info!(
             "   Quality:  {:>+7.1}% {}",
             quality_diff,
             if quality_diff.abs() < 5.0 {
@@ -503,7 +504,7 @@ fn print_analysis(results: &[ScenarioResult]) {
                 "📉"
             }
         );
-        println!();
+        tracing::info!();
     }
 }
 
@@ -644,32 +645,32 @@ fn generate_report(results: &[ScenarioResult], docs_count: usize) -> anyhow::Res
         chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
     )?;
 
-    println!("\n📄 Report saved to: {}", report_path.display());
+    tracing::info!("\n📄 Report saved to: {}", report_path.display());
 
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("\n🔥 COMPLETE NORMALIZATION & QUANTIZATION BENCHMARK");
-    println!("Using REAL BM25 embeddings and HNSW index\n");
+    tracing::info!("\n🔥 COMPLETE NORMALIZATION & QUANTIZATION BENCHMARK");
+    tracing::info!("Using REAL BM25 embeddings and HNSW index\n");
 
     // Collect documents
-    println!("📁 Collecting documents...");
+    tracing::info!("📁 Collecting documents...");
     let docs = collect_workspace_documents(50);
-    println!(
+    tracing::info!(
         "   ✓ {} documents ({} KB)\n",
         docs.len(),
         docs.iter().map(|d| d.raw_content.len()).sum::<usize>() / 1024
     );
 
     // Create embedding manager with BM25
-    println!("🔧 Initializing BM25 embedding manager (512D)...");
+    tracing::info!("🔧 Initializing BM25 embedding manager (512D)...");
     let mut embedding_manager = EmbeddingManager::new();
     let bm25 = Bm25Embedding::new(512);
     embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
     embedding_manager.set_default_provider("bm25")?;
-    println!("   ✓ BM25 ready (512D)\n");
+    tracing::info!("   ✓ BM25 ready (512D)\n");
 
     // Define scenarios
     let scenarios = vec![
@@ -705,13 +706,13 @@ async fn main() -> anyhow::Result<()> {
         },
     ];
 
-    println!("🧪 Running {} scenarios...\n", scenarios.len());
+    tracing::info!("🧪 Running {} scenarios...\n", scenarios.len());
 
     let mut results = Vec::new();
     for (i, scenario) in scenarios.iter().enumerate() {
         print!("   [{}/{}] {}... ", i + 1, scenarios.len(), scenario.name);
         let result = run_scenario(scenario.clone(), &docs, &embedding_manager).await;
-        println!("✓");
+        tracing::info!("✓");
         results.push(result);
     }
 
@@ -719,10 +720,10 @@ async fn main() -> anyhow::Result<()> {
     print_analysis(&results);
     generate_report(&results, docs.len())?;
 
-    println!("\n{}", "=".repeat(120));
-    println!("✅ Benchmark Complete!");
-    println!("{}", "=".repeat(120));
-    println!();
+    tracing::info!("\n{}", "=".repeat(120));
+    tracing::info!("✅ Benchmark Complete!");
+    tracing::info!("{}", "=".repeat(120));
+    tracing::info!();
 
     Ok(())
 }

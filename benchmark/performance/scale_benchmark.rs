@@ -9,6 +9,7 @@
 //!   cargo run --release --bin scale_benchmark
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -83,7 +84,7 @@ impl TestDataset {
         base_queries: &[String],
         target_size: usize,
     ) -> Self {
-        println!("🔧 Generating dataset with {target_size} vectors...");
+        tracing::info!("🔧 Generating dataset with {target_size} vectors...");
 
         // Create embedding manager for semantic ground truth
         let mut manager = EmbeddingManager::new();
@@ -231,7 +232,7 @@ fn benchmark_dataset_size(
     dataset: &TestDataset,
     dimension: usize,
 ) -> Result<ScaleBenchmarkResult, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "🚀 Benchmarking dataset size: {} vectors",
         dataset.documents.len()
     );
@@ -250,7 +251,7 @@ fn benchmark_dataset_size(
     }
 
     // Generate embeddings
-    println!("  📊 Generating embeddings...");
+    tracing::info!("  📊 Generating embeddings...");
     let embeddings_start = Instant::now();
 
     let embeddings: Vec<Vec<f32>> = dataset
@@ -261,14 +262,14 @@ fn benchmark_dataset_size(
 
     let embeddings_time = embeddings_start.elapsed().as_millis() as f64;
 
-    println!(
+    tracing::info!(
         "  ✅ Generated {} embeddings in {:.1}s",
         embeddings.len(),
         embeddings_time / 1000.0
     );
 
     // Build HNSW index
-    println!("  🏗️  Building HNSW index...");
+    tracing::info!("  🏗️  Building HNSW index...");
     let index_build_start = Instant::now();
 
     let hnsw_config = OptimizedHnswConfig {
@@ -298,15 +299,15 @@ fn benchmark_dataset_size(
     let index_memory_mb = (embeddings.len() * dimension * 4) as f64 / 1_048_576.0; // 4 bytes per f32
     let bytes_per_vector = (dimension * 4) as f64;
 
-    println!(
+    tracing::info!(
         "  ✅ Index built in {:.1}s ({:.0} vectors/sec)",
         index_build_time_ms / 1000.0,
         vectors_per_second
     );
-    println!("  ✅ Memory usage: {index_memory_mb:.2} MB ({bytes_per_vector:.0} bytes/vector)");
+    tracing::info!("  ✅ Memory usage: {index_memory_mb:.2} MB ({bytes_per_vector:.0} bytes/vector)");
 
     // Search performance benchmarking
-    println!("  🔍 Benchmarking search performance...");
+    tracing::info!("  🔍 Benchmarking search performance...");
 
     let mut search_times = Vec::new();
     let mut query_results = Vec::new();
@@ -366,11 +367,11 @@ fn benchmark_dataset_size(
         speed_efficiency: search_throughput_qps / (index_memory_mb / 1024.0), // QPS per GB
     };
 
-    println!(
+    tracing::info!(
         "  ✅ Search: {:.0} μs avg, {:.1} QPS",
         avg_search_latency_us, search_throughput_qps
     );
-    println!(
+    tracing::info!(
         "  ✅ Quality: MAP={:.4}, Recall@10={:.3}",
         result.map_score, result.recall_at_10
     );
@@ -566,22 +567,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN)
         .init();
 
-    println!("📈 Index Scale Performance Benchmark");
-    println!("====================================\n");
+    tracing::info!("📈 Index Scale Performance Benchmark");
+    tracing::info!("====================================\n");
 
     let dimension = 512;
     let test_sizes = vec![
         1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000,
     ];
 
-    println!("📊 Configuration:");
-    println!("  - Dimension: {}D", dimension);
-    println!("  - Test sizes: {:?} vectors", test_sizes);
-    println!("  - HNSW: M=16, ef_construction=200");
-    println!();
+    tracing::info!("📊 Configuration:");
+    tracing::info!("  - Dimension: {}D", dimension);
+    tracing::info!("  - Test sizes: {:?} vectors", test_sizes);
+    tracing::info!("  - HNSW: M=16, ef_construction=200");
+    tracing::info!();
 
     // Load base dataset
-    println!("📂 Loading base dataset...");
+    tracing::info!("📂 Loading base dataset...");
     let base_docs = vec![
         "Rust is a systems programming language focused on safety and performance.".to_string(),
         "Machine learning models require large amounts of training data.".to_string(),
@@ -612,18 +613,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test each scale
     for &size in &test_sizes {
-        println!("\n{}", "=".repeat(60));
-        println!("🧪 TESTING SCALE: {} vectors", size);
+        tracing::info!("\n{}", "=".repeat(60));
+        tracing::info!("🧪 TESTING SCALE: {} vectors", size);
 
         let dataset = TestDataset::generate_scaled_dataset(&base_docs, &base_queries, size);
 
         match benchmark_dataset_size(&dataset, dimension) {
             Ok(result) => {
                 results.push(result);
-                println!("✅ Scale {} completed successfully", size);
+                tracing::info!("✅ Scale {} completed successfully", size);
             }
             Err(e) => {
-                println!("❌ Failed to benchmark size {}: {}", size, e);
+                tracing::info!("❌ Failed to benchmark size {}: {}", size, e);
                 // Continue with other sizes
             }
         }
@@ -643,7 +644,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Generate and save report
-    println!("\n📊 Generating comprehensive report...");
+    tracing::info!("\n📊 Generating comprehensive report...");
     let md_report = generate_scale_report(&report);
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -661,32 +662,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(&json_path, json_data)?;
 
     // Print final recommendations
-    println!("\n🎯 FINAL RECOMMENDATIONS");
-    println!("{}", "=".repeat(40));
+    tracing::info!("\n🎯 FINAL RECOMMENDATIONS");
+    tracing::info!("{}", "=".repeat(40));
 
     let rec = &report.recommendations;
-    println!(
+    tracing::info!(
         "📏 Optimal Collection Size: {}K vectors",
         rec.optimal_collection_size / 1000
     );
-    println!(
+    tracing::info!(
         "📏 Maximum Recommended Size: {}K vectors",
         rec.maximum_recommended_size / 1000
     );
-    println!(
+    tracing::info!(
         "📏 Performance Inflection Point: {}K vectors",
         rec.performance_inflection_point / 1000
     );
-    println!("💾 Memory Limit: {:.1} GB", rec.memory_limit_gb);
-    println!(
+    tracing::info!("💾 Memory Limit: {:.1} GB", rec.memory_limit_gb);
+    tracing::info!(
         "🎯 Quality Threshold: MAP ≥ {:.3}",
         rec.quality_threshold_map
     );
 
-    println!("\n📄 Full report: {}", report_path.display());
-    println!("📊 JSON data: {}", json_path.display());
+    tracing::info!("\n📄 Full report: {}", report_path.display());
+    tracing::info!("📊 JSON data: {}", json_path.display());
 
-    println!("\n✅ Scale benchmark completed successfully!");
+    tracing::info!("\n✅ Scale benchmark completed successfully!");
 
     Ok(())
 }

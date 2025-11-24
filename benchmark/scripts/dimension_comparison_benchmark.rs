@@ -12,6 +12,7 @@
 //!   cargo run --release --bin dimension_comparison_benchmark
 
 use std::collections::{HashMap, HashSet};
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -51,7 +52,7 @@ struct MultiDimensionDataset {
 
 impl MultiDimensionDataset {
     fn load_from_workspace(max_documents: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Loading dataset from workspace...");
+        tracing::info!("📂 Loading dataset from workspace...");
 
         let test_paths = vec!["../gov", "../vectorizer/docs", "../task-queue/docs"];
 
@@ -90,7 +91,7 @@ impl MultiDimensionDataset {
             all_documents.truncate(max_documents);
         }
 
-        println!("  ✅ Loaded {} documents", all_documents.len());
+        tracing::info!("  ✅ Loaded {} documents", all_documents.len());
 
         // Create diverse queries
         let queries = vec![
@@ -161,7 +162,7 @@ fn benchmark_dimension(
     dataset: &MultiDimensionDataset,
     dimension: usize,
 ) -> Result<DimensionBenchmark, Box<dyn std::error::Error>> {
-    println!("\n📐 Benchmarking dimension = {}...", dimension);
+    tracing::info!("\n📐 Benchmarking dimension = {}...", dimension);
 
     // Create embedding manager
     let mut manager = EmbeddingManager::new();
@@ -177,7 +178,7 @@ fn benchmark_dimension(
     }
 
     // Generate embeddings
-    println!("  Generating embeddings...");
+    tracing::info!("  Generating embeddings...");
     let embed_start = Instant::now();
     let mut vectors = Vec::new();
     let mut vector_ids = Vec::new();
@@ -189,14 +190,14 @@ fn benchmark_dimension(
     }
 
     let embed_time = embed_start.elapsed();
-    println!(
+    tracing::info!(
         "    Generated {} embeddings in {:.2}s",
         vectors.len(),
         embed_time.as_secs_f64()
     );
 
     // Build index
-    println!("  Building HNSW index...");
+    tracing::info!("  Building HNSW index...");
     let build_start = Instant::now();
 
     let hnsw_config = OptimizedHnswConfig {
@@ -222,20 +223,20 @@ fn benchmark_dimension(
     index.optimize()?;
 
     let build_time_ms = build_start.elapsed().as_millis() as f64;
-    println!("    Index built in {:.2}ms", build_time_ms);
+    tracing::info!("    Index built in {:.2}ms", build_time_ms);
 
     // Measure memory
     let memory_stats = index.memory_stats();
     let memory_mb = memory_stats.total_memory_bytes as f64 / 1_048_576.0;
     let memory_per_vector = memory_stats.total_memory_bytes as f64 / vectors.len() as f64;
 
-    println!(
+    tracing::info!(
         "    Memory: {:.2} MB ({:.0} bytes/vector)",
         memory_mb, memory_per_vector
     );
 
     // Benchmark search performance
-    println!("  Benchmarking search...");
+    tracing::info!("  Benchmarking search...");
     let mut search_latencies = Vec::new();
     let search_start = Instant::now();
     let num_queries = 100; // Multiple runs per query
@@ -262,10 +263,10 @@ fn benchmark_dimension(
     let p95_search_us = percentile(&search_latencies, 95);
     let qps = num_queries as f64 / total_search_time;
 
-    println!("    Search: {:.0} μs avg, {:.2} QPS", avg_search_us, qps);
+    tracing::info!("    Search: {:.0} μs avg, {:.2} QPS", avg_search_us, qps);
 
     // Measure quality
-    println!("  Evaluating search quality...");
+    tracing::info!("  Evaluating search quality...");
     let mut query_results = Vec::new();
 
     for (query_idx, query) in dataset.queries.iter().enumerate() {
@@ -285,7 +286,7 @@ fn benchmark_dimension(
 
     let eval_metrics = evaluate_search_quality(query_results, 10);
 
-    println!(
+    tracing::info!(
         "    Quality: MAP={:.4}, Recall@10={:.4}",
         eval_metrics.mean_average_precision,
         eval_metrics.recall_at_k.get(9).copied().unwrap_or(0.0)
@@ -594,14 +595,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN)
         .init();
 
-    println!("🚀 Vectorizer Embedding Dimension Benchmark");
-    println!("===========================================\n");
+    tracing::info!("🚀 Vectorizer Embedding Dimension Benchmark");
+    tracing::info!("===========================================\n");
 
     // Load dataset
     let max_docs = 5000; // Reasonable size for multiple dimension tests
     let dataset = MultiDimensionDataset::load_from_workspace(max_docs)?;
 
-    println!(
+    tracing::info!(
         "📊 Dataset: {} documents, {} queries\n",
         dataset.documents.len(),
         dataset.queries.len()
@@ -610,24 +611,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test dimensions
     let dimensions = vec![64, 128, 256, 384, 512, 768, 1024, 1536];
 
-    println!("🧪 Testing dimensions: {:?}\n", dimensions);
+    tracing::info!("🧪 Testing dimensions: {:?}\n", dimensions);
 
     let mut results = Vec::new();
 
     for &dimension in &dimensions {
         match benchmark_dimension(&dataset, dimension) {
             Ok(result) => {
-                println!("  ✅ Completed: {}D", dimension);
+                tracing::info!("  ✅ Completed: {}D", dimension);
                 results.push(result);
             }
             Err(e) => {
-                println!("  ❌ Error for {}D: {}", dimension, e);
+                tracing::info!("  ❌ Error for {}D: {}", dimension, e);
             }
         }
     }
 
     // Generate report
-    println!("\n📊 Generating comprehensive report...");
+    tracing::info!("\n📊 Generating comprehensive report...");
     let md_report = generate_report(&results, dataset.documents.len());
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -640,14 +641,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let report_path = report_dir.join(format!("dimension_comparison_{}.md", timestamp));
     fs::write(&report_path, &md_report)?;
 
-    println!("✅ Markdown report saved to: {}", report_path.display());
+    tracing::info!("✅ Markdown report saved to: {}", report_path.display());
 
     // Save JSON
     let json_path = report_dir.join(format!("dimension_comparison_{}.json", timestamp));
     let json_data = serde_json::to_string_pretty(&results)?;
     fs::write(&json_path, json_data)?;
 
-    println!("✅ JSON data saved to: {}", json_path.display());
+    tracing::info!("✅ JSON data saved to: {}", json_path.display());
 
     // Find reference and best performers
     let reference = results
@@ -671,13 +672,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     // Print summary
-    println!("\n📈 DIMENSION COMPARISON SUMMARY");
-    println!("==============================");
-    println!(
+    tracing::info!("\n📈 DIMENSION COMPARISON SUMMARY");
+    tracing::info!("==============================");
+    tracing::info!(
         "{:<10} {:<12} {:<12} {:<12} {:<10} {:<10}",
         "Dimension", "Memory", "Search", "QPS", "MAP", "Recall@10"
     );
-    println!("{}", "-".repeat(70));
+    tracing::info!("{}", "-".repeat(70));
 
     for result in &results {
         let quality_symbol = if result.quality_map >= reference.quality_map * 0.95 {
@@ -688,7 +689,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "❌"
         };
 
-        println!(
+        tracing::info!(
             "{:<10} {:<12} {:<12} {:<10} {:<10} {:<10}",
             format!("{}D", result.dimension),
             format!("{:.1}MB", result.memory_mb),
@@ -699,9 +700,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    println!("\n💡 Key Findings:");
+    tracing::info!("\n💡 Key Findings:");
 
-    println!(
+    tracing::info!(
         "  🏆 Best Quality: {}D (MAP: {:.4})",
         best_quality.dimension, best_quality.quality_map
     );
@@ -716,35 +717,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .unwrap();
 
-    println!(
+    tracing::info!(
         "  ⚡ Most Efficient: {}D ({:.4} MAP/MB)",
         most_efficient.dimension,
         most_efficient.quality_map / most_efficient.memory_mb
     );
 
     // Quality retention analysis
-    println!("\n  📊 Quality Retention vs 512D:");
+    tracing::info!("\n  📊 Quality Retention vs 512D:");
     for result in &results {
         let retention = (result.quality_map / reference.quality_map) * 100.0;
         let memory_saving =
             ((reference.memory_mb - result.memory_mb) / reference.memory_mb) * 100.0;
 
         if result.dimension < 512 {
-            println!(
+            tracing::info!(
                 "     {}D: {:.1}% quality, {:.1}% less memory",
                 result.dimension, retention, memory_saving
             );
         } else if result.dimension > 512 {
             let memory_cost =
                 ((result.memory_mb - reference.memory_mb) / reference.memory_mb) * 100.0;
-            println!(
+            tracing::info!(
                 "     {}D: {:.1}% quality, {:+.1}% more memory",
                 result.dimension, retention, memory_cost
             );
         }
     }
 
-    println!("\n  💡 Recommendation:");
+    tracing::info!("\n  💡 Recommendation:");
 
     // Score-based recommendation
     let mut scored: Vec<_> = results
@@ -766,20 +767,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    println!("     Use {}D for optimal balance", scored[0].0.dimension);
-    println!(
+    tracing::info!("     Use {}D for optimal balance", scored[0].0.dimension);
+    tracing::info!(
         "     - Quality: {:.1}% of best",
         (scored[0].0.quality_map / best_quality.quality_map) * 100.0
     );
-    println!(
+    tracing::info!(
         "     - Speed: {:.0} μs avg",
         scored[0].0.avg_search_latency_us
     );
-    println!("     - Memory: {:.2} MB", scored[0].0.memory_mb);
+    tracing::info!("     - Memory: {:.2} MB", scored[0].0.memory_mb);
 
-    println!("\n✅ Benchmark completed successfully!");
-    println!("📄 Full report: {}", report_path.display());
-    println!("📊 JSON data: {}", json_path.display());
+    tracing::info!("\n✅ Benchmark completed successfully!");
+    tracing::info!("📄 Full report: {}", report_path.display());
+    tracing::info!("📊 JSON data: {}", json_path.display());
 
     Ok(())
 }

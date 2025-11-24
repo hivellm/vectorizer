@@ -2,72 +2,73 @@
 //! This example demonstrates all core operations available in the SDK.
 
 use std::collections::HashMap;
+use tracing::{info, error, warn, debug};
 use vectorizer_sdk::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🦀 Vectorizer Rust SDK Basic Example");
-    println!("====================================");
+    tracing::info!("🦀 Vectorizer Rust SDK Basic Example");
+    tracing::info!("====================================");
 
     // Create client
     let client = VectorizerClient::new_default()?;
-    println!("✅ Client created successfully");
+    tracing::info!("✅ Client created successfully");
 
     let collection_name = "example-documents";
 
     // Health check
-    println!("\n🔍 Checking server health...");
+    tracing::info!("\n🔍 Checking server health...");
     match client.health_check().await {
         Ok(health) => {
-            println!("✅ Server status: {}", health.status);
-            println!("   Version: {}", health.version);
+            tracing::info!("✅ Server status: {}", health.status);
+            tracing::info!("   Version: {}", health.version);
             if let Some(collections) = health.collections {
-                println!("   Collections: {}", collections);
+                tracing::info!("   Collections: {}", collections);
             }
             if let Some(vectors) = health.total_vectors {
-                println!("   Total Vectors: {}", vectors);
+                tracing::info!("   Total Vectors: {}", vectors);
             }
         }
         Err(e) => {
-            println!("⚠️ Health check failed: {}", e);
+            tracing::info!("⚠️ Health check failed: {}", e);
         }
     }
 
     // List existing collections
-    println!("\n📋 Listing collections...");
+    tracing::info!("\n📋 Listing collections...");
     match client.list_collections().await {
         Ok(collections) => {
-            println!("📁 Found {} collections:", collections.len());
+            tracing::info!("📁 Found {} collections:", collections.len());
             for collection in collections.iter().take(5) {
-                println!(
+                tracing::info!(
                     "   - {} ({} vectors)",
                     collection.name, collection.vector_count
                 );
             }
         }
         Err(e) => {
-            println!("⚠️ Error listing collections: {}", e);
+            tracing::info!("⚠️ Error listing collections: {}", e);
         }
     }
 
     // Create a new collection
-    println!("\n🆕 Creating collection...");
+    tracing::info!("\n🆕 Creating collection...");
     match client
         .create_collection(collection_name, 384, Some(SimilarityMetric::Cosine))
         .await
     {
         Ok(collection) => {
-            println!("✅ Collection created: {}", collection.name);
-            println!("   Dimension: {}", collection.dimension);
-            println!("   Metric: {}", collection.metric);
+            tracing::info!("✅ Collection created: {}", collection.name);
+            tracing::info!("   Dimension: {}", collection.dimension);
+            tracing::info!("   Metric: {}", collection.metric);
         }
         Err(e) => {
-            println!("⚠️ Collection creation failed (may already exist): {}", e);
+            tracing::info!("⚠️ Collection creation failed (may already exist): {}", e);
         }
     }
 
     // Insert texts
-    println!("\n📥 Inserting texts...");
+    tracing::info!("\n📥 Inserting texts...");
     let texts = vec![
         BatchTextRequest {
             id: "doc_1".to_string(),
@@ -133,15 +134,15 @@ async fn main() -> Result<()> {
 
     match client.insert_texts(collection_name, texts).await {
         Ok(result) => {
-            println!("✅ Texts inserted: {}", result.inserted);
+            tracing::info!("✅ Texts inserted: {}", result.inserted);
         }
         Err(e) => {
-            println!("⚠️ Insert texts failed: {}", e);
+            tracing::info!("⚠️ Insert texts failed: {}", e);
         }
     }
 
     // Search for similar vectors
-    println!("\n🔍 Searching for similar vectors...");
+    tracing::info!("\n🔍 Searching for similar vectors...");
     match client
         .search_vectors(
             collection_name,
@@ -152,72 +153,72 @@ async fn main() -> Result<()> {
         .await
     {
         Ok(results) => {
-            println!("🎯 Search results:");
+            tracing::info!("🎯 Search results:");
             for (index, result) in results.results.iter().enumerate() {
-                println!("   {}. Score: {:.4}", index + 1, result.score);
+                tracing::info!("   {}. Score: {:.4}", index + 1, result.score);
                 if let Some(metadata) = &result.metadata {
                     if let Some(title) = metadata.get("title") {
-                        println!("      Title: {}", title);
+                        tracing::info!("      Title: {}", title);
                     }
                     if let Some(category) = metadata.get("category") {
-                        println!("      Category: {}", category);
+                        tracing::info!("      Category: {}", category);
                     }
                 }
             }
         }
         Err(e) => {
-            println!("⚠️ Search failed: {}", e);
+            tracing::info!("⚠️ Search failed: {}", e);
         }
     }
 
     // Generate embeddings
-    println!("\n🧠 Generating embeddings...");
+    tracing::info!("\n🧠 Generating embeddings...");
     match client
         .embed_text("artificial intelligence and machine learning", None)
         .await
     {
         Ok(embedding) => {
-            println!("✅ Embedding generated:");
-            println!("   Text: {}", embedding.text);
-            println!("   Model: {}", embedding.model);
-            println!("   Dimension: {}", embedding.dimension);
-            println!("   Provider: {}", embedding.provider);
+            tracing::info!("✅ Embedding generated:");
+            tracing::info!("   Text: {}", embedding.text);
+            tracing::info!("   Model: {}", embedding.model);
+            tracing::info!("   Dimension: {}", embedding.dimension);
+            tracing::info!("   Provider: {}", embedding.provider);
         }
         Err(e) => {
-            println!("⚠️ Embedding generation failed: {}", e);
+            tracing::info!("⚠️ Embedding generation failed: {}", e);
         }
     }
 
     // Get collection info
-    println!("\n📊 Getting collection information...");
+    tracing::info!("\n📊 Getting collection information...");
     match client.get_collection_info(collection_name).await {
         Ok(info) => {
-            println!("📈 Collection info:");
-            println!("   Name: {}", info.name);
-            println!("   Dimension: {}", info.dimension);
-            println!("   Vector count: {}", info.vector_count);
+            tracing::info!("📈 Collection info:");
+            tracing::info!("   Name: {}", info.name);
+            tracing::info!("   Dimension: {}", info.dimension);
+            tracing::info!("   Vector count: {}", info.vector_count);
             if let Some(size_bytes) = info.size_bytes {
-                println!("   Size: {} KB", size_bytes / 1024);
+                tracing::info!("   Size: {} KB", size_bytes / 1024);
             }
         }
         Err(e) => {
-            println!("⚠️ Get collection info failed: {}", e);
+            tracing::info!("⚠️ Get collection info failed: {}", e);
         }
     }
 
-    println!("\n🌐 All operations completed successfully!");
+    tracing::info!("\n🌐 All operations completed successfully!");
 
     // Clean up
-    println!("\n🧹 Cleaning up...");
+    tracing::info!("\n🧹 Cleaning up...");
     match client.delete_collection(collection_name).await {
         Ok(_) => {
-            println!("✅ Collection deleted");
+            tracing::info!("✅ Collection deleted");
         }
         Err(e) => {
-            println!("⚠️ Delete collection failed: {}", e);
+            tracing::info!("⚠️ Delete collection failed: {}", e);
         }
     }
 
-    println!("\n👋 Example completed!");
+    tracing::info!("\n👋 Example completed!");
     Ok(())
 }

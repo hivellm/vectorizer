@@ -1,3 +1,5 @@
+// Build scripts cannot use tracing - reverting to println!
+// use tracing::{info, error, warn, debug};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compile protobuf definitions with tonic-build
     // Using tonic-build 0.12 for stable API compatibility
@@ -27,15 +29,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Err(e) = res.compile() {
             eprintln!("Warning: Failed to compile Windows resource: {}", e);
         }
-    }
-
-    // Skip resource generation on MSVC to avoid CVT1100 duplicate resource error
-    // The winres crate can conflict with MSVC toolchain's default resource handling
-    #[cfg(all(target_os = "windows", target_env = "msvc"))]
-    {
-        println!(
-            "cargo:warning=Skipping winres resource generation on MSVC to avoid duplicate resource errors"
-        );
     }
 
     Ok(())

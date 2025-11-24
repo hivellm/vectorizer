@@ -3,27 +3,28 @@
 //! Measures throughput and efficiency of text normalization.
 
 use std::time::Instant;
+use tracing::{info, error, warn, debug};
 use vectorizer::normalization::{
     ContentType, ContentTypeDetector, NormalizationLevel, NormalizationPolicy, TextNormalizer,
 };
 
 fn main() {
-    println!("╔════════════════════════════════════════════════════════════════╗");
-    println!("║          Text Normalization Performance Benchmark             ║");
-    println!("╚════════════════════════════════════════════════════════════════╝\n");
+    tracing::info!("╔════════════════════════════════════════════════════════════════╗");
+    tracing::info!("║          Text Normalization Performance Benchmark             ║");
+    tracing::info!("╚════════════════════════════════════════════════════════════════╝\n");
 
     // Test data
     let test_samples = generate_test_samples();
 
     // Run benchmarks
     benchmark_content_type_detection(&test_samples);
-    println!();
+    tracing::info!();
     benchmark_normalization_levels(&test_samples);
-    println!();
+    tracing::info!();
     benchmark_throughput(&test_samples);
-    println!();
+    tracing::info!();
     benchmark_compression_ratios(&test_samples);
-    println!();
+    tracing::info!();
     benchmark_hash_performance(&test_samples);
 }
 
@@ -59,7 +60,7 @@ fn generate_test_samples() -> Vec<TestSample> {
             name: "Rust Code",
             content: r#"
 fn main() {
-    println!("Hello, world!");
+    tracing::info!("Hello, world!");
     let x = 42;
     let y = x * 2;
 }
@@ -84,7 +85,7 @@ This is a paragraph with **bold** and *italic* text.
 
 ```rust
 fn example() {
-    println!("code block");
+    tracing::info!("code block");
 }
 ```
 "#
@@ -100,9 +101,9 @@ fn example() {
 }
 
 fn benchmark_content_type_detection(samples: &[TestSample]) {
-    println!("┌─────────────────────────────────────────────────────────────┐");
-    println!("│               Content Type Detection Speed                  │");
-    println!("├─────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────┐");
+    tracing::info!("│               Content Type Detection Speed                  │");
+    tracing::info!("├─────────────────────────────────────────────────────────────┤");
 
     let detector = ContentTypeDetector::new();
 
@@ -117,22 +118,22 @@ fn benchmark_content_type_detection(samples: &[TestSample]) {
         let duration = start.elapsed();
         let ops_per_sec = iterations as f64 / duration.as_secs_f64();
 
-        println!(
+        tracing::info!(
             "│ {:30} │ {:>10.0} ops/s │",
             sample.name, ops_per_sec
         );
     }
 
-    println!("└─────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────┘");
 }
 
 fn benchmark_normalization_levels(samples: &[TestSample]) {
-    println!("┌─────────────────────────────────────────────────────────────────────────────┐");
-    println!("│                      Normalization Level Performance                        │");
-    println!("├─────────────────────────────────────────────────────────────────────────────┤");
-    println!("│ Sample                     │ Conservative │  Moderate   │ Aggressive │");
-    println!("│                            │    (μs)      │    (μs)     │   (μs)     │");
-    println!("├─────────────────────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────────────────────┐");
+    tracing::info!("│                      Normalization Level Performance                        │");
+    tracing::info!("├─────────────────────────────────────────────────────────────────────────────┤");
+    tracing::info!("│ Sample                     │ Conservative │  Moderate   │ Aggressive │");
+    tracing::info!("│                            │    (μs)      │    (μs)     │   (μs)     │");
+    tracing::info!("├─────────────────────────────────────────────────────────────────────────────┤");
 
     let levels = [
         NormalizationLevel::Conservative,
@@ -163,18 +164,18 @@ fn benchmark_normalization_levels(samples: &[TestSample]) {
             print!("│ {:>10} ", avg_micros);
         }
 
-        println!("│");
+        tracing::info!("│");
     }
 
-    println!("└─────────────────────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────────────────────┘");
 }
 
 fn benchmark_throughput(samples: &[TestSample]) {
-    println!("┌──────────────────────────────────────────────────────────────────┐");
-    println!("│                    Normalization Throughput                      │");
-    println!("├──────────────────────────────────────────────────────────────────┤");
-    println!("│ Sample                     │  Size (KB)  │  Throughput (MB/s)  │");
-    println!("├──────────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌──────────────────────────────────────────────────────────────────┐");
+    tracing::info!("│                    Normalization Throughput                      │");
+    tracing::info!("├──────────────────────────────────────────────────────────────────┤");
+    tracing::info!("│ Sample                     │  Size (KB)  │  Throughput (MB/s)  │");
+    tracing::info!("├──────────────────────────────────────────────────────────────────┤");
 
     let normalizer = TextNormalizer::default();
 
@@ -192,22 +193,22 @@ fn benchmark_throughput(samples: &[TestSample]) {
         let total_bytes = (sample.content.len() * iterations) as f64;
         let throughput_mbps = (total_bytes / duration.as_secs_f64()) / (1024.0 * 1024.0);
 
-        println!(
+        tracing::info!(
             "│ {:27} │  {:>8.2}   │      {:>8.2}        │",
             sample.name, size_kb, throughput_mbps
         );
     }
 
-    println!("└──────────────────────────────────────────────────────────────────┘");
+    tracing::info!("└──────────────────────────────────────────────────────────────────┘");
 }
 
 fn benchmark_compression_ratios(samples: &[TestSample]) {
-    println!("┌───────────────────────────────────────────────────────────────────────┐");
-    println!("│                      Storage Reduction Analysis                       │");
-    println!("├───────────────────────────────────────────────────────────────────────┤");
-    println!("│ Sample                │ Original │ Normalized │ Reduction │ Savings  │");
-    println!("│                       │  (bytes) │   (bytes)  │     (%)   │  (bytes) │");
-    println!("├───────────────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌───────────────────────────────────────────────────────────────────────┐");
+    tracing::info!("│                      Storage Reduction Analysis                       │");
+    tracing::info!("├───────────────────────────────────────────────────────────────────────┤");
+    tracing::info!("│ Sample                │ Original │ Normalized │ Reduction │ Savings  │");
+    tracing::info!("│                       │  (bytes) │   (bytes)  │     (%)   │  (bytes) │");
+    tracing::info!("├───────────────────────────────────────────────────────────────────────┤");
 
     let normalizer = TextNormalizer::default();
 
@@ -218,7 +219,7 @@ fn benchmark_compression_ratios(samples: &[TestSample]) {
             / result.metadata.original_size as f64)
             * 100.0;
 
-        println!(
+        tracing::info!(
             "│ {:22} │ {:>8} │ {:>10} │ {:>8.1}  │ {:>8} │",
             sample.name,
             result.metadata.original_size,
@@ -228,15 +229,15 @@ fn benchmark_compression_ratios(samples: &[TestSample]) {
         );
     }
 
-    println!("└───────────────────────────────────────────────────────────────────────┘");
+    tracing::info!("└───────────────────────────────────────────────────────────────────────┘");
 }
 
 fn benchmark_hash_performance(samples: &[TestSample]) {
-    println!("┌───────────────────────────────────────────────────────┐");
-    println!("│           Content Hashing Performance                │");
-    println!("├───────────────────────────────────────────────────────┤");
-    println!("│ Sample                │ Size (KB) │ Throughput (MB/s) │");
-    println!("├───────────────────────────────────────────────────────┤");
+    tracing::info!("┌───────────────────────────────────────────────────────┐");
+    tracing::info!("│           Content Hashing Performance                │");
+    tracing::info!("├───────────────────────────────────────────────────────┤");
+    tracing::info!("│ Sample                │ Size (KB) │ Throughput (MB/s) │");
+    tracing::info!("├───────────────────────────────────────────────────────┤");
 
     let normalizer = TextNormalizer::default();
 
@@ -260,12 +261,12 @@ fn benchmark_hash_performance(samples: &[TestSample]) {
         let total_bytes = (normalized.text.len() * iterations) as f64;
         let throughput_mbps = (total_bytes / duration.as_secs_f64()) / (1024.0 * 1024.0);
 
-        println!(
+        tracing::info!(
             "│ {:22} │ {:>8.2}  │      {:>8.2}      │",
             sample.name, size_kb, throughput_mbps
         );
     }
 
-    println!("└───────────────────────────────────────────────────────┘");
+    tracing::info!("└───────────────────────────────────────────────────────┘");
 }
 

@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use tokio::time::timeout;
 use tonic::transport::Channel;
+use tracing::info;
 use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer::grpc::vectorizer::*;
 // Import protobuf types
@@ -41,7 +42,7 @@ fn get_grpc_address() -> String {
 async fn create_real_client() -> Result<VectorizerServiceClient<Channel>, Box<dyn std::error::Error>>
 {
     let addr = get_grpc_address();
-    println!("🔌 Connecting to gRPC server at: {addr}");
+    info!("🔌 Connecting to gRPC server at: {addr}");
     let client = VectorizerServiceClient::connect(addr).await?;
     Ok(client)
 }
@@ -75,9 +76,9 @@ async fn test_real_server_health_check() {
         .unwrap();
 
     let health = response.into_inner();
-    println!("✅ Server Health: {}", health.status);
-    println!("   Version: {}", health.version);
-    println!("   Timestamp: {}", health.timestamp);
+    info!("✅ Server Health: {}", health.status);
+    info!("   Version: {}", health.version);
+    info!("   Timestamp: {}", health.timestamp);
 
     assert_eq!(health.status, "healthy");
     assert!(!health.version.is_empty());
@@ -96,11 +97,11 @@ async fn test_real_server_stats() {
         .unwrap();
 
     let stats = response.into_inner();
-    println!("✅ Server Stats:");
-    println!("   Collections: {}", stats.collections_count);
-    println!("   Total Vectors: {}", stats.total_vectors);
-    println!("   Uptime: {}s", stats.uptime_seconds);
-    println!("   Version: {}", stats.version);
+    info!("✅ Server Stats:");
+    info!("   Collections: {}", stats.collections_count);
+    info!("   Total Vectors: {}", stats.total_vectors);
+    info!("   Uptime: {}s", stats.uptime_seconds);
+    info!("   Version: {}", stats.version);
 
     assert!(!stats.version.is_empty());
     assert!(stats.uptime_seconds >= 0);
@@ -118,12 +119,12 @@ async fn test_real_server_list_collections() {
         .unwrap();
 
     let collections = response.into_inner().collection_names;
-    println!("✅ Found {} collections on server", collections.len());
+    info!("✅ Found {} collections on server", collections.len());
     for (i, name) in collections.iter().take(10).enumerate() {
-        println!("   {}. {name}", i + 1);
+        info!("   {}. {name}", i + 1);
     }
     if collections.len() > 10 {
-        println!("   ... and {} more", collections.len() - 10);
+        info!("   ... and {} more", collections.len() - 10);
     }
 }
 
@@ -133,7 +134,7 @@ async fn test_real_server_create_collection() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_test");
-    println!("📝 Creating collection: {collection_name}");
+    info!("📝 Creating collection: {collection_name}");
 
     let request = tonic::Request::new(CreateCollectionRequest {
         name: collection_name.clone(),
@@ -157,7 +158,7 @@ async fn test_real_server_create_collection() {
         .unwrap();
 
     let result = response.into_inner();
-    println!("✅ Create Collection Result: {}", result.message);
+    info!("✅ Create Collection Result: {}", result.message);
     assert!(result.success);
 
     // Verify it exists
@@ -179,7 +180,7 @@ async fn test_real_server_insert_and_get() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_insert");
-    println!("📝 Testing insert/get on collection: {collection_name}");
+    info!("📝 Testing insert/get on collection: {collection_name}");
 
     // Create collection
     let create_request = tonic::Request::new(CreateCollectionRequest {
@@ -235,7 +236,7 @@ async fn test_real_server_insert_and_get() {
     .expect("Insert timed out")
     .unwrap();
     assert!(insert_response.into_inner().success);
-    println!("✅ Vector inserted successfully");
+    info!("✅ Vector inserted successfully");
 
     // Get vector
     let get_request = tonic::Request::new(GetVectorRequest {
@@ -249,10 +250,10 @@ async fn test_real_server_insert_and_get() {
         .unwrap();
 
     let vector = get_response.into_inner();
-    println!("✅ Vector retrieved:");
-    println!("   ID: {}", vector.vector_id);
-    println!("   Dimension: {}", vector.data.len());
-    println!("   Payload keys: {}", vector.payload.len());
+    info!("✅ Vector retrieved:");
+    info!("   ID: {}", vector.vector_id);
+    info!("   Dimension: {}", vector.data.len());
+    info!("   Payload keys: {}", vector.payload.len());
 
     assert_eq!(vector.vector_id, "vec1");
     assert_eq!(vector.data.len(), 128);
@@ -265,7 +266,7 @@ async fn test_real_server_search() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_search");
-    println!("📝 Testing search on collection: {collection_name}");
+    info!("📝 Testing search on collection: {collection_name}");
 
     // Create collection
     let create_request = tonic::Request::new(CreateCollectionRequest {
@@ -308,7 +309,7 @@ async fn test_real_server_search() {
         .unwrap()
         .unwrap();
     }
-    println!("✅ Inserted 5 vectors");
+    info!("✅ Inserted 5 vectors");
 
     // Search
     let query = create_test_vector("query", 1, 128);
@@ -326,9 +327,9 @@ async fn test_real_server_search() {
         .unwrap();
 
     let results = search_response.into_inner().results;
-    println!("✅ Search returned {} results:", results.len());
+    info!("✅ Search returned {} results:", results.len());
     for (i, result) in results.iter().enumerate() {
-        println!("   {}. {} (score: {:.4})", i + 1, result.id, result.score);
+        info!("   {}. {} (score: {:.4})", i + 1, result.id, result.score);
     }
 
     assert!(!results.is_empty());
@@ -341,7 +342,7 @@ async fn test_real_server_streaming_bulk_insert() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_bulk");
-    println!("📝 Testing bulk insert on collection: {collection_name}");
+    info!("📝 Testing bulk insert on collection: {collection_name}");
 
     // Create collection
     let create_request = tonic::Request::new(CreateCollectionRequest {
@@ -391,11 +392,11 @@ async fn test_real_server_streaming_bulk_insert() {
         .unwrap();
 
     let result = response.into_inner();
-    println!("✅ Bulk Insert Result:");
-    println!("   Inserted: {}", result.inserted_count);
-    println!("   Failed: {}", result.failed_count);
+    info!("✅ Bulk Insert Result:");
+    info!("   Inserted: {}", result.inserted_count);
+    info!("   Failed: {}", result.failed_count);
     if !result.errors.is_empty() {
-        println!("   Errors: {:?}", result.errors);
+        info!("   Errors: {:?}", result.errors);
     }
 
     assert_eq!(result.inserted_count, 20);
@@ -410,7 +411,7 @@ async fn test_real_server_batch_search() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_batch");
-    println!("📝 Testing batch search on collection: {collection_name}");
+    info!("📝 Testing batch search on collection: {collection_name}");
 
     // Create collection and insert vectors
     let create_request = tonic::Request::new(CreateCollectionRequest {
@@ -483,12 +484,12 @@ async fn test_real_server_batch_search() {
         .unwrap();
 
     let batch_results = batch_response.into_inner().results;
-    println!(
+    info!(
         "✅ Batch Search returned {} result sets",
         batch_results.len()
     );
     for (i, result_set) in batch_results.iter().enumerate() {
-        println!("   Query {}: {} results", i + 1, result_set.results.len());
+        info!("   Query {}: {} results", i + 1, result_set.results.len());
     }
 
     assert_eq!(batch_results.len(), 2);
@@ -502,7 +503,7 @@ async fn test_real_server_update_and_delete() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_update");
-    println!("📝 Testing update/delete on collection: {collection_name}");
+    info!("📝 Testing update/delete on collection: {collection_name}");
 
     // Create collection
     let create_request = tonic::Request::new(CreateCollectionRequest {
@@ -543,7 +544,7 @@ async fn test_real_server_update_and_delete() {
     .await
     .unwrap()
     .unwrap();
-    println!("✅ Vector inserted");
+    info!("✅ Vector inserted");
 
     // Update
     let updated_data = create_test_vector("vec1", 100, 128);
@@ -564,7 +565,7 @@ async fn test_real_server_update_and_delete() {
     .expect("Update timed out")
     .unwrap();
     assert!(update_response.into_inner().success);
-    println!("✅ Vector updated");
+    info!("✅ Vector updated");
 
     // Verify update
     let get_request = tonic::Request::new(GetVectorRequest {
@@ -577,7 +578,7 @@ async fn test_real_server_update_and_delete() {
         .unwrap();
     let vector = get_response.into_inner();
     assert!(vector.payload.contains_key("updated"));
-    println!("✅ Update verified");
+    info!("✅ Update verified");
 
     // Delete
     let delete_request = tonic::Request::new(DeleteVectorRequest {
@@ -592,7 +593,7 @@ async fn test_real_server_update_and_delete() {
     .expect("Delete timed out")
     .unwrap();
     assert!(delete_response.into_inner().success);
-    println!("✅ Vector deleted");
+    info!("✅ Vector deleted");
 
     // Verify deletion
     let get_request = tonic::Request::new(GetVectorRequest {
@@ -601,7 +602,7 @@ async fn test_real_server_update_and_delete() {
     });
     let get_response = timeout(Duration::from_secs(10), client.get_vector(get_request)).await;
     assert!(get_response.is_err() || get_response.unwrap().is_err());
-    println!("✅ Deletion verified");
+    info!("✅ Deletion verified");
 }
 
 /// Test 10: Get Collection Info on Real Server
@@ -610,7 +611,7 @@ async fn test_real_server_get_collection_info() {
     let mut client = create_real_client().await.unwrap();
 
     let collection_name = unique_collection_name("s2s_info");
-    println!("📝 Testing collection info on: {collection_name}");
+    info!("📝 Testing collection info on: {collection_name}");
 
     // Create collection
     let create_request = tonic::Request::new(CreateCollectionRequest {
@@ -667,12 +668,12 @@ async fn test_real_server_get_collection_info() {
     .unwrap();
 
     let info = info_response.into_inner().info.unwrap();
-    println!("✅ Collection Info:");
-    println!("   Name: {}", info.name);
-    println!("   Vector Count: {}", info.vector_count);
-    println!("   Dimension: {}", info.config.as_ref().unwrap().dimension);
-    println!("   Created: {}", info.created_at);
-    println!("   Updated: {}", info.updated_at);
+    info!("✅ Collection Info:");
+    info!("   Name: {}", info.name);
+    info!("   Vector Count: {}", info.vector_count);
+    info!("   Dimension: {}", info.config.as_ref().unwrap().dimension);
+    info!("   Created: {}", info.created_at);
+    info!("   Updated: {}", info.updated_at);
 
     assert_eq!(info.name, collection_name);
     assert_eq!(info.vector_count, 3);

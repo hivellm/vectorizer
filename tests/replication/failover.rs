@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
 use tokio::time::sleep;
+use tracing::info;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, StorageType, Vector,
@@ -116,7 +117,7 @@ async fn test_replica_reconnect_after_disconnect() {
     // Simulate disconnect and reconnect
     // Note: In a real scenario, we would drop the replica and create a new one
     drop(replica);
-    println!("Replica disconnected");
+    info!("Replica disconnected");
 
     sleep(Duration::from_secs(2)).await;
 
@@ -135,7 +136,7 @@ async fn test_replica_reconnect_after_disconnect() {
     // Verify replica caught up
     let new_collection = new_replica_store.get_collection("test").unwrap();
     assert_eq!(new_collection.vector_count(), 2);
-    println!("✅ Replica successfully reconnected and caught up!");
+    info!("✅ Replica successfully reconnected and caught up!");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -198,7 +199,7 @@ async fn test_partial_sync_after_brief_disconnect() {
     // Should use partial sync (offset still in log)
     let new_collection = new_replica_store.get_collection("test").unwrap();
     assert_eq!(new_collection.vector_count(), 15);
-    println!("✅ Partial sync successful!");
+    info!("✅ Partial sync successful!");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -277,7 +278,7 @@ async fn test_full_sync_when_offset_too_old() {
     // Verify all data synced via snapshot
     let collection = new_replica_store.get_collection("test").unwrap();
     assert_eq!(collection.vector_count(), 20);
-    println!("✅ Full sync triggered successfully!");
+    info!("✅ Full sync triggered successfully!");
 }
 
 // ============================================================================
@@ -308,7 +309,7 @@ async fn test_multiple_replicas_recovery() {
     for i in 0..3 {
         let (replica, store) = create_replica(master_addr).await;
         replicas.push((replica, store));
-        println!("Replica {i} created");
+        info!("Replica {i} created");
         sleep(Duration::from_millis(100)).await;
     }
 
@@ -330,14 +331,14 @@ async fn test_multiple_replicas_recovery() {
     for (i, (_replica, store)) in replicas.iter().enumerate() {
         let collection = store.get_collection("test").unwrap();
         assert_eq!(collection.vector_count(), 5);
-        println!("Replica {i} verified: 5 vectors");
+        info!("Replica {i} verified: 5 vectors");
     }
 
     // Disconnect all replicas
     for (replica, _) in replicas {
         drop(replica);
     }
-    println!("All replicas disconnected");
+    info!("All replicas disconnected");
 
     sleep(Duration::from_millis(200)).await;
 
@@ -356,7 +357,7 @@ async fn test_multiple_replicas_recovery() {
     for i in 0..3 {
         let (_replica, store) = create_replica(master_addr).await;
         new_replicas.push(store);
-        println!("New replica {i} created");
+        info!("New replica {i} created");
         sleep(Duration::from_millis(100)).await;
     }
 
@@ -366,10 +367,10 @@ async fn test_multiple_replicas_recovery() {
     for (i, store) in new_replicas.iter().enumerate() {
         let collection = store.get_collection("test").unwrap();
         assert_eq!(collection.vector_count(), 10);
-        println!("New replica {i} caught up: 10 vectors");
+        info!("New replica {i} caught up: 10 vectors");
     }
 
-    println!("✅ All replicas recovered successfully!");
+    info!("✅ All replicas recovered successfully!");
 }
 
 // ============================================================================
@@ -464,5 +465,5 @@ async fn test_data_consistency_after_multiple_disconnects() {
     replica_ids.sort();
 
     assert_eq!(master_ids, replica_ids);
-    println!("✅ Data consistency maintained after multiple disconnects!");
+    info!("✅ Data consistency maintained after multiple disconnects!");
 }

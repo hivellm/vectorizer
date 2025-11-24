@@ -3,6 +3,7 @@
 #![allow(clippy::uninlined_format_args)]
 
 use std::fs::{self, File};
+use tracing::{info, error, warn, debug};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -23,16 +24,16 @@ struct BenchmarkResult {
 
 /// Run all storage benchmarks
 fn main() {
-    println!("🚀 Storage Format Benchmark");
-    println!("=====================================\n");
+    tracing::info!("🚀 Storage Format Benchmark");
+    tracing::info!("=====================================\n");
 
     let results = run_benchmarks();
 
-    println!("\n📊 Results Summary:");
-    println!("=====================================");
+    tracing::info!("\n📊 Results Summary:");
+    tracing::info!("=====================================");
     print_results_table(&results);
 
-    println!("\n📈 Analysis:");
+    tracing::info!("\n📈 Analysis:");
     analyze_results(&results);
 }
 
@@ -48,7 +49,7 @@ fn run_benchmarks() -> Vec<BenchmarkResult> {
     ];
 
     for (size, label) in test_sizes {
-        println!("\n📦 Testing {} dataset:", label);
+        tracing::info!("\n📦 Testing {} dataset:", label);
 
         // Legacy format
         let legacy_result = benchmark_legacy_format(size);
@@ -214,14 +215,14 @@ fn estimate_memory_usage(vectors: &[Vector]) -> f64 {
 
 /// Print results as a formatted table
 fn print_results_table(results: &[BenchmarkResult]) {
-    println!(
+    tracing::info!(
         "\n{:<25} {:>12} {:>12} {:>12} {:>12} {:>10}",
         "Test", "Load (ms)", "Save (ms)", "Size (MB)", "Memory (MB)", "Compress"
     );
-    println!("{}", "-".repeat(95));
+    tracing::info!("{}", "-".repeat(95));
 
     for result in results {
-        println!(
+        tracing::info!(
             "{:<25} {:>12} {:>12} {:>12.2} {:>12.2} {:>9.1}%",
             result.name,
             result.load_time_ms,
@@ -248,8 +249,8 @@ fn analyze_results(results: &[BenchmarkResult]) {
         return;
     }
 
-    println!("\n📊 Performance Comparison:");
-    println!("=====================================");
+    tracing::info!("\n📊 Performance Comparison:");
+    tracing::info!("=====================================");
 
     for (legacy, compact) in legacy_results.iter().zip(compact_results.iter()) {
         let load_improvement = ((legacy.load_time_ms as f64 - compact.load_time_ms as f64)
@@ -263,8 +264,8 @@ fn analyze_results(results: &[BenchmarkResult]) {
         let size_reduction =
             ((legacy.storage_size_mb - compact.storage_size_mb) / legacy.storage_size_mb) * 100.0;
 
-        println!("\n{}", legacy.name.split(" ").next().unwrap_or("Test"));
-        println!(
+        tracing::info!("\n{}", legacy.name.split(" ").next().unwrap_or("Test"));
+        tracing::info!(
             "  Load time: {}{:.1}%",
             if load_improvement > 0.0 {
                 "✅ "
@@ -273,7 +274,7 @@ fn analyze_results(results: &[BenchmarkResult]) {
             },
             load_improvement.abs()
         );
-        println!(
+        tracing::info!(
             "  Save time: {}{:.1}%",
             if save_improvement > 0.0 {
                 "✅ "
@@ -282,15 +283,15 @@ fn analyze_results(results: &[BenchmarkResult]) {
             },
             save_improvement.abs()
         );
-        println!("  Storage size: ✅ {:.1}% reduction", size_reduction);
-        println!(
+        tracing::info!("  Storage size: ✅ {:.1}% reduction", size_reduction);
+        tracing::info!(
             "  Compression ratio: {:.1}%",
             compact.compression_ratio * 100.0
         );
     }
 
     // Overall recommendation
-    println!("\n💡 Recommendation:");
+    tracing::info!("\n💡 Recommendation:");
     let avg_size_reduction: f64 = legacy_results
         .iter()
         .zip(compact_results.iter())
@@ -299,22 +300,22 @@ fn analyze_results(results: &[BenchmarkResult]) {
         / legacy_results.len() as f64;
 
     if avg_size_reduction > 30.0 {
-        println!(
+        tracing::info!(
             "  ✅ .vecdb format provides significant space savings ({:.1}% reduction)",
             avg_size_reduction
         );
-        println!("  ✅ Recommended for production use");
+        tracing::info!("  ✅ Recommended for production use");
     } else if avg_size_reduction > 10.0 {
-        println!(
+        tracing::info!(
             "  ⚠️  .vecdb format provides moderate space savings ({:.1}% reduction)",
             avg_size_reduction
         );
-        println!("  ℹ️  Consider for large datasets");
+        tracing::info!("  ℹ️  Consider for large datasets");
     } else {
-        println!(
+        tracing::info!(
             "  ℹ️  .vecdb format provides minimal space savings ({:.1}% reduction)",
             avg_size_reduction
         );
-        println!("  ℹ️  Use based on other benefits (snapshots, portability)");
+        tracing::info!("  ℹ️  Use based on other benefits (snapshots, portability)");
     }
 }

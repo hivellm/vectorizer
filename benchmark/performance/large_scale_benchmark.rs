@@ -10,6 +10,7 @@
 //!   cargo run --release --bin large_scale_benchmark -- [vector_count]
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -37,7 +38,7 @@ impl BinaryQuantizer {
         let count = vectors.iter().map(|v| v.len()).sum::<usize>();
 
         self.threshold = total / count as f32;
-        println!("  Binary threshold (mean): {:.6}", self.threshold);
+        tracing::info!("  Binary threshold (mean): {:.6}", self.threshold);
     }
 
     pub fn encode(&self, vector: &[f32]) -> Vec<u8> {
@@ -105,7 +106,7 @@ impl ProductQuantizer {
     }
 
     pub fn train(&mut self, vectors: &[Vec<f32>]) {
-        println!(
+        tracing::info!(
             "  Training PQ: {} subq, {} centroids, {} training vectors",
             self.n_subquantizers,
             self.n_centroids,
@@ -129,7 +130,7 @@ impl ProductQuantizer {
             self.codebooks.push(centroids);
 
             if sq_idx % 2 == 0 {
-                println!(
+                tracing::info!(
                     "    Trained subquantizer {}/{}",
                     sq_idx + 1,
                     self.n_subquantizers
@@ -263,7 +264,7 @@ impl ScalarQuantizer {
                 self.max_val = self.max_val.max(val);
             }
         }
-        println!("  SQ range: [{:.6}, {:.6}]", self.min_val, self.max_val);
+        tracing::info!("  SQ range: [{:.6}, {:.6}]", self.min_val, self.max_val);
     }
 
     pub fn encode(&self, vector: &[f32]) -> Vec<u8> {
@@ -352,7 +353,7 @@ fn create_mock_documents(path: &str, count: usize) -> Vec<DocumentChunk> {
 async fn load_massive_dataset(
     target_size: usize,
 ) -> Result<(Vec<String>, Vec<String>, Vec<HashSet<String>>), Box<dyn std::error::Error>> {
-    println!("📂 Loading LARGE dataset (target: {} docs)...", target_size);
+    tracing::info!("📂 Loading LARGE dataset (target: {} docs)...", target_size);
 
     let workspace_paths = vec![
         "../gov",
@@ -376,7 +377,7 @@ async fn load_massive_dataset(
             continue;
         }
 
-        println!("  Loading from {}...", path);
+        tracing::info!("  Loading from {}...", path);
 
         let config = LoaderConfig {
             max_chunk_size: 500, // Smaller chunks = more vectors
@@ -398,7 +399,7 @@ async fn load_massive_dataset(
 
         // For benchmark purposes, create mock documents
         let mock_docs = create_mock_documents(path, 100);
-        println!("    Loaded {} chunks", mock_docs.len());
+        tracing::info!("    Loaded {} chunks", mock_docs.len());
         all_documents.extend(mock_docs.into_iter().map(|chunk| chunk.content));
 
         if all_documents.len() >= target_size {
@@ -408,7 +409,7 @@ async fn load_massive_dataset(
 
     // If still not enough, duplicate documents
     if all_documents.len() < target_size {
-        println!("  📊 Duplicating documents to reach target size...");
+        tracing::info!("  📊 Duplicating documents to reach target size...");
         let original_len = all_documents.len();
         let needed = target_size - original_len;
 
@@ -419,7 +420,7 @@ async fn load_massive_dataset(
 
     all_documents.truncate(target_size);
 
-    println!("  ✅ Final dataset: {} documents\n", all_documents.len());
+    tracing::info!("  ✅ Final dataset: {} documents\n", all_documents.len());
 
     // Create realistic queries
     let queries = vec![
@@ -479,7 +480,7 @@ fn benchmark_at_scale(
     dimension: usize,
     quantization: &str,
 ) -> Result<ScaleBenchmark, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "\n🔬 Benchmarking: {} docs, {}D, {}",
         documents.len(),
         dimension,
@@ -487,7 +488,7 @@ fn benchmark_at_scale(
     );
 
     // Generate embeddings
-    println!("  Step 1: Generating embeddings...");
+    tracing::info!("  Step 1: Generating embeddings...");
     let embed_start = Instant::now();
 
     let mut manager = EmbeddingManager::new();
@@ -510,17 +511,17 @@ fn benchmark_at_scale(
         vector_ids.push(format!("doc_{}", idx));
 
         if (idx + 1) % 10000 == 0 {
-            println!("    Generated {}/{} embeddings", idx + 1, documents.len());
+            tracing::info!("    Generated {}/{} embeddings", idx + 1, documents.len());
         }
     }
 
-    println!(
+    tracing::info!(
         "    ✅ Embeddings: {:.2}s",
         embed_start.elapsed().as_secs_f64()
     );
 
     // Apply quantization
-    println!("  Step 2: Applying quantization...");
+    tracing::info!("  Step 2: Applying quantization...");
     let quant_start = Instant::now();
 
     let (final_vectors, memory_mb, compression_ratio) = match quantization {
@@ -579,14 +580,14 @@ fn benchmark_at_scale(
         _ => return Err("Unknown quantization".into()),
     };
 
-    println!(
+    tracing::info!(
         "    ✅ Quantization: {:.2}s, {:.2}x compression",
         quant_start.elapsed().as_secs_f64(),
         compression_ratio
     );
 
     // Build index
-    println!("  Step 3: Building HNSW index...");
+    tracing::info!("  Step 3: Building HNSW index...");
     let build_start = Instant::now();
 
     let hnsw_config = OptimizedHnswConfig {
@@ -612,14 +613,14 @@ fn benchmark_at_scale(
     index.optimize()?;
 
     let build_time_s = build_start.elapsed().as_secs_f64();
-    println!(
+    tracing::info!(
         "    ✅ Index built: {:.2}s ({:.0} vectors/sec)",
         build_time_s,
         documents.len() as f64 / build_time_s
     );
 
     // Benchmark search
-    println!("  Step 4: Benchmarking search...");
+    tracing::info!("  Step 4: Benchmarking search...");
     let mut search_latencies = Vec::new();
 
     // Warmup
@@ -641,10 +642,10 @@ fn benchmark_at_scale(
     let avg_latency_ms = search_latencies.iter().sum::<f64>() / search_latencies.len() as f64;
     let qps = 1000.0 / avg_latency_ms;
 
-    println!("    ✅ Search: {:.2}ms avg, {:.0} QPS", avg_latency_ms, qps);
+    tracing::info!("    ✅ Search: {:.2}ms avg, {:.0} QPS", avg_latency_ms, qps);
 
     // Evaluate quality
-    println!("  Step 5: Evaluating quality...");
+    tracing::info!("  Step 5: Evaluating quality...");
     let mut query_results = Vec::new();
 
     for (query_idx, query) in queries.iter().enumerate() {
@@ -664,7 +665,7 @@ fn benchmark_at_scale(
 
     let eval = evaluate_search_quality(query_results, 10);
 
-    println!(
+    tracing::info!(
         "    ✅ Quality: MAP={:.4}, Recall@10={:.4}",
         eval.mean_average_precision,
         eval.recall_at_k.get(9).copied().unwrap_or(0.0)
@@ -692,8 +693,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN)
         .init();
 
-    println!("🚀 Large Scale Vectorizer Benchmark");
-    println!("===================================\n");
+    tracing::info!("🚀 Large Scale Vectorizer Benchmark");
+    tracing::info!("===================================\n");
 
     // Parse vector count from args
     let args: Vec<String> = std::env::args().collect();
@@ -703,15 +704,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         100_000 // Default: 100K vectors
     };
 
-    println!("🎯 Target: {} vectors", vector_count);
-    println!("📊 This will test REAL performance at scale\n");
+    tracing::info!("🎯 Target: {} vectors", vector_count);
+    tracing::info!("📊 This will test REAL performance at scale\n");
 
     // Load data
     let (documents, queries, ground_truth) = load_massive_dataset(vector_count).await?;
 
-    println!("\n🧪 Testing configurations:");
-    println!("  Dimension: 384D (from previous benchmarks)");
-    println!("  Quantizations: Baseline, SQ, PQ, Binary\n");
+    tracing::info!("\n🧪 Testing configurations:");
+    tracing::info!("  Dimension: 384D (from previous benchmarks)");
+    tracing::info!("  Quantizations: Baseline, SQ, PQ, Binary\n");
 
     let dimension = 384;
     let mut results = Vec::new();
@@ -720,17 +721,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for quantization in ["Baseline", "SQ", "PQ", "Binary"] {
         match benchmark_at_scale(&documents, &queries, &ground_truth, dimension, quantization) {
             Ok(result) => {
-                println!("  ✅ {} completed", quantization);
+                tracing::info!("  ✅ {} completed", quantization);
                 results.push(result);
             }
             Err(e) => {
-                println!("  ❌ {} failed: {}", quantization, e);
+                tracing::info!("  ❌ {} failed: {}", quantization, e);
             }
         }
     }
 
     // Generate Markdown report
-    println!("\n📊 Generating reports...");
+    tracing::info!("\n📊 Generating reports...");
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let report_dir = Path::new("benchmark/reports");
@@ -865,7 +866,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     fs::write(&md_path, &md)?;
 
-    println!("✅ Markdown report saved to: {}", md_path.display());
+    tracing::info!("✅ Markdown report saved to: {}", md_path.display());
 
     // Save JSON
     let json_path = report_dir.join(format!(
@@ -876,22 +877,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let json_data = serde_json::to_string_pretty(&results)?;
     fs::write(&json_path, json_data)?;
 
-    println!("✅ JSON data saved to: {}", json_path.display());
+    tracing::info!("✅ JSON data saved to: {}", json_path.display());
 
     // Print summary
-    println!(
+    tracing::info!(
         "\n📈 LARGE SCALE RESULTS ({} vectors, {}D)",
         vector_count, dimension
     );
-    println!("========================================");
-    println!(
+    tracing::info!("========================================");
+    tracing::info!(
         "{:<12} {:<12} {:<12} {:<12} {:<10} {:<10}",
         "Method", "Memory", "Build", "Search", "MAP", "QPS"
     );
-    println!("{}", "-".repeat(70));
+    tracing::info!("{}", "-".repeat(70));
 
     for result in &results {
-        println!(
+        tracing::info!(
             "{:<12} {:<12} {:<12} {:<12} {:<10} {:<10}",
             result.quantization,
             format!("{:.1}MB", result.memory_mb),
@@ -904,7 +905,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Find baseline for comparison
     if let Some(baseline) = results.iter().find(|r| r.quantization == "Baseline") {
-        println!("\n💡 Quality Retention Analysis:");
+        tracing::info!("\n💡 Quality Retention Analysis:");
 
         for result in &results {
             if result.quantization == "Baseline" {
@@ -920,7 +921,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "❌"
             };
 
-            println!(
+            tracing::info!(
                 "  {} {}: {:.1}% quality, {:.1}x compression, {:.2}ms search",
                 quality_symbol,
                 result.quantization,
@@ -931,23 +932,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\n💾 Memory Projections for 1M vectors:");
+    tracing::info!("\n💾 Memory Projections for 1M vectors:");
     for result in &results {
         let mem_1m = (result.memory_mb / documents.len() as f64) * 1_000_000.0;
-        println!("  {}: {:.2} GB", result.quantization, mem_1m / 1024.0);
+        tracing::info!("  {}: {:.2} GB", result.quantization, mem_1m / 1024.0);
     }
 
-    println!("\n⚡ Throughput Projections:");
+    tracing::info!("\n⚡ Throughput Projections:");
     for result in &results {
         let queries_per_hour = result.throughput_qps * 3600.0;
-        println!(
+        tracing::info!(
             "  {}: {:.0} queries/hour ({:.0} QPS)",
             result.quantization, queries_per_hour, result.throughput_qps
         );
     }
 
-    println!("\n✅ Benchmark completed!");
-    println!("📊 Data saved to: {}", json_path.display());
+    tracing::info!("\n✅ Benchmark completed!");
+    tracing::info!("📊 Data saved to: {}", json_path.display());
 
     Ok(())
 }

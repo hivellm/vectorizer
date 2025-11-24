@@ -258,7 +258,6 @@ cargo +nightly build --profile=safe --no-default-features --features "hive-gpu"
 
 ```rust
 let status = guardrails.get_status();
-println!("{}", status);
 // Memory: 45.2% (8192 MB free) | CPU: 35.6% | Ops: 2 | Throttled: false | Safe: true
 ```
 

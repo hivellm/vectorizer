@@ -3,6 +3,7 @@
 //! Measures throughput, latency, and efficiency of the multi-tier cache system.
 
 use std::sync::Arc;
+use tracing::{info, error, warn, debug};
 use std::time::Instant;
 
 use tokio::sync::RwLock;
@@ -11,9 +12,9 @@ use vectorizer::normalization::cache::{CacheConfig, CacheManager};
 
 #[tokio::main]
 async fn main() {
-    println!("╔════════════════════════════════════════════════════════════════╗");
-    println!("║           Cache System Performance Benchmark                  ║");
-    println!("╚════════════════════════════════════════════════════════════════╝\n");
+    tracing::info!("╔════════════════════════════════════════════════════════════════╗");
+    tracing::info!("║           Cache System Performance Benchmark                  ║");
+    tracing::info!("╚════════════════════════════════════════════════════════════════╝\n");
 
     let temp_dir = tempfile::tempdir().unwrap();
     let config = CacheConfig {
@@ -27,22 +28,22 @@ async fn main() {
     let cache = Arc::new(RwLock::new(CacheManager::new(config).unwrap()));
 
     benchmark_hot_cache_performance(&cache).await;
-    println!();
+    tracing::info!();
     benchmark_warm_store_performance(&cache).await;
-    println!();
+    tracing::info!();
     benchmark_cold_store_performance(&cache).await;
-    println!();
+    tracing::info!();
     benchmark_concurrent_access(&cache).await;
-    println!();
+    tracing::info!();
     benchmark_compression_efficiency(&cache).await;
-    println!();
+    tracing::info!();
     benchmark_cache_hit_rates(&cache).await;
 }
 
 async fn benchmark_hot_cache_performance(cache: &Arc<RwLock<CacheManager>>) {
-    println!("┌─────────────────────────────────────────────────────────────┐");
-    println!("│               Hot Cache Performance (LFU)                  │");
-    println!("├─────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────┐");
+    tracing::info!("│               Hot Cache Performance (LFU)                  │");
+    tracing::info!("├─────────────────────────────────────────────────────────────┤");
 
     let iterations = 10_000;
     let entries = vec![
@@ -72,19 +73,19 @@ async fn benchmark_hot_cache_performance(cache: &Arc<RwLock<CacheManager>>) {
         let read_duration = start.elapsed();
         let read_ops_per_sec = iterations as f64 / read_duration.as_secs_f64();
 
-        println!(
+        tracing::info!(
             "│ {:15} │ Write: {:>10.0} ops/s │ Read: {:>10.0} ops/s │",
             name, write_ops_per_sec, read_ops_per_sec
         );
     }
 
-    println!("└─────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────┘");
 }
 
 async fn benchmark_warm_store_performance(cache: &Arc<RwLock<CacheManager>>) {
-    println!("┌─────────────────────────────────────────────────────────────┐");
-    println!("│            Warm Store Performance (mmap)                   │");
-    println!("├─────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────┐");
+    tracing::info!("│            Warm Store Performance (mmap)                   │");
+    tracing::info!("├─────────────────────────────────────────────────────────────┤");
 
     let iterations = 1_000;
 
@@ -122,19 +123,19 @@ async fn benchmark_warm_store_performance(cache: &Arc<RwLock<CacheManager>>) {
         let ops_per_sec = iterations as f64 / duration.as_secs_f64();
         let avg_latency_us = duration.as_micros() / iterations;
 
-        println!(
+        tracing::info!(
             "│ {:15} │ {:>10.0} ops/s │ {:>8} μs/op │",
             name, ops_per_sec, avg_latency_us
         );
     }
 
-    println!("└─────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────┘");
 }
 
 async fn benchmark_cold_store_performance(cache: &Arc<RwLock<CacheManager>>) {
-    println!("┌─────────────────────────────────────────────────────────────┐");
-    println!("│          Cold Store Performance (compressed)               │");
-    println!("├─────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────┐");
+    tracing::info!("│          Cold Store Performance (compressed)               │");
+    tracing::info!("├─────────────────────────────────────────────────────────────┤");
 
     let iterations = 100;
 
@@ -175,19 +176,19 @@ async fn benchmark_cold_store_performance(cache: &Arc<RwLock<CacheManager>>) {
         let ops_per_sec = iterations as f64 / duration.as_secs_f64();
         let avg_latency_us = duration.as_micros() / iterations;
 
-        println!(
+        tracing::info!(
             "│ {:15} │ {:>10.0} ops/s │ {:>8} μs/op │",
             name, ops_per_sec, avg_latency_us
         );
     }
 
-    println!("└─────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────┘");
 }
 
 async fn benchmark_concurrent_access(cache: &Arc<RwLock<CacheManager>>) {
-    println!("┌─────────────────────────────────────────────────────────────┐");
-    println!("│              Concurrent Access Performance                  │");
-    println!("├─────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────┐");
+    tracing::info!("│              Concurrent Access Performance                  │");
+    tracing::info!("├─────────────────────────────────────────────────────────────┤");
 
     let thread_counts = vec![1, 2, 4, 8, 16];
     let ops_per_thread = 1000;
@@ -232,21 +233,21 @@ async fn benchmark_concurrent_access(cache: &Arc<RwLock<CacheManager>>) {
         let total_ops = thread_count * ops_per_thread;
         let ops_per_sec = total_ops as f64 / duration.as_secs_f64();
 
-        println!(
+        tracing::info!(
             "│ {:2} threads │ {:>6} total ops │ {:>12.0} ops/s │",
             thread_count, total_ops, ops_per_sec
         );
     }
 
-    println!("└─────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────┘");
 }
 
 async fn benchmark_compression_efficiency(cache: &Arc<RwLock<CacheManager>>) {
-    println!("┌─────────────────────────────────────────────────────────────────────┐");
-    println!("│                  Compression Efficiency Analysis                    │");
-    println!("├─────────────────────────────────────────────────────────────────────┤");
-    println!("│ Content Type   │ Original │ Compressed │  Ratio  │  Saved     │");
-    println!("├─────────────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────────────┐");
+    tracing::info!("│                  Compression Efficiency Analysis                    │");
+    tracing::info!("├─────────────────────────────────────────────────────────────────────┤");
+    tracing::info!("│ Content Type   │ Original │ Compressed │  Ratio  │  Saved     │");
+    tracing::info!("├─────────────────────────────────────────────────────────────────────┤");
 
     let test_data = vec![
         (
@@ -257,7 +258,7 @@ async fn benchmark_compression_efficiency(cache: &Arc<RwLock<CacheManager>>) {
         ("whitespace", "   \n\n\n   ".repeat(1000).into_bytes()),
         (
             "code",
-            "fn main() { println!(\"test\"); }\n"
+            "fn main() { tracing::info!(\"test\"); }\n"
                 .repeat(200)
                 .into_bytes(),
         ),
@@ -286,19 +287,19 @@ async fn benchmark_compression_efficiency(cache: &Arc<RwLock<CacheManager>>) {
         let ratio = stats.compression_ratio;
         let saved = stats.space_saved;
 
-        println!(
+        tracing::info!(
             "│ {:15} │ {:>8} │ {:>10} │ {:>6.2}x │ {:>8} B │",
             name, original, compressed, ratio, saved
         );
     }
 
-    println!("└─────────────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────────────┘");
 }
 
 async fn benchmark_cache_hit_rates(cache: &Arc<RwLock<CacheManager>>) {
-    println!("┌─────────────────────────────────────────────────────────────┐");
-    println!("│                   Cache Hit Rate Analysis                   │");
-    println!("├─────────────────────────────────────────────────────────────┤");
+    tracing::info!("┌─────────────────────────────────────────────────────────────┐");
+    tracing::info!("│                   Cache Hit Rate Analysis                   │");
+    tracing::info!("├─────────────────────────────────────────────────────────────┤");
 
     // Populate cache with data
     let dataset_size = 1000;
@@ -340,31 +341,31 @@ async fn benchmark_cache_hit_rates(cache: &Arc<RwLock<CacheManager>>) {
         cache.stats()
     };
 
-    println!(
+    tracing::info!(
         "│ Hot Cache Hits:    {:>10} ({:>5.1}%)                  │",
         stats.hot_hits,
         (stats.hot_hits as f64 / access_count as f64 * 100.0)
     );
-    println!(
+    tracing::info!(
         "│ Warm Store Hits:   {:>10} ({:>5.1}%)                  │",
         stats.warm_hits,
         (stats.warm_hits as f64 / access_count as f64 * 100.0)
     );
-    println!(
+    tracing::info!(
         "│ Cold Store Hits:   {:>10} ({:>5.1}%)                  │",
         stats.cold_hits,
         (stats.cold_hits as f64 / access_count as f64 * 100.0)
     );
-    println!(
+    tracing::info!(
         "│ Cache Misses:      {:>10} ({:>5.1}%)                  │",
         stats.total_misses,
         (stats.total_misses as f64 / access_count as f64 * 100.0)
     );
-    println!("│                                                             │");
-    println!(
+    tracing::info!("│                                                             │");
+    tracing::info!(
         "│ Overall Hit Rate:  {:>5.1}%                                 │",
         stats.hit_rate * 100.0
     );
 
-    println!("└─────────────────────────────────────────────────────────────┘");
+    tracing::info!("└─────────────────────────────────────────────────────────────┘");
 }

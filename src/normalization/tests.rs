@@ -12,7 +12,7 @@ fn test_end_to_end_normalization() {
     // Test with code
     let rust_code = r#"
 fn main() {
-    println!("Hello, world!");
+    tracing::info!("Hello, world!");
 }
     "#;
 
@@ -102,7 +102,7 @@ fn test_markdown_code_block_preservation() {
 
 ```rust
 fn main() {
-    println!("Hello");
+    tracing::info!("Hello");
 }
 ```
 
@@ -113,7 +113,7 @@ Some text after.
 
     // Should still contain the code structure
     assert!(result.text.contains("fn main()"));
-    assert!(result.text.contains("println!"));
+    assert!(result.text.contains("tracing::info!"));
 }
 
 #[test]

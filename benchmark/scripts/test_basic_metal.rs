@@ -21,8 +21,8 @@ async fn test_mcp_integration() -> vectorizer::error::Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🧪 MCP Integration Test");
-    println!("=======================");
+    tracing::info!("🧪 MCP Integration Test");
+    tracing::info!("=======================");
 
     // Create VectorStore like the server does
     let store = VectorStore::new();
@@ -50,12 +50,12 @@ async fn test_mcp_integration() -> vectorizer::error::Result<()> {
         store.insert("mcp_test_collection", vec![vector])?;
     }
 
-    println!("✅ MCP collection created and populated");
+    tracing::info!("✅ MCP collection created and populated");
 
     // Simulate MCP search
     let query = vec![0.1; 128];
     let results = store.search("mcp_test_collection", &query, 3)?;
-    println!("✅ MCP search successful: {} results", results.len());
+    tracing::info!("✅ MCP search successful: {} results", results.len());
 
     Ok(())
 }
@@ -68,8 +68,8 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🧪 Basic Metal Native Test");
-    println!("==========================\n");
+    tracing::info!("🧪 Basic Metal Native Test");
+    tracing::info!("==========================\n");
 
     #[cfg(feature = "metal-native")]
     {
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
 
     #[cfg(not(feature = "metal-native"))]
     {
-        println!("❌ This test requires metal-native feature enabled");
+        tracing::info!("❌ This test requires metal-native feature enabled");
         return Ok(());
     }
 
@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
 
 #[cfg(not(target_os = "macos"))]
 fn main() {
-    eprintln!("⚠️  This benchmark is only available on macOS (Metal backend)");
+    etracing::info!("⚠️  This benchmark is only available on macOS (Metal backend)");
     std::process::exit(1);
 }
 
@@ -99,22 +99,22 @@ async fn test_basic_functionality() -> Result<()> {
     use vectorizer::models::{DistanceMetric, Vector};
 
     // Test 1: Create collection
-    println!("📊 Test 1: Create Collection");
-    println!("----------------------------");
+    tracing::info!("📊 Test 1: Create Collection");
+    tracing::info!("----------------------------");
 
     let start = Instant::now();
     let context = MetalNativeContext::new()?;
     let mut collection = context.create_storage(128, GpuDistanceMetric::Cosine)?;
     let elapsed = start.elapsed();
 
-    println!("  ✅ Collection created: {:?}", elapsed);
-    println!("  Dimension: 128D");
-    println!("  Metric: Cosine");
-    println!();
+    tracing::info!("  ✅ Collection created: {:?}", elapsed);
+    tracing::info!("  Dimension: 128D");
+    tracing::info!("  Metric: Cosine");
+    tracing::info!();
 
     // Test 2: Add a single vector
-    println!("📊 Test 2: Add Single Vector");
-    println!("----------------------------");
+    tracing::info!("📊 Test 2: Add Single Vector");
+    tracing::info!("----------------------------");
 
     let test_vector = Vector {
         id: "test_vector".to_string(),
@@ -127,70 +127,70 @@ async fn test_basic_functionality() -> Result<()> {
     let index = indices[0];
     let elapsed = start.elapsed();
 
-    println!("  ✅ Vector added at index {}: {:?}", index, elapsed);
-    println!("  Vector count: {}", collection.vector_count());
-    println!();
+    tracing::info!("  ✅ Vector added at index {}: {:?}", index, elapsed);
+    tracing::info!("  Vector count: {}", collection.vector_count());
+    tracing::info!();
 
     // Test 3: Get vector back
-    println!("📊 Test 3: Retrieve Vector");
-    println!("--------------------------");
+    tracing::info!("📊 Test 3: Retrieve Vector");
+    tracing::info!("--------------------------");
 
     let start = Instant::now();
     let retrieved = collection.get_vector(index)?;
     let elapsed = start.elapsed();
 
-    println!("  ✅ Vector retrieved: {:?}", elapsed);
-    println!("  ID matches: {}", retrieved.id == test_vector.id);
-    println!(
+    tracing::info!("  ✅ Vector retrieved: {:?}", elapsed);
+    tracing::info!("  ID matches: {}", retrieved.id == test_vector.id);
+    tracing::info!(
         "  Data length matches: {}",
         retrieved.data.len() == test_vector.data.len()
     );
-    println!();
+    tracing::info!();
 
     // Test 4: Get vector by ID
-    println!("📊 Test 4: Get Vector by ID");
-    println!("---------------------------");
+    tracing::info!("📊 Test 4: Get Vector by ID");
+    tracing::info!("---------------------------");
 
     let start = Instant::now();
     let retrieved_by_id = collection.get_vector_by_id("test_vector")?;
     let elapsed = start.elapsed();
 
-    println!("  ✅ Vector retrieved by ID: {:?}", elapsed);
-    println!("  ID matches: {}", retrieved_by_id.id == test_vector.id);
-    println!();
+    tracing::info!("  ✅ Vector retrieved by ID: {:?}", elapsed);
+    tracing::info!("  ID matches: {}", retrieved_by_id.id == test_vector.id);
+    tracing::info!();
 
     // Test 5: Remove vector
-    println!("📊 Test 5: Remove Vector");
-    println!("------------------------");
+    tracing::info!("📊 Test 5: Remove Vector");
+    tracing::info!("------------------------");
 
     let start = Instant::now();
     collection.remove_vector("test_vector".to_string())?;
     let elapsed = start.elapsed();
 
-    println!("  ✅ Vector removed: {:?}", elapsed);
-    println!(
+    tracing::info!("  ✅ Vector removed: {:?}", elapsed);
+    tracing::info!(
         "  Vector count after removal: {}",
         collection.vector_count()
     );
-    println!();
+    tracing::info!();
 
     // Test 6: Try to get removed vector (should fail - not found)
-    println!("📊 Test 6: Verify Vector Removal");
-    println!("---------------------------------");
+    tracing::info!("📊 Test 6: Verify Vector Removal");
+    tracing::info!("---------------------------------");
 
     match collection.get_vector_by_id("test_vector") {
-        Ok(_) => println!("  ❌ ERROR: Vector should have been removed"),
-        Err(e) => println!(
+        Ok(_) => tracing::info!("  ❌ ERROR: Vector should have been removed"),
+        Err(e) => tracing::info!(
             "  ✅ Vector correctly removed: {}",
             e.to_string().contains("not found")
         ),
     }
 
-    println!();
+    tracing::info!();
 
     // Test 7: Add multiple vectors and test GPU search
-    println!("📊 Test 7: GPU Search with Multiple Vectors");
-    println!("-------------------------------------------");
+    tracing::info!("📊 Test 7: GPU Search with Multiple Vectors");
+    tracing::info!("-------------------------------------------");
 
     // Add several vectors for meaningful search test
     let mut test_vectors = Vec::new();
@@ -220,8 +220,8 @@ async fn test_basic_functionality() -> Result<()> {
     );
 
     // Test GPU search - search for the first vector
-    println!("📊 Test 8: GPU Full Search");
-    println!("--------------------------");
+    tracing::info!("📊 Test 8: GPU Full Search");
+    tracing::info!("--------------------------");
 
     let query_vector = &test_vectors[0].data;
     let start = Instant::now();
@@ -242,11 +242,11 @@ async fn test_basic_functionality() -> Result<()> {
     );
     info!("  ✅ Search accuracy verified");
 
-    println!();
+    tracing::info!();
 
     // Test 9: Test with 512D vectors (like real MCP collections)
-    println!("📊 Test 9: GPU Search with 512D Vectors (MCP-like)");
-    println!("--------------------------------------------------");
+    tracing::info!("📊 Test 9: GPU Search with 512D Vectors (MCP-like)");
+    tracing::info!("--------------------------------------------------");
 
     let config_512d = CollectionConfig {
         dimension: 512,
@@ -294,14 +294,14 @@ async fn test_basic_functionality() -> Result<()> {
         info!("  🎯 Best distance: {:.6}", search_results_512d[0].1);
     }
 
-    println!();
+    tracing::info!();
 
     // Test 10: Test edge cases that might cause MCP crashes
-    println!("📊 Test 10: Edge Cases (Potential MCP Crash Scenarios)");
-    println!("-----------------------------------------------------");
+    tracing::info!("📊 Test 10: Edge Cases (Potential MCP Crash Scenarios)");
+    tracing::info!("-----------------------------------------------------");
 
     // Test k=0
-    println!("Testing k=0...");
+    tracing::info!("Testing k=0...");
     let empty_results = collection.search(query_vector, 0)?;
     info!(
         "  ✅ k=0 returned {} results (expected 0)",
@@ -310,7 +310,7 @@ async fn test_basic_functionality() -> Result<()> {
     assert_eq!(empty_results.len(), 0);
 
     // Test k > vector_count
-    println!("Testing k > vector_count...");
+    tracing::info!("Testing k > vector_count...");
     let large_k_results = collection.search(query_vector, 100)?;
     let actual_vector_count = collection.vector_count();
     info!(
@@ -321,7 +321,7 @@ async fn test_basic_functionality() -> Result<()> {
     assert_eq!(large_k_results.len(), actual_vector_count);
 
     // Test with invalid query dimensions (should fail gracefully)
-    println!("Testing dimension mismatch...");
+    tracing::info!("Testing dimension mismatch...");
     let wrong_dim_query = vec![1.0; 64]; // 64D instead of 128D
     match collection.search(&wrong_dim_query, 1) {
         Ok(_) => panic!("Should have failed with dimension mismatch"),
@@ -332,7 +332,7 @@ async fn test_basic_functionality() -> Result<()> {
     }
 
     // Test concurrent searches (simulate MCP load)
-    println!("Testing concurrent searches...");
+    tracing::info!("Testing concurrent searches...");
     use std::thread;
     let mut handles = vec![];
 
@@ -359,13 +359,13 @@ async fn test_basic_functionality() -> Result<()> {
     }
     info!("  ✅ Concurrent searches completed without crashes");
 
-    println!();
-    println!("🎉 All Metal Native functionality tests passed, including edge cases!");
-    println!("🎉 MCP crash scenarios tested successfully!");
+    tracing::info!();
+    tracing::info!("🎉 All Metal Native functionality tests passed, including edge cases!");
+    tracing::info!("🎉 MCP crash scenarios tested successfully!");
 
     // Test 11: MCP-like search simulation
-    println!("\n📊 Test 11: MCP-like Search Simulation");
-    println!("--------------------------------------");
+    tracing::info!("\n📊 Test 11: MCP-like Search Simulation");
+    tracing::info!("--------------------------------------");
 
     // Simulate what MCP might do - search with specific parameters
     let mcp_query = vec![0.1; 128]; // Simple query vector
@@ -379,8 +379,8 @@ async fn test_basic_functionality() -> Result<()> {
     );
 
     // Test 12: Discovery-like search with embedding manager
-    println!("\n📊 Test 12: Discovery-like Search (with Embedding)");
-    println!("--------------------------------------------------");
+    tracing::info!("\n📊 Test 12: Discovery-like Search (with Embedding)");
+    tracing::info!("--------------------------------------------------");
 
     use vectorizer::embedding::EmbeddingManager;
 
@@ -405,8 +405,8 @@ async fn test_basic_functionality() -> Result<()> {
     );
 
     // Test 13: 512D Discovery-like search (real MCP scenario)
-    println!("\n📊 Test 13: 512D Discovery-like Search (Real MCP Scenario)");
-    println!("---------------------------------------------------------");
+    tracing::info!("\n📊 Test 13: 512D Discovery-like Search (Real MCP Scenario)");
+    tracing::info!("---------------------------------------------------------");
 
     let mut embedding_manager_512d = EmbeddingManager::new();
     let bm25_512d = vectorizer::embedding::Bm25Embedding::new(512);
@@ -425,12 +425,12 @@ async fn test_basic_functionality() -> Result<()> {
         discovery_512d_results.len()
     );
 
-    println!("🎉 All MCP and discovery simulations completed successfully!");
-    println!("🎉 If this works but real MCP crashes, the issue is in MCP integration!");
+    tracing::info!("🎉 All MCP and discovery simulations completed successfully!");
+    tracing::info!("🎉 If this works but real MCP crashes, the issue is in MCP integration!");
 
     // Test 14: Server-like VectorStore test (real MCP scenario)
-    println!("\n📊 Test 14: Server-like VectorStore Test (Real MCP Scenario)");
-    println!("-----------------------------------------------------------");
+    tracing::info!("\n📊 Test 14: Server-like VectorStore Test (Real MCP Scenario)");
+    tracing::info!("-----------------------------------------------------------");
 
     use vectorizer::VectorStore;
 
@@ -513,12 +513,12 @@ async fn test_basic_functionality() -> Result<()> {
         );
     }
 
-    println!("🎉 Server-like VectorStore tests completed successfully!");
-    println!("🎉 This simulates exactly what MCP does - if this works, issue is elsewhere!");
+    tracing::info!("🎉 Server-like VectorStore tests completed successfully!");
+    tracing::info!("🎉 This simulates exactly what MCP does - if this works, issue is elsewhere!");
 
     // Test 15: THE CRASH REPRODUCTION - Dimension mismatch like MCP does
-    println!("\n📊 Test 15: CRASH REPRODUCTION - Dimension Mismatch (Real MCP Bug)");
-    println!("-------------------------------------------------------------------");
+    tracing::info!("\n📊 Test 15: CRASH REPRODUCTION - Dimension Mismatch (Real MCP Bug)");
+    tracing::info!("-------------------------------------------------------------------");
 
     // This is the exact bug that crashes MCP!
     // Collections have different dimensions, but MCP uses same embedding size
@@ -555,11 +555,11 @@ async fn test_basic_functionality() -> Result<()> {
         }
     }
 
-    println!("🎯 CRASH REPRODUCTION SUCCESSFUL!");
-    println!(
+    tracing::info!("🎯 CRASH REPRODUCTION SUCCESSFUL!");
+    tracing::info!(
         "🎯 The bug is: MCP creates embeddings with fixed dimensions but collections have different dimensions"
     );
-    println!("🎯 Solution: MCP needs to create embeddings matching each collection's dimension");
+    tracing::info!("🎯 Solution: MCP needs to create embeddings matching each collection's dimension");
 
     Ok(())
 }

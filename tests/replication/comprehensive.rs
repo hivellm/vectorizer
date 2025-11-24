@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
 use tokio::time::sleep;
+use tracing::info;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
@@ -348,7 +349,7 @@ async fn test_stress_high_volume_replication() {
     sleep(Duration::from_secs(1)).await;
 
     // Insert 10,000 vectors
-    println!("Inserting 10,000 vectors...");
+    info!("Inserting 10,000 vectors...");
     let batch_size = 100;
     let mut handles = Vec::new();
     for batch in 0..100 {
@@ -374,7 +375,7 @@ async fn test_stress_high_volume_replication() {
         handle.await.unwrap();
     }
 
-    println!("All concurrent insertions complete");
+    info!("All concurrent insertions complete");
     sleep(Duration::from_secs(3)).await;
 
     // Verify total count
@@ -383,7 +384,7 @@ async fn test_stress_high_volume_replication() {
 
     assert_eq!(master_collection.vector_count(), 1000);
     assert_eq!(replica_collection.vector_count(), 1000);
-    println!("✅ All 1000 concurrent operations replicated!");
+    info!("✅ All 1000 concurrent operations replicated!");
 }
 
 // ============================================================================
@@ -438,7 +439,7 @@ async fn test_snapshot_with_large_vectors() {
 
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("Checksum mismatch"));
-    println!("✅ Checksum verification works!");
+    info!("✅ Checksum verification works!");
 }
 
 // ============================================================================

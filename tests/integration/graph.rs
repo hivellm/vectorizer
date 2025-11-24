@@ -1,5 +1,6 @@
 //! Integration tests for graph functionality
 
+use tracing::info;
 use vectorizer::db::graph::{Edge, Graph, Node, RelationshipType};
 use vectorizer::db::{CollectionType, VectorStore};
 use vectorizer::models::{
@@ -618,5 +619,5 @@ fn test_graph_discovery_performance_large_collection() {
         "Graph should have at least {total_edges} edges, got {final_edge_count}"
     );
 
-    println!("Performance test: Discovered {total_edges} edges for 100 nodes in {duration:?}");
+    info!("Performance test: Discovered {total_edges} edges for 100 nodes in {duration:?}");
 }

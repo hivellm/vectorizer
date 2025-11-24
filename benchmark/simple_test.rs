@@ -1,51 +1,52 @@
 //! Simple test to verify benchmark utilities work
 
 use vectorizer::benchmark::{BenchmarkConfig, TestDataGenerator};
+use tracing::{info, error, warn, debug};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🧪 Simple Test of Benchmark Utilities");
-    println!("====================================\n");
+    tracing::info!("🧪 Simple Test of Benchmark Utilities");
+    tracing::info!("====================================\n");
 
     // Create simple configuration
     let config = BenchmarkConfig::quick()
         .with_dimensions(vec![128])
         .with_vector_counts(vec![100]);
 
-    println!("📊 Configuration:");
-    println!("  - Dimensions: {:?}", config.dimensions);
-    println!("  - Vector counts: {:?}", config.vector_counts);
-    println!();
+    tracing::info!("📊 Configuration:");
+    tracing::info!("  - Dimensions: {:?}", config.dimensions);
+    tracing::info!("  - Vector counts: {:?}", config.vector_counts);
+    tracing::info!();
 
     // Generate small test data
-    println!("🔧 Generating test data...");
+    tracing::info!("🔧 Generating test data...");
     let mut generator = TestDataGenerator::new(config);
     let test_data = generator.generate_vectors(100, 128)?;
 
-    println!(
+    tracing::info!(
         "  ✅ Generated {} vectors (dimension: {})",
         test_data.vector_count(),
         test_data.dimension()
     );
-    println!("  ✅ Generated {} documents", test_data.documents().len());
-    println!("  ✅ Generated {} queries", test_data.queries().len());
-    println!();
+    tracing::info!("  ✅ Generated {} documents", test_data.documents().len());
+    tracing::info!("  ✅ Generated {} queries", test_data.queries().len());
+    tracing::info!();
 
     // Test data access
-    println!("🔍 Testing data access...");
+    tracing::info!("🔍 Testing data access...");
     if let Some((id, vector)) = test_data.vectors().first() {
-        println!("  ✅ First vector ID: {id}");
-        println!("  ✅ First vector dimension: {}", vector.len());
-        println!(
+        tracing::info!("  ✅ First vector ID: {id}");
+        tracing::info!("  ✅ First vector dimension: {}", vector.len());
+        tracing::info!(
             "  ✅ First vector sample: {:?}",
             &vector[..5.min(vector.len())]
         );
     }
 
     if let Some(query) = test_data.queries().first() {
-        println!("  ✅ First query: {query}");
+        tracing::info!("  ✅ First query: {query}");
     }
 
-    println!("\n✅ Simple test completed successfully!");
+    tracing::info!("\n✅ Simple test completed successfully!");
 
     Ok(())
 }

@@ -7,6 +7,7 @@
 //!   cargo bench quantization
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -89,7 +90,7 @@ impl ProductQuantizer {
     }
 
     pub fn train(&mut self, vectors: &[Vec<f32>]) {
-        println!(
+        tracing::info!(
             "  Training PQ with {} subquantizers, {} centroids...",
             self.n_subquantizers, self.n_centroids
         );
@@ -112,7 +113,7 @@ impl ProductQuantizer {
             self.codebooks.push(centroids);
         }
 
-        println!("  PQ training complete: {} codebooks", self.codebooks.len());
+        tracing::info!("  PQ training complete: {} codebooks", self.codebooks.len());
     }
 
     pub fn encode(&self, vector: &[f32]) -> Vec<u8> {
@@ -230,7 +231,7 @@ impl ScalarQuantizer {
     }
 
     pub fn train(&mut self, vectors: &[Vec<f32>]) {
-        println!("  Training SQ with {} bits...", self.bits);
+        tracing::info!("  Training SQ with {} bits...", self.bits);
 
         // Find global min/max
         for vector in vectors {
@@ -240,7 +241,7 @@ impl ScalarQuantizer {
             }
         }
 
-        println!("  SQ range: [{:.4}, {:.4}]", self.min_val, self.max_val);
+        tracing::info!("  SQ range: [{:.4}, {:.4}]", self.min_val, self.max_val);
     }
 
     pub fn encode(&self, vector: &[f32]) -> Vec<u8> {
@@ -282,14 +283,14 @@ impl BinaryQuantizer {
     }
 
     pub fn train(&mut self, vectors: &[Vec<f32>]) {
-        println!("  Training Binary quantization...");
+        tracing::info!("  Training Binary quantization...");
 
         // Calculate median as threshold
         let mut all_values: Vec<f32> = vectors.iter().flat_map(|v| v.iter().copied()).collect();
         all_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
         self.threshold = all_values[all_values.len() / 2];
-        println!("  Binary threshold: {:.4}", self.threshold);
+        tracing::info!("  Binary threshold: {:.4}", self.threshold);
     }
 
     pub fn encode(&self, vector: &[f32]) -> Vec<u8> {
@@ -335,7 +336,7 @@ struct TestDataset {
 
 impl TestDataset {
     fn load_from_workspace(max_documents: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Loading dataset from ALL workspace projects...");
+        tracing::info!("📂 Loading dataset from ALL workspace projects...");
 
         // Load all projects from workspace
         let workspace_paths = vec![
@@ -355,11 +356,11 @@ impl TestDataset {
 
         for (project_name, project_path) in &workspace_paths {
             if !Path::new(project_path).exists() {
-                println!("  ⚠️  Skipping {}: path not found", project_name);
+                tracing::info!("  ⚠️  Skipping {}: path not found", project_name);
                 continue;
             }
 
-            println!("  📁 Loading from {}...", project_name);
+            tracing::info!("  📁 Loading from {}...", project_name);
 
             // Configure document loader for this project
             let config = LoaderConfig {
@@ -401,10 +402,10 @@ impl TestDataset {
                 .await
             {
                 Ok(chunk_count) => {
-                    println!("    ✅ Loaded {} chunks from {}", chunk_count, project_name);
+                    tracing::info!("    ✅ Loaded {} chunks from {}", chunk_count, project_name);
                 }
                 Err(e) => {
-                    println!("    ⚠️  Error loading {}: {}", project_name, e);
+                    tracing::info!("    ⚠️  Error loading {}: {}", project_name, e);
                 }
             }
         }
@@ -413,12 +414,12 @@ impl TestDataset {
             return Err("No documents loaded from workspace".into());
         }
 
-        println!("\n  📊 Total documents loaded: {}", all_documents.len());
+        tracing::info!("\n  📊 Total documents loaded: {}", all_documents.len());
 
         // Limit dataset size if needed
         let mut documents = all_documents;
         if documents.len() > max_documents {
-            println!(
+            tracing::info!(
                 "  ⚙️  Limiting to {} documents (from {})",
                 max_documents,
                 documents.len()
@@ -426,7 +427,7 @@ impl TestDataset {
             documents.truncate(max_documents);
         }
 
-        println!("  ✅ Using {} documents for benchmark\n", documents.len());
+        tracing::info!("  ✅ Using {} documents for benchmark\n", documents.len());
 
         // Create embedding manager
         let mut manager = EmbeddingManager::new();
@@ -442,7 +443,7 @@ impl TestDataset {
         }
 
         // Generate embeddings
-        println!("  Generating embeddings...");
+        tracing::info!("  Generating embeddings...");
         let start = Instant::now();
         let mut vectors = Vec::new();
         let mut vector_ids = Vec::new();
@@ -453,11 +454,11 @@ impl TestDataset {
             vector_ids.push(format!("doc_{}", idx));
 
             if (idx + 1) % 500 == 0 {
-                println!("    Processed {}/{} documents", idx + 1, documents.len());
+                tracing::info!("    Processed {}/{} documents", idx + 1, documents.len());
             }
         }
 
-        println!(
+        tracing::info!(
             "  ✅ Generated {} embeddings in {:.2}s",
             vectors.len(),
             start.elapsed().as_secs_f64()
@@ -603,7 +604,7 @@ fn benchmark_baseline(
     dataset: &TestDataset,
     dimension: usize,
 ) -> Result<QuantizationBenchmark, Box<dyn std::error::Error>> {
-    println!("\n🔷 Benchmarking BASELINE (no quantization)...");
+    tracing::info!("\n🔷 Benchmarking BASELINE (no quantization)...");
 
     let start = Instant::now();
 
@@ -663,7 +664,7 @@ fn benchmark_pq(
     n_subquantizers: usize,
     n_centroids: usize,
 ) -> Result<QuantizationBenchmark, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "\n🔶 Benchmarking PQ (subquantizers={}, centroids={})...",
         n_subquantizers, n_centroids
     );
@@ -675,7 +676,7 @@ fn benchmark_pq(
     pq.train(&dataset.vectors);
 
     // Encode all vectors
-    println!("  Encoding {} vectors...", dataset.vectors.len());
+    tracing::info!("  Encoding {} vectors...", dataset.vectors.len());
     let encoded_vectors: Vec<Vec<u8>> = dataset.vectors.iter().map(|v| pq.encode(v)).collect();
 
     // Decode for search (approximation)
@@ -745,7 +746,7 @@ fn benchmark_sq(
     dimension: usize,
     bits: usize,
 ) -> Result<QuantizationBenchmark, Box<dyn std::error::Error>> {
-    println!("\n🔷 Benchmarking SQ (bits={})...", bits);
+    tracing::info!("\n🔷 Benchmarking SQ (bits={})...", bits);
 
     let start = Instant::now();
 
@@ -754,7 +755,7 @@ fn benchmark_sq(
     sq.train(&dataset.vectors);
 
     // Encode all vectors
-    println!("  Encoding {} vectors...", dataset.vectors.len());
+    tracing::info!("  Encoding {} vectors...", dataset.vectors.len());
     let encoded_vectors: Vec<Vec<u8>> = dataset.vectors.iter().map(|v| sq.encode(v)).collect();
 
     // Decode for search
@@ -817,7 +818,7 @@ fn benchmark_binary(
     dataset: &TestDataset,
     dimension: usize,
 ) -> Result<QuantizationBenchmark, Box<dyn std::error::Error>> {
-    println!("\n🔹 Benchmarking BINARY quantization...");
+    tracing::info!("\n🔹 Benchmarking BINARY quantization...");
 
     let start = Instant::now();
 
@@ -826,7 +827,7 @@ fn benchmark_binary(
     binary.train(&dataset.vectors);
 
     // Encode all vectors
-    println!("  Encoding {} vectors...", dataset.vectors.len());
+    tracing::info!("  Encoding {} vectors...", dataset.vectors.len());
     let encoded_vectors: Vec<Vec<u8>> = dataset.vectors.iter().map(|v| binary.encode(v)).collect();
 
     // Decode for search
@@ -890,7 +891,7 @@ fn benchmark_search(
     dataset: &TestDataset,
     dimension: usize,
 ) -> Result<(Vec<f64>, QualityMetrics), Box<dyn std::error::Error>> {
-    println!("  Running search benchmark...");
+    tracing::info!("  Running search benchmark...");
 
     // Create embedding manager for queries
     let mut manager = EmbeddingManager::new();

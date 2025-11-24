@@ -327,7 +327,7 @@ mod tests {
 
         let rust_code = r#"
 fn main() {
-    println!("Hello, world!");
+    tracing::info!("Hello, world!");
 }
 "#;
         assert!(matches!(

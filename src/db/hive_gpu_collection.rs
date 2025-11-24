@@ -478,7 +478,7 @@ impl HiveGpuCollection {
     /// ];
     ///
     /// let ids = collection.add_vectors_batch(&vectors)?;
-    /// println!("Added {} vectors in batch", ids.len());
+    /// tracing::info!("Added {} vectors in batch", ids.len());
     /// # Ok(())
     /// # }
     /// ```
@@ -534,7 +534,7 @@ impl HiveGpuCollection {
     ///
     /// let results = collection.search_batch(&queries, 10)?;
     /// for (i, query_results) in results.iter().enumerate() {
-    ///     println!("Query {}: found {} results", i, query_results.len());
+    ///     tracing::info!("Query {}: found {} results", i, query_results.len());
     /// }
     /// # Ok(())
     /// # }

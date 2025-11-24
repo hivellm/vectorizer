@@ -13,6 +13,7 @@
 //!   cargo bench --bench combined_optimization_bench
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -296,7 +297,7 @@ struct TestDataset {
 
 impl TestDataset {
     fn load_from_workspace(max_docs: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Generating synthetic dataset for benchmark...");
+        tracing::info!("📂 Generating synthetic dataset for benchmark...");
 
         // Generate synthetic documents for consistent benchmarking
         let mut all_documents = Vec::new();
@@ -331,7 +332,7 @@ impl TestDataset {
             all_documents.push(doc);
         }
 
-        println!("  ✅ Generated {} synthetic documents", all_documents.len());
+        tracing::info!("  ✅ Generated {} synthetic documents", all_documents.len());
 
         let queries = vec![
             "vector database HNSW indexing performance".to_string(),
@@ -1014,9 +1015,9 @@ fn combined_optimization_benchmark(c: &mut Criterion) {
         let _ = fs::write(&json_path, json_data);
     }
 
-    println!("✅ Reports saved:");
-    println!("   📄 {}", report_path.display());
-    println!("   📊 {}", json_path.display());
+    tracing::info!("✅ Reports saved:");
+    tracing::info!("   📄 {}", report_path.display());
+    tracing::info!("   📊 {}", json_path.display());
 }
 
 criterion_group!(benches, combined_optimization_benchmark);

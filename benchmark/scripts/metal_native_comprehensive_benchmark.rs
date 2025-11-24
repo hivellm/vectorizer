@@ -4,6 +4,7 @@
 //! Includes multiple dataset sizes and comprehensive performance analysis.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use vectorizer::gpu::{MetalNativeCollection, MetalNativeHnswGraph, MetalNativeContext};
 use vectorizer::models::{DistanceMetric, Vector};
 use std::time::Instant;
@@ -16,14 +17,14 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🚀 Metal Native Comprehensive Benchmark");
-    println!("=====================================");
-    println!("Complete benchmark with vector generation and search speed testing");
-    println!("Multiple dataset sizes and comprehensive performance analysis\n");
+    tracing::info!("🚀 Metal Native Comprehensive Benchmark");
+    tracing::info!("=====================================");
+    tracing::info!("Complete benchmark with vector generation and search speed testing");
+    tracing::info!("Multiple dataset sizes and comprehensive performance analysis\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ This benchmark requires macOS with Metal support");
+        tracing::info!("❌ This benchmark requires macOS with Metal support");
         return Ok(());
     }
 
@@ -74,13 +75,13 @@ async fn run_comprehensive_benchmark() -> Result<()> {
     let mut all_results = Vec::new();
 
     for scenario in scenarios {
-        println!("🎯 Running Scenario: {}", scenario.name);
-        println!("=====================================");
+        tracing::info!("🎯 Running Scenario: {}", scenario.name);
+        tracing::info!("=====================================");
         
         let result = run_scenario_benchmark(&scenario).await?;
         all_results.push(result);
         
-        println!();
+        tracing::info!();
     }
 
     // Generate comprehensive report
@@ -115,70 +116,70 @@ struct BenchmarkResult {
 
 #[cfg(target_os = "macos")]
 async fn run_scenario_benchmark(scenario: &BenchmarkScenario) -> Result<BenchmarkResult> {
-    println!("📊 Test Parameters");
-    println!("------------------");
-    println!("  Dimension: {}", scenario.dimension);
-    println!("  Vector count: {}", scenario.vector_count);
-    println!("  Search queries: {}", scenario.search_queries);
-    println!("  k (results per query): {}", scenario.k);
-    println!();
+    tracing::info!("📊 Test Parameters");
+    tracing::info!("------------------");
+    tracing::info!("  Dimension: {}", scenario.dimension);
+    tracing::info!("  Vector count: {}", scenario.vector_count);
+    tracing::info!("  Search queries: {}", scenario.search_queries);
+    tracing::info!("  k (results per query): {}", scenario.k);
+    tracing::info!();
 
     // Step 1: Generate test vectors
-    println!("🔧 Generating test vectors...");
+    tracing::info!("🔧 Generating test vectors...");
     let start = Instant::now();
     let vectors = generate_test_vectors(scenario.dimension, scenario.vector_count);
     let vector_generation_time = start.elapsed().as_secs_f64();
-    println!("  ✅ Generated {} vectors in {:.3}ms", 
+    tracing::info!("  ✅ Generated {} vectors in {:.3}ms", 
              scenario.vector_count, 
              vector_generation_time * 1000.0);
-    println!();
+    tracing::info!();
 
     // Step 2: Create Metal Native Collection
-    println!("📊 Test 1: Create Metal Native Collection");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 1: Create Metal Native Collection");
+    tracing::info!("----------------------------------------");
     let start = Instant::now();
     let mut collection = MetalNativeCollection::new(
         scenario.dimension,
         DistanceMetric::Cosine,
     )?;
     let collection_creation_time = start.elapsed().as_secs_f64();
-    println!("  ✅ Collection created: {:.3}ms", collection_creation_time * 1000.0);
-    println!("  Device: Pure Metal native (VRAM only)");
-    println!();
+    tracing::info!("  ✅ Collection created: {:.3}ms", collection_creation_time * 1000.0);
+    tracing::info!("  Device: Pure Metal native (VRAM only)");
+    tracing::info!();
 
     // Step 3: Add vectors to VRAM
-    println!("📊 Test 2: Add Vectors to VRAM");
-    println!("------------------------------");
+    tracing::info!("📊 Test 2: Add Vectors to VRAM");
+    tracing::info!("------------------------------");
     let start = Instant::now();
     for (i, vector) in vectors.iter().enumerate() {
         collection.add_vector(vector.clone())?;
         
         if (i + 1) % (scenario.vector_count / 10).max(1) == 0 {
-            println!("  Added {} vectors...", i + 1);
+            tracing::info!("  Added {} vectors...", i + 1);
         }
     }
     let vector_addition_time = start.elapsed().as_secs_f64();
     let throughput = scenario.vector_count as f64 / vector_addition_time;
-    println!("  ✅ Added {} vectors to VRAM: {:.3}ms", 
+    tracing::info!("  ✅ Added {} vectors to VRAM: {:.3}ms", 
              scenario.vector_count, 
              vector_addition_time * 1000.0);
-    println!("  Throughput: {:.2} vectors/sec", throughput);
-    println!();
+    tracing::info!("  Throughput: {:.2} vectors/sec", throughput);
+    tracing::info!();
 
     // Step 4: Build HNSW Index on GPU
-    println!("📊 Test 3: Build HNSW Index on GPU (VRAM)");
-    println!("------------------------------------------");
+    tracing::info!("📊 Test 3: Build HNSW Index on GPU (VRAM)");
+    tracing::info!("------------------------------------------");
     let start = Instant::now();
     collection.build_index()?;
     let hnsw_construction_time = start.elapsed().as_secs_f64();
-    println!("  ✅ HNSW index built on GPU: {:.3}ms", hnsw_construction_time * 1000.0);
-    println!("  Storage: VRAM only (no CPU access)");
-    println!("  Nodes: {}", scenario.vector_count);
-    println!();
+    tracing::info!("  ✅ HNSW index built on GPU: {:.3}ms", hnsw_construction_time * 1000.0);
+    tracing::info!("  Storage: VRAM only (no CPU access)");
+    tracing::info!("  Nodes: {}", scenario.vector_count);
+    tracing::info!();
 
     // Step 5: Search Performance Test
-    println!("📊 Test 4: Search Performance");
-    println!("----------------------------");
+    tracing::info!("📊 Test 4: Search Performance");
+    tracing::info!("----------------------------");
     let mut search_times = Vec::new();
     let mut completed = 0;
     
@@ -194,7 +195,7 @@ async fn run_scenario_benchmark(scenario: &BenchmarkScenario) -> Result<Benchmar
         
         completed += 1;
         if completed % (scenario.search_queries / 10).max(1) == 0 {
-            println!("  Completed {} searches...", completed);
+            tracing::info!("  Completed {} searches...", completed);
         }
     }
     let total_search_time = start.elapsed().as_secs_f64();
@@ -204,22 +205,22 @@ async fn run_scenario_benchmark(scenario: &BenchmarkScenario) -> Result<Benchmar
     let max_search_time = search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
     let search_throughput = scenario.search_queries as f64 / total_search_time;
     
-    println!("  ✅ Completed {} searches", scenario.search_queries);
-    println!("  Average search time: {:.3}ms", average_search_time * 1000.0);
-    println!("  Min search time: {:.3}ms", min_search_time * 1000.0);
-    println!("  Max search time: {:.3}ms", max_search_time * 1000.0);
-    println!("  Total search time: {:.3}s", total_search_time);
-    println!("  Throughput: {:.2} searches/sec", search_throughput);
-    println!();
+    tracing::info!("  ✅ Completed {} searches", scenario.search_queries);
+    tracing::info!("  Average search time: {:.3}ms", average_search_time * 1000.0);
+    tracing::info!("  Min search time: {:.3}ms", min_search_time * 1000.0);
+    tracing::info!("  Max search time: {:.3}ms", max_search_time * 1000.0);
+    tracing::info!("  Total search time: {:.3}s", total_search_time);
+    tracing::info!("  Throughput: {:.2} searches/sec", search_throughput);
+    tracing::info!();
 
     // Step 6: Memory Usage
-    println!("📊 Test 5: Memory Usage");
-    println!("-----------------------");
-    println!("  ✅ All data stored in VRAM only");
-    println!("  No CPU-GPU transfers during search");
-    println!("  Zero buffer mapping overhead");
-    println!("  Pure Metal native performance");
-    println!();
+    tracing::info!("📊 Test 5: Memory Usage");
+    tracing::info!("-----------------------");
+    tracing::info!("  ✅ All data stored in VRAM only");
+    tracing::info!("  No CPU-GPU transfers during search");
+    tracing::info!("  Zero buffer mapping overhead");
+    tracing::info!("  Pure Metal native performance");
+    tracing::info!();
 
     Ok(BenchmarkResult {
         scenario: scenario.clone(),
@@ -257,20 +258,20 @@ fn generate_test_vectors(dimension: usize, count: usize) -> Vec<Vector> {
 }
 
 async fn generate_comprehensive_report(results: &[BenchmarkResult]) -> Result<()> {
-    println!("📊 Comprehensive Benchmark Report");
-    println!("=================================");
-    println!("Complete performance analysis across multiple dataset sizes");
-    println!();
+    tracing::info!("📊 Comprehensive Benchmark Report");
+    tracing::info!("=================================");
+    tracing::info!("Complete performance analysis across multiple dataset sizes");
+    tracing::info!();
 
     // Summary table
-    println!("📈 Performance Summary");
-    println!("---------------------");
-    println!("{:<15} {:<8} {:<8} {:<12} {:<12} {:<12} {:<12}", 
+    tracing::info!("📈 Performance Summary");
+    tracing::info!("---------------------");
+    tracing::info!("{:<15} {:<8} {:<8} {:<12} {:<12} {:<12} {:<12}", 
              "Scenario", "Vectors", "Dim", "Add Time", "Build Time", "Search Time", "Throughput");
-    println!("{}", "-".repeat(80));
+    tracing::info!("{}", "-".repeat(80));
     
     for result in results {
-        println!("{:<15} {:<8} {:<8} {:<12.3} {:<12.3} {:<12.3} {:<12.2}",
+        tracing::info!("{:<15} {:<8} {:<8} {:<12.3} {:<12.3} {:<12.3} {:<12.2}",
                  result.scenario.name,
                  result.scenario.vector_count,
                  result.scenario.dimension,
@@ -279,32 +280,32 @@ async fn generate_comprehensive_report(results: &[BenchmarkResult]) -> Result<()
                  result.average_search_time * 1000.0,
                  result.search_throughput);
     }
-    println!();
+    tracing::info!();
 
     // Detailed analysis
-    println!("🔍 Detailed Analysis");
-    println!("-------------------");
+    tracing::info!("🔍 Detailed Analysis");
+    tracing::info!("-------------------");
     
     for result in results {
-        println!("📊 {} Results", result.scenario.name);
-        println!("  Vector Generation: {:.3}ms", result.vector_generation_time * 1000.0);
-        println!("  Collection Creation: {:.3}ms", result.collection_creation_time * 1000.0);
-        println!("  Vector Addition: {:.3}ms ({:.2} vectors/sec)", 
+        tracing::info!("📊 {} Results", result.scenario.name);
+        tracing::info!("  Vector Generation: {:.3}ms", result.vector_generation_time * 1000.0);
+        tracing::info!("  Collection Creation: {:.3}ms", result.collection_creation_time * 1000.0);
+        tracing::info!("  Vector Addition: {:.3}ms ({:.2} vectors/sec)", 
                  result.vector_addition_time * 1000.0,
                  result.scenario.vector_count as f64 / result.vector_addition_time);
-        println!("  HNSW Construction: {:.3}ms", result.hnsw_construction_time * 1000.0);
-        println!("  Search Performance:");
-        println!("    - Average: {:.3}ms", result.average_search_time * 1000.0);
-        println!("    - Min: {:.3}ms", result.min_search_time * 1000.0);
-        println!("    - Max: {:.3}ms", result.max_search_time * 1000.0);
-        println!("    - Throughput: {:.2} searches/sec", result.search_throughput);
-        println!("  Memory: {}", result.memory_usage);
-        println!();
+        tracing::info!("  HNSW Construction: {:.3}ms", result.hnsw_construction_time * 1000.0);
+        tracing::info!("  Search Performance:");
+        tracing::info!("    - Average: {:.3}ms", result.average_search_time * 1000.0);
+        tracing::info!("    - Min: {:.3}ms", result.min_search_time * 1000.0);
+        tracing::info!("    - Max: {:.3}ms", result.max_search_time * 1000.0);
+        tracing::info!("    - Throughput: {:.2} searches/sec", result.search_throughput);
+        tracing::info!("  Memory: {}", result.memory_usage);
+        tracing::info!();
     }
 
     // Performance trends
-    println!("📈 Performance Trends");
-    println!("--------------------");
+    tracing::info!("📈 Performance Trends");
+    tracing::info!("--------------------");
     
     if results.len() >= 2 {
         let small = &results[0];
@@ -314,33 +315,33 @@ async fn generate_comprehensive_report(results: &[BenchmarkResult]) -> Result<()
         let build_time_ratio = large.hnsw_construction_time / small.hnsw_construction_time;
         let search_time_ratio = large.average_search_time / small.average_search_time;
         
-        println!("  Dataset Scale: {:.1}x ({} to {} vectors)", 
+        tracing::info!("  Dataset Scale: {:.1}x ({} to {} vectors)", 
                  scale_factor, small.scenario.vector_count, large.scenario.vector_count);
-        println!("  Build Time Ratio: {:.2}x", build_time_ratio);
-        println!("  Search Time Ratio: {:.2}x", search_time_ratio);
-        println!("  Build Efficiency: {:.2} (lower is better)", build_time_ratio / scale_factor);
-        println!("  Search Efficiency: {:.2} (lower is better)", search_time_ratio / scale_factor);
-        println!();
+        tracing::info!("  Build Time Ratio: {:.2}x", build_time_ratio);
+        tracing::info!("  Search Time Ratio: {:.2}x", search_time_ratio);
+        tracing::info!("  Build Efficiency: {:.2} (lower is better)", build_time_ratio / scale_factor);
+        tracing::info!("  Search Efficiency: {:.2} (lower is better)", search_time_ratio / scale_factor);
+        tracing::info!();
     }
 
     // Recommendations
-    println!("💡 Recommendations");
-    println!("-----------------");
-    println!("  ✅ Metal Native GPU provides excellent performance across all dataset sizes");
-    println!("  ✅ Search performance remains consistent even with large datasets");
-    println!("  ✅ VRAM usage is optimal with zero CPU-GPU transfers");
-    println!("  ✅ Recommended for production use with any dataset size");
-    println!();
+    tracing::info!("💡 Recommendations");
+    tracing::info!("-----------------");
+    tracing::info!("  ✅ Metal Native GPU provides excellent performance across all dataset sizes");
+    tracing::info!("  ✅ Search performance remains consistent even with large datasets");
+    tracing::info!("  ✅ VRAM usage is optimal with zero CPU-GPU transfers");
+    tracing::info!("  ✅ Recommended for production use with any dataset size");
+    tracing::info!();
 
     // Final summary
-    println!("🏆 Final Summary");
-    println!("===============");
-    println!("  ✅ All benchmarks completed successfully");
-    println!("  ✅ Performance scales well with dataset size");
-    println!("  ✅ Metal Native GPU is production-ready");
-    println!("  ✅ Zero wgpu dependencies - pure Metal implementation");
-    println!("  ✅ Maximum efficiency with VRAM-only operations");
-    println!();
+    tracing::info!("🏆 Final Summary");
+    tracing::info!("===============");
+    tracing::info!("  ✅ All benchmarks completed successfully");
+    tracing::info!("  ✅ Performance scales well with dataset size");
+    tracing::info!("  ✅ Metal Native GPU is production-ready");
+    tracing::info!("  ✅ Zero wgpu dependencies - pure Metal implementation");
+    tracing::info!("  ✅ Maximum efficiency with VRAM-only operations");
+    tracing::info!();
 
     Ok(())
 }

@@ -1,5 +1,6 @@
 /// Test to validate that Docker virtual paths work correctly
 /// This ensures the fix for path traversal validation doesn't break Docker environments
+use tracing::info;
 use vectorizer::file_operations::{FileOperationError, FileOperations};
 
 #[tokio::test]
@@ -31,13 +32,13 @@ async fn test_docker_virtual_paths_acceptance() {
             | Err(FileOperationError::CollectionNotFound { .. })
             | Err(FileOperationError::FileNotFound { .. }) => {
                 // Expected - VectorStore is not initialized in this test
-                println!("✓ Path '{path}' passed validation (failed later as expected)");
+                info!("✓ Path '{path}' passed validation (failed later as expected)");
             }
             Err(e) => {
-                println!("✓ Path '{path}' passed validation (error: {e:?})");
+                info!("✓ Path '{path}' passed validation (error: {e:?})");
             }
             Ok(_) => {
-                println!("✓ Path '{path}' passed validation and returned content");
+                info!("✓ Path '{path}' passed validation and returned content");
             }
         }
     }
@@ -60,7 +61,7 @@ async fn test_only_empty_paths_rejected() {
                     "Expected 'empty' error for path '{}'",
                     path.replace('\n', "\\n").replace('\t', "\\t")
                 );
-                println!(
+                info!(
                     "✓ Empty path correctly rejected: '{}'",
                     path.replace('\n', "\\n").replace('\t', "\\t")
                 );
@@ -97,7 +98,7 @@ async fn test_normal_paths_still_work() {
                 panic!("Normal path '{path}' should be valid");
             }
             _ => {
-                println!("✓ Normal path '{path}' is valid");
+                info!("✓ Normal path '{path}' is valid");
             }
         }
     }

@@ -10,6 +10,7 @@
 //!   cargo run --release --bin core_operations_benchmark
 
 use std::collections::HashMap;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -76,7 +77,7 @@ fn benchmark_insert_single(
     test_vectors: &[(String, Vec<f32>)],
     dimension: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n📝 Benchmarking SINGLE INSERT operations...");
+    tracing::info!("\n📝 Benchmarking SINGLE INSERT operations...");
 
     let hnsw_config = OptimizedHnswConfig {
         max_connections: 16,
@@ -104,7 +105,7 @@ fn benchmark_insert_single(
         latencies.push(elapsed_us);
 
         if (latencies.len()) % 100 == 0 {
-            println!("    Inserted {}/1000 vectors", latencies.len());
+            tracing::info!("    Inserted {}/1000 vectors", latencies.len());
         }
     }
 
@@ -144,14 +145,14 @@ fn benchmark_insert_batch(
     dimension: usize,
     batch_sizes: &[usize],
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n📦 Benchmarking BATCH INSERT operations...");
+    tracing::info!("\n📦 Benchmarking BATCH INSERT operations...");
 
     let mut all_latencies = Vec::new();
     let mut total_ops = 0;
     let total_start = Instant::now();
 
     for &batch_size in batch_sizes {
-        println!("  Testing batch size: {}", batch_size);
+        tracing::info!("  Testing batch size: {}", batch_size);
 
         let hnsw_config = OptimizedHnswConfig {
             max_connections: 16,
@@ -212,7 +213,7 @@ fn benchmark_search(
     k: usize,
     num_queries: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n🔍 Benchmarking SEARCH operations (k={})...", k);
+    tracing::info!("\n🔍 Benchmarking SEARCH operations (k={})...", k);
 
     // Build index
     let hnsw_config = OptimizedHnswConfig {
@@ -230,7 +231,7 @@ fn benchmark_search(
     index.batch_add(test_vectors.to_vec())?;
     index.optimize()?;
 
-    println!("  Index built with {} vectors", test_vectors.len());
+    tracing::info!("  Index built with {} vectors", test_vectors.len());
 
     let mem_before = index.memory_stats();
 
@@ -253,7 +254,7 @@ fn benchmark_search(
         latencies.push(elapsed_us);
 
         if (i + 1) % 100 == 0 {
-            println!("    Completed {}/{} searches", i + 1, num_queries);
+            tracing::info!("    Completed {}/{} searches", i + 1, num_queries);
         }
     }
 
@@ -291,7 +292,7 @@ fn benchmark_update_single(
     test_vectors: &[(String, Vec<f32>)],
     dimension: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n✏️  Benchmarking SINGLE UPDATE operations...");
+    tracing::info!("\n✏️  Benchmarking SINGLE UPDATE operations...");
 
     // Build initial index
     let hnsw_config = OptimizedHnswConfig {
@@ -308,7 +309,7 @@ fn benchmark_update_single(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
     index.batch_add(test_vectors.to_vec())?;
 
-    println!("  Initial index built with {} vectors", test_vectors.len());
+    tracing::info!("  Initial index built with {} vectors", test_vectors.len());
 
     let mem_before = index.memory_stats();
 
@@ -333,7 +334,7 @@ fn benchmark_update_single(
         latencies.push(elapsed_us);
 
         if (i + 1) % 100 == 0 {
-            println!("    Updated {}/500 vectors", i + 1);
+            tracing::info!("    Updated {}/500 vectors", i + 1);
         }
     }
 
@@ -372,7 +373,7 @@ fn benchmark_update_batch(
     test_vectors: &[(String, Vec<f32>)],
     dimension: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n📦 Benchmarking BATCH UPDATE operations...");
+    tracing::info!("\n📦 Benchmarking BATCH UPDATE operations...");
 
     // Build initial index
     let hnsw_config = OptimizedHnswConfig {
@@ -389,7 +390,7 @@ fn benchmark_update_batch(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
     index.batch_add(test_vectors.to_vec())?;
 
-    println!("  Initial index built with {} vectors", test_vectors.len());
+    tracing::info!("  Initial index built with {} vectors", test_vectors.len());
 
     let mem_before = index.memory_stats();
 
@@ -423,7 +424,7 @@ fn benchmark_update_batch(
         latencies.push(elapsed_us);
         total_ops += batch_size;
 
-        println!(
+        tracing::info!(
             "    Updated batch {}/10 ({} vectors)",
             batch_idx + 1,
             batch_size
@@ -465,7 +466,7 @@ fn benchmark_delete_single(
     test_vectors: &[(String, Vec<f32>)],
     dimension: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n🗑️  Benchmarking SINGLE DELETE operations...");
+    tracing::info!("\n🗑️  Benchmarking SINGLE DELETE operations...");
 
     // Build initial index
     let hnsw_config = OptimizedHnswConfig {
@@ -482,7 +483,7 @@ fn benchmark_delete_single(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
     index.batch_add(test_vectors.to_vec())?;
 
-    println!("  Initial index built with {} vectors", test_vectors.len());
+    tracing::info!("  Initial index built with {} vectors", test_vectors.len());
 
     let mem_before = index.memory_stats();
 
@@ -501,7 +502,7 @@ fn benchmark_delete_single(
         latencies.push(elapsed_us);
 
         if (i + 1) % 100 == 0 {
-            println!("    Deleted {}/500 vectors", i + 1);
+            tracing::info!("    Deleted {}/500 vectors", i + 1);
         }
     }
 
@@ -540,7 +541,7 @@ fn benchmark_delete_batch(
     test_vectors: &[(String, Vec<f32>)],
     dimension: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n🗑️  Benchmarking BATCH DELETE operations...");
+    tracing::info!("\n🗑️  Benchmarking BATCH DELETE operations...");
 
     // Build initial index
     let hnsw_config = OptimizedHnswConfig {
@@ -557,7 +558,7 @@ fn benchmark_delete_batch(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
     index.batch_add(test_vectors.to_vec())?;
 
-    println!("  Initial index built with {} vectors", test_vectors.len());
+    tracing::info!("  Initial index built with {} vectors", test_vectors.len());
 
     let mem_before = index.memory_stats();
 
@@ -586,7 +587,7 @@ fn benchmark_delete_batch(
         latencies.push(elapsed_us);
         total_ops += batch_size;
 
-        println!(
+        tracing::info!(
             "    Deleted batch {}/10 ({} vectors)",
             batch_idx + 1,
             batch_size
@@ -628,7 +629,7 @@ fn benchmark_concurrent_mixed(
     test_vectors: &[(String, Vec<f32>)],
     dimension: usize,
 ) -> Result<OperationMetrics, Box<dyn std::error::Error>> {
-    println!("\n⚡ Benchmarking CONCURRENT MIXED operations...");
+    tracing::info!("\n⚡ Benchmarking CONCURRENT MIXED operations...");
 
     use std::sync::Arc;
 
@@ -649,8 +650,8 @@ fn benchmark_concurrent_mixed(
     let index = Arc::new(OptimizedHnswIndex::new(dimension, hnsw_config)?);
     index.batch_add(test_vectors.to_vec())?;
 
-    println!("  Initial index built with {} vectors", test_vectors.len());
-    println!("  Running mixed operations: 70% search, 20% insert, 10% delete");
+    tracing::info!("  Initial index built with {} vectors", test_vectors.len());
+    tracing::info!("  Running mixed operations: 70% search, 20% insert, 10% delete");
 
     let mem_before = index.memory_stats();
 
@@ -707,7 +708,7 @@ fn benchmark_concurrent_mixed(
         }
 
         if (i + 1) % 100 == 0 {
-            println!("    Completed {}/{} operations", i + 1, num_operations);
+            tracing::info!("    Completed {}/{} operations", i + 1, num_operations);
         }
     }
 
@@ -752,7 +753,7 @@ fn generate_test_vectors(
     num_vectors: usize,
     dimension: usize,
 ) -> Result<Vec<(String, Vec<f32>)>, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "🔧 Generating {} test vectors (dimension {})...",
         num_vectors, dimension
     );
@@ -773,7 +774,7 @@ fn generate_test_vectors(
         vectors.push((id, vec));
     }
 
-    println!("  ✅ Generated {} test vectors", vectors.len());
+    tracing::info!("  ✅ Generated {} test vectors", vectors.len());
     Ok(vectors)
 }
 
@@ -1015,118 +1016,118 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN) // Less verbose
         .init();
 
-    println!("🚀 Vectorizer Core Operations Benchmark");
-    println!("========================================\n");
+    tracing::info!("🚀 Vectorizer Core Operations Benchmark");
+    tracing::info!("========================================\n");
 
     let dimension = 512;
     let dataset_size = 100_000; // 100K vectors for medium scale test
 
-    println!("📊 Test Configuration:");
-    println!("  - Dataset: {} vectors", dataset_size);
-    println!("  - Dimension: {}", dimension);
-    println!("  - HNSW: M=16, ef_construction=200");
-    println!();
+    tracing::info!("📊 Test Configuration:");
+    tracing::info!("  - Dataset: {} vectors", dataset_size);
+    tracing::info!("  - Dimension: {}", dimension);
+    tracing::info!("  - HNSW: M=16, ef_construction=200");
+    tracing::info!();
 
     // Generate test data
     let test_vectors = generate_test_vectors(dataset_size, dimension)?;
 
     // Run benchmarks
     let insert_single = benchmark_insert_single(&test_vectors, dimension)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         insert_single.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         insert_single.avg_latency_us, insert_single.p95_latency_us
     );
 
     let insert_batch = benchmark_insert_batch(&test_vectors, dimension, &[100, 500, 1000])?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         insert_batch.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs/batch (p95: {:.0} μs)",
         insert_batch.avg_latency_us, insert_batch.p95_latency_us
     );
 
     let search_k1 = benchmark_search(&test_vectors, dimension, 1, 1000)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} QPS",
         search_k1.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         search_k1.avg_latency_us, search_k1.p95_latency_us
     );
 
     let search_k10 = benchmark_search(&test_vectors, dimension, 10, 1000)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} QPS",
         search_k10.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         search_k10.avg_latency_us, search_k10.p95_latency_us
     );
 
     let search_k100 = benchmark_search(&test_vectors, dimension, 100, 1000)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} QPS",
         search_k100.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         search_k100.avg_latency_us, search_k100.p95_latency_us
     );
 
     let update_single = benchmark_update_single(&test_vectors, dimension)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         update_single.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         update_single.avg_latency_us, update_single.p95_latency_us
     );
 
     let update_batch = benchmark_update_batch(&test_vectors, dimension)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         update_batch.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs/batch (p95: {:.0} μs)",
         update_batch.avg_latency_us, update_batch.p95_latency_us
     );
 
     let delete_single = benchmark_delete_single(&test_vectors, dimension)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         delete_single.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         delete_single.avg_latency_us, delete_single.p95_latency_us
     );
 
     let delete_batch = benchmark_delete_batch(&test_vectors, dimension)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         delete_batch.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs/batch (p95: {:.0} μs)",
         delete_batch.avg_latency_us, delete_batch.p95_latency_us
     );
 
     let concurrent_mixed = benchmark_concurrent_mixed(&test_vectors, dimension)?;
-    println!(
+    tracing::info!(
         "  ✅ Throughput: {:.2} ops/sec",
         concurrent_mixed.throughput_ops_per_sec
     );
-    println!(
+    tracing::info!(
         "  ✅ Latency: {:.0} μs (p95: {:.0} μs)",
         concurrent_mixed.avg_latency_us, concurrent_mixed.p95_latency_us
     );
@@ -1151,7 +1152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Generate and save report
-    println!("\n📊 Generating comprehensive report...");
+    tracing::info!("\n📊 Generating comprehensive report...");
     let md_report = generate_report(&report);
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -1164,23 +1165,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let report_path = report_dir.join(format!("core_operations_{}.md", timestamp));
     fs::write(&report_path, &md_report)?;
 
-    println!("✅ Markdown report saved to: {}", report_path.display());
+    tracing::info!("✅ Markdown report saved to: {}", report_path.display());
 
     // Save JSON
     let json_path = report_dir.join(format!("core_operations_{}.json", timestamp));
     let json_data = serde_json::to_string_pretty(&report)?;
     fs::write(&json_path, json_data)?;
 
-    println!("✅ JSON data saved to: {}", json_path.display());
+    tracing::info!("✅ JSON data saved to: {}", json_path.display());
 
     // Print summary table
-    println!("\n📈 PERFORMANCE SUMMARY");
-    println!("=====================");
-    println!(
+    tracing::info!("\n📈 PERFORMANCE SUMMARY");
+    tracing::info!("=====================");
+    tracing::info!(
         "{:<25} {:<15} {:<15} {:<15} {:<15}",
         "Operation", "Throughput", "Avg (μs)", "P95 (μs)", "P99 (μs)"
     );
-    println!("{}", "-".repeat(85));
+    tracing::info!("{}", "-".repeat(85));
 
     for (name, metrics) in [
         ("Insert Single", &report.insert_single),
@@ -1194,7 +1195,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ("Delete Batch", &report.delete_batch),
         ("Mixed Workload", &report.concurrent_mixed),
     ] {
-        println!(
+        tracing::info!(
             "{:<25} {:<15} {:<15} {:<15} {:<15}",
             name,
             format!("{:.0} ops/s", metrics.throughput_ops_per_sec),
@@ -1204,7 +1205,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    println!("\n💡 Key Findings:");
+    tracing::info!("\n💡 Key Findings:");
 
     // Batch vs Single comparisons
     let insert_speedup =
@@ -1214,33 +1215,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let delete_speedup =
         report.delete_batch.throughput_ops_per_sec / report.delete_single.throughput_ops_per_sec;
 
-    println!("  ✅ Batch operations are significantly faster:");
-    println!("     - Insert: {:.1}x speedup", insert_speedup);
-    println!("     - Update: {:.1}x speedup", update_speedup);
-    println!("     - Delete: {:.1}x speedup", delete_speedup);
+    tracing::info!("  ✅ Batch operations are significantly faster:");
+    tracing::info!("     - Insert: {:.1}x speedup", insert_speedup);
+    tracing::info!("     - Update: {:.1}x speedup", update_speedup);
+    tracing::info!("     - Delete: {:.1}x speedup", delete_speedup);
 
-    println!("\n  ✅ Search performance:");
-    println!(
+    tracing::info!("\n  ✅ Search performance:");
+    tracing::info!(
         "     - k=1:   {:.2} QPS ({:.0} μs)",
         report.search_k1.throughput_ops_per_sec, report.search_k1.avg_latency_us
     );
-    println!(
+    tracing::info!(
         "     - k=10:  {:.2} QPS ({:.0} μs)",
         report.search_k10.throughput_ops_per_sec, report.search_k10.avg_latency_us
     );
-    println!(
+    tracing::info!(
         "     - k=100: {:.2} QPS ({:.0} μs)",
         report.search_k100.throughput_ops_per_sec, report.search_k100.avg_latency_us
     );
 
-    println!(
+    tracing::info!(
         "\n  ✅ Mixed workload: {:.2} ops/sec sustained",
         report.concurrent_mixed.throughput_ops_per_sec
     );
 
-    println!("\n✅ Benchmark completed successfully!");
-    println!("📄 Full report: {}", report_path.display());
-    println!("📊 JSON data: {}", json_path.display());
+    tracing::info!("\n✅ Benchmark completed successfully!");
+    tracing::info!("📄 Full report: {}", report_path.display());
+    tracing::info!("📊 JSON data: {}", json_path.display());
 
     Ok(())
 }
