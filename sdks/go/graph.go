@@ -85,4 +85,3 @@ func (c *Client) GetGraphDiscoveryStatus(collection string) (*DiscoveryStatusRes
 	}
 	return &result, nil
 }
-

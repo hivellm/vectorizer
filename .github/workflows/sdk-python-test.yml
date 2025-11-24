@@ -34,7 +34,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('sdks/python/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('sdks/python/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
@@ -113,14 +113,22 @@ jobs:
 
     - name: Check build artifacts
       working-directory: ./sdks/python
+      shell: bash
       run: |
         if [ ! -d "dist" ]; then
           echo "Build failed: dist directory not found"
           exit 1
         fi
-        if [ ! -f "dist/*.whl" ] && [ ! -f "dist/*.tar.gz" ]; then
+        # Check if any wheel or tar.gz files exist
+        wheel_count=$(find dist -name "*.whl" -type f 2>/dev/null | wc -l)
+        tar_count=$(find dist -name "*.tar.gz" -type f 2>/dev/null | wc -l)
+        if [ "$wheel_count" -eq 0 ] && [ "$tar_count" -eq 0 ]; then
           echo "Build failed: no wheel or source distribution found"
+          echo "Contents of dist directory:"
+          ls -la dist/ || echo "dist directory is empty"
           exit 1
         fi
         echo "Build artifacts verified successfully"
+        echo "Found $wheel_count wheel file(s) and $tar_count tar.gz file(s)"
+        ls -lh dist/
 

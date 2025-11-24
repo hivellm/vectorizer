@@ -134,6 +134,7 @@ jobs:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          args: --features full
 
   build-mac-metal-binaries:
     name: Build macOS ARM with Metal GPU support

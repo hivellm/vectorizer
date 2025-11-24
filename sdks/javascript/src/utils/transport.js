@@ -4,9 +4,13 @@
  * Supports multiple transport protocols:
  * - HTTP/HTTPS (default)
  * - UMICP (Universal Messaging and Inter-process Communication Protocol)
+ * 
+ * Note: UMICP requires the optional @hivellm/umicp package to be installed.
  */
 
 import { HttpClient } from './http-client.js';
+
+// Import UMICP client - it's optional and will handle missing @hivellm/umicp gracefully
 import { UMICPClient } from './umicp-client.js';
 
 /**
@@ -20,6 +24,7 @@ export class TransportFactory {
    * @param {Object} [config.http] - HTTP configuration
    * @param {Object} [config.umicp] - UMICP configuration
    * @returns {HttpClient|UMICPClient} Transport client instance
+   * @throws {Error} If UMICP is requested but @hivellm/umicp is not installed
    */
   static create(config) {
     const protocol = config.protocol || 'http';
@@ -35,12 +40,19 @@ export class TransportFactory {
         if (!config.umicp) {
           throw new Error('UMICP configuration is required when using UMICP protocol');
         }
+        if (!UMICPClient) {
+          throw new Error(
+            'UMICP transport requires @hivellm/umicp to be installed. ' +
+            'Install it with: npm install @hivellm/umicp'
+          );
+        }
         return new UMICPClient(config.umicp);
 
       default:
         throw new Error(`Unsupported protocol: ${protocol}`);
     }
   }
+
 }
 
 /**

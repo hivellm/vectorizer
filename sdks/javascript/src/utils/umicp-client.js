@@ -2,14 +2,19 @@
  * UMICP client utility using the official @hivellm/umicp SDK.
  * 
  * Wrapper around UMICPWebSocketClient for Vectorizer API requests.
+ * 
+ * Note: @hivellm/umicp is an optional dependency. If it's not installed,
+ * this module will fail to load, which is handled gracefully by the transport layer.
  */
 
-import { StreamableHTTPClient } from '@hivellm/umicp';
 import {
   NetworkError,
   ServerError,
   AuthenticationError,
 } from '../exceptions/index.js';
+
+// Lazy load UMICP module - it's an optional dependency
+let StreamableHTTPClient = null;
 
 export class UMICPClient {
   constructor(config = {}) {
@@ -30,6 +35,18 @@ export class UMICPClient {
   async connect() {
     if (this.connected && this.client) {
       return;
+    }
+
+    // Try to load UMICP module if not already loaded
+    if (!StreamableHTTPClient) {
+      try {
+        const umicpModule = await import('@hivellm/umicp');
+        StreamableHTTPClient = umicpModule.StreamableHTTPClient;
+      } catch (error) {
+        throw new Error(
+          '@hivellm/umicp is not installed. Install it with: npm install @hivellm/umicp'
+        );
+      }
     }
 
     try {
@@ -152,4 +169,3 @@ export class UMICPClient {
     }
   }
 }
-

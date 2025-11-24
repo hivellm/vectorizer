@@ -220,4 +220,3 @@ func TestGetGraphDiscoveryStatus(t *testing.T) {
 		t.Errorf("progress_percentage should be between 0 and 100, got %f", result.ProgressPercentage)
 	}
 }
-

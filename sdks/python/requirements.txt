@@ -3,8 +3,9 @@ aiohttp>=3.8.0
 websockets>=11.0.0
 dataclasses>=0.6; python_version<"3.7"
 
-# UMICP protocol support
-umicp-python>=0.1.3
+# UMICP protocol support (optional)
+# Install with: pip install umicp-python
+# umicp-python>=0.1.3
 
 # Optional dependencies for enhanced functionality
 httpx>=0.24.0
