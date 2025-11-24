@@ -13,11 +13,11 @@ jobs:
   build-linux-x86_64-gnu:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
       - name: Build and publish vectorizer
@@ -36,11 +36,11 @@ jobs:
   build-linux-x86_64-musl:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
       - name: Install cross-compilation tools
@@ -77,11 +77,11 @@ jobs:
   build-linux-aarch64-musl:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
       - name: Install cross-compilation tools
@@ -116,12 +116,12 @@ jobs:
       - name: Install dependencies
         run: |
           brew update-reset
-          brew install gcc cmake
+          brew install gcc cmake protobuf
           rustup default stable
           rustup update
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -147,13 +147,13 @@ jobs:
       - name: Install dependencies
         run: |
           brew update-reset
-          brew install gcc cmake
+          brew install gcc cmake protobuf
           rustup default stable
           rustup update
           rustup target add ${{ matrix.target }}
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build vectorizer with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -180,9 +180,11 @@ jobs:
     steps:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
-
+      - name: Install protoc
+        shell: pwsh
+        run: choco install protoc -y
       - name: Build
         run: cargo build --release
 
