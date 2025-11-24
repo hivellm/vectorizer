@@ -403,7 +403,9 @@ async fn test_real_server_streaming_bulk_insert() {
 }
 
 /// Test 8: Batch Search on Real Server
+/// This test requires a real gRPC server running and is skipped by default
 #[tokio::test]
+#[ignore]
 async fn test_real_server_batch_search() {
     let mut client = create_real_client().await.unwrap();
 
