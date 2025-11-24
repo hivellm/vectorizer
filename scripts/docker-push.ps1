@@ -2,22 +2,33 @@
 # Usage: .\scripts\docker-push.ps1 -Username YOUR_USERNAME -Tag 1.5.0
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [string]$Username,
     
     [Parameter(Mandatory=$false)]
     [string]$Tag = "latest",
     
     [Parameter(Mandatory=$false)]
-    [string]$Repository = "vectorizer"
+    [string]$Repository = "vectorizer",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$Organization = "hivehub"
 )
 
 $ImageName = "vectorizer"
-$FullTag = "${Username}/${Repository}:${Tag}"
+if ($Username) {
+    $FullTag = "${Username}/${Repository}:${Tag}"
+} else {
+    $FullTag = "${Organization}/${Repository}:${Tag}"
+}
 $SourceTag = "${ImageName}:${Tag}"
 
 Write-Host "🚀 Preparing push to Docker Hub..." -ForegroundColor Cyan
-Write-Host "   Username: $Username" -ForegroundColor Yellow
+if ($Username) {
+    Write-Host "   Username: $Username" -ForegroundColor Yellow
+} else {
+    Write-Host "   Organization: $Organization" -ForegroundColor Yellow
+}
 Write-Host "   Repository: $Repository" -ForegroundColor Yellow
 Write-Host "   Tag: $Tag" -ForegroundColor Yellow
 Write-Host "   Full tag: $FullTag" -ForegroundColor Yellow

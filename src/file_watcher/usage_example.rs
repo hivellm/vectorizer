@@ -107,7 +107,7 @@ pub async fn process_file_changes_example() -> Result<()> {
 
     // Get statistics
     let stats = sync_manager.get_statistics().await;
-    println!("Processed {} events, {} successful, {} failed", 
+    tracing::info!("Processed {} events, {} successful, {} failed", 
              stats.total_events_processed,
              stats.successful_operations,
              stats.failed_operations);
@@ -175,8 +175,8 @@ pub async fn integrate_with_metrics() -> Result<()> {
     let sync_stats = sync_manager.get_statistics().await;
     let metrics = metrics_collector.get_metrics().await;
 
-    println!("Sync stats: {:?}", sync_stats);
-    println!("Metrics: {:?}", metrics);
+    tracing::info!("Sync stats: {:?}", sync_stats);
+    tracing::info!("Metrics: {:?}", metrics);
 
     Ok(())
 }

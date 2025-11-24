@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use tempfile::TempDir;
 use tokio::sync::RwLock;
+use tracing::info;
 
 use super::{FileWatcherConfig, FileWatcherSystem};
 use crate::VectorStore;
@@ -34,7 +35,7 @@ async fn test_file_watcher_system_creation() {
     assert_eq!(watcher_system.config().collection_name, "watched_files");
     assert!(watcher_system.config().enable_realtime_indexing);
 
-    println!("✅ File watcher system creation test passed!");
+    info!("✅ File watcher system creation test passed!");
 }
 
 #[tokio::test]
@@ -63,7 +64,7 @@ async fn test_file_watcher_config_validation() {
     // assert!(config.exclude_patterns.contains(&"**/node_modules/**".to_string()));
     // assert!(config.exclude_patterns.contains(&"**/.git/**".to_string()));
 
-    println!("✅ File watcher config validation test passed!");
+    info!("✅ File watcher config validation test passed!");
 }
 
 #[tokio::test]
@@ -99,5 +100,5 @@ async fn test_file_watcher_with_temp_directory() {
     assert_eq!(watch_paths.len(), 1);
     assert_eq!(watch_paths[0], temp_dir.path());
 
-    println!("✅ File watcher with temp directory test passed!");
+    info!("✅ File watcher with temp directory test passed!");
 }

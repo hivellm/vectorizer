@@ -210,7 +210,7 @@ mod tests {
     fn test_backend_detection() {
         // Should not panic
         let backend = GpuDetector::detect_best_backend();
-        println!("Detected backend: {:?}", backend);
+        tracing::info!("Detected backend: {:?}", backend);
 
         #[cfg(target_os = "macos")]
         {
@@ -235,12 +235,12 @@ mod tests {
     #[test]
     fn test_metal_availability() {
         let available = GpuDetector::is_metal_available();
-        println!("Metal available: {}", available);
+        tracing::info!("Metal available: {}", available);
 
         #[cfg(target_os = "macos")]
         {
             // On macOS, Metal may or may not be available
-            println!("Metal availability on macOS: {}", available);
+            tracing::info!("Metal availability on macOS: {}", available);
         }
 
         #[cfg(not(target_os = "macos"))]

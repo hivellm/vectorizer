@@ -6,6 +6,8 @@
 mod quick_validation {
     use std::path::Path;
 
+    use tracing::info;
+
     use crate::normalization::*;
 
     #[test]
@@ -28,7 +30,7 @@ mod quick_validation {
         let hash2 = hasher.hash("test");
         assert_eq!(hash1, hash2);
 
-        println!("✅ All basic tests passed!");
+        info!("✅ All basic tests passed!");
     }
 
     #[test]
@@ -41,7 +43,7 @@ mod quick_validation {
         let compression_ratio =
             (result.metadata.removed_bytes as f64 / result.metadata.original_size as f64) * 100.0;
 
-        println!("✅ Compression: {:.1}% reduction", compression_ratio);
+        info!("✅ Compression: {:.1}% reduction", compression_ratio);
         assert!(compression_ratio > 10.0, "Should achieve >10% compression");
     }
 
@@ -72,7 +74,7 @@ mod quick_validation {
         assert!(result_agg.text.len() <= result_mod.text.len());
         assert!(result_mod.text.len() <= result_cons.text.len());
 
-        println!("✅ Normalization levels working correctly!");
+        info!("✅ Normalization levels working correctly!");
     }
 
     #[test]
@@ -91,7 +93,7 @@ mod quick_validation {
         let result = normalizer.normalize(with_bom, Some(ContentType::Plain));
         assert!(!result.text.starts_with('\u{FEFF}'));
 
-        println!("✅ Unicode handling correct!");
+        info!("✅ Unicode handling correct!");
     }
 
     #[test]
@@ -105,7 +107,7 @@ mod quick_validation {
         }
         let duration = start.elapsed();
 
-        println!(
+        info!(
             "✅ Performance: {:?} for 100 iterations of {}KB",
             duration,
             large_text.len() / 1024

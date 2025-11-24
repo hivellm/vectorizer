@@ -43,7 +43,6 @@ async fn main() -> anyhow::Result<()> {
             "unknown panic".to_string()
         };
 
-        eprintln!("❌ PANIC: {} at {}", message, location);
         error!("❌ PANIC: {} at {}", message, location);
 
         // Log to file if possible
@@ -78,7 +77,6 @@ async fn main() -> anyhow::Result<()> {
     // Start the server (this will block)
     if let Err(e) = server.start(&cli.host, cli.port).await {
         error!("❌ Server failed: {}", e);
-        eprintln!("❌ Server failed: {}", e);
         std::process::exit(1);
     }
 

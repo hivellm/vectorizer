@@ -5,6 +5,7 @@ mod debug_tests {
 
     use tempfile::tempdir;
     use tokio;
+    use tracing::info;
 
     use super::*;
 
@@ -13,20 +14,20 @@ mod debug_tests {
         let temp_dir = tempdir().unwrap();
         let data_dir = temp_dir.path().join("data");
 
-        println!("Creating directory: {:?}", data_dir);
+        info!("Creating directory: {:?}", data_dir);
 
         // Try to create directory
         match fs::create_dir_all(&data_dir) {
-            Ok(_) => println!("Directory created successfully"),
+            Ok(_) => info!("Directory created successfully"),
             Err(e) => {
-                println!("Failed to create directory: {:?}", e);
+                info!("Failed to create directory: {:?}", e);
                 panic!("Directory creation failed: {:?}", e);
             }
         }
 
         // Verify directory exists
         if data_dir.exists() {
-            println!("Directory exists: {:?}", data_dir);
+            info!("Directory exists: {:?}", data_dir);
         } else {
             panic!("Directory does not exist after creation");
         }
@@ -34,13 +35,13 @@ mod debug_tests {
         // Try to create a file in the directory
         let test_file = data_dir.join("test.txt");
         match fs::write(&test_file, "test content") {
-            Ok(_) => println!("File created successfully"),
+            Ok(_) => info!("File created successfully"),
             Err(e) => {
-                println!("Failed to create file: {:?}", e);
+                info!("Failed to create file: {:?}", e);
                 panic!("File creation failed: {:?}", e);
             }
         }
 
-        println!("All tests passed!");
+        info!("All tests passed!");
     }
 }

@@ -220,7 +220,7 @@ async fn test_wal_performance_demo() {
 
     let duration = start_time.elapsed();
 
-    println!(
+    info!(
         "✅ Performance test: {} operations in {:?} ({:.2} ops/sec)",
         1000,
         duration,
@@ -231,5 +231,5 @@ async fn test_wal_performance_demo() {
     let entries = wal.read_from(0).await.unwrap();
     assert_eq!(entries.len(), 1000);
 
-    println!("✅ All 1000 operations were recorded correctly");
+    info!("✅ All 1000 operations were recorded correctly");
 }

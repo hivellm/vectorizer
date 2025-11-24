@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use tempfile::TempDir;
 use tokio::sync::RwLock;
+use tracing::info;
 
 use super::operations::VectorOperations;
 use super::{FileChangeEvent, FileChangeEventWithMetadata};
@@ -47,5 +48,5 @@ async fn test_should_process_file() {
     assert!(!operations.should_process_file(std::path::Path::new("test.bin")));
     assert!(!operations.should_process_file(std::path::Path::new("test"))); // no extension
 
-    println!("✅ File filtering test passed!");
+    info!("✅ File filtering test passed!");
 }

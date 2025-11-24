@@ -634,11 +634,9 @@ impl VectorStore {
                     // CPU mode is the default, no need to log
                 }
                 _ => {
-                    eprintln!("✅ {} GPU detected and enabled!", backend.name());
                     info!("✅ {} GPU detected and enabled!", backend.name());
 
                     if let Some(gpu_info) = GpuDetector::get_gpu_info(backend) {
-                        eprintln!("📊 GPU Info: {}", gpu_info);
                         info!("📊 GPU Info: {}", gpu_info);
                     }
 
@@ -651,12 +649,10 @@ impl VectorStore {
 
         #[cfg(not(feature = "hive-gpu"))]
         {
-            eprintln!("⚠️ Hive-GPU not available (hive-gpu feature not compiled)");
             info!("⚠️ Hive-GPU not available (hive-gpu feature not compiled)");
         }
 
         // Return the store (auto-save will be enabled after collections load)
-        eprintln!("💻 Using CPU-only mode");
         info!("💻 Using CPU-only mode");
         store
     }

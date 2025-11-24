@@ -8,6 +8,7 @@ mod tests {
 
     use tempfile::tempdir;
     use tokio::sync::RwLock;
+    use tracing::info;
 
     use super::*;
     use crate::VectorStore;
@@ -54,7 +55,7 @@ mod tests {
         assert_eq!(stats.total_collections, 1);
         assert_eq!(stats.total_mappings, 1);
 
-        println!("✅ File Index operations work correctly");
+        info!("✅ File Index operations work correctly");
     }
 
     // NOTE: Pattern matching methods are not available in current EnhancedFileWatcher implementation
@@ -79,7 +80,7 @@ mod tests {
         assert_eq!(workspace_config.collections.len(), 1);
         assert_eq!(workspace_config.collections[0].name, "test-collection");
 
-        println!("✅ Workspace configuration works correctly");
+        info!("✅ Workspace configuration works correctly");
     }
 
     #[tokio::test]
@@ -109,7 +110,7 @@ mod tests {
         assert_eq!(stats.total_files, 2);
         assert_eq!(stats.total_collections, 2);
 
-        println!("✅ File Index JSON serialization works correctly");
+        info!("✅ File Index JSON serialization works correctly");
     }
 
     // ============================================================================
@@ -122,7 +123,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_performance_benchmarks() {
-        println!("Testing Enhanced File Watcher Performance ");
+        info!("Testing Enhanced File Watcher Performance ");
 
         let temp_dir = tempdir().unwrap();
         let test_path = temp_dir.path().to_path_buf();
@@ -138,14 +139,14 @@ mod tests {
             test_files.push(file_path);
         }
 
-        println!("Created {} test files ", file_count);
+        info!("Created {} test files ", file_count);
 
         // Test pattern matching performance
         let start = std::time::Instant::now();
         // NOTE: Pattern matching methods are not available in current implementation
-        println!("Pattern matching tests skipped - methods not implemented ");
+        info!("Pattern matching tests skipped - methods not implemented ");
         let pattern_time = start.elapsed();
-        println!(
+        info!(
             "Pattern matching for {} files: {:?} ",
             file_count, pattern_time
         );
@@ -158,7 +159,7 @@ mod tests {
             let _hash = hash_validator.calculate_content_hash(&content).await;
         }
         let hash_time = start.elapsed();
-        println!(
+        info!(
             "Hash calculation for {} files: {:?} ",
             file_count, hash_time
         );
@@ -174,7 +175,7 @@ mod tests {
             );
         }
         let index_time = start.elapsed();
-        println!(
+        info!(
             "File index operations for {} files: {:?} ",
             file_count, index_time
         );
@@ -193,17 +194,17 @@ mod tests {
             "File index operations should be fast "
         );
 
-        println!("All performance benchmarks passed! ");
-        println!("Performance metrics: ");
-        println!(
+        info!("All performance benchmarks passed! ");
+        info!("Performance metrics: ");
+        info!(
             "  - Pattern matching: {:?} for {} files ",
             pattern_time, file_count
         );
-        println!(
+        info!(
             "  - Hash calculation: {:?} for {} files ",
             hash_time, file_count
         );
-        println!(
+        info!(
             "  - Index operations: {:?} for {} files ",
             index_time, file_count
         );
@@ -215,7 +216,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comprehensive_pattern_matching() {
-        println!("Testing Comprehensive Pattern Matching ");
+        info!("Testing Comprehensive Pattern Matching ");
 
         // Test simple pattern matching cases that we know work
         let test_cases = vec![
@@ -258,9 +259,9 @@ mod tests {
         ];
 
         // NOTE: File pattern matching methods are not available in current implementation
-        println!("File pattern matching tests skipped - methods not implemented ");
+        info!("File pattern matching tests skipped - methods not implemented ");
 
-        println!("All comprehensive pattern matching tests passed! ");
+        info!("All comprehensive pattern matching tests passed! ");
     }
 
     // ============================================================================

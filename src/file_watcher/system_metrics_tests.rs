@@ -1,6 +1,7 @@
 //! Tests for system metrics functionality
 
 use std::sync::Arc;
+use tracing::info;
 use super::MetricsCollector;
 
 #[tokio::test]
@@ -11,10 +12,10 @@ async fn test_system_metrics_functionality() {
     let initial_metrics = metrics.get_metrics().await;
     
     // Memory usage should be > 0 on Linux systems
-    println!("Memory usage: {} bytes", initial_metrics.system.memory_usage_bytes);
-    println!("CPU usage: {}%", initial_metrics.system.cpu_usage_percent);
-    println!("Thread count: {}", initial_metrics.system.thread_count);
-    println!("Active file handles: {}", initial_metrics.system.active_file_handles);
+    info!("Memory usage: {} bytes", initial_metrics.system.memory_usage_bytes);
+    info!("CPU usage: {}%", initial_metrics.system.cpu_usage_percent);
+    info!("Thread count: {}", initial_metrics.system.thread_count);
+    info!("Active file handles: {}", initial_metrics.system.active_file_handles);
     
     // On Linux systems, these should be > 0
     if cfg!(target_os = "linux") {
@@ -43,7 +44,7 @@ async fn test_system_metrics_functionality() {
     assert_eq!(metrics_with_io.system.disk_io_ops_per_sec, 2);
     assert_eq!(metrics_with_io.system.network_io_bytes_per_sec, 512);
     
-    println!("✅ All system metrics are working correctly!");
+    info!("✅ All system metrics are working correctly!");
 }
 
 #[tokio::test]
@@ -67,7 +68,7 @@ async fn test_connection_tracking() {
     let final_metrics = metrics.get_metrics().await;
     assert_eq!(final_metrics.network.active_connections, 5);
     
-    println!("✅ Connection tracking is working correctly!");
+    info!("✅ Connection tracking is working correctly!");
 }
 
 #[tokio::test]
@@ -99,7 +100,7 @@ async fn test_io_tracking() {
     assert_eq!(final_metrics.system.disk_io_ops_per_sec, 5);
     assert_eq!(final_metrics.system.network_io_bytes_per_sec, 3072); // 512 + 1024 + 1536
     
-    println!("✅ I/O tracking is working correctly!");
+    info!("✅ I/O tracking is working correctly!");
 }
 
 #[tokio::test]
@@ -153,11 +154,11 @@ async fn test_comprehensive_metrics() {
     // 4 success, 2 errors = 66% success rate
     assert_eq!(final_metrics.status.health_score, 66); // 4 success, 2 errors = 66%
     
-    println!("✅ Comprehensive metrics test passed!");
-    println!("   - Files processed: {}", final_metrics.files.total_files_processed);
-    println!("   - API requests: {}", final_metrics.network.total_api_requests);
-    println!("   - Active connections: {}", final_metrics.network.active_connections);
-    println!("   - Health score: {}%", final_metrics.status.health_score);
-    println!("   - Memory usage: {} bytes", final_metrics.system.memory_usage_bytes);
-    println!("   - Thread count: {}", final_metrics.system.thread_count);
+    info!("✅ Comprehensive metrics test passed!");
+    info!("   - Files processed: {}", final_metrics.files.total_files_processed);
+    info!("   - API requests: {}", final_metrics.network.total_api_requests);
+    info!("   - Active connections: {}", final_metrics.network.active_connections);
+    info!("   - Health score: {}%", final_metrics.status.health_score);
+    info!("   - Memory usage: {} bytes", final_metrics.system.memory_usage_bytes);
+    info!("   - Thread count: {}", final_metrics.system.thread_count);
 }

@@ -277,27 +277,27 @@ impl ExampleUsage {
 
         info!("1. Intelligent Search Example:");
         Self::example_intelligent_search().await?;
-        println!();
+        info!("");
 
         info!("2. Multi Collection Search Example:");
         Self::example_multi_collection_search().await?;
-        println!();
+        info!("");
 
         info!("3. Semantic Search Example:");
         Self::example_semantic_search().await?;
-        println!();
+        info!("");
 
         info!("4. Contextual Search Example:");
         Self::example_contextual_search().await?;
-        println!();
+        info!("");
 
         info!("5. REST API Example:");
         Self::example_rest_api().await?;
-        println!();
+        info!("");
 
         info!("6. MCP Server Integration Example:");
         Self::example_mcp_server_integration().await?;
-        println!();
+        info!("");
 
         info!("=== All Examples Completed Successfully ===");
         Ok(())

@@ -319,7 +319,7 @@ async fn check_status() {
 async fn install_service() {
     #[cfg(target_os = "linux")]
     {
-        println!("🐧 Installing as Linux systemd service...");
+        info!("🐧 Installing as Linux systemd service...");
 
         let username = whoami::username();
         let exe_path = std::env::current_exe().unwrap().display().to_string();
@@ -363,9 +363,9 @@ WantedBy=multi-user.target
 
     #[cfg(target_os = "windows")]
     {
-        println!("🪟 Installing as Windows service...");
+        info!("🪟 Installing as Windows service...");
         // Windows service installation would go here
-        eprintln!("❌ Windows service installation not yet implemented");
+        error!("❌ Windows service installation not yet implemented");
         std::process::exit(1);
     }
 

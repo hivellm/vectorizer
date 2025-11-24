@@ -73,6 +73,17 @@ powershell -c "irm https://raw.githubusercontent.com/hivellm/vectorizer/main/scr
 
 ### Using Docker (Recommended)
 
+**Docker Hub:**
+```bash
+docker run -d \
+  --name vectorizer \
+  -p 15002:15002 \
+  -v $(pwd)/vectorizer-data:/vectorizer/data \
+  --restart unless-stopped \
+  hivehub/vectorizer:latest
+```
+
+**GitHub Container Registry:**
 ```bash
 docker run -d \
   --name vectorizer \
@@ -81,6 +92,10 @@ docker run -d \
   --restart unless-stopped \
   ghcr.io/hivellm/vectorizer:latest
 ```
+
+**Available at:**
+- 🐳 [Docker Hub](https://hub.docker.com/r/hivehub/vectorizer) - `hivehub/vectorizer:latest`
+- 📦 [GitHub Container Registry](https://github.com/hivellm/vectorizer/pkgs/container/vectorizer) - `ghcr.io/hivellm/vectorizer:latest`
 
 ### Building from Source
 

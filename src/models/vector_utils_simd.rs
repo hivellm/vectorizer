@@ -167,7 +167,7 @@ mod tests {
     fn test_avx2_detection() {
         #[cfg(target_arch = "x86_64")]
         {
-            println!("AVX2 available: {}", is_avx2_available());
+            tracing::info!("AVX2 available: {}", is_avx2_available());
         }
     }
 

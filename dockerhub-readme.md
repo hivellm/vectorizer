@@ -1,8 +1,8 @@
 # Vectorizer
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/USERNAME/vectorizer.svg)](https://hub.docker.com/r/USERNAME/vectorizer)
-[![Docker Stars](https://img.shields.io/docker/stars/USERNAME/vectorizer.svg)](https://hub.docker.com/r/USERNAME/vectorizer)
-[![Docker Image Size](https://img.shields.io/docker/image-size/USERNAME/vectorizer/latest)](https://hub.docker.com/r/USERNAME/vectorizer)
+[![Docker Pulls](https://img.shields.io/docker/pulls/hivehub/vectorizer.svg)](https://hub.docker.com/r/hivehub/vectorizer)
+[![Docker Stars](https://img.shields.io/docker/stars/hivehub/vectorizer.svg)](https://hub.docker.com/r/hivehub/vectorizer)
+[![Docker Image Size](https://img.shields.io/docker/image-size/hivehub/vectorizer/latest)](https://hub.docker.com/r/hivehub/vectorizer)
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
@@ -15,7 +15,7 @@ docker run -d \
   --name vectorizer \
   -p 15002:15002 \
   --restart unless-stopped \
-  USERNAME/vectorizer:latest
+  hivehub/vectorizer:latest
 ```
 
 ### With Persistent Data
@@ -28,7 +28,7 @@ docker run -d \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
   -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
   --restart unless-stopped \
-  USERNAME/vectorizer:latest
+  hivehub/vectorizer:latest
 ```
 
 ### Docker Compose
