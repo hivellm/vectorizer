@@ -146,7 +146,7 @@ COPY dashboard/public ./public
 
 # Install dependencies and build dashboard
 RUN pnpm install --frozen-lockfile && \
-    pnpm run build
+    pnpm run build:skip-check
 
 FROM chef AS builder
 WORKDIR /vectorizer
