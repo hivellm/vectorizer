@@ -13,12 +13,29 @@ import { VectorizerClient } from '../src/client';
 describe('Discovery Operations', () => {
   let client: VectorizerClient;
   const baseURL = process.env['VECTORIZER_URL'] || 'http://localhost:15002';
+  let serverAvailable = false;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     client = new VectorizerClient({
       baseURL,
       timeout: 30000,
     });
+
+    // Check if server is available
+    try {
+      await client.healthCheck();
+      serverAvailable = true;
+    } catch (error) {
+      console.warn('⚠️  Vectorizer server not available at', baseURL);
+      console.warn('   Integration tests will be skipped. Start server with: cargo run --release');
+      serverAvailable = false;
+    }
+  });
+
+  beforeEach(() => {
+    if (!serverAvailable) {
+      return; // Skip test execution
+    }
   });
 
   describe('discover', () => {

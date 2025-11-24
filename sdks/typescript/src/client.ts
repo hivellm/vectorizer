@@ -44,10 +44,6 @@ import {
   HybridSearchResponse,
   validateHybridSearchRequest,
   // Graph models
-  GraphNode,
-  GraphEdge,
-  NeighborInfo,
-  RelatedNodeInfo,
   FindRelatedRequest,
   FindRelatedResponse,
   FindPathRequest,
