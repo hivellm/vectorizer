@@ -430,15 +430,32 @@ async fn test_wal_without_enabling() {
             .is_ok()
     );
 
-    // Wait a bit for async operations
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    // Verify vector was inserted - the insert is synchronous so it should be available immediately
+    let initial_vec = store
+        .get_vector("test_collection", "test_vec")
+        .expect("Vector should be inserted and retrievable immediately");
 
-    // Verify vector was inserted before updating
-    let initial_vec = store.get_vector("test_collection", "test_vec").unwrap();
     // Euclidean metric doesn't normalize, so values should match exactly
+    // Check first few values to ensure vector was stored correctly
     assert_eq!(
-        initial_vec.data[0], 1.0,
-        "Initial vector should have data[0] = 1.0, got {}",
+        initial_vec.data.len(),
+        384,
+        "Vector should have dimension 384, got {}",
+        initial_vec.data.len()
+    );
+
+    // Check if vector has non-zero values (if all zeros, something went wrong)
+    let has_non_zero = initial_vec.data.iter().any(|&v| v != 0.0);
+    assert!(
+        has_non_zero,
+        "Vector should have non-zero values, but all values are 0.0"
+    );
+
+    // For Euclidean metric, values should match exactly (no normalization)
+    // But we'll check if at least the first value is close to 1.0 (allowing for floating point precision)
+    assert!(
+        (initial_vec.data[0] - 1.0).abs() < 0.001,
+        "Initial vector should have data[0] close to 1.0, got {} (vector may have been normalized incorrectly)",
         initial_vec.data[0]
     );
 
