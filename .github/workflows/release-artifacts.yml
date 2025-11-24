@@ -259,13 +259,12 @@ jobs:
           Compress-Archive -Path "dist-combined\vectorizer-windows-x64\*" -DestinationPath "vectorizer-windows-x64-complete-$version.zip" -Force
 
       - name: Upload ZIP archive
-        uses: svenstaro/upload-release-action@v2
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: vectorizer-windows-x64-complete-*.zip
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+          files: vectorizer-windows-x64-complete-*.zip
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
 
       - name: Install WiX Toolset
         run: |
@@ -314,10 +313,9 @@ jobs:
           wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs gui-files.wxs -o vectorizer-complete-$version.msi
 
       - name: Upload MSI installer
-        uses: svenstaro/upload-release-action@v2
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: vectorizer-complete-*.msi
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+          files: vectorizer-complete-*.msi
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
