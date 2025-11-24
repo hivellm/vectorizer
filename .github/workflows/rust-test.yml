@@ -20,7 +20,7 @@ jobs:
     - name: Install minimal stable
       uses: dtolnay/rust-toolchain@stable
     
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     
     - uses: Swatinem/rust-cache@v2
       # MONOREPO: Uncomment and set workspaces if in subdirectory
