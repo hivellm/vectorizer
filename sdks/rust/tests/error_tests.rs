@@ -1,7 +1,7 @@
 //! Error handling tests for the Rust SDK
 //! Tests for all VectorizerError variants and error mapping
 
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 use serde_json;
 
 #[test]

@@ -1,7 +1,7 @@
 //! HTTP client tests for the Rust SDK
 //! Tests for HTTP request handling, error mapping, and response processing
 
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 use std::collections::HashMap;
 
 // Note: These tests focus on error mapping and client initialization

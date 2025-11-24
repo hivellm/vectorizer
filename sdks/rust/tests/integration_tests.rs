@@ -1,6 +1,6 @@
 //! Comprehensive tests for the Rust SDK
 
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 use std::collections::HashMap;
 
 #[tokio::test]

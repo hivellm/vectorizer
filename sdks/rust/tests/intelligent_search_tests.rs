@@ -8,7 +8,7 @@
 
 #[cfg(test)]
 mod intelligent_search_tests {
-    use vectorizer_rust_sdk::*;
+    use vectorizer_sdk::*;
     use std::env;
 
     fn get_test_client() -> VectorizerClient {

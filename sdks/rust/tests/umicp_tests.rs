@@ -1,9 +1,9 @@
 //! Tests for UMICP transport
 
-use vectorizer_rust_sdk::{VectorizerClient, ClientConfig, Protocol, parse_connection_string};
+use vectorizer_sdk::{VectorizerClient, ClientConfig, Protocol, parse_connection_string};
 
 #[cfg(feature = "umicp")]
-use vectorizer_rust_sdk::UmicpConfig;
+use vectorizer_sdk::UmicpConfig;
 
 #[cfg(feature = "umicp")]
 #[tokio::test]

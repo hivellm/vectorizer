@@ -1,7 +1,7 @@
 //! Model tests for the Rust SDK
 //! Tests for Vector, Collection, SearchResult, and Batch models
 
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 use std::collections::HashMap;
 
 #[test]

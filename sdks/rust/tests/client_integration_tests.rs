@@ -1,7 +1,7 @@
 //! Client integration tests for the Rust SDK
 //! Tests for client operations, model integration, and data transformation
 
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 use std::collections::HashMap;
 
 #[test]

@@ -1,6 +1,6 @@
 //! Validation utility tests for the Rust SDK
 
-use vectorizer_rust_sdk::*;
+use vectorizer_sdk::*;
 
 #[test]
 fn test_validate_non_empty_string() {
@@ -132,7 +132,7 @@ fn test_serialization_utilities() {
     
     // Test invalid JSON
     let invalid_json = r#"{"invalid": json}"#;
-    let result: Result<Vec<String>> = utils::serialization::from_json(invalid_json);
+    let result: vectorizer_sdk::Result<Vec<String>> = utils::serialization::from_json(invalid_json);
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), VectorizerError::Serialization(_)));
 }

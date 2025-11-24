@@ -11,7 +11,7 @@
 
 #[cfg(test)]
 mod file_operations_tests {
-    use vectorizer_rust_sdk::*;
+    use vectorizer_sdk::*;
     use std::env;
 
     const TEST_COLLECTION: &str = "test-collection";
