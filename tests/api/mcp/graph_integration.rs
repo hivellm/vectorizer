@@ -38,9 +38,9 @@ async fn test_graph_find_related_mcp_tool() {
     let store = Arc::new(VectorStore::new());
     let embedding_manager = Arc::new(EmbeddingManager::new());
 
-    // Create collection with graph enabled
+    // Create collection with graph enabled (CPU only for tests)
     store
-        .create_collection("test_mcp_graph", create_test_collection_config())
+        .create_collection_cpu_only("test_mcp_graph", create_test_collection_config())
         .unwrap();
 
     // Insert vectors
@@ -94,7 +94,7 @@ async fn test_graph_find_path_mcp_tool() {
 
     // Create collection with graph enabled
     store
-        .create_collection("test_mcp_path", create_test_collection_config())
+        .create_collection_cpu_only("test_mcp_path", create_test_collection_config())
         .unwrap();
 
     // Insert vectors
@@ -152,7 +152,7 @@ async fn test_graph_get_neighbors_mcp_tool() {
 
     // Create collection with graph enabled
     store
-        .create_collection("test_mcp_neighbors", create_test_collection_config())
+        .create_collection_cpu_only("test_mcp_neighbors", create_test_collection_config())
         .unwrap();
 
     // Insert vectors
@@ -198,7 +198,7 @@ async fn test_graph_create_edge_mcp_tool() {
 
     // Create collection with graph enabled
     store
-        .create_collection("test_mcp_create", create_test_collection_config())
+        .create_collection_cpu_only("test_mcp_create", create_test_collection_config())
         .unwrap();
 
     // Insert vectors
@@ -290,7 +290,7 @@ async fn test_graph_discover_edges_mcp_tool_creates_edges() {
 
     // Create collection with graph enabled
     store
-        .create_collection("test_mcp_discover", create_test_collection_config())
+        .create_collection_cpu_only("test_mcp_discover", create_test_collection_config())
         .unwrap();
 
     // Insert multiple vectors with varying similarity
@@ -403,7 +403,7 @@ async fn test_graph_discover_edges_mcp_tool_node_specific() {
 
     // Create collection with graph enabled
     store
-        .create_collection("test_mcp_discover_node", create_test_collection_config())
+        .create_collection_cpu_only("test_mcp_discover_node", create_test_collection_config())
         .unwrap();
 
     // Insert multiple vectors

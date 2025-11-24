@@ -669,7 +669,7 @@ impl VectorStore {
     }
 
     /// Create a collection with option to disable GPU (for testing)
-    #[cfg(test)]
+    /// This method forces CPU-only collection creation, useful for tests that need deterministic behavior
     pub fn create_collection_cpu_only(&self, name: &str, config: CollectionConfig) -> Result<()> {
         self.create_collection_internal(name, config, false)
     }

@@ -348,7 +348,6 @@ pub enum SummarizationMethod {
     Abstractive,
 }
 
-
 /// Summarize text request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SummarizeTextRequest {
