@@ -2,40 +2,39 @@ name: Formatter and linter
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [master, main, develop]
   pull_request:
-    branches: [ '**' ]
+    branches: ["**"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   lint:
-
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install minimal nightly (only for fmt)
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: rustfmt
-    - name: Install minimal stable
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-    - uses: actions/checkout@v6
-    - uses: Swatinem/rust-cache@v2
-      with:
-        key: clippy
-    - name: Update apt
-      run: sudo apt-get update
-    - name: Install dependencies
-      run: sudo apt-get install -y clang protobuf-compiler
-    - name: Check code formatting
-      run: cargo +nightly fmt --all -- --check
-    - name: Check cargo clippy warnings
-      run: cargo clippy --workspace -- -D warnings
-    - name: Check cargo clippy warnings for all targets
-      run: cargo clippy --workspace --all-targets -- -D warnings
-    - name: Check cargo clippy warnings for all targets and features
-      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Install minimal nightly (only for fmt)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: Install minimal stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/checkout@v6
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install dependencies
+        run: sudo apt-get install -y clang protobuf-compiler
+      - name: Check code formatting
+        run: cargo +nightly fmt --all -- --check
+      - name: Check cargo clippy warnings
+        run: cargo clippy --workspace -- -D warnings
+      - name: Check cargo clippy warnings for all targets
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Check cargo clippy warnings for all targets and features
+        run: cargo clippy --workspace --all-targets -- -D warnings

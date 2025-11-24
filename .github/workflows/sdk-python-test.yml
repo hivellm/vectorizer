@@ -2,15 +2,15 @@ name: Python SDK Tests
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [master, main, develop]
     paths:
-      - 'sdks/python/**'
-      - '.github/workflows/sdk-python-test.yml'
+      - "sdks/python/**"
+      - ".github/workflows/sdk-python-test.yml"
   pull_request:
-    branches: [ '**' ]
+    branches: ["**"]
     paths:
-      - 'sdks/python/**'
-      - '.github/workflows/sdk-python-test.yml'
+      - "sdks/python/**"
+      - ".github/workflows/sdk-python-test.yml"
 
 jobs:
   test:
@@ -18,122 +18,121 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
-        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('sdks/python/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: Install dependencies
-      working-directory: ./sdks/python
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[test,dev]" || pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-asyncio || echo "Test dependencies already installed"
-      env:
-        PYTHONPATH: ${{ github.workspace }}/sdks/python
+      - name: Install dependencies
+        working-directory: ./sdks/python
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test,dev]" || pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio || echo "Test dependencies already installed"
+        env:
+          PYTHONPATH: ${{ github.workspace }}/sdks/python
 
-    - name: Run tests (skip integration tests that require server)
-      working-directory: ./sdks/python
-      shell: bash
-      run: |
-        # Run unit tests only, skip integration tests
-        pytest tests/ -v -m "not integration" --tb=short || \
-        pytest tests/ -v -k "not integration" --tb=short || \
-        pytest tests/ -v --tb=short -x || echo "Some tests may have failed"
-      env:
-        # Skip server-to-server tests
-        SKIP_INTEGRATION_TESTS: true
-        SKIP_S2S_TESTS: true
-        PYTHONPATH: ${{ github.workspace }}/sdks/python
+      - name: Run tests (skip integration tests that require server)
+        working-directory: ./sdks/python
+        shell: bash
+        run: |
+          # Run unit tests only, skip integration tests
+          pytest tests/ -v -m "not integration" --tb=short || \
+          pytest tests/ -v -k "not integration" --tb=short || \
+          pytest tests/ -v --tb=short -x || echo "Some tests may have failed"
+        env:
+          # Skip server-to-server tests
+          SKIP_INTEGRATION_TESTS: true
+          SKIP_S2S_TESTS: true
+          PYTHONPATH: ${{ github.workspace }}/sdks/python
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: python-test-results-${{ matrix.os }}-py${{ matrix.python-version }}
-        path: sdks/python/.pytest_cache/
-        if-no-files-found: ignore
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: sdks/python/.pytest_cache/
+          if-no-files-found: ignore
 
   lint:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install linting tools
-      working-directory: ./sdks/python
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 black mypy || echo "Linting tools installation skipped"
+      - name: Install linting tools
+        working-directory: ./sdks/python
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black mypy || echo "Linting tools installation skipped"
 
-    - name: Run flake8
-      working-directory: ./sdks/python
-      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 check skipped"
+      - name: Run flake8
+        working-directory: ./sdks/python
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "flake8 check skipped"
 
-    - name: Check code formatting with black
-      working-directory: ./sdks/python
-      run: black --check . || echo "black check skipped"
+      - name: Check code formatting with black
+        working-directory: ./sdks/python
+        run: black --check . || echo "black check skipped"
 
   build-check:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install build dependencies
-      working-directory: ./sdks/python
-      run: |
-        python -m pip install --upgrade pip
-        pip install build wheel
+      - name: Install build dependencies
+        working-directory: ./sdks/python
+        run: |
+          python -m pip install --upgrade pip
+          pip install build wheel
 
-    - name: Build SDK
-      working-directory: ./sdks/python
-      run: python -m build
+      - name: Build SDK
+        working-directory: ./sdks/python
+        run: python -m build
 
-    - name: Check build artifacts
-      working-directory: ./sdks/python
-      shell: bash
-      run: |
-        if [ ! -d "dist" ]; then
-          echo "Build failed: dist directory not found"
-          exit 1
-        fi
-        # Check if any wheel or tar.gz files exist
-        wheel_count=$(find dist -name "*.whl" -type f 2>/dev/null | wc -l)
-        tar_count=$(find dist -name "*.tar.gz" -type f 2>/dev/null | wc -l)
-        if [ "$wheel_count" -eq 0 ] && [ "$tar_count" -eq 0 ]; then
-          echo "Build failed: no wheel or source distribution found"
-          echo "Contents of dist directory:"
-          ls -la dist/ || echo "dist directory is empty"
-          exit 1
-        fi
-        echo "Build artifacts verified successfully"
-        echo "Found $wheel_count wheel file(s) and $tar_count tar.gz file(s)"
-        ls -lh dist/
-
+      - name: Check build artifacts
+        working-directory: ./sdks/python
+        shell: bash
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build failed: dist directory not found"
+            exit 1
+          fi
+          # Check if any wheel or tar.gz files exist
+          wheel_count=$(find dist -name "*.whl" -type f 2>/dev/null | wc -l)
+          tar_count=$(find dist -name "*.tar.gz" -type f 2>/dev/null | wc -l)
+          if [ "$wheel_count" -eq 0 ] && [ "$tar_count" -eq 0 ]; then
+            echo "Build failed: no wheel or source distribution found"
+            echo "Contents of dist directory:"
+            ls -la dist/ || echo "dist directory is empty"
+            exit 1
+          fi
+          echo "Build artifacts verified successfully"
+          echo "Found $wheel_count wheel file(s) and $tar_count tar.gz file(s)"
+          ls -lh dist/
