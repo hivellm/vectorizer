@@ -1830,9 +1830,6 @@ let client = VectorizerClient::new(ClientConfig {
     umicp: Some(UmicpConfig { host: "localhost".to_string(), port: 15003 }),
     ..Default::default()
 })?;
-
-// Check protocol
-println!("Using: {}", client.protocol());
 ```
 
 #### **Rust Edition 2024 Upgrade**

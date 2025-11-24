@@ -4,6 +4,7 @@
 //! across different scales: 5k, 10k, 15k, 25k vectors
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use vectorizer::gpu::{OptimizedMetalNativeCollection, VramMonitor, VramValidator};
 use vectorizer::models::{DistanceMetric, Vector};
 use std::time::Instant;
@@ -16,14 +17,14 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🚀 Scale Benchmark - 512D Vectors");
-    println!("=================================");
-    println!("Testing vector generation and search performance");
-    println!("Dimensions: 512, Scales: 5k, 10k, 15k, 25k vectors\n");
+    tracing::info!("🚀 Scale Benchmark - 512D Vectors");
+    tracing::info!("=================================");
+    tracing::info!("Testing vector generation and search performance");
+    tracing::info!("Dimensions: 512, Scales: 5k, 10k, 15k, 25k vectors\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ This benchmark requires macOS with Metal support");
+        tracing::info!("❌ This benchmark requires macOS with Metal support");
         return Ok(());
     }
 
@@ -78,13 +79,13 @@ async fn run_scale_512d_benchmark() -> Result<()> {
     let mut all_results = Vec::new();
 
     for scenario in scenarios {
-        println!("🎯 Running Scenario: {}", scenario.name);
-        println!("{}", "=".repeat(scenario.name.len() + 20));
+        tracing::info!("🎯 Running Scenario: {}", scenario.name);
+        tracing::info!("{}", "=".repeat(scenario.name.len() + 20));
         
         let result = run_scale_512d_scenario_benchmark(&scenario).await?;
         all_results.push(result);
         
-        println!();
+        tracing::info!();
     }
 
     // Generate comprehensive report
@@ -107,29 +108,29 @@ struct Scale512DScenario {
 async fn run_scale_512d_scenario_benchmark(scenario: &Scale512DScenario) -> Result<Scale512DResult> {
     use std::time::Instant;
 
-    println!("📊 Test Parameters");
-    println!("------------------");
-    println!("  Dimension: {}", scenario.dimension);
-    println!("  Vector count: {}", scenario.vector_count);
-    println!("  Search queries: {}", scenario.search_queries);
-    println!("  k (results): {}", scenario.k);
-    println!("  Batch size: {}", scenario.batch_size);
-    println!();
+    tracing::info!("📊 Test Parameters");
+    tracing::info!("------------------");
+    tracing::info!("  Dimension: {}", scenario.dimension);
+    tracing::info!("  Vector count: {}", scenario.vector_count);
+    tracing::info!("  Search queries: {}", scenario.search_queries);
+    tracing::info!("  k (results): {}", scenario.k);
+    tracing::info!("  Batch size: {}", scenario.batch_size);
+    tracing::info!();
 
     // 1. Generate test vectors
-    println!("🔧 Phase 1: Vector Generation");
-    println!("-----------------------------");
+    tracing::info!("🔧 Phase 1: Vector Generation");
+    tracing::info!("-----------------------------");
     let start = Instant::now();
     let vectors = generate_test_vectors_512d(scenario.vector_count, scenario.dimension);
     let generation_time = start.elapsed();
-    println!("  ✅ Generated {} vectors in {:.3}ms", scenario.vector_count, generation_time.as_millis());
-    println!("  Memory per vector: {:.2} KB", (scenario.dimension * 4) as f64 / 1024.0);
-    println!("  Total memory: {:.2} MB", (scenario.vector_count * scenario.dimension * 4) as f64 / 1024.0 / 1024.0);
-    println!();
+    tracing::info!("  ✅ Generated {} vectors in {:.3}ms", scenario.vector_count, generation_time.as_millis());
+    tracing::info!("  Memory per vector: {:.2} KB", (scenario.dimension * 4) as f64 / 1024.0);
+    tracing::info!("  Total memory: {:.2} MB", (scenario.vector_count * scenario.dimension * 4) as f64 / 1024.0 / 1024.0);
+    tracing::info!();
 
     // 2. Create optimized collection
-    println!("📊 Phase 2: Create Optimized Collection");
-    println!("--------------------------------------");
+    tracing::info!("📊 Phase 2: Create Optimized Collection");
+    tracing::info!("--------------------------------------");
     let start = Instant::now();
     let mut collection = OptimizedMetalNativeCollection::new(
         scenario.dimension,
@@ -137,13 +138,13 @@ async fn run_scale_512d_scenario_benchmark(scenario: &Scale512DScenario) -> Resu
         scenario.vector_count,
     )?;
     let creation_time = start.elapsed();
-    println!("  ✅ Collection created: {:.3}ms", creation_time.as_millis());
-    println!("  Pre-allocated capacity: {}", scenario.vector_count);
-    println!();
+    tracing::info!("  ✅ Collection created: {:.3}ms", creation_time.as_millis());
+    tracing::info!("  Pre-allocated capacity: {}", scenario.vector_count);
+    tracing::info!();
 
     // 3. Add vectors in batches
-    println!("📊 Phase 3: Add Vectors in Batches");
-    println!("----------------------------------");
+    tracing::info!("📊 Phase 3: Add Vectors in Batches");
+    tracing::info!("----------------------------------");
     let start = Instant::now();
     let mut total_added = 0;
     
@@ -156,27 +157,27 @@ async fn run_scale_512d_scenario_benchmark(scenario: &Scale512DScenario) -> Resu
         let batch_time = batch_start_time.elapsed();
         
         total_added += batch.len();
-        println!("  Added batch {} vectors... ({:.3}ms)", total_added, batch_time.as_millis());
+        tracing::info!("  Added batch {} vectors... ({:.3}ms)", total_added, batch_time.as_millis());
     }
     
     let addition_time = start.elapsed();
-    println!("  ✅ Added {} vectors in batches: {:.3}ms", total_added, addition_time.as_millis());
-    println!("  Throughput: {:.2} vectors/sec", total_added as f64 / addition_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Added {} vectors in batches: {:.3}ms", total_added, addition_time.as_millis());
+    tracing::info!("  Throughput: {:.2} vectors/sec", total_added as f64 / addition_time.as_secs_f64());
+    tracing::info!();
 
     // 4. Build HNSW index
-    println!("📊 Phase 4: Build HNSW Index");
-    println!("---------------------------");
+    tracing::info!("📊 Phase 4: Build HNSW Index");
+    tracing::info!("---------------------------");
     let start = Instant::now();
     collection.build_index()?;
     let construction_time = start.elapsed();
-    println!("  ✅ HNSW index built: {:.3}ms", construction_time.as_millis());
-    println!("  Nodes: {}", total_added);
-    println!();
+    tracing::info!("  ✅ HNSW index built: {:.3}ms", construction_time.as_millis());
+    tracing::info!("  Nodes: {}", total_added);
+    tracing::info!();
 
     // 5. Search performance
-    println!("📊 Phase 5: Search Performance");
-    println!("--------------------------");
+    tracing::info!("📊 Phase 5: Search Performance");
+    tracing::info!("--------------------------");
     let start = Instant::now();
     let mut search_times = Vec::new();
     
@@ -188,7 +189,7 @@ async fn run_scale_512d_scenario_benchmark(scenario: &Scale512DScenario) -> Resu
         search_times.push(query_time.as_millis() as f64);
         
         if i % 50 == 0 {
-            println!("  Completed {} searches...", i + 1);
+            tracing::info!("  Completed {} searches...", i + 1);
         }
     }
     
@@ -197,60 +198,60 @@ async fn run_scale_512d_scenario_benchmark(scenario: &Scale512DScenario) -> Resu
     let min_search_time = search_times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
     let max_search_time = search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
     
-    println!("  ✅ Completed {} searches", search_times.len());
-    println!("  Average search time: {:.3}ms", avg_search_time);
-    println!("  Min search time: {:.3}ms", min_search_time);
-    println!("  Max search time: {:.3}ms", max_search_time);
-    println!("  Total search time: {:.3}s", total_search_time.as_secs_f64());
-    println!("  Throughput: {:.2} searches/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Completed {} searches", search_times.len());
+    tracing::info!("  Average search time: {:.3}ms", avg_search_time);
+    tracing::info!("  Min search time: {:.3}ms", min_search_time);
+    tracing::info!("  Max search time: {:.3}ms", max_search_time);
+    tracing::info!("  Total search time: {:.3}s", total_search_time.as_secs_f64());
+    tracing::info!("  Throughput: {:.2} searches/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
+    tracing::info!();
 
     // 6. Memory usage analysis
-    println!("📊 Phase 6: Memory Usage Analysis");
-    println!("---------------------------------");
+    tracing::info!("📊 Phase 6: Memory Usage Analysis");
+    tracing::info!("---------------------------------");
     let memory_stats = collection.get_memory_stats();
-    println!("  Vector count: {}", memory_stats.vector_count);
-    println!("  Buffer capacity: {}", memory_stats.buffer_capacity);
-    println!("  Used bytes: {:.2} MB", memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
-    println!("  Allocated bytes: {:.2} MB", memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
-    println!("  Utilization: {:.1}%", memory_stats.utilization * 100.0);
-    println!("  Pool utilization: {:.1}%", memory_stats.buffer_pool_stats.pool_utilization * 100.0);
-    println!();
+    tracing::info!("  Vector count: {}", memory_stats.vector_count);
+    tracing::info!("  Buffer capacity: {}", memory_stats.buffer_capacity);
+    tracing::info!("  Used bytes: {:.2} MB", memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Allocated bytes: {:.2} MB", memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Utilization: {:.1}%", memory_stats.utilization * 100.0);
+    tracing::info!("  Pool utilization: {:.1}%", memory_stats.buffer_pool_stats.pool_utilization * 100.0);
+    tracing::info!();
 
     // 7. Performance assessment
     let throughput = scenario.vector_count as f64 / addition_time.as_secs_f64();
     let search_throughput = search_times.len() as f64 / total_search_time.as_secs_f64();
     
-    println!("📊 Phase 7: Performance Assessment");
-    println!("----------------------------------");
+    tracing::info!("📊 Phase 7: Performance Assessment");
+    tracing::info!("----------------------------------");
     if throughput > 2000.0 {
-        println!("  ✅ Vector addition: EXCELLENT ({:.0} vectors/sec)", throughput);
+        tracing::info!("  ✅ Vector addition: EXCELLENT ({:.0} vectors/sec)", throughput);
     } else if throughput > 1000.0 {
-        println!("  ✅ Vector addition: GOOD ({:.0} vectors/sec)", throughput);
+        tracing::info!("  ✅ Vector addition: GOOD ({:.0} vectors/sec)", throughput);
     } else if throughput > 500.0 {
-        println!("  ⚠️ Vector addition: ACCEPTABLE ({:.0} vectors/sec)", throughput);
+        tracing::info!("  ⚠️ Vector addition: ACCEPTABLE ({:.0} vectors/sec)", throughput);
     } else {
-        println!("  ❌ Vector addition: POOR ({:.0} vectors/sec)", throughput);
+        tracing::info!("  ❌ Vector addition: POOR ({:.0} vectors/sec)", throughput);
     }
     
     if search_throughput > 10.0 {
-        println!("  ✅ Search performance: EXCELLENT ({:.1} searches/sec)", search_throughput);
+        tracing::info!("  ✅ Search performance: EXCELLENT ({:.1} searches/sec)", search_throughput);
     } else if search_throughput > 5.0 {
-        println!("  ✅ Search performance: GOOD ({:.1} searches/sec)", search_throughput);
+        tracing::info!("  ✅ Search performance: GOOD ({:.1} searches/sec)", search_throughput);
     } else if search_throughput > 1.0 {
-        println!("  ⚠️ Search performance: ACCEPTABLE ({:.1} searches/sec)", search_throughput);
+        tracing::info!("  ⚠️ Search performance: ACCEPTABLE ({:.1} searches/sec)", search_throughput);
     } else {
-        println!("  ❌ Search performance: POOR ({:.1} searches/sec)", search_throughput);
+        tracing::info!("  ❌ Search performance: POOR ({:.1} searches/sec)", search_throughput);
     }
     
     if memory_stats.utilization > 0.8 {
-        println!("  ✅ Memory efficiency: EXCELLENT ({:.1}%)", memory_stats.utilization * 100.0);
+        tracing::info!("  ✅ Memory efficiency: EXCELLENT ({:.1}%)", memory_stats.utilization * 100.0);
     } else if memory_stats.utilization > 0.6 {
-        println!("  ✅ Memory efficiency: GOOD ({:.1}%)", memory_stats.utilization * 100.0);
+        tracing::info!("  ✅ Memory efficiency: GOOD ({:.1}%)", memory_stats.utilization * 100.0);
     } else {
-        println!("  ⚠️ Memory efficiency: LOW ({:.1}%)", memory_stats.utilization * 100.0);
+        tracing::info!("  ⚠️ Memory efficiency: LOW ({:.1}%)", memory_stats.utilization * 100.0);
     }
-    println!();
+    tracing::info!();
 
     Ok(Scale512DResult {
         scenario: scenario.clone(),
@@ -299,21 +300,21 @@ struct Scale512DResult {
 
 #[cfg(target_os = "macos")]
 async fn generate_scale_512d_report(results: &[Scale512DResult]) -> Result<()> {
-    println!("📊 Scale 512D Benchmark Report");
-    println!("==============================");
-    println!("Comprehensive analysis of 512D vector performance across scales\n");
+    tracing::info!("📊 Scale 512D Benchmark Report");
+    tracing::info!("==============================");
+    tracing::info!("Comprehensive analysis of 512D vector performance across scales\n");
     
     // Summary table
-    println!("📈 Performance Summary Table");
-    println!("----------------------------");
-    println!("| Scale    | Vectors | Gen(ms) | Add(ms) | Search(ms) | Add/sec | Search/sec | Memory(MB) |");
-    println!("|----------|---------|---------|---------|------------|---------|------------|------------|");
+    tracing::info!("📈 Performance Summary Table");
+    tracing::info!("----------------------------");
+    tracing::info!("| Scale    | Vectors | Gen(ms) | Add(ms) | Search(ms) | Add/sec | Search/sec | Memory(MB) |");
+    tracing::info!("|----------|---------|---------|---------|------------|---------|------------|------------|");
     
     for result in results {
         let avg_search = result.search_times.iter().sum::<f64>() / result.search_times.len() as f64;
         let memory_mb = result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0;
         
-        println!(
+        tracing::info!(
             "| {:8} | {:7} | {:7.1} | {:7.1} | {:10.3} | {:7.0} | {:10.1} | {:10.1} |",
             result.scenario.name,
             result.scenario.vector_count,
@@ -325,89 +326,89 @@ async fn generate_scale_512d_report(results: &[Scale512DResult]) -> Result<()> {
             memory_mb
         );
     }
-    println!();
+    tracing::info!();
     
     // Detailed analysis
     for result in results {
-        println!("🎯 Scenario: {}", result.scenario.name);
-        println!("{}", "-".repeat(result.scenario.name.len() + 10));
+        tracing::info!("🎯 Scenario: {}", result.scenario.name);
+        tracing::info!("{}", "-".repeat(result.scenario.name.len() + 10));
         
-        println!("📊 Generation Performance");
-        println!("-------------------------");
-        println!("  Vector count: {}", result.scenario.vector_count);
-        println!("  Dimension: {}", result.scenario.dimension);
-        println!("  Generation time: {:.3}ms", result.generation_time.as_millis());
-        println!("  Memory per vector: {:.2} KB", (result.scenario.dimension * 4) as f64 / 1024.0);
-        println!();
+        tracing::info!("📊 Generation Performance");
+        tracing::info!("-------------------------");
+        tracing::info!("  Vector count: {}", result.scenario.vector_count);
+        tracing::info!("  Dimension: {}", result.scenario.dimension);
+        tracing::info!("  Generation time: {:.3}ms", result.generation_time.as_millis());
+        tracing::info!("  Memory per vector: {:.2} KB", (result.scenario.dimension * 4) as f64 / 1024.0);
+        tracing::info!();
         
-        println!("📊 Addition Performance");
-        println!("-----------------------");
-        println!("  Addition time: {:.3}ms", result.addition_time.as_millis());
-        println!("  Throughput: {:.2} vectors/sec", result.throughput);
-        println!("  Batch size: {}", result.scenario.batch_size);
-        println!();
+        tracing::info!("📊 Addition Performance");
+        tracing::info!("-----------------------");
+        tracing::info!("  Addition time: {:.3}ms", result.addition_time.as_millis());
+        tracing::info!("  Throughput: {:.2} vectors/sec", result.throughput);
+        tracing::info!("  Batch size: {}", result.scenario.batch_size);
+        tracing::info!();
         
         if !result.search_times.is_empty() {
             let avg_search = result.search_times.iter().sum::<f64>() / result.search_times.len() as f64;
             let min_search = result.search_times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
             let max_search = result.search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
             
-            println!("🔍 Search Performance");
-            println!("--------------------");
-            println!("  Search queries: {}", result.search_times.len());
-            println!("  Average search time: {:.3}ms", avg_search);
-            println!("  Min search time: {:.3}ms", min_search);
-            println!("  Max search time: {:.3}ms", max_search);
-            println!("  Search throughput: {:.2} searches/sec", result.search_throughput);
-            println!();
+            tracing::info!("🔍 Search Performance");
+            tracing::info!("--------------------");
+            tracing::info!("  Search queries: {}", result.search_times.len());
+            tracing::info!("  Average search time: {:.3}ms", avg_search);
+            tracing::info!("  Min search time: {:.3}ms", min_search);
+            tracing::info!("  Max search time: {:.3}ms", max_search);
+            tracing::info!("  Search throughput: {:.2} searches/sec", result.search_throughput);
+            tracing::info!();
         }
         
-        println!("💾 Memory Usage");
-        println!("---------------");
-        println!("  Vector count: {}", result.memory_stats.vector_count);
-        println!("  Buffer capacity: {}", result.memory_stats.buffer_capacity);
-        println!("  Used memory: {:.2} MB", result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
-        println!("  Allocated memory: {:.2} MB", result.memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
-        println!("  Memory utilization: {:.1}%", result.memory_stats.utilization * 100.0);
-        println!();
+        tracing::info!("💾 Memory Usage");
+        tracing::info!("---------------");
+        tracing::info!("  Vector count: {}", result.memory_stats.vector_count);
+        tracing::info!("  Buffer capacity: {}", result.memory_stats.buffer_capacity);
+        tracing::info!("  Used memory: {:.2} MB", result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Allocated memory: {:.2} MB", result.memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Memory utilization: {:.1}%", result.memory_stats.utilization * 100.0);
+        tracing::info!();
         
         // Performance assessment
-        println!("🎯 Performance Assessment");
-        println!("-------------------------");
+        tracing::info!("🎯 Performance Assessment");
+        tracing::info!("-------------------------");
         if result.throughput > 2000.0 {
-            println!("  ✅ Vector addition: EXCELLENT ({:.0} vectors/sec)", result.throughput);
+            tracing::info!("  ✅ Vector addition: EXCELLENT ({:.0} vectors/sec)", result.throughput);
         } else if result.throughput > 1000.0 {
-            println!("  ✅ Vector addition: GOOD ({:.0} vectors/sec)", result.throughput);
+            tracing::info!("  ✅ Vector addition: GOOD ({:.0} vectors/sec)", result.throughput);
         } else if result.throughput > 500.0 {
-            println!("  ⚠️ Vector addition: ACCEPTABLE ({:.0} vectors/sec)", result.throughput);
+            tracing::info!("  ⚠️ Vector addition: ACCEPTABLE ({:.0} vectors/sec)", result.throughput);
         } else {
-            println!("  ❌ Vector addition: POOR ({:.0} vectors/sec)", result.throughput);
+            tracing::info!("  ❌ Vector addition: POOR ({:.0} vectors/sec)", result.throughput);
         }
         
         if result.search_throughput > 10.0 {
-            println!("  ✅ Search performance: EXCELLENT ({:.1} searches/sec)", result.search_throughput);
+            tracing::info!("  ✅ Search performance: EXCELLENT ({:.1} searches/sec)", result.search_throughput);
         } else if result.search_throughput > 5.0 {
-            println!("  ✅ Search performance: GOOD ({:.1} searches/sec)", result.search_throughput);
+            tracing::info!("  ✅ Search performance: GOOD ({:.1} searches/sec)", result.search_throughput);
         } else if result.search_throughput > 1.0 {
-            println!("  ⚠️ Search performance: ACCEPTABLE ({:.1} searches/sec)", result.search_throughput);
+            tracing::info!("  ⚠️ Search performance: ACCEPTABLE ({:.1} searches/sec)", result.search_throughput);
         } else {
-            println!("  ❌ Search performance: POOR ({:.1} searches/sec)", result.search_throughput);
+            tracing::info!("  ❌ Search performance: POOR ({:.1} searches/sec)", result.search_throughput);
         }
         
         if result.memory_stats.utilization > 0.8 {
-            println!("  ✅ Memory efficiency: EXCELLENT ({:.1}%)", result.memory_stats.utilization * 100.0);
+            tracing::info!("  ✅ Memory efficiency: EXCELLENT ({:.1}%)", result.memory_stats.utilization * 100.0);
         } else if result.memory_stats.utilization > 0.6 {
-            println!("  ✅ Memory efficiency: GOOD ({:.1}%)", result.memory_stats.utilization * 100.0);
+            tracing::info!("  ✅ Memory efficiency: GOOD ({:.1}%)", result.memory_stats.utilization * 100.0);
         } else {
-            println!("  ⚠️ Memory efficiency: LOW ({:.1}%)", result.memory_stats.utilization * 100.0);
+            tracing::info!("  ⚠️ Memory efficiency: LOW ({:.1}%)", result.memory_stats.utilization * 100.0);
         }
         
-        println!();
+        tracing::info!();
     }
     
     // Scale analysis
-    println!("📈 Scale Analysis");
-    println!("-----------------");
+    tracing::info!("📈 Scale Analysis");
+    tracing::info!("-----------------");
     let mut scales = results.iter().map(|r| r.scenario.vector_count).collect::<Vec<_>>();
     scales.sort();
     
@@ -422,22 +423,22 @@ async fn generate_scale_512d_report(results: &[Scale512DResult]) -> Result<()> {
         let throughput_ratio = curr_result.throughput / prev_result.throughput;
         let search_ratio = curr_result.search_throughput / prev_result.search_throughput;
         
-        println!("  {} -> {} vectors ({}x scale)", prev_scale, curr_scale, scale_ratio);
-        println!("    Throughput ratio: {:.2}x", throughput_ratio);
-        println!("    Search ratio: {:.2}x", search_ratio);
+        tracing::info!("  {} -> {} vectors ({}x scale)", prev_scale, curr_scale, scale_ratio);
+        tracing::info!("    Throughput ratio: {:.2}x", throughput_ratio);
+        tracing::info!("    Search ratio: {:.2}x", search_ratio);
         
         if throughput_ratio > 0.8 {
-            println!("    ✅ Addition scales well");
+            tracing::info!("    ✅ Addition scales well");
         } else {
-            println!("    ⚠️ Addition performance degrades");
+            tracing::info!("    ⚠️ Addition performance degrades");
         }
         
         if search_ratio > 0.8 {
-            println!("    ✅ Search scales well");
+            tracing::info!("    ✅ Search scales well");
         } else {
-            println!("    ⚠️ Search performance degrades");
+            tracing::info!("    ⚠️ Search performance degrades");
         }
-        println!();
+        tracing::info!();
     }
     
     Ok(())

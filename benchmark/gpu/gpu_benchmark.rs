@@ -5,6 +5,7 @@
 //! CUDA (NVIDIA) and Metal (Apple) backends.
 
 use std::sync::Arc;
+use tracing::{info, error, warn, debug};
 use std::time::Instant;
 
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
@@ -59,14 +60,14 @@ impl Default for GpuBenchmarkConfig {
 
 /// Run comprehensive GPU benchmark
 pub async fn run_gpu_benchmark(config: GpuBenchmarkConfig) -> Result<Vec<GpuBenchmarkResults>> {
-    println!("🚀 Starting Unified GPU vs CPU Benchmark");
-    println!("=========================================");
+    tracing::info!("🚀 Starting Unified GPU vs CPU Benchmark");
+    tracing::info!("=========================================");
 
     let mut results = Vec::new();
 
     for vector_count in config.vector_counts {
         let test_name = format!("{}_vectors", vector_count);
-        println!(
+        tracing::info!(
             "\n📊 Running test: {} ({} vectors, {} queries)",
             test_name, vector_count, config.query_count
         );
@@ -134,7 +135,7 @@ async fn run_single_gpu_benchmark(
     let test_queries = generate_test_queries(query_count, dimension);
 
     // Add vectors to HNSW index
-    println!("  📥 Adding {} vectors to HNSW index...", vector_count);
+    tracing::info!("  📥 Adding {} vectors to HNSW index...", vector_count);
     {
         let mut index = hnsw_index.write();
         for vector in &test_vectors {
@@ -160,7 +161,7 @@ async fn run_single_gpu_benchmark(
 
         let cuda_ops = vectorizer::gpu::CudaVectorOperations::new(cuda_config);
         if cuda_ops.is_cuda_available() {
-            println!("  🎯 Initializing CUDA operations...");
+            tracing::info!("  🎯 Initializing CUDA operations...");
             let flat_vectors: Vec<f32> = test_vectors.iter().flat_map(|v| v.data.clone()).collect();
             if cuda_ops
                 .initialize_cuhnsw(&flat_vectors, vector_count, dimension)
@@ -194,7 +195,7 @@ async fn run_single_gpu_benchmark(
     }
 
     // Warmup runs
-    println!("  🔥 Warming up...");
+    tracing::info!("  🔥 Warming up...");
     for _ in 0..warmup_runs {
         for query in &test_queries {
             let _results = search_hnsw(&hnsw_index, query, k);
@@ -202,7 +203,7 @@ async fn run_single_gpu_benchmark(
     }
 
     // Benchmark HNSW search
-    println!("  🧮 Benchmarking HNSW search...");
+    tracing::info!("  🧮 Benchmarking HNSW search...");
     let hnsw_start = Instant::now();
     for query in &test_queries {
         let _results = search_hnsw(&hnsw_index, query, k);
@@ -211,7 +212,7 @@ async fn run_single_gpu_benchmark(
 
     // Benchmark CUDA search
     let cuda_duration = if cuda_available {
-        println!("  🎮 Benchmarking CUDA search...");
+        tracing::info!("  🎮 Benchmarking CUDA search...");
         let cuda_start = Instant::now();
         for query in &test_queries {
             // CUDA search implementation would go here
@@ -220,13 +221,13 @@ async fn run_single_gpu_benchmark(
         }
         cuda_start.elapsed().as_secs_f64() * 1000.0
     } else {
-        println!("  ⚠️ CUDA not available, skipping CUDA benchmark");
+        tracing::info!("  ⚠️ CUDA not available, skipping CUDA benchmark");
         0.0
     };
 
     // Benchmark Metal search
     let metal_duration = if metal_available {
-        println!("  🎨 Benchmarking Metal search...");
+        tracing::info!("  🎨 Benchmarking Metal search...");
         let metal_start = Instant::now();
         for query in &test_queries {
             // Metal search implementation would go here
@@ -235,7 +236,7 @@ async fn run_single_gpu_benchmark(
         }
         metal_start.elapsed().as_secs_f64() * 1000.0
     } else {
-        println!("  ⚠️ Metal not available, skipping Metal benchmark");
+        tracing::info!("  ⚠️ Metal not available, skipping Metal benchmark");
         0.0
     };
 
@@ -282,28 +283,28 @@ async fn run_single_gpu_benchmark(
         memory_usage_mb: memory_usage,
     };
 
-    println!("  📈 Results:");
-    println!(
+    tracing::info!("  📈 Results:");
+    tracing::info!(
         "    HNSW: {:.2}ms avg ({:.2}ms total)",
         hnsw_avg, hnsw_duration
     );
     if cuda_duration > 0.0 {
-        println!(
+        tracing::info!(
             "    CUDA: {:.2}ms avg ({:.2}ms total) - {:.2}x speedup",
             cuda_avg, cuda_duration, cuda_speedup
         );
     } else {
-        println!("    CUDA: Not available");
+        tracing::info!("    CUDA: Not available");
     }
     if metal_duration > 0.0 {
-        println!(
+        tracing::info!(
             "    Metal: {:.2}ms avg ({:.2}ms total) - {:.2}x speedup",
             metal_avg, metal_duration, metal_speedup
         );
     } else {
-        println!("    Metal: Not available");
+        tracing::info!("    Metal: Not available");
     }
-    println!("    Memory: {:.1} MB", memory_usage);
+    tracing::info!("    Memory: {:.1} MB", memory_usage);
 
     Ok(result)
 }
@@ -405,13 +406,13 @@ fn generate_test_queries(count: usize, dimension: usize) -> Vec<Vec<f32>> {
 
 /// Print benchmark summary
 fn print_gpu_benchmark_summary(results: &[GpuBenchmarkResults]) {
-    println!("\n📊 GPU BENCHMARK SUMMARY");
-    println!("========================");
-    println!(
+    tracing::info!("\n📊 GPU BENCHMARK SUMMARY");
+    tracing::info!("========================");
+    tracing::info!(
         "{:<20} {:<10} {:<10} {:<10} {:<12} {:<12} {:<10}",
         "Test", "Vectors", "Queries", "HNSW(ms)", "CUDA(ms)", "Metal(ms)", "Speedup"
     );
-    println!("{:-<100}", "");
+    tracing::info!("{:-<100}", "");
 
     for result in results {
         let cuda_time = if result.cuda_total_time_ms > 0.0 {
@@ -433,7 +434,7 @@ fn print_gpu_benchmark_summary(results: &[GpuBenchmarkResults]) {
             "N/A".to_string()
         };
 
-        println!(
+        tracing::info!(
             "{:<20} {:<10} {:<10} {:<10.2} {:<12} {:<12} {:<10}",
             result.test_name,
             result.vector_count,
@@ -455,7 +456,7 @@ fn print_gpu_benchmark_summary(results: &[GpuBenchmarkResults]) {
         .filter(|r| r.metal_speedup_factor > 0.0)
         .collect();
 
-    println!("\n📈 Overall Statistics:");
+    tracing::info!("\n📈 Overall Statistics:");
 
     if !cuda_results.is_empty() {
         let avg_cuda_speedup: f64 = cuda_results
@@ -468,17 +469,17 @@ fn print_gpu_benchmark_summary(results: &[GpuBenchmarkResults]) {
             .map(|r| r.cuda_speedup_factor)
             .fold(0.0, f64::max);
 
-        println!("  CUDA Performance:");
-        println!("    Average Speedup: {:.2}x", avg_cuda_speedup);
-        println!("    Maximum Speedup: {:.2}x", max_cuda_speedup);
+        tracing::info!("  CUDA Performance:");
+        tracing::info!("    Average Speedup: {:.2}x", avg_cuda_speedup);
+        tracing::info!("    Maximum Speedup: {:.2}x", max_cuda_speedup);
 
         if avg_cuda_speedup > 1.0 {
-            println!("    🎯 CUDA shows significant GPU acceleration!");
+            tracing::info!("    🎯 CUDA shows significant GPU acceleration!");
         } else {
-            println!("    ⚠️ CUDA performance needs optimization");
+            tracing::info!("    ⚠️ CUDA performance needs optimization");
         }
     } else {
-        println!("  CUDA: Not available for benchmarking");
+        tracing::info!("  CUDA: Not available for benchmarking");
     }
 
     if !metal_results.is_empty() {
@@ -492,17 +493,17 @@ fn print_gpu_benchmark_summary(results: &[GpuBenchmarkResults]) {
             .map(|r| r.metal_speedup_factor)
             .fold(0.0, f64::max);
 
-        println!("  Metal Performance:");
-        println!("    Average Speedup: {:.2}x", avg_metal_speedup);
-        println!("    Maximum Speedup: {:.2}x", max_metal_speedup);
+        tracing::info!("  Metal Performance:");
+        tracing::info!("    Average Speedup: {:.2}x", avg_metal_speedup);
+        tracing::info!("    Maximum Speedup: {:.2}x", max_metal_speedup);
 
         if avg_metal_speedup > 1.0 {
-            println!("    🎯 Metal shows significant GPU acceleration!");
+            tracing::info!("    🎯 Metal shows significant GPU acceleration!");
         } else {
-            println!("    ⚠️ Metal performance needs optimization");
+            tracing::info!("    ⚠️ Metal performance needs optimization");
         }
     } else {
-        println!("  Metal: Not available for benchmarking");
+        tracing::info!("  Metal: Not available for benchmarking");
     }
 }
 

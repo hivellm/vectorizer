@@ -4,6 +4,7 @@
 //! synchronous buffer read-back operations.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 
 #[cfg(all(feature = "wgpu-gpu", target_os = "macos"))]
 use vectorizer::gpu::metal_helpers::{MetalBufferReader, create_system_metal_device};
@@ -18,13 +19,13 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🧪 Metal Native Buffer Operations Test");
-    println!("==========================================\n");
+    tracing::info!("🧪 Metal Native Buffer Operations Test");
+    tracing::info!("==========================================\n");
 
     #[cfg(not(all(feature = "wgpu-gpu", target_os = "macos")))]
     {
-        println!("❌ This test requires macOS with wgpu-gpu feature enabled");
-        println!("   Compile with: cargo test --features wgpu-gpu");
+        tracing::info!("❌ This test requires macOS with wgpu-gpu feature enabled");
+        tracing::info!("   Compile with: cargo test --features wgpu-gpu");
         return Ok(());
     }
 
@@ -41,31 +42,31 @@ async fn run_metal_tests() -> Result<()> {
     use std::time::Instant;
 
     // Test 1: Create Metal device
-    println!("📊 Test 1: Create Metal Device");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 1: Create Metal Device");
+    tracing::info!("----------------------------------------");
     
     let start = Instant::now();
     let metal_device = create_system_metal_device()?;
     let elapsed = start.elapsed();
     
-    println!("  ✅ Metal device created: {:?}", elapsed);
-    println!("  Device name: {}", metal_device.name());
-    println!();
+    tracing::info!("  ✅ Metal device created: {:?}", elapsed);
+    tracing::info!("  Device name: {}", metal_device.name());
+    tracing::info!();
 
     // Test 2: Create MetalBufferReader
-    println!("📊 Test 2: Create MetalBufferReader");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 2: Create MetalBufferReader");
+    tracing::info!("----------------------------------------");
     
     let start = Instant::now();
     let reader = MetalBufferReader::new(metal_device.clone())?;
     let elapsed = start.elapsed();
     
-    println!("  ✅ MetalBufferReader created: {:?}", elapsed);
-    println!();
+    tracing::info!("  ✅ MetalBufferReader created: {:?}", elapsed);
+    tracing::info!();
 
     // Test 3: Create and read f32 buffer
-    println!("📊 Test 3: Synchronous f32 Buffer Read");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 3: Synchronous f32 Buffer Read");
+    tracing::info!("----------------------------------------");
     
     let test_data_f32: Vec<f32> = (0..1000).map(|i| i as f32 * 1.5).collect();
     
@@ -79,8 +80,8 @@ async fn run_metal_tests() -> Result<()> {
     let result_f32 = reader.read_buffer_sync_f32(&buffer_f32, test_data_f32.len())?;
     let elapsed = start.elapsed();
     
-    println!("  ✅ Read {} f32 values", result_f32.len());
-    println!("  ⏱️  Time: {:?} ({:.2} µs per value)", 
+    tracing::info!("  ✅ Read {} f32 values", result_f32.len());
+    tracing::info!("  ⏱️  Time: {:?} ({:.2} µs per value)", 
         elapsed, 
         elapsed.as_micros() as f64 / result_f32.len() as f64
     );
@@ -90,22 +91,22 @@ async fn run_metal_tests() -> Result<()> {
     for (i, (&expected, &actual)) in test_data_f32.iter().zip(result_f32.iter()).enumerate() {
         if (expected - actual).abs() > 0.0001 {
             if errors < 5 {
-                println!("  ⚠️  Mismatch at index {}: expected {}, got {}", i, expected, actual);
+                tracing::info!("  ⚠️  Mismatch at index {}: expected {}, got {}", i, expected, actual);
             }
             errors += 1;
         }
     }
     
     if errors == 0 {
-        println!("  ✅ All values match perfectly!");
+        tracing::info!("  ✅ All values match perfectly!");
     } else {
-        println!("  ❌ {} mismatches found", errors);
+        tracing::info!("  ❌ {} mismatches found", errors);
     }
-    println!();
+    tracing::info!();
 
     // Test 4: Create and read u32 buffer
-    println!("📊 Test 4: Synchronous u32 Buffer Read");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 4: Synchronous u32 Buffer Read");
+    tracing::info!("----------------------------------------");
     
     let test_data_u32: Vec<u32> = (0..1000).map(|i| i * 3).collect();
     
@@ -119,8 +120,8 @@ async fn run_metal_tests() -> Result<()> {
     let result_u32 = reader.read_buffer_sync_u32(&buffer_u32, test_data_u32.len())?;
     let elapsed = start.elapsed();
     
-    println!("  ✅ Read {} u32 values", result_u32.len());
-    println!("  ⏱️  Time: {:?} ({:.2} µs per value)", 
+    tracing::info!("  ✅ Read {} u32 values", result_u32.len());
+    tracing::info!("  ⏱️  Time: {:?} ({:.2} µs per value)", 
         elapsed, 
         elapsed.as_micros() as f64 / result_u32.len() as f64
     );
@@ -130,22 +131,22 @@ async fn run_metal_tests() -> Result<()> {
     for (i, (&expected, &actual)) in test_data_u32.iter().zip(result_u32.iter()).enumerate() {
         if expected != actual {
             if errors < 5 {
-                println!("  ⚠️  Mismatch at index {}: expected {}, got {}", i, expected, actual);
+                tracing::info!("  ⚠️  Mismatch at index {}: expected {}, got {}", i, expected, actual);
             }
             errors += 1;
         }
     }
     
     if errors == 0 {
-        println!("  ✅ All values match perfectly!");
+        tracing::info!("  ✅ All values match perfectly!");
     } else {
-        println!("  ❌ {} mismatches found", errors);
+        tracing::info!("  ❌ {} mismatches found", errors);
     }
-    println!();
+    tracing::info!();
 
     // Test 5: Performance with larger buffer
-    println!("📊 Test 5: Performance Test (Large Buffer)");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 5: Performance Test (Large Buffer)");
+    tracing::info!("----------------------------------------");
     
     let sizes = vec![
         (1_000, "1K"),
@@ -178,19 +179,19 @@ async fn run_metal_tests() -> Result<()> {
         let min_time = times.iter().min().unwrap();
         let max_time = times.iter().max().unwrap();
         
-        println!("  {} elements:", label);
-        println!("    Avg: {:?} ({:.2} µs/value)", 
+        tracing::info!("  {} elements:", label);
+        tracing::info!("    Avg: {:?} ({:.2} µs/value)", 
             avg_time, 
             avg_time.as_micros() as f64 / size as f64
         );
-        println!("    Min: {:?}", min_time);
-        println!("    Max: {:?}", max_time);
+        tracing::info!("    Min: {:?}", min_time);
+        tracing::info!("    Max: {:?}", max_time);
     }
-    println!();
+    tracing::info!();
 
     // Test 6: Test with staging buffer (GPU-to-CPU copy)
-    println!("📊 Test 6: Staging Buffer Copy Test (Private GPU Storage)");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 6: Staging Buffer Copy Test (Private GPU Storage)");
+    tracing::info!("----------------------------------------");
     
     let test_data: Vec<f32> = (0..10000).map(|i| i as f32 * 0.5).collect();
     
@@ -221,42 +222,42 @@ async fn run_metal_tests() -> Result<()> {
     cmd_buffer.commit();
     cmd_buffer.wait_until_completed();
     
-    println!("  ✅ Created GPU-private buffer and copied data");
+    tracing::info!("  ✅ Created GPU-private buffer and copied data");
     
     // Step 4: Now test reading from the private buffer
     let start = Instant::now();
     let result = reader.read_buffer_sync_f32(&private_buffer, test_data.len())?;
     let elapsed = start.elapsed();
     
-    println!("  ✅ Read {} f32 values from GPU-private buffer", result.len());
-    println!("  ⏱️  Time: {:?} (includes GPU-to-staging copy)", elapsed);
+    tracing::info!("  ✅ Read {} f32 values from GPU-private buffer", result.len());
+    tracing::info!("  ⏱️  Time: {:?} (includes GPU-to-staging copy)", elapsed);
     
     // Validate
     let mut errors = 0;
     for (i, (&expected, &actual)) in test_data.iter().zip(result.iter()).enumerate() {
         if (expected - actual).abs() > 0.0001 {
             if errors < 5 {
-                println!("  ⚠️  Mismatch at index {}: expected {}, got {}", i, expected, actual);
+                tracing::info!("  ⚠️  Mismatch at index {}: expected {}, got {}", i, expected, actual);
             }
             errors += 1;
         }
     }
     
     if errors == 0 {
-        println!("  ✅ GPU-to-CPU copy successful!");
+        tracing::info!("  ✅ GPU-to-CPU copy successful!");
     } else {
-        println!("  ❌ {} mismatches found", errors);
+        tracing::info!("  ❌ {} mismatches found", errors);
     }
-    println!();
+    tracing::info!();
 
     // Summary
-    println!("📊 Test Summary");
-    println!("==========================================");
-    println!("  ✅ All tests completed successfully!");
-    println!("  ✅ Metal native buffer operations working");
-    println!("  ✅ Synchronous read-back validated");
-    println!("  ✅ Performance characteristics measured");
-    println!();
+    tracing::info!("📊 Test Summary");
+    tracing::info!("==========================================");
+    tracing::info!("  ✅ All tests completed successfully!");
+    tracing::info!("  ✅ Metal native buffer operations working");
+    tracing::info!("  ✅ Synchronous read-back validated");
+    tracing::info!("  ✅ Performance characteristics measured");
+    tracing::info!();
 
     Ok(())
 }

@@ -1,0 +1,12 @@
+feat: migrate all println! to tracing for structured logging
+
+- Replace all println! and eprintln! with tracing macros across entire codebase
+- Add tracing imports to test files and benchmarks
+- Update documentation examples to use tracing
+- Keep println! in build.rs (build scripts cannot use tracing)
+- Keep println!() empty in ProgressBar (formatting required)
+- Fix tracing::info!() calls to use info!("") instead
+- Update dockerhub-readme.md with latest features and Docker Hub links
+- Add structured logging configuration examples
+- Update API examples with text search and graph operations
+

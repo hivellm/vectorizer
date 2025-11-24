@@ -9,6 +9,7 @@
 //!   cargo run --release --bin dimension_comparison_benchmark
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -98,7 +99,7 @@ impl TestDataset {
         base_queries: &[String],
         target_size: usize,
     ) -> Self {
-        println!("🔧 Generating dataset with {target_size} vectors...");
+        tracing::info!("🔧 Generating dataset with {target_size} vectors...");
 
         // Generate documents by duplicating and slightly modifying base docs
         let mut documents = Vec::new();
@@ -234,7 +235,7 @@ fn benchmark_dimension(
     dataset: &TestDataset,
     dimension: usize,
 ) -> Result<DimensionBenchmarkResult, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "🚀 Benchmarking dimension: {}D with {} vectors",
         dimension,
         dataset.documents.len()
@@ -252,7 +253,7 @@ fn benchmark_dimension(
         let _ = bm25.add_documents(&dataset.documents).await;
 
         // Generate embeddings
-        println!("  📊 Generating embeddings...");
+        tracing::info!("  📊 Generating embeddings...");
         let embeddings_start = Instant::now();
 
         let mut embeddings: Vec<Vec<f32>> = Vec::new();
@@ -264,14 +265,14 @@ fn benchmark_dimension(
 
         let embeddings_time = embeddings_start.elapsed().as_millis() as f64;
 
-        println!(
+        tracing::info!(
             "  ✅ Generated {} embeddings in {:.1}s",
             embeddings.len(),
             embeddings_time / 1000.0
         );
 
         // Build HNSW index
-        println!("  🏗️  Building HNSW index...");
+        tracing::info!("  🏗️  Building HNSW index...");
         let index_build_start = Instant::now();
 
         let hnsw_config = OptimizedHnswConfig {
@@ -302,15 +303,15 @@ fn benchmark_dimension(
         let bytes_per_vector = (dimension * 4) as f64;
         let memory_efficiency = embeddings.len() as f64 / index_memory_mb;
 
-        println!(
+        tracing::info!(
             "  ✅ Index built in {:.1}s ({:.0} vectors/sec)",
             index_build_time_ms / 1000.0,
             vectors_per_second
         );
-        println!("  ✅ Memory usage: {index_memory_mb:.2} MB ({bytes_per_vector:.0} bytes/vector)");
+        tracing::info!("  ✅ Memory usage: {index_memory_mb:.2} MB ({bytes_per_vector:.0} bytes/vector)");
 
         // Search performance benchmarking
-        println!("  🔍 Benchmarking search performance...");
+        tracing::info!("  🔍 Benchmarking search performance...");
 
         let mut search_times = Vec::new();
         let mut query_results = Vec::new();
@@ -374,8 +375,8 @@ fn benchmark_dimension(
             quality_per_us: f64::from(eval_metrics.mean_average_precision) / avg_search_latency_us,
         };
 
-        println!("  ✅ Search: {avg_search_latency_us:.0} μs avg, {search_throughput_qps:.1} QPS");
-        println!(
+        tracing::info!("  ✅ Search: {avg_search_latency_us:.0} μs avg, {search_throughput_qps:.1} QPS");
+        tracing::info!(
             "  ✅ Quality: MAP={:.4}, Recall@10={:.3}",
             result.map_score, result.recall_at_10
         );
@@ -650,20 +651,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN)
         .init();
 
-    println!("📈 Dimension Comparison Performance Benchmark");
-    println!("============================================\n");
+    tracing::info!("📈 Dimension Comparison Performance Benchmark");
+    tracing::info!("============================================\n");
 
     let dataset_size = 10_000;
     let test_dimensions = vec![64, 128, 256, 512, 768, 1024, 1536];
 
-    println!("📊 Configuration:");
-    println!("  - Dataset size: {dataset_size} vectors");
-    println!("  - Test dimensions: {test_dimensions:?}D");
-    println!("  - HNSW: M=16, ef_construction=200");
-    println!();
+    tracing::info!("📊 Configuration:");
+    tracing::info!("  - Dataset size: {dataset_size} vectors");
+    tracing::info!("  - Test dimensions: {test_dimensions:?}D");
+    tracing::info!("  - HNSW: M=16, ef_construction=200");
+    tracing::info!();
 
     // Load base dataset
-    println!("📂 Loading base dataset...");
+    tracing::info!("📂 Loading base dataset...");
     let base_docs = vec![
         "Rust is a systems programming language focused on safety and performance.".to_string(),
         "Machine learning models require large amounts of training data.".to_string(),
@@ -696,16 +697,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test each dimension
     for &dimension in &test_dimensions {
-        println!("\n{}", "=".repeat(60));
-        println!("🧪 TESTING DIMENSION: {dimension}D");
+        tracing::info!("\n{}", "=".repeat(60));
+        tracing::info!("🧪 TESTING DIMENSION: {dimension}D");
 
         match benchmark_dimension(&dataset, dimension) {
             Ok(result) => {
                 results.push(result);
-                println!("✅ Dimension {dimension}D completed successfully");
+                tracing::info!("✅ Dimension {dimension}D completed successfully");
             }
             Err(e) => {
-                println!("❌ Failed to benchmark dimension {dimension}D: {e}");
+                tracing::info!("❌ Failed to benchmark dimension {dimension}D: {e}");
                 // Continue with other dimensions
             }
         }
@@ -725,7 +726,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Generate and save report
-    println!("\n📊 Generating comprehensive report...");
+    tracing::info!("\n📊 Generating comprehensive report...");
     let md_report = generate_dimension_report(&report);
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -743,20 +744,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(&json_path, json_data)?;
 
     // Print final recommendations
-    println!("\n🎯 FINAL RECOMMENDATIONS");
-    println!("{}", "=".repeat(40));
+    tracing::info!("\n🎯 FINAL RECOMMENDATIONS");
+    tracing::info!("{}", "=".repeat(40));
 
     let rec = &report.recommendations;
-    println!("📏 Optimal Dimension: {}D", rec.optimal_dimension);
-    println!("📏 Memory Efficient: {}D", rec.memory_efficient_dimension);
-    println!("📏 Speed Efficient: {}D", rec.speed_efficient_dimension);
-    println!("📏 Quality Efficient: {}D", rec.quality_efficient_dimension);
-    println!("📏 Balanced: {}D", rec.balanced_dimension);
+    tracing::info!("📏 Optimal Dimension: {}D", rec.optimal_dimension);
+    tracing::info!("📏 Memory Efficient: {}D", rec.memory_efficient_dimension);
+    tracing::info!("📏 Speed Efficient: {}D", rec.speed_efficient_dimension);
+    tracing::info!("📏 Quality Efficient: {}D", rec.quality_efficient_dimension);
+    tracing::info!("📏 Balanced: {}D", rec.balanced_dimension);
 
-    println!("\n📄 Full report: {}", report_path.display());
-    println!("📊 JSON data: {}", json_path.display());
+    tracing::info!("\n📄 Full report: {}", report_path.display());
+    tracing::info!("📊 JSON data: {}", json_path.display());
 
-    println!("\n✅ Dimension comparison benchmark completed successfully!");
+    tracing::info!("\n✅ Dimension comparison benchmark completed successfully!");
 
     Ok(())
 }

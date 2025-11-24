@@ -4,6 +4,7 @@
 //! and not falling back to RAM, with comprehensive monitoring and reporting.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use vectorizer::gpu::{VramMonitor, VramValidator, OptimizedMetalNativeCollection};
 use vectorizer::models::{DistanceMetric, Vector};
 use std::time::Instant;
@@ -16,14 +17,14 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🔍 VRAM Validation Benchmark");
-    println!("============================");
-    println!("Comprehensive validation that all operations use VRAM, not RAM");
-    println!("Includes performance monitoring and fallback detection\n");
+    tracing::info!("🔍 VRAM Validation Benchmark");
+    tracing::info!("============================");
+    tracing::info!("Comprehensive validation that all operations use VRAM, not RAM");
+    tracing::info!("Includes performance monitoring and fallback detection\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ This benchmark requires macOS with Metal support");
+        tracing::info!("❌ This benchmark requires macOS with Metal support");
         return Ok(());
     }
 
@@ -39,32 +40,32 @@ async fn main() -> Result<()> {
 async fn run_vram_validation_benchmark() -> Result<()> {
     use std::time::Instant;
 
-    println!("🔍 Phase 1: Device VRAM Validation");
-    println!("===================================");
+    tracing::info!("🔍 Phase 1: Device VRAM Validation");
+    tracing::info!("===================================");
     
     // 1. Validate Metal device VRAM capabilities
     let device = metal::Device::system_default().unwrap();
     VramValidator::validate_device_vram(&device)?;
-    println!("  ✅ Device VRAM validation passed\n");
+    tracing::info!("  ✅ Device VRAM validation passed\n");
     
     // 2. Benchmark VRAM vs RAM performance
-    println!("🔍 Phase 2: VRAM vs RAM Performance Benchmark");
-    println!("==============================================");
+    tracing::info!("🔍 Phase 2: VRAM vs RAM Performance Benchmark");
+    tracing::info!("==============================================");
     let benchmark_result = VramValidator::benchmark_vram_vs_ram(&device)?;
     
     if benchmark_result.vram_faster {
-        println!("  ✅ VRAM is faster than RAM: {:.2}x speedup", benchmark_result.performance_ratio);
+        tracing::info!("  ✅ VRAM is faster than RAM: {:.2}x speedup", benchmark_result.performance_ratio);
     } else {
-        println!("  ⚠️ VRAM is slower than RAM: {:.2}x slowdown", 1.0 / benchmark_result.performance_ratio);
+        tracing::info!("  ⚠️ VRAM is slower than RAM: {:.2}x slowdown", 1.0 / benchmark_result.performance_ratio);
     }
-    println!();
+    tracing::info!();
     
     // 3. Create VRAM monitor
-    println!("🔍 Phase 3: VRAM Monitor Setup");
-    println!("==============================");
+    tracing::info!("🔍 Phase 3: VRAM Monitor Setup");
+    tracing::info!("==============================");
     let mut vram_monitor = VramMonitor::new(device.clone());
     vram_monitor.force_vram_validation()?;
-    println!("  ✅ VRAM monitor initialized and validated\n");
+    tracing::info!("  ✅ VRAM monitor initialized and validated\n");
     
     // 4. Test scenarios with VRAM monitoring
     let scenarios = vec![
@@ -97,18 +98,18 @@ async fn run_vram_validation_benchmark() -> Result<()> {
     let mut all_results = Vec::new();
     
     for scenario in scenarios {
-        println!("🔍 Phase 4: {}", scenario.name);
-        println!("{}", "=".repeat(scenario.name.len() + 15));
+        tracing::info!("🔍 Phase 4: {}", scenario.name);
+        tracing::info!("{}", "=".repeat(scenario.name.len() + 15));
         
         let result = run_vram_test_scenario(&mut vram_monitor, &scenario).await?;
         all_results.push(result);
         
-        println!();
+        tracing::info!();
     }
     
     // 5. Generate comprehensive VRAM report
-    println!("🔍 Phase 5: Comprehensive VRAM Report");
-    println!("======================================");
+    tracing::info!("🔍 Phase 5: Comprehensive VRAM Report");
+    tracing::info!("======================================");
     generate_vram_report(&all_results, &vram_monitor).await?;
     
     Ok(())
@@ -129,24 +130,24 @@ async fn run_vram_test_scenario(
 ) -> Result<VramTestResult> {
     use std::time::Instant;
 
-    println!("📊 Test Parameters");
-    println!("------------------");
-    println!("  Dimension: {}", scenario.dimension);
-    println!("  Vector count: {}", scenario.vector_count);
-    println!("  Batch size: {}", scenario.batch_size);
-    println!();
+    tracing::info!("📊 Test Parameters");
+    tracing::info!("------------------");
+    tracing::info!("  Dimension: {}", scenario.dimension);
+    tracing::info!("  Vector count: {}", scenario.vector_count);
+    tracing::info!("  Batch size: {}", scenario.batch_size);
+    tracing::info!();
 
     // 1. Generate test vectors
-    println!("🔧 Generating test vectors...");
+    tracing::info!("🔧 Generating test vectors...");
     let start = Instant::now();
     let vectors = generate_test_vectors(scenario.vector_count, scenario.dimension);
     let generation_time = start.elapsed();
-    println!("  ✅ Generated {} vectors in {:.3}ms", scenario.vector_count, generation_time.as_millis());
-    println!();
+    tracing::info!("  ✅ Generated {} vectors in {:.3}ms", scenario.vector_count, generation_time.as_millis());
+    tracing::info!();
 
     // 2. Create collection with VRAM monitoring
-    println!("📊 Test 1: Create Collection with VRAM Monitoring");
-    println!("--------------------------------------------------");
+    tracing::info!("📊 Test 1: Create Collection with VRAM Monitoring");
+    tracing::info!("--------------------------------------------------");
     let start = Instant::now();
     let mut collection = vram_monitor.monitor_operation("collection_creation", || {
         OptimizedMetalNativeCollection::new(
@@ -156,12 +157,12 @@ async fn run_vram_test_scenario(
         )
     })?;
     let creation_time = start.elapsed();
-    println!("  ✅ Collection created with VRAM monitoring: {:.3}ms", creation_time.as_millis());
-    println!();
+    tracing::info!("  ✅ Collection created with VRAM monitoring: {:.3}ms", creation_time.as_millis());
+    tracing::info!();
 
     // 3. Add vectors with VRAM monitoring
-    println!("📊 Test 2: Add Vectors with VRAM Monitoring");
-    println!("-------------------------------------------");
+    tracing::info!("📊 Test 2: Add Vectors with VRAM Monitoring");
+    tracing::info!("-------------------------------------------");
     let start = Instant::now();
     let mut total_added = 0;
     
@@ -176,28 +177,28 @@ async fn run_vram_test_scenario(
         let batch_time = batch_start_time.elapsed();
         
         total_added += batch.len();
-        println!("  Added batch {} vectors... ({:.3}ms)", total_added, batch_time.as_millis());
+        tracing::info!("  Added batch {} vectors... ({:.3}ms)", total_added, batch_time.as_millis());
     }
     
     let addition_time = start.elapsed();
-    println!("  ✅ Added {} vectors with VRAM monitoring: {:.3}ms", total_added, addition_time.as_millis());
-    println!("  Throughput: {:.2} vectors/sec", total_added as f64 / addition_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Added {} vectors with VRAM monitoring: {:.3}ms", total_added, addition_time.as_millis());
+    tracing::info!("  Throughput: {:.2} vectors/sec", total_added as f64 / addition_time.as_secs_f64());
+    tracing::info!();
 
     // 4. Build index with VRAM monitoring
-    println!("📊 Test 3: Build HNSW Index with VRAM Monitoring");
-    println!("------------------------------------------------");
+    tracing::info!("📊 Test 3: Build HNSW Index with VRAM Monitoring");
+    tracing::info!("------------------------------------------------");
     let start = Instant::now();
     vram_monitor.monitor_operation("hnsw_construction", || {
         collection.build_index()
     })?;
     let construction_time = start.elapsed();
-    println!("  ✅ HNSW index built with VRAM monitoring: {:.3}ms", construction_time.as_millis());
-    println!();
+    tracing::info!("  ✅ HNSW index built with VRAM monitoring: {:.3}ms", construction_time.as_millis());
+    tracing::info!();
 
     // 5. Search with VRAM monitoring
-    println!("📊 Test 4: Search with VRAM Monitoring");
-    println!("--------------------------------------");
+    tracing::info!("📊 Test 4: Search with VRAM Monitoring");
+    tracing::info!("--------------------------------------");
     let start = Instant::now();
     let mut search_times = Vec::new();
     
@@ -213,40 +214,40 @@ async fn run_vram_test_scenario(
         search_times.push(query_time.as_millis() as f64);
         
         if i % 10 == 0 {
-            println!("  Completed {} searches...", i + 1);
+            tracing::info!("  Completed {} searches...", i + 1);
         }
     }
     
     let total_search_time = start.elapsed();
     let avg_search_time = search_times.iter().sum::<f64>() / search_times.len() as f64;
     
-    println!("  ✅ Completed {} searches with VRAM monitoring", search_times.len());
-    println!("  Average search time: {:.3}ms", avg_search_time);
-    println!("  Total search time: {:.3}s", total_search_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Completed {} searches with VRAM monitoring", search_times.len());
+    tracing::info!("  Average search time: {:.3}ms", avg_search_time);
+    tracing::info!("  Total search time: {:.3}s", total_search_time.as_secs_f64());
+    tracing::info!();
 
     // 6. Validate all VRAM usage
-    println!("📊 Test 5: Validate All VRAM Usage");
-    println!("----------------------------------");
+    tracing::info!("📊 Test 5: Validate All VRAM Usage");
+    tracing::info!("----------------------------------");
     let start = Instant::now();
     vram_monitor.validate_all_vram()?;
     let validation_time = start.elapsed();
-    println!("  ✅ All VRAM usage validated: {:.3}ms", validation_time.as_millis());
-    println!();
+    tracing::info!("  ✅ All VRAM usage validated: {:.3}ms", validation_time.as_millis());
+    tracing::info!();
 
     // 7. Get VRAM statistics
     let vram_stats = vram_monitor.get_vram_stats();
     let memory_stats = collection.get_memory_stats();
     
-    println!("📊 Test 6: VRAM Statistics");
-    println!("--------------------------");
-    println!("  Total VRAM allocated: {:.2} MB", vram_stats.total_allocated as f64 / 1024.0 / 1024.0);
-    println!("  Peak VRAM usage: {:.2} MB", vram_stats.peak_usage as f64 / 1024.0 / 1024.0);
-    println!("  Buffer count: {}", vram_stats.buffer_count);
-    println!("  RAM fallback detected: {}", vram_stats.ram_fallback_detected);
-    println!("  VRAM efficiency: {:.1}%", vram_stats.vram_efficiency * 100.0);
-    println!("  Average buffer size: {:.2} KB", vram_stats.average_buffer_size / 1024.0);
-    println!();
+    tracing::info!("📊 Test 6: VRAM Statistics");
+    tracing::info!("--------------------------");
+    tracing::info!("  Total VRAM allocated: {:.2} MB", vram_stats.total_allocated as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Peak VRAM usage: {:.2} MB", vram_stats.peak_usage as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Buffer count: {}", vram_stats.buffer_count);
+    tracing::info!("  RAM fallback detected: {}", vram_stats.ram_fallback_detected);
+    tracing::info!("  VRAM efficiency: {:.1}%", vram_stats.vram_efficiency * 100.0);
+    tracing::info!("  Average buffer size: {:.2} KB", vram_stats.average_buffer_size / 1024.0);
+    tracing::info!();
 
     Ok(VramTestResult {
         scenario: scenario.clone(),
@@ -298,9 +299,9 @@ async fn generate_vram_report(
     results: &[VramTestResult],
     vram_monitor: &VramMonitor,
 ) -> Result<()> {
-    println!("📊 Comprehensive VRAM Validation Report");
-    println!("======================================");
-    println!("Complete analysis of VRAM usage and performance\n");
+    tracing::info!("📊 Comprehensive VRAM Validation Report");
+    tracing::info!("======================================");
+    tracing::info!("Complete analysis of VRAM usage and performance\n");
     
     // Overall VRAM statistics
     let total_vram = results.iter().map(|r| r.vram_stats.total_allocated).sum::<usize>();
@@ -308,110 +309,110 @@ async fn generate_vram_report(
     let total_buffers = results.iter().map(|r| r.vram_stats.buffer_count).sum::<usize>();
     let ram_fallback_detected = results.iter().any(|r| r.vram_stats.ram_fallback_detected);
     
-    println!("🎯 Overall VRAM Statistics");
-    println!("--------------------------");
-    println!("  Total VRAM allocated: {:.2} MB", total_vram as f64 / 1024.0 / 1024.0);
-    println!("  Peak VRAM usage: {:.2} MB", peak_vram as f64 / 1024.0 / 1024.0);
-    println!("  Total buffers: {}", total_buffers);
-    println!("  RAM fallback detected: {}", ram_fallback_detected);
-    println!();
+    tracing::info!("🎯 Overall VRAM Statistics");
+    tracing::info!("--------------------------");
+    tracing::info!("  Total VRAM allocated: {:.2} MB", total_vram as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Peak VRAM usage: {:.2} MB", peak_vram as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Total buffers: {}", total_buffers);
+    tracing::info!("  RAM fallback detected: {}", ram_fallback_detected);
+    tracing::info!();
     
     // Per-scenario analysis
     for result in results {
-        println!("🎯 Scenario: {}", result.scenario.name);
-        println!("{}", "-".repeat(result.scenario.name.len() + 10));
+        tracing::info!("🎯 Scenario: {}", result.scenario.name);
+        tracing::info!("{}", "-".repeat(result.scenario.name.len() + 10));
         
-        println!("📊 Performance Metrics");
-        println!("----------------------");
-        println!("  Vector generation: {:.3}ms", result.generation_time.as_millis());
-        println!("  Collection creation: {:.3}ms", result.creation_time.as_millis());
-        println!("  Vector addition: {:.3}ms", result.addition_time.as_millis());
-        println!("  HNSW construction: {:.3}ms", result.construction_time.as_millis());
-        println!("  VRAM validation: {:.3}ms", result.validation_time.as_millis());
-        println!();
+        tracing::info!("📊 Performance Metrics");
+        tracing::info!("----------------------");
+        tracing::info!("  Vector generation: {:.3}ms", result.generation_time.as_millis());
+        tracing::info!("  Collection creation: {:.3}ms", result.creation_time.as_millis());
+        tracing::info!("  Vector addition: {:.3}ms", result.addition_time.as_millis());
+        tracing::info!("  HNSW construction: {:.3}ms", result.construction_time.as_millis());
+        tracing::info!("  VRAM validation: {:.3}ms", result.validation_time.as_millis());
+        tracing::info!();
         
         if !result.search_times.is_empty() {
             let avg_search = result.search_times.iter().sum::<f64>() / result.search_times.len() as f64;
             let min_search = result.search_times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
             let max_search = result.search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
             
-            println!("🔍 Search Performance");
-            println!("--------------------");
-            println!("  Average search time: {:.3}ms", avg_search);
-            println!("  Min search time: {:.3}ms", min_search);
-            println!("  Max search time: {:.3}ms", max_search);
-            println!("  Search queries: {}", result.search_times.len());
-            println!();
+            tracing::info!("🔍 Search Performance");
+            tracing::info!("--------------------");
+            tracing::info!("  Average search time: {:.3}ms", avg_search);
+            tracing::info!("  Min search time: {:.3}ms", min_search);
+            tracing::info!("  Max search time: {:.3}ms", max_search);
+            tracing::info!("  Search queries: {}", result.search_times.len());
+            tracing::info!();
         }
         
-        println!("💾 VRAM Usage");
-        println!("-------------");
-        println!("  VRAM allocated: {:.2} MB", result.vram_stats.total_allocated as f64 / 1024.0 / 1024.0);
-        println!("  Peak VRAM usage: {:.2} MB", result.vram_stats.peak_usage as f64 / 1024.0 / 1024.0);
-        println!("  Buffer count: {}", result.vram_stats.buffer_count);
-        println!("  RAM fallback: {}", result.vram_stats.ram_fallback_detected);
-        println!("  VRAM efficiency: {:.1}%", result.vram_stats.vram_efficiency * 100.0);
-        println!("  Average buffer size: {:.2} KB", result.vram_stats.average_buffer_size / 1024.0);
-        println!();
+        tracing::info!("💾 VRAM Usage");
+        tracing::info!("-------------");
+        tracing::info!("  VRAM allocated: {:.2} MB", result.vram_stats.total_allocated as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Peak VRAM usage: {:.2} MB", result.vram_stats.peak_usage as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Buffer count: {}", result.vram_stats.buffer_count);
+        tracing::info!("  RAM fallback: {}", result.vram_stats.ram_fallback_detected);
+        tracing::info!("  VRAM efficiency: {:.1}%", result.vram_stats.vram_efficiency * 100.0);
+        tracing::info!("  Average buffer size: {:.2} KB", result.vram_stats.average_buffer_size / 1024.0);
+        tracing::info!();
         
-        println!("💾 Memory Usage");
-        println!("---------------");
-        println!("  Vector count: {}", result.memory_stats.vector_count);
-        println!("  Buffer capacity: {}", result.memory_stats.buffer_capacity);
-        println!("  Used memory: {:.2} MB", result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
-        println!("  Allocated memory: {:.2} MB", result.memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
-        println!("  Memory utilization: {:.1}%", result.memory_stats.utilization * 100.0);
-        println!();
+        tracing::info!("💾 Memory Usage");
+        tracing::info!("---------------");
+        tracing::info!("  Vector count: {}", result.memory_stats.vector_count);
+        tracing::info!("  Buffer capacity: {}", result.memory_stats.buffer_capacity);
+        tracing::info!("  Used memory: {:.2} MB", result.memory_stats.used_bytes as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Allocated memory: {:.2} MB", result.memory_stats.allocated_bytes as f64 / 1024.0 / 1024.0);
+        tracing::info!("  Memory utilization: {:.1}%", result.memory_stats.utilization * 100.0);
+        tracing::info!();
         
         // VRAM validation assessment
-        println!("🎯 VRAM Validation Assessment");
-        println!("-----------------------------");
+        tracing::info!("🎯 VRAM Validation Assessment");
+        tracing::info!("-----------------------------");
         if result.vram_stats.ram_fallback_detected {
-            println!("  ❌ RAM fallback detected - NOT using VRAM");
+            tracing::info!("  ❌ RAM fallback detected - NOT using VRAM");
         } else {
-            println!("  ✅ No RAM fallback detected - using VRAM");
+            tracing::info!("  ✅ No RAM fallback detected - using VRAM");
         }
         
         if result.vram_stats.vram_efficiency > 0.8 {
-            println!("  ✅ VRAM efficiency: EXCELLENT ({:.1}%)", result.vram_stats.vram_efficiency * 100.0);
+            tracing::info!("  ✅ VRAM efficiency: EXCELLENT ({:.1}%)", result.vram_stats.vram_efficiency * 100.0);
         } else if result.vram_stats.vram_efficiency > 0.6 {
-            println!("  ✅ VRAM efficiency: GOOD ({:.1}%)", result.vram_stats.vram_efficiency * 100.0);
+            tracing::info!("  ✅ VRAM efficiency: GOOD ({:.1}%)", result.vram_stats.vram_efficiency * 100.0);
         } else {
-            println!("  ⚠️ VRAM efficiency: LOW ({:.1}%)", result.vram_stats.vram_efficiency * 100.0);
+            tracing::info!("  ⚠️ VRAM efficiency: LOW ({:.1}%)", result.vram_stats.vram_efficiency * 100.0);
         }
         
         if result.vram_stats.buffer_count > 0 {
-            println!("  ✅ Buffer management: ACTIVE ({} buffers)", result.vram_stats.buffer_count);
+            tracing::info!("  ✅ Buffer management: ACTIVE ({} buffers)", result.vram_stats.buffer_count);
         } else {
-            println!("  ⚠️ Buffer management: INACTIVE");
+            tracing::info!("  ⚠️ Buffer management: INACTIVE");
         }
         
-        println!();
+        tracing::info!();
     }
     
     // Final VRAM report
-    println!("📊 Final VRAM Report");
-    println!("====================");
-    println!("{}", vram_monitor.generate_vram_report());
+    tracing::info!("📊 Final VRAM Report");
+    tracing::info!("====================");
+    tracing::info!("{}", vram_monitor.generate_vram_report());
     
     // Final assessment
-    println!("🎯 Final VRAM Validation Assessment");
-    println!("===================================");
+    tracing::info!("🎯 Final VRAM Validation Assessment");
+    tracing::info!("===================================");
     if ram_fallback_detected {
-        println!("❌ VRAM validation FAILED - RAM fallback detected");
-        println!("   Some operations may be using RAM instead of VRAM");
+        tracing::info!("❌ VRAM validation FAILED - RAM fallback detected");
+        tracing::info!("   Some operations may be using RAM instead of VRAM");
     } else {
-        println!("✅ VRAM validation PASSED - All operations using VRAM");
-        println!("   No RAM fallback detected in any operation");
+        tracing::info!("✅ VRAM validation PASSED - All operations using VRAM");
+        tracing::info!("   No RAM fallback detected in any operation");
     }
     
-    println!("📊 Summary Statistics");
-    println!("--------------------");
-    println!("  Total VRAM used: {:.2} MB", total_vram as f64 / 1024.0 / 1024.0);
-    println!("  Peak VRAM usage: {:.2} MB", peak_vram as f64 / 1024.0 / 1024.0);
-    println!("  Total buffers: {}", total_buffers);
-    println!("  Scenarios tested: {}", results.len());
-    println!("  VRAM validation: {}", if ram_fallback_detected { "FAILED" } else { "PASSED" });
+    tracing::info!("📊 Summary Statistics");
+    tracing::info!("--------------------");
+    tracing::info!("  Total VRAM used: {:.2} MB", total_vram as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Peak VRAM usage: {:.2} MB", peak_vram as f64 / 1024.0 / 1024.0);
+    tracing::info!("  Total buffers: {}", total_buffers);
+    tracing::info!("  Scenarios tested: {}", results.len());
+    tracing::info!("  VRAM validation: {}", if ram_fallback_detected { "FAILED" } else { "PASSED" });
     
     Ok(())
 }

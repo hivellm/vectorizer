@@ -12,6 +12,7 @@
 #[cfg(test)]
 mod file_operations_tests {
     use std::env;
+use tracing::{info, error, warn, debug};
     use vectorizer_sdk::*;
 
     const TEST_COLLECTION: &str = "test-collection";
@@ -31,12 +32,12 @@ mod file_operations_tests {
         ($expr:expr, $test_name:expr) => {
             match $expr {
                 Ok(result) => {
-                    println!("✓ {} succeeded", $test_name);
+                    tracing::info!("✓ {} succeeded", $test_name);
                     Some(result)
                 }
                 Err(e) => {
-                    println!("WARNING: {} failed: {:?}", $test_name, e);
-                    println!("This may be due to files not being indexed in the test collection");
+                    tracing::info!("WARNING: {} failed: {:?}", $test_name, e);
+                    tracing::info!("This may be due to files not being indexed in the test collection");
                     None
                 }
             }
@@ -49,7 +50,7 @@ mod file_operations_tests {
     async fn test_retrieve_complete_file_content() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -68,7 +69,7 @@ mod file_operations_tests {
     async fn test_retrieve_file_content_with_size_limit() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -87,7 +88,7 @@ mod file_operations_tests {
     async fn test_file_content_includes_metadata() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -108,7 +109,7 @@ mod file_operations_tests {
     async fn test_non_existent_file_raises_error() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -124,7 +125,7 @@ mod file_operations_tests {
     async fn test_list_all_files_in_collection() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -142,7 +143,7 @@ mod file_operations_tests {
     async fn test_filter_files_by_type() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -170,7 +171,7 @@ mod file_operations_tests {
     async fn test_filter_files_by_minimum_chunks() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -191,7 +192,7 @@ mod file_operations_tests {
     async fn test_limit_file_results() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -210,7 +211,7 @@ mod file_operations_tests {
     async fn test_sort_files_by_name() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -235,7 +236,7 @@ mod file_operations_tests {
     async fn test_sort_files_by_size() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -260,7 +261,7 @@ mod file_operations_tests {
     async fn test_sort_files_by_chunks() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -287,7 +288,7 @@ mod file_operations_tests {
     async fn test_get_extractive_summary() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -308,7 +309,7 @@ mod file_operations_tests {
     async fn test_get_structural_summary() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -327,7 +328,7 @@ mod file_operations_tests {
     async fn test_get_both_summary_types() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -347,7 +348,7 @@ mod file_operations_tests {
     async fn test_get_file_chunks_in_order() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -365,7 +366,7 @@ mod file_operations_tests {
     async fn test_get_chunks_from_specific_position() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -385,7 +386,7 @@ mod file_operations_tests {
     async fn test_get_chunks_with_context_hints() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -407,7 +408,7 @@ mod file_operations_tests {
     async fn test_paginate_through_chunks() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -436,7 +437,7 @@ mod file_operations_tests {
     async fn test_get_project_outline() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -454,7 +455,7 @@ mod file_operations_tests {
     async fn test_outline_highlights_key_files() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -473,7 +474,7 @@ mod file_operations_tests {
     async fn test_find_related_files() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -490,7 +491,7 @@ mod file_operations_tests {
     async fn test_limit_related_files_results() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -509,7 +510,7 @@ mod file_operations_tests {
     async fn test_filter_related_files_by_similarity() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -531,7 +532,7 @@ mod file_operations_tests {
     async fn test_related_files_includes_reason() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -554,7 +555,7 @@ mod file_operations_tests {
     async fn test_search_by_file_type_limits_results() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -579,7 +580,7 @@ mod file_operations_tests {
     async fn test_search_by_multiple_file_types() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -609,7 +610,7 @@ mod file_operations_tests {
     async fn test_invalid_collection_raises_error() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -623,7 +624,7 @@ mod file_operations_tests {
     async fn test_invalid_max_size_kb_raises_error() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -637,7 +638,7 @@ mod file_operations_tests {
     async fn test_empty_file_types_array_raises_error() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -653,7 +654,7 @@ mod file_operations_tests {
     async fn test_list_files_efficiently() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -671,7 +672,7 @@ mod file_operations_tests {
     async fn test_retrieve_file_content_quickly() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 

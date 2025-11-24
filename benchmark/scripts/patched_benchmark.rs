@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use tracing::{info, error, warn, debug};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{fs, thread};
@@ -52,7 +53,7 @@ struct TestDataset {
 impl TestDataset {
     /// Load dataset from workspace with expansion
     fn load_from_workspace(max_docs: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Loading test dataset...");
+        tracing::info!("📂 Loading test dataset...");
 
         // Load real documents from workspace
         let mut docs = Vec::new();
@@ -83,7 +84,7 @@ impl TestDataset {
 
         // Expand documents if needed
         if docs.len() < max_docs {
-            println!(
+            tracing::info!(
                 "📈 Expanding {} real documents to {} for testing...",
                 docs.len(),
                 max_docs
@@ -129,7 +130,7 @@ impl TestDataset {
             .collect();
 
         // Pre-compute embeddings with normalization
-        println!("📊 Pre-computing embeddings...");
+        tracing::info!("📊 Pre-computing embeddings...");
         let mut manager = EmbeddingManager::new();
         let bm25 = Bm25Embedding::new(512);
         manager.register_provider("bm25".to_string(), Box::new(bm25));
@@ -160,7 +161,7 @@ impl TestDataset {
             }
 
             if (batch_idx + 1) % 10 == 0 {
-                println!(
+                tracing::info!(
                     "  Processed {}/{} embeddings...",
                     base_embeddings.len(),
                     docs.len()
@@ -172,7 +173,7 @@ impl TestDataset {
         let ground_truth =
             Self::generate_brute_force_ground_truth(&base_embeddings, &queries, &docs)?;
 
-        println!(
+        tracing::info!(
             "✅ Loaded {} documents, {} queries, {} embeddings",
             docs.len(),
             queries.len(),
@@ -193,7 +194,7 @@ impl TestDataset {
         queries: &[String],
         docs: &[String],
     ) -> Result<Vec<HashSet<String>>, Box<dyn std::error::Error>> {
-        println!("🎯 Generating ground truth using brute-force FLAT search...");
+        tracing::info!("🎯 Generating ground truth using brute-force FLAT search...");
 
         let mut manager = EmbeddingManager::new();
         let bm25 = Bm25Embedding::new(512);
@@ -265,7 +266,7 @@ impl TestDataset {
             }
 
             if (query_idx + 1) % 10 == 0 {
-                println!("  Processed {}/{} queries...", query_idx + 1, queries.len());
+                tracing::info!("  Processed {}/{} queries...", query_idx + 1, queries.len());
             }
         }
 
@@ -323,25 +324,25 @@ impl BenchmarkRunner {
 
     /// Run complete benchmark suite
     fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("🔬 Patched Vectorizer Benchmark Suite");
-        println!("=====================================\n");
+        tracing::info!("🔬 Patched Vectorizer Benchmark Suite");
+        tracing::info!("=====================================\n");
 
         // Get system information
         let cpu_info = self.get_cpu_info();
         let numa_info = self.get_numa_info();
         let build_flags = self.get_build_flags();
 
-        println!("🖥️ System Information:");
-        println!("  CPU: {}", cpu_info);
-        println!("  NUMA: {}", numa_info);
-        println!("  Build: {}", build_flags);
-        println!();
+        tracing::info!("🖥️ System Information:");
+        tracing::info!("  CPU: {}", cpu_info);
+        tracing::info!("  NUMA: {}", numa_info);
+        tracing::info!("  Build: {}", build_flags);
+        tracing::info!();
 
         // Run benchmarks for each dataset
         let datasets = self.config.datasets.clone();
         for &dataset_size in &datasets {
-            println!("🚀 TESTING DATASET: {} vectors", dataset_size);
-            println!("==================================================");
+            tracing::info!("🚀 TESTING DATASET: {} vectors", dataset_size);
+            tracing::info!("==================================================");
 
             // Load dataset
             let dataset = TestDataset::load_from_workspace(dataset_size)?;
@@ -391,7 +392,7 @@ impl BenchmarkRunner {
                 }
             }
 
-            println!("✅ Completed dataset {} vectors", dataset_size);
+            tracing::info!("✅ Completed dataset {} vectors", dataset_size);
         }
 
         // Sort results as specified
@@ -431,7 +432,7 @@ impl BenchmarkRunner {
         numa_info: &str,
         build_flags: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!(
+        tracing::info!(
             "  🔬 Benchmarking: {} {} k={} ef={}",
             mode, quantization, k_real, ef_search
         );
@@ -556,7 +557,7 @@ impl BenchmarkRunner {
         build_flags: &str,
         phase: &str,
     ) -> Result<BenchmarkResult, Box<dyn std::error::Error>> {
-        println!(
+        tracing::info!(
             "    {} phase: {}",
             if phase == "warm" {
                 "🔥 Warm-up"
@@ -568,7 +569,7 @@ impl BenchmarkRunner {
 
         // Warm-up for warm phase
         if phase == "warm" {
-            println!("    🔥 Warm-up phase...");
+            tracing::info!("    🔥 Warm-up phase...");
             for _ in 0..200 {
                 let query_idx = fastrand::usize(..dataset.queries.len());
                 let query = &dataset.queries[query_idx];
@@ -587,7 +588,7 @@ impl BenchmarkRunner {
         }
 
         // Measurement phase
-        println!("    📊 Measurement phase...");
+        tracing::info!("    📊 Measurement phase...");
         let num_queries = 1000;
         let mut latencies = Vec::with_capacity(num_queries);
         let mut nodes_visited = Vec::with_capacity(num_queries);
@@ -866,7 +867,7 @@ impl BenchmarkRunner {
     /// Output results as JSON
     fn output_results(&self) -> Result<(), Box<dyn std::error::Error>> {
         let json_output = serde_json::to_string_pretty(&self.results)?;
-        println!("{}", json_output);
+        tracing::info!("{}", json_output);
 
         // Save to file
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -880,7 +881,7 @@ impl BenchmarkRunner {
         let filepath = report_dir.join(filename);
         fs::write(&filepath, &json_output)?;
 
-        println!("\n📄 JSON report saved to: {}", filepath.display());
+        tracing::info!("\n📄 JSON report saved to: {}", filepath.display());
 
         Ok(())
     }

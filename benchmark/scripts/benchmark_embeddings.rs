@@ -4,6 +4,7 @@
 //! methods using standard IR metrics (MAP, MRR, Precision@K, Recall@K).
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::time::Instant;
 
@@ -32,7 +33,7 @@ impl BenchmarkDataset {
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
         // Load real documents from gov/ directory
         let gov_path = "/mnt/f/Node/hivellm/gov";
-        println!("Loading real documents from: {}", gov_path);
+        tracing::info!("Loading real documents from: {}", gov_path);
 
         // Configure document loader
         let config = LoaderConfig {
@@ -53,16 +54,16 @@ impl BenchmarkDataset {
         let temp_store = VectorStore::new();
 
         // Load and process documents
-        println!("Starting document loading...");
+        tracing::info!("Starting document loading...");
         let chunk_count = loader.load_project(gov_path, &temp_store)?;
-        println!("Document loader reported {} chunks processed", chunk_count);
+        tracing::info!("Document loader reported {} chunks processed", chunk_count);
 
         // Get processed documents (chunks)
         let documents = loader.get_processed_documents();
-        println!("Retrieved {} documents from loader", documents.len());
+        tracing::info!("Retrieved {} documents from loader", documents.len());
 
         if documents.is_empty() {
-            println!("No documents were loaded. Checking directory contents...");
+            tracing::info!("No documents were loaded. Checking directory contents...");
             // Debug: check if directory exists and has files
             match std::fs::read_dir(gov_path) {
                 Ok(entries) => {
@@ -74,9 +75,9 @@ impl BenchmarkDataset {
                                 if let Some(ext) = path.extension() {
                                     if ext == "md" || ext == "txt" || ext == "json" {
                                         file_count += 1;
-                                        println!("Found valid file: {}", path.display());
+                                        tracing::info!("Found valid file: {}", path.display());
                                         if file_count >= 5 {
-                                            println!("... (showing first 5 valid files)");
+                                            tracing::info!("... (showing first 5 valid files)");
                                             break;
                                         }
                                     }
@@ -84,14 +85,14 @@ impl BenchmarkDataset {
                             }
                         }
                     }
-                    println!("Total valid files found: {}", file_count);
+                    tracing::info!("Total valid files found: {}", file_count);
                 }
-                Err(e) => println!("Could not read directory: {}", e),
+                Err(e) => tracing::info!("Could not read directory: {}", e),
             }
             return Err("No documents were loaded from gov/ directory".into());
         }
 
-        println!(
+        tracing::info!(
             "Loaded {} document chunks from gov/ directory",
             documents.len()
         );
@@ -213,7 +214,7 @@ fn evaluate_embedding_method(
     dataset: &BenchmarkDataset,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "Evaluating {} with dimension {}...",
         embedding_name, dimension
     );
@@ -235,7 +236,7 @@ fn evaluate_embedding_method(
     manager.set_default_provider(embedding_name)?;
 
     // Build vocabulary from all documents
-    println!(
+    tracing::info!(
         "Building vocabulary from {} documents...",
         dataset.documents.len()
     );
@@ -271,7 +272,7 @@ fn evaluate_embedding_method(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
     // Compute and index all document embeddings
-    println!(
+    tracing::info!(
         "Computing and indexing {} documents...",
         dataset.documents.len()
     );
@@ -298,7 +299,7 @@ fn evaluate_embedding_method(
         if batch_idx % 5 == 0 {
             let total_processed = (batch_idx + 1) * batch_size;
             let progress = (total_processed as f32 / dataset.documents.len() as f32) * 100.0;
-            println!(
+            tracing::info!(
                 "  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec",
                 batch_idx,
                 total_processed,
@@ -314,7 +315,7 @@ fn evaluate_embedding_method(
 
     let total_time = start_time.elapsed();
     let overall_throughput = dataset.documents.len() as f64 / total_time.as_secs_f64();
-    println!(
+    tracing::info!(
         "✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)",
         dataset.documents.len(),
         total_time.as_secs_f64(),
@@ -353,11 +354,11 @@ fn evaluate_embedding_method(
 
     // Print index statistics
     let memory_stats = index.memory_stats();
-    println!("\n📊 {} Index Statistics:", embedding_name);
-    println!("  - Vectors: {}", memory_stats.vector_count);
-    println!("  - Memory: {}", memory_stats.format());
-    println!("  - Build time: {:.2}s", total_time.as_secs_f64());
-    println!("  - Throughput: {:.2} docs/sec", overall_throughput);
+    tracing::info!("\n📊 {} Index Statistics:", embedding_name);
+    tracing::info!("  - Vectors: {}", memory_stats.vector_count);
+    tracing::info!("  - Memory: {}", memory_stats.format());
+    tracing::info!("  - Build time: {:.2}s", total_time.as_secs_f64());
+    tracing::info!("  - Throughput: {:.2} docs/sec", overall_throughput);
 
     Ok(metrics)
 }
@@ -368,7 +369,7 @@ fn evaluate_dense_embedding_method(
     dataset: &BenchmarkDataset,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!("Evaluating {} with dimension {}...", method, dimension);
+    tracing::info!("Evaluating {} with dimension {}...", method, dimension);
 
     // Initialize parallel environment
     let parallel_config = ParallelConfig::default();
@@ -407,7 +408,7 @@ fn evaluate_dense_embedding_method(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
     // Compute and index all document embeddings
-    println!(
+    tracing::info!(
         "Computing and indexing {} documents...",
         dataset.documents.len()
     );
@@ -433,7 +434,7 @@ fn evaluate_dense_embedding_method(
         if batch_idx % 10 == 0 {
             let total_processed = (batch_idx + 1) * batch_size;
             let progress = (total_processed as f32 / dataset.documents.len() as f32) * 100.0;
-            println!(
+            tracing::info!(
                 "  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec",
                 batch_idx,
                 total_processed,
@@ -449,7 +450,7 @@ fn evaluate_dense_embedding_method(
 
     let total_time = start_time.elapsed();
     let overall_throughput = dataset.documents.len() as f64 / total_time.as_secs_f64();
-    println!(
+    tracing::info!(
         "✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)",
         dataset.documents.len(),
         total_time.as_secs_f64(),
@@ -488,11 +489,11 @@ fn evaluate_dense_embedding_method(
 
     // Print index statistics
     let memory_stats = index.memory_stats();
-    println!("\n📊 {} Index Statistics:", method);
-    println!("  - Vectors: {}", memory_stats.vector_count);
-    println!("  - Memory: {}", memory_stats.format());
-    println!("  - Build time: {:.2}s", total_time.as_secs_f64());
-    println!("  - Throughput: {:.2} docs/sec", overall_throughput);
+    tracing::info!("\n📊 {} Index Statistics:", method);
+    tracing::info!("  - Vectors: {}", memory_stats.vector_count);
+    tracing::info!("  - Memory: {}", memory_stats.format());
+    tracing::info!("  - Build time: {:.2}s", total_time.as_secs_f64());
+    tracing::info!("  - Throughput: {:.2} docs/sec", overall_throughput);
 
     Ok(metrics)
 }
@@ -505,7 +506,7 @@ fn evaluate_real_model_embedding(
     model_name: &str,
     dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "Evaluating real model {} with dimension {}...",
         model_name, dimension
     );
@@ -532,7 +533,7 @@ fn evaluate_real_model_embedding(
     let batch_time = start_time.elapsed();
 
     let docs_per_sec = 10.0 / batch_time.as_secs_f64();
-    println!("Throughput estimate: {:.2} docs/sec", docs_per_sec);
+    tracing::info!("Throughput estimate: {:.2} docs/sec", docs_per_sec);
 
     // Decide whether to process all documents based on performance
     let process_all = docs_per_sec > 50.0; // If we can do > 50 docs/sec, process all
@@ -543,14 +544,14 @@ fn evaluate_real_model_embedding(
     };
 
     let sampled_docs: Vec<&String> = if dataset.documents.len() > max_docs {
-        println!(
+        tracing::info!(
             "Processing {} documents from {} total",
             max_docs,
             dataset.documents.len()
         );
         dataset.documents.iter().take(max_docs).collect()
     } else {
-        println!("Processing ALL {} documents!", dataset.documents.len());
+        tracing::info!("Processing ALL {} documents!", dataset.documents.len());
         dataset.documents.iter().collect()
     };
 
@@ -564,7 +565,7 @@ fn evaluate_real_model_embedding(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
     // Pre-compute and index embeddings in batches
-    println!("Computing and indexing {} documents...", sampled_docs.len());
+    tracing::info!("Computing and indexing {} documents...", sampled_docs.len());
     let batch_size = 100;
     let start_time = Instant::now();
 
@@ -588,7 +589,7 @@ fn evaluate_real_model_embedding(
         if batch_idx % 10 == 0 {
             let total_processed = (batch_idx + 1) * batch_size;
             let progress = (total_processed as f32 / sampled_docs.len() as f32) * 100.0;
-            println!(
+            tracing::info!(
                 "  Batch {}: {}/{} docs ({:.1}%) - {:.2} docs/sec",
                 batch_idx,
                 total_processed,
@@ -604,7 +605,7 @@ fn evaluate_real_model_embedding(
 
     let total_time = start_time.elapsed();
     let overall_throughput = sampled_docs.len() as f64 / total_time.as_secs_f64();
-    println!(
+    tracing::info!(
         "✅ Indexed {} documents in {:.2}s ({:.2} docs/sec)",
         sampled_docs.len(),
         total_time.as_secs_f64(),
@@ -612,11 +613,11 @@ fn evaluate_real_model_embedding(
     );
 
     // Evaluate queries using the index
-    println!("Evaluating queries using HNSW index...");
+    tracing::info!("Evaluating queries using HNSW index...");
     let mut query_results = Vec::new();
 
     for (query_idx, query) in dataset.queries.iter().enumerate() {
-        println!(
+        tracing::info!(
             "  Query {}/{}: {}",
             query_idx + 1,
             dataset.queries.len(),
@@ -660,13 +661,13 @@ fn evaluate_real_model_embedding(
 
     // Print index statistics
     let memory_stats = index.memory_stats();
-    println!("\n📊 Index Statistics:");
-    println!("  - Vectors: {}", memory_stats.vector_count);
-    println!("  - Memory: {}", memory_stats.format());
-    println!("  - Build time: {:.2}s", total_time.as_secs_f64());
-    println!("  - Throughput: {:.2} docs/sec", overall_throughput);
+    tracing::info!("\n📊 Index Statistics:");
+    tracing::info!("  - Vectors: {}", memory_stats.vector_count);
+    tracing::info!("  - Memory: {}", memory_stats.format());
+    tracing::info!("  - Build time: {:.2}s", total_time.as_secs_f64());
+    tracing::info!("  - Throughput: {:.2} docs/sec", overall_throughput);
 
-    println!("\n✅ Model evaluation completed successfully!");
+    tracing::info!("\n✅ Model evaluation completed successfully!");
 
     Ok(metrics)
 }
@@ -677,7 +678,7 @@ fn evaluate_svd_method_optimized(
     svd_dimension: usize,
     max_docs: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "Evaluating SVD with dimension {} (using {} docs)...",
         svd_dimension, max_docs
     );
@@ -701,7 +702,7 @@ fn evaluate_svd_method_optimized(
     let start_time = Instant::now();
     svd.fit_svd(&sampled_docs)?;
     let fit_time = start_time.elapsed();
-    println!("  SVD fit completed in {:.2}s", fit_time.as_secs_f64());
+    tracing::info!("  SVD fit completed in {:.2}s", fit_time.as_secs_f64());
 
     // Create optimized HNSW index
     let hnsw_config = OptimizedHnswConfig {
@@ -713,7 +714,7 @@ fn evaluate_svd_method_optimized(
     let index = OptimizedHnswIndex::new(svd_dimension, hnsw_config)?;
 
     // Index documents
-    println!("  Indexing {} documents...", sampled_docs.len());
+    tracing::info!("  Indexing {} documents...", sampled_docs.len());
     let index_start = Instant::now();
 
     let mut batch_vectors = Vec::new();
@@ -731,7 +732,7 @@ fn evaluate_svd_method_optimized(
 
     index.optimize()?;
     let index_time = index_start.elapsed();
-    println!(
+    tracing::info!(
         "  Indexed in {:.2}s ({:.2} docs/sec)",
         index_time.as_secs_f64(),
         sampled_docs.len() as f64 / index_time.as_secs_f64()
@@ -769,10 +770,10 @@ fn evaluate_svd_method_optimized(
 
     // Print statistics
     let memory_stats = index.memory_stats();
-    println!("\n📊 SVD Index Statistics:");
-    println!("  - Vectors: {}", memory_stats.vector_count);
-    println!("  - Memory: {}", memory_stats.format());
-    println!(
+    tracing::info!("\n📊 SVD Index Statistics:");
+    tracing::info!("  - Vectors: {}", memory_stats.vector_count);
+    tracing::info!("  - Memory: {}", memory_stats.format());
+    tracing::info!(
         "  - Total time: {:.2}s",
         (fit_time + index_time).as_secs_f64()
     );
@@ -789,7 +790,7 @@ fn evaluate_onnx_model(
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
     use vectorizer::embedding::{OnnxConfig, OnnxEmbedder, OnnxModelType};
 
-    println!("Evaluating {} with ONNX Runtime...", model_name);
+    tracing::info!("Evaluating {} with ONNX Runtime...", model_name);
 
     // Initialize parallel environment
     let parallel_config = ParallelConfig::default();
@@ -817,7 +818,7 @@ fn evaluate_onnx_model(
     let _ = embedder.embed_parallel(test_batch)?;
     let batch_time = start_time.elapsed();
     let docs_per_sec = test_batch.len() as f64 / batch_time.as_secs_f64();
-    println!("ONNX Throughput: {:.2} docs/sec", docs_per_sec);
+    tracing::info!("ONNX Throughput: {:.2} docs/sec", docs_per_sec);
 
     // Create optimized index
     let hnsw_config = OptimizedHnswConfig {
@@ -829,7 +830,7 @@ fn evaluate_onnx_model(
     let index = OptimizedHnswIndex::new(dimension, hnsw_config)?;
 
     // Index all documents
-    println!(
+    tracing::info!(
         "Indexing {} documents with ONNX...",
         dataset.documents.len()
     );
@@ -847,7 +848,7 @@ fn evaluate_onnx_model(
 
     index.optimize()?;
     let index_time = start_time.elapsed();
-    println!(
+    tracing::info!(
         "✅ ONNX indexing completed in {:.2}s ({:.2} docs/sec)",
         index_time.as_secs_f64(),
         dataset.documents.len() as f64 / index_time.as_secs_f64()
@@ -876,11 +877,11 @@ fn evaluate_onnx_model(
 
     // Print statistics
     let memory_stats = index.memory_stats();
-    println!("\n📊 ONNX Index Statistics:");
-    println!("  - Model: {} (INT8: {})", model_name, use_int8);
-    println!("  - Vectors: {}", memory_stats.vector_count);
-    println!("  - Memory: {}", memory_stats.format());
-    println!("  - Index time: {:.2}s", index_time.as_secs_f64());
+    tracing::info!("\n📊 ONNX Index Statistics:");
+    tracing::info!("  - Model: {} (INT8: {})", model_name, use_int8);
+    tracing::info!("  - Vectors: {}", memory_stats.vector_count);
+    tracing::info!("  - Memory: {}", memory_stats.format());
+    tracing::info!("  - Index time: {:.2}s", index_time.as_secs_f64());
 
     Ok(metrics)
 }
@@ -892,7 +893,7 @@ fn evaluate_hybrid_search(
     dense_method: &str,
     dense_dimension: usize,
 ) -> Result<EvaluationMetrics, Box<dyn std::error::Error>> {
-    println!(
+    tracing::info!(
         "Evaluating Hybrid Search: {} -> {}",
         sparse_method, dense_method
     );
@@ -921,7 +922,7 @@ fn evaluate_hybrid_search(
     };
 
     // For hybrid search, we'll simulate the two-stage process
-    println!(
+    tracing::info!(
         "Building BM25 index for {} documents...",
         dataset.documents.len()
     );
@@ -972,17 +973,17 @@ fn evaluate_hybrid_search(
     }
 
     let total_time = start_time.elapsed();
-    println!(
+    tracing::info!(
         "✅ Hybrid search completed in {:.2}s",
         total_time.as_secs_f64()
     );
 
     let metrics = evaluate_search_quality(query_results, 10);
 
-    println!("\n📊 Hybrid Search Statistics:");
-    println!("  - Sparse: {} (top-50 candidates)", sparse_method);
-    println!("  - Dense: {} (re-ranking)", dense_method);
-    println!("  - Total time: {:.2}s", total_time.as_secs_f64());
+    tracing::info!("\n📊 Hybrid Search Statistics:");
+    tracing::info!("  - Sparse: {} (top-50 candidates)", sparse_method);
+    tracing::info!("  - Dense: {} (re-ranking)", dense_method);
+    tracing::info!("  - Total time: {:.2}s", total_time.as_secs_f64());
 
     Ok(metrics)
 }
@@ -1002,25 +1003,25 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 
 /// Print evaluation results in a formatted way
 fn print_results(method: &str, metrics: &EvaluationMetrics) {
-    println!("\n=== {} Results ===", method);
-    println!("Queries evaluated: {}", metrics.num_queries);
-    println!(
+    tracing::info!("\n=== {} Results ===", method);
+    tracing::info!("Queries evaluated: {}", metrics.num_queries);
+    tracing::info!(
         "Mean Average Precision (MAP): {:.4}",
         metrics.mean_average_precision
     );
-    println!(
+    tracing::info!(
         "Mean Reciprocal Rank (MRR): {:.4}",
         metrics.mean_reciprocal_rank
     );
 
-    println!("\nPrecision@K:");
+    tracing::info!("\nPrecision@K:");
     for (k, &precision) in metrics.precision_at_k.iter().enumerate() {
-        println!("  P@{}: {:.4}", k + 1, precision);
+        tracing::info!("  P@{}: {:.4}", k + 1, precision);
     }
 
-    println!("\nRecall@K:");
+    tracing::info!("\nRecall@K:");
     for (k, &recall) in metrics.recall_at_k.iter().enumerate() {
-        println!("  R@{}: {:.4}", k + 1, recall);
+        tracing::info!("  R@{}: {:.4}", k + 1, recall);
     }
 }
 
@@ -1209,11 +1210,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
-    println!("🚀 Vectorizer Embedding Benchmark");
-    println!("==================================");
+    tracing::info!("🚀 Vectorizer Embedding Benchmark");
+    tracing::info!("==================================");
 
     let dataset = BenchmarkDataset::new()?;
-    println!(
+    tracing::info!(
         "Dataset: {} documents, {} queries",
         dataset.documents.len(),
         dataset.queries.len()
@@ -1233,18 +1234,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 results.push((method.to_string(), metrics));
             }
             Err(e) => {
-                println!("Error evaluating {}: {}", method, e);
+                tracing::info!("Error evaluating {}: {}", method, e);
             }
         }
     }
 
     // Evaluate SVD-based methods with optimizations
-    println!("\n🔍 Evaluating SVD-based methods...");
+    tracing::info!("\n🔍 Evaluating SVD-based methods...");
 
     // Use a subset for SVD to avoid performance issues
     let svd_sample_size = std::cmp::min(1000, dataset.documents.len());
     if dataset.documents.len() > svd_sample_size {
-        println!(
+        tracing::info!(
             "   Using {} documents for SVD evaluation (from {} total)",
             svd_sample_size,
             dataset.documents.len()
@@ -1258,7 +1259,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             results.push(("TF-IDF+SVD(300D)".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating TF-IDF+SVD(300D): {}", e);
+            tracing::info!("Error evaluating TF-IDF+SVD(300D): {}", e);
         }
     }
 
@@ -1269,12 +1270,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             results.push(("TF-IDF+SVD(768D)".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating TF-IDF+SVD(768D): {}", e);
+            tracing::info!("Error evaluating TF-IDF+SVD(768D): {}", e);
         }
     }
 
     // Evaluate dense embeddings
-    println!("\n🧠 Evaluating dense embeddings...");
+    tracing::info!("\n🧠 Evaluating dense embeddings...");
 
     // Test placeholder models first
     match evaluate_dense_embedding_method("BERT", &dataset, 768) {
@@ -1283,7 +1284,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             results.push(("BERT(768D Placeholder)".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating BERT placeholder: {}", e);
+            tracing::info!("Error evaluating BERT placeholder: {}", e);
         }
     }
 
@@ -1293,14 +1294,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             results.push(("MiniLM(384D Placeholder)".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating MiniLM placeholder: {}", e);
+            tracing::info!("Error evaluating MiniLM placeholder: {}", e);
         }
     }
 
     // Test real models (only if candle-models feature is enabled)
     #[cfg(feature = "candle-models")]
     {
-        println!("\n🤖 Testing real transformer models (cached in /models)...");
+        tracing::info!("\n🤖 Testing real transformer models (cached in /models)...");
 
         let real_models = vec![
             (
@@ -1332,7 +1333,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     results.push((format!("{}({}D Real)", model_name, dimension), metrics));
                 }
                 Err(e) => {
-                    println!("Error evaluating {}: {}", model_name, e);
+                    tracing::info!("Error evaluating {}: {}", model_name, e);
                     // Continue with other models
                 }
             }
@@ -1341,10 +1342,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(not(feature = "candle-models"))]
     {
-        println!(
+        tracing::info!(
             "\n⚠️  Real models not available - compile with --features candle-models to test actual transformer models"
         );
-        println!(
+        tracing::info!(
             "   Available models would include: MiniLM-Multilingual, E5-Small, MPNet-Multilingual, etc."
         );
     }
@@ -1352,7 +1353,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test ONNX models if available
     #[cfg(feature = "onnx-models")]
     {
-        println!("\n⚡ Testing ONNX models for production inference...");
+        tracing::info!("\n⚡ Testing ONNX models for production inference...");
 
         match evaluate_onnx_model(&dataset, "MiniLM-ONNX", 384) {
             Ok(metrics) => {
@@ -1360,7 +1361,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 results.push(("MiniLM(384D ONNX)".to_string(), metrics));
             }
             Err(e) => {
-                println!("Error evaluating MiniLM ONNX: {}", e);
+                tracing::info!("Error evaluating MiniLM ONNX: {}", e);
             }
         }
 
@@ -1370,20 +1371,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 results.push(("E5-Base(768D ONNX)".to_string(), metrics));
             }
             Err(e) => {
-                println!("Error evaluating E5-Base ONNX: {}", e);
+                tracing::info!("Error evaluating E5-Base ONNX: {}", e);
             }
         }
     }
 
     #[cfg(not(feature = "onnx-models"))]
     {
-        println!(
+        tracing::info!(
             "\n⚡ ONNX models not available - compile with --features onnx-models for optimized inference"
         );
     }
 
     // Evaluate Hybrid Search approaches
-    println!("\n🔀 Evaluating Hybrid Search approaches...");
+    tracing::info!("\n🔀 Evaluating Hybrid Search approaches...");
 
     match evaluate_hybrid_search(&dataset, "BM25", "BERT", 768) {
         Ok(metrics) => {
@@ -1391,7 +1392,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             results.push(("Hybrid: BM25->BERT".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating BM25+BERT hybrid: {}", e);
+            tracing::info!("Error evaluating BM25+BERT hybrid: {}", e);
         }
     }
 
@@ -1401,20 +1402,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             results.push(("Hybrid: BM25->MiniLM".to_string(), metrics));
         }
         Err(e) => {
-            println!("Error evaluating BM25+MiniLM hybrid: {}", e);
+            tracing::info!("Error evaluating BM25+MiniLM hybrid: {}", e);
         }
     }
 
     // Summary comparison
-    println!("\n📊 Summary Comparison");
-    println!("====================");
-    println!(
+    tracing::info!("\n📊 Summary Comparison");
+    tracing::info!("====================");
+    tracing::info!(
         "{:<10} {:<8} {:<8} {:<8} {:<8}",
         "Method", "MAP", "MRR", "P@5", "R@5"
     );
 
     for (method, metrics) in &results {
-        println!(
+        tracing::info!(
             "{:<10} {:.4}   {:.4}   {:.4}   {:.4}",
             method,
             metrics.mean_average_precision,
@@ -1425,7 +1426,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Generate and save Markdown report
-    println!("\n📝 Generating Markdown report...");
+    tracing::info!("\n📝 Generating Markdown report...");
     let report = generate_markdown_report(&results, &dataset);
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -1433,15 +1434,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match fs::write(&filename, &report) {
         Ok(_) => {
-            println!("✅ Report saved to: {}", filename);
-            println!("📄 Report size: {} bytes", report.len());
+            tracing::info!("✅ Report saved to: {}", filename);
+            tracing::info!("📄 Report size: {} bytes", report.len());
         }
         Err(e) => {
-            println!("❌ Failed to save report: {}", e);
+            tracing::info!("❌ Failed to save report: {}", e);
             // Fallback: tentar salvar no diretório atual
             let fallback_filename = format!("benchmark_report_{}.md", timestamp);
             if let Ok(_) = fs::write(&fallback_filename, &report) {
-                println!(
+                tracing::info!(
                     "📁 Fallback: Report saved to: {} (current directory)",
                     fallback_filename
                 );
@@ -1449,12 +1450,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\n✅ Benchmark completed!");
-    println!("\n💡 Next steps:");
-    println!("   - Implement BERT/MiniLM embeddings for comparison");
-    println!("   - Add hybrid search (BM25 + dense embeddings)");
-    println!("   - Use larger, more diverse datasets");
-    println!("   - Implement proper train/test splits");
+    tracing::info!("\n✅ Benchmark completed!");
+    tracing::info!("\n💡 Next steps:");
+    tracing::info!("   - Implement BERT/MiniLM embeddings for comparison");
+    tracing::info!("   - Add hybrid search (BM25 + dense embeddings)");
+    tracing::info!("   - Use larger, more diverse datasets");
+    tracing::info!("   - Implement proper train/test splits");
 
     Ok(())
 }

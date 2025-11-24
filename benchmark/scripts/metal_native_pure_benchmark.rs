@@ -4,6 +4,7 @@
 //! All operations stay in VRAM for maximum efficiency.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use vectorizer::gpu::MetalNativeCollection;
 use vectorizer::models::{DistanceMetric, Vector};
 use std::time::Instant;
@@ -15,14 +16,14 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🚀 Metal Native Pure Benchmark");
-    println!("=====================================");
-    println!("Pure Metal implementation - No wgpu dependencies");
-    println!("All operations stay in VRAM for maximum efficiency\n");
+    tracing::info!("🚀 Metal Native Pure Benchmark");
+    tracing::info!("=====================================");
+    tracing::info!("Pure Metal implementation - No wgpu dependencies");
+    tracing::info!("All operations stay in VRAM for maximum efficiency\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ This benchmark requires macOS with Metal support");
+        tracing::info!("❌ This benchmark requires macOS with Metal support");
         return Ok(());
     }
 
@@ -44,68 +45,68 @@ async fn run_metal_native_benchmark() -> Result<()> {
     let search_queries = 100;
     let k = 10;
 
-    println!("📊 Test Parameters");
-    println!("------------------");
-    println!("  Dimension: {}", dimension);
-    println!("  Vector count: {}", vector_count);
-    println!("  Search queries: {}", search_queries);
-    println!("  k (results per query): {}", k);
-    println!();
+    tracing::info!("📊 Test Parameters");
+    tracing::info!("------------------");
+    tracing::info!("  Dimension: {}", dimension);
+    tracing::info!("  Vector count: {}", vector_count);
+    tracing::info!("  Search queries: {}", search_queries);
+    tracing::info!("  k (results per query): {}", k);
+    tracing::info!();
 
     // Generate test vectors
-    println!("🔧 Generating test vectors...");
+    tracing::info!("🔧 Generating test vectors...");
     let start = Instant::now();
     let vectors = generate_test_vectors(vector_count, dimension);
     let generation_time = start.elapsed();
-    println!("  ✅ Generated {} vectors in {:?}", vector_count, generation_time);
-    println!();
+    tracing::info!("  ✅ Generated {} vectors in {:?}", vector_count, generation_time);
+    tracing::info!();
 
     // Test 1: Create Metal Native Collection
-    println!("📊 Test 1: Create Metal Native Collection");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 1: Create Metal Native Collection");
+    tracing::info!("----------------------------------------");
     
     let start = Instant::now();
     let mut collection = MetalNativeCollection::new(dimension, DistanceMetric::Cosine)?;
     let creation_time = start.elapsed();
     
-    println!("  ✅ Collection created: {:?}", creation_time);
-    println!("  Device: Pure Metal native (VRAM only)");
-    println!();
+    tracing::info!("  ✅ Collection created: {:?}", creation_time);
+    tracing::info!("  Device: Pure Metal native (VRAM only)");
+    tracing::info!();
 
     // Test 2: Add vectors to VRAM
-    println!("📊 Test 2: Add Vectors to VRAM");
-    println!("------------------------------");
+    tracing::info!("📊 Test 2: Add Vectors to VRAM");
+    tracing::info!("------------------------------");
     
     let start = Instant::now();
     for (i, vector) in vectors.iter().enumerate() {
         collection.add_vector(vector.clone())?;
         if (i + 1) % 100 == 0 {
-            println!("  Added {} vectors...", i + 1);
+            tracing::info!("  Added {} vectors...", i + 1);
         }
     }
     let add_time = start.elapsed();
     
-    println!("  ✅ Added {} vectors to VRAM: {:?}", vector_count, add_time);
-    println!("  Throughput: {:.2} vectors/sec", 
+    tracing::info!("  ✅ Added {} vectors to VRAM: {:?}", vector_count, add_time);
+    tracing::info!("  Throughput: {:.2} vectors/sec", 
         vector_count as f64 / add_time.as_secs_f64());
-    println!();
+    tracing::info!();
 
     // Test 3: Build HNSW Index on GPU
-    println!("📊 Test 3: Build HNSW Index on GPU (VRAM)");
-    println!("------------------------------------------");
+    tracing::info!("📊 Test 3: Build HNSW Index on GPU (VRAM)");
+    tracing::info!("------------------------------------------");
     
     let start = Instant::now();
     collection.build_index()?;
     let build_time = start.elapsed();
     
-    println!("  ✅ HNSW index built on GPU: {:?}", build_time);
-    println!("  Storage: VRAM only (no CPU access)");
-    println!("  Nodes: {}", collection.vector_count());
-    println!();
+    tracing::info!("  ✅ HNSW index built on GPU: {:?}", build_time);
+    tracing::info!("  Storage: VRAM only (no CPU access)");
+    tracing::info!("  Nodes: {}", collection.vector_count());
+    tracing::info!();
 
     // Test 4: Search Performance
-    println!("📊 Test 4: Search Performance");
-    println!("-----------------------------");
+    tracing::info!("📊 Test 4: Search Performance");
+    tracing::info!("-----------------------------");
     
     let search_vectors = generate_test_vectors(search_queries, dimension);
     let mut total_search_time = std::time::Duration::new(0, 0);
@@ -120,49 +121,49 @@ async fn run_metal_native_benchmark() -> Result<()> {
         successful_searches += 1;
         
         if (i + 1) % 20 == 0 {
-            println!("  Completed {} searches...", i + 1);
+            tracing::info!("  Completed {} searches...", i + 1);
         }
     }
     
     let avg_search_time = total_search_time / successful_searches as u32;
     
-    println!("  ✅ Completed {} searches", successful_searches);
-    println!("  Average search time: {:?}", avg_search_time);
-    println!("  Total search time: {:?}", total_search_time);
-    println!("  Throughput: {:.2} searches/sec", 
+    tracing::info!("  ✅ Completed {} searches", successful_searches);
+    tracing::info!("  Average search time: {:?}", avg_search_time);
+    tracing::info!("  Total search time: {:?}", total_search_time);
+    tracing::info!("  Throughput: {:.2} searches/sec", 
         successful_searches as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!();
 
     // Test 5: Memory Usage
-    println!("📊 Test 5: Memory Usage");
-    println!("-----------------------");
+    tracing::info!("📊 Test 5: Memory Usage");
+    tracing::info!("-----------------------");
     
-    println!("  ✅ All data stored in VRAM only");
-    println!("  No CPU-GPU transfers during search");
-    println!("  Zero buffer mapping overhead");
-    println!("  Pure Metal native performance");
-    println!();
+    tracing::info!("  ✅ All data stored in VRAM only");
+    tracing::info!("  No CPU-GPU transfers during search");
+    tracing::info!("  Zero buffer mapping overhead");
+    tracing::info!("  Pure Metal native performance");
+    tracing::info!();
 
     // Summary
-    println!("📊 Benchmark Summary");
-    println!("===================");
-    println!("  ✅ Pure Metal native implementation");
-    println!("  ✅ All operations in VRAM");
-    println!("  ✅ Zero wgpu dependencies");
-    println!("  ✅ No buffer mapping issues");
-    println!("  ✅ Maximum GPU efficiency");
-    println!();
+    tracing::info!("📊 Benchmark Summary");
+    tracing::info!("===================");
+    tracing::info!("  ✅ Pure Metal native implementation");
+    tracing::info!("  ✅ All operations in VRAM");
+    tracing::info!("  ✅ Zero wgpu dependencies");
+    tracing::info!("  ✅ No buffer mapping issues");
+    tracing::info!("  ✅ Maximum GPU efficiency");
+    tracing::info!();
 
     // Performance metrics
-    println!("📈 Performance Metrics");
-    println!("--------------------");
-    println!("  Vector addition: {:.2} vectors/sec", 
+    tracing::info!("📈 Performance Metrics");
+    tracing::info!("--------------------");
+    tracing::info!("  Vector addition: {:.2} vectors/sec", 
         vector_count as f64 / add_time.as_secs_f64());
-    println!("  Index building: {:?}", build_time);
-    println!("  Search latency: {:?}", avg_search_time);
-    println!("  Search throughput: {:.2} queries/sec", 
+    tracing::info!("  Index building: {:?}", build_time);
+    tracing::info!("  Search latency: {:?}", avg_search_time);
+    tracing::info!("  Search throughput: {:.2} queries/sec", 
         successful_searches as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!();
 
     Ok(())
 }

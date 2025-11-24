@@ -4,6 +4,7 @@
 //! Maximum performance with pure VRAM operations.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use vectorizer::gpu::{MetalNativeCollection, MetalNativeHnswGraph, MetalNativeContext};
 use vectorizer::models::{DistanceMetric, Vector};
 use std::sync::Arc;
@@ -16,14 +17,14 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🚀 Metal Native HNSW Benchmark");
-    println!("=====================================");
-    println!("Real HNSW with GPU compute shaders");
-    println!("Pure VRAM operations for maximum performance\n");
+    tracing::info!("🚀 Metal Native HNSW Benchmark");
+    tracing::info!("=====================================");
+    tracing::info!("Real HNSW with GPU compute shaders");
+    tracing::info!("Pure VRAM operations for maximum performance\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ This benchmark requires macOS with Metal support");
+        tracing::info!("❌ This benchmark requires macOS with Metal support");
         return Ok(());
     }
 
@@ -44,64 +45,64 @@ async fn run_metal_hnsw_benchmark() -> Result<()> {
     let k = 10;
     let max_connections = 16;
 
-    println!("📊 Test Parameters");
-    println!("------------------");
-    println!("  Dimension: {}", dimension);
-    println!("  Vector count: {}", vector_count);
-    println!("  Search queries: {}", search_queries);
-    println!("  k (results per query): {}", k);
-    println!("  Max connections: {}", max_connections);
-    println!();
+    tracing::info!("📊 Test Parameters");
+    tracing::info!("------------------");
+    tracing::info!("  Dimension: {}", dimension);
+    tracing::info!("  Vector count: {}", vector_count);
+    tracing::info!("  Search queries: {}", search_queries);
+    tracing::info!("  k (results per query): {}", k);
+    tracing::info!("  Max connections: {}", max_connections);
+    tracing::info!();
 
     // Generate test vectors
-    println!("🔧 Generating test vectors...");
+    tracing::info!("🔧 Generating test vectors...");
     let start = Instant::now();
     let vectors = generate_test_vectors(vector_count, dimension);
     let generation_time = start.elapsed();
-    println!("  ✅ Generated {} vectors in {:?}", vector_count, generation_time);
-    println!();
+    tracing::info!("  ✅ Generated {} vectors in {:?}", vector_count, generation_time);
+    tracing::info!();
 
     // Test 1: Create Metal Native Context
-    println!("📊 Test 1: Create Metal Native Context");
-    println!("----------------------------------------");
+    tracing::info!("📊 Test 1: Create Metal Native Context");
+    tracing::info!("----------------------------------------");
     
     let start = Instant::now();
     let context = Arc::new(MetalNativeContext::new()?);
     let creation_time = start.elapsed();
     
-    println!("  ✅ Context created: {:?}", creation_time);
-    println!("  Device: Pure Metal native (VRAM only)");
-    println!();
+    tracing::info!("  ✅ Context created: {:?}", creation_time);
+    tracing::info!("  Device: Pure Metal native (VRAM only)");
+    tracing::info!();
 
     // Test 2: Create HNSW Graph
-    println!("📊 Test 2: Create HNSW Graph");
-    println!("----------------------------");
+    tracing::info!("📊 Test 2: Create HNSW Graph");
+    tracing::info!("----------------------------");
     
     let start = Instant::now();
     let mut hnsw_graph = MetalNativeHnswGraph::new(context.clone(), dimension, max_connections)?;
     let graph_creation_time = start.elapsed();
     
-    println!("  ✅ HNSW graph created: {:?}", graph_creation_time);
-    println!("  Max connections: {}", max_connections);
-    println!();
+    tracing::info!("  ✅ HNSW graph created: {:?}", graph_creation_time);
+    tracing::info!("  Max connections: {}", max_connections);
+    tracing::info!();
 
     // Test 3: Build HNSW Graph on GPU
-    println!("📊 Test 3: Build HNSW Graph on GPU");
-    println!("----------------------------------");
+    tracing::info!("📊 Test 3: Build HNSW Graph on GPU");
+    tracing::info!("----------------------------------");
     
     let start = Instant::now();
     hnsw_graph.build_graph(&vectors)?;
     let build_time = start.elapsed();
     
-    println!("  ✅ HNSW graph built on GPU: {:?}", build_time);
-    println!("  Nodes: {}", hnsw_graph.node_count());
-    println!("  Connections: {}", hnsw_graph.connection_count());
-    println!("  Storage: VRAM only (GPU compute shaders)");
-    println!();
+    tracing::info!("  ✅ HNSW graph built on GPU: {:?}", build_time);
+    tracing::info!("  Nodes: {}", hnsw_graph.node_count());
+    tracing::info!("  Connections: {}", hnsw_graph.connection_count());
+    tracing::info!("  Storage: VRAM only (GPU compute shaders)");
+    tracing::info!();
 
     // Test 4: GPU Search Performance
-    println!("📊 Test 4: GPU Search Performance");
-    println!("----------------------------------");
+    tracing::info!("📊 Test 4: GPU Search Performance");
+    tracing::info!("----------------------------------");
     
     let search_vectors = generate_test_vectors(search_queries, dimension);
     let mut total_search_time = std::time::Duration::new(0, 0);
@@ -116,22 +117,22 @@ async fn run_metal_hnsw_benchmark() -> Result<()> {
         successful_searches += 1;
         
         if (i + 1) % 10 == 0 {
-            println!("  Completed {} searches...", i + 1);
+            tracing::info!("  Completed {} searches...", i + 1);
         }
     }
     
     let avg_search_time = total_search_time / successful_searches as u32;
     
-    println!("  ✅ Completed {} GPU searches", successful_searches);
-    println!("  Average search time: {:?}", avg_search_time);
-    println!("  Total search time: {:?}", total_search_time);
-    println!("  Throughput: {:.2} searches/sec", 
+    tracing::info!("  ✅ Completed {} GPU searches", successful_searches);
+    tracing::info!("  Average search time: {:?}", avg_search_time);
+    tracing::info!("  Total search time: {:?}", total_search_time);
+    tracing::info!("  Throughput: {:.2} searches/sec", 
         successful_searches as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!();
 
     // Test 5: Comparison with CPU Fallback
-    println!("📊 Test 5: Comparison with CPU Fallback");
-    println!("--------------------------------------");
+    tracing::info!("📊 Test 5: Comparison with CPU Fallback");
+    tracing::info!("--------------------------------------");
     
     let start = Instant::now();
     let mut cpu_collection = MetalNativeCollection::new(dimension, DistanceMetric::Cosine)?;
@@ -149,43 +150,43 @@ async fn run_metal_hnsw_benchmark() -> Result<()> {
     let cpu_results = cpu_collection.search(&search_vectors[0].data, k)?;
     let cpu_search_time = cpu_start.elapsed();
     
-    println!("  ✅ CPU setup: {:?}", cpu_setup_time);
-    println!("  ✅ CPU search: {:?}", cpu_search_time);
-    println!("  ✅ GPU search: {:?}", avg_search_time);
+    tracing::info!("  ✅ CPU setup: {:?}", cpu_setup_time);
+    tracing::info!("  ✅ CPU search: {:?}", cpu_search_time);
+    tracing::info!("  ✅ GPU search: {:?}", avg_search_time);
     
     let speedup = cpu_search_time.as_nanos() as f64 / avg_search_time.as_nanos() as f64;
-    println!("  🚀 GPU speedup: {:.2}x", speedup);
-    println!();
+    tracing::info!("  🚀 GPU speedup: {:.2}x", speedup);
+    tracing::info!();
 
     // Test 6: Memory Usage
-    println!("📊 Test 6: Memory Usage");
-    println!("-----------------------");
+    tracing::info!("📊 Test 6: Memory Usage");
+    tracing::info!("-----------------------");
     
-    println!("  ✅ All data stored in VRAM only");
-    println!("  ✅ GPU compute shaders for search");
-    println!("  ✅ Zero CPU-GPU transfers during search");
-    println!("  ✅ Maximum GPU utilization");
-    println!();
+    tracing::info!("  ✅ All data stored in VRAM only");
+    tracing::info!("  ✅ GPU compute shaders for search");
+    tracing::info!("  ✅ Zero CPU-GPU transfers during search");
+    tracing::info!("  ✅ Maximum GPU utilization");
+    tracing::info!();
 
     // Summary
-    println!("📊 Benchmark Summary");
-    println!("===================");
-    println!("  ✅ Metal native HNSW implementation");
-    println!("  ✅ Real GPU compute shaders");
-    println!("  ✅ All operations in VRAM");
-    println!("  ✅ Zero wgpu dependencies");
-    println!("  ✅ Maximum GPU performance");
-    println!();
+    tracing::info!("📊 Benchmark Summary");
+    tracing::info!("===================");
+    tracing::info!("  ✅ Metal native HNSW implementation");
+    tracing::info!("  ✅ Real GPU compute shaders");
+    tracing::info!("  ✅ All operations in VRAM");
+    tracing::info!("  ✅ Zero wgpu dependencies");
+    tracing::info!("  ✅ Maximum GPU performance");
+    tracing::info!();
 
     // Performance metrics
-    println!("📈 Performance Metrics");
-    println!("--------------------");
-    println!("  HNSW construction: {:?}", build_time);
-    println!("  GPU search latency: {:?}", avg_search_time);
-    println!("  GPU search throughput: {:.2} queries/sec", 
+    tracing::info!("📈 Performance Metrics");
+    tracing::info!("--------------------");
+    tracing::info!("  HNSW construction: {:?}", build_time);
+    tracing::info!("  GPU search latency: {:?}", avg_search_time);
+    tracing::info!("  GPU search throughput: {:.2} queries/sec", 
         successful_searches as f64 / total_search_time.as_secs_f64());
-    println!("  GPU vs CPU speedup: {:.2}x", speedup);
-    println!();
+    tracing::info!("  GPU vs CPU speedup: {:.2}x", speedup);
+    tracing::info!();
 
     Ok(())
 }

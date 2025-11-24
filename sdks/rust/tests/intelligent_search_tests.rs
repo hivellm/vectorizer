@@ -9,6 +9,7 @@
 #[cfg(test)]
 mod intelligent_search_tests {
     use std::env;
+use tracing::{info, error, warn, debug};
     use vectorizer_sdk::*;
 
     fn get_test_client() -> VectorizerClient {
@@ -26,12 +27,12 @@ mod intelligent_search_tests {
         ($expr:expr, $test_name:expr) => {
             match $expr {
                 Ok(result) => {
-                    println!("✓ {} succeeded", $test_name);
+                    tracing::info!("✓ {} succeeded", $test_name);
                     Some(result)
                 }
                 Err(e) => {
-                    println!("WARNING: {} failed: {:?}", $test_name, e);
-                    println!("This may be due to missing collections or endpoint configuration");
+                    tracing::info!("WARNING: {} failed: {:?}", $test_name, e);
+                    tracing::info!("This may be due to missing collections or endpoint configuration");
                     None
                 }
             }
@@ -44,7 +45,7 @@ mod intelligent_search_tests {
     async fn test_intelligent_search_with_default_options() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -66,17 +67,17 @@ mod intelligent_search_tests {
                     result.total_results >= 0,
                     "total_results should be non-negative"
                 );
-                println!(
+                tracing::info!(
                     "✓ Intelligent search succeeded with {} results",
                     result.total_results
                 );
             }
             Err(e) => {
-                println!("WARNING: Intelligent search failed: {:?}", e);
-                println!("This may be due to:");
-                println!("  - No collections available in the database");
-                println!("  - Endpoint not properly configured");
-                println!("  - Server timeout or internal error");
+                tracing::info!("WARNING: Intelligent search failed: {:?}", e);
+                tracing::info!("This may be due to:");
+                tracing::info!("  - No collections available in the database");
+                tracing::info!("  - Endpoint not properly configured");
+                tracing::info!("  - Server timeout or internal error");
                 // Don't fail the test, just warn
             }
         }
@@ -86,7 +87,7 @@ mod intelligent_search_tests {
     async fn test_intelligent_search_with_specific_collections() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -111,7 +112,7 @@ mod intelligent_search_tests {
     async fn test_intelligent_search_with_domain_expansion() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -133,7 +134,7 @@ mod intelligent_search_tests {
     async fn test_intelligent_search_with_mmr_diversification() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -157,7 +158,7 @@ mod intelligent_search_tests {
     async fn test_semantic_search_with_default_options() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -178,7 +179,7 @@ mod intelligent_search_tests {
     async fn test_semantic_search_with_reranking() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -199,7 +200,7 @@ mod intelligent_search_tests {
     async fn test_semantic_search_with_cross_encoder() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -222,7 +223,7 @@ mod intelligent_search_tests {
     async fn test_contextual_search_with_default_options() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -243,7 +244,7 @@ mod intelligent_search_tests {
     async fn test_contextual_search_with_metadata_filters() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -268,7 +269,7 @@ mod intelligent_search_tests {
     async fn test_contextual_search_with_context_reranking() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -291,7 +292,7 @@ mod intelligent_search_tests {
     async fn test_multi_collection_search() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -315,7 +316,7 @@ mod intelligent_search_tests {
     async fn test_multi_collection_search_with_reranking() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -339,7 +340,7 @@ mod intelligent_search_tests {
     async fn test_multi_collection_search_respects_max_total_results() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -368,7 +369,7 @@ mod intelligent_search_tests {
     async fn test_empty_query_in_intelligent_search() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -390,7 +391,7 @@ mod intelligent_search_tests {
     async fn test_invalid_collection_in_semantic_search() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -411,7 +412,7 @@ mod intelligent_search_tests {
     async fn test_invalid_similarity_threshold() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -435,7 +436,7 @@ mod intelligent_search_tests {
     async fn test_empty_collections_array() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -457,7 +458,7 @@ mod intelligent_search_tests {
     async fn test_intelligent_search_performance() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 
@@ -480,9 +481,9 @@ mod intelligent_search_tests {
         // Only assert duration if the request succeeded
         if response.is_ok() {
             assert!(duration.as_secs() < 5, "Should complete within 5 seconds");
-            println!("✓ Performance test passed in {:?}", duration);
+            tracing::info!("✓ Performance test passed in {:?}", duration);
         } else {
-            println!("WARNING: Performance test skipped - request failed");
+            tracing::info!("WARNING: Performance test skipped - request failed");
         }
     }
 
@@ -490,7 +491,7 @@ mod intelligent_search_tests {
     async fn test_intelligent_search_large_result_sets() {
         let client = get_test_client();
         if !is_server_available(&client).await {
-            println!("WARNING: Vectorizer server not available, skipping test");
+            tracing::info!("WARNING: Vectorizer server not available, skipping test");
             return;
         }
 

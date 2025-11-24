@@ -13,6 +13,7 @@
 //!   cargo run --release --bin combined_optimization_benchmark
 
 use std::collections::HashSet;
+use tracing::{info, error, warn, debug};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -296,7 +297,7 @@ struct TestDataset {
 
 impl TestDataset {
     fn load_from_workspace(max_docs: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        println!("📂 Loading comprehensive dataset...");
+        tracing::info!("📂 Loading comprehensive dataset...");
 
         let test_paths = vec!["../gov", "../vectorizer/docs", "../task-queue/docs"];
         let mut all_documents = Vec::new();
@@ -330,7 +331,7 @@ impl TestDataset {
             all_documents.truncate(max_docs);
         }
 
-        println!("  ✅ Loaded {} documents", all_documents.len());
+        tracing::info!("  ✅ Loaded {} documents", all_documents.len());
 
         let queries = vec![
             "vector database HNSW indexing performance".to_string(),
@@ -461,7 +462,7 @@ fn benchmark_config(
     dimension: usize,
     quantization: &str,
 ) -> Result<ConfigBenchmark, Box<dyn std::error::Error>> {
-    println!("\n🧪 Testing: {}D + {}...", dimension, quantization);
+    tracing::info!("\n🧪 Testing: {}D + {}...", dimension, quantization);
 
     // Create embeddings
     let mut manager = EmbeddingManager::new();
@@ -626,12 +627,12 @@ fn benchmark_config(
     let overall_score =
         quality_score * 0.5 + efficiency_score * 0.1 + (speed_normalized / 2.0) * 0.2;
 
-    println!(
+    tracing::info!(
         "    Memory: {:.2} MB ({:.1}x compression)",
         memory_quantized_mb, compression_ratio
     );
-    println!("    Search: {:.0} μs ({:.0} QPS)", avg_search_us, qps);
-    println!(
+    tracing::info!("    Search: {:.0} μs ({:.0} QPS)", avg_search_us, qps);
+    tracing::info!(
         "    Quality: MAP={:.4}, Recall@10={:.4}",
         eval.mean_average_precision,
         eval.recall_at_k.get(9).copied().unwrap_or(0.0)
@@ -980,12 +981,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::WARN)
         .init();
 
-    println!("🚀 Combined Dimension + Quantization Optimization");
-    println!("=================================================\n");
+    tracing::info!("🚀 Combined Dimension + Quantization Optimization");
+    tracing::info!("=================================================\n");
 
     let dataset = TestDataset::load_from_workspace(3000)?;
 
-    println!(
+    tracing::info!(
         "📊 Dataset: {} documents, {} queries",
         dataset.documents.len(),
         dataset.queries.len()
@@ -994,12 +995,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dimensions = vec![256, 384, 512, 768, 1024];
     let quantizations = vec!["None", "SQ-8bit", "PQ", "Binary"];
 
-    println!(
+    tracing::info!(
         "\n🧪 Testing {} configurations...",
         dimensions.len() * quantizations.len()
     );
-    println!("   Dimensions: {:?}", dimensions);
-    println!("   Quantizations: {:?}\n", quantizations);
+    tracing::info!("   Dimensions: {:?}", dimensions);
+    tracing::info!("   Quantizations: {:?}\n", quantizations);
 
     let mut results = Vec::new();
     let mut completed = 0;
@@ -1008,7 +1009,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for &dimension in &dimensions {
         for quantization in &quantizations {
             completed += 1;
-            println!(
+            tracing::info!(
                 "\n[{}/{}] Testing {}D + {}...",
                 completed, total, dimension, quantization
             );
@@ -1018,14 +1019,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     results.push(result);
                 }
                 Err(e) => {
-                    println!("  ❌ Error: {}", e);
+                    tracing::info!("  ❌ Error: {}", e);
                 }
             }
         }
     }
 
     // Generate report
-    println!("\n\n📊 Generating comprehensive report...");
+    tracing::info!("\n\n📊 Generating comprehensive report...");
     let md_report = generate_report(&results, dataset.documents.len());
 
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -1042,21 +1043,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let json_data = serde_json::to_string_pretty(&results)?;
     fs::write(&json_path, json_data)?;
 
-    println!("✅ Reports saved:");
-    println!("   📄 {}", report_path.display());
-    println!("   📊 {}", json_path.display());
+    tracing::info!("✅ Reports saved:");
+    tracing::info!("   📄 {}", report_path.display());
+    tracing::info!("   📊 {}", json_path.display());
 
     // Print top 5 configurations
     let mut sorted = results.clone();
     sorted.sort_by(|a, b| b.overall_score.partial_cmp(&a.overall_score).unwrap());
 
-    println!("\n🏆 TOP 5 CONFIGURATIONS");
-    println!("======================");
-    println!(
+    tracing::info!("\n🏆 TOP 5 CONFIGURATIONS");
+    tracing::info!("======================");
+    tracing::info!(
         "{:<15} {:<12} {:<12} {:<12} {:<10} {:<10}",
         "Config", "Memory", "Search", "QPS", "MAP", "Score"
     );
-    println!("{}", "-".repeat(75));
+    tracing::info!("{}", "-".repeat(75));
 
     for (i, result) in sorted.iter().take(5).enumerate() {
         let medal = match i {
@@ -1066,7 +1067,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => "  ",
         };
 
-        println!(
+        tracing::info!(
             "{} {:<13} {:<12} {:<12} {:<12} {:<10} {:.3}",
             medal,
             format!("{}D+{}", result.dimension, result.quantization),
@@ -1078,13 +1079,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    println!("\n💡 FINAL RECOMMENDATION:");
-    println!("========================");
-    println!();
-    println!("Use: {}D + {}", sorted[0].dimension, sorted[0].quantization);
-    println!();
-    println!("Benefits:");
-    println!(
+    tracing::info!("\n💡 FINAL RECOMMENDATION:");
+    tracing::info!("========================");
+    tracing::info!();
+    tracing::info!("Use: {}D + {}", sorted[0].dimension, sorted[0].quantization);
+    tracing::info!();
+    tracing::info!("Benefits:");
+    tracing::info!(
         "  ✅ Quality: {:.4} MAP ({:.1}% of best possible)",
         sorted[0].map,
         (sorted[0].map
@@ -1095,15 +1096,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap())
             * 100.0
     );
-    println!(
+    tracing::info!(
         "  ✅ Memory: {:.2} MB ({:.1}x compression)",
         sorted[0].memory_quantized_mb, sorted[0].compression_ratio
     );
-    println!(
+    tracing::info!(
         "  ✅ Speed: {:.0} μs ({:.0} QPS)",
         sorted[0].avg_search_latency_us, sorted[0].search_throughput_qps
     );
-    println!("  ✅ Efficiency: {:.4} MAP/MB", sorted[0].efficiency_score);
+    tracing::info!("  ✅ Efficiency: {:.4} MAP/MB", sorted[0].efficiency_score);
 
     // Comparison to current default (512D + None)
     if let Some(current_default) = results
@@ -1120,13 +1121,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             / current_default.avg_search_latency_us)
             * 100.0;
 
-        println!("\nVs Current Default (512D + No Quantization):");
-        println!("  {:+.1}% memory savings", mem_improvement);
-        println!("  {:+.1}% quality change", quality_improvement);
-        println!("  {:+.1}% speed change", speed_improvement);
+        tracing::info!("\nVs Current Default (512D + No Quantization):");
+        tracing::info!("  {:+.1}% memory savings", mem_improvement);
+        tracing::info!("  {:+.1}% quality change", quality_improvement);
+        tracing::info!("  {:+.1}% speed change", speed_improvement);
     }
 
-    println!("\n✅ Benchmark completed!");
+    tracing::info!("\n✅ Benchmark completed!");
 
     Ok(())
 }

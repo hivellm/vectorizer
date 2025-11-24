@@ -1,6 +1,7 @@
 //! Minimal Benchmark - Just insertion, no search
 
 use anyhow::Result;
+use tracing::{info, error, warn, debug};
 use std::time::Instant;
 use vectorizer::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Vector};
@@ -19,13 +20,13 @@ fn generate_vectors(count: usize, dimension: usize) -> Vec<Vector> {
 }
 
 fn main() -> Result<()> {
-    println!("🔬 Minimal Benchmark");
-    println!("===================\n");
+    tracing::info!("🔬 Minimal Benchmark");
+    tracing::info!("===================\n");
     
     let counts = vec![10, 50, 100];
     
     for count in counts {
-        println!("📊 Testing {} vectors (128D)", count);
+        tracing::info!("📊 Testing {} vectors (128D)", count);
         
         let config = CollectionConfig {
             dimension: 128,
@@ -54,20 +55,20 @@ fn main() -> Result<()> {
             for (i, vector) in vectors.iter().enumerate() {
                 collection.add_vector(vector.id.clone(), vector.clone())?;
                 if (i + 1) % 10 == 0 {
-                    println!("  • Inserted {} vectors", i + 1);
+                    tracing::info!("  • Inserted {} vectors", i + 1);
                 }
             }
         } // collection dropped here, lock released
         
         let elapsed = start.elapsed().as_secs_f64() * 1000.0;
-        println!("  ✅ Total: {:.2}ms ({:.0} vectors/sec)\n", 
+        tracing::info!("  ✅ Total: {:.2}ms ({:.0} vectors/sec)\n", 
                  elapsed, 
                  count as f64 / (elapsed / 1000.0));
         
         store.delete_collection(&name)?;
     }
     
-    println!("✅ Done!");
+    tracing::info!("✅ Done!");
     Ok(())
 }
 

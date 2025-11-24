@@ -4,6 +4,7 @@
 
 #[cfg(target_os = "macos")]
 use std::time::Instant;
+use tracing::{info, error, warn, debug};
 
 #[cfg(target_os = "macos")]
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
@@ -12,8 +13,8 @@ use hive_gpu::{GpuContext, GpuDistanceMetric, GpuVector, GpuVectorStorage};
 
 #[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔧 Metal HNSW Search Benchmark");
-    println!("==============================");
+    tracing::info!("🔧 Metal HNSW Search Benchmark");
+    tracing::info!("==============================");
 
     // Test parameters
     let vector_count = 1000;
@@ -21,15 +22,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let search_queries = 100;
     let k = 10;
 
-    println!("📊 Test 1: Create Collection and Add Vectors");
-    println!("------------------------------------------------");
+    tracing::info!("📊 Test 1: Create Collection and Add Vectors");
+    tracing::info!("------------------------------------------------");
 
     let start = Instant::now();
     let context = MetalNativeContext::new()?;
     let mut storage = context.create_storage(dimension, GpuDistanceMetric::Cosine)?;
     let create_time = start.elapsed();
 
-    println!("  ✅ Collection created: {:?}", create_time);
+    tracing::info!("  ✅ Collection created: {:?}", create_time);
 
     // Add vectors
     let add_start = Instant::now();
@@ -43,28 +44,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         storage.add_vectors(&[vector])?;
 
         if (i + 1) % 100 == 0 {
-            println!("  Added {} vectors...", i + 1);
+            tracing::info!("  Added {} vectors...", i + 1);
         }
     }
     let add_time = add_start.elapsed();
 
-    println!("  ✅ Added {} vectors: {:?}", vector_count, add_time);
-    println!(
+    tracing::info!("  ✅ Added {} vectors: {:?}", vector_count, add_time);
+    tracing::info!(
         "  Throughput: {:.2} vectors/sec",
         vector_count as f64 / add_time.as_secs_f64()
     );
-    println!();
+    tracing::info!();
 
-    println!("📊 Test 2: GPU Search Setup");
-    println!("----------------------------");
+    tracing::info!("📊 Test 2: GPU Search Setup");
+    tracing::info!("----------------------------");
 
-    println!("  ✅ GPU search ready");
-    println!("  Search type: GPU-accelerated Metal compute shaders");
-    println!("  Vectors: {}", storage.vector_count());
-    println!();
+    tracing::info!("  ✅ GPU search ready");
+    tracing::info!("  Search type: GPU-accelerated Metal compute shaders");
+    tracing::info!("  Vectors: {}", storage.vector_count());
+    tracing::info!();
 
-    println!("📊 Test 3: GPU HNSW Search Performance");
-    println!("-------------------------------------");
+    tracing::info!("📊 Test 3: GPU HNSW Search Performance");
+    tracing::info!("-------------------------------------");
 
     let mut total_search_time = std::time::Duration::new(0, 0);
     let mut successful_searches = 0;
@@ -80,52 +81,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         successful_searches += 1;
 
         if (i + 1) % 20 == 0 {
-            println!("  Completed {} searches...", i + 1);
+            tracing::info!("  Completed {} searches...", i + 1);
         }
     }
 
     let avg_search_time = total_search_time / successful_searches as u32;
     let search_throughput = successful_searches as f64 / total_search_time.as_secs_f64();
 
-    println!("  ✅ Search completed: {} queries", successful_searches);
-    println!("  Average latency: {:?}", avg_search_time);
-    println!("  Throughput: {:.2} queries/sec", search_throughput);
-    println!();
+    tracing::info!("  ✅ Search completed: {} queries", successful_searches);
+    tracing::info!("  Average latency: {:?}", avg_search_time);
+    tracing::info!("  Throughput: {:.2} queries/sec", search_throughput);
+    tracing::info!();
 
-    println!("📊 Test 4: Sample Search Results");
-    println!("-------------------------------");
+    tracing::info!("📊 Test 4: Sample Search Results");
+    tracing::info!("-------------------------------");
 
     let sample_query = vec![50.0; dimension];
     let sample_start = Instant::now();
     let sample_results = storage.search(&sample_query, 5)?;
     let sample_time = sample_start.elapsed();
 
-    println!("  Query: {:?}", &sample_query[..5]);
-    println!(
+    tracing::info!("  Query: {:?}", &sample_query[..5]);
+    tracing::info!(
         "  Results: {} found in {:?}",
         sample_results.len(),
         sample_time
     );
     for (i, result) in sample_results.iter().enumerate() {
-        println!(
+        tracing::info!(
             "    {}. ID: {}, Score: {:.4}",
             i + 1,
             result.id,
             result.score
         );
     }
-    println!();
+    tracing::info!();
 
-    println!("🎉 Metal HNSW Search Benchmark Complete!");
-    println!("========================================");
-    println!("Performance Summary:");
-    println!("  - Collection Creation: {:?}", create_time);
-    println!(
+    tracing::info!("🎉 Metal HNSW Search Benchmark Complete!");
+    tracing::info!("========================================");
+    tracing::info!("Performance Summary:");
+    tracing::info!("  - Collection Creation: {:?}", create_time);
+    tracing::info!(
         "  - Vector Addition: {:.2} vectors/sec",
         vector_count as f64 / add_time.as_secs_f64()
     );
-    println!("  - Search Latency: {:?}", avg_search_time);
-    println!(
+    tracing::info!("  - Search Latency: {:?}", avg_search_time);
+    tracing::info!(
         "  - Search Throughput: {:.2} queries/sec",
         search_throughput
     );
@@ -135,6 +136,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(not(target_os = "macos"))]
 fn main() {
-    eprintln!("⚠️  This benchmark is only available on macOS (Metal backend)");
+    etracing::info!("⚠️  This benchmark is only available on macOS (Metal backend)");
     std::process::exit(1);
 }

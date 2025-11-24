@@ -4,6 +4,7 @@
 //! against CPU-only HNSW search in the Vectorizer.
 
 use std::sync::Arc;
+use tracing::{info, error, warn, debug};
 use std::time::Instant;
 
 use rand::prelude::*;
@@ -33,8 +34,8 @@ pub struct BenchmarkResults {
 
 /// Run CUDA benchmark
 pub async fn run_cuda_benchmark() -> Result<Vec<BenchmarkResults>> {
-    println!("🚀 Starting CUDA vs CPU Benchmark");
-    println!("=================================");
+    tracing::info!("🚀 Starting CUDA vs CPU Benchmark");
+    tracing::info!("=================================");
 
     let mut results = Vec::new();
 
@@ -46,7 +47,7 @@ pub async fn run_cuda_benchmark() -> Result<Vec<BenchmarkResults>> {
     ];
 
     for (test_name, vector_count, query_count) in test_configs {
-        println!(
+        tracing::info!(
             "\n📊 Running test: {} ({} vectors, {} queries)",
             test_name, vector_count, query_count
         );
@@ -115,7 +116,7 @@ async fn run_single_benchmark(
     let test_queries = generate_test_queries(query_count, dimension);
 
     // Add vectors to collections
-    println!("  📥 Adding {} vectors to index...", vector_count);
+    tracing::info!("  📥 Adding {} vectors to index...", vector_count);
     {
         let mut index = hnsw_index.write();
         for vector in &test_vectors {
@@ -126,13 +127,13 @@ async fn run_single_benchmark(
     // Initialize CUHNSW if available
     let mut cuda_ops = cuda_ops;
     if cuda_ops.is_cuda_available() {
-        println!("  🎯 Initializing CUDA operations...");
+        tracing::info!("  🎯 Initializing CUDA operations...");
         let flat_vectors: Vec<f32> = test_vectors.iter().flat_map(|v| v.data.clone()).collect();
         cuda_ops.initialize_cuhnsw(&flat_vectors, vector_count, dimension)?;
     }
 
     // Warmup runs (3-5 times as suggested)
-    println!("  🔥 Warming up...");
+    tracing::info!("  🔥 Warming up...");
     for _ in 0..3 {
         for query in &test_queries {
             let _results = search_hnsw(&hnsw_index, query, 10);
@@ -155,7 +156,7 @@ async fn run_single_benchmark(
     }
 
     // Benchmark HNSW search
-    println!("  🧮 Benchmarking HNSW search...");
+    tracing::info!("  🧮 Benchmarking HNSW search...");
     let hnsw_start = Instant::now();
     for query in &test_queries {
         let _results = search_hnsw(&hnsw_index, query, 10);
@@ -164,7 +165,7 @@ async fn run_single_benchmark(
 
     // Benchmark CUDA search
     let cuda_duration = if cuda_ops.is_cuda_available() {
-        println!("  🎮 Benchmarking CUDA search...");
+        tracing::info!("  🎮 Benchmarking CUDA search...");
         let cuda_start = Instant::now();
         for query in &test_queries {
             let _results = cuda_ops
@@ -181,7 +182,7 @@ async fn run_single_benchmark(
         }
         cuda_start.elapsed().as_secs_f64() * 1000.0
     } else {
-        println!("  ⚠️ CUDA not available, skipping CUDA benchmark");
+        tracing::info!("  ⚠️ CUDA not available, skipping CUDA benchmark");
         0.0
     };
 
@@ -216,20 +217,20 @@ async fn run_single_benchmark(
         memory_usage_mb: memory_usage,
     };
 
-    println!("  📈 Results:");
-    println!(
+    tracing::info!("  📈 Results:");
+    tracing::info!(
         "    HNSW: {:.2}ms avg ({:.2}ms total)",
         hnsw_avg, hnsw_duration
     );
     if cuda_duration > 0.0 {
-        println!(
+        tracing::info!(
             "    CUDA: {:.2}ms avg ({:.2}ms total) - {:.2}x speedup",
             cuda_avg, cuda_duration, cuda_speedup
         );
     } else {
-        println!("    CUDA: Not available");
+        tracing::info!("    CUDA: Not available");
     }
-    println!("    Memory: {:.1} MB", memory_usage);
+    tracing::info!("    Memory: {:.1} MB", memory_usage);
 
     Ok(result)
 }
@@ -331,13 +332,13 @@ fn generate_test_queries(count: usize, dimension: usize) -> Vec<Vec<f32>> {
 
 /// Print benchmark summary
 fn print_benchmark_summary(results: &[BenchmarkResults]) {
-    println!("\n📊 BENCHMARK SUMMARY");
-    println!("===================");
-    println!(
+    tracing::info!("\n📊 BENCHMARK SUMMARY");
+    tracing::info!("===================");
+    tracing::info!(
         "{:<20} {:<10} {:<10} {:<10} {:<12} {:<10}",
         "Test", "Vectors", "Queries", "HNSW(ms)", "CUDA(ms)", "Speedup"
     );
-    println!("{:-<90}", "");
+    tracing::info!("{:-<90}", "");
 
     for result in results {
         let cuda_time = if result.cuda_total_time_ms > 0.0 {
@@ -352,7 +353,7 @@ fn print_benchmark_summary(results: &[BenchmarkResults]) {
             "N/A".to_string()
         };
 
-        println!(
+        tracing::info!(
             "{:<20} {:<10} {:<10} {:<10.2} {:<12} {:<10}",
             result.test_name,
             result.vector_count,
@@ -379,69 +380,69 @@ fn print_benchmark_summary(results: &[BenchmarkResults]) {
         .map(|r| r.cuda_speedup_factor)
         .fold(0.0, f64::max);
 
-    println!("\n📈 Overall Statistics:");
+    tracing::info!("\n📈 Overall Statistics:");
     if avg_cuda_speedup > 0.0 {
-        println!("  Average CUDA Speedup: {:.2}x", avg_cuda_speedup);
-        println!("  Maximum CUDA Speedup: {:.2}x", max_cuda_speedup);
+        tracing::info!("  Average CUDA Speedup: {:.2}x", avg_cuda_speedup);
+        tracing::info!("  Maximum CUDA Speedup: {:.2}x", max_cuda_speedup);
 
         if avg_cuda_speedup > 1.0 {
-            println!("  🎯 CUDA shows significant GPU acceleration!");
+            tracing::info!("  🎯 CUDA shows significant GPU acceleration!");
         } else {
-            println!("  ⚠️ CUDA performance needs optimization");
+            tracing::info!("  ⚠️ CUDA performance needs optimization");
         }
     } else {
-        println!("  CUDA not available for benchmarking");
+        tracing::info!("  CUDA not available for benchmarking");
     }
 }
 
 /// Run CUDA compatibility analysis
 pub fn run_cuda_compatibility_analysis() -> Result<()> {
-    println!("🔍 CUDA Compatibility Analysis");
-    println!("==============================");
+    tracing::info!("🔍 CUDA Compatibility Analysis");
+    tracing::info!("==============================");
 
-    println!("CUDA 12.6 Status:");
-    println!("  ✅ Installed: Yes");
-    println!("  ✅ MSVC Compiler: Available");
-    println!("  ❌ CUB Library: Incompatible");
-    println!("  ❌ HNSW CUDA Code: Not compatible with CUDA 12.6");
+    tracing::info!("CUDA 12.6 Status:");
+    tracing::info!("  ✅ Installed: Yes");
+    tracing::info!("  ✅ MSVC Compiler: Available");
+    tracing::info!("  ❌ CUB Library: Incompatible");
+    tracing::info!("  ❌ HNSW CUDA Code: Not compatible with CUDA 12.6");
 
-    println!("\n📋 Compatibility Issues:");
-    println!("  • CUDA 12.6 has breaking changes in CUB library");
-    println!("  • MSVC compiler too old for modern C++ features");
-    println!("  • Thrust/CUB deprecated API removals");
-    println!("  • Inline assembly constraint incompatibilities");
+    tracing::info!("\n📋 Compatibility Issues:");
+    tracing::info!("  • CUDA 12.6 has breaking changes in CUB library");
+    tracing::info!("  • MSVC compiler too old for modern C++ features");
+    tracing::info!("  • Thrust/CUB deprecated API removals");
+    tracing::info!("  • Inline assembly constraint incompatibilities");
 
-    println!("\n💡 Solutions:");
-    println!("  1. Use CUDA 11.8 (recommended for compatibility)");
-    println!("  2. Update HNSW codebase for CUDA 12.x standards");
-    println!("  3. Use CPU-only operations for now");
+    tracing::info!("\n💡 Solutions:");
+    tracing::info!("  1. Use CUDA 11.8 (recommended for compatibility)");
+    tracing::info!("  2. Update HNSW codebase for CUDA 12.x standards");
+    tracing::info!("  3. Use CPU-only operations for now");
 
-    println!("\n✅ Current Status:");
-    println!("  • CPU operations: Working");
-    println!("  • Library linking: Working (stub library)");
-    println!("  • CUDA operations: Disabled (compatibility issues)");
+    tracing::info!("\n✅ Current Status:");
+    tracing::info!("  • CPU operations: Working");
+    tracing::info!("  • Library linking: Working (stub library)");
+    tracing::info!("  • CUDA operations: Disabled (compatibility issues)");
 
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🎯 Vectorizer CUDA Benchmark Suite");
-    println!("===================================");
+    tracing::info!("🎯 Vectorizer CUDA Benchmark Suite");
+    tracing::info!("===================================");
 
     // Run compatibility analysis first
     run_cuda_compatibility_analysis()?;
 
     // Run actual benchmarks
-    println!("\n🚀 Running Performance Benchmarks...");
+    tracing::info!("\n🚀 Running Performance Benchmarks...");
     match run_cuda_benchmark().await {
         Ok(results) => {
             print_benchmark_summary(&results);
-            println!("\n🎉 Benchmark completed successfully!");
-            println!("📊 Total tests run: {}", results.len());
+            tracing::info!("\n🎉 Benchmark completed successfully!");
+            tracing::info!("📊 Total tests run: {}", results.len());
         }
         Err(e) => {
-            println!("❌ Benchmark failed: {}", e);
+            tracing::info!("❌ Benchmark failed: {}", e);
             return Err(e);
         }
     }

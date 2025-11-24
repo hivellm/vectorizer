@@ -4,6 +4,7 @@
 //! in hybrid search.
 
 use vectorizer::hybrid_search::HybridRetriever;
+use tracing::{info, error, warn, debug};
 use vectorizer::embedding::{Bm25Embedding, BertEmbedding};
 
 #[cfg(test)]
@@ -48,7 +49,7 @@ mod tests {
             }
             Err(e) => {
                 // Expected due to placeholders - we verify that structure works
-                println!("Expected error due to placeholder implementation: {}", e);
+                tracing::info!("Expected error due to placeholder implementation: {}", e);
             }
         }
     }

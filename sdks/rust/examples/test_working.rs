@@ -1,67 +1,68 @@
 //! Simple and functional test example
 
 use std::collections::HashMap;
+use tracing::{info, error, warn, debug};
 use vectorizer_rust_sdk::*;
 
 #[tokio::main]
 async fn main() -> vectorizer_rust_sdk::Result<()> {
-    println!("🦀 Testing Rust SDK for Vectorizer");
-    println!("===================================");
+    tracing::info!("🦀 Testing Rust SDK for Vectorizer");
+    tracing::info!("===================================");
 
     // Create client
     let client = VectorizerClient::new_default()?;
-    println!("✅ Client created successfully");
+    tracing::info!("✅ Client created successfully");
 
     // Health check
-    println!("\n📊 Health Check:");
+    tracing::info!("\n📊 Health Check:");
     match client.health_check().await {
         Ok(health) => {
-            println!("✅ Service: {}", health.status);
-            println!("   Status: {}", health.status);
-            println!("   Version: {}", health.version);
+            tracing::info!("✅ Service: {}", health.status);
+            tracing::info!("   Status: {}", health.status);
+            tracing::info!("   Version: {}", health.version);
         }
         Err(e) => {
-            println!("❌ Health check failed: {}", e);
+            tracing::info!("❌ Health check failed: {}", e);
             return Ok(());
         }
     }
 
     // List collections
-    println!("\n📚 Available Collections:");
+    tracing::info!("\n📚 Available Collections:");
     match client.list_collections().await {
         Ok(collections) => {
-            println!("✅ Found {} collections:", collections.len());
+            tracing::info!("✅ Found {} collections:", collections.len());
             for collection in collections.iter().take(3) {
-                println!(
+                tracing::info!(
                     "   - {} ({} vectors)",
                     collection.name, collection.vector_count
                 );
             }
         }
         Err(e) => {
-            println!("❌ Error listing collections: {}", e);
+            tracing::info!("❌ Error listing collections: {}", e);
         }
     }
 
     // Test search
-    println!("\n🔍 Testing Search:");
+    tracing::info!("\n🔍 Testing Search:");
     match client
         .search_vectors("gov-bips", "bitcoin", Some(2), None)
         .await
     {
         Ok(results) => {
-            println!("✅ Search successful: {} results", results.results.len());
+            tracing::info!("✅ Search successful: {} results", results.results.len());
             for result in results.results {
-                println!("   - {} (score: {:.3})", result.id, result.score);
+                tracing::info!("   - {} (score: {:.3})", result.id, result.score);
             }
         }
         Err(e) => {
-            println!("❌ Search error: {}", e);
+            tracing::info!("❌ Search error: {}", e);
         }
     }
 
     // Test collection creation
-    println!("\n🆕 Testing Collection Creation:");
+    tracing::info!("\n🆕 Testing Collection Creation:");
     let test_collection = format!("test_rust_{}", uuid::Uuid::new_v4());
 
     match client
@@ -69,18 +70,18 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
         .await
     {
         Ok(info) => {
-            println!("✅ Collection '{}' created:", info.name);
-            println!("   Dimension: {}", info.dimension);
-            println!("   Status: {}", info.indexing_status.status);
+            tracing::info!("✅ Collection '{}' created:", info.name);
+            tracing::info!("   Dimension: {}", info.dimension);
+            tracing::info!("   Status: {}", info.indexing_status.status);
         }
         Err(e) => {
-            println!("❌ Error creating collection: {}", e);
+            tracing::info!("❌ Error creating collection: {}", e);
             return Ok(());
         }
     }
 
     // Test text insertion
-    println!("\n📝 Testing Text Insertion:");
+    tracing::info!("\n📝 Testing Text Insertion:");
     let test_texts = vec![
         BatchTextRequest {
             id: "rust_test_1".to_string(),
@@ -106,67 +107,67 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
 
     match client.insert_texts(&test_collection, test_texts).await {
         Ok(response) => {
-            println!("✅ Insertion successful:");
-            println!("   Total operations: {}", response.total_operations);
-            println!("   Successful: {}", response.successful_operations);
-            println!("   Failed: {}", response.failed_operations);
+            tracing::info!("✅ Insertion successful:");
+            tracing::info!("   Total operations: {}", response.total_operations);
+            tracing::info!("   Successful: {}", response.successful_operations);
+            tracing::info!("   Failed: {}", response.failed_operations);
         }
         Err(e) => {
-            println!("❌ Insertion error: {}", e);
+            tracing::info!("❌ Insertion error: {}", e);
         }
     }
 
     // Wait for indexing
-    println!("\n⏳ Waiting for indexing...");
+    tracing::info!("\n⏳ Waiting for indexing...");
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Test search in test collection
-    println!("\n🔍 Testing Search in Test Collection:");
+    tracing::info!("\n🔍 Testing Search in Test Collection:");
     match client
         .search_vectors(&test_collection, "vectorizer performance", Some(5), None)
         .await
     {
         Ok(results) => {
-            println!("✅ Search successful:");
-            println!("   Found {} results", results.results.len());
+            tracing::info!("✅ Search successful:");
+            tracing::info!("   Found {} results", results.results.len());
             for (i, result) in results.results.iter().enumerate() {
-                println!("   {}. {} (score: {:.3})", i + 1, result.id, result.score);
+                tracing::info!("   {}. {} (score: {:.3})", i + 1, result.id, result.score);
             }
         }
         Err(e) => {
-            println!("❌ Search error: {}", e);
+            tracing::info!("❌ Search error: {}", e);
         }
     }
 
     // Test embedding generation
-    println!("\n🧠 Testing Embedding Generation:");
+    tracing::info!("\n🧠 Testing Embedding Generation:");
     match client
         .embed_text("This is a test text for embedding.", None)
         .await
     {
         Ok(response) => {
-            println!("✅ Embedding generated:");
-            println!("   Text: {}", response.text);
-            println!("   Model: {}", response.model);
-            println!("   Dimension: {}", response.dimension);
-            println!("   Provider: {}", response.provider);
+            tracing::info!("✅ Embedding generated:");
+            tracing::info!("   Text: {}", response.text);
+            tracing::info!("   Model: {}", response.model);
+            tracing::info!("   Dimension: {}", response.dimension);
+            tracing::info!("   Provider: {}", response.provider);
         }
         Err(e) => {
-            println!("❌ Embedding generation error: {}", e);
+            tracing::info!("❌ Embedding generation error: {}", e);
         }
     }
 
     // Cleanup
-    println!("\n🧹 Cleaning up test collection...");
+    tracing::info!("\n🧹 Cleaning up test collection...");
     match client.delete_collection(&test_collection).await {
         Ok(_) => {
-            println!("✅ Collection '{}' deleted successfully", test_collection);
+            tracing::info!("✅ Collection '{}' deleted successfully", test_collection);
         }
         Err(e) => {
-            println!("❌ Error deleting collection: {}", e);
+            tracing::info!("❌ Error deleting collection: {}", e);
         }
     }
 
-    println!("\n🎉 Test completed successfully!");
+    tracing::info!("\n🎉 Test completed successfully!");
     Ok(())
 }

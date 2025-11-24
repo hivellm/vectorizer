@@ -58,8 +58,8 @@ impl GpuDetector {
     ///
     /// let backend = GpuDetector::detect_best_backend();
     /// match backend {
-    ///     GpuBackendType::Metal => println!("Using Metal GPU!"),
-    ///     GpuBackendType::None => println!("Using CPU"),
+    ///     GpuBackendType::Metal => tracing::info!("Using Metal GPU!"),
+    ///     GpuBackendType::None => tracing::info!("Using CPU"),
     /// }
     /// ```
     pub fn detect_best_backend() -> GpuBackendType {

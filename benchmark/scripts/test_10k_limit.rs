@@ -4,6 +4,7 @@
 //! e identifica os limites de memória e performance.
 
 use vectorizer::error::Result;
+use tracing::{info, error, warn, debug};
 use hive_gpu::metal::{MetalNativeContext, MetalNativeVectorStorage};
 use hive_gpu::{GpuVector, GpuDistanceMetric, GpuContext};
 use vectorizer::models::{DistanceMetric, Vector};
@@ -17,13 +18,13 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    println!("🔍 Teste de Limite: 10k Vetores");
-    println!("===============================");
-    println!("Investigando por que não é possível processar 10k vetores\n");
+    tracing::info!("🔍 Teste de Limite: 10k Vetores");
+    tracing::info!("===============================");
+    tracing::info!("Investigando por que não é possível processar 10k vetores\n");
 
     #[cfg(not(target_os = "macos"))]
     {
-        println!("❌ Este teste requer macOS com suporte Metal");
+        tracing::info!("❌ Este teste requer macOS com suporte Metal");
         return Ok(());
     }
 
@@ -45,36 +46,36 @@ async fn test_10k_limit() -> Result<()> {
     let search_queries = 50; // Reduzir para teste mais rápido
     let k = 20;
 
-    println!("📊 Parâmetros do Teste");
-    println!("----------------------");
-    println!("  Dimensão: {}", dimension);
-    println!("  Vetores: {}", vector_count);
-    println!("  Queries: {}", search_queries);
-    println!("  k (resultados): {}", k);
-    println!();
+    tracing::info!("📊 Parâmetros do Teste");
+    tracing::info!("----------------------");
+    tracing::info!("  Dimensão: {}", dimension);
+    tracing::info!("  Vetores: {}", vector_count);
+    tracing::info!("  Queries: {}", search_queries);
+    tracing::info!("  k (resultados): {}", k);
+    tracing::info!();
 
     // 1. Gerar vetores
-    println!("🔧 Gerando vetores de teste...");
+    tracing::info!("🔧 Gerando vetores de teste...");
     let start = Instant::now();
     let vectors = generate_test_vectors(vector_count, dimension);
     let generation_time = start.elapsed();
-    println!("  ✅ Gerados {} vetores em {:.3}ms", vector_count, generation_time.as_millis());
-    println!();
+    tracing::info!("  ✅ Gerados {} vetores em {:.3}ms", vector_count, generation_time.as_millis());
+    tracing::info!();
 
     // 2. Criar coleção
-    println!("📊 Teste 1: Criar Coleção Metal Native");
-    println!("----------------------------------------");
+    tracing::info!("📊 Teste 1: Criar Coleção Metal Native");
+    tracing::info!("----------------------------------------");
     let start = Instant::now();
     let context = Arc::new(MetalNativeContext::new().map_err(|e| vectorizer::error::VectorizerError::CollectionNotFound(e.to_string()))?);
     let mut collection = context.create_storage(dimension, GpuDistanceMetric::Cosine).map_err(|e| vectorizer::error::VectorizerError::CollectionNotFound(e.to_string()))?;
     let creation_time = start.elapsed();
-    println!("  ✅ Coleção criada: {:.3}ms", creation_time.as_millis());
-    println!("  Device: Pure Metal native (VRAM only)");
-    println!();
+    tracing::info!("  ✅ Coleção criada: {:.3}ms", creation_time.as_millis());
+    tracing::info!("  Device: Pure Metal native (VRAM only)");
+    tracing::info!();
 
     // 3. Adicionar vetores (em lotes para monitorar)
-    println!("📊 Teste 2: Adicionar Vetores ao VRAM");
-    println!("--------------------------------------");
+    tracing::info!("📊 Teste 2: Adicionar Vetores ao VRAM");
+    tracing::info!("--------------------------------------");
     let start = Instant::now();
     let batch_size = 1000;
     
@@ -88,28 +89,28 @@ async fn test_10k_limit() -> Result<()> {
         }
         let batch_time = batch_start_time.elapsed();
         
-        println!("  Adicionados {} vetores... ({:.3}ms)", batch_end, batch_time.as_millis());
+        tracing::info!("  Adicionados {} vetores... ({:.3}ms)", batch_end, batch_time.as_millis());
     }
     
     let addition_time = start.elapsed();
-    println!("  ✅ Adicionados {} vetores ao VRAM: {:.3}ms", vector_count, addition_time.as_millis());
-    println!("  Throughput: {:.2} vectors/sec", vector_count as f64 / addition_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Adicionados {} vetores ao VRAM: {:.3}ms", vector_count, addition_time.as_millis());
+    tracing::info!("  Throughput: {:.2} vectors/sec", vector_count as f64 / addition_time.as_secs_f64());
+    tracing::info!();
 
     // 4. Construir índice HNSW
-    println!("📊 Teste 3: Construir Índice HNSW no GPU (VRAM)");
-    println!("-----------------------------------------------");
+    tracing::info!("📊 Teste 3: Construir Índice HNSW no GPU (VRAM)");
+    tracing::info!("-----------------------------------------------");
     let start = Instant::now();
     // Index is built automatically in hive-gpu
     let construction_time = start.elapsed();
-    println!("  ✅ Índice HNSW construído no GPU: {:.3}ms", construction_time.as_millis());
-    println!("  Storage: VRAM only (no CPU access)");
-    println!("  Nodes: {}", vector_count);
-    println!();
+    tracing::info!("  ✅ Índice HNSW construído no GPU: {:.3}ms", construction_time.as_millis());
+    tracing::info!("  Storage: VRAM only (no CPU access)");
+    tracing::info!("  Nodes: {}", vector_count);
+    tracing::info!();
 
     // 5. Teste de busca (amostra pequena)
-    println!("📊 Teste 4: Performance de Busca");
-    println!("-------------------------------");
+    tracing::info!("📊 Teste 4: Performance de Busca");
+    tracing::info!("-------------------------------");
     let start = Instant::now();
     let mut search_times = Vec::new();
     
@@ -121,7 +122,7 @@ async fn test_10k_limit() -> Result<()> {
         search_times.push(query_time.as_millis() as f64);
         
         if i % 5 == 0 {
-            println!("  Completadas {} buscas...", i + 1);
+            tracing::info!("  Completadas {} buscas...", i + 1);
         }
     }
     
@@ -130,40 +131,40 @@ async fn test_10k_limit() -> Result<()> {
     let min_search_time = search_times.iter().fold(f64::INFINITY, |a, &b| a.min(b));
     let max_search_time = search_times.iter().fold(0.0_f64, |a, &b| a.max(b));
     
-    println!("  ✅ Completadas {} buscas", search_times.len());
-    println!("  Tempo médio de busca: {:.3}ms", avg_search_time);
-    println!("  Tempo mínimo de busca: {:.3}ms", min_search_time);
-    println!("  Tempo máximo de busca: {:.3}ms", max_search_time);
-    println!("  Tempo total de busca: {:.3}s", total_search_time.as_secs_f64());
-    println!("  Throughput: {:.2} buscas/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!("  ✅ Completadas {} buscas", search_times.len());
+    tracing::info!("  Tempo médio de busca: {:.3}ms", avg_search_time);
+    tracing::info!("  Tempo mínimo de busca: {:.3}ms", min_search_time);
+    tracing::info!("  Tempo máximo de busca: {:.3}ms", max_search_time);
+    tracing::info!("  Tempo total de busca: {:.3}s", total_search_time.as_secs_f64());
+    tracing::info!("  Throughput: {:.2} buscas/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
+    tracing::info!();
 
     // 6. Análise de memória
-    println!("📊 Teste 5: Uso de Memória");
-    println!("---------------------------");
-    println!("  ✅ Todos os dados armazenados em VRAM");
-    println!("  ✅ Sem transferências CPU-GPU durante busca");
-    println!("  ✅ Zero overhead de buffer mapping");
-    println!("  ✅ Performance Metal native pura");
-    println!();
+    tracing::info!("📊 Teste 5: Uso de Memória");
+    tracing::info!("---------------------------");
+    tracing::info!("  ✅ Todos os dados armazenados em VRAM");
+    tracing::info!("  ✅ Sem transferências CPU-GPU durante busca");
+    tracing::info!("  ✅ Zero overhead de buffer mapping");
+    tracing::info!("  ✅ Performance Metal native pura");
+    tracing::info!();
 
     // 7. Resumo
-    println!("📊 Resumo do Teste");
-    println!("==================");
-    println!("  ✅ Implementação Metal native pura");
-    println!("  ✅ Todas as operações em VRAM");
-    println!("  ✅ Zero dependências wgpu");
-    println!("  ✅ Sem problemas de buffer mapping");
-    println!("  ✅ Máxima eficiência GPU");
-    println!();
+    tracing::info!("📊 Resumo do Teste");
+    tracing::info!("==================");
+    tracing::info!("  ✅ Implementação Metal native pura");
+    tracing::info!("  ✅ Todas as operações em VRAM");
+    tracing::info!("  ✅ Zero dependências wgpu");
+    tracing::info!("  ✅ Sem problemas de buffer mapping");
+    tracing::info!("  ✅ Máxima eficiência GPU");
+    tracing::info!();
 
-    println!("📈 Métricas de Performance");
-    println!("-------------------------");
-    println!("  Adição de vetores: {:.2} vectors/sec", vector_count as f64 / addition_time.as_secs_f64());
-    println!("  Construção do índice: {:.3}ms", construction_time.as_millis());
-    println!("  Latência de busca: {:.3}ms", avg_search_time);
-    println!("  Throughput de busca: {:.2} buscas/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
-    println!();
+    tracing::info!("📈 Métricas de Performance");
+    tracing::info!("-------------------------");
+    tracing::info!("  Adição de vetores: {:.2} vectors/sec", vector_count as f64 / addition_time.as_secs_f64());
+    tracing::info!("  Construção do índice: {:.3}ms", construction_time.as_millis());
+    tracing::info!("  Latência de busca: {:.3}ms", avg_search_time);
+    tracing::info!("  Throughput de busca: {:.2} buscas/sec", search_times.len() as f64 / total_search_time.as_secs_f64());
+    tracing::info!();
 
     Ok(())
 }
