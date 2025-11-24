@@ -25,6 +25,7 @@ fn create_test_collection(
     dimension: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let config = CollectionConfig {
+        graph: None,
         dimension,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig {

@@ -42,6 +42,7 @@ async fn test_wal_integration_basic() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -99,6 +100,7 @@ async fn test_collection_with_wal_disabled() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),

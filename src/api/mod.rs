@@ -10,5 +10,9 @@
 //! - SDK generation and client libraries
 
 pub mod advanced_api;
+pub mod cluster;
+pub mod graph;
 
 pub use advanced_api::*;
+pub use cluster::*;
+pub use graph::*;

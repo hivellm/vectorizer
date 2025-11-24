@@ -11,5 +11,10 @@ pub mod vectorizer {
     include!("vectorizer.rs");
 }
 
+// Include generated cluster proto code
+pub mod cluster {
+    include!("vectorizer.cluster.rs");
+}
+
 // Re-export service types
 pub use server::VectorizerGrpcService;

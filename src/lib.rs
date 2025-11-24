@@ -5,10 +5,12 @@
 
 #![allow(warnings)]
 
+pub mod api;
 pub mod auth;
 pub mod batch;
 pub mod cache;
 pub mod cli;
+pub mod cluster;
 pub mod config;
 pub mod db;
 pub mod discovery;
@@ -90,6 +92,7 @@ mod integration_tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         store.create_collection("concurrent", config).unwrap();
@@ -194,6 +197,7 @@ mod integration_tests {
                     compression: Default::default(),
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
                 },
             ),
             (
@@ -216,6 +220,7 @@ mod integration_tests {
                     },
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
                 },
             ),
         ];

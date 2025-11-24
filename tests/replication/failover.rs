@@ -84,6 +84,7 @@ async fn test_replica_reconnect_after_disconnect() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -144,6 +145,7 @@ async fn test_partial_sync_after_brief_disconnect() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -227,6 +229,7 @@ async fn test_full_sync_when_offset_too_old() {
 
     // Create collection
     let col_config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -288,6 +291,7 @@ async fn test_multiple_replicas_recovery() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -379,6 +383,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

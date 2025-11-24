@@ -2,10 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Distributed Horizontal Sharding**: Support for distributing collections and vectors across multiple server instances
+  - Cluster management with automatic membership and server discovery
+  - Distributed shard routing using consistent hashing
+  - Cross-server communication via gRPC
+  - REST API endpoints for cluster management (`/api/v1/cluster/*`)
+  - MCP tools for cluster operations (`cluster_list_nodes`, `cluster_get_shard_distribution`, etc.)
+  - Automatic shard assignment and rebalancing across cluster nodes
+  - Fault tolerance with graceful handling of server failures
+  - See [Sharding Guide](docs/users/collections/SHARDING.md) for configuration details
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
 
 ## [1.4.0] - 2025-11-21
 

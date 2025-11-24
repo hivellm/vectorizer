@@ -55,6 +55,7 @@ impl TryFrom<&vectorizer::CollectionConfig> for crate::models::CollectionConfig 
             compression: Default::default(),
             normalization: None,
             sharding: None,
+            graph: None,
             storage_type: {
                 let storage_enum = vectorizer::StorageType::from_i32(proto.storage_type)
                     .unwrap_or(vectorizer::StorageType::Memory);

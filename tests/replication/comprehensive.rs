@@ -187,6 +187,7 @@ async fn test_basic_master_replica_sync() {
 
     // Create collection on master
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -232,6 +233,7 @@ async fn test_incremental_replication() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -272,6 +274,7 @@ async fn test_multiple_replicas() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -326,6 +329,7 @@ async fn test_stress_high_volume_replication() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -393,6 +397,7 @@ async fn test_snapshot_with_large_vectors() {
 
     // Create collection with high dimensions
     let config = CollectionConfig {
+        graph: None,
         dimension: 1536, // OpenAI embedding size
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

@@ -24,6 +24,7 @@ fn create_sharded_config(
     rebalance_threshold: f32,
 ) -> CollectionConfig {
     CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -237,6 +238,7 @@ fn test_sharded_collection_creation() {
 #[test]
 fn test_sharded_collection_creation_no_sharding() {
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

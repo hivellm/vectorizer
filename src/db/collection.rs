@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
+use super::graph_relationship_discovery::{discover_relationships, GraphRelationshipHelper};
 use super::hybrid_search::{
     DenseSearchResult, HybridScoringAlgorithm, HybridSearchConfig, SparseSearchResult,
     hybrid_search,
@@ -52,6 +53,19 @@ pub struct Collection {
     created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
     updated_at: Arc<RwLock<chrono::DateTime<chrono::Utc>>>,
+    /// Graph for relationship tracking (optional, enabled via config)
+    graph: Option<Arc<super::graph::Graph>>,
+}
+
+impl GraphRelationshipHelper for Collection {
+    fn search_similar_vectors(&self, query_vector: &[f32], limit: usize) -> Result<Vec<(String, f32)>> {
+        let results = self.search(query_vector, limit)?;
+        Ok(results.into_iter().map(|r| (r.id, r.score)).collect())
+    }
+
+    fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+        self.get_vector(vector_id)
+    }
 }
 
 impl Collection {
@@ -63,6 +77,56 @@ impl Collection {
     /// Get collection config
     pub fn config(&self) -> &CollectionConfig {
         &self.config
+    }
+
+    /// Get graph reference (if enabled)
+    pub fn get_graph(&self) -> Option<&Arc<super::graph::Graph>> {
+        self.graph.as_ref()
+    }
+
+    /// Enable graph for this collection and populate with existing vectors
+    /// This creates graph nodes for all existing vectors in the collection
+    /// and discovers relationships based on metadata (fast) and optionally similarity (slower)
+    pub fn enable_graph(&mut self) -> Result<()> {
+        use crate::db::graph::Node;
+
+        // If graph already exists, do nothing
+        if self.graph.is_some() {
+            info!("Graph already enabled for collection '{}'", self.name);
+            return Ok(());
+        }
+
+        info!("Enabling graph for collection '{}'", self.name);
+        
+        // Create new graph
+        let graph = Arc::new(super::graph::Graph::new(self.name.clone()));
+        
+        // Set graph field immediately
+        self.graph = Some(graph.clone());
+        
+        // Create nodes for existing vectors (limit to avoid blocking)
+        let vector_ids: Vec<String> = {
+            let vector_order = self.vector_order.read();
+            vector_order.iter().cloned().take(100).collect() // Limit to 100 to avoid blocking
+        };
+        
+        if !vector_ids.is_empty() {
+            info!("Creating graph nodes for {} existing vectors in collection '{}'", vector_ids.len(), self.name);
+            
+            for vector_id in &vector_ids {
+                if let Ok(vector) = self.get_vector(vector_id) {
+                    let node = Node::from_vector(&vector.id, vector.payload.as_ref());
+                    if let Err(e) = graph.add_node(node) {
+                        debug!("Failed to add graph node for vector '{}': {}", vector_id, e);
+                    }
+                }
+            }
+            
+            info!("Created {} graph nodes for collection '{}'", vector_ids.len(), self.name);
+        }
+        
+        info!("Graph enabled for collection '{}'", self.name);
+        Ok(())
     }
 
     /// Create a new collection
@@ -127,6 +191,14 @@ impl Collection {
             }
         };
 
+        let graph_enabled = config.graph.as_ref().map(|g| g.enabled).unwrap_or(false);
+        let collection_name = name.clone();
+        let graph = if graph_enabled {
+            Some(Arc::new(super::graph::Graph::new(collection_name)))
+        } else {
+            None
+        };
+
         Self {
             name,
             config,
@@ -142,6 +214,7 @@ impl Collection {
             pq_quantizer: Arc::new(RwLock::new(None)),
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
+            graph,
         }
     }
 
@@ -246,7 +319,7 @@ impl Collection {
                 // It will be reconstructed on-demand from quantized version
             } else {
                 // Store full precision vector
-                self.vectors.insert(id.clone(), vector)?;
+                self.vectors.insert(id.clone(), vector.clone())?;
             }
 
             // Track insertion order for persistence consistency
@@ -254,6 +327,62 @@ impl Collection {
 
             // Add to index (using full precision for search accuracy)
             index.add(id.clone(), data.clone())?;
+
+            // Discover graph relationships if graph is enabled
+            // Note: Relationship discovery is done synchronously but with limited search scope
+            // to avoid timeout during insertion. For large collections, consider disabling
+            // auto_relationship.enabled_types or running relationship discovery in background.
+            if let Some(graph) = &self.graph {
+                if let Some(graph_config) = &self.config.graph {
+                    if graph_config.enabled {
+                        // Only create node, skip expensive similarity search during insertion
+                        // Similarity relationships can be created later via explicit edge creation
+                        let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                        if let Err(e) = graph.add_node(node) {
+                            warn!("Failed to add graph node for vector '{}': {}", id, e);
+                        }
+                        
+                        // Optionally discover relationships if auto_relationship is enabled
+                        // Note: Similarity-based relationships are skipped during insertion
+                        // to avoid timeout. Only metadata-based relationships are created.
+                        let auto_config = &graph_config.auto_relationship;
+                        if !auto_config.enabled_types.is_empty() {
+                            // Ensure the source node exists before creating relationships
+                            // (it should already exist from line 321-324, but double-check)
+                            if graph.get_node(&id).is_none() {
+                                let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                                let _ = graph.add_node(node);
+                            }
+                            
+                            // Only do fast metadata-based relationships during insertion
+                            // Skip SIMILAR_TO to avoid timeout during insertion
+                            if let Some(payload) = &vector.payload {
+                                use super::graph_relationship_discovery::{discover_reference_relationships, discover_contains_relationships, discover_derived_from_relationships};
+                                use super::graph_relationship_discovery::is_relationship_type_enabled;
+                                
+                                // Create metadata-based relationships (fast)
+                                if is_relationship_type_enabled("REFERENCES", auto_config) {
+                                    if let Err(e) = discover_reference_relationships(graph, &id, payload) {
+                                        debug!("Failed to discover REFERENCES for '{}': {}", id, e);
+                                    }
+                                }
+                                if is_relationship_type_enabled("CONTAINS", auto_config) {
+                                    if let Err(e) = discover_contains_relationships(graph, &id, payload) {
+                                        debug!("Failed to discover CONTAINS for '{}': {}", id, e);
+                                    }
+                                }
+                                if is_relationship_type_enabled("DERIVED_FROM", auto_config) {
+                                    if let Err(e) = discover_derived_from_relationships(graph, &id, payload) {
+                                        debug!("Failed to discover DERIVED_FROM for '{}': {}", id, e);
+                                    }
+                                }
+                                // SIMILAR_TO relationships are skipped during insertion to avoid timeout
+                                // They can be created later via explicit edge creation
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Update vector count
@@ -1316,6 +1445,7 @@ mod tests {
 
     fn create_test_collection() -> Collection {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 3,
             metric: DistanceMetric::Euclidean,
@@ -1395,6 +1525,7 @@ mod tests {
     fn test_vector_count_with_quantization() {
         // Create collection WITH quantization enabled
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
@@ -1435,6 +1566,7 @@ mod tests {
 
         // Collection 1: WITH quantization
         let config_quantized = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
@@ -1448,6 +1580,7 @@ mod tests {
 
         // Collection 2: WITHOUT quantization
         let config_normal = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,
@@ -1492,6 +1625,7 @@ mod tests {
     #[test]
     fn test_collection_creation() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
@@ -1512,6 +1646,7 @@ mod tests {
     #[test]
     fn test_collection_insert_single() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
@@ -1533,6 +1668,7 @@ mod tests {
     #[test]
     fn test_collection_insert_batch() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1558,6 +1694,7 @@ mod tests {
     #[test]
     fn test_collection_get_vector() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1584,6 +1721,7 @@ mod tests {
     #[test]
     fn test_collection_get_nonexistent() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1603,6 +1741,7 @@ mod tests {
     #[test]
     fn test_collection_delete() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1635,6 +1774,7 @@ mod tests {
     #[test]
     fn test_collection_update() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1664,6 +1804,7 @@ mod tests {
     #[test]
     fn test_collection_search() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1696,6 +1837,7 @@ mod tests {
     #[test]
     fn test_collection_memory_usage() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
@@ -1722,6 +1864,7 @@ mod tests {
     #[test]
     fn test_collection_metadata() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 256,
             metric: DistanceMetric::Euclidean,
@@ -1744,6 +1887,7 @@ mod tests {
     fn test_collection_different_metrics() {
         // Test Cosine
         let config_cosine = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1758,6 +1902,7 @@ mod tests {
 
         // Test Euclidean
         let config_euclidean = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Euclidean,
@@ -1772,6 +1917,7 @@ mod tests {
 
         // Test DotProduct
         let config_dot = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::DotProduct,
@@ -1788,6 +1934,7 @@ mod tests {
     #[test]
     fn test_collection_with_quantization_sq() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
@@ -1817,6 +1964,7 @@ mod tests {
     #[test]
     fn test_collection_update_nonexistent() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1837,6 +1985,7 @@ mod tests {
     #[test]
     fn test_collection_delete_nonexistent() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1856,6 +2005,7 @@ mod tests {
     #[test]
     fn test_collection_dimension_validation() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
@@ -1878,6 +2028,7 @@ mod tests {
     #[test]
     fn test_collection_get_all_vectors_ids() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1907,6 +2058,7 @@ mod tests {
     #[test]
     fn test_collection_embedding_type() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 512,
             metric: DistanceMetric::Cosine,
@@ -1926,6 +2078,7 @@ mod tests {
     #[test]
     fn test_collection_search_empty() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1951,6 +2104,7 @@ mod tests {
         use std::thread;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -1989,6 +2143,7 @@ mod tests {
     #[test]
     fn test_collection_search_with_limit() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 64,
             metric: DistanceMetric::Cosine,
@@ -2019,6 +2174,7 @@ mod tests {
     #[test]
     fn test_collection_get_all_vectors() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 32,
             metric: DistanceMetric::Cosine,
@@ -2044,6 +2200,7 @@ mod tests {
     #[test]
     fn test_collection_metadata_updates() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,

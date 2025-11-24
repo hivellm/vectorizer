@@ -135,6 +135,7 @@ mod tests {
 
         // Create a test collection
         let config = crate::models::CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: crate::models::DistanceMetric::Cosine,

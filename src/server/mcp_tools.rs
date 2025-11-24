@@ -50,6 +50,17 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                         "type": "string",
                         "description": "Distance metric: 'cosine' or 'euclidean'",
                         "default": "cosine"
+                    },
+                    "graph": {
+                        "type": "object",
+                        "description": "Graph configuration (optional)",
+                        "properties": {
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Enable graph relationship tracking",
+                                "default": false
+                            }
+                        }
                     }
                 },
                 "required": ["name", "dimension"]
@@ -755,5 +766,321 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
         },
+
+        // =============================================
+        // Cluster Management Tools (6 tools)
+        // =============================================
+
+        // Cluster List Nodes
+        Tool {
+            name: Cow::Borrowed("cluster_list_nodes"),
+            title: Some("List Cluster Nodes".to_string()),
+            description: Some(Cow::Borrowed(
+                "List all nodes in the cluster with their status, addresses, and assigned shards."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // Cluster Get Shard Distribution
+        Tool {
+            name: Cow::Borrowed("cluster_get_shard_distribution"),
+            title: Some("Get Shard Distribution".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get the distribution of shards across cluster nodes with load information."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // Cluster Rebalance
+        Tool {
+            name: Cow::Borrowed("cluster_rebalance"),
+            title: Some("Trigger Shard Rebalancing".to_string()),
+            description: Some(Cow::Borrowed(
+                "Trigger shard rebalancing to distribute load evenly across cluster nodes."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "force": {
+                        "type": "boolean",
+                        "description": "Force rebalancing even if not needed",
+                        "default": false
+                    }
+                },
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // Cluster Add Node
+        Tool {
+            name: Cow::Borrowed("cluster_add_node"),
+            title: Some("Add Node to Cluster".to_string()),
+            description: Some(Cow::Borrowed(
+                "Add a new node to the cluster. Shards may be redistributed after adding."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "node_id": {
+                        "type": "string",
+                        "description": "Unique node identifier"
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "Node address (host:port)"
+                    },
+                    "grpc_port": {
+                        "type": "integer",
+                        "description": "gRPC port for inter-server communication"
+                    }
+                },
+                "required": ["node_id", "address", "grpc_port"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // Cluster Remove Node
+        Tool {
+            name: Cow::Borrowed("cluster_remove_node"),
+            title: Some("Remove Node from Cluster".to_string()),
+            description: Some(Cow::Borrowed(
+                "Remove a node from the cluster. Shards will be redistributed to other nodes."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "node_id": {
+                        "type": "string",
+                        "description": "Node identifier to remove"
+                    }
+                },
+                "required": ["node_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // Cluster Get Node Info
+        Tool {
+            name: Cow::Borrowed("cluster_get_node_info"),
+            title: Some("Get Cluster Node Info".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get detailed information about a specific cluster node."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "node_id": {
+                        "type": "string",
+                        "description": "Node identifier"
+                    }
+                },
+                "required": ["node_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // =============================================
+        // Graph Operations (6 tools)
+        // =============================================
+
+        // Graph List Nodes
+        Tool {
+            name: Cow::Borrowed("graph_list_nodes"),
+            title: Some("List Graph Nodes".to_string()),
+            description: Some(Cow::Borrowed(
+                "List all nodes in a collection's graph with their metadata."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // Graph Get Neighbors
+        Tool {
+            name: Cow::Borrowed("graph_get_neighbors"),
+            title: Some("Get Graph Node Neighbors".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get all neighbors of a specific node in the graph with their relationships."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "node_id": {
+                        "type": "string",
+                        "description": "Node identifier"
+                    }
+                },
+                "required": ["collection", "node_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // Graph Find Related
+        Tool {
+            name: Cow::Borrowed("graph_find_related"),
+            title: Some("Find Related Nodes".to_string()),
+            description: Some(Cow::Borrowed(
+                "Find all nodes related to a given node within N hops in the graph."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "node_id": {
+                        "type": "string",
+                        "description": "Starting node identifier"
+                    },
+                    "max_hops": {
+                        "type": "integer",
+                        "description": "Maximum number of hops to traverse",
+                        "default": 2
+                    },
+                    "relationship_type": {
+                        "type": "string",
+                        "description": "Filter by relationship type (SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM)",
+                        "enum": ["SIMILAR_TO", "REFERENCES", "CONTAINS", "DERIVED_FROM"]
+                    }
+                },
+                "required": ["collection", "node_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // Graph Find Path
+        Tool {
+            name: Cow::Borrowed("graph_find_path"),
+            title: Some("Find Path Between Nodes".to_string()),
+            description: Some(Cow::Borrowed(
+                "Find the shortest path between two nodes in the graph."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Source node identifier"
+                    },
+                    "target": {
+                        "type": "string",
+                        "description": "Target node identifier"
+                    }
+                },
+                "required": ["collection", "source", "target"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+        },
+
+        // Graph Create Edge
+        Tool {
+            name: Cow::Borrowed("graph_create_edge"),
+            title: Some("Create Graph Edge".to_string()),
+            description: Some(Cow::Borrowed(
+                "Create an explicit edge/relationship between two nodes in the graph."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Source node identifier"
+                    },
+                    "target": {
+                        "type": "string",
+                        "description": "Target node identifier"
+                    },
+                    "relationship_type": {
+                        "type": "string",
+                        "description": "Type of relationship",
+                        "enum": ["SIMILAR_TO", "REFERENCES", "CONTAINS", "DERIVED_FROM"]
+                    },
+                    "weight": {
+                        "type": "number",
+                        "description": "Edge weight (0.0 to 1.0)",
+                        "default": 1.0
+                    }
+                },
+                "required": ["collection", "source", "target", "relationship_type"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // Graph Delete Edge
+        Tool {
+            name: Cow::Borrowed("graph_delete_edge"),
+            title: Some("Delete Graph Edge".to_string()),
+            description: Some(Cow::Borrowed(
+                "Delete an edge/relationship from the graph."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "edge_id": {
+                        "type": "string",
+                        "description": "Edge identifier to delete"
+                    }
+                },
+                "required": ["edge_id"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
     ]
 }

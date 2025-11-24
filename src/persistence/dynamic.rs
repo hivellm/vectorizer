@@ -707,6 +707,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -737,6 +738,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -765,6 +767,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -799,6 +802,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -840,6 +844,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -874,6 +879,7 @@ mod tests {
         let persistence = create_test_persistence().await;
 
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,

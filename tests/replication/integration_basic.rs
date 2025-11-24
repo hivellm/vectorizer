@@ -92,6 +92,7 @@ async fn test_master_start_and_accept_connections() {
 
     // Create collection BEFORE replica connects
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -158,6 +159,7 @@ async fn test_master_replicate_operations() {
 
     // Create collection and replicate creation
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -229,6 +231,7 @@ async fn test_master_multiple_replicas_and_stats() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -307,6 +310,7 @@ async fn test_replica_full_sync_on_connect() {
 
     // Populate master before replica connects
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -352,6 +356,7 @@ async fn test_replica_partial_sync_on_reconnect() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -441,6 +446,7 @@ async fn test_replica_apply_all_operation_types() {
 
     // Test CreateCollection operation
     let config = CollectionConfig {
+        graph: None,
         dimension: 4,
         metric: DistanceMetric::Euclidean,
         hnsw_config: HnswConfig::default(),
@@ -521,6 +527,7 @@ async fn test_replica_incremental_operations() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -586,6 +593,7 @@ async fn test_replica_delete_operations() {
 
     // Create collection BEFORE replica connects (matching test_master_start_and_accept_connections pattern)
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -693,6 +701,7 @@ async fn test_replica_update_operations() {
 
     // Create collection with Euclidean metric to avoid normalization
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Euclidean,
         hnsw_config: HnswConfig::default(),
@@ -750,6 +759,7 @@ async fn test_replica_stats_tracking() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),
@@ -814,6 +824,7 @@ async fn test_large_payload_replication() {
 
     // Create collection BEFORE replica connects
     let config = CollectionConfig {
+        graph: None,
         dimension: 3,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

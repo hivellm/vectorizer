@@ -12,6 +12,7 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, Quantizat
 #[test]
 fn test_collection_config_creation() {
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

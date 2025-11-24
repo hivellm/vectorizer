@@ -30,6 +30,7 @@ async fn test_vector_store_wal_integration() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -110,6 +111,7 @@ async fn test_wal_recover_all_collections_with_data() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),

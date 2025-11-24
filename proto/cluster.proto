@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package vectorizer.cluster;
+
+// Cluster service for inter-server communication
+service ClusterService {
+    // Get cluster state from a node
+    rpc GetClusterState(GetClusterStateRequest) returns (GetClusterStateResponse);
+    
+    // Update cluster state (heartbeat, membership changes)
+    rpc UpdateClusterState(UpdateClusterStateRequest) returns (UpdateClusterStateResponse);
+    
+    // Remote vector operations
+    rpc RemoteInsertVector(RemoteInsertVectorRequest) returns (RemoteInsertVectorResponse);
+    rpc RemoteUpdateVector(RemoteUpdateVectorRequest) returns (RemoteUpdateVectorResponse);
+    rpc RemoteDeleteVector(RemoteDeleteVectorRequest) returns (RemoteDeleteVectorResponse);
+    rpc RemoteSearchVectors(RemoteSearchVectorsRequest) returns (RemoteSearchVectorsResponse);
+    
+    // Remote collection operations
+    rpc RemoteCreateCollection(RemoteCreateCollectionRequest) returns (RemoteCreateCollectionResponse);
+    rpc RemoteGetCollectionInfo(RemoteGetCollectionInfoRequest) returns (RemoteGetCollectionInfoResponse);
+    rpc RemoteDeleteCollection(RemoteDeleteCollectionRequest) returns (RemoteDeleteCollectionResponse);
+    
+    // Health check
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Cluster state messages
+message GetClusterStateRequest {
+    string node_id = 1;
+}
+
+message GetClusterStateResponse {
+    repeated ClusterNode nodes = 1;
+    map<uint32, string> shard_to_node = 2; // shard_id -> node_id
+}
+
+message UpdateClusterStateRequest {
+    ClusterNode node = 1;
+    repeated ShardAssignment shard_assignments = 2;
+}
+
+message UpdateClusterStateResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ClusterNode {
+    string id = 1;
+    string address = 2;
+    uint32 grpc_port = 3;
+    NodeStatus status = 4;
+    repeated uint32 shards = 5; // shard IDs
+    NodeMetadata metadata = 6;
+}
+
+enum NodeStatus {
+    ACTIVE = 0;
+    JOINING = 1;
+    LEAVING = 2;
+    UNAVAILABLE = 3;
+}
+
+message NodeMetadata {
+    optional string version = 1;
+    repeated string capabilities = 2;
+    uint64 vector_count = 3;
+    uint64 memory_usage = 4;
+    float cpu_usage = 5;
+}
+
+message ShardAssignment {
+    uint32 shard_id = 1;
+    string node_id = 2;
+}
+
+// Remote vector operation messages
+message RemoteInsertVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    repeated float vector = 3;
+    optional string payload_json = 4;
+}
+
+message RemoteInsertVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteUpdateVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    repeated float vector = 3;
+    optional string payload_json = 4;
+}
+
+message RemoteUpdateVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteDeleteVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+}
+
+message RemoteDeleteVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteSearchVectorsRequest {
+    string collection_name = 1;
+    repeated float query_vector = 2;
+    uint32 limit = 3;
+    optional float threshold = 4;
+    repeated uint32 shard_ids = 5; // Optional: specific shards to search
+}
+
+message RemoteSearchVectorsResponse {
+    repeated SearchResult results = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message SearchResult {
+    string id = 1;
+    float score = 2;
+    repeated float vector = 3;
+    optional string payload_json = 4;
+}
+
+// Remote collection operation messages
+message RemoteCreateCollectionRequest {
+    string collection_name = 1;
+    optional CollectionConfig config = 2;
+}
+
+message RemoteCreateCollectionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteGetCollectionInfoRequest {
+    string collection_name = 1;
+}
+
+message RemoteGetCollectionInfoResponse {
+    optional CollectionInfo info = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RemoteDeleteCollectionRequest {
+    string collection_name = 1;
+}
+
+message RemoteDeleteCollectionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Health check messages
+message HealthCheckRequest {
+    string node_id = 1;
+}
+
+message HealthCheckResponse {
+    bool healthy = 1;
+    string message = 2;
+    NodeMetadata metadata = 3;
+}
+
+// Reused from vectorizer.proto (simplified for cluster service)
+message CollectionConfig {
+    uint32 dimension = 1;
+    string metric = 2;
+    // Add other fields as needed
+}
+
+message CollectionInfo {
+    string name = 1;
+    uint64 vector_count = 2;
+    uint64 document_count = 3;
+    // Add other fields as needed
+}
+

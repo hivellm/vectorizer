@@ -28,6 +28,35 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Install panic handler to log panics before aborting
+    std::panic::set_hook(Box::new(|panic_info| {
+        let location = panic_info.location()
+            .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()))
+            .unwrap_or_else(|| "unknown".to_string());
+        
+        let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown panic".to_string()
+        };
+        
+        eprintln!("❌ PANIC: {} at {}", message, location);
+        error!("❌ PANIC: {} at {}", message, location);
+        
+        // Log to file if possible
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(".logs/panic.log")
+        {
+            use std::io::Write;
+            let _ = writeln!(file, "[{}] PANIC: {} at {}", 
+                chrono::Utc::now().to_rfc3339(), message, location);
+        }
+    }));
+
     let cli = Cli::parse();
 
     // Initialize logging with verbose flag

@@ -277,6 +277,10 @@ pub struct CollectionConfig {
     /// If set, the collection will be distributed across multiple shards
     #[serde(default)]
     pub sharding: Option<ShardingConfig>,
+    /// Graph configuration (optional, disabled by default)
+    /// If set, the collection will maintain a graph of relationships between documents
+    #[serde(default)]
+    pub graph: Option<GraphConfig>,
 }
 
 /// Storage backend type
@@ -356,6 +360,7 @@ impl Default for CollectionConfig {
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
             storage_type: Some(StorageType::Memory),
             sharding: None, // Sharding disabled by default
+            graph: None, // Graph disabled by default
         }
     }
 }
@@ -381,6 +386,75 @@ fn default_virtual_nodes() -> usize {
 
 fn default_rebalance_threshold() -> f32 {
     0.2 // 20% deviation triggers rebalancing
+}
+
+/// Graph configuration for relationship tracking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphConfig {
+    /// Enable graph relationship tracking
+    #[serde(default = "default_graph_enabled")]
+    pub enabled: bool,
+    /// Automatic relationship discovery configuration
+    #[serde(default)]
+    pub auto_relationship: AutoRelationshipConfig,
+}
+
+impl Default for GraphConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            auto_relationship: AutoRelationshipConfig::default(),
+        }
+    }
+}
+
+fn default_graph_enabled() -> bool {
+    false // Disabled by default
+}
+
+/// Automatic relationship discovery configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRelationshipConfig {
+    /// Similarity threshold for creating SIMILAR_TO relationships (0.0 to 1.0)
+    /// Relationships are only created when similarity exceeds this threshold
+    #[serde(default = "default_similarity_threshold")]
+    pub similarity_threshold: f32,
+    /// Maximum number of relationships to create per node
+    #[serde(default = "default_max_relationships")]
+    pub max_per_node: usize,
+    /// Enabled relationship types for automatic creation
+    #[serde(default = "default_enabled_relationship_types")]
+    pub enabled_types: Vec<String>,
+}
+
+impl Default for AutoRelationshipConfig {
+    fn default() -> Self {
+        Self {
+            similarity_threshold: 0.7, // 70% similarity threshold
+            max_per_node: 10, // Maximum 10 relationships per node
+            enabled_types: vec![
+                "SIMILAR_TO".to_string(),
+                "REFERENCES".to_string(),
+                "CONTAINS".to_string(),
+            ],
+        }
+    }
+}
+
+fn default_similarity_threshold() -> f32 {
+    0.7
+}
+
+fn default_max_relationships() -> usize {
+    10
+}
+
+fn default_enabled_relationship_types() -> Vec<String> {
+    vec![
+        "SIMILAR_TO".to_string(),
+        "REFERENCES".to_string(),
+        "CONTAINS".to_string(),
+    ]
 }
 
 impl Default for ShardingConfig {
@@ -666,5 +740,8 @@ pub mod sparse_vector;
 
 /// SIMD-accelerated vector utilities
 pub mod vector_utils_simd;
+
+/// Graph models (re-exported from db::graph)
+pub use crate::db::graph::{Edge, Node, RelationshipType};
 
 pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};

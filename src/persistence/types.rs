@@ -374,6 +374,7 @@ mod tests {
     #[test]
     fn test_workspace_metadata_creation() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -401,6 +402,7 @@ mod tests {
     #[test]
     fn test_dynamic_metadata_creation() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,
@@ -428,6 +430,7 @@ mod tests {
     #[test]
     fn test_metadata_update_after_operation() {
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 384,
             metric: DistanceMetric::Cosine,

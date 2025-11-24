@@ -28,6 +28,7 @@ async fn test_wal_crash_recovery_insert() {
 
     // Create collection
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -120,6 +121,7 @@ async fn test_wal_crash_recovery_update() {
         .unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -213,6 +215,7 @@ async fn test_wal_crash_recovery_delete() {
         .unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -286,6 +289,7 @@ async fn test_wal_recover_all_collections() {
         .unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),

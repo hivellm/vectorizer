@@ -20,6 +20,7 @@ async fn test_wal_multiple_operations() {
         .unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -72,6 +73,7 @@ async fn test_wal_with_payload() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -130,6 +132,7 @@ async fn test_wal_update_sequence() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -193,6 +196,7 @@ async fn test_wal_delete_sequence() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -254,6 +258,7 @@ async fn test_wal_multiple_collections() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -320,6 +325,7 @@ async fn test_wal_checkpoint() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -366,6 +372,7 @@ async fn test_wal_error_handling() {
     store.enable_wal(data_dir, Some(wal_config)).await.unwrap();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -393,8 +400,9 @@ async fn test_wal_without_enabling() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
-        metric: DistanceMetric::Cosine,
+        metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
         quantization: vectorizer::models::QuantizationConfig::default(),
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
@@ -424,6 +432,7 @@ async fn test_wal_without_enabling() {
 
     // Verify vector was inserted before updating
     let initial_vec = store.get_vector("test_collection", "test_vec").unwrap();
+    // Euclidean metric doesn't normalize, so values should match
     assert_eq!(
         initial_vec.data[0], 1.0,
         "Initial vector should have data[0] = 1.0"

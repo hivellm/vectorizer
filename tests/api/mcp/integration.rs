@@ -22,7 +22,7 @@ async fn test_mcp_tool_handling() {
         arguments: Some(serde_json::Map::new()),
     };
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
+    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
 
     let call_result = result.unwrap();
@@ -48,7 +48,7 @@ async fn test_mcp_tool_handling() {
         arguments: Some(args),
     };
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
+    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
 
     // Test get collection info tool
@@ -63,7 +63,7 @@ async fn test_mcp_tool_handling() {
         arguments: Some(args),
     };
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
+    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
 }
 
@@ -79,7 +79,7 @@ async fn test_mcp_tool_error_handling() {
         arguments: Some(serde_json::Map::new()),
     };
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
+    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_err());
 
     // Test missing arguments
@@ -88,7 +88,7 @@ async fn test_mcp_tool_error_handling() {
         arguments: None,
     };
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone()).await;
+    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_err());
 }
 

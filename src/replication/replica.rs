@@ -252,6 +252,7 @@ impl ReplicaNode {
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
                     sharding: None,
+                    graph: None,
                 };
 
                 self.vector_store

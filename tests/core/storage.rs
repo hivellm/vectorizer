@@ -12,6 +12,7 @@ async fn test_mmap_collection_creation() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -37,6 +38,7 @@ async fn test_mmap_insert_and_retrieve() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -99,6 +101,7 @@ async fn test_mmap_large_dataset() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 256,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -148,6 +151,7 @@ async fn test_mmap_update_and_delete() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),
@@ -213,6 +217,7 @@ async fn test_mmap_search() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         quantization: vectorizer::models::QuantizationConfig::default(),

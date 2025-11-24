@@ -45,6 +45,7 @@ pub fn create_test_embedding_manager() -> anyhow::Result<EmbeddingManager> {
 #[allow(dead_code)]
 pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
     CollectionConfig {
+        graph: None,
         dimension,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig {

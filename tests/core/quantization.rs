@@ -8,6 +8,7 @@ async fn test_scalar_quantization_8bit() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::SQ { bits: 8 },
@@ -51,6 +52,7 @@ async fn test_product_quantization() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::PQ {
@@ -93,6 +95,7 @@ async fn test_binary_quantization() {
     let store = VectorStore::new();
 
     let config = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::Binary,
@@ -136,6 +139,7 @@ async fn test_quantization_search_quality() {
 
     // Test with SQ-8bit
     let config = CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::SQ { bits: 8 },
@@ -174,6 +178,7 @@ async fn test_quantization_memory_efficiency() {
 
     // Test with no quantization
     let config_no_quant = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::None,
@@ -190,6 +195,7 @@ async fn test_quantization_memory_efficiency() {
 
     // Test with SQ-8bit
     let config_sq8 = CollectionConfig {
+        graph: None,
         dimension: 384,
         metric: DistanceMetric::Cosine,
         quantization: QuantizationConfig::SQ { bits: 8 },

@@ -13,6 +13,8 @@ use tracing::{debug, error, info, warn};
 use super::collection::Collection;
 use super::hybrid_search::HybridSearchConfig;
 use super::sharded_collection::ShardedCollection;
+#[cfg(feature = "cluster")]
+use super::distributed_sharded_collection::DistributedShardedCollection;
 use super::wal_integration::WalIntegration;
 #[cfg(feature = "hive-gpu")]
 use crate::db::hive_gpu_collection::HiveGpuCollection;
@@ -28,8 +30,11 @@ pub enum CollectionType {
     /// Hive-GPU collection (Metal, CUDA, WebGPU)
     #[cfg(feature = "hive-gpu")]
     HiveGpu(HiveGpuCollection),
-    /// Sharded collection (distributed across multiple shards)
+    /// Sharded collection (distributed across multiple shards on single server)
     Sharded(ShardedCollection),
+    /// Distributed sharded collection (distributed across multiple servers)
+    #[cfg(feature = "cluster")]
+    DistributedSharded(DistributedShardedCollection),
 }
 
 impl std::fmt::Debug for CollectionType {
@@ -39,6 +44,8 @@ impl std::fmt::Debug for CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => write!(f, "CollectionType::HiveGpu({})", c.name()),
             CollectionType::Sharded(c) => write!(f, "CollectionType::Sharded({})", c.name()),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => write!(f, "CollectionType::DistributedSharded({})", c.name()),
         }
     }
 }
@@ -51,6 +58,8 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.name(),
             CollectionType::Sharded(c) => c.name(),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => c.name(),
         }
     }
 
@@ -61,6 +70,8 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.config(),
             CollectionType::Sharded(c) => c.config(),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => c.config(),
         }
     }
 
@@ -71,6 +82,14 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.add_vector(vector).map(|_| ()),
             CollectionType::Sharded(c) => c.insert(vector),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => {
+                // Distributed collections require async operations
+                // Use tokio runtime to execute async insert
+                let rt = tokio::runtime::Runtime::new()
+                    .map_err(|e| VectorizerError::Storage(format!("Failed to create runtime: {}", e)))?;
+                rt.block_on(c.insert(vector))
+            }
         }
     }
 
@@ -81,6 +100,13 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.search(query, limit),
             CollectionType::Sharded(c) => c.search(query, limit, None),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => {
+                // Distributed collections require async operations
+                let rt = tokio::runtime::Runtime::new()
+                    .map_err(|e| VectorizerError::Storage(format!("Failed to create runtime: {}", e)))?;
+                rt.block_on(c.search(query, limit, None, None))
+            }
         }
     }
 
@@ -104,6 +130,14 @@ impl CollectionType {
                 // TODO: Implement proper hybrid search for sharded collections
                 c.search(query_dense, config.final_k, None)
             }
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => {
+                // For distributed sharded collections, use distributed search
+                // TODO: Implement proper hybrid search for distributed collections
+                let rt = tokio::runtime::Runtime::new()
+                    .map_err(|e| VectorizerError::Storage(format!("Failed to create runtime: {}", e)))?;
+                rt.block_on(c.search(query_dense, config.final_k, None, None))
+            }
         }
     }
 
@@ -125,6 +159,23 @@ impl CollectionType {
                     config: c.config().clone(),
                 };
                 meta
+            }
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => {
+                // Create metadata for distributed sharded collection
+                let rt = tokio::runtime::Runtime::new().unwrap_or_else(|_| {
+                    tokio::runtime::Runtime::new().expect("Failed to create runtime")
+                });
+                let vector_count = rt.block_on(c.vector_count()).unwrap_or(0);
+                CollectionMetadata {
+                    name: c.name().to_string(),
+                    tenant_id: None,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                    vector_count,
+                    document_count: 0, // TODO: track documents in distributed collections
+                    config: c.config().clone(),
+                }
             }
         }
     }
@@ -843,11 +894,19 @@ impl VectorStore {
                     let vector_store_path = format!("{}_vector_store.bin", canonical_ref);
                     match reader.read_file(&vector_store_path) {
                         Ok(data) => {
-                            // Deserialize PersistedCollection from JSON (compressed in ZIP)
-                            match serde_json::from_slice::<crate::persistence::PersistedCollection>(
+                            // Try to deserialize as PersistedVectorStore first (correct format)
+                            // Files are saved as PersistedVectorStore with one collection
+                            match serde_json::from_slice::<crate::persistence::PersistedVectorStore>(
                                 &data,
                             ) {
-                                Ok(persisted) => {
+                                Ok(persisted_store) => {
+                                    // Extract the first collection from the store
+                                    if let Some(mut persisted) = persisted_store.collections.into_iter().next() {
+                                        // BACKWARD COMPATIBILITY: If name is empty, infer from filename
+                                        if persisted.name.is_empty() {
+                                            persisted.name = canonical_ref.to_string();
+                                        }
+                                        
                                     // Load collection into memory
                                     if let Err(e) = self.load_persisted_collection_from_data(
                                         canonical_ref,
@@ -871,12 +930,57 @@ impl VectorStore {
                                     return self.collections.get(canonical_ref).ok_or_else(|| {
                                         VectorizerError::CollectionNotFound(name.to_string())
                                     });
+                                    } else {
+                                        warn!(
+                                            "No collection found in vector store file '{}'",
+                                            vector_store_path
+                                        );
+                                    }
                                 }
-                                Err(e) => {
+                                Err(_) => {
+                                    // Fallback: try deserializing as PersistedCollection directly (legacy format)
+                                    match serde_json::from_slice::<crate::persistence::PersistedCollection>(
+                                        &data,
+                                    ) {
+                                        Ok(mut persisted) => {
+                                            // BACKWARD COMPATIBILITY: If name is empty, infer from filename
+                                            if persisted.name.is_empty() {
+                                                persisted.name = canonical_ref.to_string();
+                                            }
+                                            
+                                            // Load collection into memory
+                                            if let Err(e) = self.load_persisted_collection_from_data(
+                                                canonical_ref,
+                                                persisted,
+                                            ) {
                                     warn!(
-                                        "Failed to deserialize collection '{}' from .vecdb: {}",
+                                                    "Failed to load collection '{}' from .vecdb: {}",
                                         canonical_ref, e
                                     );
+                                                return Err(VectorizerError::CollectionNotFound(
+                                                    name.to_string(),
+                                                ));
+                                            }
+
+                                            info!(
+                                                "✅ Lazy loaded collection '{}' from .vecdb (legacy format)",
+                                                canonical_ref
+                                            );
+
+                                            // Try again now that it's loaded
+                                            return self.collections.get(canonical_ref).ok_or_else(|| {
+                                                VectorizerError::CollectionNotFound(name.to_string())
+                                            });
+                                        }
+                                        Err(_) => {
+                                            // Both formats failed - collection might not exist or be corrupted
+                                            // This is expected during lazy loading attempts, so use debug level
+                                            debug!(
+                                                "Failed to deserialize collection '{}' from .vecdb (both formats failed)",
+                                                canonical_ref
+                                            );
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -905,7 +1009,7 @@ impl VectorStore {
 
             // Load collection from disk
             if let Err(e) = self.load_persisted_collection(&collection_file, name) {
-                warn!("Failed to lazy load collection '{}': {}", name, e);
+                debug!("Failed to lazy load collection '{}' from legacy file: {}", name, e);
                 return Err(VectorizerError::CollectionNotFound(name.to_string()));
             }
 
@@ -983,6 +1087,13 @@ impl VectorStore {
             }
         }
 
+        // Enable graph for this collection automatically after loading vectors
+        if let Err(e) = self.enable_graph_for_collection(name) {
+            warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", name, e);
+        } else {
+            debug!("✅ Graph enabled for collection '{}'", name);
+        }
+
         Ok(())
     }
 
@@ -1010,6 +1121,61 @@ impl VectorStore {
         self.collections
             .get_mut(canonical_ref)
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))
+    }
+
+    /// Enable graph for an existing collection and populate with existing vectors
+    pub fn enable_graph_for_collection(&self, collection_name: &str) -> Result<()> {
+        let canonical = self.resolve_alias_target(collection_name)?;
+        let canonical_ref = canonical.as_str();
+
+        // Ensure collection is loaded first
+        let _ = self.get_collection(canonical_ref)?;
+
+        // Get mutable reference to collection
+        let mut collection_ref = self.get_collection_mut(canonical_ref)?;
+        
+        match &mut *collection_ref {
+            CollectionType::Cpu(collection) => {
+                collection.enable_graph()
+            }
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => {
+                Err(VectorizerError::Storage(
+                    "Graph not yet supported for GPU collections".to_string()
+                ))
+            }
+            CollectionType::Sharded(_) => {
+                Err(VectorizerError::Storage(
+                    "Graph not yet supported for sharded collections".to_string()
+                ))
+            }
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(_) => {
+                Err(VectorizerError::Storage(
+                    "Graph not yet supported for distributed collections".to_string()
+                ))
+            }
+        }
+    }
+
+    /// Enable graph for all workspace collections
+    pub fn enable_graph_for_all_workspace_collections(&self) -> Result<Vec<String>> {
+        let collections = self.list_collections();
+        let mut enabled = Vec::new();
+
+        for collection_name in collections {
+            match self.enable_graph_for_collection(&collection_name) {
+                Ok(_) => {
+                    info!("✅ Graph enabled for collection '{}'", collection_name);
+                    enabled.push(collection_name);
+                }
+                Err(e) => {
+                    warn!("⚠️ Failed to enable graph for collection '{}': {}", collection_name, e);
+                }
+            }
+        }
+
+        Ok(enabled)
     }
 
     pub fn list_collections(&self) -> Vec<String> {
@@ -1847,6 +2013,13 @@ impl VectorStore {
                         persisted_collection.vectors.clone(),
                     ) {
                         Ok(_) => {
+                            // Enable graph for this collection automatically
+                            if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                                warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection_name, e);
+                            } else {
+                                info!("✅ Graph enabled for collection '{}'", collection_name);
+                            }
+                            
                             collections_loaded += 1;
                             info!(
                                 "✅ Successfully loaded collection '{}' with {} vectors ({}/{})",
@@ -1991,6 +2164,13 @@ impl VectorStore {
 
             match self.load_persisted_collection(path, collection_name) {
                 Ok(_) => {
+                    // Enable graph for this collection automatically
+                    if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                        warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection_name, e);
+                    } else {
+                        info!("✅ Graph enabled for collection '{}'", collection_name);
+                    }
+                    
                     collections_loaded += 1;
                     info!(
                         "✅ Successfully loaded collection '{}' from persistence ({}/{})",
@@ -2090,6 +2270,13 @@ impl VectorStore {
 
                             match self.load_persisted_collection(&path, collection_name) {
                                 Ok(_) => {
+                                    // Enable graph for this collection automatically
+                                    if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                                        warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection_name, e);
+                                    } else {
+                                        info!("✅ Graph enabled for collection '{}'", collection_name);
+                                    }
+                                    
                                     dynamic_collections_loaded += 1;
                                     info!(
                                         "✅ Loaded dynamic collection '{}' from persistence",
@@ -2206,6 +2393,13 @@ impl VectorStore {
                 collection_name
             );
             self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
+        }
+
+        // Enable graph for this collection automatically after loading vectors
+        if let Err(e) = self.enable_graph_for_collection(collection_name) {
+            warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection_name, e);
+        } else {
+            debug!("✅ Graph enabled for collection '{}'", collection_name);
         }
 
         // Note: Auto-migration removed to prevent memory duplication
@@ -2602,19 +2796,20 @@ impl VectorStore {
             .auto_save_enabled
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            info!("📝 Marking collection '{}' for auto-save", collection_name);
+            debug!("📝 Marking collection '{}' for auto-save", collection_name);
             self.pending_saves
                 .lock()
                 .unwrap()
                 .insert(collection_name.to_string());
-            info!(
+            debug!(
                 "📝 Collection '{}' added to pending saves (total: {})",
                 collection_name,
                 self.pending_saves.lock().unwrap().len()
             );
         } else {
-            warn!(
-                "⚠️ Auto-save is disabled, collection '{}' will not be saved",
+            // Auto-save is disabled during initialization - this is expected and not an error
+            debug!(
+                "Auto-save is disabled, collection '{}' will not be saved (normal during initialization)",
                 collection_name
             );
         }
@@ -2853,6 +3048,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         // Get initial collection count
@@ -2890,6 +3086,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         // Create collection
@@ -2916,6 +3113,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         // Get initial collection count
@@ -2953,6 +3151,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         // Get initial stats
@@ -2996,6 +3195,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         // Create collection from main thread
@@ -3049,6 +3249,7 @@ mod tests {
             },
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            graph: None,
         };
 
         store

@@ -37,6 +37,14 @@ Managing collections:
 - Deleting collections
 - Statistics and health checks
 
+### [Sharding Configuration](./SHARDING.md)
+Distributed sharding for scalability:
+- When to use sharding
+- Configuration parameters
+- Shard management
+- Monitoring and rebalancing
+- Best practices and troubleshooting
+
 ### [Complete Collections Guide](./COLLECTIONS.md)
 Comprehensive guide covering all aspects:
 - What are collections

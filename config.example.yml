@@ -92,6 +92,81 @@ monitoring:
     system_enabled: true # Track memory usage, cache hits, API errors
 
 # =============================================================================
+# CLUSTER CONFIGURATION (Distributed Sharding)
+# =============================================================================
+# Cluster mode enables distributed sharding across multiple Vectorizer servers
+# for horizontal scalability and high availability.
+#
+# When enabled, collections with sharding enabled will automatically distribute
+# shards across cluster nodes using consistent hashing.
+#
+# Example: 3-node cluster setup
+# -----------------------------
+# Node 1 (this server):
+#   cluster:
+#     enabled: true
+#     node_id: "node-1"
+#     servers:
+#       - id: "node-1"
+#         address: "192.168.1.10"
+#         grpc_port: 15003
+#       - id: "node-2"
+#         address: "192.168.1.11"
+#         grpc_port: 15003
+#       - id: "node-3"
+#         address: "192.168.1.12"
+#         grpc_port: 15003
+#
+# Node 2 and Node 3 should have the same servers list but different node_id.
+#
+# For more information, see:
+# - docs/users/configuration/CLUSTER.md
+# - docs/users/collections/SHARDING.md
+# - docs/deployment/CLUSTER.md
+
+cluster:
+  # Enable cluster mode for distributed sharding across multiple servers
+  # When false, sharding works only within a single server
+  enabled: false
+  
+  # This server's unique node ID
+  # Auto-generated UUID if not specified (recommended: use descriptive names)
+  # Examples: "node-1", "node-dc1-1", "vectorizer-primary"
+  node_id: null  # e.g., "node-1"
+  
+  # Discovery method for finding cluster nodes
+  # Options:
+  #   - "static": Manually configure all nodes in servers list (recommended)
+  #   - "dns": DNS-based discovery (future feature)
+  #   - "service_registry": Service registry discovery (future feature)
+  discovery: "static"
+  
+  # gRPC request timeout in milliseconds
+  # Operations to remote nodes will fail after this timeout
+  # Increase for slow networks or high-latency connections
+  timeout_ms: 5000
+  
+  # Number of retries for failed operations
+  # Failed operations (insert, update, delete, search) will be retried this many times
+  # before returning an error
+  retry_count: 3
+  
+  # Static server list (required when discovery: "static")
+  # All nodes in the cluster must be listed here
+  # Each node should have the same list (with different node_id)
+  servers:
+    # Example configuration for a 3-node cluster:
+    # - id: "node-1"
+    #   address: "192.168.1.10"      # Node 1 IP address
+    #   grpc_port: 15003             # gRPC port for inter-server communication
+    # - id: "node-2"
+    #   address: "192.168.1.11"      # Node 2 IP address
+    #   grpc_port: 15003             # gRPC port (can be same or different per node)
+    # - id: "node-3"
+    #   address: "192.168.1.12"      # Node 3 IP address
+    #   grpc_port: 15003             # gRPC port
+
+# =============================================================================
 # DEFAULT COLLECTION CONFIGURATION
 # =============================================================================
 collections:

@@ -1,0 +1,9 @@
+{
+  "name": "graph-enabled-collection",
+  "dimension": 512,
+  "metric": "cosine",
+  "graph": {
+    "enabled": true
+  }
+}
+

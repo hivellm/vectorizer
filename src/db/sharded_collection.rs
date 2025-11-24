@@ -324,6 +324,7 @@ mod tests {
 
     fn create_test_config() -> CollectionConfig {
         CollectionConfig {
+            graph: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,
             hnsw_config: HnswConfig::default(),

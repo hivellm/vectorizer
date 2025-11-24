@@ -19,6 +19,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **📦 Product Quantization**: PQ compression for 64x memory reduction with minimal accuracy loss
 - **💾 Compact Storage**: Unified `.vecdb` format with 20-30% space savings and automatic snapshots
 - **🔄 Master-Replica Replication**: High availability with automatic failover (BETA)
+- **🔗 Distributed Sharding**: Horizontal scaling across multiple servers with automatic shard routing (BETA)
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
 - **🔄 Qdrant Migration**: Complete migration tools for seamless transition from Qdrant
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration

@@ -1,6 +1,7 @@
 mod discovery_handlers;
 mod error_middleware;
 pub mod file_operations_handlers;
+mod graph_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
 mod qdrant_alias_handlers;
@@ -63,6 +64,10 @@ pub struct VectorizerServer {
     file_watcher_cancel: Arc<tokio::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
     grpc_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
     auto_save_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// Cluster manager (optional, only if cluster is enabled)
+    pub cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+    /// Cluster client pool (optional, only if cluster is enabled)
+    pub cluster_client_pool: Option<Arc<crate::cluster::ClusterClientPool>>,
 }
 
 impl VectorizerServer {
@@ -643,6 +648,40 @@ impl VectorizerServer {
             max_size, ttl_seconds
         );
 
+        // Initialize cluster manager if cluster is enabled
+        let (cluster_manager, cluster_client_pool) = {
+            // Try to load cluster config from config.yml or use default
+            let cluster_config = std::fs::read_to_string("config.yml")
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                        .ok()
+                        .map(|config| config.cluster)
+                })
+                .unwrap_or_default();
+
+            if cluster_config.enabled {
+                info!("🔗 Initializing cluster manager...");
+                match crate::cluster::ClusterManager::new(cluster_config.clone()) {
+                    Ok(manager) => {
+                        let manager_arc = Arc::new(manager);
+                        let timeout = std::time::Duration::from_millis(cluster_config.timeout_ms);
+                        let client_pool = Arc::new(crate::cluster::ClusterClientPool::new(timeout));
+                        
+                        info!("✅ Cluster manager initialized");
+                        (Some(manager_arc), Some(client_pool))
+                    }
+                    Err(e) => {
+                        warn!("⚠️  Failed to initialize cluster manager: {}", e);
+                        (None, None)
+                    }
+                }
+            } else {
+                info!("ℹ️  Cluster mode disabled");
+                (None, None)
+            }
+        };
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -662,6 +701,8 @@ impl VectorizerServer {
             file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(Some(file_watcher_cancel_tx))),
             grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
             auto_save_task: Arc::new(tokio::sync::Mutex::new(Some(auto_save_handle))),
+            cluster_manager,
+            cluster_client_pool,
         })
     }
 
@@ -673,8 +714,9 @@ impl VectorizerServer {
         let grpc_port = port + 1; // gRPC on next port
         let grpc_host = host.to_string();
         let grpc_store = self.store.clone();
+        let grpc_cluster_manager = self.cluster_manager.clone();
         let grpc_handle = tokio::spawn(async move {
-            if let Err(e) = Self::start_grpc_server(&grpc_host, grpc_port, grpc_store).await {
+            if let Err(e) = Self::start_grpc_server(&grpc_host, grpc_port, grpc_store, grpc_cluster_manager).await {
                 error!("❌ gRPC server failed: {}", e);
             }
         });
@@ -847,6 +889,8 @@ impl VectorizerServer {
                 "/discovery/semantic_focus",
                 post(rest_handlers::semantic_focus),
             )
+            // Cluster management routes (if cluster is enabled)
+            // Note: These will be conditionally added when cluster is enabled
             .route(
                 "/discovery/promote_readme",
                 post(rest_handlers::promote_readme),
@@ -954,9 +998,8 @@ impl VectorizerServer {
                 "/qdrant/collections/{name}/points/recommend/batch",
                 post(qdrant_search_handlers::batch_recommend_points),
             )
-            // Dashboard - serve static files
-            .nest_service("/dashboard", ServeDir::new("dashboard"))
-            .fallback_service(ServeDir::new("dashboard"))
+            // Dashboard - serve static files from dist directory (production build)
+            .nest_service("/dashboard", ServeDir::new("dashboard/dist"))
             .layer(CorsLayer::permissive())
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
@@ -986,6 +1029,30 @@ impl VectorizerServer {
             ))
             .with_state(self.clone());
 
+        // Add cluster routes if cluster is enabled
+        let rest_routes = if let (Some(cluster_mgr), Some(_client_pool)) = (
+            self.cluster_manager.as_ref(),
+            self.cluster_client_pool.as_ref(),
+        ) {
+            let cluster_state = crate::api::cluster::ClusterApiState {
+                cluster_manager: cluster_mgr.clone(),
+                store: self.store.clone(),
+            };
+            let cluster_router = crate::api::cluster::create_cluster_router()
+                .with_state(cluster_state);
+            rest_routes.merge(cluster_router)
+        } else {
+            rest_routes
+        };
+
+        // Add graph routes
+        let graph_state = crate::api::graph::GraphApiState {
+            store: self.store.clone(),
+        };
+        let graph_router = crate::api::graph::create_graph_router()
+            .with_state(graph_state);
+        let rest_routes = rest_routes.merge(graph_router);
+
         // Create UMICP state
         let umicp_state = crate::umicp::UmicpState {
             store: self.store.clone(),
@@ -1002,12 +1069,34 @@ impl VectorizerServer {
             )
             .with_state(umicp_state);
 
+        // Create fallback handler for SPA routing (serve index.html for non-API routes)
+        async fn dashboard_fallback() -> impl axum::response::IntoResponse {
+            use axum::response::Response;
+            use axum::http::{StatusCode, header};
+            use std::path::PathBuf;
+            
+            let index_path = PathBuf::from("dashboard/dist/index.html");
+            match tokio::fs::read_to_string(&index_path).await {
+                Ok(content) => Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, "text/html")
+                    .body(axum::body::Body::from(content))
+                    .unwrap(),
+                Err(_) => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from("Dashboard not found. Please build the dashboard first."))
+                    .unwrap(),
+            }
+        }
+
         // Merge all routes - UMICP first so it doesn't get masked
+        // Dashboard fallback should only catch non-API routes
         let app = Router::new()
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
-            .merge(metrics_router);
+            .merge(metrics_router)
+            .fallback(dashboard_fallback);
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
@@ -1018,7 +1107,7 @@ impl VectorizerServer {
             host, port
         );
         info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
-        info!("   📊 Dashboard: http://{}:{}/", host, port);
+        info!("   📊 Dashboard: http://{}:{}/dashboard/", host, port);
 
         // Bind and start the server
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
@@ -1027,16 +1116,8 @@ impl VectorizerServer {
             host, port
         );
 
-        // Set up graceful shutdown
-        let shutdown_signal = async {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("Failed to install Ctrl+C handler");
-            info!("🛑 Received shutdown signal (Ctrl+C)");
-        };
-
         // Create shutdown signal for axum graceful shutdown
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
         // Spawn task to listen for Ctrl+C and trigger shutdown
         tokio::spawn(async move {
@@ -1076,7 +1157,7 @@ impl VectorizerServer {
                 }
                 Err(_) => {
                     warn!(
-                        "⚠️  Background task did not complete within timeout - some collections may be incomplete"
+                        "⚠️  Background task did not complete within timeout - task already cancelled"
                     );
                 }
             }
@@ -1106,8 +1187,7 @@ impl VectorizerServer {
             match tokio::time::timeout(timeout, handle).await {
                 Ok(_) => info!("✅ File watcher task stopped"),
                 Err(_) => {
-                    warn!("⚠️  File watcher task did not stop within timeout, aborting...");
-                    // Force abort if it didn't respond
+                    warn!("⚠️  File watcher task did not stop within timeout - task already cancelled");
                 }
             }
         }
@@ -1171,6 +1251,7 @@ impl VectorizerServer {
         // Create MCP service handler
         let store = self.store.clone();
         let embedding_manager = self.embedding_manager.clone();
+        let cluster_manager = self.cluster_manager.clone();
 
         // Create StreamableHTTP service
         let streamable_service = StreamableHttpService::new(
@@ -1178,6 +1259,7 @@ impl VectorizerServer {
                 Ok(VectorizerMcpService {
                     store: store.clone(),
                     embedding_manager: embedding_manager.clone(),
+                    cluster_manager: cluster_manager.clone(),
                 })
             },
             LocalSessionManager::default().into(),
@@ -1208,6 +1290,7 @@ impl VectorizerServer {
         host: &str,
         port: u16,
         store: Arc<VectorStore>,
+        cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
     ) -> anyhow::Result<()> {
         use tonic::transport::Server;
 
@@ -1215,14 +1298,26 @@ impl VectorizerServer {
         use crate::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
 
         let addr = format!("{}:{}", host, port).parse()?;
-        let service = VectorizerGrpcService::new(store);
+        let service = VectorizerGrpcService::new(store.clone());
 
         info!("🚀 Starting gRPC server on {}", addr);
 
-        Server::builder()
-            .add_service(VectorizerServiceServer::new(service))
-            .serve(addr)
-            .await?;
+        let mut server_builder = Server::builder()
+            .add_service(VectorizerServiceServer::new(service));
+
+        // Add ClusterService if cluster is enabled
+        if let Some(cluster_mgr) = cluster_manager {
+            use crate::cluster::ClusterGrpcService;
+            use crate::grpc::cluster::cluster_service_server::ClusterServiceServer;
+            
+            info!("🔗 Adding Cluster gRPC service");
+            let cluster_service = ClusterGrpcService::new(store.clone(), cluster_mgr);
+            server_builder = server_builder.add_service(
+                ClusterServiceServer::new(cluster_service)
+            );
+        }
+
+        server_builder.serve(addr).await?;
 
         Ok(())
     }
@@ -1301,6 +1396,7 @@ pub async fn get_file_watcher_metrics(
 struct VectorizerMcpService {
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
+    cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
 }
 
 impl rmcp::ServerHandler for VectorizerMcpService {
@@ -1356,6 +1452,7 @@ impl rmcp::ServerHandler for VectorizerMcpService {
                 request,
                 self.store.clone(),
                 self.embedding_manager.clone(),
+                self.cluster_manager.clone(),
             )
             .await
         }
@@ -1508,11 +1605,28 @@ pub async fn load_workspace_collections(
                             let vector_store_path = format!("{}_vector_store.bin", collection.name);
                             match reader.read_file(&vector_store_path) {
                                 Ok(data) => {
-                                    match serde_json::from_slice::<
+                                    // Try to deserialize as PersistedVectorStore first (correct format)
+                                    let persisted = match serde_json::from_slice::<
+                                        crate::persistence::PersistedVectorStore,
+                                    >(&data) {
+                                        Ok(persisted_store) => {
+                                            // Extract the first collection from the store
+                                            persisted_store.collections.into_iter().next()
+                                        }
+                                        Err(_) => {
+                                            // Fallback: try deserializing as PersistedCollection directly (legacy format)
+                                            serde_json::from_slice::<
                                         crate::persistence::PersistedCollection,
-                                    >(&data)
-                                    {
-                                        Ok(persisted) => {
+                                            >(&data).ok()
+                                        }
+                                    };
+                                    
+                                    if let Some(mut persisted) = persisted {
+                                        // BACKWARD COMPATIBILITY: If name is empty, infer from filename
+                                        if persisted.name.is_empty() {
+                                            persisted.name = collection.name.clone();
+                                        }
+                                        
                                             // Use EXACT config from .vecdb (not workspace config!)
                                             let config = persisted.config.clone().unwrap_or_else(|| {
                                                 warn!("⚠️  Collection '{}' has no config in .vecdb, using default", collection.name);
@@ -1574,6 +1688,13 @@ pub async fn load_workspace_collections(
                                                             collection.name, e
                                                         );
                                                     } else {
+                                                        // Enable graph for this collection automatically
+                                                        if let Err(e) = store.enable_graph_for_collection(&collection.name) {
+                                                            warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection.name, e);
+                                                        } else {
+                                                            info!("✅ Graph enabled for collection '{}'", collection.name);
+                                                        }
+                                                        
                                                         info!(
                                                             "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
                                                             collection.name, vector_count
@@ -1602,6 +1723,13 @@ pub async fn load_workspace_collections(
                                                         collection.name, e
                                                     );
                                                 } else {
+                                                    // Enable graph for this collection automatically
+                                                    if let Err(e) = store.enable_graph_for_collection(&collection.name) {
+                                                        warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection.name, e);
+                                                    } else {
+                                                        info!("✅ Graph enabled for collection '{}'", collection.name);
+                                                    }
+                                                    
                                                     info!(
                                                         "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
                                                         collection.name, vector_count
@@ -1614,13 +1742,11 @@ pub async fn load_workspace_collections(
                                                     collection.name
                                                 );
                                             }
-                                        }
-                                        Err(e) => {
-                                            warn!(
-                                                "Failed to deserialize collection '{}' from .vecdb: {}",
-                                                collection.name, e
+                                    } else {
+                                        debug!(
+                                            "Failed to deserialize collection '{}' from .vecdb: no collection found",
+                                            collection.name
                                             );
-                                        }
                                     }
                                 }
                                 Err(e) => {

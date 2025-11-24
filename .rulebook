@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
-  "installedAt": "2025-11-01T02:07:36.655Z",
-  "updatedAt": "2025-11-15T10:31:54.627Z",
+  "version": "1.0.1",
+  "installedAt": "2025-11-15T10:31:56.042Z",
+  "updatedAt": "2025-11-23T21:41:12.420Z",
   "projectId": "vectorizer",
   "mode": "full",
   "features": {
@@ -29,14 +29,5 @@
     "taskExecution": 3600000,
     "cliResponse": 180000,
     "testRun": 600000
-  },
-  "languages": [
-    "rust"
-  ],
-  "frameworks": [],
-  "modules": [
-    "context7"
-  ],
-  "modular": true,
-  "rulebookDir": "rulebook"
+  }
 }

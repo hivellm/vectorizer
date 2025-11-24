@@ -137,6 +137,7 @@ pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64,
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
+            graph: None,
         };
 
         // Create or recreate collection
@@ -239,6 +240,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
+            graph: None,
         };
         store.create_collection("test", config).unwrap();
 
@@ -280,6 +282,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
+            graph: None,
         };
         store1.create_collection("payload_test", config).unwrap();
 
@@ -342,6 +345,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
+            graph: None,
         };
         store1
             .create_collection("euclidean", config_euclidean)
@@ -357,6 +361,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
+            graph: None,
         };
         store1.create_collection("dotproduct", config_dot).unwrap();
 
@@ -422,6 +427,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
+            graph: None,
         };
         store.create_collection("meta_test", config).unwrap();
 

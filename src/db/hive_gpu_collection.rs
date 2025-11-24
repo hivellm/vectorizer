@@ -709,6 +709,7 @@ mod tests {
     fn test_dimension_validation() {
         // Test dimension validation logic
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 128,
             metric: DistanceMetric::Cosine,

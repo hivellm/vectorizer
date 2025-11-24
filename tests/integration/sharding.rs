@@ -9,6 +9,7 @@ use vectorizer::models::{
 
 fn create_sharded_config(shard_count: u32) -> CollectionConfig {
     CollectionConfig {
+        graph: None,
         dimension: 128,
         metric: DistanceMetric::Cosine,
         hnsw_config: HnswConfig::default(),

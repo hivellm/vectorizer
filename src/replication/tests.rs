@@ -76,6 +76,7 @@ mod tests {
 
         // Create collection
         let config = CollectionConfig {
+            graph: None,
             sharding: None,
             dimension: 3,
             metric: DistanceMetric::Cosine,

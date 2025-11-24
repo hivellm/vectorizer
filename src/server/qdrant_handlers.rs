@@ -509,5 +509,6 @@ fn convert_from_qdrant_config(
         normalization: None, // Qdrant doesn't have normalization concept
         storage_type: Some(crate::models::StorageType::Memory),
         sharding: None,
+        graph: None,
     })
 }
