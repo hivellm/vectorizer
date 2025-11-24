@@ -140,6 +140,10 @@
           <i class="fas fa-save w-4 text-center"></i>
           <span>Backups</span>
         </router-link>
+        <router-link to="/graph" class="flex items-center gap-3 py-2 text-text-secondary hover:text-text-primary transition-colors cursor-pointer text-sm">
+          <i class="fas fa-project-diagram w-4 text-center"></i>
+          <span>Graph</span>
+        </router-link>
       </nav>
     </aside>
 
@@ -282,7 +286,8 @@ const pageTitle = computed(() => {
     '/config': 'Configuration',
     '/logs': 'Logs',
     '/backups': 'Backups & Snapshots',
-    '/connections': 'Connection Manager'
+    '/connections': 'Connection Manager',
+    '/graph': 'Graph Relationships'
   };
   return titles[route.path] || 'Vectorizer GUI';
 });
@@ -294,7 +299,8 @@ const pageIcon = computed(() => {
     '/config': 'fas fa-cog',
     '/logs': 'fas fa-file-alt',
     '/backups': 'fas fa-save',
-    '/connections': 'fas fa-network-wired'
+    '/connections': 'fas fa-network-wired',
+    '/graph': 'fas fa-project-diagram'
   };
   return icons[route.path] || 'fas fa-cube';
 });

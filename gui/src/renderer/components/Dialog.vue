@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black/50 flex items-center justify-center z-modal" @click.self="handleBackdropClick">
+  <div v-if="modelValue" class="fixed inset-0 bg-black/50 flex items-center justify-center z-modal" @click.self="handleBackdropClick">
     <div class="bg-bg-secondary border border-border rounded-xl w-full max-w-md mx-4 shadow-xl">
       <div class="flex items-center justify-between p-6 border-b border-border">
         <h2 class="text-lg font-semibold text-text-primary">{{ title }}</h2>
@@ -9,7 +9,7 @@
       </div>
       
       <div class="p-6">
-        <p class="text-sm text-text-primary">{{ message }}</p>
+        <p class="text-sm text-text-primary whitespace-pre-wrap">{{ message }}</p>
       </div>
       
       <div class="flex items-center justify-end gap-2 p-6 border-t border-border">
@@ -25,9 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-
 interface Props {
+  modelValue: boolean;
   title?: string;
   message?: string;
   type?: 'alert' | 'confirm';
@@ -46,19 +45,14 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  (e: 'confirm'): void;
-  (e: 'cancel'): void;
-  (e: 'close'): void;
+  'update:modelValue': [value: boolean];
+  confirm: [];
+  cancel: [];
+  close: [];
 }>();
 
-const isOpen = ref(false);
-
-function open(): void {
-  isOpen.value = true;
-}
-
 function close(): void {
-  isOpen.value = false;
+  emit('update:modelValue', false);
   emit('close');
 }
 
@@ -77,10 +71,5 @@ function handleBackdropClick(): void {
     close();
   }
 }
-
-defineExpose({
-  open,
-  close
-});
 </script>
 

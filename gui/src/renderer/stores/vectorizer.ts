@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { vectorizerClient } from '@hivellm/vectorizer-sdk';
+import { VectorizerClient } from '@hivellm/vectorizer-sdk';
 import type { Collection, SearchResult, IndexingProgress, IndexingStatus } from '@shared/types';
 import { useConnectionsStore } from './connections';
 
@@ -127,7 +127,7 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       await client.value.createCollection({
         name: data.name,
         dimension: data.dimension,
-        metric: data.metric as 'cosine' | 'euclidean' | 'dot'
+        similarity_metric: data.metric as 'cosine' | 'euclidean' | 'dot_product'
       });
 
       await loadCollections();
@@ -171,25 +171,12 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      // Use direct API call instead of client method
-      const response = await fetch(`${client.value.config.baseURL}/collections/${collectionName}/search/text`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(client.value.config.apiKey ? { 'Authorization': `Bearer ${client.value.config.apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          query,
-          limit
-        })
+      // Use SDK method
+      const response = await client.value.searchText(collectionName, {
+        query,
+        limit
       });
-
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.results || [];
+      return response.results || [];
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Search failed';
       throw err;
@@ -211,25 +198,12 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      // Use direct API call instead of client method
-      const response = await fetch(`${client.value.config.baseURL}/collections/${collectionName}/insert/text`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(client.value.config.apiKey ? { 'Authorization': `Bearer ${client.value.config.apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          text,
-          metadata
-        })
+      // Use SDK method
+      const response = await client.value.insertText(collectionName, {
+        text,
+        metadata
       });
-
-      if (!response.ok) {
-        throw new Error(`Insert failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.id || data.vector_id || 'unknown';
+      return response.id || response.vector_id || 'unknown';
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to insert text';
       throw err;
@@ -250,7 +224,9 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      await client.value.batchInsertTexts(collectionName, texts);
+      await client.value.batchInsertTexts(collectionName, {
+        texts
+      });
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to batch insert texts';
       throw err;
@@ -273,11 +249,12 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       error.value = null;
 
       // Use direct API call to list vectors
-      const response = await fetch(`${client.value.config.baseURL}/collections/${collectionName}/vectors?limit=${limit}&offset=${offset}`, {
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/collections/${collectionName}/vectors?limit=${limit}&offset=${offset}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...(client.value.config.apiKey ? { 'Authorization': `Bearer ${client.value.config.apiKey}` } : {})
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
         }
       });
 
@@ -289,6 +266,344 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       return data.vectors || [];
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to list vectors';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  // Graph operations
+  async function listGraphNodes(collectionName: string): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/nodes/${encodeURIComponent(collectionName)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to list graph nodes: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to list graph nodes';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function listGraphEdges(collectionName: string): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/collections/${encodeURIComponent(collectionName)}/edges`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to list graph edges: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to list graph edges';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function getGraphNeighbors(collectionName: string, nodeId: string): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/nodes/${encodeURIComponent(collectionName)}/${encodeURIComponent(nodeId)}/neighbors`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get neighbors: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to get neighbors';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function findRelatedNodes(collectionName: string, nodeId: string, maxHops?: number, relationshipType?: string): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const body: any = {};
+      if (maxHops !== undefined) body.max_hops = maxHops;
+      if (relationshipType) body.relationship_type = relationshipType;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/nodes/${encodeURIComponent(collectionName)}/${encodeURIComponent(nodeId)}/related`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to find related nodes: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to find related nodes';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function findGraphPath(collectionName: string, source: string, target: string): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/path`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        },
+        body: JSON.stringify({
+          collection: collectionName,
+          source,
+          target
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to find path: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to find path';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function createGraphEdge(collectionName: string, source: string, target: string, relationshipType: string, weight?: number): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const body: any = {
+        collection: collectionName,
+        source,
+        target,
+        relationship_type: relationshipType
+      };
+      if (weight !== undefined) body.weight = weight;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/edges`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create edge: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create edge';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteGraphEdge(edgeId: string): Promise<void> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/edges/${encodeURIComponent(edgeId)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete edge: ${response.statusText}`);
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to delete edge';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function discoverGraphEdges(collectionName: string, similarityThreshold?: number, maxPerNode?: number): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const body: any = {};
+      if (similarityThreshold !== undefined) body.similarity_threshold = similarityThreshold;
+      if (maxPerNode !== undefined) body.max_per_node = maxPerNode;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/discover/${encodeURIComponent(collectionName)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to discover edges: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to discover edges';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function discoverGraphEdgesForNode(collectionName: string, nodeId: string, similarityThreshold?: number, maxPerNode?: number): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const body: any = {};
+      if (similarityThreshold !== undefined) body.similarity_threshold = similarityThreshold;
+      if (maxPerNode !== undefined) body.max_per_node = maxPerNode;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/discover/${encodeURIComponent(collectionName)}/${encodeURIComponent(nodeId)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to discover edges for node: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to discover edges for node';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function getGraphDiscoveryStatus(collectionName: string): Promise<any> {
+    if (!client.value) {
+      throw new Error('Client not initialized');
+    }
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const config = client.value.getConfig();
+      const response = await fetch(`${config.baseURL}/graph/discover/${encodeURIComponent(collectionName)}/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get discovery status: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to get discovery status';
       throw err;
     } finally {
       loading.value = false;
@@ -314,7 +629,18 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
     search,
     insertText,
     batchInsertTexts,
-    listVectors
+    listVectors,
+    // Graph operations
+    listGraphNodes,
+    listGraphEdges,
+    getGraphNeighbors,
+    findRelatedNodes,
+    findGraphPath,
+    createGraphEdge,
+    deleteGraphEdge,
+    discoverGraphEdges,
+    discoverGraphEdgesForNode,
+    getGraphDiscoveryStatus
   };
 });
 

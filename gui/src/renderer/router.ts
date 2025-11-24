@@ -6,6 +6,7 @@ import WorkspaceManager from './views/WorkspaceManager.vue';
 import ConfigEditor from './views/ConfigEditor.vue';
 import LogsViewer from './views/LogsViewer.vue';
 import BackupManager from './views/BackupManager.vue';
+import GraphView from './views/GraphView.vue';
 
 const routes = [
   {
@@ -43,6 +44,11 @@ const routes = [
     path: '/backups',
     name: 'Backups',
     component: BackupManager
+  },
+  {
+    path: '/graph',
+    name: 'Graph',
+    component: GraphView
   }
 ];
 
