@@ -15,12 +15,13 @@
     clippy::manual_map
 )]
 
+use std::time::{Duration, Instant};
+
 use rand::prelude::*;
 use rand::rng;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::time::{Duration, Instant};
 use tracing::{error, info};
 
 /// Benchmark results for a single system
@@ -764,6 +765,7 @@ async fn run_qdrant_benchmark(
 }
 
 /// Generate comparison report
+#[allow(dead_code)]
 fn generate_report(vectorizer_results: &SystemResults, qdrant_results: &SystemResults) -> String {
     let mut report = String::new();
 
@@ -1235,7 +1237,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         all_results.push((
-            description.to_string(),
+            (*description).to_string(),
             *dimension,
             *vector_count,
             *query_count,

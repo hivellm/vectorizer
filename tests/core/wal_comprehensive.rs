@@ -406,7 +406,7 @@ async fn test_wal_without_enabling() {
         graph: None,
         dimension: 384,
         metric: DistanceMetric::Euclidean, // Use Euclidean to avoid automatic normalization
-        quantization: vectorizer::models::QuantizationConfig::default(),
+        quantization: vectorizer::models::QuantizationConfig::None, // Disable quantization to preserve exact values
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
         normalization: None,
@@ -435,10 +435,11 @@ async fn test_wal_without_enabling() {
 
     // Verify vector was inserted before updating
     let initial_vec = store.get_vector("test_collection", "test_vec").unwrap();
-    // Euclidean metric doesn't normalize, so values should match
+    // Euclidean metric doesn't normalize, so values should match exactly
     assert_eq!(
         initial_vec.data[0], 1.0,
-        "Initial vector should have data[0] = 1.0"
+        "Initial vector should have data[0] = 1.0, got {}",
+        initial_vec.data[0]
     );
 
     let update_result = store.update("test_collection", vector.clone());
