@@ -84,8 +84,8 @@ type CollectionInfo struct {
 
 // CollectionsListResponse represents the response from listing collections
 type CollectionsListResponse struct {
-	Collections     []CollectionInfo `json:"collections"`
-	TotalCollections int             `json:"total_collections"`
+	Collections      []CollectionInfo `json:"collections"`
+	TotalCollections int              `json:"total_collections"`
 }
 
 // SearchResponse represents the response from search operations
@@ -108,13 +108,13 @@ type GraphNode struct {
 
 // GraphEdge represents a graph edge
 type GraphEdge struct {
-	ID              string                 `json:"id"`
-	Source          string                 `json:"source"`
-	Target          string                 `json:"target"`
-	RelationshipType string                `json:"relationship_type"`
-	Weight          float32                `json:"weight"`
-	Metadata        map[string]interface{} `json:"metadata"`
-	CreatedAt       string                 `json:"created_at"`
+	ID               string                 `json:"id"`
+	Source           string                 `json:"source"`
+	Target           string                 `json:"target"`
+	RelationshipType string                 `json:"relationship_type"`
+	Weight           float32                `json:"weight"`
+	Metadata         map[string]interface{} `json:"metadata"`
+	CreatedAt        string                 `json:"created_at"`
 }
 
 // NeighborInfo represents neighbor information
@@ -202,8 +202,8 @@ type DiscoverEdgesResponse struct {
 
 // DiscoveryStatusResponse represents the response from getting discovery status
 type DiscoveryStatusResponse struct {
-	TotalNodes        int     `json:"total_nodes"`
-	NodesWithEdges    int     `json:"nodes_with_edges"`
-	TotalEdges        int     `json:"total_edges"`
+	TotalNodes         int     `json:"total_nodes"`
+	NodesWithEdges     int     `json:"nodes_with_edges"`
+	TotalEdges         int     `json:"total_edges"`
 	ProgressPercentage float64 `json:"progress_percentage"`
 }
