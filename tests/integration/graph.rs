@@ -498,10 +498,10 @@ fn test_graph_persistence_missing_file() {
 
 #[test]
 fn test_graph_persistence_corrupted_file() {
-    use tempfile::TempDir;
-
     use std::fs;
     use std::io::Write;
+
+    use tempfile::TempDir;
 
     // Create temporary directory
     let temp_dir = TempDir::new().unwrap();

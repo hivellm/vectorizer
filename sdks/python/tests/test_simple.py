@@ -9,8 +9,8 @@ import unittest
 import sys
 import os
 
-# Adicionar o diretório atual ao path
-sys.path.append(os.path.dirname(__file__))
+# Add parent directory to path to import client module
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Importar módulos do SDK
 from models import Vector, Collection, CollectionInfo, SearchResult

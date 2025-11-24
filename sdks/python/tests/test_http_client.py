@@ -10,7 +10,7 @@ import sys
 import os
 
 # Add current directory to path
-sys.path.append(os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import client and exceptions
 from client import VectorizerClient
