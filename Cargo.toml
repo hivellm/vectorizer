@@ -144,7 +144,7 @@ opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio"
 tracing-opentelemetry = "0.32"
 
 # gRPC support
-tonic = { version = "0.12", features = [] }
+tonic = { version = "0.14", features = [] }
 prost = "0.13"
 prost-types = "0.13"
 
