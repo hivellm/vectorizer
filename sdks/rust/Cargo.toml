@@ -17,6 +17,7 @@ tokio = { version = "1.35", features = ["full"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = { version = "1.0", features = ["backtrace"] }
+tracing = "0.1"
 
 # HTTP client
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
